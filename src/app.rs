@@ -227,6 +227,12 @@ impl App {
     /// Create a new application instance
     pub fn new() -> Result<Self> {
         let storage = Storage::new()?;
+
+        // ── Load protocol encryption keys from keystore ──────────────────
+        let keystore_dir = storage.keystore_dir();
+        crate::protocols::keys::create_default_keystore(&keystore_dir);
+        crate::protocols::keys::load_keystore_from_dir(&keystore_dir);
+
         let protocols = ProtocolRegistry::new();
         let (radio_event_tx, radio_event_rx) = mpsc::channel();
 

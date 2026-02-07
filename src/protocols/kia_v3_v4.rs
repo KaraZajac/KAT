@@ -10,6 +10,7 @@
 //! - V3 and V4 differ only in sync polarity
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
+use super::keys;
 use crate::radio::demodulator::LevelDuration;
 use crate::duration_diff;
 
@@ -128,8 +129,7 @@ impl KiaV3V4Decoder {
 
     /// Get manufacturer key (placeholder - in real use, this would be loaded from config)
     fn get_mf_key() -> u64 {
-        // This is a placeholder - actual key should be loaded from secure storage
-        0x0000000000000000
+        keys::get_keystore().get_kia_mf_key()
     }
 
     /// Process the collected buffer and validate

@@ -10,6 +10,7 @@
 //! - Decode-only (no encoder)
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
+use super::keys;
 use crate::radio::demodulator::LevelDuration;
 use crate::duration_diff;
 
@@ -59,9 +60,9 @@ impl KiaV5Decoder {
         }
     }
 
-    /// Get encryption key (placeholder)
+    /// Get encryption key from global keystore
     fn get_v5_key() -> u64 {
-        0x0000000000000000
+        keys::get_keystore().get_kia_v5_key()
     }
 
     /// Custom mixer decryption
@@ -144,25 +145,33 @@ impl KiaV5Decoder {
     }
 
     /// Manchester state machine
+    /// NOTE: V5 uses OPPOSITE Manchester polarity from V1/V2.
+    /// In protopirate, V1/V2 use: level ? ShortLow : ShortHigh
+    /// But V5 uses: level ? ShortHigh : ShortLow
+    /// To achieve this inversion, we swap the is_high mapping but use V1's
+    /// standard state table, so that only ONE inversion occurs.
     fn manchester_advance(&mut self, is_short: bool, is_high: bool) -> Option<bool> {
+        // Invert polarity: V5 uses opposite Manchester convention from V1/V2
+        let is_high = !is_high;
+        
         let event = match (is_short, is_high) {
-            (true, true) => 0,  // Short High
-            (true, false) => 1, // Short Low
-            (false, true) => 2, // Long High
-            (false, false) => 3, // Long Low
+            (true, false) => 0,  // Short Low
+            (true, true) => 1,   // Short High
+            (false, false) => 2, // Long Low
+            (false, true) => 3,  // Long High
         };
 
         let (new_state, output) = match (self.manchester_state, event) {
-            (ManchesterState::Mid0, 1) | (ManchesterState::Mid1, 1) => 
-                (ManchesterState::Start0, None),
             (ManchesterState::Mid0, 0) | (ManchesterState::Mid1, 0) => 
+                (ManchesterState::Start0, None),
+            (ManchesterState::Mid0, 1) | (ManchesterState::Mid1, 1) => 
                 (ManchesterState::Start1, None),
             
-            (ManchesterState::Start1, 1) => (ManchesterState::Mid1, Some(true)),
-            (ManchesterState::Start1, 3) => (ManchesterState::Start0, Some(true)),
+            (ManchesterState::Start1, 0) => (ManchesterState::Mid1, Some(true)),
+            (ManchesterState::Start1, 2) => (ManchesterState::Start0, Some(true)),
             
-            (ManchesterState::Start0, 0) => (ManchesterState::Mid0, Some(false)),
-            (ManchesterState::Start0, 2) => (ManchesterState::Start1, Some(false)),
+            (ManchesterState::Start0, 1) => (ManchesterState::Mid0, Some(false)),
+            (ManchesterState::Start0, 3) => (ManchesterState::Start1, Some(false)),
             
             _ => (ManchesterState::Mid1, None),
         };

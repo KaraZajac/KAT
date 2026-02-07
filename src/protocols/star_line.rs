@@ -9,6 +9,7 @@
 //! - KeeLoq encryption (requires manufacturer key)
 
 use super::keeloq_common::{keeloq_decrypt, keeloq_encrypt, keeloq_normal_learning, reverse_key};
+use super::keys;
 use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
@@ -48,9 +49,9 @@ impl StarLineDecoder {
         }
     }
 
-    /// Get manufacturer key (placeholder)
+    /// Get manufacturer key from global keystore
     fn get_mf_key() -> u64 {
-        0x0000000000000000
+        keys::get_keystore().get_star_line_mf_key()
     }
 
     fn parse_data(data: u64) -> DecodedSignal {

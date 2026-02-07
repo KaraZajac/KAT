@@ -1,4 +1,4 @@
-//! Storage management for configuration and exports.
+//! Storage management for configuration, exports, and keystores.
 //!
 //! All application data lives under `~/.config/KAT/`:
 //!
@@ -6,6 +6,9 @@
 //! ~/.config/KAT/
 //!   config.ini          — User configuration
 //!   exports/            — Exported .fob / .sub files
+//!   keystore/           — Protocol encryption keys
+//!     keystore.ini      — Key definitions (hex values)
+//!     vag.bin           — VAG AUT64 binary key file (optional)
 //! ```
 //!
 //! Captures are **in-memory only** and are discarded when KAT exits.
@@ -297,9 +300,19 @@ impl Storage {
             );
         }
 
-        // ── 5. Log resolved paths ───────────────────────────────────────
+        // ── 5. Ensure keystore directory exists ────────────────────────
+        let keystore_dir = config_dir.join("keystore");
+        if !keystore_dir.exists() {
+            fs::create_dir_all(&keystore_dir).with_context(|| {
+                format!("Failed to create keystore dir: {:?}", keystore_dir)
+            })?;
+            tracing::info!("Created keystore directory: {:?}", keystore_dir);
+        }
+
+        // ── 6. Log resolved paths ───────────────────────────────────────
         tracing::info!("Config dir: {:?}", config_dir);
         tracing::info!("Export dir: {:?}", config.export_directory);
+        tracing::info!("Keystore dir: {:?}", keystore_dir);
 
         Ok(Self {
             config_dir,
@@ -327,5 +340,10 @@ impl Storage {
     /// Get the export directory path (from config, default `~/.config/KAT/exports`)
     pub fn export_dir(&self) -> &PathBuf {
         &self.config.export_directory
+    }
+
+    /// Get the keystore directory path (`~/.config/KAT/keystore`)
+    pub fn keystore_dir(&self) -> PathBuf {
+        self.config_dir.join("keystore")
     }
 }

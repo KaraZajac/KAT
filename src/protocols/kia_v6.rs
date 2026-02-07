@@ -10,6 +10,7 @@
 //! - Decode-only (no encoder)
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
+use super::keys;
 use crate::radio::demodulator::LevelDuration;
 use crate::duration_diff;
 
@@ -118,14 +119,14 @@ impl KiaV6Decoder {
         }
     }
 
-    /// Get keystore A (placeholder)
+    /// Get keystore A from global keystore
     fn get_keystore_a() -> u64 {
-        0x0000000000000000
+        keys::get_keystore().get_kia_v6_keystore_a()
     }
 
-    /// Get keystore B (placeholder)
+    /// Get keystore B from global keystore
     fn get_keystore_b() -> u64 {
-        0x0000000000000000
+        keys::get_keystore().get_kia_v6_keystore_b()
     }
 
     /// CRC8 calculation
@@ -347,12 +348,17 @@ impl KiaV6Decoder {
     }
 
     /// Manchester state machine
+    /// NOTE: Due to opposite level conventions between Flipper and KAT,
+    /// KAT level=true corresponds to Flipper level=false (and vice versa).
+    /// For short pulses: protopirate uses (level & 0x7F) << 1, which gives 0/2.
+    /// For long pulses: protopirate uses level ? 6 : 4.
+    /// With the inverted convention, KAT's is_high=true maps to Flipper level=false.
     fn manchester_advance(&mut self, is_short: bool, is_high: bool) -> Option<bool> {
         let event = match (is_short, is_high) {
-            (true, true) => 0,  // Short High
-            (true, false) => 2, // Short Low
-            (false, true) => 6, // Long High
-            (false, false) => 4, // Long Low
+            (true, true) => 0,  // Short High (KAT) → Flipper level=false → 0
+            (true, false) => 2, // Short Low (KAT) → Flipper level=true → 2
+            (false, true) => 4, // Long High (KAT) → Flipper level=false → 4
+            (false, false) => 6, // Long Low (KAT) → Flipper level=true → 6
         };
 
         let (new_state, output) = match (self.manchester_state, event) {

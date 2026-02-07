@@ -1,0 +1,56 @@
+[package]
+name = "kat"
+version = "1.0.0"
+edition = "2021"
+description = "Keyfob Analysis Toolkit - HackRF signal capture, decode, and transmit tool"
+authors = ["KAT Team"]
+license = "BSD-3-Clause"
+
+[dependencies]
+# TUI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# HackRF library
+libhackrf = "0.1"
+
+# Signal processing
+num-complex = "0.4"
+
+# Async runtime
+tokio = { version = "1.43", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# INI config
+configparser = "3"
+
+# Config directory
+dirs = "5.0"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "2.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Bit manipulation
+bitvec = "1.0"
+
+# TTY detection
+atty = "0.2"
+
+[build-dependencies]
+pkg-config = "0.3"
+
+[profile.release]
+opt-level = 3
+lto = true

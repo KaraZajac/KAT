@@ -15,7 +15,7 @@ use crate::duration_diff;
 
 const TE_SHORT: u32 = 800;
 const TE_LONG: u32 = 1600;
-const TE_DELTA: u32 = 200;
+const TE_DELTA: u32 = 300;
 #[allow(dead_code)]
 const MIN_COUNT_BIT: usize = 64;
 
@@ -115,6 +115,19 @@ impl SubaruDecoder {
         ((hi as u16) << 8) | (lo as u16)
     }
 
+    /// Add a level+duration to the signal, merging with the previous entry
+    /// if it has the same level. This prevents consecutive same-level pulses
+    /// which would silently merge during HackRF transmission.
+    fn add_level(signal: &mut Vec<LevelDuration>, level: bool, duration: u32) {
+        if let Some(last) = signal.last_mut() {
+            if last.level == level {
+                *last = LevelDuration::new(level, last.duration_us + duration);
+                return;
+            }
+        }
+        signal.push(LevelDuration::new(level, duration));
+    }
+
     /// Process the decoded data
     fn process_data(&self) -> Option<DecodedSignal> {
         if self.bit_count < 64 {
@@ -160,7 +173,7 @@ impl ProtocolDecoder for SubaruDecoder {
     }
 
     fn supported_frequencies(&self) -> &[u32] {
-        &[433_920_000]
+        &[433_920_000, 315_000_000] // 433.92 MHz (EU/AU) and 315 MHz (US/JP)
     }
 
     fn reset(&mut self) {
@@ -284,38 +297,48 @@ impl ProtocolDecoder for SubaruDecoder {
         let key = decoded.data;
         let mut signal = Vec::with_capacity(512);
 
-        // Generate 3 bursts
+        // Generate 3 bursts.
+        //
+        // IMPORTANT: Uses add_level() to merge adjacent same-level pulses.
+        // The HackRF transmitter generates IQ samples sequentially from the
+        // LevelDuration list, so consecutive same-level pairs silently merge
+        // and corrupt timing. For example, the last preamble LOW (1600µs) +
+        // gap LOW (2800µs) would become a single 4400µs LOW without merging.
         for burst in 0..3 {
             if burst > 0 {
-                signal.push(LevelDuration::new(false, 25000));
+                // Inter-burst silence
+                Self::add_level(&mut signal, false, 25000);
             }
 
-            // Preamble: 80 long HIGH/LOW pairs
-            for _ in 0..80 {
-                signal.push(LevelDuration::new(true, TE_LONG));
-                signal.push(LevelDuration::new(false, TE_LONG));
+            // Preamble: 79 full pairs + 80th HIGH only.
+            // The gap LOW replaces the 80th preamble LOW.
+            for i in 0..80 {
+                Self::add_level(&mut signal, true, TE_LONG);
+                if i < 79 {
+                    Self::add_level(&mut signal, false, TE_LONG);
+                }
             }
 
-            // Gap
-            signal.push(LevelDuration::new(false, GAP_US));
+            // Gap (replaces the 80th preamble LOW)
+            Self::add_level(&mut signal, false, GAP_US);
 
             // Sync
-            signal.push(LevelDuration::new(true, SYNC_US));
-            signal.push(LevelDuration::new(false, TE_LONG));
+            Self::add_level(&mut signal, true, SYNC_US);
+            Self::add_level(&mut signal, false, TE_LONG);
 
             // Data: 64 bits (MSB first)
             // Short HIGH = 1, Long HIGH = 0
             for bit in (0..64).rev() {
                 if (key >> bit) & 1 == 1 {
-                    signal.push(LevelDuration::new(true, TE_SHORT));
+                    Self::add_level(&mut signal, true, TE_SHORT);
                 } else {
-                    signal.push(LevelDuration::new(true, TE_LONG));
+                    Self::add_level(&mut signal, true, TE_LONG);
                 }
-                signal.push(LevelDuration::new(false, TE_SHORT));
+                Self::add_level(&mut signal, false, TE_SHORT);
             }
 
-            // End marker
-            signal.push(LevelDuration::new(false, TE_LONG * 2));
+            // End-of-burst gap (extends the last data LOW)
+            Self::add_level(&mut signal, false, TE_LONG * 2);
         }
 
         Some(signal)

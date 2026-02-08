@@ -43,7 +43,8 @@ pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
             "IMPORT",
             Style::default().fg(Color::Yellow),
         ),
-        InputMode::FobMetaYear
+        InputMode::ExportFilename
+        | InputMode::FobMetaYear
         | InputMode::FobMetaMake
         | InputMode::FobMetaModel
         | InputMode::FobMetaRegion

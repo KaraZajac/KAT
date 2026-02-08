@@ -22,7 +22,7 @@ use std::io::{self, Write};
 use std::panic;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use app::{App, InputMode, SignalAction, SettingsField};
+use app::{App, InputMode, SignalAction, SettingsField, ExportFormat};
 use ui::draw_ui;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -254,6 +254,43 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             }
                             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
                                 app.skip_fob_import();
+                                app.input_mode = InputMode::Normal;
+                            }
+                            _ => {}
+                        },
+
+                        // Export: filename input
+                        InputMode::ExportFilename => match key.code {
+                            KeyCode::Enter => {
+                                if app.export_filename.is_empty() {
+                                    app.last_error = Some("Filename cannot be empty".to_string());
+                                } else {
+                                    match app.export_format {
+                                        Some(ExportFormat::Fob) => {
+                                            app.input_mode = InputMode::FobMetaYear;
+                                        }
+                                        Some(ExportFormat::Flipper) => {
+                                            app.complete_flipper_export()?;
+                                            app.input_mode = InputMode::Normal;
+                                        }
+                                        None => {
+                                            app.input_mode = InputMode::Normal;
+                                        }
+                                    }
+                                }
+                            }
+                            KeyCode::Char(c) => {
+                                // Allow filesystem-safe characters
+                                if c.is_alphanumeric() || c == '_' || c == '-' || c == '.' {
+                                    app.export_filename.push(c);
+                                }
+                            }
+                            KeyCode::Backspace => {
+                                app.export_filename.pop();
+                            }
+                            KeyCode::Esc => {
+                                app.export_capture_id = None;
+                                app.export_format = None;
                                 app.input_mode = InputMode::Normal;
                             }
                             _ => {}

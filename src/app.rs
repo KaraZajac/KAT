@@ -23,6 +23,8 @@ pub enum InputMode {
     SettingsEdit,
     /// Startup prompt: found .fob files, import? (y/n)
     StartupImport,
+    /// Export: editing filename (before format-specific steps)
+    ExportFilename,
     /// Fob export metadata: editing year field
     FobMetaYear,
     /// Fob export metadata: editing make field
@@ -33,6 +35,13 @@ pub enum InputMode {
     FobMetaRegion,
     /// Fob export metadata: editing notes field
     FobMetaNotes,
+}
+
+/// Export format being used
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportFormat {
+    Fob,
+    Flipper,
 }
 
 /// Items available in the signal action menu
@@ -208,9 +217,15 @@ pub struct App {
     /// .fob files found on startup in export_dir
     pub pending_fob_files: Vec<std::path::PathBuf>,
 
-    // -- .fob export metadata state --
-    /// Capture ID being exported (set before entering FobMeta modes)
+    // -- Export state --
+    /// Capture ID being exported
     pub export_capture_id: Option<u32>,
+    /// Export filename input buffer (without extension)
+    pub export_filename: String,
+    /// Which export format is in progress
+    pub export_format: Option<ExportFormat>,
+
+    // -- .fob export metadata state --
     /// Year input buffer
     pub fob_meta_year: String,
     /// Make input buffer
@@ -238,8 +253,12 @@ impl App {
 
         // Try to initialize HackRF
         let hackrf = match HackRfController::new(radio_event_tx.clone()) {
-            Ok(h) => {
+            Ok(mut h) => {
                 tracing::info!("HackRF initialized successfully");
+                // Push config defaults to the controller so they're used on first start_receiving
+                let _ = h.set_lna_gain(storage.config.default_lna_gain);
+                let _ = h.set_vga_gain(storage.config.default_vga_gain);
+                let _ = h.set_amp_enable(storage.config.default_amp);
                 Some(h)
             }
             Err(e) => {
@@ -298,6 +317,8 @@ impl App {
             radio_event_tx,
             pending_fob_files,
             export_capture_id: None,
+            export_filename: String::new(),
+            export_format: None,
             fob_meta_year: String::new(),
             fob_meta_make: String::new(),
             fob_meta_model: String::new(),
@@ -776,12 +797,26 @@ impl App {
         Ok(())
     }
 
-    /// Start .fob export by entering metadata input mode
+    /// Generate a default export filename (without extension) for a capture
+    fn default_export_filename(capture: &Capture) -> String {
+        format!(
+            "{}_{}",
+            capture.protocol_name().replace(' ', "_").to_lowercase(),
+            capture.serial_hex()
+        )
+    }
+
+    /// Start .fob export by entering filename input mode
     pub fn export_fob(&mut self, id: u32) -> Result<()> {
         if !self.captures.iter().any(|c| c.id == id) {
             self.last_error = Some(format!("Capture {} not found", id));
             return Ok(());
         }
+
+        // Pre-fill filename from protocol + serial
+        let default_name = self.captures.iter().find(|c| c.id == id)
+            .map(|c| Self::default_export_filename(c))
+            .unwrap_or_else(|| format!("capture_{}", id));
 
         // Pre-fill make from protocol
         let make = self.captures.iter().find(|c| c.id == id).map(|c| {
@@ -789,12 +824,14 @@ impl App {
         }).unwrap_or_default();
 
         self.export_capture_id = Some(id);
+        self.export_filename = default_name;
+        self.export_format = Some(ExportFormat::Fob);
         self.fob_meta_year = String::new();
         self.fob_meta_make = make;
         self.fob_meta_model = String::new();
         self.fob_meta_region = String::new();
         self.fob_meta_notes = String::new();
-        self.input_mode = InputMode::FobMetaYear;
+        self.input_mode = InputMode::ExportFilename;
         Ok(())
     }
 
@@ -829,11 +866,7 @@ impl App {
             notes: self.fob_meta_notes.clone(),
         };
 
-        let filename = format!(
-            "{}_{}.fob",
-            capture.protocol_name().replace(' ', "_").to_lowercase(),
-            capture.serial_hex()
-        );
+        let filename = format!("{}.fob", self.export_filename);
         let path = export_dir.join(&filename);
 
         crate::export::fob::export_fob(
@@ -844,6 +877,7 @@ impl App {
         )?;
 
         self.export_capture_id = None;
+        self.export_format = None;
         self.status_message = Some(format!("Exported to {}", filename));
         Ok(())
     }
@@ -880,8 +914,34 @@ impl App {
         self.status_message = Some("Starting with no imported signals".to_string());
     }
 
-    /// Export capture as Flipper .sub file
+    /// Start .sub (Flipper) export by entering filename input mode
     pub fn export_flipper(&mut self, id: u32) -> Result<()> {
+        if !self.captures.iter().any(|c| c.id == id) {
+            self.last_error = Some(format!("Capture {} not found", id));
+            return Ok(());
+        }
+
+        let default_name = self.captures.iter().find(|c| c.id == id)
+            .map(|c| Self::default_export_filename(c))
+            .unwrap_or_else(|| format!("capture_{}", id));
+
+        self.export_capture_id = Some(id);
+        self.export_filename = default_name;
+        self.export_format = Some(ExportFormat::Flipper);
+        self.input_mode = InputMode::ExportFilename;
+        Ok(())
+    }
+
+    /// Complete Flipper .sub export (called after filename is confirmed)
+    pub fn complete_flipper_export(&mut self) -> Result<()> {
+        let id = match self.export_capture_id {
+            Some(id) => id,
+            None => {
+                self.last_error = Some("No capture selected for export".to_string());
+                return Ok(());
+            }
+        };
+
         let capture = match self.captures.iter().find(|c| c.id == id) {
             Some(c) => c.clone(),
             None => {
@@ -895,14 +955,12 @@ impl App {
             std::fs::create_dir_all(&export_dir)?;
         }
 
-        let filename = format!(
-            "{}_{}.sub",
-            capture.protocol_name().replace(' ', "_").to_lowercase(),
-            capture.serial_hex()
-        );
+        let filename = format!("{}.sub", self.export_filename);
         let path = export_dir.join(&filename);
 
         crate::export::flipper::export_flipper_sub(&capture, &path)?;
+        self.export_capture_id = None;
+        self.export_format = None;
         self.status_message = Some(format!("Exported to {}", filename));
         Ok(())
     }

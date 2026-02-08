@@ -15,11 +15,12 @@ use crate::duration_diff;
 
 const TE_SHORT: u32 = 250;
 const TE_LONG: u32 = 500;
-const TE_DELTA: u32 = 100;
+const TE_DELTA: u32 = 200; // Wider tolerance for HackRF software demodulation (was 100)
 const MIN_COUNT_BIT: usize = 64;
 const TOTAL_BURSTS: u8 = 6;
 const PREAMBLE_PAIRS: usize = 4;
 const GAP_US: u32 = 3500;
+const GAP_TOLERANCE: u32 = 1500; // Wide gap tolerance for software demodulator
 
 // CRC matrix for Ford V0 — GF(2) matrix multiplication
 // Copied directly from protopirate's ford_v0.c
@@ -552,13 +553,16 @@ impl ProtocolDecoder for FordV0Decoder {
             // ─── Step 3: PreambleCheck — count preamble pairs or transition to gap ───
             DecoderStep::PreambleCheck => {
                 if level {
-                    if duration_diff!(duration, TE_LONG) < TE_DELTA {
-                        // Long HIGH: another preamble pair
+                    let short_diff = duration_diff!(duration, TE_SHORT);
+                    let long_diff = duration_diff!(duration, TE_LONG);
+
+                    if long_diff < TE_DELTA && long_diff <= short_diff {
+                        // Long HIGH (closer to TE_LONG): another preamble pair
                         self.header_count += 1;
                         self.te_last = duration;
                         self.step = DecoderStep::Preamble;
-                    } else if duration_diff!(duration, TE_SHORT) < TE_DELTA {
-                        // Short HIGH: end of preamble, transition to gap
+                    } else if short_diff < TE_DELTA {
+                        // Short HIGH (closer to TE_SHORT): end of preamble, transition to gap
                         self.step = DecoderStep::Gap;
                     } else {
                         self.step = DecoderStep::Reset;
@@ -568,24 +572,33 @@ impl ProtocolDecoder for FordV0Decoder {
 
             // ─── Step 4: Gap — wait for ~3500µs LOW gap ───
             DecoderStep::Gap => {
-                if !level && duration_diff!(duration, GAP_US) < 250 {
+                if !level && duration_diff!(duration, GAP_US) < GAP_TOLERANCE {
                     // Gap detected, start data collection
                     // First bit is implicitly 1 (matches protopirate)
                     self.decode_data = 1;
                     self.bit_count = 1;
                     self.step = DecoderStep::Data;
-                } else if !level && duration > GAP_US + 250 {
+                } else if !level && duration > GAP_US + GAP_TOLERANCE {
                     self.step = DecoderStep::Reset;
                 }
             }
 
             // ─── Step 5: Data — Manchester decode 80 bits ───
             DecoderStep::Data => {
-                // Map level+duration to Manchester event
-                // Flipper convention: level=true (HIGH) → Low event, level=false (LOW) → High event
-                let event = if duration_diff!(duration, TE_SHORT) < TE_DELTA {
+                // Map level+duration to Manchester event using NEAREST-MATCH.
+                // With TE_DELTA=200, SHORT(250) and LONG(500) ranges overlap at 300–450µs.
+                // First-match would always pick SHORT for overlapping durations, causing
+                // bit errors and CRC failure. Nearest-match picks the closer timing.
+                //
+                // Tie-break favors LONG (strict < for short_diff) because asymmetric
+                // demodulation compresses LOWs towards the midpoint (375µs) — these are
+                // actually LONG pulses that got shortened by threshold bias.
+                let short_diff = duration_diff!(duration, TE_SHORT);
+                let long_diff = duration_diff!(duration, TE_LONG);
+
+                let event = if short_diff < TE_DELTA && short_diff < long_diff {
                     if level { 0 } else { 1 }  // ShortLow / ShortHigh
-                } else if duration_diff!(duration, TE_LONG) < TE_DELTA {
+                } else if long_diff < TE_DELTA {
                     if level { 2 } else { 3 }  // LongLow / LongHigh
                 } else {
                     self.step = DecoderStep::Reset;

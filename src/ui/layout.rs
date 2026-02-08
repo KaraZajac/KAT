@@ -82,13 +82,14 @@ pub fn draw_ui(frame: &mut Frame, app: &App) {
 
     if matches!(
         app.input_mode,
-        InputMode::FobMetaYear
+        InputMode::ExportFilename
+            | InputMode::FobMetaYear
             | InputMode::FobMetaMake
             | InputMode::FobMetaModel
             | InputMode::FobMetaRegion
             | InputMode::FobMetaNotes
     ) {
-        render_fob_metadata_form(frame, app);
+        render_export_form(frame, app);
     }
 }
 
@@ -146,6 +147,13 @@ fn render_help_bar(frame: &mut Frame, area: Rect, app: &App) {
         InputMode::SettingsSelect => "Left/Right: Select | Tab: Cycle | Enter: Edit | Esc: Back",
         InputMode::SettingsEdit => "Up/Down: Change Value | Enter: Apply | Esc: Cancel",
         InputMode::StartupImport => "y: Import | n: Skip",
+        InputMode::ExportFilename => {
+            match app.export_format {
+                Some(crate::app::ExportFormat::Fob) => "Enter: Next Field | Esc: Cancel Export",
+                Some(crate::app::ExportFormat::Flipper) => "Enter: Save & Export | Esc: Cancel Export",
+                None => "Enter: Confirm | Esc: Cancel",
+            }
+        }
         InputMode::FobMetaYear
         | InputMode::FobMetaMake
         | InputMode::FobMetaModel
@@ -204,10 +212,17 @@ fn render_startup_import_prompt(frame: &mut Frame, app: &App) {
     frame.render_widget(paragraph, popup);
 }
 
-/// Render the .fob export metadata form overlay with signal summary
-fn render_fob_metadata_form(frame: &mut Frame, app: &App) {
+/// Render the export form overlay (filename + optional .fob metadata)
+fn render_export_form(frame: &mut Frame, app: &App) {
+    use crate::app::ExportFormat;
+
+    let is_fob = app.export_format == Some(ExportFormat::Fob);
+    let ext = if is_fob { ".fob" } else { ".sub" };
+
     let area = frame.area();
-    let popup = centered_rect(62, 19, area);
+    // Taller popup for .fob (filename + 5 metadata fields), shorter for .sub (filename only)
+    let popup_height = if is_fob { 21 } else { 11 };
+    let popup = centered_rect(62, popup_height, area);
 
     frame.render_widget(Clear, popup);
 
@@ -226,14 +241,21 @@ fn render_fob_metadata_form(frame: &mut Frame, app: &App) {
             .add_modifier(Modifier::RAPID_BLINK),
     );
 
-    // Determine which field is active
-    let field_modes = [
-        InputMode::FobMetaYear,
-        InputMode::FobMetaMake,
-        InputMode::FobMetaModel,
-        InputMode::FobMetaRegion,
-        InputMode::FobMetaNotes,
-    ];
+    // Build the ordered list of field modes for this export type
+    // Filename is always first; .fob adds metadata fields after
+    let field_modes: Vec<InputMode> = if is_fob {
+        vec![
+            InputMode::ExportFilename,
+            InputMode::FobMetaYear,
+            InputMode::FobMetaMake,
+            InputMode::FobMetaModel,
+            InputMode::FobMetaRegion,
+            InputMode::FobMetaNotes,
+        ]
+    } else {
+        vec![InputMode::ExportFilename]
+    };
+
     let current_idx = field_modes
         .iter()
         .position(|m| *m == app.input_mode)
@@ -292,38 +314,52 @@ fn render_fob_metadata_form(frame: &mut Frame, app: &App) {
         idx: usize,
     }
 
-    let fields = [
+    // Filename field (always present)
+    let filename_display = format!("{}{}", app.export_filename, ext);
+    let mut fields: Vec<FormField> = vec![
         FormField {
-            label: "  Year:    ",
-            value: &app.fob_meta_year,
-            placeholder: "(e.g. 2024)",
+            label: "  File:    ",
+            value: &filename_display,
+            placeholder: "(enter filename)",
             idx: 0,
         },
-        FormField {
-            label: "  Make:    ",
-            value: &app.fob_meta_make,
-            placeholder: "(auto-detected from protocol)",
-            idx: 1,
-        },
-        FormField {
-            label: "  Model:   ",
-            value: &app.fob_meta_model,
-            placeholder: "(e.g. Sportage, F-150)",
-            idx: 2,
-        },
-        FormField {
-            label: "  Region:  ",
-            value: &app.fob_meta_region,
-            placeholder: "(e.g. NA, EU, APAC, MEA)",
-            idx: 3,
-        },
-        FormField {
-            label: "  Notes:   ",
-            value: &app.fob_meta_notes,
-            placeholder: "(optional — color, trim, VIN, etc.)",
-            idx: 4,
-        },
     ];
+
+    // .fob metadata fields
+    if is_fob {
+        fields.extend([
+            FormField {
+                label: "  Year:    ",
+                value: &app.fob_meta_year,
+                placeholder: "(e.g. 2024)",
+                idx: 1,
+            },
+            FormField {
+                label: "  Make:    ",
+                value: &app.fob_meta_make,
+                placeholder: "(auto-detected from protocol)",
+                idx: 2,
+            },
+            FormField {
+                label: "  Model:   ",
+                value: &app.fob_meta_model,
+                placeholder: "(e.g. Sportage, F-150)",
+                idx: 3,
+            },
+            FormField {
+                label: "  Region:  ",
+                value: &app.fob_meta_region,
+                placeholder: "(e.g. NA, EU, APAC, MEA)",
+                idx: 4,
+            },
+            FormField {
+                label: "  Notes:   ",
+                value: &app.fob_meta_notes,
+                placeholder: "(optional — color, trim, VIN, etc.)",
+                idx: 5,
+            },
+        ]);
+    }
 
     for field in &fields {
         let label_s = style_for(field.idx);
@@ -377,8 +413,14 @@ fn render_fob_metadata_form(frame: &mut Frame, app: &App) {
         Span::styled(hint, dim_style),
     ]));
 
+    let title = if is_fob {
+        " Export .fob — Filename & Vehicle Details "
+    } else {
+        " Export .sub (Flipper Zero) "
+    };
+
     let block = Block::default()
-        .title(" Export .fob — Vehicle Details ")
+        .title(title)
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Green));
 

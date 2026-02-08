@@ -21,6 +21,24 @@ use super::demodulator::LevelDuration;
 /// Sample rate for HackRF (2 MHz is good for keyfob signals)
 const SAMPLE_RATE: u32 = 2_000_000;
 
+/// Shared gain/amp settings that can be updated while receiving
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct GainSettings {
+    lna_gain: u32,
+    vga_gain: u32,
+    amp_enabled: bool,
+}
+
+impl Default for GainSettings {
+    fn default() -> Self {
+        Self {
+            lna_gain: 24,
+            vga_gain: 20,
+            amp_enabled: false,
+        }
+    }
+}
+
 /// HackRF controller for receiving and transmitting signals
 pub struct HackRfController {
     /// Event sender for notifying the app
@@ -35,6 +53,8 @@ pub struct HackRfController {
     demodulator: Arc<Mutex<Demodulator>>,
     /// Whether HackRF is available
     hackrf_available: bool,
+    /// Shared gain settings (read by receiver thread)
+    gain_settings: Arc<Mutex<GainSettings>>,
 }
 
 impl HackRfController {
@@ -58,6 +78,7 @@ impl HackRfController {
             frequency: Arc::new(Mutex::new(433_920_000)),
             demodulator: Arc::new(Mutex::new(demodulator)),
             hackrf_available,
+            gain_settings: Arc::new(Mutex::new(GainSettings::default())),
         })
     }
 
@@ -81,11 +102,12 @@ impl HackRfController {
         let freq = self.frequency.clone();
         let demodulator = self.demodulator.clone();
         let hackrf_available = self.hackrf_available;
+        let gain_settings = self.gain_settings.clone();
 
         self.rx_thread = Some(thread::spawn(move || {
             if hackrf_available {
                 if let Err(e) =
-                    run_receiver_hackrf(receiving.clone(), event_tx.clone(), freq, demodulator)
+                    run_receiver_hackrf(receiving.clone(), event_tx.clone(), freq, demodulator, gain_settings)
                 {
                     let _ = event_tx.send(RadioEvent::Error(format!("Receiver error: {}", e)));
                 }
@@ -150,22 +172,27 @@ impl HackRfController {
     /// Set LNA gain (0-40 dB, 8 dB steps)
     pub fn set_lna_gain(&mut self, gain: u32) -> Result<()> {
         tracing::info!("Set LNA gain to {} dB", gain);
-        // Note: gain changes take effect on next start_receiving
-        // For now, just log - actual application happens in run_receiver_hackrf
+        if let Ok(mut settings) = self.gain_settings.lock() {
+            settings.lna_gain = gain;
+        }
         Ok(())
     }
 
     /// Set VGA gain (0-62 dB, 2 dB steps)
     pub fn set_vga_gain(&mut self, gain: u32) -> Result<()> {
         tracing::info!("Set VGA gain to {} dB", gain);
-        // Note: gain changes take effect on next start_receiving
+        if let Ok(mut settings) = self.gain_settings.lock() {
+            settings.vga_gain = gain;
+        }
         Ok(())
     }
 
     /// Enable/disable the RF amplifier
     pub fn set_amp_enable(&mut self, enabled: bool) -> Result<()> {
         tracing::info!("Set amp enable to {}", enabled);
-        // Note: amp changes take effect on next start_receiving
+        if let Ok(mut settings) = self.gain_settings.lock() {
+            settings.amp_enabled = enabled;
+        }
         Ok(())
     }
 }
@@ -273,6 +300,7 @@ fn run_receiver_hackrf(
     event_tx: Sender<RadioEvent>,
     frequency: Arc<Mutex<u32>>,
     demodulator: Arc<Mutex<Demodulator>>,
+    gain_settings: Arc<Mutex<GainSettings>>,
 ) -> Result<()> {
     use anyhow::Context;
 
@@ -283,7 +311,11 @@ fn run_receiver_hackrf(
         .context("Failed to open HackRF device")?;
 
     let freq = *frequency.lock().unwrap();
-    tracing::info!("Configuring HackRF: freq={} Hz, sample_rate={} Hz", freq, SAMPLE_RATE);
+    let initial_gains = *gain_settings.lock().unwrap();
+    tracing::info!(
+        "Configuring HackRF: freq={} Hz, sample_rate={} Hz, LNA={} dB, VGA={} dB, AMP={}",
+        freq, SAMPLE_RATE, initial_gains.lna_gain, initial_gains.vga_gain, initial_gains.amp_enabled
+    );
 
     // Configure HackRF
     hackrf.set_sample_rate(SAMPLE_RATE)
@@ -292,13 +324,13 @@ fn run_receiver_hackrf(
     hackrf.set_freq(freq as u64)
         .context("Failed to set frequency")?;
     
-    hackrf.set_lna_gain(32)
+    hackrf.set_lna_gain(initial_gains.lna_gain)
         .context("Failed to set LNA gain")?;
     
-    hackrf.set_rxvga_gain(20)
+    hackrf.set_rxvga_gain(initial_gains.vga_gain)
         .context("Failed to set RXVGA gain")?;
     
-    hackrf.set_amp_enable(true)
+    hackrf.set_amp_enable(initial_gains.amp_enabled)
         .context("Failed to enable amp")?;
 
     tracing::info!("HackRF configured, starting RX...");
@@ -316,9 +348,40 @@ fn run_receiver_hackrf(
     hackrf.start_rx(rx_callback, state)
         .context("Failed to start RX")?;
 
-    // Wait until receiving is stopped
+    // Track applied settings so we can detect changes
+    let mut applied = initial_gains;
+
+    // Wait until receiving is stopped, applying gain changes live
     while receiving.load(Ordering::SeqCst) {
         std::thread::sleep(std::time::Duration::from_millis(100));
+
+        // Check for gain/amp setting changes and apply them live
+        if let Ok(current) = gain_settings.lock() {
+            if current.lna_gain != applied.lna_gain {
+                if let Err(e) = hackrf.set_lna_gain(current.lna_gain) {
+                    tracing::warn!("Failed to set LNA gain to {}: {:?}", current.lna_gain, e);
+                } else {
+                    tracing::info!("Applied LNA gain: {} dB", current.lna_gain);
+                    applied.lna_gain = current.lna_gain;
+                }
+            }
+            if current.vga_gain != applied.vga_gain {
+                if let Err(e) = hackrf.set_rxvga_gain(current.vga_gain) {
+                    tracing::warn!("Failed to set VGA gain to {}: {:?}", current.vga_gain, e);
+                } else {
+                    tracing::info!("Applied VGA gain: {} dB", current.vga_gain);
+                    applied.vga_gain = current.vga_gain;
+                }
+            }
+            if current.amp_enabled != applied.amp_enabled {
+                if let Err(e) = hackrf.set_amp_enable(current.amp_enabled) {
+                    tracing::warn!("Failed to set amp to {}: {:?}", current.amp_enabled, e);
+                } else {
+                    tracing::info!("Applied amp: {}", if current.amp_enabled { "ON" } else { "OFF" });
+                    applied.amp_enabled = current.amp_enabled;
+                }
+            }
+        }
     }
 
     // Stop receiving

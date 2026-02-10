@@ -7,7 +7,7 @@ A terminal-based RF signal analysis tool for capturing, decoding, and retransmit
 ## Features
 
 - **Real-time capture** — receive and demodulate AM/OOK keyfob signals at configurable frequencies
-- **Multi-protocol decoding** — 14 protocol decoders covering Kia, Ford, Fiat, Subaru, Suzuki, VAG (VW/Audi/Seat/Skoda), PSA, Scher-Khan, and Star Line
+- **Multi-protocol decoding** — 14 protocol decoders covering Kia, Ford, Fiat, Subaru, Suzuki, VAG (VW/Audi/Seat/Skoda), PSA, Scher-Khan, and Star Line with adaptive demodulation for real-world signal conditions
 - **Rich signal detail** — modulation type, encryption method, serial, counter, key data, CRC, frequency, and raw level/duration pairs
 - **Signal retransmission** — transmit Lock, Unlock, Trunk, and Panic commands from decoded captures
 - **Export formats** — `.fob` (rich JSON with vehicle metadata, signal info, and capture data) and `.sub` (Flipper Zero compatible)
@@ -52,7 +52,7 @@ sudo pacman -S hackrf
 ## Building
 
 ```bash
-git clone <repo-url> && cd prometheus
+git clone <repo-url> && cd KAT
 cargo build --release
 ```
 
@@ -183,8 +183,8 @@ export_directory = ~/.config/kat/exports   # Where .fob/.sub files are saved
 | Kia V3/V4 | PWM | KeeLoq | 433.92 MHz |
 | Kia V5 | PWM | Custom Mixer | 433.92 MHz |
 | Kia V6 | PWM | AES-128 | 433.92 MHz |
-| Ford V0 | PWM | Fixed Code | 433.92 MHz |
-| Subaru | PWM | Rolling Code | 433.92 MHz |
+| Ford V0 | Manchester | Fixed Code | 315 / 433.92 MHz |
+| Subaru | PWM | Rolling Code | 315 / 433.92 MHz |
 | Suzuki | Manchester | Rolling Code | 433.92 MHz |
 | Fiat V0 | Diff. Manchester | Rolling Code | 433.92 MHz |
 | VAG (VW/Audi/Seat/Skoda) | Manchester | AUT64 / TEA | 433.92 / 434.42 MHz |
@@ -197,6 +197,15 @@ export_directory = ~/.config/kat/exports   # Where .fob/.sub files are saved
 - **KeeLoq** — full encrypt/decrypt with normal, secure, FAAC, and magic serial/XOR learning key derivation
 - **AUT64** — 12-round block cipher for VAG type 1/3/4 signals
 - **Key Store** — global thread-safe key management for manufacturer keys (KIA, VAG)
+
+### Demodulator
+
+The AM/OOK demodulator uses an adaptive threshold with transition-based updates for accurate pulse detection across varying signal conditions:
+
+- **Exponential moving average** — magnitude smoothing for stable signal tracking
+- **Schmitt trigger hysteresis** — prevents noise-induced chattering at threshold crossings
+- **Fast threshold convergence** — α=0.3 transition-based updates for rapid adaptation after silence periods
+- **Debounce filtering** — 40µs minimum pulse width to reject noise spikes
 
 ## Project Structure
 

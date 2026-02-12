@@ -34,6 +34,9 @@ pub struct FobSignalInfo {
     pub frequency: u32,
     pub frequency_mhz: String,
     pub modulation: String,
+    /// RF carrier modulation: AM, FM, or AM/FM (from ProtoPirate). KAT receives AM only.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub rf_modulation: Option<String>,
     pub encryption: String,
     pub data_bits: usize,
     pub data_hex: String,
@@ -140,6 +143,10 @@ pub fn export_fob(
             frequency: capture.frequency,
             frequency_mhz: capture.frequency_mhz(),
             modulation: capture.modulation().to_string(),
+            rf_modulation: match capture.rf_modulation() {
+                crate::capture::RfModulation::Unknown => None,
+                r => Some(r.to_string()),
+            },
             encryption: capture.encryption_type().to_string(),
             data_bits: capture.data_count_bit,
             data_hex: capture.data_hex(),

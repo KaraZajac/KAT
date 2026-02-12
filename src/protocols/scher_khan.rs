@@ -1,14 +1,14 @@
-//! Scher-Khan protocol decoder
+//! Scher-Khan protocol decoder (decode-only)
 //!
-//! Ported from protopirate's scher_khan.c
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/scher_khan.c`.
+//! Decode logic (PWM preamble/sync, short=0/long=1, variable bit count) matches reference.
+//! No encoder in protopirate.
 //!
 //! Protocol characteristics:
-//! - PWM encoding: 750/1100µs timing
-//! - Variable bit count (35, 51, 57, 63, 64, 81, 82)
-//! - Decode-only (no encoder)
+//! - PWM encoding: 750µs = 0, 1100µs = 1; preamble uses 2× short then alternating
+//! - Variable bit count (35, 51, 57, 63, 64, 81, 82); only 51-bit format parsed for serial/button/counter
 //!
-//! References:
-//! - https://phreakerclub.com/72
+//! References: https://phreakerclub.com/72
 
 use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
@@ -19,7 +19,7 @@ const TE_LONG: u32 = 1100;
 const TE_DELTA: u32 = 160;
 const MIN_COUNT_BIT: usize = 35;
 
-/// Decoder states
+/// Decoder states (matches protopirate's ScherKhanDecoderStep)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
     Reset,
@@ -48,10 +48,11 @@ impl ScherKhanDecoder {
         }
     }
 
+    /// Parse payload by bit count; 51-bit format yields serial/button/counter (matches scher_khan.c)
     fn parse_data(data: u64, bit_count: usize) -> DecodedSignal {
         let (serial, btn, cnt) = match bit_count {
             51 => {
-                // MAGIC CODE, Dynamic
+                // 51-bit "MAGIC CODE" / Dynamic format: serial(28) | button(4) | counter(16) — matches reference
                 let serial =
                     ((data >> 24) & 0xFFFFFF0) as u32 | ((data >> 20) & 0x0F) as u32;
                 let btn = ((data >> 24) & 0x0F) as u8;
@@ -196,6 +197,12 @@ impl ProtocolDecoder for ScherKhanDecoder {
     }
 
     fn encode(&self, _decoded: &DecodedSignal, _button: u8) -> Option<Vec<LevelDuration>> {
-        None
+        None // Scher-Khan decode-only in protopirate
+    }
+}
+
+impl Default for ScherKhanDecoder {
+    fn default() -> Self {
+        Self::new()
     }
 }

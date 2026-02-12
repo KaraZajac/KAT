@@ -1,12 +1,13 @@
 //! Suzuki protocol decoder/encoder
 //!
-//! Ported from protopirate's suzuki.c
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/suzuki.c`.
+//! Decode/encode logic (preamble count 350, gap 2000µs, short=0/long=1, field layout) matches reference.
 //!
 //! Protocol characteristics:
-//! - PWM encoding: 250/500µs timing
-//! - 64 bits total
-//! - 350 preamble pairs
-//! - 2000µs gap between transmissions
+//! - PWM encoding: 250µs HIGH = 0, 500µs HIGH = 1; LOW 250µs after each bit
+//! - 64 bits total; preamble: 300+ short LOW pulses then long HIGH starts data
+//! - 350 preamble pairs (SHORT HIGH / SHORT LOW); 2000µs gap at end
+//! - Field layout: serial = (data_high&0xFFF)<<16 | data_low>>16; btn = (data_low>>12)&0xF; cnt = (data_high<<4)>>16
 
 use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
@@ -20,7 +21,7 @@ const PREAMBLE_COUNT: u16 = 350;
 const GAP_TIME: u32 = 2000;
 const GAP_DELTA: u32 = 399;
 
-/// Decoder states
+/// Decoder states (matches protopirate's SuzukiDecoderStep)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
     Reset,
@@ -53,10 +54,11 @@ impl SuzukiDecoder {
         self.decode_count_bit += 1;
     }
 
+    /// Parse 64-bit data (matches suzuki.c: serial, btn, cnt layout)
     fn parse_data(data: u64) -> DecodedSignal {
         let data_high = (data >> 32) as u32;
         let data_low = data as u32;
-
+        // Reference: instance->generic.serial = ((data_high & 0xFFF) << 16) | (data_low >> 16); etc.
         let serial = ((data_high & 0xFFF) << 16) | (data_low >> 16);
         let btn = ((data_low >> 12) & 0xF) as u8;
         let cnt = ((data_high << 4) >> 16) as u16;
@@ -178,14 +180,12 @@ impl ProtocolDecoder for SuzukiDecoder {
 
         let mut signal = Vec::with_capacity(1024);
 
-        // Preamble: SHORT HIGH / SHORT LOW pairs
+        // Preamble + data + gap (matches subghz_protocol_encoder_suzuki_get_upload in suzuki.c)
         for _ in 0..PREAMBLE_COUNT {
             signal.push(LevelDuration::new(true, TE_SHORT));
             signal.push(LevelDuration::new(false, TE_SHORT));
         }
-
-        // Data: 64 bits, MSB first
-        // SHORT HIGH (~250µs) = 0, LONG HIGH (~500µs) = 1
+        // Data: 64 bits MSB first; SHORT HIGH = 0, LONG HIGH = 1; LOW = 250µs after each
         for bit in (0..64).rev() {
             if (data >> bit) & 1 == 1 {
                 signal.push(LevelDuration::new(true, TE_LONG));
@@ -195,9 +195,14 @@ impl ProtocolDecoder for SuzukiDecoder {
             signal.push(LevelDuration::new(false, TE_SHORT));
         }
 
-        // End gap
         signal.push(LevelDuration::new(false, GAP_TIME));
 
         Some(signal)
+    }
+}
+
+impl Default for SuzukiDecoder {
+    fn default() -> Self {
+        Self::new()
     }
 }

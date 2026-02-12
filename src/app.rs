@@ -243,10 +243,8 @@ impl App {
     pub fn new() -> Result<Self> {
         let storage = Storage::new()?;
 
-        // ── Load protocol encryption keys from keystore ──────────────────
-        let keystore_dir = storage.keystore_dir();
-        crate::protocols::keys::create_default_keystore(&keystore_dir);
-        crate::protocols::keys::load_keystore_from_dir(&keystore_dir);
+        // ── Load protocol encryption keys from embedded keystore ─────────
+        crate::protocols::keys::load_keystore_from_embedded();
 
         let protocols = ProtocolRegistry::new();
         let (radio_event_tx, radio_event_rx) = mpsc::channel();
@@ -705,10 +703,6 @@ impl App {
         while let Ok(event) = self.radio_event_rx.try_recv() {
             match event {
                 RadioEvent::SignalCaptured(mut capture) => {
-                    // Assign ID
-                    capture.id = self.next_capture_id;
-                    self.next_capture_id += 1;
-
                     // Convert stored pairs to the format protocols expect
                     let pairs: Vec<crate::radio::LevelDuration> = capture.raw_pairs
                         .iter()
@@ -731,16 +725,23 @@ impl App {
                         };
                     }
 
-                    // Captures are in-memory only — no auto-save to disk.
-                    // Use Export (.fob / .sub) to persist a signal.
-                    self.captures.push(capture);
-                    
-                    // Auto-select and scroll to new capture
-                    let new_idx = self.captures.len() - 1;
-                    self.selected_capture = Some(new_idx);
-                    self.ensure_selection_visible();
-                    
-                    self.status_message = Some("New signal captured".to_string());
+                    // When research_mode is off, only add successfully decoded signals.
+                    let show = self.storage.config.research_mode || capture.protocol.is_some();
+                    if show {
+                        capture.id = self.next_capture_id;
+                        self.next_capture_id += 1;
+                        // Captures are in-memory only — no auto-save to disk.
+                        // Use Export (.fob / .sub) to persist a signal.
+                        self.captures.push(capture);
+
+                        // Auto-select and scroll to new capture
+                        let new_idx = self.captures.len() - 1;
+                        self.selected_capture = Some(new_idx);
+                        self.ensure_selection_visible();
+
+                        self.status_message = Some("New signal captured".to_string());
+                    }
+                    // When research_mode is off and decode failed, the signal is dropped (not shown).
                 }
                 RadioEvent::Error(e) => {
                     self.last_error = Some(e);

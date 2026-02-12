@@ -1,13 +1,14 @@
-//! Kia V6 protocol decoder
+//! Kia V6 protocol decoder (decode-only)
 //!
-//! Ported from protopirate's kia_v6.c
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/kia_v6.c`.
+//! Decode logic (Manchester level mapping, 3-part 144-bit frame, AES-128, CRC8, keystore XOR) matches reference.
+//! No encoder in protopirate.
 //!
 //! Protocol characteristics:
-//! - Manchester encoding: 200/400µs timing
-//! - 144 bits total (split into 3 parts)
-//! - Long preamble of 600+ pairs
-//! - AES-128 encryption
-//! - Decode-only (no encoder)
+//! - Manchester encoding: 200/400µs (level convention inverted vs Flipper; see manchester_advance)
+//! - 144 bits total: part1 (64) + part2 (64) + part3 (16), each part inverted on store
+//! - Long preamble of 601 pairs; sync bits 1,1,0,1 then data
+//! - AES-128 decryption with key derived from KIA V6 A/B keystores (types 11/12) and XOR masks
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use super::keys;
@@ -65,7 +66,7 @@ const AES_SBOX_INV: [u8; 256] = [
 
 const AES_RCON: [u8; 10] = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
 
-/// Manchester states
+/// Manchester decoder states (event mapping 0/2/4/6 matches protopirate kia_v6 level convention)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum ManchesterState {
     Mid0,
@@ -74,7 +75,7 @@ enum ManchesterState {
     Start1,
 }
 
-/// Decoder states
+/// Decoder states (matches protopirate's KiaV6DecoderStep)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
     Reset,
@@ -119,17 +120,17 @@ impl KiaV6Decoder {
         }
     }
 
-    /// Get keystore A from global keystore
+    /// KIA V6 keystore A from keystore (type 11)
     fn get_keystore_a() -> u64 {
         keys::get_keystore().get_kia_v6_keystore_a()
     }
 
-    /// Get keystore B from global keystore
+    /// KIA V6 keystore B from keystore (type 12)
     fn get_keystore_b() -> u64 {
         keys::get_keystore().get_kia_v6_keystore_b()
     }
 
-    /// CRC8 calculation
+    /// CRC8 for V6 (matches kia_v6.c: init 0xFF, polynomial 0x07, over first 15 bytes)
     fn crc8(data: &[u8], init: u8, polynomial: u8) -> u8 {
         let mut crc = init;
         for &byte in data {
@@ -274,7 +275,7 @@ impl KiaV6Decoder {
         *data = state;
     }
 
-    /// Get AES key from keystores
+    /// AES-128 key from V6 keystores A+B with XOR_MASK_LOW/HIGH (matches kia_v6.c)
     fn get_aes_key() -> [u8; 16] {
         let keystore_a = Self::get_keystore_a();
         let keystore_a_hi = ((keystore_a >> 32) & 0xFFFFFFFF) as u32;
@@ -305,7 +306,7 @@ impl KiaV6Decoder {
         aes_key
     }
 
-    /// Decrypt the stored data
+    /// Decrypt 16-byte block: byte layout matches kia_v6.c; AES-128 then CRC8 check
     fn decrypt(&self) -> Option<(u32, u8, u32, bool)> {
         let mut encrypted_data = [0u8; 16];
 
@@ -380,9 +381,8 @@ impl KiaV6Decoder {
         output
     }
 
-    /// Add initial sync bits
+    /// Add initial sync bits (1,1,0,1 — matches kia_v6.c)
     fn add_sync_bits(&mut self) {
-        // Add 1, 1, 0, 1 as initial bits
         for bit in [true, true, false, true] {
             let carry = self.data_part1_low >> 31;
             self.data_part1_low = (self.data_part1_low << 1) | (bit as u32);
@@ -554,6 +554,12 @@ impl ProtocolDecoder for KiaV6Decoder {
     }
 
     fn encode(&self, _decoded: &DecodedSignal, _button: u8) -> Option<Vec<LevelDuration>> {
-        None
+        None // V6 decode-only in protopirate
+    }
+}
+
+impl Default for KiaV6Decoder {
+    fn default() -> Self {
+        Self::new()
     }
 }

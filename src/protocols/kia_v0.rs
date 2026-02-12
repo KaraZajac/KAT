@@ -1,13 +1,13 @@
-//! Kia V0 protocol decoder
+//! Kia V0 protocol decoder/encoder
 //!
-//! Ported from protopirate's kia_v0.c
-//! 
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/kia_v0.c`.
+//! Decode/encode logic (CRC8, preamble/sync, field layout) matches reference.
+//!
 //! Protocol characteristics:
 //! - PWM encoding: short pulse (250µs) = 0, long pulse (500µs) = 1
-//! - 61 bits total
-//! - Preamble: alternating short pulses
-//! - Sync: long-long pattern
-//! - Data: 59 bits (4-bit prefix + 16-bit counter + 28-bit serial + 4-bit button + 8-bit CRC)
+//! - 61 bits total (1 sync bit + 60 data bits)
+//! - Preamble: alternating short pulses; sync: long-long pattern
+//! - Data: 60 bits (4-bit prefix + 16-bit counter + 28-bit serial + 4-bit button + 8-bit CRC)
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use super::common::{crc8_kia, add_bit};
@@ -19,7 +19,7 @@ const TE_LONG: u32 = 500;
 const TE_DELTA: u32 = 100;
 const MIN_COUNT_BIT: usize = 61;
 
-/// Decoder states
+/// Decoder states (matches protopirate's KiaV0DecoderStep)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
     Reset,
@@ -48,7 +48,7 @@ impl KiaV0Decoder {
         }
     }
 
-    /// Calculate CRC for Kia data packet
+    /// CRC8 for Kia data packet (matches kia_v0.c kia_crc8: polynomial 0x7F, init 0x00)
     fn calculate_crc(data: u64) -> u8 {
         let crc_data = [
             ((data >> 48) & 0xFF) as u8,
@@ -236,13 +236,13 @@ impl ProtocolDecoder for KiaV0Decoder {
                 signal.push(LevelDuration::new(is_high, TE_SHORT));
             }
 
-            // Sync: long-long
+            // Sync: long-long (matches protopirate kia_v0 encode)
             signal.push(LevelDuration::new(true, TE_LONG));
             signal.push(LevelDuration::new(false, TE_LONG));
 
-            // Data: 59 bits (MSB first)
-            for bit_num in 0..59 {
-                let bit_mask = 1u64 << (58 - bit_num);
+            // Data: 60 bits MSB first (bits 59..0)
+            for bit_num in 0..60 {
+                let bit_mask = 1u64 << (59 - bit_num);
                 let bit = (data & bit_mask) != 0;
                 let duration = if bit { TE_LONG } else { TE_SHORT };
 
@@ -255,5 +255,11 @@ impl ProtocolDecoder for KiaV0Decoder {
         }
 
         Some(signal)
+    }
+}
+
+impl Default for KiaV0Decoder {
+    fn default() -> Self {
+        Self::new()
     }
 }

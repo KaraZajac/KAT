@@ -1,12 +1,13 @@
-//! PSA (Peugeot/Citroen) protocol decoder/encoder
+//! PSA (Peugeot/Citroën) protocol decoder/encoder
 //!
-//! Ported from protopirate's psa.c
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/psa.c`.
+//! Decode/encode logic (Manchester, preamble, TEA, XOR, mode 0x23/0x36) matches reference.
 //!
 //! Protocol characteristics:
-//! - Manchester encoding: 125/250µs bit timing, 250/500µs symbol timing
-//! - 128 bits total (key1: 64 bits, key2: 16 bits, validation: 48 bits)
-//! - TEA and XOR encryption schemes
-//! - Two modes: 0x23 and 0x36
+//! - Manchester encoding: 250/500µs symbol (125/250µs sub-symbol for preamble)
+//! - 128 bits total: key1 (64) + validation (16) + key2/rest (48); decode uses key1 + 16-bit validation
+//! - TEA decrypt/encrypt with fixed key schedules; mode 0x23 adds XOR layer
+//! - Two modes: seed 0x23 (TEA + XOR), seed 0xF3/0x36 (TEA, BF2 key schedule)
 
 use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
@@ -35,7 +36,7 @@ const BF1_KEY_SCHEDULE: [u32; 4] = [0x4A434915, 0xD6743C2B, 0x1F29D308, 0xE6B79A
 // Brute-force constants for mode 0x36
 const BF2_KEY_SCHEDULE: [u32; 4] = [0x4039C240, 0xEDA92CAB, 0x4306C02A, 0x02192A04];
 
-/// Manchester decoder states
+/// Manchester decoder states (matches protopirate psa.c Manchester state machine)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum ManchesterState {
     Mid0,
@@ -44,16 +45,12 @@ enum ManchesterState {
     Start1,
 }
 
-/// Decoder states
+/// Decoder states (matches protopirate's PsaDecoderState)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderState {
-    /// Waiting for first edge
     WaitEdge,
-    /// Counting preamble pattern
     CountPattern,
-    /// Decoding Manchester data
     DecodeManchester,
-    /// Found end of data
     End,
 }
 
@@ -94,7 +91,7 @@ impl PsaDecoder {
         }
     }
 
-    /// Manchester advance
+    /// Manchester state machine (matches psa.c event mapping)
     fn manchester_advance(&mut self, is_short: bool, is_high: bool) -> Option<bool> {
         let event = match (is_short, is_high) {
             (true, true) => 0,
@@ -143,7 +140,7 @@ impl PsaDecoder {
         }
     }
 
-    /// TEA decrypt
+    /// TEA decrypt (matches psa.c / standard TEA)
     fn tea_decrypt(v0: &mut u32, v1: &mut u32, key: &[u32; 4]) {
         let mut sum = TEA_DELTA.wrapping_mul(TEA_ROUNDS);
         for _ in 0..TEA_ROUNDS {
@@ -161,7 +158,7 @@ impl PsaDecoder {
         }
     }
 
-    /// TEA encrypt
+    /// TEA encrypt (matches psa.c / standard TEA)
     fn tea_encrypt(v0: &mut u32, v1: &mut u32, key: &[u32; 4]) {
         let mut sum: u32 = 0;
         for _ in 0..TEA_ROUNDS {
@@ -179,7 +176,7 @@ impl PsaDecoder {
         }
     }
 
-    /// XOR decrypt (mode 0x23)
+    /// XOR decrypt for mode 0x23 (matches psa.c)
     fn xor_decrypt(buffer: &mut [u8]) {
         let e6 = buffer[8];
         let e7 = buffer[9];
@@ -198,8 +195,9 @@ impl PsaDecoder {
         buffer[7] = e5 ^ e6 ^ e7;
     }
 
+    /// Decrypt key1 + validation: mode 0x23 (TEA+XOR) or 0x36 (TEA, BF2) — matches psa.c
     fn try_decrypt(&self) -> Option<(u32, u8, u32, u16, u8)> {
-        // Try mode 0x23 first
+        // Try mode 0x23 first (seed byte 0x23)
         let seed_byte = (self.key1_high >> 24) as u8;
 
         if seed_byte >= 0x23 && seed_byte < 0x24 {
@@ -250,8 +248,9 @@ impl PsaDecoder {
         None
     }
 
+    /// Build DecodedSignal from key1 + validation; decrypt yields serial/button/counter (matches psa.c)
     fn parse_data(&self) -> DecodedSignal {
-        // Combine into 128-bit data (store lower 64)
+        // Store key1 as 64-bit data for display/replay
         let data = ((self.key1_high as u64) << 32) | (self.key1_low as u64);
 
         if let Some((serial, btn, counter, _crc, _mode)) = self.try_decrypt() {
@@ -445,20 +444,17 @@ impl ProtocolDecoder for PsaDecoder {
         let key1_low = v1;
         let validation = ((buffer[8] as u16) << 8) | (buffer[9] as u16);
 
-        // Build signal
         let mut signal = Vec::with_capacity(512);
 
-        // Preamble: alternating 125µs pulses
+        // Preamble + sync (matches protopirate psa encode)
         for _ in 0..70 {
             signal.push(LevelDuration::new(true, TE_SHORT_125));
             signal.push(LevelDuration::new(false, TE_SHORT_125));
         }
-
-        // Sync
         signal.push(LevelDuration::new(true, TE_LONG_250));
         signal.push(LevelDuration::new(false, TE_LONG_250));
 
-        // Key1: 64 bits Manchester encoded
+        // Key1: 64 bits Manchester, then validation 16 bits
         let key1 = ((key1_high as u64) << 32) | (key1_low as u64);
         for bit in (0..64).rev() {
             if (key1 >> bit) & 1 == 1 {
@@ -485,5 +481,11 @@ impl ProtocolDecoder for PsaDecoder {
         signal.push(LevelDuration::new(false, TE_END_1000));
 
         Some(signal)
+    }
+}
+
+impl Default for PsaDecoder {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -1,5 +1,10 @@
 //! AM/OOK demodulator for extracting level+duration pairs from raw IQ samples.
 //!
+//! KAT uses **AM (envelope) detection only**; FM/2FSK is not demodulated. Protocols
+//! are tagged with AM/FM/Both (from ProtoPirate) for display and export. FM protocols
+//! may still decode when the received signal is strong enough to produce a usable
+//! envelope; proper FM support would require a separate demodulator path.
+//!
 //! This demodulator converts raw IQ samples into a stream of (level, duration_us) pairs
 //! that can be processed by protocol decoders, similar to how the Flipper Zero SubGHz
 //! system works.

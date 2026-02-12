@@ -29,6 +29,8 @@ pub struct Config {
     pub export_directory: PathBuf,
     /// Maximum captures to keep in memory during a session
     pub max_captures: usize,
+    /// If off, only successfully decoded signals are added to the list. If on, unknown signals are also shown.
+    pub research_mode: bool,
 
     // [radio]
     /// Default frequency in Hz
@@ -54,6 +56,7 @@ impl Config {
         Self {
             export_directory: config_dir.join("exports"),
             max_captures: 100,
+            research_mode: false,
             default_frequency: 433_920_000,
             default_lna_gain: 24,
             default_vga_gain: 20,
@@ -82,6 +85,12 @@ impl Config {
             .flatten()
             .map(|v| v as usize)
             .unwrap_or(defaults.max_captures);
+
+        let research_mode = ini
+            .getbool("general", "research_mode")
+            .ok()
+            .flatten()
+            .unwrap_or(defaults.research_mode);
 
         let default_frequency = ini
             .getuint("radio", "default_frequency")
@@ -123,6 +132,7 @@ impl Config {
         Ok(Self {
             export_directory,
             max_captures,
+            research_mode,
             default_frequency,
             default_lna_gain,
             default_vga_gain,
@@ -154,6 +164,10 @@ export_directory = {export_dir}
 ; signals (.fob / .sub) survive in the exports folder.
 max_captures = {max_captures}
 
+; When off, only successfully decoded signals appear in the list.
+; When on, unknown (unidentified) signals are also shown (research mode).
+research_mode = {research_mode}
+
 [radio]
 ; Default receive frequency in Hz ({freq_mhz:.2} MHz)
 ; Common keyfob frequencies: 315000000, 433920000, 868350000
@@ -179,6 +193,7 @@ include_raw_pairs = {raw_pairs}
             path = path.display(),
             export_dir = export_str,
             max_captures = self.max_captures,
+            research_mode = self.research_mode,
             freq_mhz = freq_mhz,
             frequency = self.default_frequency,
             lna = self.default_lna_gain,
@@ -342,7 +357,8 @@ impl Storage {
         &self.config.export_directory
     }
 
-    /// Get the keystore directory path (`~/.config/KAT/keystore`)
+    /// Get the keystore directory path (`~/.config/KAT/keystore`). Kept for optional file-based override.
+    #[allow(dead_code)]
     pub fn keystore_dir(&self) -> PathBuf {
         self.config_dir.join("keystore")
     }

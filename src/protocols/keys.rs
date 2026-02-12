@@ -1,16 +1,8 @@
 //! Key management module for protocol encryption/decryption
 //!
-//! Ported from protopirate's keys.c
-//!
-//! Manages manufacturer keys used by various protocols:
-//! - KIA V3/V4: kia_mf_key (manufacturer key for KeeLoq)
-//! - KIA V5: kia_v5_key (custom mixer cipher key)
-//! - KIA V6: kia_v6_a_key, kia_v6_b_key (AES-128 XOR mask keys)
-//! - Star Line: star_line_mf_key (manufacturer key for KeeLoq)
-//! - VAG: AUT64 keys loaded from keystore files
-//!
-//! Keys are loaded from `~/.config/KAT/keystore/keystore.ini` at startup.
-//! See [`load_keystore_from_dir`] for the file format.
+//! Aligned with ProtoPirate's keys.c (KIA_KEY1..4, get_kia_mf_key, etc.).
+//! Keys are loaded from the embedded keystore blob in `crate::keystore` at startup,
+//! matching the standard encrypted + VAG raw keystore data.
 
 use super::aut64::{self, Aut64Key, AUT64_KEY_STRUCT_PACKED_SIZE};
 use configparser::ini::Ini;
@@ -25,8 +17,8 @@ const KIA_KEY3: u32 = 12; // kia_v6_b_key
 const KIA_KEY4: u32 = 13; // kia_v5_key
 const STAR_LINE_KEY: u32 = 20; // star_line_mf_key
 
-/// Maximum number of VAG AUT64 keys
-const VAG_KEYS_COUNT: usize = 3;
+/// Maximum number of VAG AUT64 keys (embedded blob has 64 bytes = 4 keys)
+const MAX_VAG_KEYS: usize = 4;
 
 /// Global key store - thread-safe access to loaded keys
 pub struct KeyStore {
@@ -81,22 +73,20 @@ impl KeyStore {
         }
     }
 
-    /// Load VAG AUT64 keys from raw binary data
-    /// The data should contain packed AUT64 key structures (16 bytes each)
+    /// Load VAG AUT64 keys from raw binary data (16 bytes per key; up to MAX_VAG_KEYS)
     pub fn load_vag_keys_from_data(&mut self, data: &[u8]) {
         if self.vag_keys_loaded {
             return;
         }
 
         self.vag_keys.clear();
+        let n = (data.len() / AUT64_KEY_STRUCT_PACKED_SIZE).min(MAX_VAG_KEYS);
 
-        for i in 0..VAG_KEYS_COUNT {
+        for i in 0..n {
             let offset = i * AUT64_KEY_STRUCT_PACKED_SIZE;
             if offset + AUT64_KEY_STRUCT_PACKED_SIZE > data.len() {
-                error!("VAG key data too short for key {}", i);
                 break;
             }
-
             let key = aut64::aut64_unpack(&data[offset..offset + AUT64_KEY_STRUCT_PACKED_SIZE]);
             self.vag_keys.push(key);
         }
@@ -179,7 +169,7 @@ pub fn get_keystore_mut() -> std::sync::RwLockWriteGuard<'static, KeyStore> {
     global_keystore().write().unwrap()
 }
 
-/// Initialize the global keystore with KIA keys
+/// Initialize the global keystore with KIA keys (matches protopirate_keys_load pattern)
 pub fn load_keys(kia_entries: &[(u32, u64)]) {
     let mut store = get_keystore_mut();
     store.load_kia_keys(kia_entries);
@@ -189,6 +179,26 @@ pub fn load_keys(kia_entries: &[(u32, u64)]) {
 pub fn load_vag_keys(path: &str) {
     let mut store = get_keystore_mut();
     store.load_vag_keys_from_file(path);
+}
+
+/// Load the global keystore from the embedded blob (src/keystore/embedded.rs).
+/// Matches ProtoPirate loading from encrypted + VAG keystore; keys are compiled in.
+pub fn load_keystore_from_embedded() {
+    let blob = crate::keystore::embedded_blob();
+    let Some(parsed) = crate::keystore::parse_blob(blob) else {
+        error!("Failed to parse embedded keystore blob");
+        return;
+    };
+    let mut store = get_keystore_mut();
+    store.load_kia_keys(&parsed.entries);
+    if !parsed.vag_bytes.is_empty() {
+        store.load_vag_keys_from_data(&parsed.vag_bytes);
+    }
+    info!(
+        "Keystore loaded from embedded blob ({} entries, {} VAG keys)",
+        parsed.entries.len(),
+        store.vag_keys.len()
+    );
 }
 
 // =============================================================================

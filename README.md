@@ -1,21 +1,23 @@
 # KAT — Keyfob Analysis Toolkit
 
-A terminal-based RF signal analysis tool for capturing, decoding, and retransmitting automotive keyfob signals using HackRF One. Built in Rust with a real-time TUI powered by `ratatui`.
+A terminal-based RF signal analysis tool for capturing, decoding, and retransmitting automotive keyfob signals using HackRF One. Built in Rust with a real-time TUI powered by `ratatui`. Protocol decoders are aligned with the [ProtoPirate](REFERENCES/ProtoPirate/) reference.
 
 ---
 
 ## Features
 
-- **Real-time capture** — receive and demodulate AM/OOK keyfob signals at configurable frequencies
-- **Multi-protocol decoding** — 14 protocol decoders covering Kia, Ford, Fiat, Subaru, Suzuki, VAG (VW/Audi/Seat/Skoda), PSA, Scher-Khan, and Star Line with adaptive demodulation for real-world signal conditions
-- **Rich signal detail** — modulation type, encryption method, serial, counter, key data, CRC, frequency, and raw level/duration pairs
+- **Real-time capture** — receive and demodulate AM/OOK keyfob signals at configurable frequencies (HackRF uses AM envelope detection; FM protocols are tagged for display and may decode when signal is strong)
+- **Multi-protocol decoding** — 14 protocol decoders: Kia V0–V6, Ford V0, Fiat V0, Subaru, Suzuki, VAG (VW/Audi/Seat/Skoda), PSA, Scher-Khan, Star Line; adaptive demodulation for real-world conditions
+- **RF modulation metadata** — each protocol tagged as AM, FM, or both (from ProtoPirate); shown in signal detail and exported in .fob
+- **Rich signal detail** — encoding (PWM/Manchester), RF (AM/FM), encryption, serial, counter, key data, CRC, frequency, and raw level/duration pairs
 - **Signal retransmission** — transmit Lock, Unlock, Trunk, and Panic commands from decoded captures
-- **Export formats** — `.fob` (rich JSON with vehicle metadata, signal info, and capture data) and `.sub` (Flipper Zero compatible)
+- **Export formats** — `.fob` (versioned JSON with vehicle metadata, signal info, optional raw pairs) and `.sub` (Flipper Zero compatible)
 - **Import support** — load `.fob` files with automatic v1/v2 format detection
-- **Persistent storage** — automatic capture saving to `~/.config/kat/captures/`
-- **INI configuration** — human-readable config at `~/.config/kat/config.ini` (auto-created with comments on first run)
+- **Research mode** — config option to show unknown (unidentified) signals in addition to successfully decoded ones
+- **INI configuration** — `~/.config/KAT/config.ini` (auto-created with comments on first run): export path, max captures, research_mode, radio defaults, export format
+- **Embedded keystore** — manufacturer keys (Kia, VAG, etc.) bundled for decoding; optional `~/.config/KAT/keystore/` override
 - **VIM-style command line** — `:freq`, `:lock`, `:unlock`, `:save`, `:load`, `:delete`, and more
-- **Interactive TUI** — captures list with detail panel, signal action menu, radio settings menu, and fob export form
+- **Interactive TUI** — captures list with detail panel (protocol, freq, mod, RF, encryption), signal action menu, radio settings, fob export form
 
 ## Requirements
 
@@ -94,46 +96,53 @@ Press `Enter` on a capture to open the action menu:
 
 ### Fob Export
 
-When exporting to `.fob`, a 6-step metadata form collects:
+When exporting to `.fob`, a metadata form collects filename and optional vehicle info:
 
-1. **Year** — vehicle model year
-2. **Make** — manufacturer (auto-suggested from protocol)
-3. **Model** — vehicle model
-4. **Color** — vehicle color
-5. **Trim** — trim level / package
-6. **Notes** — free-form notes
+- **File** — output filename (extension added by format)
+- **Year** — vehicle model year
+- **Make** — manufacturer (auto-suggested from protocol)
+- **Model** — vehicle model
+- **Region** — region/market
+- **Notes** — free-form notes
 
-The exported `.fob` file is a versioned JSON document (v2.0) containing:
+The exported `.fob` file is a versioned JSON document (v2.0, format `kat-fob`) containing:
 
 ```json
 {
   "version": "2.0",
-  "format": "KAT Fob Signal",
+  "format": "kat-fob",
   "signal": {
     "protocol": "Kia V3/V4",
+    "frequency": 433920000,
+    "frequency_mhz": "433.92MHz",
     "modulation": "PWM",
+    "rf_modulation": "AM/FM",
     "encryption": "KeeLoq",
-    "frequency_mhz": 433.92,
+    "data_bits": 64,
+    "data_hex": "...",
     "serial": "0x1A2B3C",
-    "key": "0xDEADBEEF...",
+    "key": "0x...",
     "button": 1,
+    "button_name": "Lock",
     "counter": 1234,
+    "crc_valid": true,
     "encoder_capable": true
   },
   "vehicle": {
-    "year": "2023",
+    "year": 2023,
     "make": "Kia",
     "model": "Sportage",
-    "color": "White",
-    "trim": "EX",
+    "region": "",
     "notes": ""
   },
   "capture": {
     "timestamp": "2026-02-07T12:00:00Z",
-    "raw_pairs": [[true, 400], [false, 800]]
+    "raw_pairs": [{"level": true, "duration_us": 400}, {"level": false, "duration_us": 800}]
   }
 }
 ```
+
+`rf_modulation` is AM, FM, or AM/FM per protocol (from ProtoPirate). Raw pairs are included when config `include_raw_pairs` is true.
 
 ### VIM-Style Commands
 
@@ -151,61 +160,74 @@ The exported `.fob` file is a versioned JSON document (v2.0) containing:
 
 ## Configuration
 
-On first launch, KAT creates the following directory structure:
+On first launch, KAT creates the config directory and a default config file. Captures are **in-memory only** and are not written to disk unless you export them.
 
 ```
-~/.config/kat/
+~/.config/KAT/
 ├── config.ini      # Application settings (auto-generated with comments)
-├── captures/       # Persistent capture storage
-└── exports/        # Default export directory for .fob / .sub files
+├── exports/        # Default export directory for .fob / .sub files
+└── keystore/      # Optional: override keys (keystore.ini, vag.bin, etc.)
 ```
 
-The `config.ini` file is a commented INI file with the following settings:
+Example `config.ini` (all keys optional; defaults are used if missing):
 
 ```ini
-[radio]
-frequency = 433920000       # Default receive frequency in Hz
-lna_gain = 32               # LNA gain (0-40 dB, step 8)
-vga_gain = 40               # VGA gain (0-62 dB, step 2)
-amp_enable = true           # RF amplifier on/off
+[general]
+export_directory = ~/.config/KAT/exports
+max_captures = 100
+research_mode = false
 
-[storage]
-export_directory = ~/.config/kat/exports   # Where .fob/.sub files are saved
+[radio]
+default_frequency = 433920000
+default_lna_gain = 24
+default_vga_gain = 20
+default_amp = false
+
+[export]
+default_format = fob
+include_raw_pairs = true
 ```
+
+- **research_mode** — when `false` (default), only successfully decoded signals appear in the list; when `true`, unknown (unidentified) signals are also shown.
+- **include_raw_pairs** — when `true`, .fob exports include raw level/duration pairs for replay.
 
 ## Supported Protocols
 
-| Protocol | Encoding | Encryption | Frequency |
-|---|---|---|---|
-| Kia V0 | PWM | Fixed Code | 433.92 MHz |
-| Kia V1 | Manchester | Rolling Code | 433.92 MHz |
-| Kia V2 | PWM | Rolling Code | 433.92 MHz |
-| Kia V3/V4 | PWM | KeeLoq | 433.92 MHz |
-| Kia V5 | PWM | Custom Mixer | 433.92 MHz |
-| Kia V6 | PWM | AES-128 | 433.92 MHz |
-| Ford V0 | Manchester | Fixed Code | 315 / 433.92 MHz |
-| Subaru | PWM | Rolling Code | 315 / 433.92 MHz |
-| Suzuki | Manchester | Rolling Code | 433.92 MHz |
-| Fiat V0 | Diff. Manchester | Rolling Code | 433.92 MHz |
-| VAG (VW/Audi/Seat/Skoda) | Manchester | AUT64 / TEA | 433.92 / 434.42 MHz |
-| Scher-Khan | PWM | Magic Code | 433.92 MHz |
-| Star Line | PWM | KeeLoq | 433.92 MHz |
-| PSA (Peugeot/Citroen) | PWM | Rolling Code | 433.92 MHz |
+Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference. KAT’s receiver is AM/OOK only; FM protocols may still decode when the signal produces a usable envelope.
 
-### Cryptographic Modules
+| Protocol | Encoding | RF | Encryption | Frequency |
+|---|---|---|---|---|
+| Kia V0 | PWM | FM | Fixed Code | 433.92 MHz |
+| Kia V1 | Manchester | AM | Fixed Code | 315 / 433.92 MHz |
+| Kia V2 | Manchester | FM | Fixed Code | 315 / 433.92 MHz |
+| Kia V3/V4 | PWM | AM/FM | KeeLoq | 315 / 433.92 MHz |
+| Kia V5 | Manchester | FM | Fixed Code | 433.92 MHz |
+| Kia V6 | Manchester | FM | Fixed Code | 433.92 MHz |
+| Ford V0 | Manchester | FM | Fixed Code | 433.92 MHz |
+| Fiat V0 | Manchester | FM | Fixed Code | 433.92 MHz |
+| Subaru | PWM | AM | Rolling Code | 433.92 MHz |
+| Suzuki | PWM | AM | Rolling Code | 433.92 MHz |
+| VAG (VW/Audi/Seat/Skoda) | Manchester | AM | AUT64/XTEA | 433.92 / 434.42 MHz |
+| Scher-Khan | PWM | FM | Magic Code | 433.92 MHz |
+| Star Line | PWM | AM | KeeLoq | 433.92 MHz |
+| PSA (Peugeot/Citroën) | Manchester | FM | XTEA/XOR | 433.92 MHz |
 
-- **KeeLoq** — full encrypt/decrypt with normal, secure, FAAC, and magic serial/XOR learning key derivation
-- **AUT64** — 12-round block cipher for VAG type 1/3/4 signals
-- **Key Store** — global thread-safe key management for manufacturer keys (KIA, VAG)
+### Cryptographic modules
+
+- **KeeLoq** — encrypt/decrypt with normal, secure, FAAC, and magic serial/XOR learning key derivation (keeloq_common, keys)
+- **AUT64** — 12-round block cipher for VAG type 1/3/4 (aut64)
+- **Keystore** — embedded manufacturer keys (Kia, VAG, etc.); optional file overrides in `~/.config/KAT/keystore/`
 
 ### Demodulator
 
-The AM/OOK demodulator uses an adaptive threshold with transition-based updates for accurate pulse detection across varying signal conditions:
+The **AM/OOK** demodulator turns IQ samples into level/duration pairs for protocol decoders. FM/2FSK is not demodulated; protocols are tagged AM/FM for display and export.
 
-- **Exponential moving average** — magnitude smoothing for stable signal tracking
-- **Schmitt trigger hysteresis** — prevents noise-induced chattering at threshold crossings
-- **Fast threshold convergence** — α=0.3 transition-based updates for rapid adaptation after silence periods
-- **Debounce filtering** — 40µs minimum pulse width to reject noise spikes
+- **Envelope detection** — magnitude from I/Q for AM
+- **Adaptive threshold** — transition-based updates to handle varying signal levels
+- **Exponential moving average** — magnitude smoothing
+- **Schmitt trigger hysteresis** — reduces chattering at the decision boundary
+- **Debounce** — 40µs minimum pulse width to reject noise spikes
+- **Gap detection** — 20 ms gap treated as end of signal
 
 ## Project Structure
 
@@ -213,42 +235,36 @@ The AM/OOK demodulator uses an adaptive threshold with transition-based updates 
 src/
 ├── main.rs              # Entry point, event loop, key handling
 ├── app.rs               # Application state, radio events, signal actions
-├── capture.rs           # Capture data structure, modulation/encryption helpers
-├── storage.rs           # Config management, capture persistence, INI read/write
+├── capture.rs           # Capture data, encoding/RF modulation, encryption helpers
+├── storage.rs           # Config (INI), export dir, resolve_config_dir, Storage
+├── keystore/
+│   ├── mod.rs           # Keystore trait and access
+│   └── embedded.rs      # Embedded manufacturer keys (Kia, VAG, etc.)
 ├── export/
-│   ├── fob.rs           # .fob JSON export/import (v1 + v2 format support)
-│   └── flipper.rs       # Flipper Zero .sub export
+│   ├── fob.rs           # .fob JSON export/import (v1 + v2, rf_modulation)
+│   └── flipper.rs      # Flipper Zero .sub export
 ├── protocols/
 │   ├── mod.rs           # Protocol registry, decoder trait, duration_diff macro
 │   ├── common.rs        # Shared CRC, bit helpers, button codes
 │   ├── keeloq_common.rs # KeeLoq cipher + learning key algorithms
-│   ├── aut64.rs         # AUT64 block cipher implementation
-│   ├── keys.rs          # Global key store (KIA, VAG key management)
-│   ├── kia_v0.rs        # Kia V0 decoder
-│   ├── kia_v1.rs        # Kia V1 decoder (Manchester)
-│   ├── kia_v2.rs        # Kia V2 decoder
-│   ├── kia_v3_v4.rs     # Kia V3/V4 decoder (KeeLoq)
-│   ├── kia_v5.rs        # Kia V5 decoder (mixer cipher)
-│   ├── kia_v6.rs        # Kia V6 decoder (AES-128)
-│   ├── ford_v0.rs       # Ford V0 decoder
-│   ├── subaru.rs        # Subaru decoder
-│   ├── suzuki.rs        # Suzuki decoder
-│   ├── fiat_v0.rs       # Fiat V0 decoder (diff. Manchester)
+│   ├── aut64.rs         # AUT64 block cipher (VAG)
+│   ├── keys.rs          # Key loading (embedded + optional file), KIA/VAG
+│   ├── kia_v0..kia_v6.rs
+│   ├── ford_v0.rs, fiat_v0.rs, subaru.rs, suzuki.rs
 │   ├── vag.rs           # VAG decoder/encoder (4 sub-types)
-│   ├── scher_khan.rs    # Scher-Khan decoder
-│   ├── star_line.rs     # Star Line decoder
-│   └── psa.rs           # PSA decoder
+│   ├── scher_khan.rs, star_line.rs, psa.rs
+│   └── ...
 ├── radio/
-│   ├── hackrf.rs        # HackRF One device control (RX/TX)
-│   ├── demodulator.rs   # AM/OOK demodulator (IQ -> level/duration pairs)
-│   └── modulator.rs     # Signal modulator (level/duration -> TX waveform)
+│   ├── hackrf.rs        # HackRF device control (RX/TX)
+│   ├── demodulator.rs   # AM/OOK demodulator (IQ -> level/duration)
+│   └── modulator.rs    # Level/duration -> TX waveform
 └── ui/
-    ├── layout.rs        # Main TUI layout, fob metadata form overlay
-    ├── captures_list.rs # Captures table + signal detail panel
-    ├── signal_menu.rs   # Signal action popup menu
-    ├── settings_menu.rs # Radio settings popup menu
-    ├── command.rs       # VIM-style command line renderer
-    └── status_bar.rs    # Bottom status bar (radio state, frequency, gains)
+    ├── layout.rs        # TUI layout, fob metadata form
+    ├── captures_list.rs # Captures table + detail (protocol, mod, RF, enc)
+    ├── signal_menu.rs   # Signal action menu
+    ├── settings_menu.rs # Radio settings (Freq, LNA, VGA, AMP)
+    ├── command.rs       # VIM-style command line
+    └── status_bar.rs    # Status bar
 ```
 
 ## License

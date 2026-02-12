@@ -1,15 +1,16 @@
-//! Kia V3/V4 protocol decoder
+//! Kia V3/V4 protocol decoder/encoder
 //!
-//! Ported from protopirate's kia_v3_v4.c
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/kia_v3_v4.c`.
+//! Decode/encode logic (PWM, preamble, sync polarity, KeeLoq, CRC4, byte order) matches reference.
 //!
 //! Protocol characteristics:
-//! - PWM encoding: 400/800µs timing
-//! - 68 bits total
-//! - Short preamble of 16 pairs
-//! - KeeLoq encryption (requires manufacturer key)
-//! - V3 and V4 differ only in sync polarity
+//! - PWM encoding: 400/800µs (short=0, long=1)
+//! - 68 bits total (8 bytes encrypted + 4 bits CRC)
+//! - Short preamble of 16 pairs; sync 1200µs (V4: long HIGH, V3: long LOW)
+//! - KeeLoq encryption (KIA manufacturer key); V3/V4 differ only in sync polarity
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
+use super::keeloq_common::{keeloq_decrypt, keeloq_encrypt};
 use super::keys;
 use crate::radio::demodulator::LevelDuration;
 use crate::duration_diff;
@@ -23,7 +24,7 @@ const INTER_BURST_GAP_US: u32 = 10000;
 const PREAMBLE_PAIRS: usize = 16;
 const TOTAL_BURSTS: usize = 3;
 
-/// Decoder states
+/// Decoder states (matches protopirate's KiaV3V4DecoderStep)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
     Reset,
@@ -53,7 +54,7 @@ impl KiaV3V4Decoder {
         }
     }
 
-    /// Reverse bits in a byte
+    /// Reverse bits in a byte (matches kia_v3_v4.c byte order for KeeLoq payload)
     fn reverse8(byte: u8) -> u8 {
         let mut byte = byte;
         byte = (byte & 0xF0) >> 4 | (byte & 0x0F) << 4;
@@ -76,7 +77,7 @@ impl KiaV3V4Decoder {
         }
     }
 
-    /// CRC4 calculation
+    /// CRC4 for Kia V3/V4 (matches kia_v3_v4.c: XOR nibbles over first 8 bytes)
     fn calculate_crc(bytes: &[u8]) -> u8 {
         let mut crc: u8 = 0;
         for &byte in bytes.iter().take(8) {
@@ -85,61 +86,18 @@ impl KiaV3V4Decoder {
         crc & 0x0F
     }
 
-    /// KeeLoq decrypt
-    fn keeloq_decrypt(data: u32, key: u64) -> u32 {
-        let mut block = data;
-        let mut tkey = key;
-        
-        for _ in 0..528 {
-            let lutkey = ((block >> 0) & 1) |
-                        ((block >> 7) & 2) |
-                        ((block >> 17) & 4) |
-                        ((block >> 22) & 8) |
-                        ((block >> 26) & 16);
-            let lsb = ((block >> 31) ^
-                      ((block >> 15) & 1) ^
-                      ((0x3A5C742E_u32 >> lutkey) & 1) ^
-                      (((tkey >> 15) & 1) as u32)) as u32;
-            block = ((block & 0x7FFFFFFF) << 1) | lsb;
-            tkey = ((tkey & 0x7FFFFFFFFFFFFFFF) << 1) | (tkey >> 63);
-        }
-        block
-    }
-
-    /// KeeLoq encrypt
-    fn keeloq_encrypt(data: u32, key: u64) -> u32 {
-        let mut block = data;
-        let mut tkey = key;
-        
-        for _ in 0..528 {
-            let lutkey = ((block >> 1) & 1) |
-                        ((block >> 8) & 2) |
-                        ((block >> 18) & 4) |
-                        ((block >> 23) & 8) |
-                        ((block >> 27) & 16);
-            let msb = ((block >> 0) ^
-                      ((block >> 16) & 1) ^
-                      ((0x3A5C742E_u32 >> lutkey) & 1) ^
-                      (((tkey >> 0) & 1) as u32)) as u32;
-            block = ((block >> 1) & 0x7FFFFFFF) | (msb << 31);
-            tkey = ((tkey >> 1) & 0x7FFFFFFFFFFFFFFF) | ((tkey & 1) << 63);
-        }
-        block
-    }
-
-    /// Get manufacturer key (placeholder - in real use, this would be loaded from config)
+    /// KIA manufacturer key from keystore (type 10)
     fn get_mf_key() -> u64 {
         keys::get_keystore().get_kia_mf_key()
     }
 
-    /// Process the collected buffer and validate
+    /// Process collected 68 bits: decrypt KeeLoq block, validate button/serial (matches kia_v3_v4.c)
     fn process_buffer(&self) -> Option<DecodedSignal> {
         if self.raw_bit_count < 68 {
             return None;
         }
 
         let mut b = self.raw_bits;
-        
         // V3 sync means data is inverted
         if self.is_v3_sync {
             let num_bytes = ((self.raw_bit_count + 7) / 8) as usize;
@@ -164,7 +122,7 @@ impl KiaV3V4Decoder {
         let our_serial_lsb = (serial & 0xFF) as u8;
 
         let mf_key = Self::get_mf_key();
-        let decrypted = Self::keeloq_decrypt(encrypted, mf_key);
+        let decrypted = keeloq_decrypt(encrypted, mf_key);
         let dec_btn = ((decrypted >> 28) & 0x0F) as u8;
         let dec_serial_lsb = ((decrypted >> 16) & 0xFF) as u8;
 
@@ -313,7 +271,7 @@ impl ProtocolDecoder for KiaV3V4Decoder {
                        (((button & 0x0F) as u32) << 28);
 
         let mf_key = Self::get_mf_key();
-        let encrypted = Self::keeloq_encrypt(plaintext, mf_key);
+        let encrypted = keeloq_encrypt(plaintext, mf_key);
 
         // Build raw bytes
         let mut raw_bytes = [0u8; 9];
@@ -343,18 +301,19 @@ impl ProtocolDecoder for KiaV3V4Decoder {
 
         let mut signal = Vec::with_capacity(600);
 
+        // 3 bursts with 10ms gap (matches protopirate kia_v3_v4 encode)
         for burst in 0..TOTAL_BURSTS {
             if burst > 0 {
                 signal.push(LevelDuration::new(false, INTER_BURST_GAP_US));
             }
 
-            // Preamble
+            // Preamble: 16 short pairs
             for _ in 0..PREAMBLE_PAIRS {
                 signal.push(LevelDuration::new(true, TE_SHORT));
                 signal.push(LevelDuration::new(false, TE_SHORT));
             }
 
-            // Sync pulse
+            // Sync: V4 = long HIGH, V3 = long LOW
             if version == 0 {
                 // V4: long HIGH, short LOW
                 signal.push(LevelDuration::new(true, SYNC_DURATION));
@@ -365,7 +324,7 @@ impl ProtocolDecoder for KiaV3V4Decoder {
                 signal.push(LevelDuration::new(false, SYNC_DURATION));
             }
 
-            // Data bits
+            // Data: 68 bits PWM (8 bytes + 4-bit CRC), MSB first per byte
             for byte_idx in 0..9 {
                 let bits_in_byte = if byte_idx == 8 { 4 } else { 8 };
                 for bit_idx in (8 - bits_in_byte..8).rev() {
@@ -382,5 +341,11 @@ impl ProtocolDecoder for KiaV3V4Decoder {
         }
 
         Some(signal)
+    }
+}
+
+impl Default for KiaV3V4Decoder {
+    fn default() -> Self {
+        Self::new()
     }
 }

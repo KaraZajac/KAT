@@ -1,12 +1,13 @@
-//! Kia V1 protocol decoder
+//! Kia V1 protocol decoder/encoder
 //!
-//! Ported from protopirate's kia_v1.c
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/kia_v1.c`.
+//! Decode/encode logic (Manchester, CRC4, preamble, field layout) matches reference.
 //!
 //! Protocol characteristics:
 //! - Manchester encoding: 800/1600µs timing
-//! - 57 bits total
-//! - Long preamble of ~90 pulses
-//! - CRC4 checksum
+//! - 57 bits total (32 serial + 8 button + 12 counter + 4 CRC)
+//! - Long preamble of ~90 long pairs
+//! - CRC4 checksum with offset rules (cnt_high 0 / >= 6)
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use crate::radio::demodulator::LevelDuration;
@@ -17,7 +18,7 @@ const TE_LONG: u32 = 1600;
 const TE_DELTA: u32 = 200;
 const MIN_COUNT_BIT: usize = 57;
 
-/// Manchester states
+/// Manchester decoder states (matches protopirate kia_v1 Manchester state machine)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum ManchesterState {
     Mid0,
@@ -26,7 +27,7 @@ enum ManchesterState {
     Start1,
 }
 
-/// Decoder states
+/// Decoder states (matches protopirate's KiaV1DecoderStep)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
     Reset,
@@ -56,7 +57,7 @@ impl KiaV1Decoder {
         }
     }
 
-    /// CRC4 calculation for Kia V1
+    /// CRC4 for Kia V1 (matches kia_v1.c: XOR nibbles + offset)
     fn crc4(bytes: &[u8], offset: u8) -> u8 {
         let mut crc: u8 = 0;
         for &byte in bytes {
@@ -97,7 +98,7 @@ impl KiaV1Decoder {
     fn parse_data(&self) -> DecodedSignal {
         let data = self.decode_data;
         
-        // Extract fields per kia_v1.c
+        // Field layout matches kia_v1.c: serial(32) | button(8) | cnt_low(8) | cnt_high(4) | crc(4)
         let serial = (data >> 24) as u32;
         let button = ((data >> 16) & 0xFF) as u8;
         let cnt_low = ((data >> 8) & 0xFF) as u16;
@@ -263,7 +264,7 @@ impl ProtocolDecoder for KiaV1Decoder {
 
         let mut signal = Vec::with_capacity(600);
 
-        // Generate 3 bursts
+        // Generate 3 bursts (matches protopirate kia_v1 encode)
         for burst in 0..3 {
             if burst > 0 {
                 signal.push(LevelDuration::new(false, 25000));
@@ -275,10 +276,10 @@ impl ProtocolDecoder for KiaV1Decoder {
                 signal.push(LevelDuration::new(true, TE_LONG));
             }
 
-            // Short gap
+            // Short gap before data
             signal.push(LevelDuration::new(false, TE_SHORT));
 
-            // Data: Manchester encoded, MSB first
+            // Data: 57 bits Manchester encoded, MSB first
             for bit_num in (1..MIN_COUNT_BIT).rev() {
                 let bit = ((data >> (bit_num - 1)) & 1) == 1;
                 if bit {
@@ -292,5 +293,11 @@ impl ProtocolDecoder for KiaV1Decoder {
         }
 
         Some(signal)
+    }
+}
+
+impl Default for KiaV1Decoder {
+    fn default() -> Self {
+        Self::new()
     }
 }

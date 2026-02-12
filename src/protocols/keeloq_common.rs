@@ -1,63 +1,57 @@
-//! KeeLoq common encryption/decryption routines
+//! KeeLoq common encryption/decryption and learning routines
 //!
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/keeloq_common.c`.
 //! Shared by Kia V3/V4, Star Line, and other KeeLoq-based protocols.
-//! Based on the NLF (Non-Linear Feedback) function with constant 0x3A5C742E.
+//! NLF (Non-Linear Feedback) constant 0x3A5C742E per reference.
 
-/// The KeeLoq NLF constant
+/// The KeeLoq NLF constant (KEELOQ_NLF in reference)
 const KEELOQ_NLF: u32 = 0x3A5C742E;
 
-/// KeeLoq decrypt: 528 rounds of the KeeLoq cipher (decrypt direction)
+#[inline]
+fn bit(x: u32, n: u32) -> u32 {
+    (x >> n) & 1
+}
+
+#[inline]
+fn g5(x: u32, a: u32, b: u32, c: u32, d: u32, e: u32) -> u32 {
+    bit(x, a) | (bit(x, b) << 1) | (bit(x, c) << 2) | (bit(x, d) << 3) | (bit(x, e) << 4)
+}
+
+/// KeeLoq decrypt: 528 rounds (matches subghz_protocol_keeloq_common_decrypt).
+/// Key bit for round r is key[(15 - r) & 63]. NLF index g5(x, 0, 8, 19, 25, 30).
 pub fn keeloq_decrypt(data: u32, key: u64) -> u32 {
-    let mut block = data;
-    let mut tkey = key;
-
-    for _ in 0..528 {
-        let lutkey = ((block >> 0) & 1)
-            | ((block >> 7) & 2)
-            | ((block >> 17) & 4)
-            | ((block >> 22) & 8)
-            | ((block >> 26) & 16);
-        let lsb = ((block >> 31)
-            ^ ((block >> 15) & 1)
-            ^ ((KEELOQ_NLF >> lutkey) & 1)
-            ^ (((tkey >> 15) & 1) as u32)) as u32;
-        block = ((block & 0x7FFFFFFF) << 1) | lsb;
-        tkey = ((tkey & 0x7FFFFFFFFFFFFFFF) << 1) | (tkey >> 63);
+    let mut x = data;
+    for r in 0..528u32 {
+        let key_bit = ((key >> ((15 - r) & 63)) & 1) as u32;
+        let new_lsb = bit(x, 31) ^ bit(x, 15) ^ key_bit
+            ^ bit(KEELOQ_NLF, g5(x, 0, 8, 19, 25, 30));
+        x = (x << 1) ^ new_lsb;
     }
-    block
+    x
 }
 
-/// KeeLoq encrypt: 528 rounds of the KeeLoq cipher (encrypt direction)
+/// KeeLoq encrypt: 528 rounds (matches subghz_protocol_keeloq_common_encrypt).
+/// Key bit for round r is key[r & 63]. NLF index g5(x, 1, 9, 20, 26, 31).
 pub fn keeloq_encrypt(data: u32, key: u64) -> u32 {
-    let mut block = data;
-    let mut tkey = key;
-
-    for _ in 0..528 {
-        let lutkey = ((block >> 1) & 1)
-            | ((block >> 8) & 2)
-            | ((block >> 18) & 4)
-            | ((block >> 23) & 8)
-            | ((block >> 27) & 16);
-        let msb = ((block >> 0)
-            ^ ((block >> 16) & 1)
-            ^ ((KEELOQ_NLF >> lutkey) & 1)
-            ^ (((tkey >> 0) & 1) as u32)) as u32;
-        block = ((block >> 1) & 0x7FFFFFFF) | (msb << 31);
-        tkey = ((tkey >> 1) & 0x7FFFFFFFFFFFFFFF) | ((tkey & 1) << 63);
+    let mut x = data;
+    for r in 0..528u32 {
+        let key_bit = ((key >> (r & 63)) & 1) as u32;
+        let new_msb = bit(x, 0) ^ bit(x, 16) ^ key_bit
+            ^ bit(KEELOQ_NLF, g5(x, 1, 9, 20, 26, 31));
+        x = (x >> 1) ^ (new_msb << 31);
     }
-    block
+    x
 }
 
-/// Normal learning key derivation
-/// Derives a 64-bit key from a 32-bit fix code and a 64-bit manufacturer key
-pub fn keeloq_normal_learning(fix: u32, manufacturer_key: u64) -> u64 {
-    let serial_low = fix & 0xFFFF;
-    let serial_high = (fix >> 16) & 0xFFFF;
-
-    let key_low = keeloq_decrypt(serial_low as u32 | 0x20000000, manufacturer_key);
-    let key_high = keeloq_decrypt(serial_high as u32 | 0x60000000, manufacturer_key);
-
-    ((key_high as u64) << 32) | (key_low as u64)
+/// Normal learning key derivation (matches subghz_protocol_keeloq_common_normal_learning).
+/// @param data - serial number (28-bit, upper bits ignored)
+/// @param key - manufacturer key (64-bit)
+/// @return derived key for this serial (64-bit)
+pub fn keeloq_normal_learning(data: u32, key: u64) -> u64 {
+    let data = data & 0x0FFFFFFF;
+    let k1 = keeloq_decrypt(data | 0x20000000, key);
+    let k2 = keeloq_decrypt(data | 0x60000000, key);
+    ((k2 as u64) << 32) | (k1 as u64)
 }
 
 /// Reverse the bits in a 64-bit key (for protocols that store data MSB-first)

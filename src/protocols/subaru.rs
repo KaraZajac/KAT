@@ -1,13 +1,13 @@
-//! Subaru protocol decoder
+//! Subaru protocol decoder/encoder
 //!
-//! Ported from protopirate's subaru.c
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/subaru.c`.
+//! Decode/encode logic (PWM preamble/gap/sync, short=1/long=0, counter decode) matches reference.
 //!
 //! Protocol characteristics:
-//! - PWM encoding: short HIGH (800µs) = 1, long HIGH (1600µs) = 0
-//! - 64 bits total
-//! - Long preamble of 1600µs pulses
-//! - Gap and sync pattern
-//! - Complex counter encoding
+//! - PWM encoding: 800µs HIGH = 1, 1600µs HIGH = 0; LOW is 800µs after each bit
+//! - 64 bits total (8 bytes MSB first: button(4)+serial(24)+counter-related)
+//! - Preamble: 79 full 1600µs pairs + 80th HIGH only; then gap 2800µs, sync 2800µs HIGH + 1600µs LOW
+//! - Complex counter encoding (decode_counter) from bytes 4–7
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use crate::radio::demodulator::LevelDuration;
@@ -22,7 +22,7 @@ const MIN_COUNT_BIT: usize = 64;
 const GAP_US: u32 = 2800;
 const SYNC_US: u32 = 2800;
 
-/// Decoder states
+/// Decoder states (matches protopirate's SubaruDecoderStep)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
     Reset,
@@ -67,7 +67,7 @@ impl SubaruDecoder {
         }
     }
 
-    /// Decode the counter from the complex Subaru encoding
+    /// Decode 16-bit counter from bytes 4–7 (matches subaru.c complex encoding)
     fn decode_counter(kb: &[u8; 8]) -> u16 {
         let mut lo: u8 = 0;
         if (kb[4] & 0x40) == 0 { lo |= 0x01; }
@@ -115,9 +115,7 @@ impl SubaruDecoder {
         ((hi as u16) << 8) | (lo as u16)
     }
 
-    /// Add a level+duration to the signal, merging with the previous entry
-    /// if it has the same level. This prevents consecutive same-level pulses
-    /// which would silently merge during HackRF transmission.
+    /// Append level+duration, merging with previous if same level (prevents HackRF from merging consecutive same-level pulses)
     fn add_level(signal: &mut Vec<LevelDuration>, level: bool, duration: u32) {
         if let Some(last) = signal.last_mut() {
             if last.level == level {
@@ -128,15 +126,13 @@ impl SubaruDecoder {
         signal.push(LevelDuration::new(level, duration));
     }
 
-    /// Process the decoded data
+    /// Build DecodedSignal from 8-byte buffer: serial(bytes 1–3), button(byte0 low nibble), counter(decode_counter) — matches subaru.c
     fn process_data(&self) -> Option<DecodedSignal> {
         if self.bit_count < 64 {
             return None;
         }
 
         let b = &self.data;
-        
-        // Build 64-bit key
         let key = ((b[0] as u64) << 56) | ((b[1] as u64) << 48) |
                   ((b[2] as u64) << 40) | ((b[3] as u64) << 32) |
                   ((b[4] as u64) << 24) | ((b[5] as u64) << 16) |
@@ -297,37 +293,24 @@ impl ProtocolDecoder for SubaruDecoder {
         let key = decoded.data;
         let mut signal = Vec::with_capacity(512);
 
-        // Generate 3 bursts.
-        //
-        // IMPORTANT: Uses add_level() to merge adjacent same-level pulses.
-        // The HackRF transmitter generates IQ samples sequentially from the
-        // LevelDuration list, so consecutive same-level pairs silently merge
-        // and corrupt timing. For example, the last preamble LOW (1600µs) +
-        // gap LOW (2800µs) would become a single 4400µs LOW without merging.
+        // 3 bursts; add_level() merges same-level pulses for correct HackRF timing (matches protopirate subaru encode)
         for burst in 0..3 {
             if burst > 0 {
-                // Inter-burst silence
                 Self::add_level(&mut signal, false, 25000);
             }
 
-            // Preamble: 79 full pairs + 80th HIGH only.
-            // The gap LOW replaces the 80th preamble LOW.
+            // Preamble: 79 full 1600µs pairs + 80th HIGH only; gap replaces 80th LOW
             for i in 0..80 {
                 Self::add_level(&mut signal, true, TE_LONG);
                 if i < 79 {
                     Self::add_level(&mut signal, false, TE_LONG);
                 }
             }
-
-            // Gap (replaces the 80th preamble LOW)
             Self::add_level(&mut signal, false, GAP_US);
-
-            // Sync
             Self::add_level(&mut signal, true, SYNC_US);
             Self::add_level(&mut signal, false, TE_LONG);
 
-            // Data: 64 bits (MSB first)
-            // Short HIGH = 1, Long HIGH = 0
+            // Data: 64 bits MSB first; short HIGH = 1, long HIGH = 0; LOW = 800µs after each
             for bit in (0..64).rev() {
                 if (key >> bit) & 1 == 1 {
                     Self::add_level(&mut signal, true, TE_SHORT);
@@ -337,10 +320,15 @@ impl ProtocolDecoder for SubaruDecoder {
                 Self::add_level(&mut signal, false, TE_SHORT);
             }
 
-            // End-of-burst gap (extends the last data LOW)
             Self::add_level(&mut signal, false, TE_LONG * 2);
         }
 
         Some(signal)
+    }
+}
+
+impl Default for SubaruDecoder {
+    fn default() -> Self {
+        Self::new()
     }
 }

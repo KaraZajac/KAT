@@ -6,6 +6,7 @@
 mod app;
 mod capture;
 mod export;
+mod keystore;
 mod protocols;
 mod radio;
 mod storage;

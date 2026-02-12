@@ -158,12 +158,14 @@ fn render_detail_panel(frame: &mut Frame, area: Rect, app: &App) {
         Span::styled(make, value_style),
     ]));
 
-    // Row 2: Frequency + Modulation + Encryption
+    // Row 2: Frequency + Encoding (Mod) + RF (AM/FM) + Encryption
     left_lines.push(Line::from(vec![
         Span::styled(" Freq:      ", label_style),
         Span::styled(capture.frequency_mhz(), value_style),
         Span::styled("  Mod: ", label_style),
         Span::styled(capture.modulation().to_string(), value_style),
+        Span::styled("  RF: ", label_style),
+        Span::styled(capture.rf_modulation().to_string(), value_style),
         Span::styled("  Enc: ", label_style),
         Span::styled(capture.encryption_type(), value_style),
     ]));

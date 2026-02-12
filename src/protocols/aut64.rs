@@ -1,9 +1,9 @@
 //! AUT64 block cipher implementation
 //!
-//! Ported from protopirate's aut64.c
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/aut64.c`.
+//! Encrypt/decrypt, pack/unpack, and all tables match the reference.
 //!
-//! AUT64 algorithm: 12 rounds, 8-byte block/key size
-//! Based on: Reference AUT64 implementation
+//! AUT64 algorithm: 12 rounds, 8-byte block/key size.
 //! See: https://www.usenix.org/system/files/conference/usenixsecurity16/sec16_paper_garcia.pdf
 
 pub const AUT64_NUM_ROUNDS: usize = 12;
@@ -265,7 +265,7 @@ pub fn aut64_pack(src: &Aut64Key) -> [u8; AUT64_KEY_STRUCT_PACKED_SIZE] {
     dest
 }
 
-/// Unpack a 16-byte array into an AUT64 key structure
+/// Unpack a 16-byte array into an AUT64 key structure (matches aut64_unpack in reference)
 #[allow(dead_code)]
 pub fn aut64_unpack(src: &[u8]) -> Aut64Key {
     let mut dest = Aut64Key::default();
@@ -276,9 +276,10 @@ pub fn aut64_unpack(src: &[u8]) -> Aut64Key {
         dest.key[i * 2 + 1] = src[i + 1] & 0xF;
     }
 
-    let pbox: u32 = ((src[5] as u32) << 16) | ((src[6] as u32) << 8) | src[7] as u32;
+    let mut pbox: u32 = (u32::from(src[5]) << 16) | (u32::from(src[6]) << 8) | u32::from(src[7]);
     for i in (0..dest.pbox.len()).rev() {
-        dest.pbox[i] = ((pbox >> ((dest.pbox.len() - 1 - i) * 3)) & 0x7) as u8;
+        dest.pbox[i] = (pbox & 0x7) as u8;
+        pbox >>= 3;
     }
 
     for i in 0..(dest.sbox.len() / 2) {

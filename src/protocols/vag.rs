@@ -1,17 +1,15 @@
 //! VAG (VW/Audi/Seat/Skoda) protocol decoder/encoder
 //!
-//! Ported from protopirate's vag.c
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/vag.c`.
+//! Decode/encode logic (steps, Type 1/2/3/4, AUT64/TEA, dispatch, gap 6000µs) matches reference.
+//! Intentional differences for HackRF: TE_DELTA 150 (ref 80), TE_DELTA_12 120 (ref 79);
+//! Preamble2/Sync2C accept shorter LOW pulses for asymmetric software demodulation.
 //!
 //! Protocol characteristics:
-//! - Manchester encoding
-//! - Type 1/2: 300/600µs timing (te_short=300), 80 bits, AUT64 or TEA encryption
-//! - Type 3/4: 500/1000µs timing (te_short=500), 80 bits, AUT64 encryption
-//! - 433.92 MHz and 434.42 MHz
-//! - Four sub-types:
-//!   Type 1: AUT64 encrypted (300µs Manchester, dispatch 0x2A/0x1C/0x46)
-//!   Type 2: TEA encrypted (300µs Manchester, dispatch 0x2A/0x1C/0x46)
-//!   Type 3: AUT64 encrypted (500µs Manchester, auto-detect key)
-//!   Type 4: AUT64 encrypted (500µs Manchester, key 2)
+//! - Manchester encoding; 80 bits (key1 64 + key2 16)
+//! - Type 1/2: 300/600µs, prefix 0x2F3F (AUT64) / 0x2F1C (TEA), dispatch 0x2A/0x1C/0x46
+//! - Type 3/4: 500/1000µs, preamble 41+ pairs, sync 1000µs + 3×750µs, dispatch 0x2B/0x1D/0x47
+//! - End-of-data gap 6000µs (accept within 4000µs); keys from keystore (VAG raw 64 bytes)
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use super::aut64;
@@ -34,7 +32,7 @@ const TE_DELTA_12: u32 = 120; // Wider tolerance for HackRF (was 79)
 const TEA_DELTA: u32 = 0x9E3779B9;
 const TEA_ROUNDS: usize = 32;
 
-/// TEA key schedule for VAG
+/// TEA key schedule for VAG (matches vag.c vag_tea_key_schedule)
 static TEA_KEY_SCHEDULE: [u32; 4] = [0x0B46502D, 0x5E253718, 0x2BF93A19, 0x622C1206];
 
 /// Manchester states
@@ -56,17 +54,17 @@ enum ManchesterEvent {
     Reset,
 }
 
-/// Decoder states
+/// Decoder states (matches protopirate's VAGDecoderStep)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
     Reset,
-    Preamble1,    // Type 1/2: ~300µs preamble
-    Data1,        // Type 1/2: Manchester data
-    Preamble2,    // Type 3/4: ~500µs preamble
-    Sync2A,       // Type 3/4: sync pattern step A
-    Sync2B,       // Type 3/4: sync pattern step B (750µs)
-    Sync2C,       // Type 3/4: sync pattern step C (750µs)
-    Data2,        // Type 3/4: Manchester data
+    Preamble1,
+    Data1,
+    Preamble2,
+    Sync2A,
+    Sync2B,
+    Sync2C,
+    Data2,
 }
 
 /// VAG sub-type
@@ -182,7 +180,7 @@ impl VagDecoder {
         self.bit_count += 1;
     }
 
-    /// TEA decrypt
+    /// TEA decrypt (matches vag.c vag_tea_decrypt)
     fn tea_decrypt(v0: &mut u32, v1: &mut u32, key_schedule: &[u32; 4]) {
         let mut sum = TEA_DELTA.wrapping_mul(TEA_ROUNDS as u32);
         for _ in 0..TEA_ROUNDS {
@@ -198,7 +196,7 @@ impl VagDecoder {
         }
     }
 
-    /// TEA encrypt
+    /// TEA encrypt (matches vag.c vag_tea_encrypt)
     fn tea_encrypt(v0: &mut u32, v1: &mut u32, key_schedule: &[u32; 4]) {
         let mut sum: u32 = 0;
         for _ in 0..TEA_ROUNDS {
@@ -278,7 +276,7 @@ impl VagDecoder {
         }
     }
 
-    /// Parse the collected data and attempt decryption
+    /// Parse key1/key2 and decrypt by type (AUT64/TEA, dispatch); matches vag.c vag_parse_data
     fn parse_data(&mut self) {
         self.decrypted = false;
         self.serial = 0;
@@ -950,7 +948,7 @@ impl ProtocolDecoder for VagDecoder {
                     }
                 }
 
-                // Check for gap (end of data)
+                // End-of-data gap: 6000µs, accept within 4000µs (matches vag.c check_gap1_data)
                 if !level {
                     let gap_diff = if duration > 6000 {
                         duration - 6000
@@ -1143,5 +1141,11 @@ impl ProtocolDecoder for VagDecoder {
 
     fn encode(&self, decoded: &DecodedSignal, _button: u8) -> Option<Vec<LevelDuration>> {
         self.encode_signal(decoded)
+    }
+}
+
+impl Default for VagDecoder {
+    fn default() -> Self {
+        Self::new()
     }
 }

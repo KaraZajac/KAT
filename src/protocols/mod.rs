@@ -1,7 +1,8 @@
 //! Protocol decoders and encoders for various keyfob systems.
 //!
-//! This module implements decoders for various keyfob protocols, ported from
-//! protopirate. Each protocol processes level+duration pairs from the demodulator.
+//! Protocols are aligned with the ProtoPirate reference (`REFERENCES/ProtoPirate/protocols/`).
+//! Each decoder processes level+duration pairs from the demodulator and optionally supports
+//! encoding (replay). Shared pieces: [common], [keeloq_common], [keys], [aut64].
 
 mod common;
 pub mod keeloq_common;

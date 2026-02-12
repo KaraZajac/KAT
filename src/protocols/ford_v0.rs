@@ -1,6 +1,7 @@
 //! Ford V0 protocol decoder/encoder
 //!
-//! Ported from protopirate's ford_v0.c
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/ford_v0.c` (Flipper).
+//! Decode/encode logic (CRC, BS, decode_ford_v0, encode_ford_v0, upload waveform) matches reference.
 //!
 //! Protocol characteristics:
 //! - Manchester encoding: 250/500µs timing
@@ -8,6 +9,9 @@
 //! - Matrix-based CRC in GF(2)
 //! - BS (byte swap) magic calculation
 //! - 6 bursts, 4 preamble pairs, 3500µs gap
+//!
+//! HackRF-specific: `TE_DELTA` (200µs) and `GAP_TOLERANCE` (1500µs) are wider than reference
+//! (100µs / 250µs) for software demodulator tolerance.
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use crate::radio::demodulator::LevelDuration;
@@ -551,18 +555,16 @@ impl ProtocolDecoder for FordV0Decoder {
             }
 
             // ─── Step 3: PreambleCheck — count preamble pairs or transition to gap ───
+            // Order matches protopirate ford_v0.c: check LONG first, then SHORT.
             DecoderStep::PreambleCheck => {
                 if level {
-                    let short_diff = duration_diff!(duration, TE_SHORT);
-                    let long_diff = duration_diff!(duration, TE_LONG);
-
-                    if long_diff < TE_DELTA && long_diff <= short_diff {
-                        // Long HIGH (closer to TE_LONG): another preamble pair
+                    if duration_diff!(duration, TE_LONG) < TE_DELTA {
+                        // Long HIGH: another preamble pair
                         self.header_count += 1;
                         self.te_last = duration;
                         self.step = DecoderStep::Preamble;
-                    } else if short_diff < TE_DELTA {
-                        // Short HIGH (closer to TE_SHORT): end of preamble, transition to gap
+                    } else if duration_diff!(duration, TE_SHORT) < TE_DELTA {
+                        // Short HIGH: end of preamble, transition to gap
                         self.step = DecoderStep::Gap;
                     } else {
                         self.step = DecoderStep::Reset;
@@ -585,18 +587,12 @@ impl ProtocolDecoder for FordV0Decoder {
 
             // ─── Step 5: Data — Manchester decode 80 bits ───
             DecoderStep::Data => {
-                // Map level+duration to Manchester event using NEAREST-MATCH.
-                // With TE_DELTA=200, SHORT(250) and LONG(500) ranges overlap at 300–450µs.
-                // First-match would always pick SHORT for overlapping durations, causing
-                // bit errors and CRC failure. Nearest-match picks the closer timing.
-                //
-                // Tie-break favors LONG (strict < for short_diff) because asymmetric
-                // demodulation compresses LOWs towards the midpoint (375µs) — these are
-                // actually LONG pulses that got shortened by threshold bias.
+                // Map level+duration to Manchester event. Order matches protopirate ford_v0.c:
+                // check SHORT first, then LONG (so when both within TE_DELTA, short wins).
                 let short_diff = duration_diff!(duration, TE_SHORT);
                 let long_diff = duration_diff!(duration, TE_LONG);
 
-                let event = if short_diff < TE_DELTA && short_diff < long_diff {
+                let event = if short_diff < TE_DELTA {
                     if level { 0 } else { 1 }  // ShortLow / ShortHigh
                 } else if long_diff < TE_DELTA {
                     if level { 2 } else { 3 }  // LongLow / LongHigh

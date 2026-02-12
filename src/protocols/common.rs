@@ -1,4 +1,11 @@
 //! Common utilities for protocol implementations.
+//!
+//! The ProtoPirate reference has `REFERENCES/ProtoPirate/protocols/protocols_common.c`, which
+//! only provides Flipper preset name mapping (`protopirate_get_short_preset_name`). KAT does not
+//! use that; this module holds shared types and helpers used by multiple protocol decoders.
+//! Where applicable, algorithms match the reference: e.g. `crc8_kia` matches `kia_crc8` in
+//! kia_v0.c (polynomial 0x7F, init 0x00); `add_bit` matches the common shift-left-and-append
+//! pattern used in the reference decoders.
 
 /// Decoded signal information
 #[derive(Debug, Clone)]
@@ -34,12 +41,12 @@ impl DecodedSignal {
     }
 }
 
-/// CRC8 calculation with custom polynomial
-/// 
+/// CRC8 calculation with custom polynomial (MSB-first, shift-left style).
+///
 /// # Arguments
 /// * `data` - Data bytes to calculate CRC over
-/// * `poly` - CRC polynomial
-/// * `init` - Initial CRC value
+/// * `poly` - CRC polynomial (e.g. 0x7F for Kia)
+/// * `init` - Initial CRC value (e.g. 0x00)
 pub fn crc8(data: &[u8], poly: u8, init: u8) -> u8 {
     let mut crc = init;
     for &byte in data {
@@ -55,12 +62,12 @@ pub fn crc8(data: &[u8], poly: u8, init: u8) -> u8 {
     crc
 }
 
-/// CRC8 for Kia protocol (polynomial 0x7F, init 0x00)
+/// CRC8 for Kia protocol (matches kia_v0.c kia_crc8: polynomial 0x7F, init 0x00)
 pub fn crc8_kia(data: &[u8]) -> u8 {
     crc8(data, 0x7F, 0x00)
 }
 
-/// Add a bit to the decoder's data accumulator
+/// Add a bit to the decoder's data accumulator (shift-left, LSB last; matches reference add_bit pattern)
 #[inline]
 pub fn add_bit(data: &mut u64, count: &mut usize, bit: bool) {
     *data = (*data << 1) | (bit as u64);

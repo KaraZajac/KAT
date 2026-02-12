@@ -60,7 +60,7 @@ pub struct Capture {
     pub status: CaptureStatus,
 }
 
-/// Modulation type used by protocol
+/// Modulation type used by protocol (encoding: PWM vs Manchester)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ModulationType {
     Unknown,
@@ -77,6 +77,28 @@ impl std::fmt::Display for ModulationType {
             ModulationType::Pwm => write!(f, "PWM"),
             ModulationType::Manchester => write!(f, "Manchester"),
             ModulationType::DifferentialManchester => write!(f, "Diff. Manchester"),
+        }
+    }
+}
+
+/// RF modulation (carrier): AM/OOK vs FM/2FSK. From ProtoPirate SubGhzProtocolFlag_AM / _FM.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RfModulation {
+    AM,
+    FM,
+    /// Protocol used with both AM and FM (e.g. Kia V3/V4)
+    Both,
+    Unknown,
+}
+
+impl std::fmt::Display for RfModulation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RfModulation::AM => write!(f, "AM"),
+            RfModulation::FM => write!(f, "FM"),
+            RfModulation::Both => write!(f, "AM/FM"),
+            RfModulation::Unknown => write!(f, "—"),
         }
     }
 }
@@ -174,6 +196,31 @@ impl Capture {
             "Scher-Khan" => ModulationType::Pwm,
             // Unknown
             _ => ModulationType::Unknown,
+        }
+    }
+
+    /// Get the RF modulation (AM/FM) for this protocol. From ProtoPirate SubGhzProtocolFlag_AM / _FM.
+    /// KAT's demodulator is AM/OOK only; FM protocols may still decode if the signal is strong.
+    pub fn rf_modulation(&self) -> RfModulation {
+        match self.protocol_name() {
+            // FM only (ProtoPirate SubGhzProtocolFlag_FM)
+            p if p.starts_with("Kia V0") => RfModulation::FM,
+            p if p.starts_with("Kia V2") => RfModulation::FM,
+            p if p.starts_with("Kia V5") => RfModulation::FM,
+            p if p.starts_with("Kia V6") => RfModulation::FM,
+            "Scher-Khan" => RfModulation::FM,
+            "PSA" => RfModulation::FM,
+            "Fiat V0" => RfModulation::FM,
+            "Ford V0" => RfModulation::FM,
+            // AM only (SubGhzProtocolFlag_AM)
+            p if p.starts_with("Kia V1") => RfModulation::AM,
+            "VAG" => RfModulation::AM,
+            "Subaru" => RfModulation::AM,
+            "Suzuki" => RfModulation::AM,
+            "Star Line" => RfModulation::AM,
+            // Both AM and FM (Kia V3/V4)
+            p if p.starts_with("Kia V3") || p.starts_with("Kia V4") => RfModulation::Both,
+            _ => RfModulation::Unknown,
         }
     }
 

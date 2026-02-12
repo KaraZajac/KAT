@@ -1,13 +1,14 @@
-//! Kia V5 protocol decoder
+//! Kia V5 protocol decoder (decode-only)
 //!
-//! Ported from protopirate's kia_v5.c
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/kia_v5.c`.
+//! Decode logic (Manchester polarity, mixer decrypt, YEK, preamble) matches reference.
+//! No encoder in protopirate.
 //!
 //! Protocol characteristics:
-//! - Manchester encoding: 400/800µs timing
-//! - 64 bits total (+3 bit CRC)
-//! - Preamble of ~40+ short pairs
-//! - Custom "mixer" encryption
-//! - Decode-only (no encoder)
+//! - Manchester encoding: 400/800µs (opposite polarity to V1/V2: level ? ShortHigh : ShortLow)
+//! - 64 data bits + 3-bit CRC (67 bits on air)
+//! - Preamble of ~40+ short/long pairs; then 64-bit key then 3-bit CRC
+//! - Custom "mixer" decryption with KIA V5 manufacturer key
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use super::keys;
@@ -19,7 +20,7 @@ const TE_LONG: u32 = 800;
 const TE_DELTA: u32 = 150;
 const MIN_COUNT_BIT: usize = 64;
 
-/// Manchester states
+/// Manchester decoder states (V5 uses opposite polarity to V1/V2; see manchester_advance)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum ManchesterState {
     Mid0,
@@ -28,7 +29,7 @@ enum ManchesterState {
     Start1,
 }
 
-/// Decoder states
+/// Decoder states (matches protopirate's KiaV5DecoderStep)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
     Reset,
@@ -60,12 +61,12 @@ impl KiaV5Decoder {
         }
     }
 
-    /// Get encryption key from global keystore
+    /// KIA V5 manufacturer key from keystore (type 13)
     fn get_v5_key() -> u64 {
         keys::get_keystore().get_kia_v5_key()
     }
 
-    /// Custom mixer decryption
+    /// Mixer decryption (matches kia_v5.c custom cipher)
     fn mixer_decode(encrypted: u32) -> u16 {
         let mut s0 = (encrypted & 0xFF) as u8;
         let mut s1 = ((encrypted >> 8) & 0xFF) as u8;
@@ -128,7 +129,7 @@ impl KiaV5Decoder {
         ((s0 as u16) + ((s1 as u16) << 8)) & 0xFFFF
     }
 
-    /// Reverse bits in 64-bit value
+    /// YEK: reverse bit order per byte (matches kia_v5.c for key derivation)
     fn compute_yek(key: u64) -> u64 {
         let mut yek: u64 = 0;
         for i in 0..8 {
@@ -180,7 +181,7 @@ impl KiaV5Decoder {
         output
     }
 
-    /// Parse decoded data
+    /// Parse 64-bit key: YEK then serial/button from high bits, mixer_decode for counter (matches kia_v5.c)
     fn parse_data(&self) -> Option<DecodedSignal> {
         if self.bit_count < MIN_COUNT_BIT as u8 {
             return None;
@@ -188,7 +189,7 @@ impl KiaV5Decoder {
 
         let key = self.saved_key;
         let yek = Self::compute_yek(key);
-        
+        // serial(28) + button(4) in high 32 bits; low 32 bits encrypted counter
         let serial = ((yek >> 32) & 0x0FFFFFFF) as u32;
         let button = ((yek >> 60) & 0x0F) as u8;
         let encrypted = (yek & 0xFFFFFFFF) as u32;
@@ -316,6 +317,12 @@ impl ProtocolDecoder for KiaV5Decoder {
     }
 
     fn encode(&self, _decoded: &DecodedSignal, _button: u8) -> Option<Vec<LevelDuration>> {
-        None // V5 doesn't support encoding
+        None // V5 decode-only in protopirate
+    }
+}
+
+impl Default for KiaV5Decoder {
+    fn default() -> Self {
+        Self::new()
     }
 }

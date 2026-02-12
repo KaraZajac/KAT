@@ -1,12 +1,13 @@
 //! Star Line protocol decoder/encoder
 //!
-//! Ported from protopirate's star_line.c
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/star_line.c`.
+//! Decode/encode logic (PWM header, fix/hop split, KeeLoq simple/normal learning) matches reference.
 //!
 //! Protocol characteristics:
-//! - PWM encoding: 250/500µs timing
-//! - 64 bits total
+//! - PWM encoding: 250µs = 0, 500µs = 1
+//! - 64 bits total: key_fix (32) + key_hop (32), sent MSB-first (reversed on air)
 //! - Header: 6 pairs of 1000µs HIGH + 1000µs LOW
-//! - KeeLoq encryption (requires manufacturer key)
+//! - KeeLoq: fix = serial(24) + button(8); hop encrypted with MF key or normal-learning derived key
 
 use super::keeloq_common::{keeloq_decrypt, keeloq_encrypt, keeloq_normal_learning, reverse_key};
 use super::keys;
@@ -20,7 +21,7 @@ const TE_DELTA: u32 = 120;
 const MIN_COUNT_BIT: usize = 64;
 const HEADER_DURATION: u32 = 1000; // te_long * 2
 
-/// Decoder states
+/// Decoder states (matches protopirate's StarLineDecoderStep)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
     Reset,
@@ -49,13 +50,14 @@ impl StarLineDecoder {
         }
     }
 
-    /// Get manufacturer key from global keystore
+    /// Star Line manufacturer key from keystore (type 20)
     fn get_mf_key() -> u64 {
         keys::get_keystore().get_star_line_mf_key()
     }
 
+    /// Parse 64-bit payload: reverse_key then fix(32)/hop(32); KeeLoq decrypt (simple then normal learning) — matches star_line.c
     fn parse_data(data: u64) -> DecodedSignal {
-        // Data is stored MSB-first in the air, reverse to get fix|hop
+        // Data is MSB-first on air; reverse to get fix|hop
         let reversed = reverse_key(data, MIN_COUNT_BIT);
         let key_fix = (reversed >> 32) as u32;
         let key_hop = (reversed & 0xFFFFFFFF) as u32;
@@ -246,13 +248,13 @@ impl ProtocolDecoder for StarLineDecoder {
 
         let mut signal = Vec::with_capacity(256);
 
-        // Header: 6 pairs of LONG*2 HIGH + LONG*2 LOW
+        // Header: 6 pairs 1000µs HIGH + 1000µs LOW (matches protopirate star_line encode)
         for _ in 0..6 {
             signal.push(LevelDuration::new(true, HEADER_DURATION));
             signal.push(LevelDuration::new(false, HEADER_DURATION));
         }
 
-        // Data: 64 bits, MSB first
+        // Data: 64 bits PWM, MSB first (1=long, 0=short)
         for bit in (0..64).rev() {
             if (data >> bit) & 1 == 1 {
                 // Bit 1: LONG HIGH + LONG LOW
@@ -266,5 +268,11 @@ impl ProtocolDecoder for StarLineDecoder {
         }
 
         Some(signal)
+    }
+}
+
+impl Default for StarLineDecoder {
+    fn default() -> Self {
+        Self::new()
     }
 }

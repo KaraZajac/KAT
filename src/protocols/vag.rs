@@ -2,8 +2,8 @@
 //!
 //! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/vag.c`.
 //! Decode/encode logic (steps, Type 1/2/3/4, AUT64/TEA, dispatch, gap 6000µs) matches reference.
-//! Intentional differences for HackRF: TE_DELTA 150 (ref 80), TE_DELTA_12 120 (ref 79);
-//! Preamble2/Sync2C accept shorter LOW pulses for asymmetric software demodulation.
+//! Reset/Preamble2/Sync2/Data2 use reference thresholds (79/80, 380-620/880-1120µs).
+//! Preamble1/Data1 use TE_DELTA_12 80 (ref 79/80).
 //!
 //! Protocol characteristics:
 //! - Manchester encoding; 80 bits (key1 64 + key2 16)
@@ -19,14 +19,20 @@ use crate::radio::demodulator::LevelDuration;
 // Type 3/4 timing (used as default for ProtocolTiming)
 const TE_SHORT: u32 = 500;
 const TE_LONG: u32 = 1000;
-const TE_DELTA: u32 = 150; // Wider tolerance for HackRF software demodulation (was 80)
+#[allow(dead_code)]
+const TE_DELTA: u32 = 80; // ref vag.c (Type 3/4); exposed via timing()
 #[allow(dead_code)]
 const MIN_COUNT_BIT: usize = 80;
 
 // Type 1/2 timing
 const TE_SHORT_12: u32 = 300;
 const TE_LONG_12: u32 = 600;
-const TE_DELTA_12: u32 = 120; // Wider tolerance for HackRF (was 79)
+const TE_DELTA_12: u32 = 80; // Preamble1/Data1 (ref vag.c 79/80)
+
+// Reference-aligned deltas (vag.c)
+const REF_RESET_DELTA: u32 = 79;       // Reset: (300-duration)<=79, 500±79
+const REF_PREAMBLE_SYNC: u32 = 80;     // Preamble2/Sync2: 500±80, 1000±80, 750±80
+const REF_SYNC2C_DELTA: u32 = 79;      // Sync2C: diff<=79
 
 // TEA constants
 const TEA_DELTA: u32 = 0x9E3779B9;
@@ -805,12 +811,12 @@ impl ProtocolDecoder for VagDecoder {
                 if !level {
                     return None;
                 }
-
+                // Matches vag.c: duration < 300 and (300-duration)<=79 -> Preamble1; else (duration-300)<=79 -> Preamble1; else (duration-300)>79 and 500±79 -> Preamble2
                 if duration < TE_SHORT_12 {
-                    if (TE_SHORT_12 - duration) > TE_DELTA_12 {
+                    if (TE_SHORT_12 - duration) > REF_RESET_DELTA {
                         return None;
                     }
-                    // Init pattern 1 (Type 1/2)
+                    // init_pattern1
                     self.step = DecoderStep::Preamble1;
                     self.data_low = 0;
                     self.data_high = 0;
@@ -820,8 +826,8 @@ impl ProtocolDecoder for VagDecoder {
                     self.vag_type = VagType::Unknown;
                     self.te_last = duration;
                     self.manchester_advance(ManchesterEvent::Reset);
-                } else if (duration.wrapping_sub(TE_SHORT_12)) <= TE_DELTA_12 {
-                    // Still pattern 1
+                } else if duration.wrapping_sub(TE_SHORT_12) <= REF_RESET_DELTA {
+                    // Fall-through to init_pattern1 in ref (duration 300..380)
                     self.step = DecoderStep::Preamble1;
                     self.data_low = 0;
                     self.data_high = 0;
@@ -832,9 +838,13 @@ impl ProtocolDecoder for VagDecoder {
                     self.te_last = duration;
                     self.manchester_advance(ManchesterEvent::Reset);
                 } else {
-                    // Check for pattern 2 (Type 3/4, 500µs)
-                    let diff = if duration > TE_SHORT { duration - TE_SHORT } else { TE_SHORT - duration };
-                    if diff <= TE_DELTA_12 {
+                    // (duration - 300) > 79: check 500±79 for Preamble2
+                    let diff = if duration < TE_SHORT {
+                        TE_SHORT - duration
+                    } else {
+                        duration - TE_SHORT
+                    };
+                    if diff <= REF_RESET_DELTA {
                         self.step = DecoderStep::Preamble2;
                         self.data_low = 0;
                         self.data_high = 0;
@@ -979,21 +989,20 @@ impl ProtocolDecoder for VagDecoder {
             }
 
             DecoderStep::Preamble2 => {
+                // Matches vag.c: LOW 500±80 and te_last 500±80 to count; then header_count>=41, HIGH 1000±79 and te_last 500±79 -> Sync2A
                 if !level {
-                    // Low pulse during preamble. With HackRF software demodulation,
-                    // the LOW pulses can be severely shortened by threshold asymmetry.
-                    // Instead of requiring LOWs to be ~500µs, accept any LOW that's
-                    // short enough to be part of a preamble pair. We rely primarily
-                    // on the HIGH pulse timing for validation.
-                    let prev_high_diff = if self.te_last > TE_SHORT {
-                        self.te_last - TE_SHORT
+                    let diff = if duration < TE_SHORT {
+                        TE_SHORT - duration
                     } else {
-                        TE_SHORT - self.te_last
+                        duration - TE_SHORT
                     };
-                    if prev_high_diff < TE_DELTA {
-                        // Previous HIGH was valid. Accept LOWs up to 2*TE_SHORT
-                        // (covers both symmetric and asymmetric demodulation).
-                        if duration < TE_SHORT * 2 {
+                    if diff < REF_PREAMBLE_SYNC {
+                        let prev_diff = if self.te_last < TE_SHORT {
+                            TE_SHORT - self.te_last
+                        } else {
+                            self.te_last - TE_SHORT
+                        };
+                        if prev_diff < REF_PREAMBLE_SYNC {
                             self.te_last = duration;
                             self.header_count += 1;
                             return None;
@@ -1003,54 +1012,63 @@ impl ProtocolDecoder for VagDecoder {
                     return None;
                 }
 
-                // High pulse — check for preamble continuation or sync transition
                 if self.header_count < 41 {
-                    // Not enough preamble yet — keep counting if this HIGH is ~500µs
-                    let hi_diff = if duration > TE_SHORT { duration - TE_SHORT } else { TE_SHORT - duration };
-                    if hi_diff < TE_DELTA {
-                        self.te_last = duration;
-                    }
                     return None;
                 }
 
-                // Sufficient preamble — check for 1000µs sync HIGH
-                let diff = if duration > TE_LONG { duration - TE_LONG } else { TE_LONG - duration };
-                if diff <= TE_DELTA {
-                    self.te_last = duration;
-                    self.step = DecoderStep::Sync2A;
+                let diff = if duration < TE_LONG {
+                    TE_LONG - duration
+                } else {
+                    duration - TE_LONG
+                };
+                if diff > REF_RESET_DELTA {
                     return None;
                 }
-
-                // Not sync — might be another preamble HIGH
-                let hi_diff = if duration > TE_SHORT { duration - TE_SHORT } else { TE_SHORT - duration };
-                if hi_diff < TE_DELTA {
-                    self.te_last = duration;
+                let prev_diff = if self.te_last < TE_SHORT {
+                    TE_SHORT - self.te_last
+                } else {
+                    self.te_last - TE_SHORT
+                };
+                if prev_diff > REF_RESET_DELTA {
                     return None;
                 }
-
-                // Neither preamble nor sync — reset
-                self.step = DecoderStep::Reset;
+                self.te_last = duration;
+                self.step = DecoderStep::Sync2A;
             }
 
             DecoderStep::Sync2A => {
+                // Matches vag.c: LOW 500±80 and te_last 1000±80 -> Sync2B
                 if !level {
-                    // Sync LOW after 1000µs HIGH. Accept LOWs within TE_DELTA of
-                    // TE_SHORT, or any short LOW from asymmetric demodulation.
-                    let diff = if duration > TE_SHORT { duration - TE_SHORT } else { TE_SHORT - duration };
-                    if diff < TE_DELTA || duration < TE_SHORT {
-                        self.te_last = duration;
-                        self.step = DecoderStep::Sync2B;
-                        return None;
+                    let diff = if duration < TE_SHORT {
+                        TE_SHORT - duration
+                    } else {
+                        duration - TE_SHORT
+                    };
+                    if diff < REF_PREAMBLE_SYNC {
+                        let prev_diff = if self.te_last < TE_LONG {
+                            TE_LONG - self.te_last
+                        } else {
+                            self.te_last - TE_LONG
+                        };
+                        if prev_diff < REF_PREAMBLE_SYNC {
+                            self.te_last = duration;
+                            self.step = DecoderStep::Sync2B;
+                            return None;
+                        }
                     }
                 }
                 self.step = DecoderStep::Reset;
             }
 
             DecoderStep::Sync2B => {
+                // Matches vag.c: HIGH 750±80 -> Sync2C
                 if level {
-                    // Expect ~750µs HIGH sync pulse
-                    let diff = if duration > 750 { duration - 750 } else { 750 - duration };
-                    if diff < TE_DELTA {
+                    let diff = if duration < 750 {
+                        750 - duration
+                    } else {
+                        duration - 750
+                    };
+                    if diff < REF_PREAMBLE_SYNC {
                         self.te_last = duration;
                         self.step = DecoderStep::Sync2C;
                         return None;
@@ -1060,41 +1078,42 @@ impl ProtocolDecoder for VagDecoder {
             }
 
             DecoderStep::Sync2C => {
+                // Matches vag.c: LOW 750±79 and te_last 750±79 (diff<=79), mid_count++; at 3 -> Data2
                 if !level {
-                    // Expect ~750µs LOW sync pulse, but accept shorter from
-                    // asymmetric demodulation (as low as ~200µs)
-                    let diff = if duration > 750 { duration - 750 } else { 750 - duration };
-                    let prev_diff = if self.te_last > 750 {
-                        self.te_last - 750
+                    let diff = if duration < 750 {
+                        750 - duration
                     } else {
-                        750 - self.te_last
+                        duration - 750
                     };
-                    if (diff <= TE_DELTA || duration < 750) && prev_diff <= TE_DELTA {
-                        self.mid_count += 1;
-                        self.step = DecoderStep::Sync2B;
+                    if diff <= REF_SYNC2C_DELTA {
+                        let prev_diff = if self.te_last < 750 {
+                            750 - self.te_last
+                        } else {
+                            self.te_last - 750
+                        };
+                        if prev_diff <= REF_SYNC2C_DELTA {
+                            self.mid_count += 1;
+                            self.step = DecoderStep::Sync2B;
 
-                        if self.mid_count == 3 {
-                            self.data_low = 1;
-                            self.data_high = 0;
-                            self.bit_count = 1;
-                            self.manchester_advance(ManchesterEvent::Reset);
-                            self.step = DecoderStep::Data2;
+                            if self.mid_count == 3 {
+                                self.data_low = 1;
+                                self.data_high = 0;
+                                self.bit_count = 1;
+                                self.manchester_advance(ManchesterEvent::Reset);
+                                self.step = DecoderStep::Data2;
+                            }
+                            return None;
                         }
-                        return None;
                     }
                 }
                 self.step = DecoderStep::Reset;
             }
 
             DecoderStep::Data2 => {
-                // Determine Manchester event for Type 3/4 (500/1000µs)
-                // Use nearest-match with wider tolerance for HackRF demodulation.
-                let short_diff = if duration > TE_SHORT { duration - TE_SHORT } else { TE_SHORT - duration };
-                let long_diff = if duration > TE_LONG { duration - TE_LONG } else { TE_LONG - duration };
-
-                let event = if short_diff <= TE_DELTA && short_diff <= long_diff {
+                // Matches vag.c: short 380-620µs, long 880-1120µs
+                let event = if duration >= 380 && duration <= 620 {
                     Some(if level { ManchesterEvent::ShortLow } else { ManchesterEvent::ShortHigh })
-                } else if long_diff <= TE_DELTA {
+                } else if duration >= 880 && duration <= 1120 {
                     Some(if level { ManchesterEvent::LongLow } else { ManchesterEvent::LongHigh })
                 } else {
                     None

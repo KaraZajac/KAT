@@ -158,8 +158,8 @@ fn render_detail_panel(frame: &mut Frame, area: Rect, app: &App) {
         Span::styled(make, value_style),
     ]));
 
-    // Row 2: Frequency + Encoding (Mod) + RF (AM/FM) + Encryption
-    left_lines.push(Line::from(vec![
+    // Row 2: Freq + Mod + RF (protocol) + Enc + Rx (demodulator path when known)
+    let mut row2 = vec![
         Span::styled(" Freq:      ", label_style),
         Span::styled(capture.frequency_mhz(), value_style),
         Span::styled("  Mod: ", label_style),
@@ -168,7 +168,12 @@ fn render_detail_panel(frame: &mut Frame, area: Rect, app: &App) {
         Span::styled(capture.rf_modulation().to_string(), value_style),
         Span::styled("  Enc: ", label_style),
         Span::styled(capture.encryption_type(), value_style),
-    ]));
+    ];
+    if let Some(rf) = capture.received_rf {
+        row2.push(Span::styled("  Rx: ", label_style));
+        row2.push(Span::styled(rf.to_string(), value_style));
+    }
+    left_lines.push(Line::from(row2));
 
     // Row 3: Full Serial + Button
     left_lines.push(Line::from(vec![

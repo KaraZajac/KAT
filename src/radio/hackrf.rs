@@ -13,9 +13,10 @@ use std::sync::{
 use std::thread::{self, JoinHandle};
 
 use crate::app::RadioEvent;
-use crate::capture::Capture;
+use crate::capture::{Capture, RfModulation, StoredLevelDuration};
 
 use super::demodulator::Demodulator;
+use super::demodulator::FmDemodulator;
 use super::demodulator::LevelDuration;
 
 /// Sample rate for HackRF (2 MHz is good for keyfob signals)
@@ -49,8 +50,10 @@ pub struct HackRfController {
     rx_thread: Option<JoinHandle<()>>,
     /// Current frequency
     frequency: Arc<Mutex<u32>>,
-    /// Demodulator for processing samples
-    demodulator: Arc<Mutex<Demodulator>>,
+    /// AM/OOK demodulator
+    demodulator_am: Arc<Mutex<Demodulator>>,
+    /// FM/2FSK demodulator
+    demodulator_fm: Arc<Mutex<FmDemodulator>>,
     /// Whether HackRF is available
     hackrf_available: bool,
     /// Shared gain settings (read by receiver thread)
@@ -60,7 +63,8 @@ pub struct HackRfController {
 impl HackRfController {
     /// Create a new HackRF controller
     pub fn new(event_tx: Sender<RadioEvent>) -> Result<Self> {
-        let demodulator = Demodulator::new(SAMPLE_RATE);
+        let demodulator_am = Demodulator::new(SAMPLE_RATE);
+        let demodulator_fm = FmDemodulator::new(SAMPLE_RATE);
 
         // Check if HackRF is available
         let hackrf_available = check_hackrf_available();
@@ -76,7 +80,8 @@ impl HackRfController {
             receiving: Arc::new(AtomicBool::new(false)),
             rx_thread: None,
             frequency: Arc::new(Mutex::new(433_920_000)),
-            demodulator: Arc::new(Mutex::new(demodulator)),
+            demodulator_am: Arc::new(Mutex::new(demodulator_am)),
+            demodulator_fm: Arc::new(Mutex::new(demodulator_fm)),
             hackrf_available,
             gain_settings: Arc::new(Mutex::new(GainSettings::default())),
         })
@@ -100,14 +105,21 @@ impl HackRfController {
         let receiving = self.receiving.clone();
         let event_tx = self.event_tx.clone();
         let freq = self.frequency.clone();
-        let demodulator = self.demodulator.clone();
+        let demodulator_am = self.demodulator_am.clone();
+        let demodulator_fm = self.demodulator_fm.clone();
         let hackrf_available = self.hackrf_available;
         let gain_settings = self.gain_settings.clone();
 
         self.rx_thread = Some(thread::spawn(move || {
             if hackrf_available {
-                if let Err(e) =
-                    run_receiver_hackrf(receiving.clone(), event_tx.clone(), freq, demodulator, gain_settings)
+                if let Err(e) = run_receiver_hackrf(
+                    receiving.clone(),
+                    event_tx.clone(),
+                    freq,
+                    demodulator_am,
+                    demodulator_fm,
+                    gain_settings,
+                )
                 {
                     let _ = event_tx.send(RadioEvent::Error(format!("Receiver error: {}", e)));
                 }
@@ -249,46 +261,58 @@ struct RxState {
     receiving: Arc<AtomicBool>,
     event_tx: Sender<RadioEvent>,
     frequency: Arc<Mutex<u32>>,
-    demodulator: Arc<Mutex<Demodulator>>,
+    demodulator_am: Arc<Mutex<Demodulator>>,
+    demodulator_fm: Arc<Mutex<FmDemodulator>>,
     capture_id: std::sync::atomic::AtomicU32,
 }
 
-/// RX callback function for libhackrf
+fn pairs_to_stored(pairs: &[LevelDuration]) -> Vec<StoredLevelDuration> {
+    pairs
+        .iter()
+        .map(|p| StoredLevelDuration {
+            level: p.level,
+            duration_us: p.duration_us,
+        })
+        .collect()
+}
+
+/// RX callback: feed same IQ to AM and FM demodulators; emit a capture per path when signal complete.
 fn rx_callback(
     _hackrf: &libhackrf::HackRf,
     buffer: &[num_complex::Complex<i8>],
     user_data: &dyn std::any::Any,
 ) {
-    use crate::capture::StoredLevelDuration;
-    
-    // Downcast user_data to our state
     let state = match user_data.downcast_ref::<RxState>() {
         Some(s) => s,
         None => return,
     };
-
     if !state.receiving.load(Ordering::SeqCst) {
         return;
     }
-
     let current_freq = *state.frequency.lock().unwrap();
+    let samples: Vec<i8> = buffer.iter().flat_map(|c| [c.re, c.im]).collect();
 
-    // Convert Complex<i8> samples to i8 pairs for demodulator
-    let samples: Vec<i8> = buffer.iter()
-        .flat_map(|c| [c.re, c.im])
-        .collect();
-
-    // Process through demodulator
-    if let Ok(mut demod) = state.demodulator.lock() {
+    if let Ok(mut demod) = state.demodulator_am.lock() {
         if let Some(pairs) = demod.process_samples(&samples) {
-            // Convert to storable format
-            let stored_pairs: Vec<StoredLevelDuration> = pairs
-                .iter()
-                .map(|p| StoredLevelDuration { level: p.level, duration_us: p.duration_us })
-                .collect();
-            
             let id = state.capture_id.fetch_add(1, Ordering::SeqCst);
-            let capture = Capture::from_pairs(id, current_freq, stored_pairs);
+            let capture = Capture::from_pairs_with_rf(
+                id,
+                current_freq,
+                pairs_to_stored(&pairs),
+                Some(RfModulation::AM),
+            );
+            let _ = state.event_tx.send(RadioEvent::SignalCaptured(capture));
+        }
+    }
+    if let Ok(mut demod) = state.demodulator_fm.lock() {
+        if let Some(pairs) = demod.process_samples(&samples) {
+            let id = state.capture_id.fetch_add(1, Ordering::SeqCst);
+            let capture = Capture::from_pairs_with_rf(
+                id,
+                current_freq,
+                pairs_to_stored(&pairs),
+                Some(RfModulation::FM),
+            );
             let _ = state.event_tx.send(RadioEvent::SignalCaptured(capture));
         }
     }
@@ -299,14 +323,14 @@ fn run_receiver_hackrf(
     receiving: Arc<AtomicBool>,
     event_tx: Sender<RadioEvent>,
     frequency: Arc<Mutex<u32>>,
-    demodulator: Arc<Mutex<Demodulator>>,
+    demodulator_am: Arc<Mutex<Demodulator>>,
+    demodulator_fm: Arc<Mutex<FmDemodulator>>,
     gain_settings: Arc<Mutex<GainSettings>>,
 ) -> Result<()> {
     use anyhow::Context;
 
     tracing::info!("HackRF receiver thread starting...");
 
-    // Open HackRF device
     let hackrf = libhackrf::HackRf::open()
         .context("Failed to open HackRF device")?;
 
@@ -317,32 +341,28 @@ fn run_receiver_hackrf(
         freq, SAMPLE_RATE, initial_gains.lna_gain, initial_gains.vga_gain, initial_gains.amp_enabled
     );
 
-    // Configure HackRF
     hackrf.set_sample_rate(SAMPLE_RATE)
         .context("Failed to set sample rate")?;
-    
     hackrf.set_freq(freq as u64)
         .context("Failed to set frequency")?;
-    
     hackrf.set_lna_gain(initial_gains.lna_gain)
         .context("Failed to set LNA gain")?;
-    
     hackrf.set_rxvga_gain(initial_gains.vga_gain)
         .context("Failed to set RXVGA gain")?;
-    
     hackrf.set_amp_enable(initial_gains.amp_enabled)
         .context("Failed to enable amp")?;
 
-    tracing::info!("HackRF configured, starting RX...");
+    tracing::info!("HackRF configured, starting RX (AM + FM demodulators)...");
 
-    // Create state for callback
     let state = RxState {
         receiving: receiving.clone(),
         event_tx: event_tx.clone(),
         frequency: frequency.clone(),
-        demodulator,
+        demodulator_am,
+        demodulator_fm,
         capture_id: std::sync::atomic::AtomicU32::new(0),
     };
+
 
     // Start receiving
     hackrf.start_rx(rx_callback, state)

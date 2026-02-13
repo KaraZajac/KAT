@@ -3,6 +3,11 @@
 //! Protocols are aligned with the ProtoPirate reference (`REFERENCES/ProtoPirate/protocols/`).
 //! Each decoder processes level+duration pairs from the demodulator and optionally supports
 //! encoding (replay). Shared pieces: [common], [keeloq_common], [keys], [aut64].
+//!
+//! **Manchester decoding**: Each protocol that uses Manchester has its own state machine and
+//! event mapping (no shared global decoder). Polarity and event conventions match the
+//! reference per protocol (e.g. Kia V5 uses opposite polarity to V1/V2; Kia V6 level
+//! convention; Fiat/Ford/VAG use level ? ShortLow : ShortHigh).
 
 mod common;
 pub mod keeloq_common;

@@ -58,6 +58,9 @@ pub struct Capture {
     pub raw_pairs: Vec<StoredLevelDuration>,
     /// Current status
     pub status: CaptureStatus,
+    /// Which demodulator path produced this capture (AM or FM). None if unknown/imported.
+    #[serde(default)]
+    pub received_rf: Option<RfModulation>,
 }
 
 /// Modulation type used by protocol (encoding: PWM vs Manchester)
@@ -104,8 +107,19 @@ impl std::fmt::Display for RfModulation {
 }
 
 impl Capture {
-    /// Create a new capture from level+duration pairs
+    /// Create a new capture from level+duration pairs (received_rf = None).
+    #[allow(dead_code)] // public API for tests / code that doesn't have receive path
     pub fn from_pairs(id: u32, frequency: u32, pairs: Vec<StoredLevelDuration>) -> Self {
+        Self::from_pairs_with_rf(id, frequency, pairs, None)
+    }
+
+    /// Create a new capture from level+duration pairs and optional receive path (AM/FM).
+    pub fn from_pairs_with_rf(
+        id: u32,
+        frequency: u32,
+        pairs: Vec<StoredLevelDuration>,
+        received_rf: Option<RfModulation>,
+    ) -> Self {
         Self {
             id,
             timestamp: Utc::now(),
@@ -119,6 +133,7 @@ impl Capture {
             data_count_bit: 0,
             raw_pairs: pairs,
             status: CaptureStatus::Unknown,
+            received_rf,
         }
     }
 

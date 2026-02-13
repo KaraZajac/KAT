@@ -22,6 +22,12 @@ const GAP_US: u32 = 800;
 const TOTAL_BURSTS: u8 = 3;
 const INTER_BURST_GAP: u32 = 25000;
 
+// After long silence, first HIGH can be merged/wrong (e.g. 658µs); accept 100-700µs to enter Preamble.
+const RESET_HIGH_MIN_US: u32 = 100;
+const RESET_HIGH_MAX_US: u32 = 700;
+// Preamble short LOW: ref 200±100; allow 80-320µs so truncated first LOW (e.g. 99µs) still counts.
+const PREAMBLE_SHORT_DELTA: u32 = 120;
+
 /// Manchester state machine states (matches Flipper's manchester_decoder.h, same as Ford V0)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum ManchesterState {
@@ -154,7 +160,7 @@ impl ProtocolDecoder for FiatV0Decoder {
     }
 
     fn supported_frequencies(&self) -> &[u32] {
-        &[433_920_000]
+        &[433_920_000, 433_880_000] // 433.88 MHz common for Fiat keyfobs
     }
 
     fn reset(&mut self) {
@@ -172,12 +178,14 @@ impl ProtocolDecoder for FiatV0Decoder {
 
     fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
         match self.step {
-            // Reset: wait for short HIGH (matches reference)
+            // Reset: wait for HIGH that starts the burst. Ref: short 200µs; live capture often has
+            // first HIGH 100-700µs (merged/AGC) and first LOW truncated (e.g. 99µs), so accept range.
             DecoderStep::Reset => {
                 if !level {
                     return None;
                 }
-                if duration_diff!(duration, TE_SHORT) < TE_DELTA {
+                let in_range = duration >= RESET_HIGH_MIN_US && duration <= RESET_HIGH_MAX_US;
+                if in_range {
                     self.data_low = 0;
                     self.data_high = 0;
                     self.step = DecoderStep::Preamble;
@@ -189,11 +197,12 @@ impl ProtocolDecoder for FiatV0Decoder {
             }
 
             // Preamble: only process LOW pulses (reference: if(level) return). Count short LOWs; gap = 800µs LOW.
+            // Use PREAMBLE_SHORT_DELTA so first LOW after long gap (e.g. 99µs) counts as short.
             DecoderStep::Preamble => {
                 if level {
                     return None;
                 }
-                let short_ok = duration_diff!(duration, TE_SHORT) < TE_DELTA;
+                let short_ok = duration_diff!(duration, TE_SHORT) < PREAMBLE_SHORT_DELTA;
                 let gap_ok = duration_diff!(duration, GAP_US) < TE_DELTA;
 
                 if short_ok {

@@ -300,6 +300,7 @@ fn import_fob_v2(fob: &FobFile, next_id: u32) -> Result<Capture> {
         data_count_bit: sig.data_bits,
         raw_pairs,
         status,
+        received_rf: None,
     })
 }
 
@@ -364,6 +365,7 @@ fn import_fob_v1(fob: &FobFileV1, next_id: u32) -> Result<Capture> {
         data_count_bit: cap.data_bits,
         raw_pairs,
         status,
+        received_rf: None,
     })
 }
 

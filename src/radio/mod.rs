@@ -10,4 +10,6 @@ pub use hackrf::HackRfController;
 #[allow(unused_imports)]
 pub use demodulator::Demodulator;
 #[allow(unused_imports)]
+pub use demodulator::FmDemodulator;
+#[allow(unused_imports)]
 pub use modulator::Modulator;

@@ -282,10 +282,13 @@ impl App {
         let vga_gain = storage.config.default_vga_gain;
         let amp_enabled = storage.config.default_amp;
 
-        // Scan for .fob files in the export directory
-        let pending_fob_files = crate::export::fob::scan_fob_files(&storage.config.export_directory);
+        // Scan for .fob and .sub files in the export directory
+        let mut pending_fob_files = crate::export::fob::scan_fob_files(&storage.config.export_directory);
+        let sub_files = crate::export::flipper::scan_sub_files(&storage.config.export_directory);
+        pending_fob_files.extend(sub_files);
+        pending_fob_files.sort();
         let initial_mode = if !pending_fob_files.is_empty() {
-            tracing::info!("Found {} .fob files in export dir", pending_fob_files.len());
+            tracing::info!("Found {} file(s) in export dir", pending_fob_files.len());
             InputMode::StartupImport
         } else {
             InputMode::Normal
@@ -501,8 +504,12 @@ impl App {
 
         self.frequency = hz;
 
+        // If receiving, restart receiver so the new frequency takes effect (HackRF thread reads freq only at start)
         if let Some(ref mut hackrf) = self.hackrf {
             if self.radio_state == RadioState::Receiving {
+                hackrf.stop_receiving()?;
+                hackrf.start_receiving(hz)?;
+            } else {
                 hackrf.set_frequency(hz)?;
             }
         }
@@ -647,7 +654,16 @@ impl App {
         Ok(())
     }
 
-    /// Delete a capture (in-memory only — captures are not persisted)
+    /// Delete the currently selected capture (if any). No-op if none selected or list empty.
+    pub fn delete_selected_capture(&mut self) -> Result<()> {
+        let id = match self.selected_capture {
+            Some(idx) if idx < self.captures.len() => self.captures[idx].id,
+            _ => return Ok(()),
+        };
+        self.delete_capture(&id.to_string())
+    }
+
+    /// Delete a capture by ID (in-memory only — captures are not persisted)
     fn delete_capture(&mut self, id_str: &str) -> Result<()> {
         let id: u32 = match id_str.parse() {
             Ok(i) => i,
@@ -883,27 +899,94 @@ impl App {
         Ok(())
     }
 
-    /// Import pending .fob files into captures list
+    /// Import pending .fob and .sub files into captures list.
+    /// .sub files are decoded with registered protocols after load (no metadata in file).
     pub fn import_fob_files(&mut self) -> Result<()> {
         let files = std::mem::take(&mut self.pending_fob_files);
         let mut imported = 0;
 
         for path in &files {
-            match crate::export::fob::import_fob(path, self.next_capture_id) {
-                Ok(capture) => {
-                    self.next_capture_id += 1;
-                    self.captures.push(capture);
-                    imported += 1;
+            let is_sub = path.extension().map_or(false, |e| e == "sub");
+
+            if is_sub {
+                match crate::export::flipper::import_sub(path, self.next_capture_id) {
+                    Ok(captures) => {
+                        for mut capture in captures {
+                            capture.id = self.next_capture_id;
+                            self.next_capture_id += 1;
+                            // .sub has no protocol metadata; run decoder to identify signal
+                            if capture.status == crate::capture::CaptureStatus::Unknown
+                                && !capture.raw_pairs.is_empty()
+                            {
+                                let pairs: Vec<crate::radio::LevelDuration> = capture
+                                    .raw_pairs
+                                    .iter()
+                                    .map(|p| crate::radio::LevelDuration::new(p.level, p.duration_us))
+                                    .collect();
+                                if let Some((protocol_name, decoded)) =
+                                    self.protocols.process_signal(&pairs, capture.frequency)
+                                {
+                                    capture.protocol = Some(protocol_name);
+                                    capture.serial = decoded.serial;
+                                    capture.button = decoded.button;
+                                    capture.counter = decoded.counter;
+                                    capture.crc_valid = decoded.crc_valid;
+                                    capture.data = decoded.data;
+                                    capture.data_count_bit = decoded.data_count_bit;
+                                    capture.status = if decoded.encoder_capable {
+                                        crate::capture::CaptureStatus::EncoderCapable
+                                    } else {
+                                        crate::capture::CaptureStatus::Decoded
+                                    };
+                                }
+                            }
+                            self.captures.push(capture);
+                            imported += 1;
+                        }
+                    }
+                    Err(e) => tracing::warn!("Failed to import {:?}: {}", path, e),
                 }
-                Err(e) => {
-                    tracing::warn!("Failed to import {:?}: {}", path, e);
+            } else {
+                match crate::export::fob::import_fob(path, self.next_capture_id) {
+                    Ok(mut capture) => {
+                        self.next_capture_id += 1;
+                        // Re-run decoder when Unknown and raw_pairs present (same as .sub)
+                        if capture.status == crate::capture::CaptureStatus::Unknown
+                            && !capture.raw_pairs.is_empty()
+                        {
+                            let pairs: Vec<crate::radio::LevelDuration> = capture
+                                .raw_pairs
+                                .iter()
+                                .map(|p| crate::radio::LevelDuration::new(p.level, p.duration_us))
+                                .collect();
+                            if let Some((protocol_name, decoded)) =
+                                self.protocols.process_signal(&pairs, capture.frequency)
+                            {
+                                capture.protocol = Some(protocol_name);
+                                capture.serial = decoded.serial;
+                                capture.button = decoded.button;
+                                capture.counter = decoded.counter;
+                                capture.crc_valid = decoded.crc_valid;
+                                capture.data = decoded.data;
+                                capture.data_count_bit = decoded.data_count_bit;
+                                capture.status = if decoded.encoder_capable {
+                                    crate::capture::CaptureStatus::EncoderCapable
+                                } else {
+                                    crate::capture::CaptureStatus::Decoded
+                                };
+                            }
+                        }
+                        self.captures.push(capture);
+                        imported += 1;
+                    }
+                    Err(e) => tracing::warn!("Failed to import {:?}: {}", path, e),
                 }
             }
         }
 
         if imported > 0 {
             self.selected_capture = Some(0);
-            self.status_message = Some(format!("Imported {} .fob file(s)", imported));
+            self.status_message = Some(format!("Imported {} file(s)", imported));
         }
 
         Ok(())
@@ -1057,6 +1140,7 @@ impl App {
             data_count_bit: 64,
             raw_pairs: vec![],
             status: crate::capture::CaptureStatus::EncoderCapable,
+            received_rf: None,
         };
         self.next_capture_id += 1;
         self.captures.push(capture);

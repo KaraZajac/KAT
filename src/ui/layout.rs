@@ -102,7 +102,7 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App) {
         RadioState::Transmitting => ("●", Style::default().fg(Color::Red)),
     };
 
-    let title = format!("KAT v{}", VERSION);
+    let title = format!("Keyfob Analysis Toolkit v{}", VERSION);
 
     // Build radio info string with all settings
     let amp_str = if app.amp_enabled { "ON" } else { "OFF" };
@@ -140,7 +140,7 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App) {
 fn render_help_bar(frame: &mut Frame, area: Rect, app: &App) {
     let help_text = match app.input_mode {
         InputMode::Normal => {
-            "Enter: Actions | Tab: Settings | r: RX Toggle | :: Command | q: Quit"
+            "Enter: Actions | d: Delete | Tab: Settings | r: RX Toggle | :: Command | q: Quit"
         }
         InputMode::Command => "Enter: Execute | Esc: Cancel",
         InputMode::SignalMenu => "Up/Down: Navigate | Enter: Select | Esc: Close",
@@ -187,7 +187,7 @@ fn render_startup_import_prompt(frame: &mut Frame, app: &App) {
     let text = vec![
         Line::from(""),
         Line::from(Span::styled(
-            format!("Found {} .fob file(s) in export directory.", count),
+            format!("Found {} file(s) (.fob / .sub) in export directory.", count),
             Style::default().fg(Color::Yellow),
         )),
         Line::from(""),

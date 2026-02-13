@@ -10,8 +10,7 @@
 //! - BS (byte swap) magic calculation
 //! - 6 bursts, 4 preamble pairs, 3500µs gap
 //!
-//! HackRF-specific: `TE_DELTA` (200µs) and `GAP_TOLERANCE` (1500µs) are wider than reference
-//! (100µs / 250µs) for software demodulator tolerance.
+//! Timing matches reference: te_delta 100µs, gap tolerance 250µs.
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use crate::radio::demodulator::LevelDuration;
@@ -19,12 +18,12 @@ use crate::duration_diff;
 
 const TE_SHORT: u32 = 250;
 const TE_LONG: u32 = 500;
-const TE_DELTA: u32 = 200; // Wider tolerance for HackRF software demodulation (was 100)
+const TE_DELTA: u32 = 100; // ref ford_v0.c
 const MIN_COUNT_BIT: usize = 64;
 const TOTAL_BURSTS: u8 = 6;
 const PREAMBLE_PAIRS: usize = 4;
 const GAP_US: u32 = 3500;
-const GAP_TOLERANCE: u32 = 1500; // Wide gap tolerance for software demodulator
+const GAP_TOLERANCE: u32 = 250; // ref: DURATION_DIFF(duration, gap_threshold) < 250
 
 // CRC matrix for Ford V0 — GF(2) matrix multiplication
 // Copied directly from protopirate's ford_v0.c

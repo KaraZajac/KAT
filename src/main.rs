@@ -138,6 +138,9 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             KeyCode::Char('r') => {
                                 app.toggle_receiving()?;
                             }
+                            KeyCode::Char('d') => {
+                                let _ = app.delete_selected_capture();
+                            }
                             KeyCode::Enter => {
                                 // Open signal action menu if a capture is selected
                                 if app.selected_capture.is_some() && !app.captures.is_empty() {

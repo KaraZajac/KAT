@@ -1,19 +1,14 @@
-//! AM/OOK demodulator for extracting level+duration pairs from raw IQ samples.
+//! AM/OOK and FM/2FSK demodulators for extracting level+duration pairs from raw IQ samples.
 //!
-//! KAT uses **AM (envelope) detection only**; FM/2FSK is not demodulated. Protocols
-//! are tagged with AM/FM/Both (from ProtoPirate) for display and export. FM protocols
-//! may still decode when the received signal is strong enough to produce a usable
-//! envelope; proper FM support would require a separate demodulator path.
+//! Two demodulators run in parallel on the same IQ stream:
+//! - **Demodulator** (AM): envelope detection → level/duration pairs for OOK/AM protocols.
+//! - **FmDemodulator** (FM): phase discriminator → instantaneous frequency → level/duration for 2FSK.
 //!
-//! This demodulator converts raw IQ samples into a stream of (level, duration_us) pairs
-//! that can be processed by protocol decoders, similar to how the Flipper Zero SubGHz
-//! system works.
+//! Protocols are tagged AM/FM/Both (ProtoPirate). Captures record which path produced them
+//! (`received_rf`). Decoders and encoders are agnostic; TX remains OOK/AM.
 //!
-//! Key design decisions for HackRF (vs Flipper's CC1101 hardware slicer):
-//! - Adaptive threshold with hysteresis to prevent chattering at decision boundary
-//! - Debounce mechanism to reject noise spikes shorter than min_duration_us
-//! - Magnitude smoothing (EMA) to reduce per-sample noise
-//! - Fast initial threshold adaptation, slower during steady-state reception
+//! AM key design: adaptive threshold, hysteresis, debounce, transition-based threshold updates.
+//! FM key design: phase diff → freq (Hz), EMA smoothing, zero-centered threshold with hysteresis.
 
 /// A single level+duration pair representing one segment of the signal
 #[derive(Debug, Clone, Copy)]
@@ -356,6 +351,169 @@ impl Demodulator {
         self.hysteresis = 0.02;
         self.mag_smooth = 0.0;
         self.total_samples = 0;
+    }
+}
+
+// ─── FM / 2FSK demodulator (phase discriminator) ─────────────────────────────
+
+/// FM/2FSK demodulator: instantaneous frequency from phase difference → level/duration pairs.
+/// Uses same debounce and gap-detection logic as AM so protocol decoders see a consistent stream.
+pub struct FmDemodulator {
+    sample_rate: u32,
+    samples_per_us: f64,
+
+    /// Previous I,Q (normalized) for phase-diff
+    prev_i: f32,
+    prev_q: f32,
+    /// Have we seen at least one previous sample?
+    have_prev: bool,
+
+    /// EMA of instantaneous frequency (Hz)
+    freq_smooth: f32,
+    /// Threshold (Hz): above = high, below = low. Zero for symmetric 2FSK.
+    threshold: f32,
+    hysteresis: f32,
+
+    current_level: bool,
+    level_sample_count: u64,
+    in_transition: bool,
+    pending_level: bool,
+    pending_count: u64,
+
+    pairs: Vec<LevelDuration>,
+    min_duration_us: u32,
+    max_gap_us: u32,
+    samples_since_edge: u64,
+}
+
+impl FmDemodulator {
+    /// Create a new FM demodulator. Hysteresis in Hz (e.g. 300–1000 for keyfob 2FSK).
+    pub fn new(sample_rate: u32) -> Self {
+        Self {
+            sample_rate,
+            samples_per_us: sample_rate as f64 / 1_000_000.0,
+            prev_i: 0.0,
+            prev_q: 0.0,
+            have_prev: false,
+            freq_smooth: 0.0,
+            threshold: 0.0,
+            hysteresis: 500.0, // Hz; keyfob 2FSK deviation typically a few kHz
+            current_level: false,
+            level_sample_count: 0,
+            in_transition: false,
+            pending_level: false,
+            pending_count: 0,
+            pairs: Vec::with_capacity(2048),
+            min_duration_us: 40,
+            max_gap_us: 20_000,
+            samples_since_edge: 0,
+        }
+    }
+
+    /// Process raw IQ samples; returns `Some(pairs)` when a complete signal is detected (gap).
+    pub fn process_samples(&mut self, samples: &[i8]) -> Option<Vec<LevelDuration>> {
+        let two_pi = std::f32::consts::TAU;
+        let rad_to_hz = self.sample_rate as f32 / two_pi;
+
+        for chunk in samples.chunks(2) {
+            if chunk.len() < 2 {
+                continue;
+            }
+            let i = chunk[0] as f32 / 128.0;
+            let q = chunk[1] as f32 / 128.0;
+
+            if !self.have_prev {
+                self.prev_i = i;
+                self.prev_q = q;
+                self.have_prev = true;
+                continue;
+            }
+
+            // Phase difference: atan2(Im(c*conj(c_prev)), Re(c*conj(c_prev)))
+            let re = i * self.prev_i + q * self.prev_q;
+            let im = q * self.prev_i - i * self.prev_q;
+            let phase_diff = im.atan2(re);
+            self.prev_i = i;
+            self.prev_q = q;
+
+            // Instantaneous frequency (Hz)
+            let freq_hz = phase_diff * rad_to_hz;
+            // EMA smoothing (alpha ≈ 0.1)
+            self.freq_smooth = self.freq_smooth * 0.9 + freq_hz * 0.1;
+
+            let is_high = if self.current_level {
+                self.freq_smooth > (self.threshold - self.hysteresis)
+            } else {
+                self.freq_smooth > (self.threshold + self.hysteresis)
+            };
+
+            if self.in_transition {
+                if is_high == self.pending_level {
+                    self.pending_count += 1;
+                    let pending_us = (self.pending_count as f64 / self.samples_per_us) as u32;
+                    if pending_us >= self.min_duration_us {
+                        let duration_us =
+                            (self.level_sample_count as f64 / self.samples_per_us) as u32;
+                        if duration_us >= self.min_duration_us {
+                            self.pairs.push(LevelDuration::new(self.current_level, duration_us));
+                        }
+                        self.samples_since_edge = 0;
+                        self.current_level = self.pending_level;
+                        self.level_sample_count = self.pending_count;
+                        self.in_transition = false;
+                    }
+                } else {
+                    self.level_sample_count += self.pending_count + 1;
+                    self.in_transition = false;
+                }
+            } else if is_high != self.current_level && self.level_sample_count > 0 {
+                self.in_transition = true;
+                self.pending_level = is_high;
+                self.pending_count = 1;
+            } else {
+                self.level_sample_count += 1;
+                self.samples_since_edge += 1;
+            }
+        }
+
+        let gap_samples = (self.max_gap_us as f64 * self.samples_per_us) as u64;
+        if !self.pairs.is_empty() && self.samples_since_edge > gap_samples {
+            if self.in_transition {
+                let duration_us =
+                    (self.level_sample_count as f64 / self.samples_per_us) as u32;
+                if duration_us >= self.min_duration_us {
+                    self.pairs.push(LevelDuration::new(self.current_level, duration_us));
+                }
+                self.level_sample_count = self.pending_count;
+                self.current_level = self.pending_level;
+                self.in_transition = false;
+            }
+            let duration_us =
+                (self.level_sample_count as f64 / self.samples_per_us) as u32;
+            if duration_us >= self.min_duration_us {
+                self.pairs.push(LevelDuration::new(self.current_level, duration_us));
+            }
+            let result = std::mem::take(&mut self.pairs);
+            self.fm_reset_state();
+            if result.len() >= 10 {
+                return Some(result);
+            }
+        }
+
+        if self.pairs.len() > 4096 {
+            self.fm_reset_state();
+        }
+        None
+    }
+
+    fn fm_reset_state(&mut self) {
+        self.pairs.clear();
+        self.level_sample_count = 0;
+        self.samples_since_edge = 0;
+        self.current_level = false;
+        self.in_transition = false;
+        self.pending_level = false;
+        self.pending_count = 0;
     }
 }
 

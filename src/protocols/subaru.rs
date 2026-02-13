@@ -15,7 +15,7 @@ use crate::duration_diff;
 
 const TE_SHORT: u32 = 800;
 const TE_LONG: u32 = 1600;
-const TE_DELTA: u32 = 300;
+const TE_DELTA: u32 = 200; // ref subaru.c
 #[allow(dead_code)]
 const MIN_COUNT_BIT: usize = 64;
 
@@ -115,7 +115,7 @@ impl SubaruDecoder {
         ((hi as u16) << 8) | (lo as u16)
     }
 
-    /// Append level+duration, merging with previous if same level (prevents HackRF from merging consecutive same-level pulses)
+    /// Append level+duration, merging with previous if same level for correct replay timing
     fn add_level(signal: &mut Vec<LevelDuration>, level: bool, duration: u32) {
         if let Some(last) = signal.last_mut() {
             if last.level == level {
@@ -293,7 +293,7 @@ impl ProtocolDecoder for SubaruDecoder {
         let key = decoded.data;
         let mut signal = Vec::with_capacity(512);
 
-        // 3 bursts; add_level() merges same-level pulses for correct HackRF timing (matches protopirate subaru encode)
+        // 3 bursts; add_level() merges same-level pulses for correct replay (ref subaru encode)
         for burst in 0..3 {
             if burst > 0 {
                 Self::add_level(&mut signal, false, 25000);

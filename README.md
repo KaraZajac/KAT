@@ -274,7 +274,7 @@ src/
 
 ## Credits
 
-KAT is developed by **Kara Zajac (.leviathan)** and would not be possible without [ProtoPirate](REFERENCES/ProtoPirate/). Truly standing on the shoulders of giants.
+KAT is developed by **Kara Zajac (.leviathan)** and would not be possible without [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate). Truly standing on the shoulders of giants.
 
 ### ProtoPirate Development Team
 

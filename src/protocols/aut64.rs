@@ -1,7 +1,9 @@
 //! AUT64 block cipher implementation
 //!
-//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/aut64.c`.
-//! Encrypt/decrypt, pack/unpack, and all tables match the reference.
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/aut64.c` and `aut64.h`.
+//! Encrypt/decrypt, pack/unpack, tables (table_ln, table_un, table_offset, table_sub), and
+//! round logic match the reference. Optional key validation matches `aut64_validate_key` when
+//! `AUT64_ENABLE_VALIDATIONS` is set in the reference.
 //!
 //! AUT64 algorithm: 12 rounds, 8-byte block/key size.
 //! See: https://www.usenix.org/system/files/conference/usenixsecurity16/sec16_paper_garcia.pdf
@@ -11,10 +13,11 @@ pub const AUT64_BLOCK_SIZE: usize = 8;
 pub const AUT64_KEY_SIZE: usize = 8;
 pub const AUT64_PBOX_SIZE: usize = 8;
 pub const AUT64_SBOX_SIZE: usize = 16;
+/// Packed key size in bytes (aut64.h: AUT64_PACKED_KEY_SIZE)
 #[allow(dead_code)]
 pub const AUT64_KEY_STRUCT_PACKED_SIZE: usize = 16;
 
-/// AUT64 key structure
+/// AUT64 key structure (aut64.h: struct aut64_key)
 #[derive(Debug, Clone)]
 pub struct Aut64Key {
     pub index: u8,
@@ -197,7 +200,7 @@ fn permute_bits(key: &Aut64Key, byte: u8) -> u8 {
     result
 }
 
-/// Compute inverse permutation box
+/// Compute inverse permutation box (reference: reverse_box). Used for encrypt key.
 fn reverse_box(box_in: &[u8], len: usize) -> Vec<u8> {
     let mut reversed = vec![0u8; len];
     for i in 0..len {
@@ -211,7 +214,41 @@ fn reverse_box(box_in: &[u8], len: usize) -> Vec<u8> {
     reversed
 }
 
-/// AUT64 encrypt: 12 rounds of the cipher
+/// Validate key: key nibbles in 0..16, pbox permutation of 0..7, sbox permutation of 0..15.
+/// Matches `aut64_validate_key` when AUT64_ENABLE_VALIDATIONS is set in the reference.
+#[allow(dead_code)]
+pub fn aut64_validate_key(key: &Aut64Key) -> bool {
+    for i in 0..AUT64_KEY_SIZE {
+        if key.key[i] >= AUT64_SBOX_SIZE as u8 {
+            return false;
+        }
+    }
+    if !box_is_permutation(&key.pbox, AUT64_PBOX_SIZE) {
+        return false;
+    }
+    if !box_is_permutation(&key.sbox, AUT64_SBOX_SIZE) {
+        return false;
+    }
+    true
+}
+
+fn box_is_permutation(box_in: &[u8], len: usize) -> bool {
+    if box_in.len() < len {
+        return false;
+    }
+    let mut seen = vec![false; len];
+    for &v in &box_in[..len] {
+        let v = v as usize;
+        if v >= len || seen[v] {
+            return false;
+        }
+        seen[v] = true;
+    }
+    seen.iter().all(|&b| b)
+}
+
+/// Encrypt one 8-byte block in place. Matches `aut64_encrypt` in reference.
+/// Message buffer must be at least AUT64_BLOCK_SIZE bytes.
 pub fn aut64_encrypt(key: &Aut64Key, message: &mut [u8]) {
     // Create reverse key for encryption
     let mut reverse_key = key.clone();
@@ -229,7 +266,8 @@ pub fn aut64_encrypt(key: &Aut64Key, message: &mut [u8]) {
     }
 }
 
-/// AUT64 decrypt: 12 rounds of the cipher (reverse order)
+/// Decrypt one 8-byte block in place. Matches `aut64_decrypt` in reference.
+/// Message buffer must be at least AUT64_BLOCK_SIZE bytes.
 pub fn aut64_decrypt(key: &Aut64Key, message: &mut [u8]) {
     for i in (0..AUT64_NUM_ROUNDS).rev() {
         message[7] = substitute(key, message[7]);
@@ -240,7 +278,7 @@ pub fn aut64_decrypt(key: &Aut64Key, message: &mut [u8]) {
     }
 }
 
-/// Pack an AUT64 key structure into a 16-byte array
+/// Serialize key into 16-byte packed format. Matches `aut64_pack` (when AUT64_PACK_SUPPORT).
 #[allow(dead_code)]
 pub fn aut64_pack(src: &Aut64Key) -> [u8; AUT64_KEY_STRUCT_PACKED_SIZE] {
     let mut dest = [0u8; AUT64_KEY_STRUCT_PACKED_SIZE];
@@ -265,7 +303,7 @@ pub fn aut64_pack(src: &Aut64Key) -> [u8; AUT64_KEY_STRUCT_PACKED_SIZE] {
     dest
 }
 
-/// Unpack a 16-byte array into an AUT64 key structure (matches aut64_unpack in reference)
+/// Deserialize 16-byte packed key into key structure. Matches `aut64_unpack` in reference.
 #[allow(dead_code)]
 pub fn aut64_unpack(src: &[u8]) -> Aut64Key {
     let mut dest = Aut64Key::default();

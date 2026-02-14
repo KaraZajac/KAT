@@ -4,10 +4,10 @@
 //! Each decoder processes level+duration pairs from the demodulator and optionally supports
 //! encoding (replay). Shared pieces: [common], [keeloq_common], [keys], [aut64].
 //!
-//! **Manchester decoding**: Each protocol that uses Manchester has its own state machine and
-//! event mapping (no shared global decoder). Polarity and event conventions match the
-//! reference per protocol (e.g. Kia V5 uses opposite polarity to V1/V2; Kia V6 level
-//! convention; Fiat/Ford/VAG use level ? ShortLow : ShortHigh).
+//! **Manchester decoding**: Ford, Fiat, and common each have separate Manchester state machines
+//! (FordV0ManchesterState, FiatV0ManchesterState, CommonManchesterState in common.rs). They are
+//! not reused across protocols. Event conventions match the reference per protocol (e.g. Kia V5
+//! opposite polarity; Fiat/Ford/common use Flipper-style: level ? ShortLow : ShortHigh).
 
 mod common;
 pub mod keeloq_common;
@@ -93,9 +93,9 @@ impl ProtocolRegistry {
             Box::new(kia_v3_v4::KiaV3V4Decoder::new()),
             Box::new(kia_v5::KiaV5Decoder::new()),
             Box::new(kia_v6::KiaV6Decoder::new()),
-            // Other protocols
-            Box::new(subaru::SubaruDecoder::new()),
+            // Other protocols (Ford before Subaru so 250/500µs Ford keyfobs decode as Ford)
             Box::new(ford_v0::FordV0Decoder::new()),
+            Box::new(subaru::SubaruDecoder::new()),
             Box::new(vag::VagDecoder::new()),
             Box::new(fiat_v0::FiatV0Decoder::new()),
             Box::new(suzuki::SuzukiDecoder::new()),
@@ -108,17 +108,100 @@ impl ProtocolRegistry {
     }
 
     /// Process level+duration pairs from demodulator
-    /// Returns decoded signal info if any protocol matches
+    /// Returns decoded signal info if any protocol matches.
+    /// Tries normal polarity first, then inverted polarity (so OOK captures where
+    /// carrier-on is recorded as LOW can still decode as Fiat/Ford etc.).
     pub fn process_signal(&mut self, pairs: &[LevelDuration], frequency: u32) -> Option<(String, DecodedSignal)> {
-        // Reset all decoders
+        // Try normal polarity first
+        if let Some(result) = self.process_signal_inner(pairs, frequency, false) {
+            return Some(result);
+        }
+        // Try inverted polarity (capture LOW = RF HIGH)
+        self.process_signal_inner(pairs, frequency, true)
+    }
+
+    /// ProtoPirate-style streaming decode: feed the whole stream, on each decode record and reset decoders, continue.
+    /// Returns one entry per decode: (protocol name, decoded signal, pairs that produced it).
+    /// Tries normal polarity first; if no decodes, runs again with inverted polarity.
+    pub fn process_signal_stream(
+        &mut self,
+        pairs: &[LevelDuration],
+        frequency: u32,
+    ) -> Vec<(String, DecodedSignal, Vec<LevelDuration>)> {
+        let with_normal = self.process_signal_stream_inner(pairs, frequency, false);
+        if !with_normal.is_empty() {
+            return with_normal;
+        }
+        self.process_signal_stream_inner(pairs, frequency, true)
+    }
+
+    /// Inner streaming decode with optional level inversion.
+    fn process_signal_stream_inner(
+        &mut self,
+        pairs: &[LevelDuration],
+        frequency: u32,
+        invert_level: bool,
+    ) -> Vec<(String, DecodedSignal, Vec<LevelDuration>)> {
+        let mut out = Vec::new();
+        let mut segment_start = 0_usize;
+
         for decoder in &mut self.decoders {
             decoder.reset();
         }
 
-        // Feed pairs to all decoders that support this frequency
-        for pair in pairs {
+        for (i, pair) in pairs.iter().enumerate() {
+            let level = if invert_level { !pair.level } else { pair.level };
+            let duration_us = pair.duration_us;
+
+            let mut hit = None;
             for decoder in &mut self.decoders {
-                // Check frequency support
+                let freq_supported = decoder
+                    .supported_frequencies()
+                    .iter()
+                    .any(|&f| {
+                        let diff = if f > frequency { f - frequency } else { frequency - f };
+                        diff < (f / 50)
+                    });
+                if !freq_supported {
+                    continue;
+                }
+                if let Some(decoded) = decoder.feed(level, duration_us) {
+                    hit = Some((decoder.name().to_string(), decoded));
+                    break;
+                }
+            }
+            if let Some((name, decoded)) = hit {
+                let segment: Vec<LevelDuration> = pairs[segment_start..=i]
+                    .iter()
+                    .map(|p| LevelDuration::new(p.level, p.duration_us))
+                    .collect();
+                out.push((name, decoded, segment));
+                for d in &mut self.decoders {
+                    d.reset();
+                }
+                segment_start = i + 1;
+            }
+        }
+
+        out
+    }
+
+    /// Inner decode: feed pairs (with optional level flip) to decoders that support this frequency.
+    fn process_signal_inner(
+        &mut self,
+        pairs: &[LevelDuration],
+        frequency: u32,
+        invert_level: bool,
+    ) -> Option<(String, DecodedSignal)> {
+        for decoder in &mut self.decoders {
+            decoder.reset();
+        }
+
+        for pair in pairs {
+            let level = if invert_level { !pair.level } else { pair.level };
+            let duration_us = pair.duration_us;
+
+            for decoder in &mut self.decoders {
                 let freq_supported = decoder
                     .supported_frequencies()
                     .iter()
@@ -131,7 +214,7 @@ impl ProtocolRegistry {
                     continue;
                 }
 
-                if let Some(decoded) = decoder.feed(pair.level, pair.duration_us) {
+                if let Some(decoded) = decoder.feed(level, duration_us) {
                     return Some((decoder.name().to_string(), decoded));
                 }
             }

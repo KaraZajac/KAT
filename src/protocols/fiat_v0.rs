@@ -1,12 +1,12 @@
 //! Fiat V0 protocol decoder/encoder
 //!
-//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/fiat_v0.c` (Flipper).
-//! Decode/encode logic (preamble, gap, Manchester, data/btn extraction, upload waveform) matches reference.
-//!
-//! Protocol characteristics:
-//! - Differential Manchester encoding: 200/400µs timing
-//! - 64-bit data (cnt:32 | serial:32) + 6-bit button
-//! - 150 preamble pairs (count LOW pulses), 800µs gap, 3 bursts
+//! Aligned with older ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/fiat_v0.c` and
+//! `fiat_v0.h`. Preamble: count short pulses (HIGH or LOW, 200±100µs); when preamble_count >= 150
+//! (0x96), accept 800µs LOW gap (gap_threshold 800, te_delta 100) and enter Data. Data: 64 bits
+//! (serial=data_low, cnt=data_high) then 7 more bits; complete when bit_count > 0x46 with
+//! btn = (data_low << 1) | 1, 71 bits total. Encoder: differential Manchester, 150 preamble pairs,
+//! last LOW replaced by 800µs gap; 64 data bits then 6 btn bits (btn_to_send = btn >> 1); end
+//! marker te_short*8 LOW.
 
 use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
@@ -19,25 +19,19 @@ const TE_DELTA: u32 = 100;
 const MIN_COUNT_BIT: usize = 64;
 const PREAMBLE_PAIRS: u16 = 150; // 0x96 in reference
 const GAP_US: u32 = 800;
+const GAP_THRESHOLD: u32 = 800;
 const TOTAL_BURSTS: u8 = 3;
 const INTER_BURST_GAP: u32 = 25000;
 
-// After long silence, first HIGH can be merged/wrong (e.g. 658µs); accept 100-700µs to enter Preamble.
-const RESET_HIGH_MIN_US: u32 = 100;
-const RESET_HIGH_MAX_US: u32 = 700;
-// Preamble short LOW: ref 200±100; allow 80-320µs so truncated first LOW (e.g. 99µs) still counts.
-const PREAMBLE_SHORT_DELTA: u32 = 120;
-
-/// Manchester state machine states (matches Flipper's manchester_decoder.h, same as Ford V0)
+/// Fiat V0 Manchester state machine. Matches Flipper manchester_decoder.h (ref uses it).
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum ManchesterState {
+enum FiatV0ManchesterState {
     Mid0 = 0,
     Mid1 = 1,
     Start0 = 2,
     Start1 = 3,
 }
 
-/// Decoder states (matches protopirate's FiatV0DecoderStep)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
     Reset,
@@ -45,11 +39,10 @@ enum DecoderStep {
     Data,
 }
 
-/// Fiat V0 protocol decoder
 pub struct FiatV0Decoder {
     step: DecoderStep,
     preamble_count: u16,
-    manchester_state: ManchesterState,
+    manchester_state: FiatV0ManchesterState,
     data_low: u32,
     data_high: u32,
     bit_count: u8,
@@ -64,7 +57,7 @@ impl FiatV0Decoder {
         Self {
             step: DecoderStep::Reset,
             preamble_count: 0,
-            manchester_state: ManchesterState::Mid1,
+            manchester_state: FiatV0ManchesterState::Mid1,
             data_low: 0,
             data_high: 0,
             bit_count: 0,
@@ -75,31 +68,29 @@ impl FiatV0Decoder {
         }
     }
 
-    /// Manchester state machine (same as Ford V0 / Flipper manchester_decoder).
-    /// Event: 0=ShortLow, 1=ShortHigh, 2=LongLow, 3=LongHigh.
     fn manchester_advance(&mut self, event: u8) -> Option<bool> {
         let (new_state, emit) = match (self.manchester_state, event) {
-            (ManchesterState::Mid0, 0) => (ManchesterState::Mid0, false),
-            (ManchesterState::Mid0, 1) => (ManchesterState::Start1, true),
-            (ManchesterState::Mid0, 2) => (ManchesterState::Mid0, false),
-            (ManchesterState::Mid0, 3) => (ManchesterState::Mid1, true),
+            (FiatV0ManchesterState::Mid0, 0) => (FiatV0ManchesterState::Mid0, false),
+            (FiatV0ManchesterState::Mid0, 1) => (FiatV0ManchesterState::Start1, true),
+            (FiatV0ManchesterState::Mid0, 2) => (FiatV0ManchesterState::Mid0, false),
+            (FiatV0ManchesterState::Mid0, 3) => (FiatV0ManchesterState::Mid1, true),
 
-            (ManchesterState::Mid1, 0) => (ManchesterState::Start0, true),
-            (ManchesterState::Mid1, 1) => (ManchesterState::Mid1, false),
-            (ManchesterState::Mid1, 2) => (ManchesterState::Mid0, true),
-            (ManchesterState::Mid1, 3) => (ManchesterState::Mid1, false),
+            (FiatV0ManchesterState::Mid1, 0) => (FiatV0ManchesterState::Start0, true),
+            (FiatV0ManchesterState::Mid1, 1) => (FiatV0ManchesterState::Mid1, false),
+            (FiatV0ManchesterState::Mid1, 2) => (FiatV0ManchesterState::Mid0, true),
+            (FiatV0ManchesterState::Mid1, 3) => (FiatV0ManchesterState::Mid1, false),
 
-            (ManchesterState::Start0, 0) => (ManchesterState::Mid0, false),
-            (ManchesterState::Start0, 1) => (ManchesterState::Mid0, false),
-            (ManchesterState::Start0, 2) => (ManchesterState::Mid0, false),
-            (ManchesterState::Start0, 3) => (ManchesterState::Mid1, false),
+            (FiatV0ManchesterState::Start0, 0) => (FiatV0ManchesterState::Mid0, false),
+            (FiatV0ManchesterState::Start0, 1) => (FiatV0ManchesterState::Mid0, false),
+            (FiatV0ManchesterState::Start0, 2) => (FiatV0ManchesterState::Mid0, false),
+            (FiatV0ManchesterState::Start0, 3) => (FiatV0ManchesterState::Mid1, false),
 
-            (ManchesterState::Start1, 0) => (ManchesterState::Mid0, false),
-            (ManchesterState::Start1, 1) => (ManchesterState::Mid1, false),
-            (ManchesterState::Start1, 2) => (ManchesterState::Mid0, false),
-            (ManchesterState::Start1, 3) => (ManchesterState::Mid1, false),
+            (FiatV0ManchesterState::Start1, 0) => (FiatV0ManchesterState::Mid0, false),
+            (FiatV0ManchesterState::Start1, 1) => (FiatV0ManchesterState::Mid1, false),
+            (FiatV0ManchesterState::Start1, 2) => (FiatV0ManchesterState::Mid0, false),
+            (FiatV0ManchesterState::Start1, 3) => (FiatV0ManchesterState::Mid1, false),
 
-            _ => (ManchesterState::Mid1, false),
+            _ => (FiatV0ManchesterState::Mid1, false),
         };
 
         self.manchester_state = new_state;
@@ -111,23 +102,7 @@ impl FiatV0Decoder {
     }
 
     fn manchester_reset(&mut self) {
-        self.manchester_state = ManchesterState::Mid1;
-    }
-
-    /// Add bit to accumulator; at 64 bits extract serial/cnt and clear data (bit_count unchanged in reference).
-    fn add_manchester_bit(&mut self, bit: bool) {
-        let new_bit = if bit { 1u32 } else { 0u32 };
-        let carry = (self.data_low >> 31) & 1;
-        self.data_low = (self.data_low << 1) | new_bit;
-        self.data_high = (self.data_high << 1) | carry;
-        self.bit_count += 1;
-
-        if self.bit_count == 0x40 {
-            self.serial = self.data_low;
-            self.cnt = self.data_high;
-            self.data_low = 0;
-            self.data_high = 0;
-        }
+        self.manchester_state = FiatV0ManchesterState::Mid1;
     }
 
     fn parse_data(&self) -> DecodedSignal {
@@ -137,7 +112,7 @@ impl FiatV0Decoder {
             serial: Some(self.serial),
             button: Some(self.btn),
             counter: Some(self.cnt as u16),
-            crc_valid: true, // No CRC in Fiat V0
+            crc_valid: true,
             data,
             data_count_bit: 71,
             encoder_capable: true,
@@ -160,7 +135,7 @@ impl ProtocolDecoder for FiatV0Decoder {
     }
 
     fn supported_frequencies(&self) -> &[u32] {
-        &[433_920_000, 433_880_000] // 433.88 MHz common for Fiat keyfobs
+        &[433_920_000, 433_880_000]
     }
 
     fn reset(&mut self) {
@@ -177,15 +152,18 @@ impl ProtocolDecoder for FiatV0Decoder {
     }
 
     fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
+        let diff_short = if duration < TE_SHORT {
+            TE_SHORT - duration
+        } else {
+            duration - TE_SHORT
+        };
+
         match self.step {
-            // Reset: wait for HIGH that starts the burst. Ref: short 200µs; live capture often has
-            // first HIGH 100-700µs (merged/AGC) and first LOW truncated (e.g. 99µs), so accept range.
             DecoderStep::Reset => {
                 if !level {
                     return None;
                 }
-                let in_range = duration >= RESET_HIGH_MIN_US && duration <= RESET_HIGH_MAX_US;
-                if in_range {
+                if diff_short < TE_DELTA {
                     self.data_low = 0;
                     self.data_high = 0;
                     self.step = DecoderStep::Preamble;
@@ -196,63 +174,135 @@ impl ProtocolDecoder for FiatV0Decoder {
                 }
             }
 
-            // Preamble: only process LOW pulses (reference: if(level) return). Count short LOWs; gap = 800µs LOW.
-            // Use PREAMBLE_SHORT_DELTA so first LOW after long gap (e.g. 99µs) counts as short.
             DecoderStep::Preamble => {
+                // Ref: only look at LOW for gap; both HIGH and LOW can count as short
                 if level {
-                    return None;
-                }
-                let short_ok = duration_diff!(duration, TE_SHORT) < PREAMBLE_SHORT_DELTA;
-                let gap_ok = duration_diff!(duration, GAP_US) < TE_DELTA;
-
-                if short_ok {
-                    self.preamble_count += 1;
-                    self.te_last = duration;
-                } else {
-                    if self.preamble_count >= PREAMBLE_PAIRS && gap_ok {
-                        self.step = DecoderStep::Data;
-                        self.preamble_count = 0;
-                        self.data_low = 0;
-                        self.data_high = 0;
-                        self.bit_count = 0;
+                    // HIGH pulse
+                    if diff_short < TE_DELTA {
+                        self.preamble_count += 1;
                         self.te_last = duration;
                     } else {
                         self.step = DecoderStep::Reset;
                     }
+                    return None;
+                }
+
+                // LOW pulse
+                if duration < TE_SHORT {
+                    let diff = TE_SHORT - duration;
+                    if diff < TE_DELTA {
+                        self.preamble_count += 1;
+                        self.te_last = duration;
+                        if self.preamble_count >= PREAMBLE_PAIRS {
+                            let gap_diff = if duration < GAP_THRESHOLD {
+                                GAP_THRESHOLD - duration
+                            } else {
+                                duration - GAP_THRESHOLD
+                            };
+                            if gap_diff < TE_DELTA {
+                                self.step = DecoderStep::Data;
+                                self.preamble_count = 0;
+                                self.data_low = 0;
+                                self.data_high = 0;
+                                self.bit_count = 0;
+                                self.te_last = duration;
+                                self.manchester_reset();
+                                return None;
+                            }
+                        }
+                    } else {
+                        self.step = DecoderStep::Reset;
+                        if self.preamble_count >= PREAMBLE_PAIRS {
+                            let gap_diff = if duration < GAP_THRESHOLD {
+                                GAP_THRESHOLD - duration
+                            } else {
+                                duration - GAP_THRESHOLD
+                            };
+                            if gap_diff < TE_DELTA {
+                                self.step = DecoderStep::Data;
+                                self.preamble_count = 0;
+                                self.data_low = 0;
+                                self.data_high = 0;
+                                self.bit_count = 0;
+                                self.te_last = duration;
+                                self.manchester_reset();
+                                return None;
+                            }
+                        }
+                    }
+                } else {
+                    let diff = duration - TE_SHORT;
+                    if diff < TE_DELTA {
+                        self.preamble_count += 1;
+                        self.te_last = duration;
+                    } else {
+                        self.step = DecoderStep::Reset;
+                    }
+                    if self.preamble_count >= PREAMBLE_PAIRS {
+                        let gap_diff = if duration >= 799 {
+                            duration - GAP_THRESHOLD
+                        } else {
+                            GAP_THRESHOLD - duration
+                        };
+                        if gap_diff < TE_DELTA {
+                            self.step = DecoderStep::Data;
+                            self.preamble_count = 0;
+                            self.data_low = 0;
+                            self.data_high = 0;
+                            self.bit_count = 0;
+                            self.te_last = duration;
+                            self.manchester_reset();
+                            return None;
+                        }
+                    }
                 }
             }
 
-            // Data: Manchester events — short first, then long (matches reference)
             DecoderStep::Data => {
-                let short_diff = duration_diff!(duration, TE_SHORT);
-                let long_diff = duration_diff!(duration, TE_LONG);
-
-                let event = if short_diff < TE_DELTA {
-                    if level { 0 } else { 1 }
-                } else if long_diff < TE_DELTA {
-                    if level { 2 } else { 3 }
-                } else {
-                    self.te_last = duration;
-                    if duration > TE_LONG * 3 {
-                        self.step = DecoderStep::Reset;
+                let mut event = 4u8; // ManchesterEventReset
+                if duration < TE_SHORT {
+                    let diff = TE_SHORT - duration;
+                    if diff < TE_DELTA {
+                        event = if level { 0 } else { 1 }; // ShortLow : ShortHigh
                     }
-                    return None;
-                };
-
-                if let Some(bit) = self.manchester_advance(event) {
-                    self.add_manchester_bit(bit);
-
-                    if self.bit_count > 0x46 {
-                        self.btn = ((self.data_low << 1) | 1) as u8;
-                        let result = self.parse_data();
-                        self.data_low = 0;
-                        self.data_high = 0;
-                        self.bit_count = 0;
-                        self.step = DecoderStep::Reset;
-                        return Some(result);
+                } else {
+                    let diff = duration - TE_SHORT;
+                    if diff < TE_DELTA {
+                        event = if level { 0 } else { 1 };
+                    } else {
+                        let long_diff = duration_diff!(duration, TE_LONG);
+                        if long_diff < TE_DELTA {
+                            event = if level { 2 } else { 3 }; // LongLow : LongHigh
+                        }
                     }
                 }
 
+                if event != 4 {
+                    if let Some(data_bit_bool) = self.manchester_advance(event) {
+                        let new_bit = if data_bit_bool { 1u32 } else { 0u32 };
+                        let carry = (self.data_low >> 31) & 1;
+                        self.data_low = (self.data_low << 1) | new_bit;
+                        self.data_high = (self.data_high << 1) | carry;
+                        self.bit_count += 1;
+
+                        if self.bit_count == 0x40 {
+                            self.serial = self.data_low;
+                            self.cnt = self.data_high;
+                            self.data_low = 0;
+                            self.data_high = 0;
+                        }
+
+                        if self.bit_count > 0x46 {
+                            self.btn = ((self.data_low << 1) | 1) as u8;
+                            let result = self.parse_data();
+                            self.data_low = 0;
+                            self.data_high = 0;
+                            self.bit_count = 0;
+                            self.step = DecoderStep::Reset;
+                            return Some(result);
+                        }
+                    }
+                }
                 self.te_last = duration;
             }
         }
@@ -267,89 +317,88 @@ impl ProtocolDecoder for FiatV0Decoder {
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
         let serial = decoded.serial?;
         let cnt = decoded.counter.unwrap_or(0) as u32;
+        let btn = decoded.button.unwrap_or(0).max(button);
 
+        // Ref: data = (cnt<<32)|serial; btn_to_send = btn >> 1 (reverse decoder's (x<<1)|1)
         let data = ((cnt as u64) << 32) | (serial as u64);
-        // Reverse the decoder's btn fix: decoder does (x << 1) | 1
-        let btn_to_send = button >> 1;
+        let btn_to_send = btn >> 1;
 
         let mut signal = Vec::with_capacity(1024);
+        let te_short = TE_SHORT;
+        let te_long = TE_LONG;
 
         for burst in 0..TOTAL_BURSTS {
             if burst > 0 {
                 signal.push(LevelDuration::new(false, INTER_BURST_GAP));
             }
 
-            // Preamble: 150 HIGH-LOW pairs; last LOW is gap (matches reference get_upload)
+            // Preamble: HIGH-LOW pairs; last LOW replaced by gap (ref)
             for i in 0..PREAMBLE_PAIRS {
-                signal.push(LevelDuration::new(true, TE_SHORT));
+                signal.push(LevelDuration::new(true, te_short));
                 signal.push(LevelDuration::new(
                     false,
-                    if i == PREAMBLE_PAIRS - 1 { GAP_US } else { TE_SHORT },
+                    if i == PREAMBLE_PAIRS - 1 { GAP_US } else { te_short },
                 ));
             }
 
-            // First bit (bit 63)
+            // First bit (bit 63) - differential Manchester
             let first_bit = (data >> 63) & 1 == 1;
             if first_bit {
-                signal.push(LevelDuration::new(true, TE_LONG));
+                signal.push(LevelDuration::new(true, te_long));
             } else {
-                signal.push(LevelDuration::new(true, TE_SHORT));
-                signal.push(LevelDuration::new(false, TE_LONG));
+                signal.push(LevelDuration::new(true, te_short));
+                signal.push(LevelDuration::new(false, te_long));
             }
 
             let mut prev_bit = first_bit;
 
-            // Remaining 63 data bits using differential Manchester
+            // Remaining 63 data bits
             for bit in (0..63).rev() {
                 let curr_bit = (data >> bit) & 1 == 1;
-                match (prev_bit, curr_bit) {
-                    (false, false) => {
-                        signal.push(LevelDuration::new(true, TE_SHORT));
-                        signal.push(LevelDuration::new(false, TE_SHORT));
-                    }
-                    (false, true) => {
-                        signal.push(LevelDuration::new(true, TE_LONG));
-                    }
-                    (true, false) => {
-                        signal.push(LevelDuration::new(false, TE_LONG));
-                    }
-                    (true, true) => {
-                        signal.push(LevelDuration::new(false, TE_SHORT));
-                        signal.push(LevelDuration::new(true, TE_SHORT));
-                    }
+                if !prev_bit && !curr_bit {
+                    signal.push(LevelDuration::new(true, te_short));
+                    signal.push(LevelDuration::new(false, te_short));
+                } else if !prev_bit && curr_bit {
+                    signal.push(LevelDuration::new(true, te_long));
+                } else if prev_bit && !curr_bit {
+                    signal.push(LevelDuration::new(false, te_long));
+                } else {
+                    signal.push(LevelDuration::new(false, te_short));
+                    signal.push(LevelDuration::new(true, te_short));
                 }
                 prev_bit = curr_bit;
             }
 
-            // 6 button bits
+            // 6 btn bits (ref: for bit 5 down to 0)
             for bit in (0..6).rev() {
                 let curr_bit = (btn_to_send >> bit) & 1 == 1;
-                match (prev_bit, curr_bit) {
-                    (false, false) => {
-                        signal.push(LevelDuration::new(true, TE_SHORT));
-                        signal.push(LevelDuration::new(false, TE_SHORT));
-                    }
-                    (false, true) => {
-                        signal.push(LevelDuration::new(true, TE_LONG));
-                    }
-                    (true, false) => {
-                        signal.push(LevelDuration::new(false, TE_LONG));
-                    }
-                    (true, true) => {
-                        signal.push(LevelDuration::new(false, TE_SHORT));
-                        signal.push(LevelDuration::new(true, TE_SHORT));
-                    }
+                if !prev_bit && !curr_bit {
+                    signal.push(LevelDuration::new(true, te_short));
+                    signal.push(LevelDuration::new(false, te_short));
+                } else if !prev_bit && curr_bit {
+                    signal.push(LevelDuration::new(true, te_long));
+                } else if prev_bit && !curr_bit {
+                    signal.push(LevelDuration::new(false, te_long));
+                } else {
+                    signal.push(LevelDuration::new(false, te_short));
+                    signal.push(LevelDuration::new(true, te_short));
                 }
                 prev_bit = curr_bit;
             }
 
-            // End marker
+            // End marker (ref)
             if prev_bit {
-                signal.push(LevelDuration::new(false, TE_SHORT));
+                signal.push(LevelDuration::new(false, te_short));
             }
-            signal.push(LevelDuration::new(false, TE_SHORT * 8));
+            signal.push(LevelDuration::new(false, te_short * 8));
         }
 
         Some(signal)
+    }
+}
+
+impl Default for FiatV0Decoder {
+    fn default() -> Self {
+        Self::new()
     }
 }

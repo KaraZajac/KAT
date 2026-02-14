@@ -1,12 +1,14 @@
 //! Flipper Zero .sub export format.
 //!
-//! Read/write files in the Flipper SubGhz RAW format with alternating
-//! positive (high) and negative (low) durations in microseconds.
+//! Aligned with ProtoPirate raw_file_reader and sub_decode: same file format
+//! (Flipper SubGhz RAW File, Protocol RAW, RAW_Data as int32: positive = HIGH,
+//! negative = LOW, duration in µs). Import uses streaming decode: feed the whole
+//! stream and reset decoders on each decode (like ProtoPirate sub_decode). Ford
 
 use anyhow::{Context, Result};
 use std::path::Path;
 
-use crate::capture::{Capture, CaptureStatus, StoredLevelDuration};
+use crate::capture::{Capture, StoredLevelDuration};
 
 /// Export a capture to Flipper Zero .sub RAW format
 pub fn export_flipper_sub(capture: &Capture, path: &Path) -> Result<()> {
@@ -48,7 +50,8 @@ pub fn export_flipper_sub(capture: &Capture, path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Scan a directory for Flipper .sub files (same format we export).
+/// Scan a directory for Flipper .sub files (top-level only). Prefer [crate::export::scan_import_files_recursive] for import.
+#[allow(dead_code)]
 pub fn scan_sub_files(dir: &Path) -> Vec<std::path::PathBuf> {
     let mut out = Vec::new();
     let Ok(entries) = std::fs::read_dir(dir) else {
@@ -64,38 +67,10 @@ pub fn scan_sub_files(dir: &Path) -> Vec<std::path::PathBuf> {
     out
 }
 
-/// Gap duration (µs) used to split a .sub stream into separate transmissions.
-/// Keyfobs typically use 10–25 ms between button pushes; in-frame gaps are &lt; 1 ms.
-pub const SUB_INTER_BURST_GAP_US: u32 = 10_000;
-
-/// Split raw level/duration pairs into segments at long gaps (e.g. between keyfob button pushes).
-/// Any pulse (HIGH or LOW) with duration >= `gap_threshold_us` starts a new segment; the long pulse is not included in any segment.
-pub fn split_raw_pairs_by_gap(
-    pairs: &[StoredLevelDuration],
-    gap_threshold_us: u32,
-) -> Vec<Vec<StoredLevelDuration>> {
-    let mut segments = Vec::new();
-    let mut current = Vec::new();
-
-    for p in pairs {
-        if p.duration_us >= gap_threshold_us {
-            if !current.is_empty() {
-                segments.push(std::mem::take(&mut current));
-            }
-        } else {
-            current.push(*p);
-        }
-    }
-    if !current.is_empty() {
-        segments.push(current);
-    }
-    segments
-}
-
-/// Parse a Flipper SubGhz RAW .sub file and return one Capture per transmission.
-/// The stream is split at long gaps (see `split_raw_pairs_by_gap`) so multiple button pushes become separate captures.
+/// Parse a Flipper SubGhz RAW .sub file into frequency and raw pairs (no splitting).
+/// Caller runs streaming decode (e.g. [crate::protocols::ProtocolRegistry::process_signal_stream]) on the pairs.
 /// Positive values = HIGH, negative = LOW; duration in microseconds.
-pub fn import_sub(path: &Path, next_id: u32) -> Result<Vec<Capture>> {
+pub fn import_sub_raw(path: &Path) -> Result<(u32, Vec<StoredLevelDuration>)> {
     let s = std::fs::read_to_string(path)
         .with_context(|| format!("Read .sub file: {:?}", path))?;
 
@@ -122,6 +97,7 @@ pub fn import_sub(path: &Path, next_id: u32) -> Result<Vec<Capture>> {
 
     let frequency = frequency_hz.unwrap_or(433_920_000);
 
+    // Same convention as ProtoPirate raw_file_reader_get_next: positive => HIGH (true), negative => LOW (false)
     let raw_pairs: Vec<StoredLevelDuration> = raw_data
         .into_iter()
         .map(|v| {
@@ -135,19 +111,5 @@ pub fn import_sub(path: &Path, next_id: u32) -> Result<Vec<Capture>> {
         anyhow::bail!("No RAW_Data in .sub file");
     }
 
-    let segments = split_raw_pairs_by_gap(&raw_pairs, SUB_INTER_BURST_GAP_US);
-
-    let captures: Vec<Capture> = segments
-        .into_iter()
-        .enumerate()
-        .map(|(i, pairs)| {
-            let cap = Capture::from_pairs_with_rf(next_id + i as u32, frequency, pairs, None);
-            Capture {
-                status: CaptureStatus::Unknown,
-                ..cap
-            }
-        })
-        .collect();
-
-    Ok(captures)
+    Ok((frequency, raw_pairs))
 }

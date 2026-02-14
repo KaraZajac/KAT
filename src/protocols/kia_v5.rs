@@ -1,14 +1,14 @@
 //! Kia V5 protocol decoder (decode-only)
 //!
-//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/kia_v5.c`.
-//! Decode logic (Manchester polarity, mixer decrypt, YEK, preamble) matches reference.
-//! No encoder in protopirate.
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/kia_v5.c` and `kia_v5.h`.
+//! Decode logic matches reference: constants, steps, Manchester event mapping, mixer_decode, YEK.
+//! Encoder exists in reference under ENABLE_EMULATE_FEATURE; KAT keeps decode-only.
 //!
 //! Protocol characteristics:
-//! - Manchester encoding: 400/800µs (opposite polarity to V1/V2: level ? ShortHigh : ShortLow)
+//! - Manchester encoding: 400/800µs; V5 polarity: level ? ShortHigh : ShortLow (opposite to V1/V2)
 //! - 64 data bits + 3-bit CRC (67 bits on air)
-//! - Preamble of ~40+ short/long pairs; then 64-bit key then 3-bit CRC
-//! - Custom "mixer" decryption with KIA V5 manufacturer key
+//! - Preamble: 40+ short/long pairs; then LONG HIGH (sync), SHORT LOW (alignment), then Manchester data
+//! - YEK = bit_reverse_64(key); serial/button/counter from YEK; mixer decryption for counter
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use super::keys;
@@ -145,21 +145,14 @@ impl KiaV5Decoder {
         yek
     }
 
-    /// Manchester state machine
-    /// NOTE: V5 uses OPPOSITE Manchester polarity from V1/V2.
-    /// In protopirate, V1/V2 use: level ? ShortLow : ShortHigh
-    /// But V5 uses: level ? ShortHigh : ShortLow
-    /// To achieve this inversion, we swap the is_high mapping but use V1's
-    /// standard state table, so that only ONE inversion occurs.
-    fn manchester_advance(&mut self, is_short: bool, is_high: bool) -> Option<bool> {
-        // Invert polarity: V5 uses opposite Manchester convention from V1/V2
-        let is_high = !is_high;
-        
-        let event = match (is_short, is_high) {
-            (true, false) => 0,  // Short Low
-            (true, true) => 1,   // Short High
-            (false, false) => 2, // Long Low
-            (false, true) => 3,  // Long High
+    /// Manchester state machine (matches kia_v5.c feed: level ? ManchesterEventShortHigh : ManchesterEventShortLow).
+    /// Event encoding: 0=ShortLow, 1=ShortHigh, 2=LongLow, 3=LongHigh (Flipper manchester_decoder).
+    fn manchester_advance(&mut self, is_short: bool, level: bool) -> Option<bool> {
+        let event = match (is_short, level) {
+            (true, false) => 0,  // ShortLow
+            (true, true) => 1,   // ShortHigh
+            (false, false) => 2, // LongLow
+            (false, true) => 3,  // LongHigh
         };
 
         let (new_state, output) = match (self.manchester_state, event) {

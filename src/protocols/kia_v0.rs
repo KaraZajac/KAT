@@ -1,13 +1,12 @@
 //! Kia V0 protocol decoder/encoder
 //!
 //! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/kia_v0.c`.
-//! Decode/encode logic (CRC8, preamble/sync, field layout) matches reference.
+//! Decoder steps: KIADecoderStepReset → CheckPreambula → SaveDuration → CheckDuration.
+//! CRC8 polynomial 0x7F, init 0x00; CRC over bits 8–55 (6 bytes). min_count_bit_for_found = 61.
 //!
-//! Protocol characteristics:
-//! - PWM encoding: short pulse (250µs) = 0, long pulse (500µs) = 1
-//! - 61 bits total (1 sync bit + 60 data bits)
-//! - Preamble: alternating short pulses; sync: long-long pattern
-//! - Data: 60 bits (4-bit prefix + 16-bit counter + 28-bit serial + 4-bit button + 8-bit CRC)
+//! Protocol: te_short=250µs, te_long=500µs, te_delta=100µs. PWM: short=0, long=1.
+//! Preamble: alternating short pulses; sync: long-long; then 61 bits (1 sync + 60 data).
+//! Encoder sends 2 bursts, inter-burst gap 25000µs; encode loop sends 59 bits (mask 58..0) per reference.
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use super::common::{crc8_kia, add_bit};
@@ -18,6 +17,8 @@ const TE_SHORT: u32 = 250;
 const TE_LONG: u32 = 500;
 const TE_DELTA: u32 = 100;
 const MIN_COUNT_BIT: usize = 61;
+const KIA_TOTAL_BURSTS: u8 = 2;
+const KIA_INTER_BURST_GAP_US: u32 = 25000;
 
 /// Decoder states (matches protopirate's KiaV0DecoderStep)
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -155,11 +156,15 @@ impl ProtocolDecoder for KiaV0Decoder {
             DecoderStep::SaveDuration => {
                 if level {
                     if duration >= TE_LONG + TE_DELTA * 2 {
-                        // End of transmission
+                        // End of transmission (matches C: check count, callback, then clear)
+                        let count = self.decode_count_bit;
+                        let data = self.decode_data;
                         self.step = DecoderStep::Reset;
+                        self.decode_data = 0;
+                        self.decode_count_bit = 0;
 
-                        if self.decode_count_bit == MIN_COUNT_BIT {
-                            return Some(Self::parse_data(self.decode_data));
+                        if count == MIN_COUNT_BIT {
+                            return Some(Self::parse_data(data));
                         }
                     } else {
                         self.te_last = duration;
@@ -224,25 +229,23 @@ impl ProtocolDecoder for KiaV0Decoder {
         let mut signal = Vec::with_capacity(256);
 
         // Generate 2 bursts
-        for burst in 0..2 {
+        for burst in 0..KIA_TOTAL_BURSTS {
             if burst > 0 {
-                // Inter-burst gap
-                signal.push(LevelDuration::new(false, 25000));
+                signal.push(LevelDuration::new(false, KIA_INTER_BURST_GAP_US));
             }
 
-            // Preamble: 32 alternating short pulses
+            // Preamble: 32 alternating short pulses (matches C subghz_protocol_encoder_kia_get_upload)
             for i in 0..32 {
                 let is_high = (i % 2) == 0;
                 signal.push(LevelDuration::new(is_high, TE_SHORT));
             }
 
-            // Sync: long-long (matches protopirate kia_v0 encode)
             signal.push(LevelDuration::new(true, TE_LONG));
             signal.push(LevelDuration::new(false, TE_LONG));
 
-            // Data: 60 bits MSB first (bits 59..0)
-            for bit_num in 0..60 {
-                let bit_mask = 1u64 << (59 - bit_num);
+            // Data: 59 bits, mask 1ULL << (58 - bit_num) per reference
+            for bit_num in 0..59 {
+                let bit_mask = 1u64 << (58 - bit_num);
                 let bit = (data & bit_mask) != 0;
                 let duration = if bit { TE_LONG } else { TE_SHORT };
 
@@ -250,7 +253,7 @@ impl ProtocolDecoder for KiaV0Decoder {
                 signal.push(LevelDuration::new(false, duration));
             }
 
-            // End marker
+            // End marker: long * 2
             signal.push(LevelDuration::new(true, TE_LONG * 2));
         }
 

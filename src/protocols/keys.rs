@@ -1,8 +1,16 @@
 //! Key management module for protocol encryption/decryption
 //!
 //! Aligned with ProtoPirate's keys.c (KIA_KEY1..4, get_kia_mf_key, etc.).
-//! Keys are loaded from the embedded keystore blob in `crate::keystore` at startup,
-//! matching the standard encrypted + VAG raw keystore data.
+//! Keys are loaded from the embedded keystore blob in `crate::keystore` at startup
+//! via `load_keystore_from_embedded()`, which parses the blob from
+//! `keystore::embedded::KEYSTORE_BLOB` and populates:
+//!
+//! - **KIA**: type 10 → kia_mf_key, 11 → kia_v6_a_key, 12 → kia_v6_b_key, 13 → kia_v5_key
+//! - **Star Line**: type 20 → star_line_mf_key
+//! - **VAG**: raw 64 bytes after "VAG " tag = 4 × 16-byte AUT64 packed keys (index in byte 0 of each)
+//!
+//! VAG protocol looks up keys by `get_vag_key((key_index + 1) as u8)` (index 1, 2, 3).
+//! KIA V5 uses `get_kia_v5_key()`, KIA V6 uses `get_kia_v6_keystore_a()` / `get_kia_v6_keystore_b()`.
 
 use super::aut64::{self, Aut64Key, AUT64_KEY_STRUCT_PACKED_SIZE};
 use configparser::ini::Ini;
@@ -10,11 +18,11 @@ use std::path::Path;
 use std::sync::{OnceLock, RwLock};
 use tracing::{info, warn, error};
 
-/// Key type identifiers (matches protopirate's keystore types)
-const KIA_KEY1: u32 = 10; // kia_mf_key
-const KIA_KEY2: u32 = 11; // kia_v6_a_key
-const KIA_KEY3: u32 = 12; // kia_v6_b_key
-const KIA_KEY4: u32 = 13; // kia_v5_key
+/// Key type identifiers; must match type IDs in `keystore::embedded::KEYSTORE_BLOB`.
+const KIA_KEY1: u32 = 10; // kia_mf_key (KIA V3/V4)
+const KIA_KEY2: u32 = 11; // kia_v6_a_key (KIA V6A)
+const KIA_KEY3: u32 = 12; // kia_v6_b_key (KIA V6B)
+const KIA_KEY4: u32 = 13; // kia_v5_key (KIA V5)
 const STAR_LINE_KEY: u32 = 20; // star_line_mf_key
 
 /// Maximum number of VAG AUT64 keys (embedded blob has 64 bytes = 4 keys)
@@ -182,7 +190,8 @@ pub fn load_vag_keys(path: &str) {
 }
 
 /// Load the global keystore from the embedded blob (src/keystore/embedded.rs).
-/// Matches ProtoPirate loading from encrypted + VAG keystore; keys are compiled in.
+/// Populates KIA (V3/V4, V5, V6A, V6B), Star Line, and VAG AUT64 keys from the blob.
+/// VAG raw bytes are 64 bytes = 4 × 16-byte packed keys; each key's `index` is byte 0 (used by VAG lookup).
 pub fn load_keystore_from_embedded() {
     let blob = crate::keystore::embedded_blob();
     let Some(parsed) = crate::keystore::parse_blob(blob) else {

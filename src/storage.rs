@@ -5,7 +5,8 @@
 //! ```text
 //! ~/.config/KAT/
 //!   config.ini          — User configuration
-//!   exports/            — Exported .fob / .sub files
+//!   exports/            — Exported .fob / .sub files (save location)
+//!   import/             — Scanned at startup for .fob / .sub to import
 //!   keystore/           — Protocol encryption keys
 //!     keystore.ini      — Key definitions (hex values)
 //!     vag.bin           — VAG AUT64 binary key file (optional)
@@ -27,6 +28,8 @@ pub struct Config {
     // [general]
     /// Directory for exporting signals (.fob / .sub files)
     pub export_directory: PathBuf,
+    /// Directory scanned at startup for .fob and .sub files to import (separate from export)
+    pub import_directory: PathBuf,
     /// Maximum captures to keep in memory during a session
     pub max_captures: usize,
     /// If off, only successfully decoded signals are added to the list. If on, unknown signals are also shown.
@@ -55,6 +58,7 @@ impl Config {
     fn default_for(config_dir: &PathBuf) -> Self {
         Self {
             export_directory: config_dir.join("exports"),
+            import_directory: config_dir.join("import"),
             max_captures: 100,
             research_mode: false,
             default_frequency: 433_920_000,
@@ -78,6 +82,11 @@ impl Config {
             .get("general", "export_directory")
             .map(|s| expand_tilde(&s))
             .unwrap_or(defaults.export_directory);
+
+        let import_directory = ini
+            .get("general", "import_directory")
+            .map(|s| expand_tilde(&s))
+            .unwrap_or(defaults.import_directory);
 
         let max_captures = ini
             .getuint("general", "max_captures")
@@ -131,6 +140,7 @@ impl Config {
 
         Ok(Self {
             export_directory,
+            import_directory,
             max_captures,
             research_mode,
             default_frequency,
@@ -145,6 +155,7 @@ impl Config {
     /// Save config to an INI-style file with comments explaining each field.
     fn save_to_ini(&self, path: &std::path::Path) -> Result<()> {
         let export_str = self.export_directory.to_string_lossy();
+        let import_str = self.import_directory.to_string_lossy();
         let freq_mhz = self.default_frequency as f64 / 1_000_000.0;
 
         let content = format!(
@@ -158,6 +169,10 @@ impl Config {
 ; Directory where .fob and .sub exports are saved.
 ; Supports ~ for home directory.
 export_directory = {export_dir}
+
+; Directory scanned at startup for .fob and .sub files to import (not used for saving).
+; Supports ~ for home directory.
+import_directory = {import_dir}
 
 ; Maximum number of captures to keep in memory per session.
 ; Captures are NOT persisted between runs — only exported
@@ -192,6 +207,7 @@ include_raw_pairs = {raw_pairs}
 "#,
             path = path.display(),
             export_dir = export_str,
+            import_dir = import_str,
             max_captures = self.max_captures,
             research_mode = self.research_mode,
             freq_mhz = freq_mhz,
@@ -315,7 +331,21 @@ impl Storage {
             );
         }
 
-        // ── 5. Ensure keystore directory exists ────────────────────────
+        // ── 5. Ensure import directory exists ────────────────────────────
+        if !config.import_directory.exists() {
+            fs::create_dir_all(&config.import_directory).with_context(|| {
+                format!(
+                    "Failed to create import dir: {:?}",
+                    config.import_directory
+                )
+            })?;
+            tracing::info!(
+                "Created import directory: {:?}",
+                config.import_directory
+            );
+        }
+
+        // ── 6. Ensure keystore directory exists ────────────────────────
         let keystore_dir = config_dir.join("keystore");
         if !keystore_dir.exists() {
             fs::create_dir_all(&keystore_dir).with_context(|| {
@@ -324,9 +354,10 @@ impl Storage {
             tracing::info!("Created keystore directory: {:?}", keystore_dir);
         }
 
-        // ── 6. Log resolved paths ───────────────────────────────────────
+        // ── 7. Log resolved paths ───────────────────────────────────────
         tracing::info!("Config dir: {:?}", config_dir);
         tracing::info!("Export dir: {:?}", config.export_directory);
+        tracing::info!("Import dir: {:?}", config.import_directory);
         tracing::info!("Keystore dir: {:?}", keystore_dir);
 
         Ok(Self {
@@ -355,6 +386,11 @@ impl Storage {
     /// Get the export directory path (from config, default `~/.config/KAT/exports`)
     pub fn export_dir(&self) -> &PathBuf {
         &self.config.export_directory
+    }
+
+    /// Get the import directory path (from config, default `~/.config/KAT/import`)
+    pub fn import_dir(&self) -> &PathBuf {
+        &self.config.import_directory
     }
 
     /// Get the keystore directory path (`~/.config/KAT/keystore`). Kept for optional file-based override.

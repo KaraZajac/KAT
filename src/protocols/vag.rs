@@ -1,15 +1,18 @@
 //! VAG (VW/Audi/Seat/Skoda) protocol decoder/encoder
 //!
-//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/vag.c`.
-//! Decode/encode logic (steps, Type 1/2/3/4, AUT64/TEA, dispatch, gap 6000µs) matches reference.
-//! Reset/Preamble2/Sync2/Data2 use reference thresholds (79/80, 380-620/880-1120µs).
-//! Preamble1/Data1 use TE_DELTA_12 80 (ref 79/80).
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/vag.c` and `vag.h`.
+//! Decoder steps (VAGDecoderStepReset/Preamble1/Data1/Preamble2/Sync2A/B/C/Data2), Type 1/2/3/4
+//! parse (vag_parse_data, vag_aut64_decrypt, vag_tea_decrypt), dispatch (0x2A/0x1C/0x46 and
+//! 0x2B/0x1D/0x47), and encoder (vag_encoder_build_type1/2/3_4) match the reference.
 //!
-//! Protocol characteristics:
-//! - Manchester encoding; 80 bits (key1 64 + key2 16)
-//! - Type 1/2: 300/600µs, prefix 0x2F3F (AUT64) / 0x2F1C (TEA), dispatch 0x2A/0x1C/0x46
-//! - Type 3/4: 500/1000µs, preamble 41+ pairs, sync 1000µs + 3×750µs, dispatch 0x2B/0x1D/0x47
-//! - End-of-data gap 6000µs (accept within 4000µs); keys from keystore (VAG raw 64 bytes)
+//! **Timing**: Reference uses VAG_TOL_300 (79) and VAG_TOL_500 (120). Reset/Preamble1 use 300±79/80;
+//! Preamble1→Data1 gap 600µs ±79; Data1 short 300±79/80, long 600±79/80; end-of-data gap 6000µs
+//! (accept diff < 4000). Preamble2 count 500±80; Sync2A 500/1000µs ±79; Sync2B 750µs ±79;
+//! Sync2C 750µs ±79; Data2 short 500±120 (380–620µs), long 1000±120 (880–1120µs).
+//!
+//! **Protocol**: Manchester, 80 bits (key1 64 + key2 16). Type 1/2: 300/600µs, prefix 0xAF3F/0xAF1C.
+//! Type 3/4: 500µs, 45 preamble pairs, sync 1000+500 then 3×750µs; key1/key2 not inverted.
+//! Button names match reference (vag_button_name): Unlock/Lock/Boot.
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use super::aut64;
@@ -29,16 +32,18 @@ const TE_SHORT_12: u32 = 300;
 const TE_LONG_12: u32 = 600;
 const TE_DELTA_12: u32 = 80; // Preamble1/Data1 (ref vag.c 79/80)
 
-// Reference-aligned deltas (vag.c)
-const REF_RESET_DELTA: u32 = 79;       // Reset: (300-duration)<=79, 500±79
-const REF_PREAMBLE_SYNC: u32 = 80;     // Preamble2/Sync2: 500±80, 1000±80, 750±80
-const REF_SYNC2C_DELTA: u32 = 79;      // Sync2C: diff<=79
+// Reference-aligned deltas (vag.c VAG_NEAR / VAG_TOL_300 79, VAG_TOL_500 120)
+const REF_RESET_DELTA: u32 = 79;       // Reset: 300±79, 500±79 for Preamble2
+const REF_PREAMBLE_SYNC: u32 = 80;     // Preamble2 counting: 500±80
+const REF_SYNC2_AB_DELTA: u32 = 79;    // Sync2A/Sync2B: 500/1000/750±79 (ref VAG_NEAR(..., 79))
+const REF_SYNC2C_DELTA: u32 = 79;      // Sync2C: 750±79
+const REF_GAP1_DELTA: u32 = 79;        // Preamble1→Data1 gap 600µs ±79 (ref check_gap1)
 
 // TEA constants
 const TEA_DELTA: u32 = 0x9E3779B9;
 const TEA_ROUNDS: usize = 32;
 
-/// TEA key schedule for VAG (matches vag.c vag_tea_key_schedule)
+/// TEA key schedule for VAG (vag.c vag_tea_key_schedule; VAG_TEA_DELTA 0x9E3779B9, 32 rounds)
 static TEA_KEY_SCHEDULE: [u32; 4] = [0x0B46502D, 0x5E253718, 0x2BF93A19, 0x622C1206];
 
 /// Manchester states
@@ -218,17 +223,17 @@ impl VagDecoder {
         }
     }
 
-    /// Check if dispatch byte matches Type 1/2
+    /// Type 1/2 dispatch check (vag.c vag_dispatch_type_1_2)
     fn dispatch_type_1_2(dispatch: u8) -> bool {
         dispatch == 0x2A || dispatch == 0x1C || dispatch == 0x46
     }
 
-    /// Check if dispatch byte matches Type 3/4
+    /// Type 3/4 dispatch check (vag.c vag_dispatch_type_3_4)
     fn dispatch_type_3_4(dispatch: u8) -> bool {
         dispatch == 0x2B || dispatch == 0x1D || dispatch == 0x47
     }
 
-    /// Validate decrypted button byte
+    /// Validate decrypted block button (vag.c vag_button_valid)
     fn button_valid(dec: &[u8]) -> bool {
         let dec_byte = dec[7];
         let dec_btn = (dec_byte >> 4) & 0xF;
@@ -241,7 +246,7 @@ impl VagDecoder {
         false
     }
 
-    /// Check if decrypted button matches dispatch byte
+    /// Decrypted button vs dispatch (vag.c vag_button_matches)
     fn button_matches(dec: &[u8], dispatch_byte: u8) -> bool {
         let expected_btn = (dispatch_byte >> 4) & 0xF;
         let dec_btn = (dec[7] >> 4) & 0xF;
@@ -254,7 +259,7 @@ impl VagDecoder {
         false
     }
 
-    /// Fill decoded fields from decrypted block
+    /// Fill decoded fields from decrypted block (vag.c vag_fill_from_decrypted)
     fn fill_from_decrypted(&mut self, dec: &[u8], dispatch_byte: u8) {
         let serial_raw = (dec[0] as u32)
             | ((dec[1] as u32) << 8)
@@ -282,7 +287,7 @@ impl VagDecoder {
         }
     }
 
-    /// Parse key1/key2 and decrypt by type (AUT64/TEA, dispatch); matches vag.c vag_parse_data
+    /// Parse key1/key2 and decrypt by type (vag.c vag_parse_data)
     fn parse_data(&mut self) {
         self.decrypted = false;
         self.serial = 0;
@@ -435,13 +440,13 @@ impl VagDecoder {
         }
     }
 
-    /// Get button name
+    /// Get button name (matches vag.c vag_button_name: Unlock/Lock/Boot)
     #[allow(dead_code)]
     fn get_button_name(btn: u8) -> &'static str {
         match btn {
-            1 => "Unlock",
-            2 => "Lock",
-            4 => "Trunk",
+            1 | 0x10 => "Unlock",
+            2 | 0x20 => "Lock",
+            4 | 0x40 => "Boot",
             _ => "Unknown",
         }
     }
@@ -692,7 +697,7 @@ impl VagDecoder {
         Some(upload)
     }
 
-    /// Get dispatch byte from button and type
+    /// Dispatch byte from button and type (vag.c vag_get_dispatch_byte)
     fn get_dispatch_byte(btn: u8, vag_type: u8) -> u8 {
         if vag_type == 1 || vag_type == 2 {
             match btn {
@@ -711,7 +716,7 @@ impl VagDecoder {
         }
     }
 
-    /// Convert button code to byte for encoding
+    /// Convert button code to byte for encoding (matches vag.c vag_btn_to_byte)
     fn btn_to_byte(btn: u8, vag_type: u8) -> u8 {
         if vag_type == 1 {
             btn
@@ -720,7 +725,7 @@ impl VagDecoder {
                 1 => 0x10,
                 2 => 0x20,
                 4 => 0x40,
-                _ => 0x20,
+                _ => btn, // ref default: return btn
             }
         }
     }
@@ -885,20 +890,20 @@ impl ProtocolDecoder for VagDecoder {
                     return None;
                 }
 
-                // Check for gap (end of preamble)
+                // Check for gap (end of preamble): 600µs ±79, te_last 300±79 (ref check_gap1)
                 if self.header_count >= 201 {
                     let gap_diff = if duration > TE_LONG_12 {
                         duration - TE_LONG_12
                     } else {
                         TE_LONG_12 - duration
                     };
-                    if gap_diff <= TE_DELTA_12 {
+                    if gap_diff <= REF_GAP1_DELTA {
                         let prev_diff = if self.te_last > TE_SHORT_12 {
                             self.te_last - TE_SHORT_12
                         } else {
                             TE_SHORT_12 - self.te_last
                         };
-                        if prev_diff <= TE_DELTA_12 {
+                        if prev_diff <= REF_RESET_DELTA {
                             self.step = DecoderStep::Data1;
                             return None;
                         }
@@ -1037,20 +1042,20 @@ impl ProtocolDecoder for VagDecoder {
             }
 
             DecoderStep::Sync2A => {
-                // Matches vag.c: LOW 500±80 and te_last 1000±80 -> Sync2B
+                // Matches vag.c: LOW 500±79 and te_last 1000±79 -> Sync2B (VAG_NEAR(..., 79))
                 if !level {
                     let diff = if duration < TE_SHORT {
                         TE_SHORT - duration
                     } else {
                         duration - TE_SHORT
                     };
-                    if diff < REF_PREAMBLE_SYNC {
+                    if diff <= REF_SYNC2_AB_DELTA {
                         let prev_diff = if self.te_last < TE_LONG {
                             TE_LONG - self.te_last
                         } else {
                             self.te_last - TE_LONG
                         };
-                        if prev_diff < REF_PREAMBLE_SYNC {
+                        if prev_diff <= REF_SYNC2_AB_DELTA {
                             self.te_last = duration;
                             self.step = DecoderStep::Sync2B;
                             return None;
@@ -1061,14 +1066,14 @@ impl ProtocolDecoder for VagDecoder {
             }
 
             DecoderStep::Sync2B => {
-                // Matches vag.c: HIGH 750±80 -> Sync2C
+                // Matches vag.c: HIGH 750±79 -> Sync2C (VAG_NEAR(duration, 750, 79))
                 if level {
                     let diff = if duration < 750 {
                         750 - duration
                     } else {
                         duration - 750
                     };
-                    if diff < REF_PREAMBLE_SYNC {
+                    if diff <= REF_SYNC2_AB_DELTA {
                         self.te_last = duration;
                         self.step = DecoderStep::Sync2C;
                         return None;

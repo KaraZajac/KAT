@@ -1,11 +1,17 @@
 //! Common utilities for protocol implementations.
 //!
-//! The ProtoPirate reference has `REFERENCES/ProtoPirate/protocols/protocols_common.c`, which
-//! only provides Flipper preset name mapping (`protopirate_get_short_preset_name`). KAT does not
-//! use that; this module holds shared types and helpers used by multiple protocol decoders.
-//! Where applicable, algorithms match the reference: e.g. `crc8_kia` matches `kia_crc8` in
-//! kia_v0.c (polynomial 0x7F, init 0x00); `add_bit` matches the common shift-left-and-append
-//! pattern used in the reference decoders.
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/protocols_common.c`
+//! and `protocols_common.h`. The reference provides only Flipper preset name mapping
+//! (`protopirate_get_short_preset_name`); we implement the same mapping in `short_preset_name`.
+//! This module also holds shared types and helpers used by multiple protocol decoders.
+//!
+//! **CRC / add_bit**: `crc8_kia` matches `kia_crc8` in kia_v0.c (polynomial 0x7F, init 0x00);
+//! `add_bit` matches the common shift-left-and-append pattern used in the reference decoders.
+//!
+//! **Manchester**: Ford V0 and Fiat V0 each have their own state machine in their protocol
+//! modules. This module provides CommonManchesterState / common_manchester_advance for
+//! protocols that use the Flipper-style event mapping (0=ShortLow, 1=ShortHigh, 2=LongLow,
+//! 3=LongHigh) and want the shared implementation.
 
 /// Decoded signal information
 #[derive(Debug, Clone)]
@@ -72,6 +78,94 @@ pub fn crc8_kia(data: &[u8]) -> u8 {
 pub fn add_bit(data: &mut u64, count: &mut usize, bit: bool) {
     *data = (*data << 1) | (bit as u64);
     *count += 1;
+}
+
+// =============================================================================
+// Preset name mapping (protocols_common.c: protopirate_get_short_preset_name)
+// =============================================================================
+
+/// Short preset name for display. Matches `protopirate_get_short_preset_name`.
+/// Returns "UNKNOWN" for null/empty or unknown preset names (reference returns the
+/// original pointer for unknown; we use "UNKNOWN" to avoid allocation).
+#[allow(dead_code)]
+#[inline]
+pub fn short_preset_name(preset: Option<&str>) -> &'static str {
+    let p = match preset {
+        None => return "UNKNOWN",
+        Some(s) if s.is_empty() => return "UNKNOWN",
+        Some(s) => s,
+    };
+    match p {
+        "FuriHalSubGhzPresetOok270Async" => "AM270",
+        "FuriHalSubGhzPresetOok650Async" => "AM650",
+        "FuriHalSubGhzPreset2FSKDev238Async" => "FM238",
+        "FuriHalSubGhzPreset2FSKDev12KAsync" => "FM12K",
+        "FuriHalSubGhzPreset2FSKDev476Async" => "FM476",
+        "FuriHalSubGhzPresetCustom" => "CUSTOM",
+        _ => "UNKNOWN",
+    }
+}
+
+// =============================================================================
+// Common Manchester state machine (Flipper lib/toolbox/manchester_decoder)
+// =============================================================================
+// ProtoPirate Ford and Fiat use Flipper's lib/toolbox/manchester_decoder.h:
+// ManchesterState (Mid0, Mid1, Start0, Start1), ManchesterEvent (ShortLow,
+// ShortHigh, LongLow, LongHigh, Reset), manchester_advance(state, event, &state, &bit).
+// This module provides a separate implementation of the same transition table for
+// protocols that want the shared behaviour. Ford and Fiat keep their own
+// FordV0ManchesterState and FiatV0ManchesterState in their modules (same table, no reuse).
+//
+// Event encoding: 0=ShortLow, 1=ShortHigh, 2=LongLow, 3=LongHigh.
+// Level mapping in ProtoPirate: level ? ShortLow : ShortHigh (and same for long).
+
+/// Manchester decoder states for the common (Flipper-style) differential Manchester decoder.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum CommonManchesterState {
+    Mid0 = 0,
+    Mid1 = 1,
+    Start0 = 2,
+    Start1 = 3,
+}
+
+/// Advance the common Manchester state machine by one event.
+/// Returns `(new_state, Some(bit))` when a data bit is emitted, otherwise `(new_state, None)`.
+/// Event: 0=ShortLow, 1=ShortHigh, 2=LongLow, 3=LongHigh (level ? ShortLow : ShortHigh for short/long).
+#[allow(dead_code)]
+#[inline]
+pub fn common_manchester_advance(
+    state: CommonManchesterState,
+    event: u8,
+) -> (CommonManchesterState, Option<bool>) {
+    use CommonManchesterState::{Mid0, Mid1, Start0, Start1};
+
+    let (new_state, emit) = match (state, event) {
+        (Mid0, 0) => (Mid0, false),
+        (Mid0, 1) => (Start1, true),
+        (Mid0, 2) => (Mid0, false),
+        (Mid0, 3) => (Mid1, true),
+
+        (Mid1, 0) => (Start0, true),
+        (Mid1, 1) => (Mid1, false),
+        (Mid1, 2) => (Mid0, true),
+        (Mid1, 3) => (Mid1, false),
+
+        (Start0, 0) => (Mid0, false),
+        (Start0, 1) => (Mid0, false),
+        (Start0, 2) => (Mid0, false),
+        (Start0, 3) => (Mid1, false),
+
+        (Start1, 0) => (Mid0, false),
+        (Start1, 1) => (Mid1, false),
+        (Start1, 2) => (Mid0, false),
+        (Start1, 3) => (Mid1, false),
+
+        _ => (Mid1, false),
+    };
+
+    let bit = if emit { Some((event & 1) == 1) } else { None };
+    (new_state, bit)
 }
 
 /// Button names for common keyfob buttons

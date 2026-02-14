@@ -1,16 +1,12 @@
 //! Ford V0 protocol decoder/encoder
 //!
-//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/ford_v0.c` (Flipper).
-//! Decode/encode logic (CRC, BS, decode_ford_v0, encode_ford_v0, upload waveform) matches reference.
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/ford_v0.c` and `ford_v0.h`.
+//! Ford uses Flipper's lib/toolbox/manchester_decoder.h (ManchesterState, ManchesterEvent,
+//! manchester_advance). We use a separate FordV0ManchesterState and the same event mapping:
+//! level ? ManchesterEventShortLow : ManchesterEventShortHigh (short/long).
 //!
-//! Protocol characteristics:
-//! - Manchester encoding: 250/500µs timing
-//! - 80 bits total (64-bit key1 + 16-bit key2)
-//! - Matrix-based CRC in GF(2)
-//! - BS (byte swap) magic calculation
-//! - 6 bursts, 4 preamble pairs, 3500µs gap
-//!
-//! Timing matches reference: te_delta 100µs, gap tolerance 250µs.
+//! Protocol: 250/500µs Manchester, 80 bits (64 key1 + 16 key2), CRC matrix, BS magic,
+//! 6 bursts, 4 preamble pairs, 3500µs gap. te_delta 100µs, gap tolerance 250µs.
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use crate::radio::demodulator::LevelDuration;
@@ -38,9 +34,10 @@ const CRC_MATRIX: [u8; 64] = [
     0x23, 0x12, 0x94, 0x84, 0x35, 0xF4, 0x55, 0x84,
 ];
 
-/// Manchester state machine states (matches Flipper's manchester_decoder.h)
+/// Ford V0 Manchester state machine. Transition table matches Flipper's
+/// manchester_decoder.h (ProtoPirate ford_v0.c uses it). Separate from Fiat and common.
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum ManchesterState {
+enum FordV0ManchesterState {
     Mid0 = 0,
     Mid1 = 1,
     Start0 = 2,
@@ -57,15 +54,16 @@ enum DecoderStep {
     Data,
 }
 
-/// Ford V0 protocol decoder
+/// Ford V0 protocol decoder (matches SubGhzProtocolDecoderFordV0)
 pub struct FordV0Decoder {
     step: DecoderStep,
-    manchester_state: ManchesterState,
-    decode_data: u64,
+    manchester_state: FordV0ManchesterState,
+    /// Two 64-bit shift registers as in C (ford_v0_add_bit); combined = (data_high<<32)|data_low for key1
+    data_low: u64,
+    data_high: u64,
     bit_count: u8,
     header_count: u16,
     te_last: u32,
-    // Decoded results (stored for encoding)
     key1: u64,
     key2: u16,
     serial: u32,
@@ -78,8 +76,9 @@ impl FordV0Decoder {
     pub fn new() -> Self {
         Self {
             step: DecoderStep::Reset,
-            manchester_state: ManchesterState::Mid1,
-            decode_data: 0,
+            manchester_state: FordV0ManchesterState::Mid1,
+            data_low: 0,
+            data_high: 0,
             bit_count: 0,
             header_count: 0,
             te_last: 0,
@@ -92,27 +91,26 @@ impl FordV0Decoder {
         }
     }
 
-    /// Add a bit to the accumulator.
-    /// After 64 bits, key1 is extracted and the accumulator resets for key2.
+    /// Add a bit (matches ford_v0_add_bit in C exactly)
     fn add_bit(&mut self, bit: bool) {
-        self.decode_data = (self.decode_data << 1) | (bit as u64);
+        let low = self.data_low as u32;
+        self.data_low = (self.data_low << 1) | (if bit { 1 } else { 0 });
+        self.data_high = (self.data_high << 1) | ((low >> 31) & 1) as u64;
         self.bit_count += 1;
     }
 
-    /// Check if we've reached a data milestone (64 or 80 bits).
-    /// At 64 bits: extract key1 (inverted) and reset accumulator.
-    /// At 80 bits: extract key2 (inverted), decode fields, return true.
+    /// Process data at 64 and 80 bits (matches ford_v0_process_data)
     fn process_data(&mut self) -> bool {
         if self.bit_count == 64 {
-            // First 64 bits → key1 (bit-inverted)
-            self.key1 = !self.decode_data;
-            self.decode_data = 0;
+            let combined = (self.data_high << 32) | self.data_low;
+            self.key1 = !combined;
+            self.data_low = 0;
+            self.data_high = 0;
             return false;
         }
 
         if self.bit_count == 80 {
-            // Next 16 bits → key2 (bit-inverted)
-            let key2_raw = (self.decode_data & 0xFFFF) as u16;
+            let key2_raw = (self.data_low & 0xFFFF) as u16;
             self.key2 = !key2_raw;
 
             // Decode serial, button, counter, bs_magic from key1+key2
@@ -128,42 +126,36 @@ impl FordV0Decoder {
         false
     }
 
-    /// Manchester state machine (matches Flipper's manchester_advance exactly).
-    ///
-    /// Event values:
-    ///   0 = ShortLow  (short HIGH pulse → transition to LOW)
-    ///   1 = ShortHigh (short LOW pulse → transition to HIGH)
-    ///   2 = LongLow   (long HIGH pulse → transition to LOW)
-    ///   3 = LongHigh  (long LOW pulse → transition to HIGH)
-    ///
+    /// Manchester state machine (Flipper manchester_advance; ProtoPirate ford_v0.c feed).
+    /// Event: 0=ShortLow, 1=ShortHigh, 2=LongLow, 3=LongHigh. Level mapping: level ? 0/2 : 1/3.
     /// Returns Some(bit) when a data bit is produced.
     fn manchester_advance(&mut self, event: u8) -> Option<bool> {
         let (new_state, emit) = match (self.manchester_state, event) {
             // State Mid0: currently in middle of a 0-bit (signal is LOW)
-            (ManchesterState::Mid0, 0) => (ManchesterState::Mid0, false),   // ShortLow: error, stay
-            (ManchesterState::Mid0, 1) => (ManchesterState::Start1, true),  // ShortHigh: emit
-            (ManchesterState::Mid0, 2) => (ManchesterState::Mid0, false),   // LongLow: error
-            (ManchesterState::Mid0, 3) => (ManchesterState::Mid1, true),    // LongHigh: emit
+            (FordV0ManchesterState::Mid0, 0) => (FordV0ManchesterState::Mid0, false),   // ShortLow: error, stay
+            (FordV0ManchesterState::Mid0, 1) => (FordV0ManchesterState::Start1, true),  // ShortHigh: emit
+            (FordV0ManchesterState::Mid0, 2) => (FordV0ManchesterState::Mid0, false),   // LongLow: error
+            (FordV0ManchesterState::Mid0, 3) => (FordV0ManchesterState::Mid1, true),    // LongHigh: emit
 
             // State Mid1: currently in middle of a 1-bit (signal is HIGH)
-            (ManchesterState::Mid1, 0) => (ManchesterState::Start0, true),  // ShortLow: emit
-            (ManchesterState::Mid1, 1) => (ManchesterState::Mid1, false),   // ShortHigh: error, stay
-            (ManchesterState::Mid1, 2) => (ManchesterState::Mid0, true),    // LongLow: emit
-            (ManchesterState::Mid1, 3) => (ManchesterState::Mid1, false),   // LongHigh: error
+            (FordV0ManchesterState::Mid1, 0) => (FordV0ManchesterState::Start0, true),  // ShortLow: emit
+            (FordV0ManchesterState::Mid1, 1) => (FordV0ManchesterState::Mid1, false),   // ShortHigh: error, stay
+            (FordV0ManchesterState::Mid1, 2) => (FordV0ManchesterState::Mid0, true),    // LongLow: emit
+            (FordV0ManchesterState::Mid1, 3) => (FordV0ManchesterState::Mid1, false),   // LongHigh: error
 
             // State Start0: at start of a 0-bit (signal is HIGH, waiting for H→L)
-            (ManchesterState::Start0, 0) => (ManchesterState::Mid0, false), // ShortLow: complete 0
-            (ManchesterState::Start0, 1) => (ManchesterState::Mid0, false), // error → reset
-            (ManchesterState::Start0, 2) => (ManchesterState::Mid0, false), // error
-            (ManchesterState::Start0, 3) => (ManchesterState::Mid1, false), // error
+            (FordV0ManchesterState::Start0, 0) => (FordV0ManchesterState::Mid0, false), // ShortLow: complete 0
+            (FordV0ManchesterState::Start0, 1) => (FordV0ManchesterState::Mid0, false), // error → reset
+            (FordV0ManchesterState::Start0, 2) => (FordV0ManchesterState::Mid0, false), // error
+            (FordV0ManchesterState::Start0, 3) => (FordV0ManchesterState::Mid1, false), // error
 
             // State Start1: at start of a 1-bit (signal is LOW, waiting for L→H)
-            (ManchesterState::Start1, 0) => (ManchesterState::Mid0, false), // error
-            (ManchesterState::Start1, 1) => (ManchesterState::Mid1, false), // ShortHigh: complete 1
-            (ManchesterState::Start1, 2) => (ManchesterState::Mid0, false), // error
-            (ManchesterState::Start1, 3) => (ManchesterState::Mid1, false), // error
+            (FordV0ManchesterState::Start1, 0) => (FordV0ManchesterState::Mid0, false), // error
+            (FordV0ManchesterState::Start1, 1) => (FordV0ManchesterState::Mid1, false), // ShortHigh: complete 1
+            (FordV0ManchesterState::Start1, 2) => (FordV0ManchesterState::Mid0, false), // error
+            (FordV0ManchesterState::Start1, 3) => (FordV0ManchesterState::Mid1, false), // error
 
-            _ => (ManchesterState::Mid1, false),
+            _ => (FordV0ManchesterState::Mid1, false),
         };
 
         self.manchester_state = new_state;
@@ -483,6 +475,7 @@ impl FordV0Decoder {
     }
 
     /// Get button name for Ford V0
+    #[allow(dead_code)]
     fn button_name(btn: u8) -> &'static str {
         match btn {
             0x01 => "Lock",
@@ -513,11 +506,12 @@ impl ProtocolDecoder for FordV0Decoder {
 
     fn reset(&mut self) {
         self.step = DecoderStep::Reset;
-        self.manchester_state = ManchesterState::Mid1;
-        self.decode_data = 0;
+        self.te_last = 0;
+        self.manchester_state = FordV0ManchesterState::Mid1;
+        self.data_low = 0;
+        self.data_high = 0;
         self.bit_count = 0;
         self.header_count = 0;
-        self.te_last = 0;
         self.key1 = 0;
         self.key2 = 0;
         self.serial = 0;
@@ -528,20 +522,30 @@ impl ProtocolDecoder for FordV0Decoder {
 
     fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
         match self.step {
-            // ─── Step 1: Reset — wait for short HIGH pulse ───
+            // C: level && DURATION_DIFF(duration, te_short) < te_delta → Preamble.
+            // Also allow level && long so we can re-sync when capture starts mid-preamble.
             DecoderStep::Reset => {
                 if level && duration_diff!(duration, TE_SHORT) < TE_DELTA {
-                    self.decode_data = 0;
-                    self.bit_count = 0;
-                    self.header_count = 0;
+                    self.data_low = 0;
+                    self.data_high = 0;
                     self.step = DecoderStep::Preamble;
                     self.te_last = duration;
-                    // Reset Manchester state machine
-                    self.manchester_state = ManchesterState::Mid1;
+                    self.header_count = 0;
+                    self.bit_count = 0;
+                    self.manchester_state = FordV0ManchesterState::Mid1;
+                } else if level && duration_diff!(duration, TE_LONG) < TE_DELTA {
+                    // Alternative: long HIGH (e.g. preamble) → Preamble so next LOW can sync
+                    self.data_low = 0;
+                    self.data_high = 0;
+                    self.step = DecoderStep::Preamble;
+                    self.te_last = duration;
+                    self.header_count = 0;
+                    self.bit_count = 0;
+                    self.manchester_state = FordV0ManchesterState::Mid1;
                 }
             }
 
-            // ─── Step 2: Preamble — wait for long LOW after short HIGH ───
+            // C: !level, long → PreambleCheck; else → Reset
             DecoderStep::Preamble => {
                 if !level {
                     if duration_diff!(duration, TE_LONG) < TE_DELTA {
@@ -553,17 +557,14 @@ impl ProtocolDecoder for FordV0Decoder {
                 }
             }
 
-            // ─── Step 3: PreambleCheck — count preamble pairs or transition to gap ───
-            // Order matches protopirate ford_v0.c: check LONG first, then SHORT.
+            // C: level, long → header_count++, Preamble; level, short → Gap; else → Reset
             DecoderStep::PreambleCheck => {
                 if level {
                     if duration_diff!(duration, TE_LONG) < TE_DELTA {
-                        // Long HIGH: another preamble pair
                         self.header_count += 1;
                         self.te_last = duration;
                         self.step = DecoderStep::Preamble;
                     } else if duration_diff!(duration, TE_SHORT) < TE_DELTA {
-                        // Short HIGH: end of preamble, transition to gap
                         self.step = DecoderStep::Gap;
                     } else {
                         self.step = DecoderStep::Reset;
@@ -571,12 +572,11 @@ impl ProtocolDecoder for FordV0Decoder {
                 }
             }
 
-            // ─── Step 4: Gap — wait for ~3500µs LOW gap ───
+            // C: !level && DURATION_DIFF(duration, 3500) < 250 → Data; !level && duration > 3750 → Reset
             DecoderStep::Gap => {
                 if !level && duration_diff!(duration, GAP_US) < GAP_TOLERANCE {
-                    // Gap detected, start data collection
-                    // First bit is implicitly 1 (matches protopirate)
-                    self.decode_data = 1;
+                    self.data_low = 1;
+                    self.data_high = 0;
                     self.bit_count = 1;
                     self.step = DecoderStep::Data;
                 } else if !level && duration > GAP_US + GAP_TOLERANCE {
@@ -584,31 +584,22 @@ impl ProtocolDecoder for FordV0Decoder {
                 }
             }
 
-            // ─── Step 5: Data — Manchester decode 80 bits ───
+            // C: DURATION_DIFF(duration, te_short) < te_delta → short event; te_long → long event
             DecoderStep::Data => {
-                // Map level+duration to Manchester event. Order matches protopirate ford_v0.c:
-                // check SHORT first, then LONG (so when both within TE_DELTA, short wins).
-                let short_diff = duration_diff!(duration, TE_SHORT);
-                let long_diff = duration_diff!(duration, TE_LONG);
-
-                let event = if short_diff < TE_DELTA {
-                    if level { 0 } else { 1 }  // ShortLow / ShortHigh
-                } else if long_diff < TE_DELTA {
-                    if level { 2 } else { 3 }  // LongLow / LongHigh
+                let event = if duration_diff!(duration, TE_SHORT) < TE_DELTA {
+                    if level { 0 } else { 1 }
+                } else if duration_diff!(duration, TE_LONG) < TE_DELTA {
+                    if level { 2 } else { 3 }
                 } else {
                     self.step = DecoderStep::Reset;
                     return None;
                 };
 
-                // Advance Manchester state machine
                 if let Some(data_bit) = self.manchester_advance(event) {
                     self.add_bit(data_bit);
 
                     if self.process_data() {
-                        // 80 bits decoded — check CRC and return result
                         let crc_ok = Self::verify_crc(self.key1, self.key2);
-                        let _btn_name = Self::button_name(self.button);
-
                         let result = DecodedSignal {
                             serial: Some(self.serial),
                             button: Some(self.button),
@@ -619,7 +610,8 @@ impl ProtocolDecoder for FordV0Decoder {
                             encoder_capable: true,
                         };
 
-                        self.decode_data = 0;
+                        self.data_low = 0;
+                        self.data_high = 0;
                         self.bit_count = 0;
                         self.step = DecoderStep::Reset;
                         return Some(result);

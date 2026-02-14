@@ -174,6 +174,7 @@ Example `config.ini` (all keys optional; defaults are used if missing):
 ```ini
 [general]
 export_directory = ~/.config/KAT/exports
+import_directory = ~/.config/KAT/import
 max_captures = 100
 research_mode = false
 
@@ -188,6 +189,7 @@ default_format = fob
 include_raw_pairs = true
 ```
 
+- **import_directory** — directory scanned at startup for .fob and .sub files to import (default `~/.config/KAT/import`). Exports are still saved to **export_directory**.
 - **research_mode** — when `false` (default), only successfully decoded signals appear in the list; when `true`, unknown (unidentified) signals are also shown.
 - **include_raw_pairs** — when `true`, .fob exports include raw level/duration pairs for replay.
 

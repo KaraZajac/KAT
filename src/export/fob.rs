@@ -369,7 +369,8 @@ fn import_fob_v1(fob: &FobFileV1, next_id: u32) -> Result<Capture> {
     })
 }
 
-/// Scan a directory for .fob files and return their paths
+/// Scan a directory for .fob files (top-level only). Prefer [crate::export::scan_import_files_recursive] for import.
+#[allow(dead_code)]
 pub fn scan_fob_files(dir: &Path) -> Vec<std::path::PathBuf> {
     if !dir.exists() || !dir.is_dir() {
         return Vec::new();

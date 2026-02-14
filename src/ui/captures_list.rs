@@ -76,7 +76,7 @@ fn render_table(frame: &mut Frame, area: Rect, app: &App) {
         };
 
         let status_text = match capture.status {
-            CaptureStatus::EncoderCapable => "✓ Encode",
+            CaptureStatus::EncoderCapable => "Encode",
             CaptureStatus::Decoded => "Decoded",
             CaptureStatus::Unknown => "Unknown",
         };

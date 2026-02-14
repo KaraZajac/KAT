@@ -187,7 +187,10 @@ fn render_startup_import_prompt(frame: &mut Frame, app: &App) {
     let text = vec![
         Line::from(""),
         Line::from(Span::styled(
-            format!("Found {} file(s) (.fob / .sub) in export directory.", count),
+            format!(
+                "Found {} file(s) (.fob / .sub) in import dir (incl. subfolders).",
+                count
+            ),
             Style::default().fg(Color::Yellow),
         )),
         Line::from(""),

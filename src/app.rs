@@ -282,13 +282,14 @@ impl App {
         let vga_gain = storage.config.default_vga_gain;
         let amp_enabled = storage.config.default_amp;
 
-        // Scan for .fob and .sub files in the export directory
-        let mut pending_fob_files = crate::export::fob::scan_fob_files(&storage.config.export_directory);
-        let sub_files = crate::export::flipper::scan_sub_files(&storage.config.export_directory);
-        pending_fob_files.extend(sub_files);
-        pending_fob_files.sort();
+        // Recursively scan import directory for .fob and .sub at startup (separate from export dir)
+        let pending_fob_files =
+            crate::export::scan_import_files_recursive(storage.import_dir());
         let initial_mode = if !pending_fob_files.is_empty() {
-            tracing::info!("Found {} file(s) in export dir", pending_fob_files.len());
+            tracing::info!(
+                "Found {} importable file(s) in import dir (recursive)",
+                pending_fob_files.len()
+            );
             InputMode::StartupImport
         } else {
             InputMode::Normal
@@ -901,47 +902,55 @@ impl App {
 
     /// Import pending .fob and .sub files into captures list.
     /// .sub files are decoded with registered protocols after load (no metadata in file).
+    /// When research_mode is off, only decoded captures are added (same as live capture).
     pub fn import_fob_files(&mut self) -> Result<()> {
         let files = std::mem::take(&mut self.pending_fob_files);
         let mut imported = 0;
+        let research_mode = self.storage.config.research_mode;
 
         for path in &files {
             let is_sub = path.extension().map_or(false, |e| e == "sub");
 
             if is_sub {
-                match crate::export::flipper::import_sub(path, self.next_capture_id) {
-                    Ok(captures) => {
-                        for mut capture in captures {
-                            capture.id = self.next_capture_id;
+                match crate::export::flipper::import_sub_raw(path) {
+                    Ok((frequency, raw_pairs)) => {
+                        let pairs: Vec<crate::radio::LevelDuration> = raw_pairs
+                            .iter()
+                            .map(|p| crate::radio::LevelDuration::new(p.level, p.duration_us))
+                            .collect();
+                        let decoded_list =
+                            self.protocols.process_signal_stream(&pairs, frequency);
+                        for (protocol_name, decoded, segment_pairs) in decoded_list {
+                            let raw: Vec<crate::capture::StoredLevelDuration> = segment_pairs
+                                .iter()
+                                .map(|p| crate::capture::StoredLevelDuration {
+                                    level: p.level,
+                                    duration_us: p.duration_us,
+                                })
+                                .collect();
+                            let mut capture = crate::capture::Capture::from_pairs_with_rf(
+                                self.next_capture_id,
+                                frequency,
+                                raw,
+                                None,
+                            );
                             self.next_capture_id += 1;
-                            // .sub has no protocol metadata; run decoder to identify signal
-                            if capture.status == crate::capture::CaptureStatus::Unknown
-                                && !capture.raw_pairs.is_empty()
-                            {
-                                let pairs: Vec<crate::radio::LevelDuration> = capture
-                                    .raw_pairs
-                                    .iter()
-                                    .map(|p| crate::radio::LevelDuration::new(p.level, p.duration_us))
-                                    .collect();
-                                if let Some((protocol_name, decoded)) =
-                                    self.protocols.process_signal(&pairs, capture.frequency)
-                                {
-                                    capture.protocol = Some(protocol_name);
-                                    capture.serial = decoded.serial;
-                                    capture.button = decoded.button;
-                                    capture.counter = decoded.counter;
-                                    capture.crc_valid = decoded.crc_valid;
-                                    capture.data = decoded.data;
-                                    capture.data_count_bit = decoded.data_count_bit;
-                                    capture.status = if decoded.encoder_capable {
-                                        crate::capture::CaptureStatus::EncoderCapable
-                                    } else {
-                                        crate::capture::CaptureStatus::Decoded
-                                    };
-                                }
+                            capture.protocol = Some(protocol_name);
+                            capture.serial = decoded.serial;
+                            capture.button = decoded.button;
+                            capture.counter = decoded.counter;
+                            capture.crc_valid = decoded.crc_valid;
+                            capture.data = decoded.data;
+                            capture.data_count_bit = decoded.data_count_bit;
+                            capture.status = if decoded.encoder_capable {
+                                crate::capture::CaptureStatus::EncoderCapable
+                            } else {
+                                crate::capture::CaptureStatus::Decoded
+                            };
+                            if research_mode || capture.protocol.is_some() {
+                                self.captures.push(capture);
+                                imported += 1;
                             }
-                            self.captures.push(capture);
-                            imported += 1;
                         }
                     }
                     Err(e) => tracing::warn!("Failed to import {:?}: {}", path, e),
@@ -976,8 +985,10 @@ impl App {
                                 };
                             }
                         }
-                        self.captures.push(capture);
-                        imported += 1;
+                        if research_mode || capture.protocol.is_some() {
+                            self.captures.push(capture);
+                            imported += 1;
+                        }
                     }
                     Err(e) => tracing::warn!("Failed to import {:?}: {}", path, e),
                 }

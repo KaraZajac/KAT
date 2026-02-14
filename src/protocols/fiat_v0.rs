@@ -116,6 +116,7 @@ impl FiatV0Decoder {
             data,
             data_count_bit: 71,
             encoder_capable: true,
+            extra: None,
         }
     }
 }

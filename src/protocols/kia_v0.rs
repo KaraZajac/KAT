@@ -84,6 +84,7 @@ impl KiaV0Decoder {
             data,
             data_count_bit: MIN_COUNT_BIT,
             encoder_capable: true,
+            extra: None,
         }
     }
 }

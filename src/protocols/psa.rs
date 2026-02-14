@@ -262,6 +262,7 @@ impl PsaDecoder {
                 data,
                 data_count_bit: MIN_COUNT_BIT,
                 encoder_capable: true,
+                extra: None,
             }
         } else {
             DecodedSignal {
@@ -272,6 +273,7 @@ impl PsaDecoder {
                 data,
                 data_count_bit: MIN_COUNT_BIT,
                 encoder_capable: false,
+                extra: None,
             }
         }
     }

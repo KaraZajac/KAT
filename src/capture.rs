@@ -54,6 +54,9 @@ pub struct Capture {
     pub data: u64,
     /// Number of valid bits in data
     pub data_count_bit: usize,
+    /// Protocol-specific extra for encoding (e.g. VAG vag_type + key_idx)
+    #[serde(default)]
+    pub data_extra: Option<u64>,
     /// Raw level+duration pairs
     pub raw_pairs: Vec<StoredLevelDuration>,
     /// Current status
@@ -131,6 +134,7 @@ impl Capture {
             crc_valid: false,
             data: 0,
             data_count_bit: 0,
+            data_extra: None,
             raw_pairs: pairs,
             status: CaptureStatus::Unknown,
             received_rf,

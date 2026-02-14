@@ -451,41 +451,54 @@ impl VagDecoder {
         }
     }
 
-    /// Build encoder output for the given signal
+    /// Build encoder output from decoded signal (uses decoded + extra; extra = vag_type | (key_idx<<8))
     fn encode_signal(&self, decoded: &DecodedSignal) -> Option<Vec<LevelDuration>> {
-        if !self.decrypted {
-            return None;
-        }
+        let extra = match decoded.extra {
+            Some(e) => e,
+            None => return None,
+        };
+        let vag_type_num = (extra & 0xFF) as u8;
+        let vag_type = match vag_type_num {
+            1 => VagType::Type1,
+            2 => VagType::Type2,
+            3 => VagType::Type3,
+            4 => VagType::Type4,
+            _ => return None,
+        };
+        let key_idx = ((extra >> 8) & 0xFF) as u8;
 
-        match self.vag_type {
-            VagType::Type1 => self.encode_type1(decoded),
-            VagType::Type2 => self.encode_type2(decoded),
-            VagType::Type3 | VagType::Type4 => self.encode_type3_4(decoded),
+        match vag_type {
+            VagType::Type1 => Self::encode_type1(decoded, key_idx),
+            VagType::Type2 => Self::encode_type2(decoded),
+            VagType::Type3 | VagType::Type4 => Self::encode_type3_4(decoded, vag_type, key_idx),
             _ => None,
         }
     }
 
     /// Encode Type 1 (300µs, AUT64)
-    fn encode_type1(&self, _decoded: &DecodedSignal) -> Option<Vec<LevelDuration>> {
+    fn encode_type1(decoded: &DecodedSignal, key_idx: u8) -> Option<Vec<LevelDuration>> {
         let mut upload = Vec::with_capacity(700);
 
-        let btn_byte = self.btn;
+        let serial = decoded.serial.unwrap_or(0);
+        let btn = decoded.button.unwrap_or(0);
+        let cnt = decoded.counter.unwrap_or(0) as u32;
+        let type_byte = (decoded.data >> 56) as u8;
+        let btn_byte = btn;
         let dispatch = Self::get_dispatch_byte(btn_byte, 1);
-        let type_byte = (self.key1_high >> 24) as u8;
 
         // Build plaintext block
         let mut block = [0u8; 8];
-        block[0] = (self.serial >> 24) as u8;
-        block[1] = (self.serial >> 16) as u8;
-        block[2] = (self.serial >> 8) as u8;
-        block[3] = self.serial as u8;
-        block[4] = self.cnt as u8;
-        block[5] = (self.cnt >> 8) as u8;
-        block[6] = (self.cnt >> 16) as u8;
+        block[0] = (serial >> 24) as u8;
+        block[1] = (serial >> 16) as u8;
+        block[2] = (serial >> 8) as u8;
+        block[3] = serial as u8;
+        block[4] = cnt as u8;
+        block[5] = (cnt >> 8) as u8;
+        block[6] = (cnt >> 16) as u8;
         block[7] = btn_byte;
 
         // Encrypt with AUT64
-        let key_idx = if self.key_idx != 0xFF { self.key_idx as usize } else { 0 };
+        let key_idx = if key_idx != 0xFF { key_idx as usize } else { 0 };
         let store = keys::get_keystore();
         if let Some(key) = store.get_vag_key((key_idx + 1) as u8) {
             aut64::aut64_encrypt(key, &mut block);
@@ -533,22 +546,25 @@ impl VagDecoder {
     }
 
     /// Encode Type 2 (300µs, TEA)
-    fn encode_type2(&self, _decoded: &DecodedSignal) -> Option<Vec<LevelDuration>> {
+    fn encode_type2(decoded: &DecodedSignal) -> Option<Vec<LevelDuration>> {
         let mut upload = Vec::with_capacity(700);
 
-        let btn_byte = Self::btn_to_byte(self.btn, 2);
+        let serial = decoded.serial.unwrap_or(0);
+        let btn = decoded.button.unwrap_or(0);
+        let cnt = decoded.counter.unwrap_or(0) as u32;
+        let type_byte = (decoded.data >> 56) as u8;
+        let btn_byte = Self::btn_to_byte(btn, 2);
         let dispatch = Self::get_dispatch_byte(btn_byte, 2);
-        let type_byte = (self.key1_high >> 24) as u8;
 
         // Build plaintext block
         let mut block = [0u8; 8];
-        block[0] = (self.serial >> 24) as u8;
-        block[1] = (self.serial >> 16) as u8;
-        block[2] = (self.serial >> 8) as u8;
-        block[3] = self.serial as u8;
-        block[4] = self.cnt as u8;
-        block[5] = (self.cnt >> 8) as u8;
-        block[6] = (self.cnt >> 16) as u8;
+        block[0] = (serial >> 24) as u8;
+        block[1] = (serial >> 16) as u8;
+        block[2] = (serial >> 8) as u8;
+        block[3] = serial as u8;
+        block[4] = cnt as u8;
+        block[5] = (cnt >> 8) as u8;
+        block[6] = (cnt >> 16) as u8;
         block[7] = btn_byte;
 
         // Encrypt with TEA
@@ -606,27 +622,30 @@ impl VagDecoder {
     }
 
     /// Encode Type 3/4 (500µs, AUT64)
-    fn encode_type3_4(&self, _decoded: &DecodedSignal) -> Option<Vec<LevelDuration>> {
+    fn encode_type3_4(decoded: &DecodedSignal, vag_type: VagType, key_idx: u8) -> Option<Vec<LevelDuration>> {
         let mut upload = Vec::with_capacity(600);
-        let vag_type_num = self.vag_type as u8;
+        let vag_type_num = vag_type as u8;
 
-        let btn_byte = Self::btn_to_byte(self.btn, vag_type_num);
+        let serial = decoded.serial.unwrap_or(0);
+        let btn = decoded.button.unwrap_or(0);
+        let cnt = decoded.counter.unwrap_or(0) as u32;
+        let type_byte = (decoded.data >> 56) as u8;
+        let btn_byte = Self::btn_to_byte(btn, vag_type_num);
         let dispatch = Self::get_dispatch_byte(btn_byte, vag_type_num);
-        let type_byte = (self.key1_high >> 24) as u8;
 
         let mut block = [0u8; 8];
-        block[0] = (self.serial >> 24) as u8;
-        block[1] = (self.serial >> 16) as u8;
-        block[2] = (self.serial >> 8) as u8;
-        block[3] = self.serial as u8;
-        block[4] = self.cnt as u8;
-        block[5] = (self.cnt >> 8) as u8;
-        block[6] = (self.cnt >> 16) as u8;
+        block[0] = (serial >> 24) as u8;
+        block[1] = (serial >> 16) as u8;
+        block[2] = (serial >> 8) as u8;
+        block[3] = serial as u8;
+        block[4] = cnt as u8;
+        block[5] = (cnt >> 8) as u8;
+        block[6] = (cnt >> 16) as u8;
         block[7] = btn_byte;
 
-        let key_idx = if self.key_idx != 0xFF {
-            self.key_idx as usize
-        } else if self.vag_type == VagType::Type4 { 2 } else { 1 };
+        let key_idx = if key_idx != 0xFF {
+            key_idx as usize
+        } else if vag_type == VagType::Type4 { 2 } else { 1 };
 
         let store = keys::get_keystore();
         if let Some(key) = store.get_vag_key((key_idx + 1) as u8) {
@@ -758,9 +777,14 @@ impl VagDecoder {
         }
     }
 
-    /// Build DecodedSignal from internal state
+    /// Build DecodedSignal from internal state (sets extra when decrypted for encode-from-capture)
     fn build_decoded_signal(&self) -> DecodedSignal {
         let key1 = ((self.key1_high as u64) << 32) | (self.key1_low as u64);
+        let extra = if self.decrypted {
+            Some((self.vag_type as u8 as u64) | ((self.key_idx as u64) << 8))
+        } else {
+            None
+        };
 
         DecodedSignal {
             serial: if self.decrypted { Some(self.serial) } else { None },
@@ -770,6 +794,7 @@ impl VagDecoder {
             data: key1,
             data_count_bit: self.data_count_bit,
             encoder_capable: self.decrypted,
+            extra,
         }
     }
 }
@@ -1160,7 +1185,7 @@ impl ProtocolDecoder for VagDecoder {
     }
 
     fn supports_encoding(&self) -> bool {
-        self.decrypted
+        true
     }
 
     fn encode(&self, decoded: &DecodedSignal, _button: u8) -> Option<Vec<LevelDuration>> {

@@ -5,7 +5,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 
 use crate::capture::{ButtonCommand, Capture};
 use crate::protocols::ProtocolRegistry;
-use crate::radio::HackRfController;
+use crate::radio::{HackRfController, LevelDuration};
 use crate::storage::Storage;
 
 /// Input mode for the application
@@ -47,6 +47,7 @@ pub enum ExportFormat {
 /// Items available in the signal action menu
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SignalAction {
+    Replay,
     Lock,
     Unlock,
     Trunk,
@@ -57,7 +58,8 @@ pub enum SignalAction {
 }
 
 impl SignalAction {
-    pub const ALL: [SignalAction; 7] = [
+    pub const ALL: [SignalAction; 8] = [
+        SignalAction::Replay,
         SignalAction::Lock,
         SignalAction::Unlock,
         SignalAction::Trunk,
@@ -69,6 +71,7 @@ impl SignalAction {
 
     pub fn label(&self) -> &'static str {
         match self {
+            SignalAction::Replay => "Replay",
             SignalAction::Lock => "TX Lock",
             SignalAction::Unlock => "TX Unlock",
             SignalAction::Trunk => "TX Trunk",
@@ -632,6 +635,7 @@ impl App {
             data: capture.data,
             data_count_bit: capture.data_count_bit,
             encoder_capable: true,
+            extra: capture.data_extra,
         };
 
         // Generate the signal with the new button
@@ -648,6 +652,37 @@ impl App {
         if let Some(ref mut hackrf) = self.hackrf {
             hackrf.transmit(&signal, capture.frequency)?;
             self.status_message = Some(format!("Transmitted {:?} for capture {}", command, id));
+        } else {
+            self.last_error = Some("HackRF not connected".to_string());
+        }
+
+        Ok(())
+    }
+
+    /// Replay a capture by re-transmitting its raw level/duration pairs (no re-encoding).
+    pub fn replay_capture(&mut self, id: u32) -> Result<()> {
+        let capture = match self.captures.iter().find(|c| c.id == id) {
+            Some(c) => c,
+            None => {
+                self.last_error = Some(format!("Capture {} not found", id));
+                return Ok(());
+            }
+        };
+
+        if capture.raw_pairs.is_empty() {
+            self.last_error = Some("No raw signal to replay (capture has no level/duration data)".to_string());
+            return Ok(());
+        }
+
+        let signal: Vec<LevelDuration> = capture
+            .raw_pairs
+            .iter()
+            .map(|p| LevelDuration::new(p.level, p.duration_us))
+            .collect();
+
+        if let Some(ref mut hackrf) = self.hackrf {
+            hackrf.transmit(&signal, capture.frequency)?;
+            self.status_message = Some(format!("Replayed capture {} ({} pairs)", id, signal.len()));
         } else {
             self.last_error = Some("HackRF not connected".to_string());
         }
@@ -735,6 +770,7 @@ impl App {
                         capture.crc_valid = decoded.crc_valid;
                         capture.data = decoded.data;
                         capture.data_count_bit = decoded.data_count_bit;
+                        capture.data_extra = decoded.extra;
                         capture.status = if decoded.encoder_capable {
                             crate::capture::CaptureStatus::EncoderCapable
                         } else {
@@ -785,6 +821,9 @@ impl App {
         };
 
         match action {
+            SignalAction::Replay => {
+                self.replay_capture(capture_id)?;
+            }
             SignalAction::Lock => {
                 let id_str = capture_id.to_string();
                 self.transmit_command(Some(&&*id_str.as_str()), ButtonCommand::Lock)?;
@@ -942,6 +981,7 @@ impl App {
                             capture.crc_valid = decoded.crc_valid;
                             capture.data = decoded.data;
                             capture.data_count_bit = decoded.data_count_bit;
+                            capture.data_extra = decoded.extra;
                             capture.status = if decoded.encoder_capable {
                                 crate::capture::CaptureStatus::EncoderCapable
                             } else {
@@ -978,6 +1018,7 @@ impl App {
                                 capture.crc_valid = decoded.crc_valid;
                                 capture.data = decoded.data;
                                 capture.data_count_bit = decoded.data_count_bit;
+                                capture.data_extra = decoded.extra;
                                 capture.status = if decoded.encoder_capable {
                                     crate::capture::CaptureStatus::EncoderCapable
                                 } else {
@@ -1149,6 +1190,7 @@ impl App {
             crc_valid: true,
             data: 0x5A2B3C4D00001234,
             data_count_bit: 64,
+            data_extra: None,
             raw_pairs: vec![],
             status: crate::capture::CaptureStatus::EncoderCapable,
             received_rf: None,

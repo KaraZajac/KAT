@@ -608,6 +608,7 @@ impl ProtocolDecoder for FordV0Decoder {
                             data: self.key1,
                             data_count_bit: MIN_COUNT_BIT,
                             encoder_capable: true,
+                            extra: None,
                         };
 
                         self.data_low = 0;

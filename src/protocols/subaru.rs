@@ -150,6 +150,7 @@ impl SubaruDecoder {
             data: key,
             data_count_bit: 64,
             encoder_capable: true,
+            extra: None,
         })
     }
 }

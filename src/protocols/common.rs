@@ -30,6 +30,8 @@ pub struct DecodedSignal {
     pub data_count_bit: usize,
     /// Whether encoding is supported
     pub encoder_capable: bool,
+    /// Protocol-specific extra data for encoding (e.g. VAG: vag_type + key_idx)
+    pub extra: Option<u64>,
 }
 
 impl DecodedSignal {
@@ -43,6 +45,7 @@ impl DecodedSignal {
             data,
             data_count_bit: bit_count,
             encoder_capable: false,
+            extra: None,
         }
     }
 }

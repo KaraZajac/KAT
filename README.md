@@ -10,7 +10,7 @@ A terminal-based RF signal analysis tool for capturing, decoding, and retransmit
 - **Multi-protocol decoding** — 14 protocol decoders: Kia V0–V6, Ford V0, Fiat V0, Subaru, Suzuki, VAG (VW/Audi/Seat/Skoda), PSA, Scher-Khan, Star Line; adaptive demodulation for real-world conditions
 - **RF modulation metadata** — each protocol tagged as AM, FM, or both (from ProtoPirate); shown in signal detail and exported in .fob
 - **Rich signal detail** — encoding (PWM/Manchester), RF (AM/FM), encryption, serial, counter, key data, CRC, frequency, and raw level/duration pairs
-- **Signal retransmission** — transmit Lock, Unlock, Trunk, and Panic commands from decoded captures
+- **Signal retransmission** — transmit Lock, Unlock, Trunk, and Panic commands from decoded captures (VAG supports full encode from capture via stored vag_type/key_idx)
 - **Export formats** — `.fob` (versioned JSON with vehicle metadata, signal info, optional raw pairs) and `.sub` (Flipper Zero compatible)
 - **Import support** — load `.fob` files with automatic v1/v2 format detection
 - **Research mode** — config option to show unknown (unidentified) signals in addition to successfully decoded ones
@@ -209,7 +209,7 @@ Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference. KA
 | Fiat V0 | Manchester | FM | Fixed Code | 433.92 MHz |
 | Subaru | PWM | AM | Rolling Code | 433.92 MHz |
 | Suzuki | PWM | AM | Rolling Code | 433.92 MHz |
-| VAG (VW/Audi/Seat/Skoda) | Manchester | AM | AUT64/XTEA | 433.92 / 434.42 MHz |
+| VAG (VW/Audi/Seat/Skoda) | Manchester | AM | AUT64/XTEA | 433.92 / 434.42 MHz (decode + encode) |
 | Scher-Khan | PWM | FM | Magic Code | 433.92 MHz |
 | Star Line | PWM | AM | KeeLoq | 433.92 MHz |
 | PSA (Peugeot/Citroën) | Manchester | FM | XTEA/XOR | 433.92 MHz |
@@ -231,13 +231,17 @@ The **AM/OOK** demodulator turns IQ samples into level/duration pairs for protoc
 - **Debounce** — 40µs minimum pulse width to reject noise spikes
 - **Gap detection** — 20 ms gap treated as end of signal
 
+## IMPORTS folder
+
+The `IMPORTS/` directory holds sample `.sub` captures by manufacturer for testing. If you see `desktop.ini` files in subfolders (e.g. from Windows), you can delete them; they are ignored by git (see `.gitignore`).
+
 ## Project Structure
 
 ```
 src/
 ├── main.rs              # Entry point, event loop, key handling
 ├── app.rs               # Application state, radio events, signal actions
-├── capture.rs           # Capture data, encoding/RF modulation, encryption helpers
+├── capture.rs           # Capture data (data_extra for protocol encode state), encoding/RF modulation
 ├── storage.rs           # Config (INI), export dir, resolve_config_dir, Storage
 ├── keystore/
 │   ├── mod.rs           # Keystore trait and access
@@ -247,13 +251,13 @@ src/
 │   └── flipper.rs      # Flipper Zero .sub export
 ├── protocols/
 │   ├── mod.rs           # Protocol registry, decoder trait, duration_diff macro
-│   ├── common.rs        # Shared CRC, bit helpers, button codes
+│   ├── common.rs        # DecodedSignal (extra for VAG encode), CRC, bit helpers, button codes
 │   ├── keeloq_common.rs # KeeLoq cipher + learning key algorithms
 │   ├── aut64.rs         # AUT64 block cipher (VAG)
 │   ├── keys.rs          # Key loading (embedded + optional file), KIA/VAG
 │   ├── kia_v0..kia_v6.rs
 │   ├── ford_v0.rs, fiat_v0.rs, subaru.rs, suzuki.rs
-│   ├── vag.rs           # VAG decoder/encoder (4 sub-types)
+│   ├── vag.rs           # VAG decoder/encoder (4 sub-types; encode from capture via extra)
 │   ├── scher_khan.rs, star_line.rs, psa.rs
 │   └── ...
 ├── radio/

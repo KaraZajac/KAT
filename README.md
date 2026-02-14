@@ -15,7 +15,7 @@ A terminal-based RF signal analysis tool for capturing, decoding, and retransmit
 - **Import support** — load `.fob` files with automatic v1/v2 format detection
 - **Research mode** — config option to show unknown (unidentified) signals in addition to successfully decoded ones
 - **INI configuration** — `~/.config/KAT/config.ini` (auto-created with comments on first run): export path, max captures, research_mode, radio defaults, export format
-- **Embedded keystore** — manufacturer keys (Kia, VAG, etc.) bundled for decoding; optional `~/.config/KAT/keystore/` override
+- **Embedded keystore** — manufacturer keys (Kia, VAG, etc.) built in for decoding
 - **VIM-style command line** — `:freq`, `:lock`, `:unlock`, `:save`, `:load`, `:delete`, and more
 - **Interactive TUI** — captures list with detail panel (protocol, freq, mod, RF, encryption), signal action menu, radio settings, fob export form
 
@@ -165,8 +165,7 @@ On first launch, KAT creates the config directory and a default config file. Cap
 ```
 ~/.config/KAT/
 ├── config.ini      # Application settings (auto-generated with comments)
-├── exports/        # Default export directory for .fob / .sub files
-└── keystore/      # Optional: override keys (keystore.ini, vag.bin, etc.)
+└── exports/        # Default export directory for .fob / .sub files
 ```
 
 Example `config.ini` (all keys optional; defaults are used if missing):
@@ -218,7 +217,7 @@ Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference. KA
 
 - **KeeLoq** — encrypt/decrypt with normal, secure, FAAC, and magic serial/XOR learning key derivation (keeloq_common, keys)
 - **AUT64** — 12-round block cipher for VAG type 1/3/4 (aut64)
-- **Keystore** — embedded manufacturer keys (Kia, VAG, etc.); optional file overrides in `~/.config/KAT/keystore/`
+- **Keystore** — manufacturer keys (Kia, VAG, etc.) built in; see `src/keystore/`
 
 ### Demodulator
 
@@ -273,6 +272,24 @@ src/
     └── status_bar.rs    # Status bar
 ```
 
+## Credits
+
+KAT is developed by **Kara Zajac (.leviathan)** and would not be possible without [ProtoPirate](REFERENCES/ProtoPirate/). Truly standing on the shoulders of giants.
+
+### ProtoPirate Development Team
+
+RocketGod, MMX, Leeroy, gullradriel, Skorp (thanks for the Weather App inspiration!), Vadim's Radio Driver.
+
+### Protocol Magic
+
+L0rdDiakon, YougZ, RocketGod, MMX, DoobTheGoober, Skorp, Slackware, Trikk, Wootini, Li0ard, Leeroy.
+
+### Reverse Engineering Support
+
+DoobTheGoober, MMX, NeedNotApply, RocketGod, Slackware, Trikk, Li0ard.
+
+---
+
 ## License
 
-BSD-3-Clause
+[BSD-3-Clause NO MILITARY NO GOVERNMENT](LICENSE)

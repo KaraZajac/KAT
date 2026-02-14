@@ -2,6 +2,8 @@
 
 A terminal-based RF signal analysis tool for capturing, decoding, and retransmitting automotive keyfob signals using HackRF One. Built in Rust with a real-time TUI powered by `ratatui`. Protocol decoders are aligned with the [ProtoPirate](REFERENCES/ProtoPirate/) reference.
 
+![Keyfob Analysis Toolkit screenshot](images/kat-screenshot.png)
+
 ---
 
 ## Features

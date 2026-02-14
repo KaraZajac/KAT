@@ -53,6 +53,16 @@ pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
             "EXPORT",
             Style::default().fg(Color::Green),
         ),
+        InputMode::License => (
+            String::new(),
+            "LICENSE",
+            Style::default().fg(Color::Cyan),
+        ),
+        InputMode::Credits => (
+            String::new(),
+            "CREDITS",
+            Style::default().fg(Color::Cyan),
+        ),
     };
 
     let input_line = Line::from(vec![

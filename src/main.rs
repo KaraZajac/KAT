@@ -161,7 +161,9 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                                 let command = app.command_input.clone();
                                 app.execute_command(&command)?;
                                 app.command_input.clear();
-                                app.input_mode = InputMode::Normal;
+                                if app.input_mode == InputMode::Command {
+                                    app.input_mode = InputMode::Normal;
+                                }
                             }
                             KeyCode::Char(c) => {
                                 app.command_input.push(c);
@@ -389,6 +391,19 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             KeyCode::Esc => {
                                 app.export_capture_id = None;
                                 app.input_mode = InputMode::Normal;
+                            }
+                            _ => {}
+                        },
+
+                        InputMode::License | InputMode::Credits => match key.code {
+                            KeyCode::Esc | KeyCode::Enter => {
+                                app.input_mode = InputMode::Normal;
+                            }
+                            KeyCode::Up | KeyCode::Char('k') => {
+                                app.overlay_scroll = app.overlay_scroll.saturating_sub(1);
+                            }
+                            KeyCode::Down | KeyCode::Char('j') => {
+                                app.overlay_scroll = app.overlay_scroll.saturating_add(1);
                             }
                             _ => {}
                         },

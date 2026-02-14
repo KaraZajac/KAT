@@ -8,13 +8,14 @@ use ratatui::{
     Frame,
 };
 
-use crate::app::{App, InputMode, RadioState};
+use crate::app::{App, InputMode, RadioState, LICENSE_TEXT};
 
 use super::captures_list::render_captures_list;
 use super::command::render_command_line;
 use super::settings_menu::{render_settings_dropdown, render_settings_tabs};
 use super::signal_menu::render_signal_menu;
 use super::status_bar::render_status_bar;
+use super::text_overlay::render_text_overlay;
 
 use crate::app::InputMode as IM;
 
@@ -91,6 +92,19 @@ pub fn draw_ui(frame: &mut Frame, app: &App) {
     ) {
         render_export_form(frame, app);
     }
+
+    if app.input_mode == InputMode::License {
+        render_text_overlay(frame, app, "License", LICENSE_TEXT, Alignment::Left);
+    }
+    if app.input_mode == InputMode::Credits {
+        render_text_overlay(
+            frame,
+            app,
+            "Credits",
+            super::text_overlay::CREDITS_TEXT,
+            Alignment::Center,
+        );
+    }
 }
 
 /// Render the header with title and radio status
@@ -159,6 +173,7 @@ fn render_help_bar(frame: &mut Frame, area: Rect, app: &App) {
         | InputMode::FobMetaModel
         | InputMode::FobMetaRegion => "Enter: Next Field | Esc: Cancel Export",
         InputMode::FobMetaNotes => "Enter: Save & Export | Esc: Cancel Export",
+        InputMode::License | InputMode::Credits => "Esc/Enter: Close | Up/Down: Scroll",
     };
 
     let help = Paragraph::new(Line::from(Span::styled(

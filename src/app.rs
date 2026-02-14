@@ -35,6 +35,10 @@ pub enum InputMode {
     FobMetaRegion,
     /// Fob export metadata: editing notes field
     FobMetaNotes,
+    /// License overlay (centered box)
+    License,
+    /// Credits overlay (centered box)
+    Credits,
 }
 
 /// Export format being used
@@ -165,6 +169,9 @@ pub enum RadioEvent {
     StateChanged(RadioState),
 }
 
+/// License text (embedded at compile time)
+pub const LICENSE_TEXT: &str = include_str!("../LICENSE");
+
 /// Main application state
 pub struct App {
     /// Current input mode
@@ -195,6 +202,10 @@ pub struct App {
     // -- Signal action menu state --
     /// Currently selected signal menu item index
     pub signal_menu_index: usize,
+
+    // -- License/Credits overlay --
+    /// Scroll offset for license/credits overlay (lines)
+    pub overlay_scroll: usize,
 
     // -- Settings menu state --
     /// Currently selected settings field
@@ -312,6 +323,7 @@ impl App {
             last_error: None,
             status_message: None,
             signal_menu_index: 0,
+            overlay_scroll: 0,
             settings_field_index: 0,
             settings_value_index: 0,
             next_capture_id,
@@ -441,6 +453,14 @@ impl App {
             "lock" => self.transmit_command(parts.get(1), ButtonCommand::Lock)?,
             "trunk" => self.transmit_command(parts.get(1), ButtonCommand::Trunk)?,
             "panic" => self.transmit_command(parts.get(1), ButtonCommand::Panic)?,
+            "license" | "licence" => {
+                self.input_mode = InputMode::License;
+                self.overlay_scroll = 0;
+            }
+            "credits" => {
+                self.input_mode = InputMode::Credits;
+                self.overlay_scroll = 0;
+            }
             "delete" => {
                 if parts.len() < 2 {
                     self.last_error = Some("Usage: :delete <ID> or :delete all".to_string());

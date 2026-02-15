@@ -51,3 +51,36 @@ pub fn parse_blob(blob: &[u8]) -> Option<ParsedKeystore> {
 pub fn embedded_blob() -> &'static [u8] {
     embedded::KEYSTORE_BLOB
 }
+
+/// Return all (type_id, key_u64) from the embedded blob for comparison with external key lists (e.g. Pandora).
+/// Key is stored LE in blob; returned as u64. Format as 16-char hex with format!("{:016X}", key) to match Pandora.
+#[cfg(test)]
+pub fn embedded_entries_for_compare() -> Vec<(u32, u64)> {
+    parse_blob(embedded_blob()).map(|p| p.entries).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dump_keystore_keys_for_pandora_compare() {
+        let entries = embedded_entries_for_compare();
+        const NAMES: &[&str] = &[
+            "KIA", "KIAV6A", "KIAV6B", "KIAV5", "Alligator", "Mongoose",
+            "SL_A6-A9/Tomahawk_9010", "Pantera", "SL_A2-A4", "Cenmax_St-5", "SL_B6,B9_dop",
+            "Harpoon", "Tomahawk_TZ-9030", "Tomahawk_Z,X_3-5", "Cenmax_St-7", "Sheriff",
+            "Pantera_CLK", "Cenmax", "Alligator_S-275", "Guard_RF-311A", "Partisan_RX",
+            "APS-1100_APS-2550", "Pantera_XS/Jaguar", "Teco", "Leopard", "Faraon", "Reff",
+            "ZX-730-750-1055", "Star Line",
+            "Pandora_M101", "Pandora_PRO", "Pandora_PRO2", "Pandora_SUBARU", "Pandora_SUZUKI",
+            "Pandora_DEA", "Pandora_GIBIDI", "Pandora_MCODE", "Pandora_Unknown_1", "Pandora_Unknown_2",
+            "Pandora_Test_Debug_2",
+        ];
+        eprintln!("KAT embedded keystore keys (type, hex, name):");
+        for (i, (ty, key)) in entries.iter().enumerate() {
+            let name = NAMES.get(i).copied().unwrap_or("?");
+            eprintln!("  type {}  {}  {}", ty, format!("{:016X}", key), name);
+        }
+    }
+}

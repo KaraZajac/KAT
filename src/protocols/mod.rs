@@ -11,6 +11,7 @@
 
 mod common;
 pub mod keeloq_common;
+mod keeloq_generic;
 #[allow(dead_code)]
 pub mod aut64;
 #[allow(dead_code)]
@@ -117,7 +118,11 @@ impl ProtocolRegistry {
             return Some(result);
         }
         // Try inverted polarity (capture LOW = RF HIGH)
-        self.process_signal_inner(pairs, frequency, true)
+        if let Some(result) = self.process_signal_inner(pairs, frequency, true) {
+            return Some(result);
+        }
+        // No known protocol: try KeeLoq generic (uses keeloq_common with every keystore key)
+        keeloq_generic::try_decode(pairs, frequency)
     }
 
     /// ProtoPirate-style streaming decode: feed the whole stream, on each decode record and reset decoders, continue.

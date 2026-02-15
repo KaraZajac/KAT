@@ -212,6 +212,7 @@ impl Capture {
             "Subaru" => ModulationType::Pwm,
             "Suzuki" => ModulationType::Pwm,
             "Star Line" => ModulationType::Pwm,
+            p if p.starts_with("Keeloq (") => ModulationType::Pwm,
             "Scher-Khan" => ModulationType::Pwm,
             // Unknown
             _ => ModulationType::Unknown,
@@ -237,6 +238,7 @@ impl Capture {
             "Subaru" => RfModulation::AM,
             "Suzuki" => RfModulation::AM,
             "Star Line" => RfModulation::AM,
+            p if p.starts_with("Keeloq (") => RfModulation::AM,
             // Both AM and FM (Kia V3/V4)
             p if p.starts_with("Kia V3") || p.starts_with("Kia V4") => RfModulation::Both,
             _ => RfModulation::Unknown,
@@ -248,6 +250,7 @@ impl Capture {
         match self.protocol_name() {
             p if p.starts_with("Kia V3") || p.starts_with("Kia V4") => "KeeLoq",
             "Star Line" => "KeeLoq",
+            p if p.starts_with("Keeloq (") => "KeeLoq",
             "PSA" => "XTEA/XOR",
             "VAG" => "AUT64/XTEA",
             "Scher-Khan" => "Magic Code",

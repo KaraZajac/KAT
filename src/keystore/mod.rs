@@ -5,6 +5,22 @@ mod embedded;
 
 use std::convert::TryInto;
 
+/// Type IDs that are KeeLoq manufacturer keys (64-bit keys used for keeloq_decrypt).
+const KEELOQ_MF_TYPES: &[u32] = &[0, 1, 2, 10, 20];
+
+/// Names for each key entry in the blob (same order as entries before VAG). Used for fallback decode display.
+const KEY_ENTRY_NAMES: &[&str] = &[
+    "KIA", "KIAV6A", "KIAV6B", "KIAV5", "Alligator", "Mongoose",
+    "SL_A6-A9/Tomahawk_9010", "Pantera", "SL_A2-A4", "Cenmax_St-5", "SL_B6,B9_dop",
+    "Harpoon", "Tomahawk_TZ-9030", "Tomahawk_Z,X_3-5", "Cenmax_St-7", "Sheriff",
+    "Pantera_CLK", "Cenmax", "Alligator_S-275", "Guard_RF-311A", "Partisan_RX",
+    "APS-1100_APS-2550", "Pantera_XS/Jaguar", "Teco", "Leopard", "Faraon", "Reff",
+    "ZX-730-750-1055", "Star Line",
+    "Pandora_M101", "Pandora_PRO", "Pandora_PRO2", "Pandora_SUBARU", "Pandora_SUZUKI",
+    "Pandora_DEA", "Pandora_GIBIDI", "Pandora_MCODE", "Pandora_Unknown_1", "Pandora_Unknown_2",
+    "Pandora_Test_Debug_2",
+];
+
 const MAGIC: &[u8; 4] = b"KATK";
 const VAG_TAG: &[u8; 4] = b"VAG ";
 const VAG_SIZE: usize = 64;
@@ -47,6 +63,30 @@ pub fn parse_blob(blob: &[u8]) -> Option<ParsedKeystore> {
     })
 }
 
+/// Return all KeeLoq manufacturer keys from the embedded blob with display names.
+/// Used when an unknown signal is tried as KeeLoq with every key; on success we show "Keeloq (name)".
+/// Only includes entry types that are KeeLoq MF keys (0, 1, 2, 10, 20).
+pub fn keeloq_mf_keys_with_names() -> Vec<(String, u64)> {
+    let blob = embedded_blob();
+    let Some(parsed) = parse_blob(blob) else {
+        return Vec::new();
+    };
+    parsed
+        .entries
+        .iter()
+        .enumerate()
+        .filter(|(_, (ty, _))| KEELOQ_MF_TYPES.contains(ty))
+        .filter_map(|(i, (_, key))| {
+            let name = KEY_ENTRY_NAMES.get(i).copied().unwrap_or("?").to_string();
+            if *key == 0 {
+                None
+            } else {
+                Some((name, *key))
+            }
+        })
+        .collect()
+}
+
 /// Return the embedded keystore blob for loading.
 pub fn embedded_blob() -> &'static [u8] {
     embedded::KEYSTORE_BLOB
@@ -66,20 +106,9 @@ mod tests {
     #[test]
     fn dump_keystore_keys_for_pandora_compare() {
         let entries = embedded_entries_for_compare();
-        const NAMES: &[&str] = &[
-            "KIA", "KIAV6A", "KIAV6B", "KIAV5", "Alligator", "Mongoose",
-            "SL_A6-A9/Tomahawk_9010", "Pantera", "SL_A2-A4", "Cenmax_St-5", "SL_B6,B9_dop",
-            "Harpoon", "Tomahawk_TZ-9030", "Tomahawk_Z,X_3-5", "Cenmax_St-7", "Sheriff",
-            "Pantera_CLK", "Cenmax", "Alligator_S-275", "Guard_RF-311A", "Partisan_RX",
-            "APS-1100_APS-2550", "Pantera_XS/Jaguar", "Teco", "Leopard", "Faraon", "Reff",
-            "ZX-730-750-1055", "Star Line",
-            "Pandora_M101", "Pandora_PRO", "Pandora_PRO2", "Pandora_SUBARU", "Pandora_SUZUKI",
-            "Pandora_DEA", "Pandora_GIBIDI", "Pandora_MCODE", "Pandora_Unknown_1", "Pandora_Unknown_2",
-            "Pandora_Test_Debug_2",
-        ];
         eprintln!("KAT embedded keystore keys (type, hex, name):");
         for (i, (ty, key)) in entries.iter().enumerate() {
-            let name = NAMES.get(i).copied().unwrap_or("?");
+            let name = KEY_ENTRY_NAMES.get(i).copied().unwrap_or("?");
             eprintln!("  type {}  {}  {}", ty, format!("{:016X}", key), name);
         }
     }

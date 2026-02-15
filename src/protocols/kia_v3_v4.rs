@@ -159,6 +159,102 @@ impl KiaV3V4Decoder {
     }
 }
 
+/// Collect 68-bit Kia V3/V4 payload from level+duration pairs (for keeloq_generic fallback).
+/// Returns (raw_bits[0..9], is_v3_sync) when a valid 68-bit burst is found.
+pub fn collect_kia_v3_v4_bits(
+    pairs: &[LevelDuration],
+    invert_level: bool,
+) -> Option<([u8; 9], bool)> {
+    let mut step = DecoderStep::Reset;
+    let mut te_last = 0u32;
+    let mut header_count = 0u16;
+    let mut raw_bits = [0u8; 32];
+    let mut raw_bit_count = 0u16;
+    let mut is_v3_sync = false;
+
+    for pair in pairs {
+        let level = if invert_level { !pair.level } else { pair.level };
+        let duration = pair.duration_us;
+        let is_short = duration_diff!(duration, TE_SHORT) < TE_DELTA;
+        let is_long = duration_diff!(duration, TE_LONG) < TE_DELTA;
+        let is_sync = duration > 1000 && duration < 1500;
+        let is_very_long = duration > 1500;
+
+        match step {
+            DecoderStep::Reset => {
+                if level && is_short {
+                    step = DecoderStep::CheckPreamble;
+                    te_last = duration;
+                    header_count = 1;
+                }
+            }
+            DecoderStep::CheckPreamble => {
+                if level {
+                    if is_short {
+                        te_last = duration;
+                    } else if is_sync && header_count >= 8 {
+                        step = DecoderStep::CollectRawBits;
+                        raw_bit_count = 0;
+                        is_v3_sync = false;
+                        raw_bits = [0; 32];
+                    } else {
+                        step = DecoderStep::Reset;
+                    }
+                } else {
+                    if is_sync && header_count >= 8 {
+                        step = DecoderStep::CollectRawBits;
+                        raw_bit_count = 0;
+                        is_v3_sync = true;
+                        raw_bits = [0; 32];
+                    } else if is_short && duration_diff!(te_last, TE_SHORT) < TE_DELTA {
+                        header_count += 1;
+                    } else if is_very_long {
+                        step = DecoderStep::Reset;
+                    }
+                }
+            }
+            DecoderStep::CollectRawBits => {
+                if level {
+                    if is_sync || is_very_long {
+                        if raw_bit_count >= 68 {
+                            let mut out = [0u8; 9];
+                            out.copy_from_slice(&raw_bits[0..9]);
+                            return Some((out, is_v3_sync));
+                        }
+                        step = DecoderStep::Reset;
+                    } else if is_short {
+                        if raw_bit_count < 256 {
+                            let byte_idx = (raw_bit_count / 8) as usize;
+                            let bit_idx = 7 - (raw_bit_count % 8);
+                            raw_bits[byte_idx] &= !(1 << bit_idx);
+                            raw_bit_count += 1;
+                        }
+                    } else if is_long {
+                        if raw_bit_count < 256 {
+                            let byte_idx = (raw_bit_count / 8) as usize;
+                            let bit_idx = 7 - (raw_bit_count % 8);
+                            raw_bits[byte_idx] |= 1 << bit_idx;
+                            raw_bit_count += 1;
+                        }
+                    } else {
+                        step = DecoderStep::Reset;
+                    }
+                } else {
+                    if is_sync || is_very_long {
+                        if raw_bit_count >= 68 {
+                            let mut out = [0u8; 9];
+                            out.copy_from_slice(&raw_bits[0..9]);
+                            return Some((out, is_v3_sync));
+                        }
+                        step = DecoderStep::Reset;
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 impl ProtocolDecoder for KiaV3V4Decoder {
     fn name(&self) -> &'static str {
         "Kia V3/V4"

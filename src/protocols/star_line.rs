@@ -106,6 +106,97 @@ impl StarLineDecoder {
     }
 }
 
+/// Collect 64-bit Star Line payload from level+duration pairs (for keeloq_generic fallback).
+pub fn collect_star_line_bits(
+    pairs: &[LevelDuration],
+    invert_level: bool,
+) -> Option<u64> {
+    let mut step = DecoderStep::Reset;
+    let mut header_count = 0u16;
+    let mut decode_data = 0u64;
+    let mut decode_count_bit = 0usize;
+    let mut te_last = 0u32;
+
+    for pair in pairs {
+        let level = if invert_level { !pair.level } else { pair.level };
+        let duration = pair.duration_us;
+
+        match step {
+            DecoderStep::Reset => {
+                if level {
+                    if duration_diff!(duration, HEADER_DURATION) < TE_DELTA * 2 {
+                        step = DecoderStep::CheckPreamble;
+                        header_count += 1;
+                    } else if header_count > 4 {
+                        decode_data = 0;
+                        decode_count_bit = 0;
+                        te_last = duration;
+                        step = DecoderStep::CheckDuration;
+                    }
+                } else {
+                    header_count = 0;
+                }
+            }
+            DecoderStep::CheckPreamble => {
+                if !level && duration_diff!(duration, HEADER_DURATION) < TE_DELTA * 2 {
+                    step = DecoderStep::Reset;
+                } else {
+                    header_count = 0;
+                    step = DecoderStep::Reset;
+                }
+            }
+            DecoderStep::SaveDuration => {
+                if level {
+                    if duration >= (TE_LONG + TE_DELTA) {
+                        step = DecoderStep::Reset;
+                        if decode_count_bit >= MIN_COUNT_BIT && decode_count_bit <= MIN_COUNT_BIT + 2 {
+                            return Some(decode_data);
+                        }
+                        decode_data = 0;
+                        decode_count_bit = 0;
+                        header_count = 0;
+                    } else {
+                        te_last = duration;
+                        step = DecoderStep::CheckDuration;
+                    }
+                } else {
+                    step = DecoderStep::Reset;
+                }
+            }
+            DecoderStep::CheckDuration => {
+                if !level {
+                    if duration_diff!(te_last, TE_SHORT) < TE_DELTA
+                        && duration_diff!(duration, TE_SHORT) < TE_DELTA
+                    {
+                        if decode_count_bit < MIN_COUNT_BIT {
+                            decode_data = (decode_data << 1) | 0;
+                            decode_count_bit += 1;
+                        } else {
+                            decode_count_bit += 1;
+                        }
+                        step = DecoderStep::SaveDuration;
+                    } else if duration_diff!(te_last, TE_LONG) < TE_DELTA
+                        && duration_diff!(duration, TE_LONG) < TE_DELTA
+                    {
+                        if decode_count_bit < MIN_COUNT_BIT {
+                            decode_data = (decode_data << 1) | 1;
+                            decode_count_bit += 1;
+                        } else {
+                            decode_count_bit += 1;
+                        }
+                        step = DecoderStep::SaveDuration;
+                    } else {
+                        step = DecoderStep::Reset;
+                    }
+                } else {
+                    step = DecoderStep::Reset;
+                }
+            }
+        }
+    }
+    None
+}
+
 impl ProtocolDecoder for StarLineDecoder {
     fn name(&self) -> &'static str {
         "Star Line"

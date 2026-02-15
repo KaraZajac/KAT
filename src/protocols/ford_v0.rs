@@ -14,9 +14,12 @@ use crate::duration_diff;
 
 const TE_SHORT: u32 = 250;
 const TE_LONG: u32 = 500;
-const TE_DELTA: u32 = 100; // ref ford_v0.c
+/// Timing tolerance (µs). Ref ford_v0.c uses 100; real-world captures (e.g. IMPORTS/FORD/3_unlock_ford.sub)
+/// can have preamble "long" pulses ~387–397µs (103–113µs from 500), so we use 120 to decode them.
+const TE_DELTA: u32 = 120;
 const MIN_COUNT_BIT: usize = 64;
 const TOTAL_BURSTS: u8 = 6;
+const TX_REPEAT: usize = 1;
 const PREAMBLE_PAIRS: usize = 4;
 const GAP_US: u32 = 3500;
 const GAP_TOLERANCE: u32 = 250; // ref: DURATION_DIFF(duration, gap_threshold) < 250
@@ -584,12 +587,17 @@ impl ProtocolDecoder for FordV0Decoder {
                 }
             }
 
-            // C: DURATION_DIFF(duration, te_short) < te_delta → short event; te_long → long event
+            // C: DURATION_DIFF(duration, te_short) < te_delta → short event; te_long → long event.
+            // Real-world .sub captures (e.g. IMPORTS/FORD/3_unlock_ford.sub) have inter-burst gaps
+            // (~51 ms) between the 6 repeats; skip those so we keep collecting bits across bursts.
             DecoderStep::Data => {
                 let event = if duration_diff!(duration, TE_SHORT) < TE_DELTA {
                     if level { 0 } else { 1 }
                 } else if duration_diff!(duration, TE_LONG) < TE_DELTA {
                     if level { 2 } else { 3 }
+                } else if duration >= 5_000 {
+                    // Inter-burst or long gap: skip without resetting so next burst continues the bit stream
+                    return None;
                 } else {
                     self.step = DecoderStep::Reset;
                     return None;
@@ -633,32 +641,37 @@ impl ProtocolDecoder for FordV0Decoder {
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
         let serial = decoded.serial?;
 
-        // Use the stored counter from last decode (or from decoded signal)
-        // Increment counter by 1 for the new transmission
-        let base_counter = if self.counter != 0 {
+        // Use the same counter as the decoded signal (no increment).
+        // Reference ford_v0.c encoder uses instance->count from the loaded file as-is;
+        // replay and different-button TX both use that count so the vehicle accepts it.
+        let count = (if self.counter != 0 {
             self.counter
         } else {
             decoded.counter.unwrap_or(0) as u32
-        };
-        let new_counter = base_counter.wrapping_add(1) & 0xFFFFF; // 20-bit counter
+        }) & 0xFFFFF; // 20-bit
 
         // Use stored bs_magic (or default to 0x6F for backward compatibility)
         let bs_magic = if self.bs_magic != 0 { self.bs_magic } else { 0x6F };
 
-        // Calculate BS for the new counter value
-        let bs = Self::calculate_bs(new_counter, button, bs_magic);
+        // Calculate BS from count + button + bs_magic (matches C ford_v0_calculate_bs)
+        let bs = Self::calculate_bs(count, button, bs_magic);
 
         // Extract header byte from the original key1 (first byte)
         let header_byte = (decoded.data >> 56) as u8;
 
-        // Encode new key1 from fields
-        let new_key1 = Self::encode_ford_v0(header_byte, serial, button, new_counter, bs);
+        // Encode key1 from fields (same count, new button)
+        let new_key1 = Self::encode_ford_v0(header_byte, serial, button, count, bs);
 
         // Calculate CRC for key2
         let crc = Self::calculate_crc_for_tx(new_key1, bs);
         let new_key2 = ((bs as u16) << 8) | (crc as u16);
 
-        // Build the signal upload
-        Some(Self::build_upload(new_key1, new_key2))
+        // Build one 6-burst block and repeat TX_REPEAT times (matches reference encoder.repeat = 10)
+        let single = Self::build_upload(new_key1, new_key2);
+        let mut signal = Vec::with_capacity(single.len() * TX_REPEAT);
+        for _ in 0..TX_REPEAT {
+            signal.extend_from_slice(&single);
+        }
+        Some(signal)
     }
 }

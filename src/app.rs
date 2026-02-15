@@ -770,6 +770,16 @@ impl App {
         Ok(())
     }
 
+    /// True if a capture with the same protocol, data, serial, and button already exists.
+    fn capture_duplicate_of_existing(&self, capture: &Capture) -> bool {
+        self.captures.iter().any(|c| {
+            c.protocol == capture.protocol
+                && c.data == capture.data
+                && c.serial == capture.serial
+                && c.button == capture.button
+        })
+    }
+
     /// Process pending radio events
     pub fn process_radio_events(&mut self) -> Result<()> {
         while let Ok(event) = self.radio_event_rx.try_recv() {
@@ -801,18 +811,24 @@ impl App {
                     // When research_mode is off, only add successfully decoded signals.
                     let show = self.storage.config.research_mode || capture.protocol.is_some();
                     if show {
-                        capture.id = self.next_capture_id;
-                        self.next_capture_id += 1;
-                        // Captures are in-memory only — no auto-save to disk.
-                        // Use Export (.fob / .sub) to persist a signal.
-                        self.captures.push(capture);
+                        // Same IQ is fed to AM and FM demodulators; both can emit for one keypress.
+                        // Skip if we already have this exact signal (protocol + data + serial + button).
+                        if self.capture_duplicate_of_existing(&capture) {
+                            self.status_message = Some("Duplicate signal ignored".to_string());
+                        } else {
+                            capture.id = self.next_capture_id;
+                            self.next_capture_id += 1;
+                            // Captures are in-memory only — no auto-save to disk.
+                            // Use Export (.fob / .sub) to persist a signal.
+                            self.captures.push(capture);
 
-                        // Auto-select and scroll to new capture
-                        let new_idx = self.captures.len() - 1;
-                        self.selected_capture = Some(new_idx);
-                        self.ensure_selection_visible();
+                            // Auto-select and scroll to new capture
+                            let new_idx = self.captures.len() - 1;
+                            self.selected_capture = Some(new_idx);
+                            self.ensure_selection_visible();
 
-                        self.status_message = Some("New signal captured".to_string());
+                            self.status_message = Some("New signal captured".to_string());
+                        }
                     }
                     // When research_mode is off and decode failed, the signal is dropped (not shown).
                 }
@@ -979,7 +995,20 @@ impl App {
                             .collect();
                         let decoded_list =
                             self.protocols.process_signal_stream(&pairs, frequency);
+                        // Deduplicate: same signal can decode at multiple stream positions (e.g. Ford V0 across bursts)
+                        let mut seen: std::collections::HashSet<(String, u64, Option<u32>, Option<u8>)> =
+                            std::collections::HashSet::new();
                         for (protocol_name, decoded, segment_pairs) in decoded_list {
+                            let key = (
+                                protocol_name.clone(),
+                                decoded.data,
+                                decoded.serial,
+                                decoded.button,
+                            );
+                            if seen.contains(&key) {
+                                continue;
+                            }
+                            seen.insert(key);
                             let raw: Vec<crate::capture::StoredLevelDuration> = segment_pairs
                                 .iter()
                                 .map(|p| crate::capture::StoredLevelDuration {
@@ -993,7 +1022,6 @@ impl App {
                                 raw,
                                 None,
                             );
-                            self.next_capture_id += 1;
                             capture.protocol = Some(protocol_name);
                             capture.serial = decoded.serial;
                             capture.button = decoded.button;
@@ -1008,8 +1036,11 @@ impl App {
                                 crate::capture::CaptureStatus::Decoded
                             };
                             if research_mode || capture.protocol.is_some() {
-                                self.captures.push(capture);
-                                imported += 1;
+                                if !self.capture_duplicate_of_existing(&capture) {
+                                    self.next_capture_id += 1;
+                                    self.captures.push(capture);
+                                    imported += 1;
+                                }
                             }
                         }
                     }

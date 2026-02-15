@@ -271,3 +271,33 @@ macro_rules! duration_diff {
         }
     };
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::export::flipper::import_sub_raw;
+    use crate::radio::LevelDuration;
+    use std::path::Path;
+
+    #[test]
+    fn ford_v0_decodes_imports_ford_unlock_sub() {
+        let path = Path::new("IMPORTS/FORD/3_unlock_ford.sub");
+        if !path.exists() {
+            eprintln!("Skip: {:?} not found (run from crate root)", path);
+            return;
+        }
+        let (freq, raw_pairs) = import_sub_raw(path).unwrap();
+        let pairs: Vec<LevelDuration> = raw_pairs
+            .iter()
+            .map(|p| LevelDuration::new(p.level, p.duration_us))
+            .collect();
+        let mut reg = ProtocolRegistry::new();
+        let results = reg.process_signal_stream(&pairs, freq);
+        let ford_decodes: Vec<_> = results.iter().filter(|(name, _, _)| *name == "Ford V0").collect();
+        assert!(
+            !ford_decodes.is_empty(),
+            "expected at least one Ford V0 decode from 3_unlock_ford.sub, got: {:?}",
+            results.iter().map(|(n, _, _)| n.as_str()).collect::<Vec<_>>()
+        );
+    }
+}

@@ -38,6 +38,11 @@ pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
             "EDIT",
             Style::default().fg(Color::Green),
         ),
+        InputMode::HackRfNotDetected => (
+            String::new(),
+            "WARNING",
+            Style::default().fg(Color::Red),
+        ),
         InputMode::StartupImport => (
             String::new(),
             "IMPORT",

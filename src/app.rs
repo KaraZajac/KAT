@@ -21,6 +21,8 @@ pub enum InputMode {
     SettingsSelect,
     /// Editing a radio setting value
     SettingsEdit,
+    /// Startup warning: HackRF not detected (dismiss to continue)
+    HackRfNotDetected,
     /// Startup prompt: found .fob files, import? (y/n)
     StartupImport,
     /// Export: editing filename (before format-specific steps)
@@ -279,7 +281,12 @@ impl App {
             }
         };
 
-        let radio_state = if hackrf.is_some() {
+        // HackRF controller always returns Ok; when no device is present it has is_available() == false
+        let hackrf_detected = hackrf
+            .as_ref()
+            .map_or(false, |h| h.is_available());
+
+        let radio_state = if hackrf_detected {
             RadioState::Idle
         } else {
             RadioState::Disconnected
@@ -299,7 +306,9 @@ impl App {
         // Recursively scan import directory for .fob and .sub at startup (separate from export dir)
         let pending_fob_files =
             crate::export::scan_import_files_recursive(storage.import_dir());
-        let initial_mode = if !pending_fob_files.is_empty() {
+        let initial_mode = if !hackrf_detected {
+            InputMode::HackRfNotDetected
+        } else if !pending_fob_files.is_empty() {
             tracing::info!(
                 "Found {} importable file(s) in import dir (recursive)",
                 pending_fob_files.len()

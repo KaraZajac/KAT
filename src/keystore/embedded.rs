@@ -1,6 +1,7 @@
 //! Embedded keystore blob (standard encrypted + VAG raw).
 //! Data is stored as binary to avoid plain-text keys in config.
 //! Format: "KATK" magic, n_entries (u16 LE), then per entry: type_id (u32 LE), key (u64 LE), then "VAG " + 64 bytes.
+//! Key bytes are little-endian (LSB first); the resulting u64 matches reference hex (MSB-first notation).
 //! All manufacture keys from the encrypted keystore list are included for current and future protocols.
 //! Type 20 (Star Line) is also included so KeyStore.star_line_mf_key is populated from the same key as SL_A2-A4.
 

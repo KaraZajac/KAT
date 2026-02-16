@@ -252,6 +252,15 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             _ => {}
                         },
 
+                        // Startup: HackRF not detected — any key to dismiss
+                        InputMode::HackRfNotDetected => {
+                            app.input_mode = if app.pending_fob_files.is_empty() {
+                                InputMode::Normal
+                            } else {
+                                InputMode::StartupImport
+                            };
+                        }
+
                         // Startup: found .fob files, y/n to import
                         InputMode::StartupImport => match key.code {
                             KeyCode::Char('y') | KeyCode::Char('Y') => {

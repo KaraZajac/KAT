@@ -77,6 +77,10 @@ pub fn draw_ui(frame: &mut Frame, app: &App) {
         render_settings_dropdown(frame, app);
     }
 
+    if app.input_mode == InputMode::HackRfNotDetected {
+        render_hackrf_not_detected(frame, app);
+    }
+
     if app.input_mode == InputMode::StartupImport {
         render_startup_import_prompt(frame, app);
     }
@@ -160,6 +164,7 @@ fn render_help_bar(frame: &mut Frame, area: Rect, app: &App) {
         InputMode::SignalMenu => "Up/Down: Navigate | Enter: Select | Esc: Close",
         InputMode::SettingsSelect => "Left/Right: Select | Tab: Cycle | Enter: Edit | Esc: Back",
         InputMode::SettingsEdit => "Up/Down: Change Value | Enter: Apply | Esc: Cancel",
+        InputMode::HackRfNotDetected => "Press any key to continue",
         InputMode::StartupImport => "y: Import | n: Skip",
         InputMode::ExportFilename => {
             match app.export_format {
@@ -189,6 +194,46 @@ fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
     let x = area.x + area.width.saturating_sub(width) / 2;
     let y = area.y + area.height.saturating_sub(height) / 2;
     Rect::new(x, y, width.min(area.width), height.min(area.height))
+}
+
+/// Render the HackRF not detected warning (red box at startup)
+fn render_hackrf_not_detected(frame: &mut Frame, _app: &App) {
+    let area = frame.area();
+    let popup = centered_rect(52, 7, area);
+
+    frame.render_widget(Clear, popup);
+
+    let red = Color::Red;
+    let text = vec![
+        Line::from(""),
+        Line::from(Span::styled(
+            "  Your HackRF was not detected.",
+            Style::default().fg(red).add_modifier(Modifier::BOLD),
+        )),
+        Line::from(""),
+        Line::from(Span::styled(
+            "  Connect a HackRF One and restart, or continue in demo mode.",
+            Style::default().fg(red),
+        )),
+        Line::from(""),
+        Line::from(Span::styled(
+            "  Press any key to continue.",
+            Style::default().fg(Color::White),
+        )),
+    ];
+
+    let block = Block::default()
+        .title(" Warning ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(red))
+        .style(Style::default().fg(red));
+
+    let paragraph = Paragraph::new(text)
+        .block(block)
+        .alignment(Alignment::Center)
+        .wrap(Wrap { trim: true });
+
+    frame.render_widget(paragraph, popup);
 }
 
 /// Render the startup import prompt overlay

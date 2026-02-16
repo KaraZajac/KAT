@@ -5,12 +5,12 @@
 
 ## Overview
 
-When no known protocol decodes a captured signal, KAT tries to decode it as **KeeLoq** using every manufacturer key in the embedded keystore. All decryption is done via the **keeloq_common** helper (no protocol-specific decrypt code). Two air formats are supported:
+When no known protocol decodes a captured signal, KAT tries to decode it as **KeeLoq** using **every** manufacturer key in the embedded keystore, **regardless of frequency**. All decryption is done via the **keeloq_common** helper (no protocol-specific decrypt code). Two air formats are tried (in order):
 
-1. **Kia V3/V4 format** — 68 bits, 400/800 µs PWM, 315 or 433.92 MHz  
-2. **Star Line format** — 64 bits, 250/500 µs PWM, 433.92 MHz  
+1. **Kia V3/V4 format** — 68 bits, 400/800 µs PWM  
+2. **Star Line format** — 64 bits, 250/500 µs PWM  
 
-Bit collection reuses the existing Kia V3/V4 and Star Line state machines; decryption and validation use only **keeloq_common** (`keeloq_decrypt`, `keeloq_normal_learning`, `reverse_key`, `reverse8`).
+Bit collection reuses the existing Kia V3/V4 and Star Line state machines; decryption and validation use only **keeloq_common** (`keeloq_decrypt`, `keeloq_normal_learning`, `reverse_key`, `reverse8`). Each key is tried in **both byte orders** (as stored in the keystore, and byte-swapped) so that either big-endian or little-endian key sources can match.
 
 ## When it runs
 
@@ -26,7 +26,7 @@ On first successful decrypt with a given key, the capture is shown in the list w
 
 ## Keystore
 
-Uses **all** KeeLoq manufacturer keys from the embedded blob (types 0, 1, 2, 10, 20). Key names come from `keystore::KEY_ENTRY_NAMES` and are used only for the displayed protocol label.
+Uses **all** KeeLoq manufacturer keys from the embedded blob (types 0, 1, 2, 10, 20). Key names come from `keystore::KEY_ENTRY_NAMES` and are used only for the displayed protocol label. Keys are stored in the blob as 8 bytes little-endian; the resulting u64 matches reference/Pandora hex (MSB-first notation).
 
 ## Encoding
 

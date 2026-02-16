@@ -33,6 +33,10 @@ pub struct ParsedKeystore {
 }
 
 /// Parse the embedded keystore blob. Returns KIA/Star Line entries and VAG raw bytes.
+///
+/// Keys are stored as 8 bytes **little-endian** per entry; we load with `u64::from_le_bytes`.
+/// The resulting u64 value matches the reference/Pandora hex (e.g. KIA = 0xA8F5DFFC8DAA5CDB),
+/// which is typically written MSB-first in docs; KeeLoq uses this value as a 64-bit key.
 pub fn parse_blob(blob: &[u8]) -> Option<ParsedKeystore> {
     if blob.len() < 4 || &blob[0..4] != MAGIC {
         return None;

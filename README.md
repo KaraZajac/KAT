@@ -295,7 +295,7 @@ src/
 
 ## Credits
 
-KAT is developed by **Kara Zajac (.leviathan)** and would not be possible without [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate). Truly standing on the shoulders of giants.
+KAT is developed by **Kara Zajac (.leviathan)**. KAT would not be possible without [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate)—the protocol decoders, reference implementations, and community work are the foundation this tool is built on. Truly standing on the shoulders of giants.
 
 ### ProtoPirate Development Team
 

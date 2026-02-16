@@ -13,7 +13,9 @@ use crate::app::App;
 /// Credits text for the :credits command
 pub const CREDITS_TEXT: &str = r#"=============== CREDITS ==============
 
-Keyfob Analysis tool is developed by Kara Zajac (.leviathan) and would not be possible without ProtoPirate. I am truely standing on the shoulders of giants when I developed this application.
+KAT is developed by Kara Zajac (.leviathan).
+
+KAT would not be possible without ProtoPirate. The protocol decoders, reference implementations, and community work are the foundation this tool is built on. I am truly standing on the shoulders of giants.
 
 ProtoPirate Development Team
 ----

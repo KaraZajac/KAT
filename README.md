@@ -2,7 +2,7 @@
 
 A terminal-based RF signal analysis tool for capturing, decoding, and retransmitting automotive keyfob signals. Built in Rust with a real-time TUI powered by `ratatui`. Protocol decoders are aligned with the [ProtoPirate](REFERENCES/ProtoPirate/) reference.
 
-**Supported hardware:** KAT uses **HackRF One** (or compatible) when present for full receive and transmit. If no HackRF is found, it will use an **RTL-SDR** (e.g. RTL433-style dongles) for **receive-only** capture and decode; transmit (Lock/Unlock/Trunk/Panic, Replay) is disabled when using RTL-SDR.
+**Supported hardware:** KAT uses **HackRF One** (or compatible) when present for full receive and transmit. For **receive-only** operation, **RTL433** (or any compatible RTL-SDR dongle) is supported: if no HackRF is found, KAT uses the first available RTL-SDR for capture and decode; transmit (Lock/Unlock/Trunk/Panic, Replay) is disabled when using RTL433/RTL-SDR.
 
 ![Keyfob Analysis Toolkit screenshot](images/kat-screenshot.png)
 
@@ -28,12 +28,12 @@ A terminal-based RF signal analysis tool for capturing, decoding, and retransmit
 
 - **Radio hardware (one of):**
   - **HackRF One** (or compatible) — full receive and transmit
-  - **RTL-SDR** (e.g. RTL433 dongles) — receive-only; no transmit
+  - **RTL433 / RTL-SDR** — receive-only; no transmit (RTL433 dongles and compatible RTL-SDR hardware)
 - **Rust 1.75+** (for building from source)
 - **libhackrf** — HackRF C library and headers (required at build time even when using RTL-SDR)
-- **libusb** — for RTL-SDR (usually provided by OS)
+- **libusb** — for RTL433/RTL-SDR (usually provided by OS)
 
-At runtime, KAT tries **HackRF first**; if none is found, it uses the first available **RTL-SDR**. If neither is connected, it runs without TX/RX support (no live capture); a startup warning offers to continue or you can connect a device and restart.
+At runtime, KAT tries **HackRF first**; if none is found, it uses the first available **RTL433/RTL-SDR** for receive-only. If neither is connected, it runs without TX/RX support (no live capture); a startup warning offers to continue or you can connect a device and restart.
 
 ### Installing Dependencies
 
@@ -41,7 +41,7 @@ At runtime, KAT tries **HackRF first**; if none is found, it uses the first avai
 
 ```bash
 brew install hackrf
-# RTL-SDR: no extra system lib required; rtl-sdr-rs uses rusb
+# RTL433/RTL-SDR: no extra system lib required; rtl-sdr-rs uses rusb
 ```
 
 **Debian / Ubuntu:**
@@ -62,7 +62,7 @@ sudo dnf install hackrf-devel pkg-config libusb1-devel
 sudo pacman -S hackrf libusb
 ```
 
-On **Linux**, if an RTL-SDR is in use, you may need to unload DVB-T kernel modules so the device is not claimed by the kernel (see [rtl-sdr-rs](https://crates.io/crates/rtl-sdr-rs)).
+On **Linux**, if using RTL433/RTL-SDR, you may need to unload DVB-T kernel modules so the device is not claimed by the kernel (see [rtl-sdr-rs](https://crates.io/crates/rtl-sdr-rs)).
 
 ## Building
 
@@ -79,7 +79,7 @@ The binary is placed at `target/release/kat`.
 ./target/release/kat
 ```
 
-KAT starts in an interactive terminal UI. If no HackRF or RTL-SDR is detected, a warning appears (“No HackRF or RTL-SDR detected”) and you can press any key to continue without TX/RX support—you can still view, import, and export captures. The header shows the active device (**HackRF**, **RTL-SDR (RX only)**, or **No device**) and radio status; when no device is connected, the status is shown in red (DISCONNECTED). When using RTL-SDR, transmit actions (Replay, TX Lock/Unlock/Trunk/Panic) show “(no TX)” in the signal menu and display a receive-only message if selected.
+KAT starts in an interactive terminal UI. If no HackRF or RTL433/RTL-SDR is detected, a warning appears (“No HackRF or RTL-SDR detected”) and you can press any key to continue without TX/RX support—you can still view, import, and export captures. The header shows the active device (**HackRF**, **RTL-SDR (RX only)** when using RTL433/RTL-SDR, or **No device**) and radio status; when no device is connected, the status is shown in red (DISCONNECTED). When using RTL433/RTL-SDR, transmit actions (Replay, TX Lock/Unlock/Trunk/Panic) show “(no TX)” in the signal menu and display a receive-only message if selected.
 
 ### Keyboard Controls
 

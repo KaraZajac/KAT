@@ -15,14 +15,14 @@ A terminal-based RF signal analysis tool for capturing, decoding, and retransmit
 - **KeeLoq generic fallback** — when a signal doesn’t match any known protocol, KAT tries decoding it as KeeLoq using every manufacturer key in the embedded keystore (Kia V3/V4 and Star Line air formats); successful decodes appear as **Keeloq (keystore name)** in the capture list
 - **RF modulation metadata** — each protocol tagged as AM, FM, or both (from ProtoPirate); shown in signal detail and exported in .fob
 - **Rich signal detail** — encoding (PWM/Manchester), RF (AM/FM), encryption, serial, counter, key data, CRC, frequency, and raw level/duration pairs
-- **Signal retransmission** — transmit Lock, Unlock, Trunk, and Panic commands from decoded captures (VAG supports full encode from capture via stored vag_type/key_idx)
+- **Signal retransmission** — transmit Lock, Unlock, Trunk, and Panic commands from decoded captures, or Replay raw capture (HackRF only; when using RTL-SDR these show “(no TX)” and a receive-only message). VAG supports full encode from capture via stored vag_type/key_idx.
 - **Export formats** — `.fob` (versioned JSON with vehicle metadata, signal info, optional raw pairs) and `.sub` (Flipper Zero compatible)
 - **Import support** — load `.fob` files with automatic v1/v2 format detection
 - **Research mode** — config option to show unknown (unidentified) signals in addition to successfully decoded ones
 - **INI configuration** — `~/.config/KAT/config.ini` (auto-created with comments on first run): export path, max captures, research_mode, radio defaults, export format
 - **Embedded keystore** — manufacturer keys (Kia, VAG, etc.) built in for decoding
-- **VIM-style command line** — `:freq`, `:lock`, `:unlock`, `:save`, `:load`, `:delete`, and more
-- **Interactive TUI** — captures list with detail panel (protocol, freq, mod, RF, encryption), signal action menu, radio settings, fob export form
+- **VIM-style command line** — `:freq`, `:lock`, `:unlock`, `:save`, `:load`, `:delete`, `:q` / `:quit`, and more
+- **Interactive TUI** — captures list with detail panel (protocol, freq, mod, RF, encryption), signal action menu, radio settings, fob export form; header shows device (HackRF / RTL-SDR (RX only) / No device) and status (DISCONNECTED in red when no device)
 
 ## Requirements
 
@@ -33,7 +33,7 @@ A terminal-based RF signal analysis tool for capturing, decoding, and retransmit
 - **libhackrf** — HackRF C library and headers (required at build time even when using RTL-SDR)
 - **libusb** — for RTL-SDR (usually provided by OS)
 
-At runtime, KAT tries **HackRF first**; if none is found, it uses the first available **RTL-SDR**. If neither is connected, it runs in demo mode (no live capture).
+At runtime, KAT tries **HackRF first**; if none is found, it uses the first available **RTL-SDR**. If neither is connected, it runs without TX/RX support (no live capture); a startup warning offers to continue or you can connect a device and restart.
 
 ### Installing Dependencies
 
@@ -79,7 +79,7 @@ The binary is placed at `target/release/kat`.
 ./target/release/kat
 ```
 
-KAT starts in an interactive terminal UI. If no HackRF or RTL-SDR is detected, the application runs in demo/offline mode so you can still view, import, and export captures. The header shows the active device (e.g. **HackRF** or **RTL-SDR (RX only)**). When using RTL-SDR, transmit actions (Replay, TX Lock/Unlock/Trunk/Panic) are disabled and show a message that the device is receive-only.
+KAT starts in an interactive terminal UI. If no HackRF or RTL-SDR is detected, a warning appears (“No HackRF or RTL-SDR detected”) and you can press any key to continue without TX/RX support—you can still view, import, and export captures. The header shows the active device (**HackRF**, **RTL-SDR (RX only)**, or **No device**) and radio status; when no device is connected, the status is shown in red (DISCONNECTED). When using RTL-SDR, transmit actions (Replay, TX Lock/Unlock/Trunk/Panic) show “(no TX)” in the signal menu and display a receive-only message if selected.
 
 ### Keyboard Controls
 
@@ -91,14 +91,16 @@ KAT starts in an interactive terminal UI. If no HackRF or RTL-SDR is detected, t
 | `r` | Toggle receive mode (start/stop RX) |
 | `:` | Enter VIM-style command mode |
 | `Esc` | Close menu / cancel current action |
-| `q` | Quit |
+| `q` | Quit (restores terminal) |
+| `:q` or `:quit` | Quit from command line (same as `q`; restores terminal) |
 
 ### Signal Action Menu
 
-Press `Enter` on a capture to open the action menu:
+Press `Enter` on a capture to open the action menu. When using RTL-SDR (receive-only), transmit actions show **(no TX)** and are disabled.
 
 | Action | Description |
 |---|---|
+| Replay | Re-transmit raw capture (HackRF only; “no TX” with RTL-SDR) |
 | TX Lock | Transmit lock command |
 | TX Unlock | Transmit unlock command |
 | TX Trunk | Transmit trunk release command |
@@ -159,6 +161,8 @@ The exported `.fob` file is a versioned JSON document (v2.0, format `kat-fob`) c
 
 ### VIM-Style Commands
 
+Transmit commands (`:lock`, `:unlock`, `:trunk`, `:panic`) require HackRF; with RTL-SDR they report that transmit is not available.
+
 | Command | Description |
 |---|---|
 | `:freq <MHz>` | Set receive frequency (e.g. `:freq 433.92`) |
@@ -169,7 +173,7 @@ The exported `.fob` file is a versioned JSON document (v2.0, format `kat-fob`) c
 | `:save <ID>` | Save capture to file |
 | `:delete <ID>` | Delete capture from list |
 | `:load <file>` | Import capture from `.fob` or `.sub` file |
-| `:q` | Quit application |
+| `:q` or `:quit` | Quit application (terminal restored cleanly, same as pressing `q`) |
 
 ## Configuration
 

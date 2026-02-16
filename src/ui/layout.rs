@@ -114,7 +114,7 @@ pub fn draw_ui(frame: &mut Frame, app: &App) {
 /// Render the header with title and radio status
 fn render_header(frame: &mut Frame, area: Rect, app: &App) {
     let (status_symbol, status_style) = match app.radio_state {
-        RadioState::Disconnected => ("○", Style::default().fg(Color::DarkGray)),
+        RadioState::Disconnected => ("○", Style::default().fg(Color::Red)),
         RadioState::Idle => ("○", Style::default().fg(Color::Yellow)),
         RadioState::Receiving => ("●", Style::default().fg(Color::Green)),
         RadioState::Transmitting => ("●", Style::default().fg(Color::Red)),
@@ -122,12 +122,16 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App) {
 
     let title = format!("Keyfob Analysis Toolkit v{}", VERSION);
 
-    // Build radio info string with all settings
+    // Build radio info string: device name (if any), state, freq, gains
     let amp_str = if app.amp_enabled { "ON" } else { "OFF" };
+    let device_str = app
+        .radio_device_name()
+        .unwrap_or("No device");
     let radio_info = format!(
-        "{} {} | {:.2} MHz | LNA:{} VGA:{} AMP:{}",
+        "{} {} | {} | {:.2} MHz | LNA:{} VGA:{} AMP:{}",
         status_symbol,
         app.radio_state,
+        device_str,
         app.frequency_mhz(),
         app.lna_gain,
         app.vga_gain,
@@ -196,10 +200,10 @@ fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
     Rect::new(x, y, width.min(area.width), height.min(area.height))
 }
 
-/// Render the HackRF not detected warning (red box at startup)
+/// Render the no-device warning (red box at startup when neither HackRF nor RTL-SDR found)
 fn render_hackrf_not_detected(frame: &mut Frame, _app: &App) {
     let area = frame.area();
-    let popup = centered_rect(52, 7, area);
+    let popup = centered_rect(56, 8, area);
 
     frame.render_widget(Clear, popup);
 
@@ -207,12 +211,16 @@ fn render_hackrf_not_detected(frame: &mut Frame, _app: &App) {
     let text = vec![
         Line::from(""),
         Line::from(Span::styled(
-            "  Your HackRF was not detected.",
+            "  No HackRF or RTL-SDR detected.",
             Style::default().fg(red).add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from(Span::styled(
-            "  Connect a HackRF One and restart, or continue in demo mode.",
+            "  Connect a HackRF (TX+RX) or RTL-SDR (RX only) and restart,",
+            Style::default().fg(red),
+        )),
+        Line::from(Span::styled(
+            "  or continue without TX/RX support.",
             Style::default().fg(red),
         )),
         Line::from(""),

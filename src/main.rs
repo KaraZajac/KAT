@@ -160,6 +160,9 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             KeyCode::Enter => {
                                 let command = app.command_input.clone();
                                 app.execute_command(&command)?;
+                                if app.quit_requested {
+                                    return Ok(());
+                                }
                                 app.command_input.clear();
                                 if app.input_mode == InputMode::Command {
                                     app.input_mode = InputMode::Normal;

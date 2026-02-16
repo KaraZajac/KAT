@@ -77,8 +77,19 @@ pub fn render_signal_menu(frame: &mut Frame, app: &App) {
             "   "
         };
 
+        let is_tx_action = matches!(
+            action,
+            SignalAction::Replay | SignalAction::Lock | SignalAction::Unlock
+                | SignalAction::Trunk | SignalAction::Panic
+        );
+        let suffix = if is_tx_action && !app.can_transmit() {
+            " (no TX)"
+        } else {
+            ""
+        };
+
         items.push(ListItem::new(Line::from(Span::styled(
-            format!("{}{}", prefix, action.label()),
+            format!("{}{}{}", prefix, action.label(), suffix),
             style,
         ))));
     }

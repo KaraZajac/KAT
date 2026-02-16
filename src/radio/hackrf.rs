@@ -93,6 +93,11 @@ impl HackRfController {
         self.hackrf_available
     }
 
+    /// HackRF supports transmit.
+    pub fn supports_tx(&self) -> bool {
+        true
+    }
+
     /// Start receiving at the specified frequency
     pub fn start_receiving(&mut self, frequency: u32) -> Result<()> {
         if self.receiving.load(Ordering::SeqCst) {

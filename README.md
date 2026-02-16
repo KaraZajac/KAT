@@ -1,6 +1,8 @@
 # KAT — Keyfob Analysis Toolkit
 
-A terminal-based RF signal analysis tool for capturing, decoding, and retransmitting automotive keyfob signals using HackRF One. Built in Rust with a real-time TUI powered by `ratatui`. Protocol decoders are aligned with the [ProtoPirate](REFERENCES/ProtoPirate/) reference.
+A terminal-based RF signal analysis tool for capturing, decoding, and retransmitting automotive keyfob signals. Built in Rust with a real-time TUI powered by `ratatui`. Protocol decoders are aligned with the [ProtoPirate](REFERENCES/ProtoPirate/) reference.
+
+**Supported hardware:** KAT uses **HackRF One** (or compatible) when present for full receive and transmit. If no HackRF is found, it will use an **RTL-SDR** (e.g. RTL433-style dongles) for **receive-only** capture and decode; transmit (Lock/Unlock/Trunk/Panic, Replay) is disabled when using RTL-SDR.
 
 ![Keyfob Analysis Toolkit screenshot](images/kat-screenshot.png)
 
@@ -24,9 +26,14 @@ A terminal-based RF signal analysis tool for capturing, decoding, and retransmit
 
 ## Requirements
 
-- **HackRF One** (or compatible SDR)
+- **Radio hardware (one of):**
+  - **HackRF One** (or compatible) — full receive and transmit
+  - **RTL-SDR** (e.g. RTL433 dongles) — receive-only; no transmit
 - **Rust 1.75+** (for building from source)
-- **libhackrf** — HackRF C library and headers
+- **libhackrf** — HackRF C library and headers (required at build time even when using RTL-SDR)
+- **libusb** — for RTL-SDR (usually provided by OS)
+
+At runtime, KAT tries **HackRF first**; if none is found, it uses the first available **RTL-SDR**. If neither is connected, it runs in demo mode (no live capture).
 
 ### Installing Dependencies
 
@@ -34,25 +41,28 @@ A terminal-based RF signal analysis tool for capturing, decoding, and retransmit
 
 ```bash
 brew install hackrf
+# RTL-SDR: no extra system lib required; rtl-sdr-rs uses rusb
 ```
 
 **Debian / Ubuntu:**
 
 ```bash
-sudo apt install libhackrf-dev pkg-config
+sudo apt install libhackrf-dev pkg-config libusb-1.0-0-dev
 ```
 
 **Fedora:**
 
 ```bash
-sudo dnf install hackrf-devel pkg-config
+sudo dnf install hackrf-devel pkg-config libusb1-devel
 ```
 
 **Arch Linux:**
 
 ```bash
-sudo pacman -S hackrf
+sudo pacman -S hackrf libusb
 ```
+
+On **Linux**, if an RTL-SDR is in use, you may need to unload DVB-T kernel modules so the device is not claimed by the kernel (see [rtl-sdr-rs](https://crates.io/crates/rtl-sdr-rs)).
 
 ## Building
 
@@ -69,7 +79,7 @@ The binary is placed at `target/release/kat`.
 ./target/release/kat
 ```
 
-KAT starts in an interactive terminal UI. If a HackRF device is not connected, the application runs in demo/offline mode so you can still view, import, and export captures.
+KAT starts in an interactive terminal UI. If no HackRF or RTL-SDR is detected, the application runs in demo/offline mode so you can still view, import, and export captures. The header shows the active device (e.g. **HackRF** or **RTL-SDR (RX only)**). When using RTL-SDR, transmit actions (Replay, TX Lock/Unlock/Trunk/Panic) are disabled and show a message that the device is receive-only.
 
 ### Keyboard Controls
 
@@ -267,6 +277,7 @@ src/
 │   └── ...
 ├── radio/
 │   ├── hackrf.rs        # HackRF device control (RX/TX)
+│   ├── rtlsdr.rs        # RTL-SDR device control (RX only)
 │   ├── demodulator.rs   # AM/OOK demodulator (IQ -> level/duration)
 │   └── modulator.rs    # Level/duration -> TX waveform
 └── ui/

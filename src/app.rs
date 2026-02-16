@@ -5,8 +5,87 @@ use std::sync::mpsc::{self, Receiver, Sender};
 
 use crate::capture::{ButtonCommand, Capture};
 use crate::protocols::ProtocolRegistry;
-use crate::radio::{HackRfController, LevelDuration};
+use crate::radio::{HackRfController, LevelDuration, RtlSdrController};
 use crate::storage::Storage;
+
+/// Active radio device: HackRF (full TX/RX) or RTL-SDR (receive-only).
+pub enum RadioDevice {
+    HackRf(HackRfController),
+    RtlSdr(RtlSdrController),
+}
+
+impl RadioDevice {
+    pub fn is_available(&self) -> bool {
+        match self {
+            RadioDevice::HackRf(h) => h.is_available(),
+            RadioDevice::RtlSdr(r) => r.is_available(),
+        }
+    }
+
+    pub fn supports_tx(&self) -> bool {
+        match self {
+            RadioDevice::HackRf(h) => h.supports_tx(),
+            RadioDevice::RtlSdr(r) => r.supports_tx(),
+        }
+    }
+
+    pub fn start_receiving(&mut self, frequency: u32) -> anyhow::Result<()> {
+        match self {
+            RadioDevice::HackRf(h) => h.start_receiving(frequency),
+            RadioDevice::RtlSdr(r) => r.start_receiving(frequency),
+        }
+    }
+
+    pub fn stop_receiving(&mut self) -> anyhow::Result<()> {
+        match self {
+            RadioDevice::HackRf(h) => h.stop_receiving(),
+            RadioDevice::RtlSdr(r) => r.stop_receiving(),
+        }
+    }
+
+    pub fn set_frequency(&mut self, frequency: u32) -> anyhow::Result<()> {
+        match self {
+            RadioDevice::HackRf(h) => h.set_frequency(frequency),
+            RadioDevice::RtlSdr(r) => r.set_frequency(frequency),
+        }
+    }
+
+    pub fn set_lna_gain(&mut self, gain: u32) -> anyhow::Result<()> {
+        match self {
+            RadioDevice::HackRf(h) => h.set_lna_gain(gain),
+            RadioDevice::RtlSdr(r) => r.set_lna_gain(gain),
+        }
+    }
+
+    pub fn set_vga_gain(&mut self, gain: u32) -> anyhow::Result<()> {
+        match self {
+            RadioDevice::HackRf(h) => h.set_vga_gain(gain),
+            RadioDevice::RtlSdr(r) => r.set_vga_gain(gain),
+        }
+    }
+
+    pub fn set_amp_enable(&mut self, enabled: bool) -> anyhow::Result<()> {
+        match self {
+            RadioDevice::HackRf(h) => h.set_amp_enable(enabled),
+            RadioDevice::RtlSdr(r) => r.set_amp_enable(enabled),
+        }
+    }
+
+    pub fn transmit(&mut self, signal: &[LevelDuration], frequency: u32) -> anyhow::Result<()> {
+        match self {
+            RadioDevice::HackRf(h) => h.transmit(signal, frequency),
+            RadioDevice::RtlSdr(r) => r.transmit(signal, frequency),
+        }
+    }
+
+    /// Display name for UI (e.g. "HackRF", "RTL-SDR (RX only)").
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            RadioDevice::HackRf(_) => "HackRF",
+            RadioDevice::RtlSdr(_) => "RTL-SDR (RX only)",
+        }
+    }
+}
 
 /// Input mode for the application
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -221,13 +300,15 @@ pub struct App {
     pub storage: Storage,
     /// Protocol registry
     protocols: ProtocolRegistry,
-    /// HackRF controller (optional - may not be connected)
-    hackrf: Option<HackRfController>,
+    /// Active radio device (HackRF or RTL-SDR), if any
+    radio: Option<RadioDevice>,
     /// Channel for radio events
     radio_event_rx: Receiver<RadioEvent>,
     /// Sender for radio events (cloned to radio thread)
     #[allow(dead_code)]
     radio_event_tx: Sender<RadioEvent>,
+    /// Set by :q / :quit so the main loop can exit cleanly (terminal cleanup)
+    pub quit_requested: bool,
 
     // -- Startup import state --
     /// .fob files found on startup in export_dir
@@ -265,28 +346,29 @@ impl App {
         let protocols = ProtocolRegistry::new();
         let (radio_event_tx, radio_event_rx) = mpsc::channel();
 
-        // Try to initialize HackRF
-        let hackrf = match HackRfController::new(radio_event_tx.clone()) {
-            Ok(mut h) => {
+        // Try HackRF first, then RTL-SDR
+        let radio: Option<RadioDevice> = match HackRfController::new(radio_event_tx.clone()) {
+            Ok(mut h) if h.is_available() => {
                 tracing::info!("HackRF initialized successfully");
-                // Push config defaults to the controller so they're used on first start_receiving
                 let _ = h.set_lna_gain(storage.config.default_lna_gain);
                 let _ = h.set_vga_gain(storage.config.default_vga_gain);
                 let _ = h.set_amp_enable(storage.config.default_amp);
-                Some(h)
+                Some(RadioDevice::HackRf(h))
             }
-            Err(e) => {
-                tracing::warn!("Failed to initialize HackRF: {}", e);
-                None
+            _ => match RtlSdrController::new(radio_event_tx.clone()) {
+                Ok(mut r) if r.is_available() => {
+                    tracing::info!("RTL-SDR initialized (receive-only)");
+                    let _ = r.set_lna_gain(storage.config.default_lna_gain);
+                    let _ = r.set_vga_gain(storage.config.default_vga_gain);
+                    Some(RadioDevice::RtlSdr(r))
+                }
+                _ => None
             }
         };
 
-        // HackRF controller always returns Ok; when no device is present it has is_available() == false
-        let hackrf_detected = hackrf
-            .as_ref()
-            .map_or(false, |h| h.is_available());
+        let device_detected = radio.as_ref().map_or(false, |r| r.is_available());
 
-        let radio_state = if hackrf_detected {
+        let radio_state = if device_detected {
             RadioState::Idle
         } else {
             RadioState::Disconnected
@@ -306,7 +388,7 @@ impl App {
         // Recursively scan import directory for .fob and .sub at startup (separate from export dir)
         let pending_fob_files =
             crate::export::scan_import_files_recursive(storage.import_dir());
-        let initial_mode = if !hackrf_detected {
+        let initial_mode = if !device_detected {
             InputMode::HackRfNotDetected
         } else if !pending_fob_files.is_empty() {
             tracing::info!(
@@ -338,9 +420,10 @@ impl App {
             next_capture_id,
             storage,
             protocols,
-            hackrf,
+            radio,
             radio_event_rx,
             radio_event_tx,
+            quit_requested: false,
             pending_fob_files,
             export_capture_id: None,
             export_filename: String::new(),
@@ -356,6 +439,16 @@ impl App {
     /// Get the frequency in MHz
     pub fn frequency_mhz(&self) -> f64 {
         self.frequency as f64 / 1_000_000.0
+    }
+
+    /// Display name of the active radio device, if any (e.g. "HackRF", "RTL-SDR (RX only)").
+    pub fn radio_device_name(&self) -> Option<&'static str> {
+        self.radio.as_ref().map(|r| r.display_name())
+    }
+
+    /// True if the active device supports transmit (HackRF only; RTL-SDR is receive-only).
+    pub fn can_transmit(&self) -> bool {
+        self.radio.as_ref().map_or(false, |r| r.supports_tx())
     }
 
     /// Select the next capture in the list
@@ -405,18 +498,18 @@ impl App {
         
         match self.radio_state {
             RadioState::Disconnected => {
-                self.last_error = Some("HackRF not connected".to_string());
+                self.last_error = Some("No radio device connected".to_string());
             }
             RadioState::Idle => {
-                if let Some(ref mut hackrf) = self.hackrf {
-                    hackrf.start_receiving(self.frequency)?;
+                if let Some(ref mut radio) = self.radio {
+                    radio.start_receiving(self.frequency)?;
                     self.radio_state = RadioState::Receiving;
                     self.status_message = Some(format!("Receiving on {:.2} MHz", self.frequency_mhz()));
                 }
             }
             RadioState::Receiving => {
-                if let Some(ref mut hackrf) = self.hackrf {
-                    hackrf.stop_receiving()?;
+                if let Some(ref mut radio) = self.radio {
+                    radio.stop_receiving()?;
                     self.radio_state = RadioState::Idle;
                     self.status_message = Some("Stopped receiving".to_string());
                 }
@@ -440,8 +533,7 @@ impl App {
 
         match parts[0] {
             "q" | "quit" => {
-                // Will be handled by main loop
-                std::process::exit(0);
+                self.quit_requested = true;
             }
             "freq" => {
                 if parts.len() < 2 {
@@ -537,13 +629,13 @@ impl App {
 
         self.frequency = hz;
 
-        // If receiving, restart receiver so the new frequency takes effect (HackRF thread reads freq only at start)
-        if let Some(ref mut hackrf) = self.hackrf {
+        // If receiving, restart receiver so the new frequency takes effect
+        if let Some(ref mut radio) = self.radio {
             if self.radio_state == RadioState::Receiving {
-                hackrf.stop_receiving()?;
-                hackrf.start_receiving(hz)?;
+                radio.stop_receiving()?;
+                radio.start_receiving(hz)?;
             } else {
-                hackrf.set_frequency(hz)?;
+                radio.set_frequency(hz)?;
             }
         }
 
@@ -563,8 +655,8 @@ impl App {
         let gain = (gain / 8) * 8;
         self.lna_gain = gain;
 
-        if let Some(ref mut hackrf) = self.hackrf {
-            hackrf.set_lna_gain(gain)?;
+        if let Some(ref mut radio) = self.radio {
+            radio.set_lna_gain(gain)?;
         }
 
         self.status_message = Some(format!("LNA gain set to {} dB", gain));
@@ -583,8 +675,8 @@ impl App {
         let gain = (gain / 2) * 2;
         self.vga_gain = gain;
 
-        if let Some(ref mut hackrf) = self.hackrf {
-            hackrf.set_vga_gain(gain)?;
+        if let Some(ref mut radio) = self.radio {
+            radio.set_vga_gain(gain)?;
         }
 
         self.status_message = Some(format!("VGA gain set to {} dB", gain));
@@ -600,8 +692,8 @@ impl App {
     fn set_amp(&mut self, enabled: bool) -> Result<()> {
         self.amp_enabled = enabled;
 
-        if let Some(ref mut hackrf) = self.hackrf {
-            hackrf.set_amp_enable(enabled)?;
+        if let Some(ref mut radio) = self.radio {
+            radio.set_amp_enable(enabled)?;
         }
 
         self.status_message = Some(format!("Amp {}", if enabled { "enabled" } else { "disabled" }));
@@ -611,7 +703,17 @@ impl App {
     /// Transmit a command for a capture
     fn transmit_command(&mut self, id_str: Option<&&str>, command: ButtonCommand) -> Result<()> {
         use crate::protocols::DecodedSignal;
-        
+
+        if let Some(ref radio) = self.radio {
+            if !radio.supports_tx() {
+                self.last_error = Some("Transmit not available – RTL-SDR is receive-only".to_string());
+                return Ok(());
+            }
+        } else {
+            self.last_error = Some("No radio device connected".to_string());
+            return Ok(());
+        }
+
         let id_str = match id_str {
             Some(s) => s,
             None => {
@@ -677,12 +779,9 @@ impl App {
             }
         };
 
-        // Transmit
-        if let Some(ref mut hackrf) = self.hackrf {
-            hackrf.transmit(&signal, capture.frequency)?;
+        if let Some(ref mut radio) = self.radio {
+            radio.transmit(&signal, capture.frequency)?;
             self.status_message = Some(format!("Transmitted {:?} for capture {}", command, id));
-        } else {
-            self.last_error = Some("HackRF not connected".to_string());
         }
 
         Ok(())
@@ -690,6 +789,16 @@ impl App {
 
     /// Replay a capture by re-transmitting its raw level/duration pairs (no re-encoding).
     pub fn replay_capture(&mut self, id: u32) -> Result<()> {
+        if let Some(ref radio) = self.radio {
+            if !radio.supports_tx() {
+                self.last_error = Some("Transmit not available – RTL-SDR is receive-only".to_string());
+                return Ok(());
+            }
+        } else {
+            self.last_error = Some("No radio device connected".to_string());
+            return Ok(());
+        }
+
         let capture = match self.captures.iter().find(|c| c.id == id) {
             Some(c) => c,
             None => {
@@ -709,11 +818,9 @@ impl App {
             .map(|p| LevelDuration::new(p.level, p.duration_us))
             .collect();
 
-        if let Some(ref mut hackrf) = self.hackrf {
-            hackrf.transmit(&signal, capture.frequency)?;
+        if let Some(ref mut radio) = self.radio {
+            radio.transmit(&signal, capture.frequency)?;
             self.status_message = Some(format!("Replayed capture {} ({} pairs)", id, signal.len()));
-        } else {
-            self.last_error = Some("HackRF not connected".to_string());
         }
 
         Ok(())

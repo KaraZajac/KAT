@@ -20,5 +20,8 @@ This folder describes how each keyfob protocol supported by KAT works. Each docu
 | Scher-Khan | `scher_khan.rs` | [scher_khan.md](scher_khan.md) |
 | Star Line | `star_line.rs` | [star_line.md](star_line.md) |
 | PSA | `psa.rs` | [psa.md](psa.md) |
+| KeeLoq generic (fallback) | `keeloq_generic.rs` | [keeloq_generic.md](keeloq_generic.md) |
+
+**KeeLoq generic** is not a registered decoder; it runs when no protocol matches and tries KeeLoq with every keystore manufacturer key (using `keeloq_common`). Successful decodes appear as **Keeloq (*keystore name*)**.
 
 Implementations are aligned with the ProtoPirate reference in `REFERENCES/ProtoPirate/protocols/`.

@@ -10,6 +10,7 @@ A terminal-based RF signal analysis tool for capturing, decoding, and retransmit
 
 - **Real-time capture** — receive and demodulate AM/OOK keyfob signals at configurable frequencies (HackRF uses AM envelope detection; FM protocols are tagged for display and may decode when signal is strong)
 - **Multi-protocol decoding** — 14 protocol decoders: Kia V0–V6, Ford V0, Fiat V0, Subaru, Suzuki, VAG (VW/Audi/Seat/Skoda), PSA, Scher-Khan, Star Line; adaptive demodulation for real-world conditions
+- **KeeLoq generic fallback** — when a signal doesn’t match any known protocol, KAT tries decoding it as KeeLoq using every manufacturer key in the embedded keystore (Kia V3/V4 and Star Line air formats); successful decodes appear as **Keeloq (keystore name)** in the capture list
 - **RF modulation metadata** — each protocol tagged as AM, FM, or both (from ProtoPirate); shown in signal detail and exported in .fob
 - **Rich signal detail** — encoding (PWM/Manchester), RF (AM/FM), encryption, serial, counter, key data, CRC, frequency, and raw level/duration pairs
 - **Signal retransmission** — transmit Lock, Unlock, Trunk, and Panic commands from decoded captures (VAG supports full encode from capture via stored vag_type/key_idx)
@@ -215,9 +216,11 @@ Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference. KA
 | Star Line | PWM | AM | KeeLoq | 433.92 MHz |
 | PSA (Peugeot/Citroën) | Manchester | FM | XTEA/XOR | 433.92 MHz |
 
+**KeeLoq generic fallback:** If no protocol decodes a capture, KAT tries KeeLoq with every keystore manufacturer key (Kia V3/V4 and Star Line bit layouts). On success the protocol is shown as **Keeloq (*keystore name*)** (e.g. Keeloq (Alligator), Keeloq (Pandora_PRO)). See [docs/keeloq_generic.md](docs/keeloq_generic.md).
+
 ### Cryptographic modules
 
-- **KeeLoq** — encrypt/decrypt with normal, secure, FAAC, and magic serial/XOR learning key derivation (keeloq_common, keys)
+- **KeeLoq** — encrypt/decrypt with normal, secure, FAAC, and magic serial/XOR learning key derivation (keeloq_common, keys). Unknown signals are tried as KeeLoq with every keystore key via **keeloq_generic** (uses keeloq_common only).
 - **AUT64** — 12-round block cipher for VAG type 1/3/4 (aut64)
 - **Keystore** — manufacturer keys (Kia, VAG, etc.) built in; see `src/keystore/`
 
@@ -253,7 +256,8 @@ src/
 ├── protocols/
 │   ├── mod.rs           # Protocol registry, decoder trait, duration_diff macro
 │   ├── common.rs        # DecodedSignal (extra for VAG encode), CRC, bit helpers, button codes
-│   ├── keeloq_common.rs # KeeLoq cipher + learning key algorithms
+│   ├── keeloq_common.rs # KeeLoq cipher + learning key algorithms (used by Kia V3/V4, Star Line, keeloq_generic)
+│   ├── keeloq_generic.rs # KeeLoq fallback: try every keystore key when no protocol matches (uses keeloq_common)
 │   ├── aut64.rs         # AUT64 block cipher (VAG)
 │   ├── keys.rs          # Key loading (embedded + optional file), KIA/VAG
 │   ├── kia_v0..kia_v6.rs

@@ -2,6 +2,24 @@
 
 All notable changes to KAT are documented here.
 
+## [1.1.0] - 2026-02-13
+
+### Added
+
+- **RSSI Bar** — Live received signal strength indicator in the UI.
+- **KeeLoq Decodes** — KeeLoq generic fallback and keystore-based decoding (see 1.0.1); listed here for 1.1.0 release.
+- **Vulnerability Database** — Built-in CVE database (Year/Make/Model/Region). New **Vuln Found** column (Yes/No). Press **i** on a capture to set Year/Make/Model/Region; matching CVEs appear in the detail panel. Same metadata used for .fob export.
+
+### Updated
+
+- **Keystore** — Keystore improvements and additional keys.
+
+### Fixed
+
+- **VAG decoding** — Fixes and improvements for VAG protocol decoding.
+
+---
+
 ## [1.0.2] - 2026-02-13
 
 ### Added

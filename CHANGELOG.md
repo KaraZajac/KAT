@@ -2,6 +2,14 @@
 
 All notable changes to KAT are documented here.
 
+## [1.1.1] - 2026-02-13
+
+### Changed
+
+- **UI updates** — Vulnerability panel (green border when vuln found, green “encryption broken” text); signal action menu shows TX Lock/Unlock/Trunk/Panic only for encoder-capable captures (unknown/decoded get Replay only).
+
+---
+
 ## [1.1.0] - 2026-02-13
 
 ### Added

@@ -899,14 +899,14 @@ impl ProtocolDecoder for VagDecoder {
                     TE_SHORT_12 - duration
                 };
 
+                // Reference: (300-duration)<=79 or (duration-300)<80 -> count pair (check_preamble1_prev)
                 if te_diff < TE_DELTA_12 {
-                    // Check previous pulse
                     let prev_diff = if self.te_last > TE_SHORT_12 {
                         self.te_last - TE_SHORT_12
                     } else {
                         TE_SHORT_12 - self.te_last
                     };
-                    if prev_diff <= TE_DELTA_12 {
+                    if prev_diff <= REF_RESET_DELTA {
                         self.te_last = duration;
                         self.header_count += 1;
                         return None;
@@ -915,12 +915,13 @@ impl ProtocolDecoder for VagDecoder {
                     return None;
                 }
 
-                // Check for gap (end of preamble): 600µs ±79, te_last 300±79 (ref check_gap1)
+                // Duration not near 300: ref checks for 600µs gap (Preamble1->Data1), then reset
+                // ref: set step=Reset; if header_count>=201 then duration=|duration-600|; if duration<=79 and te_last 300±79 -> Data1
                 if self.header_count >= 201 {
-                    let gap_diff = if duration > TE_LONG_12 {
-                        duration - TE_LONG_12
-                    } else {
+                    let gap_diff = if duration < TE_LONG_12 {
                         TE_LONG_12 - duration
+                    } else {
+                        duration - TE_LONG_12
                     };
                     if gap_diff <= REF_GAP1_DELTA {
                         let prev_diff = if self.te_last > TE_SHORT_12 {
@@ -952,9 +953,10 @@ impl ProtocolDecoder for VagDecoder {
                         TE_LONG_12 - duration
                     };
 
-                    let event = if short_diff <= TE_DELTA_12 {
+                    // Reference Data1: short 300±79 (221..380), long 600±79 (521..680)
+                    let event = if short_diff <= REF_RESET_DELTA {
                         Some(if level { ManchesterEvent::ShortLow } else { ManchesterEvent::ShortHigh })
-                    } else if long_diff <= TE_DELTA_12 {
+                    } else if long_diff <= REF_RESET_DELTA {
                         Some(if level { ManchesterEvent::LongLow } else { ManchesterEvent::LongHigh })
                     } else {
                         None

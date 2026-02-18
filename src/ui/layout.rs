@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, Paragraph, Wrap},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
     Frame,
 };
 
@@ -118,6 +118,10 @@ pub fn draw_ui(frame: &mut Frame, app: &App) {
             | InputMode::CaptureMetaRegion
     ) {
         render_capture_meta_form(frame, app);
+    }
+
+    if app.input_mode == InputMode::LoadFileBrowser {
+        render_load_file_browser(frame, app);
     }
 
     if app.input_mode == InputMode::License {
@@ -244,6 +248,7 @@ fn render_help_bar(frame: &mut Frame, area: Rect, app: &App) {
         | InputMode::CaptureMetaModel => "Enter: Next Field | Esc: Cancel",
         InputMode::CaptureMetaRegion => "Enter: Save | Esc: Cancel",
         InputMode::License | InputMode::Credits => "Esc/Enter: Close | Up/Down: Scroll",
+        InputMode::LoadFileBrowser => "Up/Down: Navigate | Enter: Open/Import | Esc: Close",
     };
 
     let help = Paragraph::new(Line::from(Span::styled(
@@ -259,6 +264,74 @@ fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
     let x = area.x + area.width.saturating_sub(width) / 2;
     let y = area.y + area.height.saturating_sub(height) / 2;
     Rect::new(x, y, width.min(area.width), height.min(area.height))
+}
+
+const LOAD_BROWSER_VISIBLE_ROWS: usize = 16;
+
+/// Render the :load file browser overlay (centered, list of dirs and .fob/.sub files).
+fn render_load_file_browser(frame: &mut Frame, app: &App) {
+    let area = frame.area();
+    let popup_height = LOAD_BROWSER_VISIBLE_ROWS as u16 + 5;
+    let popup_width = 56;
+    let popup = centered_rect(popup_width, popup_height, area);
+
+    frame.render_widget(Clear, popup);
+
+    let path_str = app.load_browser_cwd.to_string_lossy();
+    let path_display = if path_str.len() > popup_width as usize - 4 {
+        format!("..{}", &path_str[path_str.len().saturating_sub(popup_width as usize - 5)..])
+    } else {
+        path_str.to_string()
+    };
+
+    let mut items: Vec<ListItem> = Vec::new();
+    items.push(ListItem::new(Line::from(Span::styled(
+        format!("  {}", path_display),
+        Style::default().fg(Color::DarkGray),
+    ))));
+    items.push(ListItem::new(Line::from(Span::raw(""))));
+
+    let entries = &app.load_browser_entries;
+    let scroll = app.load_browser_scroll;
+    let selected = app.load_browser_selected.min(entries.len().saturating_sub(1));
+    let end = (scroll + LOAD_BROWSER_VISIBLE_ROWS).min(entries.len());
+
+    for (i, (name, _path, is_dir)) in entries[scroll..end].iter().enumerate() {
+        let idx = scroll + i;
+        let is_selected = idx == selected;
+        let prefix = if is_selected { " > " } else { "   " };
+        let (style, suffix) = if *is_dir {
+            (
+                if is_selected {
+                    Style::default().fg(Color::Black).bg(Color::Cyan).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::Cyan)
+                },
+                "/",
+            )
+        } else {
+            (
+                if is_selected {
+                    Style::default().fg(Color::Black).bg(Color::Cyan).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::White)
+                },
+                "",
+            )
+        };
+        items.push(ListItem::new(Line::from(Span::styled(
+            format!("{}{}{}", prefix, name, suffix),
+            style,
+        ))));
+    }
+
+    let block = Block::default()
+        .title(" Load file (.fob / .sub) ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Cyan));
+
+    let list = List::new(items).block(block);
+    frame.render_widget(list, popup);
 }
 
 /// Render the no-device warning (red box at startup when neither HackRF nor RTL-SDR found)

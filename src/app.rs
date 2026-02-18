@@ -1,6 +1,7 @@
 //! Application state management.
 
 use anyhow::Result;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Arc;
@@ -135,6 +136,8 @@ pub enum InputMode {
     License,
     /// Credits overlay (centered box)
     Credits,
+    /// :load file browser (import .fob/.sub from import dir)
+    LoadFileBrowser,
 }
 
 /// Export format being used
@@ -360,6 +363,16 @@ pub struct App {
     pub capture_meta_region: String,
     /// Which capture is being edited (when in CaptureMeta* modes)
     pub capture_meta_capture_id: Option<u32>,
+
+    // -- :load file browser --
+    /// Current directory in the load file browser
+    pub load_browser_cwd: PathBuf,
+    /// Selected index in the file list
+    pub load_browser_selected: usize,
+    /// Scroll offset for the file list (so selection stays in view)
+    pub load_browser_scroll: usize,
+    /// Entries: (display name, full path, is_dir)
+    pub load_browser_entries: Vec<(String, PathBuf, bool)>,
 }
 
 impl App {
@@ -469,6 +482,10 @@ impl App {
             capture_meta_model: String::new(),
             capture_meta_region: String::new(),
             capture_meta_capture_id: None,
+            load_browser_cwd: PathBuf::new(),
+            load_browser_selected: 0,
+            load_browser_scroll: 0,
+            load_browser_entries: Vec::new(),
         })
     }
 
@@ -598,6 +615,9 @@ impl App {
             "credits" => {
                 self.input_mode = InputMode::Credits;
                 self.overlay_scroll = 0;
+            }
+            "load" => {
+                self.open_load_browser()?;
             }
             "delete" => {
                 if parts.len() < 2 {
@@ -1244,6 +1264,104 @@ impl App {
     pub fn cancel_capture_meta(&mut self) {
         self.input_mode = InputMode::Normal;
         self.capture_meta_capture_id = None;
+    }
+
+    /// Open the :load file browser starting at the config import directory.
+    pub fn open_load_browser(&mut self) -> Result<()> {
+        self.load_browser_cwd = self.storage.import_dir().clone();
+        self.load_browser_selected = 0;
+        self.refresh_load_browser_entries()?;
+        self.input_mode = InputMode::LoadFileBrowser;
+        Ok(())
+    }
+
+    /// Refresh the file list for the current load-browser directory.
+    pub fn refresh_load_browser_entries(&mut self) -> Result<()> {
+        let import_dir = self.storage.import_dir().clone();
+        let mut entries: Vec<(String, PathBuf, bool)> = Vec::new();
+
+        if self.load_browser_cwd != import_dir {
+            if let Some(parent) = self.load_browser_cwd.parent() {
+                entries.push(("..".to_string(), parent.to_path_buf(), true));
+            }
+        }
+
+        let dir_entries = match std::fs::read_dir(&self.load_browser_cwd) {
+            Ok(d) => d,
+            Err(e) => {
+                self.last_error = Some(format!("Cannot read directory: {}", e));
+                self.load_browser_entries = entries;
+                return Ok(());
+            }
+        };
+
+        let mut dirs: Vec<(String, PathBuf)> = Vec::new();
+        let mut files: Vec<(String, PathBuf)> = Vec::new();
+        for e in dir_entries.flatten() {
+            let path = e.path();
+            let name = e
+                .file_name()
+                .to_string_lossy()
+                .to_string();
+            if path.is_dir() {
+                dirs.push((name, path));
+            } else if path.is_file() {
+                let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase());
+                if ext.as_deref() == Some("fob") || ext.as_deref() == Some("sub") {
+                    files.push((name, path));
+                }
+            }
+        }
+
+        dirs.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+        files.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+
+        for (name, path) in dirs {
+            entries.push((name, path, true));
+        }
+        for (name, path) in files {
+            entries.push((name, path, false));
+        }
+
+        let len = entries.len();
+        self.load_browser_entries = entries;
+        self.load_browser_selected = self.load_browser_selected.min(len.saturating_sub(1));
+        const VISIBLE: usize = 16;
+        if self.load_browser_selected < self.load_browser_scroll {
+            self.load_browser_scroll = self.load_browser_selected;
+        }
+        if self.load_browser_selected >= self.load_browser_scroll + VISIBLE {
+            self.load_browser_scroll = self.load_browser_selected.saturating_sub(VISIBLE - 1);
+        }
+        self.load_browser_scroll = self.load_browser_scroll.min(len.saturating_sub(1));
+        Ok(())
+    }
+
+    /// Handle Enter in the load file browser: open dir or import file.
+    pub fn load_browser_enter(&mut self) -> Result<()> {
+        let Some((_name, path, is_dir)) = self.load_browser_entries.get(self.load_browser_selected)
+        else {
+            return Ok(());
+        };
+        let path = path.clone();
+        let is_dir = *is_dir;
+        if is_dir {
+            self.load_browser_cwd = path;
+            self.load_browser_selected = 0;
+            self.refresh_load_browser_entries()?;
+        } else {
+            let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            self.pending_fob_files = vec![path];
+            self.import_fob_files()?;
+            self.input_mode = InputMode::Normal;
+            self.status_message = Some(format!("Imported {}", name));
+        }
+        Ok(())
+    }
+
+    /// Close the load file browser without importing.
+    pub fn close_load_browser(&mut self) {
+        self.input_mode = InputMode::Normal;
     }
 
     /// Import pending .fob and .sub files into captures list.

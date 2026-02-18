@@ -481,6 +481,36 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             _ => {}
                         },
 
+                        InputMode::LoadFileBrowser => {
+                        const VISIBLE: usize = 16;
+                        match key.code {
+                            KeyCode::Esc => {
+                                app.close_load_browser();
+                            }
+                            KeyCode::Enter => {
+                                let _ = app.load_browser_enter();
+                            }
+                            KeyCode::Up | KeyCode::Char('k') => {
+                                if app.load_browser_selected > 0 {
+                                    app.load_browser_selected -= 1;
+                                    if app.load_browser_selected < app.load_browser_scroll {
+                                        app.load_browser_scroll = app.load_browser_selected;
+                                    }
+                                }
+                            }
+                            KeyCode::Down | KeyCode::Char('j') => {
+                                let max = app.load_browser_entries.len().saturating_sub(1);
+                                if app.load_browser_selected < max {
+                                    app.load_browser_selected += 1;
+                                    if app.load_browser_selected >= app.load_browser_scroll + VISIBLE {
+                                        app.load_browser_scroll = app.load_browser_selected - VISIBLE + 1;
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    },
+
                         InputMode::License | InputMode::Credits => match key.code {
                             KeyCode::Esc | KeyCode::Enter => {
                                 app.input_mode = InputMode::Normal;

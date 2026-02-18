@@ -66,6 +66,11 @@ pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
             "META",
             Style::default().fg(Color::Cyan),
         ),
+        InputMode::LoadFileBrowser => (
+            String::new(),
+            "LOAD",
+            Style::default().fg(Color::Cyan),
+        ),
         InputMode::License => (
             String::new(),
             "LICENSE",

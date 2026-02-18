@@ -44,7 +44,7 @@ pub fn render_captures_list(frame: &mut Frame, area: Rect, app: &App) {
 /// Render the compact signal table
 fn render_table(frame: &mut Frame, area: Rect, app: &App) {
     let header_cells = [
-        "ID", "Time", "Protocol", "Freq", "Serial", "Btn", "Cnt", "Mod", "CRC", "Status",
+        "ID", "Time", "Protocol", "Freq", "Serial", "Btn", "Cnt", "Modulation", "CRC", "Status",
     ]
     .iter()
     .map(|h| Cell::from(*h).style(Style::default().add_modifier(Modifier::BOLD)));
@@ -99,12 +99,12 @@ fn render_table(frame: &mut Frame, area: Rect, app: &App) {
     let widths = [
         Constraint::Length(4),  // ID
         Constraint::Length(9),  // Time
-        Constraint::Length(10), // Protocol
+        Constraint::Length(24), // Protocol (e.g. KeeLoq (DoorHan))
         Constraint::Length(11), // Freq
         Constraint::Length(9),  // Serial
         Constraint::Length(6),  // Btn
         Constraint::Length(6),  // Cnt
-        Constraint::Length(7),  // Mod
+        Constraint::Length(12), // Modulation
         Constraint::Length(5),  // CRC
         Constraint::Length(10), // Status
     ];

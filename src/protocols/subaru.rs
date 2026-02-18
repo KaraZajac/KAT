@@ -151,6 +151,7 @@ impl SubaruDecoder {
             data_count_bit: 64,
             encoder_capable: true,
             extra: None,
+            protocol_display_name: None,
         })
     }
 }

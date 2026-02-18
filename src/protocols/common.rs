@@ -32,6 +32,8 @@ pub struct DecodedSignal {
     pub encoder_capable: bool,
     /// Protocol-specific extra data for encoding (e.g. VAG: vag_type + key_idx)
     pub extra: Option<u64>,
+    /// Optional protocol display name (e.g. "KeeLoq (DoorHan)"). When set, used as the protocol name for this decode.
+    pub protocol_display_name: Option<String>,
 }
 
 impl DecodedSignal {
@@ -46,6 +48,7 @@ impl DecodedSignal {
             data_count_bit: bit_count,
             encoder_capable: false,
             extra: None,
+            protocol_display_name: None,
         }
     }
 }

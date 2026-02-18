@@ -72,6 +72,7 @@ impl SuzukiDecoder {
             data_count_bit: MIN_COUNT_BIT,
             encoder_capable: true,
             extra: None,
+            protocol_display_name: None,
         }
     }
 }

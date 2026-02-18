@@ -767,6 +767,7 @@ impl App {
             data_count_bit: capture.data_count_bit,
             encoder_capable: true,
             extra: capture.data_extra,
+            protocol_display_name: None,
         };
 
         // Generate the signal with the new button

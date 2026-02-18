@@ -11,6 +11,7 @@
 
 mod common;
 pub mod keeloq_common;
+mod keeloq;
 mod keeloq_generic;
 #[allow(dead_code)]
 pub mod aut64;
@@ -102,6 +103,7 @@ impl ProtocolRegistry {
             Box::new(suzuki::SuzukiDecoder::new()),
             Box::new(scher_khan::ScherKhanDecoder::new()),
             Box::new(star_line::StarLineDecoder::new()),
+            Box::new(keeloq::KeeloqDecoder::new()),
             Box::new(psa::PsaDecoder::new()),
         ];
 
@@ -171,7 +173,11 @@ impl ProtocolRegistry {
                     continue;
                 }
                 if let Some(decoded) = decoder.feed(level, duration_us) {
-                    hit = Some((decoder.name().to_string(), decoded));
+                    let name = decoded
+                        .protocol_display_name
+                        .as_deref()
+                        .unwrap_or_else(|| decoder.name());
+                    hit = Some((name.to_string(), decoded));
                     break;
                 }
             }
@@ -220,7 +226,11 @@ impl ProtocolRegistry {
                 }
 
                 if let Some(decoded) = decoder.feed(level, duration_us) {
-                    return Some((decoder.name().to_string(), decoded));
+                    let name = decoded
+                .protocol_display_name
+                .as_deref()
+                .unwrap_or_else(|| decoder.name());
+            return Some((name.to_string(), decoded));
                 }
             }
         }
@@ -246,9 +256,14 @@ impl ProtocolRegistry {
 
     /// Get a decoder by name
     pub fn get(&self, name: &str) -> Option<&dyn ProtocolDecoder> {
+        let lookup = if name.starts_with("KeeLoq") {
+            "KeeLoq"
+        } else {
+            name
+        };
         self.decoders
             .iter()
-            .find(|d| d.name().eq_ignore_ascii_case(name))
+            .find(|d| d.name().eq_ignore_ascii_case(lookup))
             .map(|d| d.as_ref())
     }
 

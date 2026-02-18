@@ -71,6 +71,7 @@ impl ScherKhanDecoder {
             data_count_bit: bit_count,
             encoder_capable: false,
             extra: None,
+            protocol_display_name: None,
         }
     }
 }

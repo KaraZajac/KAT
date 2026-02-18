@@ -105,6 +105,7 @@ fn try_kia_v3_v4_format(
                         data_count_bit: KIA_V3_V4_BITS,
                         encoder_capable: true,
                         extra: None,
+                        protocol_display_name: None,
                     },
                 ));
             }
@@ -148,6 +149,7 @@ fn try_star_line_format(
                         data_count_bit: STAR_LINE_BITS,
                         encoder_capable: true,
                         extra: None,
+                        protocol_display_name: None,
                     },
                 ));
             }
@@ -169,6 +171,7 @@ fn try_star_line_format(
                         data_count_bit: STAR_LINE_BITS,
                         encoder_capable: true,
                         extra: None,
+                        protocol_display_name: None,
                     },
                 ));
             }

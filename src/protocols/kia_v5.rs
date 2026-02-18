@@ -199,6 +199,7 @@ impl KiaV5Decoder {
             data_count_bit: MIN_COUNT_BIT,
             encoder_capable: false, // V5 is decode-only
             extra: None,
+            protocol_display_name: None,
         })
     }
 }

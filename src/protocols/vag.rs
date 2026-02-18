@@ -795,6 +795,7 @@ impl VagDecoder {
             data_count_bit: self.data_count_bit,
             encoder_capable: self.decrypted,
             extra,
+            protocol_display_name: None,
         }
     }
 }

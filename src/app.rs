@@ -465,6 +465,7 @@ impl App {
     }
 
     /// True if the active device supports transmit (HackRF only; RTL-SDR is receive-only).
+    #[allow(dead_code)]
     pub fn can_transmit(&self) -> bool {
         self.radio.as_ref().map_or(false, |r| r.supports_tx())
     }
@@ -983,9 +984,31 @@ impl App {
 
     // -- Signal Action Menu helpers --
 
+    /// Signal actions shown in the menu: all if HackRF (TX), else only export and delete.
+    pub fn available_signal_actions(&self) -> Vec<SignalAction> {
+        if self.radio.as_ref().map_or(false, |r| r.supports_tx()) {
+            SignalAction::ALL.to_vec()
+        } else {
+            SignalAction::ALL
+                .iter()
+                .filter(|a| {
+                    matches!(
+                        a,
+                        SignalAction::ExportFob | SignalAction::ExportFlipper | SignalAction::Delete
+                    )
+                })
+                .copied()
+                .collect()
+        }
+    }
+
     /// Execute the currently selected signal action
     pub fn execute_signal_action(&mut self) -> Result<()> {
-        let action = SignalAction::ALL[self.signal_menu_index];
+        let actions = self.available_signal_actions();
+        let idx = self
+            .signal_menu_index
+            .min(actions.len().saturating_sub(1));
+        let action = actions[idx];
         let capture_id = match self.selected_capture {
             Some(idx) if idx < self.captures.len() => self.captures[idx].id,
             _ => {

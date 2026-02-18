@@ -23,7 +23,7 @@ use std::io::{self, Write};
 use std::panic;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use app::{App, InputMode, SignalAction, SettingsField, ExportFormat};
+use app::{App, InputMode, SettingsField, ExportFormat};
 use ui::draw_ui;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -188,7 +188,8 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                                 }
                             }
                             KeyCode::Down | KeyCode::Char('j') => {
-                                if app.signal_menu_index < SignalAction::ALL.len() - 1 {
+                                let len = app.available_signal_actions().len();
+                                if len > 0 && app.signal_menu_index < len - 1 {
                                     app.signal_menu_index += 1;
                                 }
                             }

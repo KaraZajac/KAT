@@ -29,10 +29,12 @@ pub fn render_signal_menu(frame: &mut Frame, app: &App) {
         ("No capture".to_string(), String::new())
     };
 
+    let actions = app.available_signal_actions();
+
     // Menu dimensions - wider to show more info
     let menu_width = 38u16;
     let extra_lines = if freq_info.is_empty() { 0u16 } else { 2u16 };
-    let menu_height = (SignalAction::ALL.len() as u16) + 4 + extra_lines;
+    let menu_height = (actions.len() as u16) + 4 + extra_lines;
 
     // Center the menu
     let x = area.width.saturating_sub(menu_width) / 2;
@@ -54,8 +56,8 @@ pub fn render_signal_menu(frame: &mut Frame, app: &App) {
         items.push(ListItem::new(Line::from(Span::raw(""))));
     }
 
-    // Add action items
-    for (i, action) in SignalAction::ALL.iter().enumerate() {
+    // Add action items (only available actions are shown)
+    for (i, action) in actions.iter().enumerate() {
         let style = if i == app.signal_menu_index {
             Style::default()
                 .fg(Color::Black)
@@ -77,19 +79,8 @@ pub fn render_signal_menu(frame: &mut Frame, app: &App) {
             "   "
         };
 
-        let is_tx_action = matches!(
-            action,
-            SignalAction::Replay | SignalAction::Lock | SignalAction::Unlock
-                | SignalAction::Trunk | SignalAction::Panic
-        );
-        let suffix = if is_tx_action && !app.can_transmit() {
-            " (no TX)"
-        } else {
-            ""
-        };
-
         items.push(ListItem::new(Line::from(Span::styled(
-            format!("{}{}{}", prefix, action.label(), suffix),
+            format!("{}{}", prefix, action.label()),
             style,
         ))));
     }

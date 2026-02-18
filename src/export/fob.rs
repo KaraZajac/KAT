@@ -302,6 +302,10 @@ fn import_fob_v2(fob: &FobFile, next_id: u32) -> Result<Capture> {
         raw_pairs,
         status,
         received_rf: None,
+        year: None,
+        make: None,
+        model: None,
+        region: None,
     })
 }
 
@@ -368,6 +372,10 @@ fn import_fob_v1(fob: &FobFileV1, next_id: u32) -> Result<Capture> {
         raw_pairs,
         status,
         received_rf: None,
+        year: None,
+        make: None,
+        model: None,
+        region: None,
     })
 }
 

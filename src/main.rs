@@ -11,6 +11,7 @@ mod protocols;
 mod radio;
 mod storage;
 mod ui;
+mod vuln_db;
 
 use anyhow::Result;
 use crossterm::{
@@ -146,6 +147,14 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                                 if app.selected_capture.is_some() && !app.captures.is_empty() {
                                     app.input_mode = InputMode::SignalMenu;
                                     app.signal_menu_index = 0;
+                                }
+                            }
+                            KeyCode::Char('i') => {
+                                // Edit Year/Make/Model/Region for vuln lookup
+                                if let Some(idx) = app.selected_capture {
+                                    if let Some(capture) = app.captures.get(idx) {
+                                        app.open_capture_meta_form(capture.id);
+                                    }
                                 }
                             }
                             KeyCode::Tab => {
@@ -404,6 +413,70 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             KeyCode::Esc => {
                                 app.export_capture_id = None;
                                 app.input_mode = InputMode::Normal;
+                            }
+                            _ => {}
+                        },
+
+                        // Capture metadata (Year/Make/Model/Region for vuln lookup)
+                        InputMode::CaptureMetaYear => match key.code {
+                            KeyCode::Enter => {
+                                app.input_mode = InputMode::CaptureMetaMake;
+                            }
+                            KeyCode::Char(c) if c.is_ascii_digit() => {
+                                if app.capture_meta_year.len() < 4 {
+                                    app.capture_meta_year.push(c);
+                                }
+                            }
+                            KeyCode::Backspace => {
+                                app.capture_meta_year.pop();
+                            }
+                            KeyCode::Esc => {
+                                app.cancel_capture_meta();
+                            }
+                            _ => {}
+                        },
+                        InputMode::CaptureMetaMake => match key.code {
+                            KeyCode::Enter => {
+                                app.input_mode = InputMode::CaptureMetaModel;
+                            }
+                            KeyCode::Char(c) => {
+                                app.capture_meta_make.push(c);
+                            }
+                            KeyCode::Backspace => {
+                                app.capture_meta_make.pop();
+                            }
+                            KeyCode::Esc => {
+                                app.cancel_capture_meta();
+                            }
+                            _ => {}
+                        },
+                        InputMode::CaptureMetaModel => match key.code {
+                            KeyCode::Enter => {
+                                app.input_mode = InputMode::CaptureMetaRegion;
+                            }
+                            KeyCode::Char(c) => {
+                                app.capture_meta_model.push(c);
+                            }
+                            KeyCode::Backspace => {
+                                app.capture_meta_model.pop();
+                            }
+                            KeyCode::Esc => {
+                                app.cancel_capture_meta();
+                            }
+                            _ => {}
+                        },
+                        InputMode::CaptureMetaRegion => match key.code {
+                            KeyCode::Enter => {
+                                app.save_capture_meta();
+                            }
+                            KeyCode::Char(c) => {
+                                app.capture_meta_region.push(c);
+                            }
+                            KeyCode::Backspace => {
+                                app.capture_meta_region.pop();
+                            }
+                            KeyCode::Esc => {
+                                app.cancel_capture_meta();
                             }
                             _ => {}
                         },

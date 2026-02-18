@@ -64,6 +64,18 @@ pub struct Capture {
     /// Which demodulator path produced this capture (AM or FM). None if unknown/imported.
     #[serde(default)]
     pub received_rf: Option<RfModulation>,
+    /// Vehicle/year for vulnerability lookup and .fob export (set via 'i' in UI).
+    #[serde(default)]
+    pub year: Option<String>,
+    /// Make for vulnerability lookup and .fob export.
+    #[serde(default)]
+    pub make: Option<String>,
+    /// Model for vulnerability lookup and .fob export.
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Region (e.g. NA, EU) for vulnerability lookup and .fob export.
+    #[serde(default)]
+    pub region: Option<String>,
 }
 
 /// Modulation type used by protocol (encoding: PWM vs Manchester)
@@ -138,6 +150,10 @@ impl Capture {
             raw_pairs: pairs,
             status: CaptureStatus::Unknown,
             received_rf,
+            year: None,
+            make: None,
+            model: None,
+            region: None,
         }
     }
 

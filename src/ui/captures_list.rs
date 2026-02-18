@@ -10,6 +10,7 @@ use ratatui::{
 
 use crate::app::App;
 use crate::capture::CaptureStatus;
+use crate::vuln_db;
 
 /// Render the captures area: table + detail panel
 pub fn render_captures_list(frame: &mut Frame, area: Rect, app: &App) {
@@ -45,6 +46,7 @@ pub fn render_captures_list(frame: &mut Frame, area: Rect, app: &App) {
 fn render_table(frame: &mut Frame, area: Rect, app: &App) {
     let header_cells = [
         "ID", "Time", "Protocol", "Freq", "Serial", "Btn", "Cnt", "Modulation", "CRC", "Status",
+        "Vuln Found",
     ]
     .iter()
     .map(|h| Cell::from(*h).style(Style::default().add_modifier(Modifier::BOLD)));
@@ -81,6 +83,21 @@ fn render_table(frame: &mut Frame, area: Rect, app: &App) {
             CaptureStatus::Unknown => "Unknown",
         };
 
+        let vuln_found = capture.status == CaptureStatus::EncoderCapable
+            || !vuln_db::match_vulns(
+                capture.year.as_deref(),
+                capture.make.as_deref(),
+                capture.model.as_deref(),
+                capture.region.as_deref(),
+            )
+            .is_empty();
+        let vuln_text = if vuln_found { "Yes" } else { "No" };
+        let vuln_style = if vuln_found {
+            Style::default().fg(Color::Green)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+
         Row::new(vec![
             Cell::from(format!("{:02}", capture.id)),
             Cell::from(capture.timestamp_short()),
@@ -92,6 +109,7 @@ fn render_table(frame: &mut Frame, area: Rect, app: &App) {
             Cell::from(capture.modulation().to_string()).style(mod_style),
             Cell::from(capture.crc_status()).style(crc_style),
             Cell::from(status_text).style(status_style),
+            Cell::from(vuln_text).style(vuln_style),
         ])
         .height(1)
     });
@@ -107,6 +125,7 @@ fn render_table(frame: &mut Frame, area: Rect, app: &App) {
         Constraint::Length(12), // Modulation
         Constraint::Length(5),  // CRC
         Constraint::Length(10), // Status
+        Constraint::Length(10), // Vuln Found
     ];
 
     let table = Table::new(rows, widths)
@@ -129,13 +148,24 @@ fn render_table(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_stateful_widget(table, area, &mut state);
 }
 
-/// Render the detail panel for the selected signal
+/// Render the detail panel for the selected signal (left = signal info, right = vulnerability)
 fn render_detail_panel(frame: &mut Frame, area: Rect, app: &App) {
     let capture = match app.selected_capture {
         Some(idx) if idx < app.captures.len() => &app.captures[idx],
         _ => return,
     };
 
+    let halves = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(area);
+
+    render_signal_detail(frame, halves[0], capture);
+    render_vulnerability_panel(frame, halves[1], capture);
+}
+
+/// Left half: signal information
+fn render_signal_detail(frame: &mut Frame, area: Rect, capture: &crate::capture::Capture) {
     let label_style = Style::default()
         .fg(Color::DarkGray)
         .add_modifier(Modifier::BOLD);
@@ -144,10 +174,8 @@ fn render_detail_panel(frame: &mut Frame, area: Rect, app: &App) {
     let good_style = Style::default().fg(Color::Green);
     let bad_style = Style::default().fg(Color::Red);
 
-    // Build detail content in two columns
     let make = App::get_make_for_protocol(capture.protocol_name());
 
-    // --- Left column lines ---
     let mut left_lines = Vec::new();
 
     // Row 1: Protocol + Make
@@ -158,24 +186,28 @@ fn render_detail_panel(frame: &mut Frame, area: Rect, app: &App) {
         Span::styled(make, value_style),
     ]));
 
-    // Row 2: Freq + Mod + RF (protocol) + Enc + Rx (demodulator path when known)
-    let mut row2 = vec![
+    // Row 2: Freq + Mod + RF
+    left_lines.push(Line::from(vec![
         Span::styled(" Freq:      ", label_style),
         Span::styled(capture.frequency_mhz(), value_style),
         Span::styled("  Mod: ", label_style),
         Span::styled(capture.modulation().to_string(), value_style),
         Span::styled("  RF: ", label_style),
         Span::styled(capture.rf_modulation().to_string(), value_style),
-        Span::styled("  Enc: ", label_style),
+    ]));
+
+    // Row 3: Enc + Rx (demodulator path when known)
+    let mut row3 = vec![
+        Span::styled(" Enc:       ", label_style),
         Span::styled(capture.encryption_type(), value_style),
     ];
     if let Some(rf) = capture.received_rf {
-        row2.push(Span::styled("  Rx: ", label_style));
-        row2.push(Span::styled(rf.to_string(), value_style));
+        row3.push(Span::styled("  Rx: ", label_style));
+        row3.push(Span::styled(rf.to_string(), value_style));
     }
-    left_lines.push(Line::from(row2));
+    left_lines.push(Line::from(row3));
 
-    // Row 3: Full Serial + Button
+    // Row 4: Full Serial + Button
     left_lines.push(Line::from(vec![
         Span::styled(" Serial:    ", label_style),
         Span::styled(format!("0x{}", capture.serial_hex()), accent_style),
@@ -186,7 +218,7 @@ fn render_detail_panel(frame: &mut Frame, area: Rect, app: &App) {
         ),
     ]));
 
-    // Row 4: Counter + CRC
+    // Row 5: Counter + CRC
     let crc_span = if capture.protocol.is_none() {
         Span::styled("-", Style::default().fg(Color::DarkGray))
     } else if capture.crc_valid {
@@ -204,7 +236,7 @@ fn render_detail_panel(frame: &mut Frame, area: Rect, app: &App) {
         Span::styled(capture.status.to_string(), value_style),
     ]));
 
-    // Row 5: Full data/key hex
+    // Row 6: Full data/key hex
     left_lines.push(Line::from(vec![
         Span::styled(" Key/Data:  ", label_style),
         Span::styled(
@@ -217,7 +249,7 @@ fn render_detail_panel(frame: &mut Frame, area: Rect, app: &App) {
         ),
     ]));
 
-    // Row 6: Timestamp + Raw data info
+    // Row 7: Timestamp + Raw data info
     let raw_info = if capture.has_raw_data() {
         format!("✓ {} transitions", capture.raw_pair_count())
     } else {
@@ -262,4 +294,70 @@ fn render_detail_panel(frame: &mut Frame, area: Rect, app: &App) {
         .wrap(Wrap { trim: false });
 
     frame.render_widget(detail, area);
+}
+
+/// Right half: vulnerability panel (matching CVEs or prompt to set Year/Make/Model)
+fn render_vulnerability_panel(
+    frame: &mut Frame,
+    area: Rect,
+    capture: &crate::capture::Capture,
+) {
+    let label_style = Style::default()
+        .fg(Color::DarkGray)
+        .add_modifier(Modifier::BOLD);
+    let value_style = Style::default().fg(Color::White);
+    let accent_style = Style::default().fg(Color::Cyan);
+
+    let vulns = vuln_db::match_vulns(
+        capture.year.as_deref(),
+        capture.make.as_deref(),
+        capture.model.as_deref(),
+        capture.region.as_deref(),
+    );
+
+    let mut lines = Vec::new();
+    if vulns.is_empty() {
+        let has_meta = capture.year.is_some()
+            || capture.make.is_some()
+            || capture.model.is_some()
+            || capture.region.is_some();
+        if has_meta {
+            lines.push(Line::from(Span::styled(
+                " No matching CVE in database.",
+                value_style,
+            )));
+        } else {
+            lines.push(Line::from(Span::styled(
+                " Set Year, Make, Model, Region",
+                value_style,
+            )));
+            lines.push(Line::from(Span::styled(
+                " (press i) to check vulnerabilities.",
+                value_style,
+            )));
+        }
+    } else {
+        for v in vulns {
+            lines.push(Line::from(vec![
+                Span::styled(" CVE: ", label_style),
+                Span::styled(v.cve, accent_style),
+            ]));
+            lines.push(Line::from(vec![
+                Span::styled(" Description: ", label_style),
+                Span::styled(v.description, value_style),
+            ]));
+            lines.push(Line::from(Span::raw("")));
+        }
+    }
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Yellow))
+        .title(" Vulnerability ");
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+    if inner.width > 0 && inner.height > 0 {
+        let para = Paragraph::new(lines).wrap(Wrap { trim: false });
+        frame.render_widget(para, inner);
+    }
 }

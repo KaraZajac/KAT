@@ -126,6 +126,11 @@ pub enum InputMode {
     FobMetaRegion,
     /// Fob export metadata: editing notes field
     FobMetaNotes,
+    /// Capture metadata (Year/Make/Model/Region) for vuln lookup — press i on a capture
+    CaptureMetaYear,
+    CaptureMetaMake,
+    CaptureMetaModel,
+    CaptureMetaRegion,
     /// License overlay (centered box)
     License,
     /// Credits overlay (centered box)
@@ -347,6 +352,14 @@ pub struct App {
     pub fob_meta_region: String,
     /// Notes input buffer
     pub fob_meta_notes: String,
+
+    // -- Capture metadata (Year/Make/Model/Region for vuln lookup, set via 'i') --
+    pub capture_meta_year: String,
+    pub capture_meta_make: String,
+    pub capture_meta_model: String,
+    pub capture_meta_region: String,
+    /// Which capture is being edited (when in CaptureMeta* modes)
+    pub capture_meta_capture_id: Option<u32>,
 }
 
 impl App {
@@ -451,6 +464,11 @@ impl App {
             fob_meta_model: String::new(),
             fob_meta_region: String::new(),
             fob_meta_notes: String::new(),
+            capture_meta_year: String::new(),
+            capture_meta_make: String::new(),
+            capture_meta_model: String::new(),
+            capture_meta_region: String::new(),
+            capture_meta_capture_id: None,
         })
     }
 
@@ -907,7 +925,11 @@ impl App {
     }
 
     /// True if a capture with the same protocol, data, serial, and button already exists.
+    /// Unknown signals (no protocol) are never treated as duplicates so they can be kept for research.
     fn capture_duplicate_of_existing(&self, capture: &Capture) -> bool {
+        if capture.protocol.is_none() {
+            return false;
+        }
         self.captures.iter().any(|c| {
             c.protocol == capture.protocol
                 && c.data == capture.data
@@ -1072,18 +1094,32 @@ impl App {
             .map(|c| Self::default_export_filename(c))
             .unwrap_or_else(|| format!("capture_{}", id));
 
-        // Pre-fill make from protocol
-        let make = self.captures.iter().find(|c| c.id == id).map(|c| {
-            Self::get_make_for_protocol(c.protocol_name()).to_string()
-        }).unwrap_or_default();
-
+        // Pre-fill metadata from capture if set, otherwise make from protocol
+        let capture = self.captures.iter().find(|c| c.id == id);
+        let make = capture
+            .and_then(|c| c.make.as_ref().map(String::clone))
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| {
+                capture
+                    .map(|c| Self::get_make_for_protocol(c.protocol_name()).to_string())
+                    .unwrap_or_default()
+            });
         self.export_capture_id = Some(id);
         self.export_filename = default_name;
         self.export_format = Some(ExportFormat::Fob);
-        self.fob_meta_year = String::new();
+        self.fob_meta_year = capture
+            .and_then(|c| c.year.as_ref())
+            .map(String::clone)
+            .unwrap_or_default();
         self.fob_meta_make = make;
-        self.fob_meta_model = String::new();
-        self.fob_meta_region = String::new();
+        self.fob_meta_model = capture
+            .and_then(|c| c.model.as_ref())
+            .map(String::clone)
+            .unwrap_or_default();
+        self.fob_meta_region = capture
+            .and_then(|c| c.region.as_ref())
+            .map(String::clone)
+            .unwrap_or_default();
         self.fob_meta_notes = String::new();
         self.input_mode = InputMode::ExportFilename;
         Ok(())
@@ -1134,6 +1170,55 @@ impl App {
         self.export_format = None;
         self.status_message = Some(format!("Exported to {}", filename));
         Ok(())
+    }
+
+    /// Open the capture metadata form for the given capture (Year/Make/Model/Region). Called when user presses 'i'.
+    pub fn open_capture_meta_form(&mut self, capture_id: u32) {
+        let capture = self.captures.iter().find(|c| c.id == capture_id);
+        self.capture_meta_year = capture
+            .and_then(|c| c.year.as_ref())
+            .map(|s| s.to_string())
+            .unwrap_or_default();
+        self.capture_meta_make = capture
+            .and_then(|c| c.make.as_ref())
+            .map(|s| s.to_string())
+            .unwrap_or_default();
+        self.capture_meta_model = capture
+            .and_then(|c| c.model.as_ref())
+            .map(|s| s.to_string())
+            .unwrap_or_default();
+        self.capture_meta_region = capture
+            .and_then(|c| c.region.as_ref())
+            .map(|s| s.to_string())
+            .unwrap_or_default();
+        self.capture_meta_capture_id = Some(capture_id);
+        self.input_mode = InputMode::CaptureMetaYear;
+    }
+
+    /// Save capture metadata from the form into the selected capture and return to Normal.
+    pub fn save_capture_meta(&mut self) {
+        let id = match self.capture_meta_capture_id {
+            Some(id) => id,
+            None => {
+                self.input_mode = InputMode::Normal;
+                self.capture_meta_capture_id = None;
+                return;
+            }
+        };
+        if let Some(capture) = self.captures.iter_mut().find(|c| c.id == id) {
+            capture.year = Some(self.capture_meta_year.clone()).filter(|s| !s.is_empty());
+            capture.make = Some(self.capture_meta_make.clone()).filter(|s| !s.is_empty());
+            capture.model = Some(self.capture_meta_model.clone()).filter(|s| !s.is_empty());
+            capture.region = Some(self.capture_meta_region.clone()).filter(|s| !s.is_empty());
+        }
+        self.input_mode = InputMode::Normal;
+        self.capture_meta_capture_id = None;
+    }
+
+    /// Cancel capture metadata form without saving.
+    pub fn cancel_capture_meta(&mut self) {
+        self.input_mode = InputMode::Normal;
+        self.capture_meta_capture_id = None;
     }
 
     /// Import pending .fob and .sub files into captures list.
@@ -1406,6 +1491,10 @@ impl App {
             raw_pairs: vec![],
             status: crate::capture::CaptureStatus::EncoderCapable,
             received_rf: None,
+            year: None,
+            make: None,
+            model: None,
+            region: None,
         };
         self.next_capture_id += 1;
         self.captures.push(capture);

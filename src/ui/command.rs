@@ -58,6 +58,14 @@ pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
             "EXPORT",
             Style::default().fg(Color::Green),
         ),
+        InputMode::CaptureMetaYear
+        | InputMode::CaptureMetaMake
+        | InputMode::CaptureMetaModel
+        | InputMode::CaptureMetaRegion => (
+            String::new(),
+            "META",
+            Style::default().fg(Color::Cyan),
+        ),
         InputMode::License => (
             String::new(),
             "LICENSE",

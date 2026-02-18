@@ -110,6 +110,16 @@ pub fn draw_ui(frame: &mut Frame, app: &App) {
         render_export_form(frame, app);
     }
 
+    if matches!(
+        app.input_mode,
+        InputMode::CaptureMetaYear
+            | InputMode::CaptureMetaMake
+            | InputMode::CaptureMetaModel
+            | InputMode::CaptureMetaRegion
+    ) {
+        render_capture_meta_form(frame, app);
+    }
+
     if app.input_mode == InputMode::License {
         render_text_overlay(frame, app, "License", LICENSE_TEXT, Alignment::Left);
     }
@@ -229,6 +239,10 @@ fn render_help_bar(frame: &mut Frame, area: Rect, app: &App) {
         | InputMode::FobMetaModel
         | InputMode::FobMetaRegion => "Enter: Next Field | Esc: Cancel Export",
         InputMode::FobMetaNotes => "Enter: Save & Export | Esc: Cancel Export",
+        InputMode::CaptureMetaYear
+        | InputMode::CaptureMetaMake
+        | InputMode::CaptureMetaModel => "Enter: Next Field | Esc: Cancel",
+        InputMode::CaptureMetaRegion => "Enter: Save | Esc: Cancel",
         InputMode::License | InputMode::Credits => "Esc/Enter: Close | Up/Down: Scroll",
     };
 
@@ -544,5 +558,153 @@ fn render_export_form(frame: &mut Frame, app: &App) {
 
     let paragraph = Paragraph::new(lines).block(block);
 
+    frame.render_widget(paragraph, popup);
+}
+
+/// Render the capture metadata form (Year/Make/Model/Region for vuln lookup). Shown when user presses 'i' on a capture.
+fn render_capture_meta_form(frame: &mut Frame, app: &App) {
+    let area = frame.area();
+    let popup = centered_rect(62, 18, area);
+
+    frame.render_widget(Clear, popup);
+
+    let active_style = Style::default()
+        .fg(Color::Cyan)
+        .add_modifier(Modifier::BOLD);
+    let inactive_style = Style::default().fg(Color::DarkGray);
+    let done_style = Style::default().fg(Color::Green);
+    let value_style = Style::default().fg(Color::White);
+    let dim_style = Style::default().fg(Color::DarkGray);
+    let accent_style = Style::default().fg(Color::Yellow);
+    let cursor = Span::styled(
+        "_",
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::RAPID_BLINK),
+    );
+
+    let field_modes = [
+        InputMode::CaptureMetaYear,
+        InputMode::CaptureMetaMake,
+        InputMode::CaptureMetaModel,
+        InputMode::CaptureMetaRegion,
+    ];
+    let current_idx = field_modes
+        .iter()
+        .position(|m| *m == app.input_mode)
+        .unwrap_or(0);
+
+    let style_for = |idx: usize| -> Style {
+        if idx == current_idx {
+            active_style
+        } else if idx < current_idx {
+            done_style
+        } else {
+            inactive_style
+        }
+    };
+
+    let mut lines = Vec::new();
+
+    if let Some(capture) = app
+        .capture_meta_capture_id
+        .and_then(|id| app.captures.iter().find(|c| c.id == id))
+    {
+        lines.push(Line::from(vec![
+            Span::styled("  Signal:  ", dim_style),
+            Span::styled(
+                format!(
+                    "#{:02} {} | {} | {} | 0x{}",
+                    capture.id,
+                    capture.protocol_name(),
+                    capture.frequency_mhz(),
+                    capture.modulation(),
+                    capture.serial_hex(),
+                ),
+                accent_style,
+            ),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("  Key:     ", dim_style),
+            Span::styled(
+                format!("0x{} ({})", capture.data_hex(), capture.encryption_type()),
+                accent_style,
+            ),
+        ]));
+    }
+
+    lines.push(Line::from(Span::styled(
+        "  ──────────────────────────────────────────────────────",
+        dim_style,
+    )));
+
+    struct FormField<'a> {
+        label: &'a str,
+        value: &'a str,
+        placeholder: &'a str,
+        idx: usize,
+    }
+    let fields: [FormField; 4] = [
+        FormField {
+            label: "  Year:    ",
+            value: &app.capture_meta_year,
+            placeholder: "(e.g. 2021)",
+            idx: 0,
+        },
+        FormField {
+            label: "  Make:    ",
+            value: &app.capture_meta_make,
+            placeholder: "(e.g. Renault, Honda)",
+            idx: 1,
+        },
+        FormField {
+            label: "  Model:   ",
+            value: &app.capture_meta_model,
+            placeholder: "(e.g. ZOE, Civic — or ALL)",
+            idx: 2,
+        },
+        FormField {
+            label: "  Region:  ",
+            value: &app.capture_meta_region,
+            placeholder: "(e.g. NA, EU, or ALL)",
+            idx: 3,
+        },
+    ];
+
+    for field in &fields {
+        let label_s = style_for(field.idx);
+        let display_val = if field.value.is_empty() {
+            field.placeholder
+        } else {
+            field.value
+        };
+        let val_s = if field.value.is_empty() && field.idx != current_idx {
+            dim_style
+        } else {
+            value_style
+        };
+        let mut spans = vec![
+            Span::styled(field.label, label_s),
+            Span::styled(display_val.to_string(), val_s),
+        ];
+        if field.idx == current_idx {
+            spans.push(cursor.clone());
+        }
+        if field.idx < current_idx && !field.value.is_empty() {
+            spans.push(Span::styled(" ✓", done_style));
+        }
+        lines.push(Line::from(spans));
+    }
+
+    lines.push(Line::from(""));
+    let progress = format!("  Step {}/4 — Used for vuln lookup and .fob export", current_idx + 1);
+    lines.push(Line::from(Span::styled(progress, dim_style)));
+
+    let block = Block::default()
+        .title(" Capture Metadata — Year / Make / Model / Region ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Cyan));
+
+    let paragraph = Paragraph::new(lines).block(block);
     frame.render_widget(paragraph, popup);
 }

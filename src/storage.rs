@@ -7,9 +7,6 @@
 //!   config.ini          — User configuration
 //!   exports/            — Exported .fob / .sub files (save location)
 //!   import/             — Scanned at startup for .fob / .sub to import
-//!   keystore/           — Protocol encryption keys
-//!     keystore.ini      — Key definitions (hex values)
-//!     vag.bin           — VAG AUT64 binary key file (optional)
 //! ```
 //!
 //! Captures are **in-memory only** and are discarded when KAT exits.
@@ -345,20 +342,10 @@ impl Storage {
             );
         }
 
-        // ── 6. Ensure keystore directory exists ────────────────────────
-        let keystore_dir = config_dir.join("keystore");
-        if !keystore_dir.exists() {
-            fs::create_dir_all(&keystore_dir).with_context(|| {
-                format!("Failed to create keystore dir: {:?}", keystore_dir)
-            })?;
-            tracing::info!("Created keystore directory: {:?}", keystore_dir);
-        }
-
-        // ── 7. Log resolved paths ───────────────────────────────────────
+        // ── 6. Log resolved paths ───────────────────────────────────────
         tracing::info!("Config dir: {:?}", config_dir);
         tracing::info!("Export dir: {:?}", config.export_directory);
         tracing::info!("Import dir: {:?}", config.import_directory);
-        tracing::info!("Keystore dir: {:?}", keystore_dir);
 
         Ok(Self {
             config_dir,
@@ -393,9 +380,4 @@ impl Storage {
         &self.config.import_directory
     }
 
-    /// Get the keystore directory path (`~/.config/KAT/keystore`). Kept for optional file-based override.
-    #[allow(dead_code)]
-    pub fn keystore_dir(&self) -> PathBuf {
-        self.config_dir.join("keystore")
-    }
 }

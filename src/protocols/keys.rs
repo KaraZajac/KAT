@@ -1,9 +1,11 @@
 //! Key management module for protocol encryption/decryption
 //!
+//! All keys are loaded from the **embedded keystore only** (no keystore.ini or file-based keys).
+//! The blob is built from the master list `REFERENCES/mf_keys.txt` by
+//! `scripts/build_keystore_from_mf_keys.py` and embedded in `crate::keystore::embedded`.
+//!
 //! Aligned with ProtoPirate's keys.c (KIA_KEY1..4, get_kia_mf_key, etc.).
-//! Keys are loaded from the embedded keystore blob in `crate::keystore` at startup
-//! via `load_keystore_from_embedded()`, which parses the blob from
-//! `keystore::embedded::KEYSTORE_BLOB` and populates:
+//! At startup `load_keystore_from_embedded()` parses `keystore::embedded::KEYSTORE_BLOB` and populates:
 //!
 //! - **KIA**: type 10 → kia_mf_key, 11 → kia_v6_a_key, 12 → kia_v6_b_key, 13 → kia_v5_key
 //! - **Star Line**: type 20 → star_line_mf_key
@@ -13,10 +15,8 @@
 //! KIA V5 uses `get_kia_v5_key()`, KIA V6 uses `get_kia_v6_keystore_a()` / `get_kia_v6_keystore_b()`.
 
 use super::aut64::{self, Aut64Key, AUT64_KEY_STRUCT_PACKED_SIZE};
-use configparser::ini::Ini;
-use std::path::Path;
 use std::sync::{OnceLock, RwLock};
-use tracing::{info, warn, error};
+use tracing::{error, info};
 
 /// Key type identifiers; must match type IDs in `keystore::embedded::KEYSTORE_BLOB`.
 const KIA_KEY1: u32 = 10; // kia_mf_key (KIA V3/V4)
@@ -81,7 +81,8 @@ impl KeyStore {
         }
     }
 
-    /// Load VAG AUT64 keys from raw binary data (16 bytes per key; up to MAX_VAG_KEYS)
+    /// Load VAG AUT64 keys from raw binary data (16 bytes per key; up to MAX_VAG_KEYS).
+    /// Used only by the embedded keystore parser.
     pub fn load_vag_keys_from_data(&mut self, data: &[u8]) {
         if self.vag_keys_loaded {
             return;
@@ -101,28 +102,6 @@ impl KeyStore {
 
         self.vag_keys_loaded = true;
         info!("Loaded {} VAG keys", self.vag_keys.len());
-    }
-
-    /// Load VAG AUT64 keys from a file path
-    pub fn load_vag_keys_from_file(&mut self, path: &str) {
-        if self.vag_keys_loaded {
-            return;
-        }
-
-        let file_path = Path::new(path);
-        if !file_path.exists() {
-            warn!("VAG key file not found: {}", path);
-            return;
-        }
-
-        match std::fs::read(file_path) {
-            Ok(data) => {
-                self.load_vag_keys_from_data(&data);
-            }
-            Err(e) => {
-                error!("Failed to read VAG key file {}: {}", path, e);
-            }
-        }
     }
 
     /// Get a VAG AUT64 key by its internal index field
@@ -183,12 +162,6 @@ pub fn load_keys(kia_entries: &[(u32, u64)]) {
     store.load_kia_keys(kia_entries);
 }
 
-/// Initialize VAG keys from file
-pub fn load_vag_keys(path: &str) {
-    let mut store = get_keystore_mut();
-    store.load_vag_keys_from_file(path);
-}
-
 /// Load the global keystore from the embedded blob (src/keystore/embedded.rs).
 /// Populates KIA (V3/V4, V5, V6A, V6B), Star Line, and VAG AUT64 keys from the blob.
 /// VAG raw bytes are 64 bytes = 4 × 16-byte packed keys; each key's `index` is byte 0 (used by VAG lookup).
@@ -208,172 +181,4 @@ pub fn load_keystore_from_embedded() {
         parsed.entries.len(),
         store.vag_keys.len()
     );
-}
-
-// =============================================================================
-// Keystore file loading from ~/.config/KAT/keystore/
-// =============================================================================
-
-/// Parse a hex string (with or without "0x" prefix) into a u64.
-fn parse_hex_u64(s: &str) -> Option<u64> {
-    let s = s.trim();
-    let s = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")).unwrap_or(s);
-    u64::from_str_radix(s, 16).ok()
-}
-
-/// Default keystore.ini template content.
-/// Written to disk on first run so users know which keys to configure.
-const DEFAULT_KEYSTORE_INI: &str = r#"; KAT Keystore — Protocol Encryption Keys
-;
-; Place your protocol keys here. Key values should be in hexadecimal
-; with a 0x prefix (e.g. 0x0123456789ABCDEF).
-;
-; Keys left at 0x0000000000000000 or omitted are treated as "not loaded"
-; and the corresponding protocol will decode without decryption
-; (serial/button still visible, but counter may not validate).
-;
-; This file corresponds to protopirate's keystore/encrypted and keystore/vag
-; assets. Since KAT runs on a PC (not a Flipper), keys must be provided
-; in plaintext here rather than in the Flipper's encrypted keystore format.
-
-[kia]
-; KIA V3/V4: KeeLoq manufacturer key (used for hop-code decryption)
-mf_key = 0x0000000000000000
-
-; KIA V5: Custom mixer cipher key
-v5_key = 0x0000000000000000
-
-; KIA V6: AES-128 key components (XOR-masked before use)
-v6_a_key = 0x0000000000000000
-v6_b_key = 0x0000000000000000
-
-[star_line]
-; Star Line: KeeLoq manufacturer key (used for hop-code decryption)
-mf_key = 0x0000000000000000
-
-[vag]
-; VAG: Path to AUT64 binary key file (raw packed keys, 16 bytes each).
-; Can be absolute or relative to the keystore directory.
-; Leave empty or commented out if you don't have VAG keys.
-; keys_file = vag.bin
-"#;
-
-/// Write the default keystore.ini template if it doesn't exist yet.
-pub fn create_default_keystore(keystore_dir: &Path) {
-    let ini_path = keystore_dir.join("keystore.ini");
-    if ini_path.exists() {
-        return;
-    }
-
-    match std::fs::write(&ini_path, DEFAULT_KEYSTORE_INI) {
-        Ok(_) => info!("Created default keystore template at {:?}", ini_path),
-        Err(e) => warn!("Could not create default keystore.ini: {}", e),
-    }
-}
-
-/// Load all keys from the keystore directory.
-///
-/// Reads `keystore.ini` from the given directory and populates the global
-/// [`KeyStore`] with:
-///
-/// - KIA V3/V4 manufacturer key (`[kia] mf_key`)
-/// - KIA V5 mixer key (`[kia] v5_key`)
-/// - KIA V6 AES keys (`[kia] v6_a_key`, `[kia] v6_b_key`)
-/// - Star Line manufacturer key (`[star_line] mf_key`)
-/// - VAG AUT64 keys from binary file (`[vag] keys_file`)
-///
-/// Keys that are missing, zeroed, or unparseable are silently skipped.
-pub fn load_keystore_from_dir(keystore_dir: &Path) {
-    let ini_path = keystore_dir.join("keystore.ini");
-
-    if !ini_path.exists() {
-        info!("No keystore.ini found at {:?} — keys not loaded", ini_path);
-        return;
-    }
-
-    let mut ini = Ini::new();
-    if let Err(e) = ini.load(ini_path.to_string_lossy().as_ref()) {
-        error!("Failed to parse keystore.ini: {}", e);
-        return;
-    }
-
-    let mut store = get_keystore_mut();
-    let mut loaded_count = 0u32;
-
-    // ── KIA keys ──────────────────────────────────────────────────────────
-    if let Some(val) = ini.get("kia", "mf_key").and_then(|s| parse_hex_u64(&s)) {
-        if val != 0 {
-            store.kia_mf_key = val;
-            loaded_count += 1;
-            info!("Loaded KIA V3/V4 manufacturer key");
-        }
-    }
-
-    if let Some(val) = ini.get("kia", "v5_key").and_then(|s| parse_hex_u64(&s)) {
-        if val != 0 {
-            store.kia_v5_key = val;
-            loaded_count += 1;
-            info!("Loaded KIA V5 mixer key");
-        }
-    }
-
-    if let Some(val) = ini.get("kia", "v6_a_key").and_then(|s| parse_hex_u64(&s)) {
-        if val != 0 {
-            store.kia_v6_a_key = val;
-            loaded_count += 1;
-            info!("Loaded KIA V6 AES key A");
-        }
-    }
-
-    if let Some(val) = ini.get("kia", "v6_b_key").and_then(|s| parse_hex_u64(&s)) {
-        if val != 0 {
-            store.kia_v6_b_key = val;
-            loaded_count += 1;
-            info!("Loaded KIA V6 AES key B");
-        }
-    }
-
-    // ── Star Line keys ────────────────────────────────────────────────────
-    if let Some(val) = ini.get("star_line", "mf_key").and_then(|s| parse_hex_u64(&s)) {
-        if val != 0 {
-            store.star_line_mf_key = val;
-            loaded_count += 1;
-            info!("Loaded Star Line manufacturer key");
-        }
-    }
-
-    // ── VAG AUT64 keys (binary file) ──────────────────────────────────────
-    if let Some(vag_file) = ini.get("vag", "keys_file") {
-        let vag_file = vag_file.trim().to_string();
-        if !vag_file.is_empty() {
-            let vag_path = if Path::new(&vag_file).is_absolute() {
-                std::path::PathBuf::from(&vag_file)
-            } else {
-                keystore_dir.join(&vag_file)
-            };
-
-            if vag_path.exists() {
-                match std::fs::read(&vag_path) {
-                    Ok(data) => {
-                        store.load_vag_keys_from_data(&data);
-                        if store.vag_keys_loaded {
-                            loaded_count += store.vag_keys.len() as u32;
-                            info!("Loaded {} VAG AUT64 keys from {:?}", store.vag_keys.len(), vag_path);
-                        }
-                    }
-                    Err(e) => {
-                        error!("Failed to read VAG key file {:?}: {}", vag_path, e);
-                    }
-                }
-            } else {
-                warn!("VAG key file not found: {:?}", vag_path);
-            }
-        }
-    }
-
-    if loaded_count > 0 {
-        info!("Keystore loaded: {} key(s) from {:?}", loaded_count, keystore_dir);
-    } else {
-        info!("Keystore loaded but no non-zero keys found. Edit keystore.ini to add your keys.");
-    }
 }

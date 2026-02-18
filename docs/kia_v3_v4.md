@@ -39,4 +39,4 @@ Supported; 3 bursts, 10 s inter-burst gap; preamble, sync, encrypted payload + C
 
 ## Keystore
 
-Requires KIA manufacturer key (keystore type 10, `kia_mf_key`). Loaded from embedded blob or keystore.ini.
+Requires KIA manufacturer key (keystore type 10, `kia_mf_key`). Loaded from the embedded keystore (built from `REFERENCES/mf_keys.txt`).

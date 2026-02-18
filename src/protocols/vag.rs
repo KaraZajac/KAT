@@ -5,10 +5,9 @@
 //! parse (vag_parse_data, vag_aut64_decrypt, vag_tea_decrypt), dispatch (0x2A/0x1C/0x46 and
 //! 0x2B/0x1D/0x47), and encoder (vag_encoder_build_type1/2/3_4) match the reference.
 //!
-//! **Timing**: Reference uses VAG_TOL_300 (79) and VAG_TOL_500 (120). Reset/Preamble1 use 300±79/80;
-//! Preamble1→Data1 gap 600µs ±79; Data1 short 300±79/80, long 600±79/80; end-of-data gap 6000µs
-//! (accept diff < 4000). Preamble2 count 500±80; Sync2A 500/1000µs ±79; Sync2B 750µs ±79;
-//! Sync2C 750µs ±79; Data2 short 500±120 (380–620µs), long 1000±120 (880–1120µs).
+//! **Timing**: Slightly looser than reference for real-world decode rate. Reference uses 79/80/120;
+//! we use 90 for reset/preamble/sync and 130 for Data2. Reset/Preamble1 300±90; gap 600±90;
+//! Data1 short 300±90, long 600±90; Preamble2 500±90; Sync2 500/1000/750±90; Data2 500±130, 1000±130.
 //!
 //! **Protocol**: Manchester, 80 bits (key1 64 + key2 16). Type 1/2: 300/600µs, prefix 0xAF3F/0xAF1C.
 //! Type 3/4: 500µs, 45 preamble pairs, sync 1000+500 then 3×750µs; key1/key2 not inverted.
@@ -23,21 +22,21 @@ use crate::radio::demodulator::LevelDuration;
 const TE_SHORT: u32 = 500;
 const TE_LONG: u32 = 1000;
 #[allow(dead_code)]
-const TE_DELTA: u32 = 80; // ref vag.c (Type 3/4); exposed via timing()
+const TE_DELTA: u32 = 100; // Type 3/4 tolerance; exposed via timing()
 #[allow(dead_code)]
 const MIN_COUNT_BIT: usize = 80;
 
 // Type 1/2 timing
 const TE_SHORT_12: u32 = 300;
 const TE_LONG_12: u32 = 600;
-const TE_DELTA_12: u32 = 80; // Preamble1/Data1 (ref vag.c 79/80)
+const TE_DELTA_12: u32 = 100; // Preamble1/Data1 (looser for real-world captures)
 
-// Reference-aligned deltas (vag.c VAG_NEAR / VAG_TOL_300 79, VAG_TOL_500 120)
-const REF_RESET_DELTA: u32 = 79;       // Reset: 300±79, 500±79 for Preamble2
-const REF_PREAMBLE_SYNC: u32 = 80;     // Preamble2 counting: 500±80
-const REF_SYNC2_AB_DELTA: u32 = 79;    // Sync2A/Sync2B: 500/1000/750±79 (ref VAG_NEAR(..., 79))
-const REF_SYNC2C_DELTA: u32 = 79;      // Sync2C: 750±79
-const REF_GAP1_DELTA: u32 = 79;        // Preamble1→Data1 gap 600µs ±79 (ref check_gap1)
+// Looser than reference for better decode rate on real hardware
+const REF_RESET_DELTA: u32 = 100;      // Reset: 300±100, 500±100 for Preamble2
+const REF_PREAMBLE_SYNC: u32 = 100;    // Preamble2 counting: 500±100
+const REF_SYNC2_AB_DELTA: u32 = 100;   // Sync2A/Sync2B: 500/1000/750±100
+const REF_SYNC2C_DELTA: u32 = 100;     // Sync2C: 750±100
+const REF_GAP1_DELTA: u32 = 100;       // Preamble1→Data1 gap 600µs ±100
 
 // TEA constants
 const TEA_DELTA: u32 = 0x9E3779B9;
@@ -1143,10 +1142,10 @@ impl ProtocolDecoder for VagDecoder {
             }
 
             DecoderStep::Data2 => {
-                // Matches vag.c: short 380-620µs, long 880-1120µs
-                let event = if duration >= 380 && duration <= 620 {
+                // Data2: short 500±140µs, long 1000±140µs
+                let event = if duration >= 360 && duration <= 640 {
                     Some(if level { ManchesterEvent::ShortLow } else { ManchesterEvent::ShortHigh })
-                } else if duration >= 880 && duration <= 1120 {
+                } else if duration >= 860 && duration <= 1140 {
                     Some(if level { ManchesterEvent::LongLow } else { ManchesterEvent::LongHigh })
                 } else {
                     None

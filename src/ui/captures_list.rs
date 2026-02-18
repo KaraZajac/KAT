@@ -314,8 +314,22 @@ fn render_vulnerability_panel(
         capture.model.as_deref(),
         capture.region.as_deref(),
     );
+    let vuln_found = capture.status == CaptureStatus::EncoderCapable || !vulns.is_empty();
 
     let mut lines = Vec::new();
+
+    // When we can encode, the encryption is broken — complete emulation is available.
+    if capture.status == CaptureStatus::EncoderCapable {
+        let emu_style = Style::default()
+            .fg(Color::Green)
+            .add_modifier(Modifier::BOLD);
+        lines.push(Line::from(Span::styled(
+            " Encryption is broken — Complete emulation of the keyfob is available",
+            emu_style,
+        )));
+        lines.push(Line::from(Span::raw("")));
+    }
+
     if vulns.is_empty() {
         let has_meta = capture.year.is_some()
             || capture.make.is_some()
@@ -350,9 +364,10 @@ fn render_vulnerability_panel(
         }
     }
 
+    let border_color = if vuln_found { Color::Green } else { Color::Yellow };
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Yellow))
+        .border_style(Style::default().fg(border_color))
         .title(" Vulnerability ");
     let inner = block.inner(area);
     frame.render_widget(block, area);

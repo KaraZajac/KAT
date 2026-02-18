@@ -108,21 +108,66 @@ def analyze_reset_and_first_steps(pairs: list[tuple[bool, int]], invert: bool) -
     return lines
 
 
-def find_first_vag_like_pulse(pairs: list[tuple[bool, int]], invert: bool) -> list[str]:
-    """Find first HIGH pulse that looks like VAG preamble (300±79 or 500±79)."""
+def find_first_vag_like_pulse(
+    pairs: list[tuple[bool, int]], invert: bool, tolerance_300: int = 79, tolerance_500: int = 79
+) -> list[str]:
+    """Find first HIGH pulse that looks like VAG preamble (300±tolerance or 500±tolerance)."""
     lines: list[str] = []
     for i, (level, duration) in enumerate(pairs):
         if invert:
             level = not level
         if not level:
             continue
-        ok_300 = (TE_SHORT_12 - REF_RESET_DELTA <= duration <= TE_SHORT_12 + REF_RESET_DELTA)
-        ok_500 = (TE_SHORT - REF_RESET_DELTA <= duration <= TE_SHORT + REF_RESET_DELTA)
+        ok_300 = (TE_SHORT_12 - tolerance_300 <= duration <= TE_SHORT_12 + tolerance_300)
+        ok_500 = (TE_SHORT - tolerance_500 <= duration <= TE_SHORT + tolerance_500)
         if ok_300 or ok_500:
-            kind = "300±79 (Type1/2)" if ok_300 else "500±79 (Type3/4)"
+            kind = f"300±{tolerance_300} (Type1/2)" if ok_300 else f"500±{tolerance_500} (Type3/4)"
             lines.append(f"First VAG-like HIGH pulse at index {i}: {duration} µs ({kind})")
             return lines
-    lines.append("No HIGH pulse in the entire file matches 300±79 or 500±79 µs.")
+    lines.append(f"No HIGH pulse matches 300±{tolerance_300} or 500±{tolerance_500} µs.")
+    return lines
+
+
+def scan_vag_preamble_with_tolerances(pairs: list[tuple[bool, int]], invert: bool) -> list[str]:
+    """
+    Scan entire file for HIGH pulses that could be VAG preamble (300 or 500 µs)
+    with multiple tolerances. Reports counts and first few indices for each.
+    """
+    lines: list[str] = []
+    # Tolerances to try: current (79), then relaxed
+    tolerances = [79, 100, 120, 150, 200]
+    for tol in tolerances:
+        indices_300: list[int] = []
+        indices_500: list[int] = []
+        for i, (level, duration) in enumerate(pairs):
+            if invert:
+                level = not level
+            if not level:
+                continue
+            if TE_SHORT_12 - tol <= duration <= TE_SHORT_12 + tol:
+                indices_300.append(i)
+            if TE_SHORT - tol <= duration <= TE_SHORT + tol:
+                indices_500.append(i)
+        lines.append(f"  Tolerance ±{tol} µs:  {len(indices_300)} pulses near 300 µs, {len(indices_500)} near 500 µs")
+        if indices_300:
+            first_few = indices_300[:5]
+            lines.append(f"    First 300±{tol} at indices: {first_few}")
+        if indices_500:
+            first_few = indices_500[:5]
+            lines.append(f"    First 500±{tol} at indices: {first_few}")
+    return lines
+
+
+def histogram_high_pulses(pairs: list[tuple[bool, int]], invert: bool, buckets: list[tuple[int, int]]) -> list[str]:
+    """Count HIGH pulse durations in buckets (center, half_width) -> (min, max) µs."""
+    lines: list[str] = []
+    counts: list[tuple[str, int]] = []
+    for center, half in buckets:
+        lo, hi = center - half, center + half
+        n = sum(1 for level, d in pairs if (level if not invert else not level) and lo <= d <= hi)
+        counts.append((f"{center}±{half}", n))
+    for label, n in counts:
+        lines.append(f"  {label} µs: {n} HIGH pulses")
     return lines
 
 
@@ -164,6 +209,25 @@ def main() -> None:
         print(line)
     print("\nWith INVERTED polarity (KAT tries this if normal fails):")
     for line in find_first_vag_like_pulse(pairs, invert=True):
+        print(line)
+
+    # Scan entire file with multiple tolerances (is there any VAG preamble at all?)
+    print("\n--- VAG preamble scan: counts at different tolerances ---")
+    print("Normal polarity:")
+    for line in scan_vag_preamble_with_tolerances(pairs, invert=False):
+        print(line)
+    print("Inverted polarity:")
+    for line in scan_vag_preamble_with_tolerances(pairs, invert=True):
+        print(line)
+
+    # Histogram of HIGH pulse durations (VAG uses 300, 500, 600, 1000 µs)
+    print("\n--- Histogram of HIGH pulse durations (µs) ---")
+    buckets = [(300, 79), (500, 79), (600, 79), (1000, 79), (300, 150), (500, 150)]
+    print("Normal polarity:")
+    for line in histogram_high_pulses(pairs, invert=False, buckets=buckets):
+        print(line)
+    print("Inverted polarity:")
+    for line in histogram_high_pulses(pairs, invert=True, buckets=buckets):
         print(line)
 
     # Summary

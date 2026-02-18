@@ -271,6 +271,23 @@ fn render_signal_detail(frame: &mut Frame, area: Rect, capture: &crate::capture:
         Span::styled(raw_info, raw_style),
     ]));
 
+    // Row 8: File path (imported .sub/.fob only; blank for live captures)
+    let file_display = capture
+        .source_file
+        .as_deref()
+        .unwrap_or("");
+    left_lines.push(Line::from(vec![
+        Span::styled(" File:      ", label_style),
+        Span::styled(
+            file_display,
+            if file_display.is_empty() {
+                Style::default().fg(Color::DarkGray)
+            } else {
+                value_style
+            },
+        ),
+    ]));
+
     // Build the title
     let title = format!(
         " Signal #{:02} — {} ",

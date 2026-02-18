@@ -76,6 +76,9 @@ pub struct Capture {
     /// Region (e.g. NA, EU) for vulnerability lookup and .fob export.
     #[serde(default)]
     pub region: Option<String>,
+    /// Source file path when imported from .sub or .fob; None for live captures.
+    #[serde(default)]
+    pub source_file: Option<String>,
 }
 
 /// Modulation type used by protocol (encoding: PWM vs Manchester)
@@ -154,6 +157,7 @@ impl Capture {
             make: None,
             model: None,
             region: None,
+            source_file: None,
         }
     }
 

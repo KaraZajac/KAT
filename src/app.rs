@@ -1119,6 +1119,13 @@ impl App {
     }
 
     /// Generate a default export filename (without extension) for a capture
+    /// Path relative to the import directory for display; falls back to full path if not under import_dir.
+    fn path_relative_to_import(path: &std::path::Path, import_dir: &std::path::Path) -> String {
+        path.strip_prefix(import_dir)
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|_| path.to_string_lossy().to_string())
+    }
+
     fn default_export_filename(capture: &Capture) -> String {
         format!(
             "{}_{}",
@@ -1387,6 +1394,7 @@ impl App {
                         // Deduplicate: same signal can decode at multiple stream positions (e.g. Ford V0 across bursts)
                         let mut seen: std::collections::HashSet<(String, u64, Option<u32>, Option<u8>)> =
                             std::collections::HashSet::new();
+                        let mut any_decoded_added = false;
                         for (protocol_name, decoded, segment_pairs) in decoded_list {
                             let key = (
                                 protocol_name.clone(),
@@ -1427,10 +1435,25 @@ impl App {
                             if research_mode || capture.protocol.is_some() {
                                 if !self.capture_duplicate_of_existing(&capture) {
                                     self.next_capture_id += 1;
+                                    capture.source_file = Some(Self::path_relative_to_import(path, self.storage.import_dir()));
                                     self.captures.push(capture);
                                     imported += 1;
+                                    any_decoded_added = true;
                                 }
                             }
+                        }
+                        // When no protocol decoded the stream, add a single Unknown capture if research_mode (same as live capture).
+                        if !any_decoded_added && research_mode && !raw_pairs.is_empty() {
+                            let mut capture = crate::capture::Capture::from_pairs_with_rf(
+                                self.next_capture_id,
+                                frequency,
+                                raw_pairs.clone(),
+                                None,
+                            );
+                            self.next_capture_id += 1;
+                            capture.source_file = Some(Self::path_relative_to_import(path, self.storage.import_dir()));
+                            self.captures.push(capture);
+                            imported += 1;
                         }
                     }
                     Err(e) => tracing::warn!("Failed to import {:?}: {}", path, e),
@@ -1439,6 +1462,7 @@ impl App {
                 match crate::export::fob::import_fob(path, self.next_capture_id) {
                     Ok(mut capture) => {
                         self.next_capture_id += 1;
+                        capture.source_file = Some(Self::path_relative_to_import(path, self.storage.import_dir()));
                         // Re-run decoder when Unknown and raw_pairs present (same as .sub)
                         if capture.status == crate::capture::CaptureStatus::Unknown
                             && !capture.raw_pairs.is_empty()
@@ -1638,6 +1662,7 @@ impl App {
             make: None,
             model: None,
             region: None,
+            source_file: None,
         };
         self.next_capture_id += 1;
         self.captures.push(capture);

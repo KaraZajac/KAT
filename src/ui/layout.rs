@@ -3,7 +3,7 @@
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Line, Span},
+    text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
@@ -21,52 +21,65 @@ use crate::app::InputMode as IM;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// RSSI bar width (right side)
+const RSSI_BAR_WIDTH: u16 = 5;
+
 /// Draw the entire UI
 pub fn draw_ui(frame: &mut Frame, app: &App) {
     let show_settings = matches!(app.input_mode, IM::SettingsSelect | IM::SettingsEdit);
     let show_command = app.input_mode == IM::Command;
 
-    let mut constraints = vec![Constraint::Length(3)]; // Header
-
+    // Full-width rows: header, settings (optional), then middle row split into [captures | RX bar], status, command (optional), help
+    let main_area = frame.area();
+    let mut v_constraints = vec![
+        Constraint::Length(3),  // Header (full width)
+        Constraint::Min(8),     // Middle: captures + RX bar
+        Constraint::Length(3),  // Status bar (full width)
+        Constraint::Length(1),  // Help bar (full width)
+    ];
     if show_settings {
-        constraints.push(Constraint::Length(3)); // Settings tabs
+        v_constraints.insert(1, Constraint::Length(3)); // Settings tabs (full width)
     }
-
-    constraints.push(Constraint::Min(8)); // Captures list
-    constraints.push(Constraint::Length(3)); // Status bar
-
     if show_command {
-        constraints.push(Constraint::Length(3)); // Command input
+        v_constraints.insert(v_constraints.len() - 1, Constraint::Length(3)); // Command (full width)
     }
 
-    constraints.push(Constraint::Length(1)); // Help bar
-
-    let chunks = Layout::default()
+    let rows = Layout::default()
         .direction(Direction::Vertical)
-        .constraints(constraints)
-        .split(frame.area());
+        .constraints(v_constraints)
+        .split(main_area);
 
     let mut idx = 0;
-    render_header(frame, chunks[idx], app);
+    render_header(frame, rows[idx], app);
     idx += 1;
 
     if show_settings {
-        render_settings_tabs(frame, chunks[idx], app);
+        render_settings_tabs(frame, rows[idx], app);
         idx += 1;
     }
 
-    render_captures_list(frame, chunks[idx], app);
+    // Only the middle row is split: captures (left) | RX bar (right)
+    let middle_row = rows[idx];
+    let h_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Min(0), Constraint::Length(RSSI_BAR_WIDTH)])
+        .split(middle_row);
+    let captures_area = h_chunks[0];
+    let rssi_bar_rect = h_chunks[1];
     idx += 1;
 
-    render_status_bar(frame, chunks[idx], app);
+    render_captures_list(frame, captures_area, app);
+    render_rssi_bar(frame, rssi_bar_rect, app);
+
+    render_status_bar(frame, rows[idx], app);
     idx += 1;
 
     if show_command {
-        render_command_line(frame, chunks[idx], app);
+        render_command_line(frame, rows[idx], app);
         idx += 1;
     }
 
-    render_help_bar(frame, chunks[idx], app);
+    render_help_bar(frame, rows[idx], app);
 
     // Overlay widgets (rendered on top of everything else)
     if app.input_mode == InputMode::SignalMenu {
@@ -109,6 +122,40 @@ pub fn draw_ui(frame: &mut Frame, app: &App) {
             Alignment::Center,
         );
     }
+}
+
+/// Render the RSSI bar on the right (vertical bar, bottom = strong).
+fn render_rssi_bar(frame: &mut Frame, area: Rect, app: &App) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" RX ");
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+
+    if inner.width == 0 || inner.height == 0 {
+        return;
+    }
+
+    // Normalize RSSI (0..~1) to fill ratio; scale so ~0.5 magnitude ≈ full bar
+    let fill_ratio = (app.rssi / 0.6).min(1.0);
+    let filled_rows = (inner.height as f32 * fill_ratio).round() as u16;
+
+    let filled_style = Style::default().fg(Color::Green);
+    let empty_style = Style::default().fg(Color::DarkGray);
+
+    let mut lines = Vec::with_capacity(inner.height as usize);
+    for r in 0..inner.height {
+        let fill = r >= inner.height.saturating_sub(filled_rows);
+        let (style, ch) = if fill {
+            (filled_style, "█")
+        } else {
+            (empty_style, " ")
+        };
+        let s = ch.repeat(inner.width as usize);
+        lines.push(Line::from(Span::styled(s, style)));
+    }
+    let paragraph = Paragraph::new(Text::from(lines));
+    frame.render_widget(paragraph, inner);
 }
 
 /// Render the header with title and radio status

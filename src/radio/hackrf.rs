@@ -7,7 +7,7 @@
 use anyhow::Result;
 use std::sync::mpsc::Sender;
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU32, Ordering},
     Arc, Mutex,
 };
 use std::thread::{self, JoinHandle};
@@ -58,6 +58,8 @@ pub struct HackRfController {
     hackrf_available: bool,
     /// Shared gain settings (read by receiver thread)
     gain_settings: Arc<Mutex<GainSettings>>,
+    /// RSSI (f32 bits) written by RX callback, read by UI - never blocks
+    rssi_value: Arc<AtomicU32>,
 }
 
 impl HackRfController {
@@ -84,7 +86,13 @@ impl HackRfController {
             demodulator_fm: Arc::new(Mutex::new(demodulator_fm)),
             hackrf_available,
             gain_settings: Arc::new(Mutex::new(GainSettings::default())),
+            rssi_value: Arc::new(AtomicU32::new(0)),
         })
+    }
+
+    /// Shared atomic for RSSI (f32::to_bits); UI reads so callback never blocks on channel.
+    pub fn rssi_source(&self) -> Arc<AtomicU32> {
+        self.rssi_value.clone()
     }
 
     /// Check if HackRF is available
@@ -114,6 +122,7 @@ impl HackRfController {
         let demodulator_fm = self.demodulator_fm.clone();
         let hackrf_available = self.hackrf_available;
         let gain_settings = self.gain_settings.clone();
+        let rssi_value = self.rssi_value.clone();
 
         self.rx_thread = Some(thread::spawn(move || {
             if hackrf_available {
@@ -124,6 +133,7 @@ impl HackRfController {
                     demodulator_am,
                     demodulator_fm,
                     gain_settings,
+                    rssi_value,
                 )
                 {
                     let _ = event_tx.send(RadioEvent::Error(format!("Receiver error: {}", e)));
@@ -269,6 +279,8 @@ struct RxState {
     demodulator_am: Arc<Mutex<Demodulator>>,
     demodulator_fm: Arc<Mutex<FmDemodulator>>,
     capture_id: std::sync::atomic::AtomicU32,
+    /// RSSI (f32 bits) written here so callback never blocks on channel
+    rssi_value: Arc<AtomicU32>,
 }
 
 fn pairs_to_stored(pairs: &[LevelDuration]) -> Vec<StoredLevelDuration> {
@@ -279,6 +291,22 @@ fn pairs_to_stored(pairs: &[LevelDuration]) -> Vec<StoredLevelDuration> {
             duration_us: p.duration_us,
         })
         .collect()
+}
+
+/// Compute average magnitude of IQ buffer (0..~1 for i8)
+fn compute_rssi(buffer: &[num_complex::Complex<i8>]) -> f32 {
+    if buffer.is_empty() {
+        return 0.0;
+    }
+    let sum_mag: f32 = buffer
+        .iter()
+        .map(|c| {
+            let i = c.re as f32 / 128.0;
+            let q = c.im as f32 / 128.0;
+            (i * i + q * q).sqrt()
+        })
+        .sum();
+    sum_mag / buffer.len() as f32
 }
 
 /// RX callback: feed same IQ to AM and FM demodulators; emit a capture per path when signal complete.
@@ -296,6 +324,8 @@ fn rx_callback(
     }
     let current_freq = *state.frequency.lock().unwrap();
     let samples: Vec<i8> = buffer.iter().flat_map(|c| [c.re, c.im]).collect();
+
+    state.rssi_value.store(compute_rssi(buffer).to_bits(), Ordering::Relaxed);
 
     if let Ok(mut demod) = state.demodulator_am.lock() {
         if let Some(pairs) = demod.process_samples(&samples) {
@@ -331,6 +361,7 @@ fn run_receiver_hackrf(
     demodulator_am: Arc<Mutex<Demodulator>>,
     demodulator_fm: Arc<Mutex<FmDemodulator>>,
     gain_settings: Arc<Mutex<GainSettings>>,
+    rssi_value: Arc<AtomicU32>,
 ) -> Result<()> {
     use anyhow::Context;
 
@@ -366,6 +397,7 @@ fn run_receiver_hackrf(
         demodulator_am,
         demodulator_fm,
         capture_id: std::sync::atomic::AtomicU32::new(0),
+        rssi_value,
     };
 
 

@@ -6,7 +6,7 @@
 use anyhow::Result;
 use std::sync::mpsc::Sender;
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU32, Ordering},
     Arc, Mutex,
 };
 use std::thread::{self, JoinHandle};
@@ -48,6 +48,8 @@ pub struct RtlSdrController {
     demodulator_fm: Arc<Mutex<FmDemodulator>>,
     rtlsdr_available: bool,
     gain_settings: Arc<Mutex<TunerGainSetting>>,
+    /// RSSI (f32 bits) written by RX thread, read by UI - never blocks
+    rssi_value: Arc<AtomicU32>,
 }
 
 impl RtlSdrController {
@@ -73,7 +75,13 @@ impl RtlSdrController {
             demodulator_fm: Arc::new(Mutex::new(demodulator_fm)),
             rtlsdr_available,
             gain_settings: Arc::new(Mutex::new(TunerGainSetting::default())),
+            rssi_value: Arc::new(AtomicU32::new(0)),
         })
+    }
+
+    /// Shared atomic for RSSI (f32::to_bits); UI reads so RX thread never blocks on channel.
+    pub fn rssi_source(&self) -> Arc<AtomicU32> {
+        self.rssi_value.clone()
     }
 
     /// Returns true if an RTL-SDR device was found.
@@ -102,6 +110,7 @@ impl RtlSdrController {
         let demodulator_fm = self.demodulator_fm.clone();
         let rtlsdr_available = self.rtlsdr_available;
         let gain_settings = self.gain_settings.clone();
+        let rssi_value = self.rssi_value.clone();
 
         self.rx_thread = Some(thread::spawn(move || {
             if rtlsdr_available {
@@ -112,6 +121,7 @@ impl RtlSdrController {
                     demodulator_am,
                     demodulator_fm,
                     gain_settings,
+                    rssi_value,
                 ) {
                     let _ = event_tx.send(RadioEvent::Error(format!("RTL-SDR receiver error: {}", e)));
                 }
@@ -235,6 +245,29 @@ fn u8_iq_to_i8(buf: &[u8]) -> Vec<i8> {
         .collect()
 }
 
+/// Average magnitude of interleaved I/Q i8 samples (0..~1).
+fn compute_rssi_i8(samples: &[i8]) -> f32 {
+    if samples.len() < 2 {
+        return 0.0;
+    }
+    let mut sum = 0.0f32;
+    let mut count = 0usize;
+    for chunk in samples.chunks(2) {
+        if chunk.len() < 2 {
+            break;
+        }
+        let i = chunk[0] as f32 / 128.0;
+        let q = chunk[1] as f32 / 128.0;
+        sum += (i * i + q * q).sqrt();
+        count += 1;
+    }
+    if count == 0 {
+        0.0
+    } else {
+        sum / count as f32
+    }
+}
+
 /// Run the receiver loop with an RTL-SDR device.
 fn run_receiver_rtlsdr(
     receiving: Arc<AtomicBool>,
@@ -243,6 +276,7 @@ fn run_receiver_rtlsdr(
     demodulator_am: Arc<Mutex<Demodulator>>,
     demodulator_fm: Arc<Mutex<FmDemodulator>>,
     gain_settings: Arc<Mutex<TunerGainSetting>>,
+    rssi_value: Arc<AtomicU32>,
 ) -> Result<()> {
     use anyhow::Context;
 
@@ -277,6 +311,8 @@ fn run_receiver_rtlsdr(
             Ok(n) if n == buf.len() => {
                 let current_freq = *frequency.lock().unwrap();
                 let samples = u8_iq_to_i8(&buf[..n]);
+
+                rssi_value.store(compute_rssi_i8(&samples).to_bits(), Ordering::Relaxed);
 
                 if let Ok(mut demod) = demodulator_am.lock() {
                     if let Some(pairs) = demod.process_samples(&samples) {

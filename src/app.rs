@@ -1,7 +1,9 @@
 //! Application state management.
 
 use anyhow::Result;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::Arc;
 
 use crate::capture::{ButtonCommand, Capture};
 use crate::protocols::ProtocolRegistry;
@@ -83,6 +85,14 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(_) => "HackRF",
             RadioDevice::RtlSdr(_) => "RTL-SDR (RX only)",
+        }
+    }
+
+    /// Shared atomic for RSSI (UI reads so RX never blocks on channel). None if no radio.
+    pub fn rssi_source(&self) -> Option<Arc<AtomicU32>> {
+        match self {
+            RadioDevice::HackRf(h) => Some(h.rssi_source()),
+            RadioDevice::RtlSdr(r) => Some(r.rssi_source()),
         }
     }
 }
@@ -279,6 +289,8 @@ pub struct App {
     pub last_error: Option<String>,
     /// Last status message
     pub status_message: Option<String>,
+    /// Latest RSSI (average magnitude, 0..~1) from receiver
+    pub rssi: f32,
 
     // -- Signal action menu state --
     /// Currently selected signal menu item index
@@ -307,6 +319,8 @@ pub struct App {
     /// Sender for radio events (cloned to radio thread)
     #[allow(dead_code)]
     radio_event_tx: Sender<RadioEvent>,
+    /// RSSI read from radio atomic (no channel traffic, avoids RX blocking)
+    pub rssi_source: Option<Arc<AtomicU32>>,
     /// Set by :q / :quit so the main loop can exit cleanly (terminal cleanup)
     pub quit_requested: bool,
 
@@ -400,6 +414,8 @@ impl App {
             InputMode::Normal
         };
 
+        let rssi_source = radio.as_ref().and_then(|r| r.rssi_source());
+
         Ok(Self {
             input_mode: initial_mode,
             command_input: String::new(),
@@ -413,6 +429,7 @@ impl App {
             radio_state,
             last_error: None,
             status_message: None,
+            rssi: 0.0,
             signal_menu_index: 0,
             overlay_scroll: 0,
             settings_field_index: 0,
@@ -423,6 +440,7 @@ impl App {
             radio,
             radio_event_rx,
             radio_event_tx,
+            rssi_source,
             quit_requested: false,
             pending_fob_files,
             export_capture_id: None,
@@ -899,6 +917,9 @@ impl App {
 
     /// Process pending radio events
     pub fn process_radio_events(&mut self) -> Result<()> {
+        if let Some(ref rssi_arc) = self.rssi_source {
+            self.rssi = f32::from_bits(rssi_arc.load(Ordering::Relaxed));
+        }
         while let Ok(event) = self.radio_event_rx.try_recv() {
             match event {
                 RadioEvent::SignalCaptured(mut capture) => {

@@ -1006,17 +1006,42 @@ impl App {
 
     // -- Signal Action Menu helpers --
 
-    /// Signal actions shown in the menu: all if HackRF (TX), else only export and delete.
+    /// Signal actions shown in the menu. With HackRF: Replay always; Lock/Unlock/Trunk/Panic only when
+    /// the selected capture is encoder-capable (unknown or decoded-only signals get Replay only).
+    /// Without TX (e.g. RTL-SDR): only export and delete.
     pub fn available_signal_actions(&self) -> Vec<SignalAction> {
-        if self.radio.as_ref().map_or(false, |r| r.supports_tx()) {
-            SignalAction::ALL.to_vec()
-        } else {
-            SignalAction::ALL
+        let has_tx = self.radio.as_ref().map_or(false, |r| r.supports_tx());
+        let encoder_capable = self
+            .selected_capture
+            .and_then(|idx| self.captures.get(idx))
+            .map_or(false, |c| c.status == crate::capture::CaptureStatus::EncoderCapable);
+
+        if !has_tx {
+            return SignalAction::ALL
                 .iter()
                 .filter(|a| {
                     matches!(
                         a,
                         SignalAction::ExportFob | SignalAction::ExportFlipper | SignalAction::Delete
+                    )
+                })
+                .copied()
+                .collect();
+        }
+
+        if encoder_capable {
+            SignalAction::ALL.to_vec()
+        } else {
+            // Unknown or decoded-only: only Replay + export + delete (no TX Lock/Unlock/Trunk/Panic)
+            SignalAction::ALL
+                .iter()
+                .filter(|a| {
+                    !matches!(
+                        a,
+                        SignalAction::Lock
+                            | SignalAction::Unlock
+                            | SignalAction::Trunk
+                            | SignalAction::Panic
                     )
                 })
                 .copied()

@@ -18,6 +18,7 @@ use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use super::aut64;
 use super::keys;
 use crate::radio::demodulator::LevelDuration;
+use tracing;
 
 // Type 3/4 timing (used as default for ProtocolTiming)
 const TE_SHORT: u32 = 500;
@@ -30,7 +31,8 @@ const MIN_COUNT_BIT: usize = 80;
 // Type 1/2 timing
 const TE_SHORT_12: u32 = 300;
 const TE_LONG_12: u32 = 600;
-const TE_DELTA_12: u32 = 80; // Preamble1/Data1 (ref vag.c 79/80)
+#[allow(dead_code)]
+const TE_DELTA_12: u32 = 80; // Preamble1/Data1 (ref vag.c 79/80); preamble now uses REF_PREAMBLE1_TOL
 
 // Reference-aligned deltas (vag.c VAG_NEAR / VAG_TOL_300 79, VAG_TOL_500 120)
 const REF_RESET_DELTA: u32 = 79;       // Reset: 300±79, 500±79 for Preamble2
@@ -38,6 +40,8 @@ const REF_PREAMBLE_SYNC: u32 = 80;     // Preamble2 counting: 500±80
 const REF_SYNC2_AB_DELTA: u32 = 79;    // Sync2A/Sync2B: 500/1000/750±79 (ref VAG_NEAR(..., 79))
 const REF_SYNC2C_DELTA: u32 = 79;      // Sync2C: 750±79
 const REF_GAP1_DELTA: u32 = 79;        // Preamble1→Data1 gap 600µs ±79 (ref check_gap1)
+// Real-world Type 1/2: preamble often ~280–380µs; ref uses 79/80
+const REF_PREAMBLE1_TOL: u32 = 100;    // 300±100 for Type 1/2 preamble lock/count
 
 // TEA constants
 const TEA_DELTA: u32 = 0x9E3779B9;
@@ -842,9 +846,9 @@ impl ProtocolDecoder for VagDecoder {
                 if !level {
                     return None;
                 }
-                // Matches vag.c: duration < 300 and (300-duration)<=79 -> Preamble1; else (duration-300)<=79 -> Preamble1; else (duration-300)>79 and 500±79 -> Preamble2
+                // Matches vag.c: duration < 300 and (300-duration)<=tol -> Preamble1; else (duration-300)<=tol -> Preamble1; else 500±79 -> Preamble2. Use REF_PREAMBLE1_TOL for Type 1/2 lock.
                 if duration < TE_SHORT_12 {
-                    if (TE_SHORT_12 - duration) > REF_RESET_DELTA {
+                    if (TE_SHORT_12 - duration) > REF_PREAMBLE1_TOL {
                         return None;
                     }
                     // init_pattern1
@@ -857,8 +861,8 @@ impl ProtocolDecoder for VagDecoder {
                     self.vag_type = VagType::Unknown;
                     self.te_last = duration;
                     self.manchester_advance(ManchesterEvent::Reset);
-                } else if duration.wrapping_sub(TE_SHORT_12) <= REF_RESET_DELTA {
-                    // Fall-through to init_pattern1 in ref (duration 300..380)
+                } else if duration.wrapping_sub(TE_SHORT_12) <= REF_PREAMBLE1_TOL {
+                    // Fall-through to init_pattern1 in ref (duration 300..300+tol)
                     self.step = DecoderStep::Preamble1;
                     self.data_low = 0;
                     self.data_high = 0;
@@ -900,14 +904,14 @@ impl ProtocolDecoder for VagDecoder {
                     TE_SHORT_12 - duration
                 };
 
-                // Reference: (300-duration)<=79 or (duration-300)<80 -> count pair (check_preamble1_prev)
-                if te_diff < TE_DELTA_12 {
+                // Reference: (300-duration) or (duration-300) within tol -> count pair. Use REF_PREAMBLE1_TOL for real-world jitter.
+                if te_diff <= REF_PREAMBLE1_TOL {
                     let prev_diff = if self.te_last > TE_SHORT_12 {
                         self.te_last - TE_SHORT_12
                     } else {
                         TE_SHORT_12 - self.te_last
                     };
-                    if prev_diff <= REF_RESET_DELTA {
+                    if prev_diff <= REF_PREAMBLE1_TOL {
                         self.te_last = duration;
                         self.header_count += 1;
                         return None;
@@ -930,7 +934,7 @@ impl ProtocolDecoder for VagDecoder {
                         } else {
                             TE_SHORT_12 - self.te_last
                         };
-                        if prev_diff <= REF_RESET_DELTA {
+                        if prev_diff <= REF_PREAMBLE1_TOL {
                             self.step = DecoderStep::Data1;
                             return None;
                         }
@@ -1005,6 +1009,10 @@ impl ProtocolDecoder for VagDecoder {
                         self.data_count_bit = 80;
 
                         self.parse_data();
+                        tracing::debug!(
+                            "VAG Data1 decode: 80 bits, decrypted={} (report regardless of key)",
+                            self.decrypted
+                        );
 
                         let result = self.build_decoded_signal();
                         self.data_low = 0;

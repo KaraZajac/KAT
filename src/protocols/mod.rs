@@ -4,6 +4,13 @@
 //! Each decoder processes level+duration pairs from the demodulator and optionally supports
 //! encoding (replay). Shared pieces: [common], [keeloq_common], [keys], [aut64].
 //!
+//! **Decoder selection (vs ProtoPirate)**  
+//! ProtoPirate calls `subghz_receiver_decode(receiver, level, duration)` for each pulse; the
+//! Flipper SDK receiver (not in REFERENCES) feeds all registered decoders. There is no
+//! preamble-based decoder selection in the scene—only the decoder's own feed() logic (e.g. VAG
+//! Reset/Preamble1/Preamble2). We do the same: feed every pulse to all decoders that support the
+//! file frequency; whoever returns a valid frame is reported. No extra preamble filtering.
+//!
 //! **Manchester decoding**: Ford, Fiat, and common each have separate Manchester state machines
 //! (FordV0ManchesterState, FiatV0ManchesterState, CommonManchesterState in common.rs). They are
 //! not reused across protocols. Event conventions match the reference per protocol (e.g. Kia V5
@@ -95,10 +102,10 @@ impl ProtocolRegistry {
             Box::new(kia_v3_v4::KiaV3V4Decoder::new()),
             Box::new(kia_v5::KiaV5Decoder::new()),
             Box::new(kia_v6::KiaV6Decoder::new()),
-            // Other protocols (Ford before Subaru so 250/500µs Ford keyfobs decode as Ford)
+            // VAG before Ford/Subaru so 500/1000µs VAG streams decode as VAG (ProtoPirate order has VAG after Ford/Subaru but Flipper likely feeds all decoders; KAT uses first-match so VAG must be tried earlier)
+            Box::new(vag::VagDecoder::new()),
             Box::new(ford_v0::FordV0Decoder::new()),
             Box::new(subaru::SubaruDecoder::new()),
-            Box::new(vag::VagDecoder::new()),
             Box::new(fiat_v0::FiatV0Decoder::new()),
             Box::new(suzuki::SuzukiDecoder::new()),
             Box::new(scher_khan::ScherKhanDecoder::new()),
@@ -160,7 +167,9 @@ impl ProtocolRegistry {
             let level = if invert_level { !pair.level } else { pair.level };
             let duration_us = pair.duration_us;
 
-            let mut hit = None;
+            // Feed this pulse to all decoders that support this frequency (Flipper-style).
+            // Whoever actually produces a valid frame is reported; decoder order no longer decides.
+            let mut hits: Vec<(String, DecodedSignal)> = Vec::new();
             for decoder in &mut self.decoders {
                 let freq_supported = decoder
                     .supported_frequencies()
@@ -177,11 +186,10 @@ impl ProtocolRegistry {
                         .protocol_display_name
                         .as_deref()
                         .unwrap_or_else(|| decoder.name());
-                    hit = Some((name.to_string(), decoded));
-                    break;
+                    hits.push((name.to_string(), decoded));
                 }
             }
-            if let Some((name, decoded)) = hit {
+            if let Some((name, decoded)) = hits.into_iter().next() {
                 let segment: Vec<LevelDuration> = pairs[segment_start..=i]
                     .iter()
                     .map(|p| LevelDuration::new(p.level, p.duration_us))
@@ -212,6 +220,8 @@ impl ProtocolRegistry {
             let level = if invert_level { !pair.level } else { pair.level };
             let duration_us = pair.duration_us;
 
+            // Feed this pulse to all decoders; report first valid frame (Flipper-style).
+            let mut hits: Vec<(String, DecodedSignal)> = Vec::new();
             for decoder in &mut self.decoders {
                 let freq_supported = decoder
                     .supported_frequencies()
@@ -227,11 +237,14 @@ impl ProtocolRegistry {
 
                 if let Some(decoded) = decoder.feed(level, duration_us) {
                     let name = decoded
-                .protocol_display_name
-                .as_deref()
-                .unwrap_or_else(|| decoder.name());
-            return Some((name.to_string(), decoded));
+                        .protocol_display_name
+                        .as_deref()
+                        .unwrap_or_else(|| decoder.name());
+                    hits.push((name.to_string(), decoded));
                 }
+            }
+            if let Some((name, decoded)) = hits.into_iter().next() {
+                return Some((name.to_string(), decoded));
             }
         }
 

@@ -7,7 +7,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Arc;
 
 use crate::capture::{ButtonCommand, Capture};
-use crate::protocols::ProtocolRegistry;
+use crate::protocols::{is_keeloq_non_car, ProtocolRegistry};
 use crate::radio::{HackRfController, LevelDuration, RtlSdrController};
 use crate::storage::Storage;
 
@@ -151,6 +151,7 @@ pub enum ExportFormat {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SignalAction {
     Replay,
+    SendNextCode,
     Lock,
     Unlock,
     Trunk,
@@ -161,6 +162,7 @@ pub enum SignalAction {
 }
 
 impl SignalAction {
+    /// All actions (car keyfob menu). Barrier/alarm menu is built separately to include SendNextCode only there.
     pub const ALL: [SignalAction; 8] = [
         SignalAction::Replay,
         SignalAction::Lock,
@@ -175,6 +177,7 @@ impl SignalAction {
     pub fn label(&self) -> &'static str {
         match self {
             SignalAction::Replay => "Replay",
+            SignalAction::SendNextCode => "Send next code",
             SignalAction::Lock => "TX Lock",
             SignalAction::Unlock => "TX Unlock",
             SignalAction::Trunk => "TX Trunk",
@@ -884,6 +887,76 @@ impl App {
         Ok(())
     }
 
+    /// Transmit the next KeeLoq rolling code for a barrier/alarm capture (same button, counter+1).
+    pub fn transmit_next_code(&mut self, id: u32) -> Result<()> {
+        use crate::protocols::DecodedSignal;
+
+        if let Some(ref radio) = self.radio {
+            if !radio.supports_tx() {
+                self.last_error = Some("Transmit not available – RTL-SDR is receive-only".to_string());
+                return Ok(());
+            }
+        } else {
+            self.last_error = Some("No radio device connected".to_string());
+            return Ok(());
+        }
+
+        let capture = match self.captures.iter().find(|c| c.id == id) {
+            Some(c) => c.clone(),
+            None => {
+                self.last_error = Some(format!("Capture {} not found", id));
+                return Ok(());
+            }
+        };
+
+        if capture.protocol.is_none() {
+            self.last_error = Some("Cannot transmit: unknown protocol".to_string());
+            return Ok(());
+        }
+
+        let protocol_name = capture.protocol.as_ref().unwrap();
+        let protocol = match self.protocols.get(protocol_name) {
+            Some(p) => p,
+            None => {
+                self.last_error = Some(format!("Protocol {} not supported for encoding", protocol_name));
+                return Ok(());
+            }
+        };
+
+        if !protocol.supports_encoding() {
+            self.last_error = Some("Protocol does not support encoding".to_string());
+            return Ok(());
+        }
+
+        let button = capture.button.unwrap_or(0);
+        let decoded = DecodedSignal {
+            serial: capture.serial,
+            button: capture.button,
+            counter: capture.counter,
+            crc_valid: capture.crc_valid,
+            data: capture.data,
+            data_count_bit: capture.data_count_bit,
+            encoder_capable: true,
+            extra: capture.data_extra,
+            protocol_display_name: None,
+        };
+
+        let signal = match protocol.encode(&decoded, button) {
+            Some(s) => s,
+            None => {
+                self.last_error = Some("Failed to encode next code".to_string());
+                return Ok(());
+            }
+        };
+
+        if let Some(ref mut radio) = self.radio {
+            radio.transmit(&signal, capture.frequency)?;
+            self.status_message = Some(format!("Sent next code for capture {} (button {})", id, button));
+        }
+
+        Ok(())
+    }
+
     /// Delete the currently selected capture (if any). No-op if none selected or list empty.
     pub fn delete_selected_capture(&mut self) -> Result<()> {
         let id = match self.selected_capture {
@@ -1027,14 +1100,17 @@ impl App {
     // -- Signal Action Menu helpers --
 
     /// Signal actions shown in the menu. With HackRF: Replay always; Lock/Unlock/Trunk/Panic only when
-    /// the selected capture is encoder-capable (unknown or decoded-only signals get Replay only).
-    /// Without TX (e.g. RTL-SDR): only export and delete.
+    /// the selected capture is encoder-capable and not a barrier/gate/garage or alarm (KeeLoq barrier
+    /// and alarm protocols get Replay + export + delete only). Without TX (e.g. RTL-SDR): only export and delete.
     pub fn available_signal_actions(&self) -> Vec<SignalAction> {
         let has_tx = self.radio.as_ref().map_or(false, |r| r.supports_tx());
-        let encoder_capable = self
+        let selected = self
             .selected_capture
-            .and_then(|idx| self.captures.get(idx))
+            .and_then(|idx| self.captures.get(idx));
+        let encoder_capable = selected
             .map_or(false, |c| c.status == crate::capture::CaptureStatus::EncoderCapable);
+        let is_non_car_keeloq = selected
+            .map_or(false, |c| is_keeloq_non_car(c.protocol_name()));
 
         if !has_tx {
             return SignalAction::ALL
@@ -1047,6 +1123,17 @@ impl App {
                 })
                 .copied()
                 .collect();
+        }
+
+        // Barrier/gate/garage or alarm: Replay, Send next code (encoder next rolling code), export + delete
+        if encoder_capable && is_non_car_keeloq {
+            return vec![
+                SignalAction::Replay,
+                SignalAction::SendNextCode,
+                SignalAction::ExportFob,
+                SignalAction::ExportFlipper,
+                SignalAction::Delete,
+            ];
         }
 
         if encoder_capable {
@@ -1087,6 +1174,9 @@ impl App {
         match action {
             SignalAction::Replay => {
                 self.replay_capture(capture_id)?;
+            }
+            SignalAction::SendNextCode => {
+                self.transmit_next_code(capture_id)?;
             }
             SignalAction::Lock => {
                 let id_str = capture_id.to_string();

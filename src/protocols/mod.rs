@@ -19,6 +19,8 @@
 mod common;
 pub mod keeloq_common;
 mod keeloq;
+mod keeloq_barriers;
+pub use keeloq_barriers::is_keeloq_non_car;
 mod keeloq_generic;
 #[allow(dead_code)]
 pub mod aut64;

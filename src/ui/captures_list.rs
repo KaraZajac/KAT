@@ -25,7 +25,7 @@ pub fn render_captures_list(frame: &mut Frame, area: Rect, app: &App) {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Min(6),     // Table (flexible, takes remaining)
-                Constraint::Length(12), // Detail panel (fixed height)
+                Constraint::Length(18), // Detail panel (signal + vulnerability; taller for multiple CVEs)
             ])
             .split(area)
     } else {

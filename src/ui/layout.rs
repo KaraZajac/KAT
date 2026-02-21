@@ -33,7 +33,7 @@ pub fn draw_ui(frame: &mut Frame, app: &App) {
     let main_area = frame.area();
     let mut v_constraints = vec![
         Constraint::Length(3),  // Header (full width)
-        Constraint::Min(8),     // Middle: captures + RX bar
+        Constraint::Min(26),    // Middle: captures table + detail panel (signal + vulnerability)
         Constraint::Length(3),  // Status bar (full width)
         Constraint::Length(1),  // Help bar (full width)
     ];

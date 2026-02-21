@@ -176,6 +176,10 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                                 if app.input_mode == InputMode::Command {
                                     app.input_mode = InputMode::Normal;
                                 }
+                                while app.has_pending_transmit() {
+                                    terminal.draw(|f| draw_ui(f, app))?;
+                                    app.run_one_pending_transmit()?;
+                                }
                             }
                             KeyCode::Char(c) => {
                                 app.command_input.push(c);
@@ -208,6 +212,10 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                                 // input mode (e.g. ExportFob sets FobMetaYear)
                                 if app.input_mode == InputMode::SignalMenu {
                                     app.input_mode = InputMode::Normal;
+                                }
+                                while app.has_pending_transmit() {
+                                    terminal.draw(|f| draw_ui(f, app))?;
+                                    app.run_one_pending_transmit()?;
                                 }
                             }
                             KeyCode::Esc => {

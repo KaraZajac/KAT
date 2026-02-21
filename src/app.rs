@@ -367,6 +367,12 @@ pub struct App {
     /// Which capture is being edited (when in CaptureMeta* modes)
     pub capture_meta_capture_id: Option<u32>,
 
+    // -- Pending transmit (so UI can draw TX state before blocking) --
+    /// Queue of (signal, frequency) to transmit; main loop draws then runs one at a time.
+    pending_transmit_queue: Vec<(Vec<LevelDuration>, u32)>,
+    /// State to restore when queue becomes empty (set when first item is queued).
+    pending_transmit_restore: Option<RadioState>,
+
     // -- :load file browser --
     /// Current directory in the load file browser
     pub load_browser_cwd: PathBuf,
@@ -485,6 +491,8 @@ impl App {
             capture_meta_model: String::new(),
             capture_meta_region: String::new(),
             capture_meta_capture_id: None,
+            pending_transmit_queue: Vec::new(),
+            pending_transmit_restore: None,
             load_browser_cwd: PathBuf::new(),
             load_browser_selected: 0,
             load_browser_scroll: 0,
@@ -578,6 +586,34 @@ impl App {
         Ok(())
     }
 
+    /// Parse an ID spec into a list of capture IDs in order.
+    /// Supports: single "1", comma-separated "1, 3, 5", range "1-5", and mixed "1, 3-5, 7".
+    fn parse_id_spec(s: &str) -> Result<Vec<u32>, String> {
+        let mut ids = Vec::new();
+        for part in s.split(',') {
+            let part = part.trim();
+            if part.is_empty() {
+                continue;
+            }
+            if let Some((low, high)) = part.split_once('-') {
+                let low = low.trim().parse::<u32>().map_err(|_| "Invalid ID in range".to_string())?;
+                let high = high.trim().parse::<u32>().map_err(|_| "Invalid ID in range".to_string())?;
+                if low <= high {
+                    ids.extend(low..=high);
+                } else {
+                    ids.extend((high..=low).rev());
+                }
+            } else {
+                let id = part.parse::<u32>().map_err(|_| "Invalid capture ID".to_string())?;
+                ids.push(id);
+            }
+        }
+        if ids.is_empty() {
+            return Err("No valid IDs".to_string());
+        }
+        Ok(ids)
+    }
+
     /// Execute a command
     pub fn execute_command(&mut self, command: &str) -> Result<()> {
         let parts: Vec<&str> = command.trim().split_whitespace().collect();
@@ -607,10 +643,10 @@ impl App {
                     }
                 }
             }
-            "unlock" => self.transmit_command(parts.get(1), ButtonCommand::Unlock)?,
-            "lock" => self.transmit_command(parts.get(1), ButtonCommand::Lock)?,
-            "trunk" => self.transmit_command(parts.get(1), ButtonCommand::Trunk)?,
-            "panic" => self.transmit_command(parts.get(1), ButtonCommand::Panic)?,
+            "unlock" => self.transmit_command(parts.get(1).map(|_| parts[1..].join(" ")), ButtonCommand::Unlock)?,
+            "lock" => self.transmit_command(parts.get(1).map(|_| parts[1..].join(" ")), ButtonCommand::Lock)?,
+            "trunk" => self.transmit_command(parts.get(1).map(|_| parts[1..].join(" ")), ButtonCommand::Trunk)?,
+            "panic" => self.transmit_command(parts.get(1).map(|_| parts[1..].join(" ")), ButtonCommand::Panic)?,
             "license" | "licence" => {
                 self.input_mode = InputMode::License;
                 self.overlay_scroll = 0;
@@ -631,6 +667,24 @@ impl App {
                     self.delete_all_captures()?;
                 } else {
                     self.delete_capture(parts[1])?;
+                }
+            }
+            "replay" => {
+                let id_spec = parts.get(1).map(|_| parts[1..].join(" "));
+                let id_spec = match id_spec.as_deref() {
+                    Some(s) if !s.is_empty() => s,
+                    _ => {
+                        self.last_error = Some("Usage: :replay <ID> (e.g. 1, 1,3,5, 1-5)".to_string());
+                        return Ok(());
+                    }
+                };
+                match Self::parse_id_spec(id_spec) {
+                    Ok(ids) => {
+                        for id in ids {
+                            self.replay_capture(id)?;
+                        }
+                    }
+                    Err(e) => self.last_error = Some(e),
                 }
             }
             "lna" => {
@@ -760,8 +814,30 @@ impl App {
         Ok(())
     }
 
-    /// Transmit a command for a capture
-    fn transmit_command(&mut self, id_str: Option<&&str>, command: ButtonCommand) -> Result<()> {
+    /// Transmit a command for one or more captures. ID spec: "1", "1, 3, 5", "1-5", or mixed.
+    fn transmit_command(&mut self, id_spec: Option<String>, command: ButtonCommand) -> Result<()> {
+        let id_spec = match id_spec.as_deref() {
+            Some(s) if !s.is_empty() => s,
+            _ => {
+                self.last_error = Some(format!("Usage: :{:?} <ID> (e.g. 1, 1,3,5, 1-5)", command).to_lowercase());
+                return Ok(());
+            }
+        };
+        let ids = match Self::parse_id_spec(id_spec) {
+            Ok(ids) => ids,
+            Err(e) => {
+                self.last_error = Some(e);
+                return Ok(());
+            }
+        };
+        for id in ids {
+            self.transmit_one_command(id, command)?;
+        }
+        Ok(())
+    }
+
+    /// Transmit a command for a single capture by ID.
+    fn transmit_one_command(&mut self, id: u32, command: ButtonCommand) -> Result<()> {
         use crate::protocols::DecodedSignal;
 
         if let Some(ref radio) = self.radio {
@@ -773,22 +849,6 @@ impl App {
             self.last_error = Some("No radio device connected".to_string());
             return Ok(());
         }
-
-        let id_str = match id_str {
-            Some(s) => s,
-            None => {
-                self.last_error = Some(format!("Usage: :{:?} <ID>", command).to_lowercase());
-                return Ok(());
-            }
-        };
-
-        let id: u32 = match id_str.parse() {
-            Ok(i) => i,
-            Err(_) => {
-                self.last_error = Some("Invalid capture ID".to_string());
-                return Ok(());
-            }
-        };
 
         let capture = match self.captures.iter().find(|c| c.id == id) {
             Some(c) => c.clone(),
@@ -840,11 +900,12 @@ impl App {
             }
         };
 
-        if let Some(ref mut radio) = self.radio {
-            radio.transmit(&signal, capture.frequency)?;
-            self.status_message = Some(format!("Transmitted {:?} for capture {}", command, id));
+        self.pending_transmit_queue.push((signal, capture.frequency));
+        if self.pending_transmit_restore.is_none() {
+            self.pending_transmit_restore = Some(self.radio_state);
+            self.radio_state = RadioState::Transmitting;
         }
-
+        self.status_message = Some(format!("Transmitted {:?} for capture {}", command, id));
         Ok(())
     }
 
@@ -878,12 +939,14 @@ impl App {
             .iter()
             .map(|p| LevelDuration::new(p.level, p.duration_us))
             .collect();
+        let pair_count = signal.len();
 
-        if let Some(ref mut radio) = self.radio {
-            radio.transmit(&signal, capture.frequency)?;
-            self.status_message = Some(format!("Replayed capture {} ({} pairs)", id, signal.len()));
+        self.pending_transmit_queue.push((signal, capture.frequency));
+        if self.pending_transmit_restore.is_none() {
+            self.pending_transmit_restore = Some(self.radio_state);
+            self.radio_state = RadioState::Transmitting;
         }
-
+        self.status_message = Some(format!("Replayed capture {} ({} pairs)", id, pair_count));
         Ok(())
     }
 
@@ -949,11 +1012,34 @@ impl App {
             }
         };
 
-        if let Some(ref mut radio) = self.radio {
-            radio.transmit(&signal, capture.frequency)?;
-            self.status_message = Some(format!("Sent next code for capture {} (button {})", id, button));
+        self.pending_transmit_queue.push((signal, capture.frequency));
+        if self.pending_transmit_restore.is_none() {
+            self.pending_transmit_restore = Some(self.radio_state);
+            self.radio_state = RadioState::Transmitting;
         }
+        self.status_message = Some(format!("Sent next code for capture {} (button {})", id, button));
+        Ok(())
+    }
 
+    /// True if there are queued transmits (UI should draw then call run_one_pending_transmit).
+    pub fn has_pending_transmit(&self) -> bool {
+        !self.pending_transmit_queue.is_empty()
+    }
+
+    /// Run one queued transmit; restores radio_state when queue is empty. Call after drawing.
+    pub fn run_one_pending_transmit(&mut self) -> Result<()> {
+        let (signal, frequency) = match self.pending_transmit_queue.pop() {
+            Some(p) => p,
+            None => return Ok(()),
+        };
+        if let Some(ref mut radio) = self.radio {
+            radio.transmit(&signal, frequency)?;
+        }
+        if self.pending_transmit_queue.is_empty() {
+            if let Some(prev) = self.pending_transmit_restore.take() {
+                self.radio_state = prev;
+            }
+        }
         Ok(())
     }
 
@@ -1179,20 +1265,16 @@ impl App {
                 self.transmit_next_code(capture_id)?;
             }
             SignalAction::Lock => {
-                let id_str = capture_id.to_string();
-                self.transmit_command(Some(&&*id_str.as_str()), ButtonCommand::Lock)?;
+                self.transmit_command(Some(capture_id.to_string()), ButtonCommand::Lock)?;
             }
             SignalAction::Unlock => {
-                let id_str = capture_id.to_string();
-                self.transmit_command(Some(&&*id_str.as_str()), ButtonCommand::Unlock)?;
+                self.transmit_command(Some(capture_id.to_string()), ButtonCommand::Unlock)?;
             }
             SignalAction::Trunk => {
-                let id_str = capture_id.to_string();
-                self.transmit_command(Some(&&*id_str.as_str()), ButtonCommand::Trunk)?;
+                self.transmit_command(Some(capture_id.to_string()), ButtonCommand::Trunk)?;
             }
             SignalAction::Panic => {
-                let id_str = capture_id.to_string();
-                self.transmit_command(Some(&&*id_str.as_str()), ButtonCommand::Panic)?;
+                self.transmit_command(Some(capture_id.to_string()), ButtonCommand::Panic)?;
             }
             SignalAction::ExportFob => {
                 self.export_fob(capture_id)?;

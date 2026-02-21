@@ -138,11 +138,19 @@ pub fn draw_ui(frame: &mut Frame, app: &App) {
     }
 }
 
-/// Render the RSSI bar on the right (vertical bar, bottom = strong).
+/// Render the RSSI bar on the right (vertical bar, bottom = strong). Shows " TX " in red when transmitting.
 fn render_rssi_bar(frame: &mut Frame, area: Rect, app: &App) {
+    let is_tx = app.radio_state == RadioState::Transmitting;
+    let (title, filled_style, empty_style) = if is_tx {
+        (" TX ", Style::default().fg(Color::Red), Style::default().fg(Color::DarkGray))
+    } else {
+        (" RX ", Style::default().fg(Color::Green), Style::default().fg(Color::DarkGray))
+    };
+
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(" RX ");
+        .border_style(if is_tx { Style::default().fg(Color::Red) } else { Style::default() })
+        .title(title);
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -150,23 +158,24 @@ fn render_rssi_bar(frame: &mut Frame, area: Rect, app: &App) {
         return;
     }
 
-    // Normalize RSSI (0..~1) to fill ratio; scale so ~0.5 magnitude ≈ full bar
-    let fill_ratio = (app.rssi / 0.6).min(1.0);
+    // When TX: show full red bar. When RX: scale RSSI to fill ratio
+    let (fill_ratio, style) = if is_tx {
+        (1.0_f32, filled_style)
+    } else {
+        let fill_ratio = (app.rssi / 0.6).min(1.0);
+        (fill_ratio, filled_style)
+    };
     let filled_rows = (inner.height as f32 * fill_ratio).round() as u16;
-
-    let filled_style = Style::default().fg(Color::Green);
-    let empty_style = Style::default().fg(Color::DarkGray);
 
     let mut lines = Vec::with_capacity(inner.height as usize);
     for r in 0..inner.height {
         let fill = r >= inner.height.saturating_sub(filled_rows);
-        let (style, ch) = if fill {
-            (filled_style, "█")
+        let (s, line_style) = if fill {
+            ("█".repeat(inner.width as usize), style)
         } else {
-            (empty_style, " ")
+            (" ".repeat(inner.width as usize), empty_style)
         };
-        let s = ch.repeat(inner.width as usize);
-        lines.push(Line::from(Span::styled(s, style)));
+        lines.push(Line::from(Span::styled(s, line_style)));
     }
     let paragraph = Paragraph::new(Text::from(lines));
     frame.render_widget(paragraph, inner);

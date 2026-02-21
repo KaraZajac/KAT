@@ -27,7 +27,7 @@ A terminal-based RF signal analysis tool for capturing, decoding, and retransmit
 - **Research mode** — config option to show unknown (unidentified) signals in addition to successfully decoded ones
 - **INI configuration** — `~/.config/KAT/config.ini` (auto-created with comments on first run): export path, max captures, research_mode, radio defaults, export format
 - **Embedded keystore** — manufacturer keys (Kia, VAG, etc.) built in for decoding
-- **VIM-style command line** — `:freq`, `:lock`, `:unlock`, `:save`, `:load`, `:delete`, `:q` / `:quit`, and more
+- **VIM-style command line** — `:freq`, `:lock`, `:unlock`, `:replay`, `:save`, `:load`, `:delete`, `:q` / `:quit`, and more
 - **Interactive TUI** — captures list with detail panel (protocol, freq, mod, RF, encryption), signal action menu, radio settings, fob export form; header shows device (HackRF / RTL-SDR (RX only) / No device) and status (DISCONNECTED in red when no device)
 
 ## Requirements
@@ -172,10 +172,11 @@ Transmit commands (`:lock`, `:unlock`, `:trunk`, `:panic`) require HackRF; with 
 | Command | Description |
 |---|---|
 | `:freq <MHz>` | Set receive frequency (e.g. `:freq 433.92`) |
-| `:lock <ID>` | Transmit lock signal for capture ID |
-| `:unlock <ID>` | Transmit unlock signal for capture ID |
-| `:trunk <ID>` | Transmit trunk release signal |
-| `:panic <ID>` | Transmit panic alarm signal |
+| `:lock <ID>` | Transmit lock signal (ID: single, comma list, or range; e.g. `1`, `1, 3, 5`, `1-5`) |
+| `:unlock <ID>` | Transmit unlock signal (same ID formats) |
+| `:trunk <ID>` | Transmit trunk release (same ID formats) |
+| `:panic <ID>` | Transmit panic alarm (same ID formats) |
+| `:replay <ID>` | Replay raw capture(s) by ID in order (same ID formats; HackRF only) |
 | `:save <ID>` | Save capture to file |
 | `:delete <ID>` | Delete capture from list |
 | `:load <file>` | Import capture from `.fob` or `.sub` file |

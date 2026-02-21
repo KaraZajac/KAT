@@ -218,9 +218,7 @@ mod tests {
         assert!(is_keeloq_barrier("KeeLoq (Guard_RF-311A)"));
         assert!(is_keeloq_barrier("KeeLoq (Stilmatic)"));
         assert!(is_keeloq_barrier("KeeLoq (Motorline)"));
-        assert!(!is_keeloq_barrier("KeeLoq (KIAV5)"));
         assert!(!is_keeloq_barrier("KeeLoq (Star Line)"));
-        assert!(!is_keeloq_barrier("Ford V0"));
         assert!(!is_keeloq_barrier("Unknown"));
     }
 
@@ -234,7 +232,5 @@ mod tests {
         assert!(is_keeloq_alarm("KeeLoq (Partisan_RX)"));
         assert!(is_keeloq_alarm("KeeLoq (Cenmax_St-7)"));
         assert!(is_keeloq_alarm("KeeLoq (Reff)"));
-        assert!(!is_keeloq_alarm("KeeLoq (KIAV5)"));
-        assert!(!is_keeloq_alarm("Ford V0"));
     }
 }

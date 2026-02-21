@@ -377,6 +377,10 @@ fn render_vulnerability_panel(
                 Span::styled(" Description: ", label_style),
                 Span::styled(v.description, value_style),
             ]));
+            lines.push(Line::from(vec![
+                Span::styled(" Source: ", label_style),
+                Span::styled(v.url, value_style),
+            ]));
             lines.push(Line::from(Span::raw("")));
         }
     }

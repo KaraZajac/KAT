@@ -1,6 +1,6 @@
 [package]
 name = "kat"
-version = "1.1.1"
+version = "1.1.2"
 edition = "2021"
 description = "Keyfob Analysis Toolkit - HackRF/RTL-SDR signal capture, decode, and transmit (HackRF only)"
 authors = ["KAT Team"]

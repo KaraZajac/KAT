@@ -217,7 +217,7 @@ impl SettingsField {
 }
 
 /// Common keyfob frequencies (Hz)
-pub const PRESET_FREQUENCIES: [(u32, &str); 9] = [
+pub const PRESET_FREQUENCIES: [(u32, &str); 10] = [
     (300_000_000, "300.00 MHz"),
     (303_875_000, "303.875 MHz"),
     (310_000_000, "310.00 MHz"),
@@ -225,6 +225,7 @@ pub const PRESET_FREQUENCIES: [(u32, &str); 9] = [
     (318_000_000, "318.00 MHz"),
     (390_000_000, "390.00 MHz"),
     (433_920_000, "433.92 MHz"),
+    (434_420_000, "434.42 MHz"),
     (868_350_000, "868.35 MHz"),
     (915_000_000, "915.00 MHz"),
 ];

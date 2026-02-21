@@ -26,7 +26,7 @@ pub struct VulnEntry {
     pub url: &'static str,
 }
 
-pub const VULN_DB: [VulnEntry; 16] = [
+pub const VULN_DB: [VulnEntry; 21] = [
     VulnEntry {
         id: 1,
         cve: "CVE-2022-38766",
@@ -208,6 +208,62 @@ pub const VULN_DB: [VulnEntry; 16] = [
         region: "ALL",
         description: "RKE RollBack: unlock/resync after capturing two consecutive key fob signals. Attacker can unlock indefinitely.",
         url: "https://nvd.nist.gov/vuln/detail/CVE-2022-37418",
+    },
+    // CVE-2019-20626: Honda/Acura static code replay (no rolling code). Confirmed vehicles per Unoriginal-Rice-Patty.
+    VulnEntry {
+        id: 17,
+        cve: "CVE-2019-20626",
+        year_start: "2009",
+        year_end: "2009",
+        makes: &["Acura"],
+        models: &["TSX"],
+        region: "ALL",
+        description: "The remote keyless system sends the same RF signal for each door-open request, which might allow a replay attack. Honda/Acura use static codes (no rolling code).",
+        url: "https://nvd.nist.gov/vuln/detail/CVE-2019-20626",
+    },
+    VulnEntry {
+        id: 18,
+        cve: "CVE-2019-20626",
+        year_start: "2016",
+        year_end: "2016",
+        makes: &["Honda"],
+        models: &["Accord"],
+        region: "ALL",
+        description: "The remote keyless system sends the same RF signal for each door-open request, which might allow a replay attack. Honda/Acura use static codes (no rolling code).",
+        url: "https://nvd.nist.gov/vuln/detail/CVE-2019-20626",
+    },
+    VulnEntry {
+        id: 19,
+        cve: "CVE-2019-20626",
+        year_start: "2017",
+        year_end: "2017",
+        makes: &["Honda"],
+        models: &["HR-V"],
+        region: "ALL",
+        description: "The remote keyless system on Honda HR-V 2017 vehicles sends the same RF signal for each door-open request, which might allow a replay attack.",
+        url: "https://nvd.nist.gov/vuln/detail/CVE-2019-20626",
+    },
+    VulnEntry {
+        id: 20,
+        cve: "CVE-2019-20626",
+        year_start: "2018",
+        year_end: "2018",
+        makes: &["Honda"],
+        models: &["Civic"],
+        region: "ALL",
+        description: "The remote keyless system sends the same RF signal for each door-open request, which might allow a replay attack. Honda/Acura use static codes (no rolling code).",
+        url: "https://nvd.nist.gov/vuln/detail/CVE-2019-20626",
+    },
+    VulnEntry {
+        id: 21,
+        cve: "CVE-2019-20626",
+        year_start: "2020",
+        year_end: "2020",
+        makes: &["Honda"],
+        models: &["Civic"],
+        region: "ALL",
+        description: "The remote keyless system sends the same RF signal for each door-open request, which might allow a replay attack. Honda/Acura use static codes (no rolling code).",
+        url: "https://nvd.nist.gov/vuln/detail/CVE-2019-20626",
     },
 ];
 

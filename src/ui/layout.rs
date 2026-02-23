@@ -105,6 +105,7 @@ pub fn draw_ui(frame: &mut Frame, app: &App) {
             | InputMode::FobMetaMake
             | InputMode::FobMetaModel
             | InputMode::FobMetaRegion
+            | InputMode::FobMetaCommand
             | InputMode::FobMetaNotes
     ) {
         render_export_form(frame, app);
@@ -116,6 +117,7 @@ pub fn draw_ui(frame: &mut Frame, app: &App) {
             | InputMode::CaptureMetaMake
             | InputMode::CaptureMetaModel
             | InputMode::CaptureMetaRegion
+            | InputMode::CaptureMetaCommand
     ) {
         render_capture_meta_form(frame, app);
     }
@@ -250,12 +252,14 @@ fn render_help_bar(frame: &mut Frame, area: Rect, app: &App) {
         InputMode::FobMetaYear
         | InputMode::FobMetaMake
         | InputMode::FobMetaModel
-        | InputMode::FobMetaRegion => "Enter: Next Field | Esc: Cancel Export",
+        | InputMode::FobMetaRegion
+        | InputMode::FobMetaCommand => "Enter: Next Field | Esc: Cancel Export",
         InputMode::FobMetaNotes => "Enter: Save & Export | Esc: Cancel Export",
         InputMode::CaptureMetaYear
         | InputMode::CaptureMetaMake
-        | InputMode::CaptureMetaModel => "Enter: Next Field | Esc: Cancel",
-        InputMode::CaptureMetaRegion => "Enter: Save | Esc: Cancel",
+        | InputMode::CaptureMetaModel
+        | InputMode::CaptureMetaRegion => "Enter: Next Field | Esc: Cancel",
+        InputMode::CaptureMetaCommand => "Enter: Save | Esc: Cancel",
         InputMode::License | InputMode::Credits => "Esc/Enter: Close | Up/Down: Scroll",
         InputMode::LoadFileBrowser => "Up/Down: Navigate | Enter: Open/Import | Esc: Close",
     };
@@ -464,6 +468,7 @@ fn render_export_form(frame: &mut Frame, app: &App) {
             InputMode::FobMetaMake,
             InputMode::FobMetaModel,
             InputMode::FobMetaRegion,
+            InputMode::FobMetaCommand,
             InputMode::FobMetaNotes,
         ]
     } else {
@@ -567,10 +572,16 @@ fn render_export_form(frame: &mut Frame, app: &App) {
                 idx: 4,
             },
             FormField {
+                label: "  Command: ",
+                value: &app.fob_meta_command,
+                placeholder: "(e.g. Unlock, Lock, Trunk, Panic)",
+                idx: 5,
+            },
+            FormField {
                 label: "  Notes:   ",
                 value: &app.fob_meta_notes,
                 placeholder: "(optional — color, trim, VIN, etc.)",
-                idx: 5,
+                idx: 6,
             },
         ]);
     }
@@ -670,6 +681,7 @@ fn render_capture_meta_form(frame: &mut Frame, app: &App) {
         InputMode::CaptureMetaMake,
         InputMode::CaptureMetaModel,
         InputMode::CaptureMetaRegion,
+        InputMode::CaptureMetaCommand,
     ];
     let current_idx = field_modes
         .iter()
@@ -726,7 +738,7 @@ fn render_capture_meta_form(frame: &mut Frame, app: &App) {
         placeholder: &'a str,
         idx: usize,
     }
-    let fields: [FormField; 4] = [
+    let fields: [FormField; 5] = [
         FormField {
             label: "  Year:    ",
             value: &app.capture_meta_year,
@@ -750,6 +762,12 @@ fn render_capture_meta_form(frame: &mut Frame, app: &App) {
             value: &app.capture_meta_region,
             placeholder: "(e.g. NA, EU, or ALL)",
             idx: 3,
+        },
+        FormField {
+            label: "  Command: ",
+            value: &app.capture_meta_command,
+            placeholder: "(e.g. Unlock, Lock, Trunk, Panic)",
+            idx: 4,
         },
     ];
 

@@ -76,6 +76,9 @@ pub struct Capture {
     /// Region (e.g. NA, EU) for vulnerability lookup and .fob export.
     #[serde(default)]
     pub region: Option<String>,
+    /// User-editable command label (e.g. Unlock, Lock) for .fob export and filename; set via 'i' or export form.
+    #[serde(default)]
+    pub command: Option<String>,
     /// Source file path when imported from .sub or .fob; None for live captures.
     #[serde(default)]
     pub source_file: Option<String>,
@@ -157,6 +160,7 @@ impl Capture {
             make: None,
             model: None,
             region: None,
+            command: None,
             source_file: None,
         }
     }

@@ -125,13 +125,16 @@ pub enum InputMode {
     FobMetaModel,
     /// Fob export metadata: editing region field
     FobMetaRegion,
+    /// Fob export metadata: editing command field
+    FobMetaCommand,
     /// Fob export metadata: editing notes field
     FobMetaNotes,
-    /// Capture metadata (Year/Make/Model/Region) for vuln lookup — press i on a capture
+    /// Capture metadata (Year/Make/Model/Region/Command) for vuln lookup — press i on a capture
     CaptureMetaYear,
     CaptureMetaMake,
     CaptureMetaModel,
     CaptureMetaRegion,
+    CaptureMetaCommand,
     /// License overlay (centered box)
     License,
     /// Credits overlay (centered box)
@@ -357,14 +360,17 @@ pub struct App {
     pub fob_meta_model: String,
     /// Region input buffer (e.g. NA, EU, APAC, etc.)
     pub fob_meta_region: String,
+    /// Command input buffer (e.g. Unlock, Lock)
+    pub fob_meta_command: String,
     /// Notes input buffer
     pub fob_meta_notes: String,
 
-    // -- Capture metadata (Year/Make/Model/Region for vuln lookup, set via 'i') --
+    // -- Capture metadata (Year/Make/Model/Region/Command for vuln lookup, set via 'i') --
     pub capture_meta_year: String,
     pub capture_meta_make: String,
     pub capture_meta_model: String,
     pub capture_meta_region: String,
+    pub capture_meta_command: String,
     /// Which capture is being edited (when in CaptureMeta* modes)
     pub capture_meta_capture_id: Option<u32>,
 
@@ -486,11 +492,13 @@ impl App {
             fob_meta_make: String::new(),
             fob_meta_model: String::new(),
             fob_meta_region: String::new(),
+            fob_meta_command: String::new(),
             fob_meta_notes: String::new(),
             capture_meta_year: String::new(),
             capture_meta_make: String::new(),
             capture_meta_model: String::new(),
             capture_meta_region: String::new(),
+            capture_meta_command: String::new(),
             capture_meta_capture_id: None,
             pending_transmit_queue: Vec::new(),
             pending_transmit_restore: None,
@@ -1299,12 +1307,52 @@ impl App {
             .unwrap_or_else(|_| path.to_string_lossy().to_string())
     }
 
+    /// For unknown protocol: Year_Make_Model_Region_Command (user can edit; we append _<8 hex> on save).
+    /// For known protocol: protocol_serial as before.
     fn default_export_filename(capture: &Capture) -> String {
-        format!(
-            "{}_{}",
-            capture.protocol_name().replace(' ', "_").to_lowercase(),
-            capture.serial_hex()
-        )
+        if capture.protocol_name().eq_ignore_ascii_case("unknown") {
+            let year = capture
+                .year
+                .as_deref()
+                .unwrap_or("Unknown")
+                .trim()
+                .replace(' ', "_");
+            let make = capture
+                .make
+                .as_deref()
+                .unwrap_or("Unknown")
+                .trim()
+                .replace(' ', "_");
+            let model = capture
+                .model
+                .as_deref()
+                .unwrap_or("Unknown")
+                .trim()
+                .replace(' ', "_");
+            let region = capture
+                .region
+                .as_deref()
+                .unwrap_or("Unknown")
+                .trim()
+                .replace(' ', "_");
+            let cmd_str = capture
+                .command
+                .as_deref()
+                .unwrap_or_else(|| capture.button_name())
+                .trim();
+            let command = if cmd_str.is_empty() || cmd_str == "-" {
+                "Unknown".to_string()
+            } else {
+                cmd_str.replace(' ', "_")
+            };
+            format!("{}_{}_{}_{}_{}", year, make, model, region, command)
+        } else {
+            format!(
+                "{}_{}",
+                capture.protocol_name().replace(' ', "_").to_lowercase(),
+                capture.serial_hex()
+            )
+        }
     }
 
     /// Start .fob export by entering filename input mode
@@ -1314,13 +1362,23 @@ impl App {
             return Ok(());
         }
 
-        // Pre-fill filename from protocol + serial
-        let default_name = self.captures.iter().find(|c| c.id == id)
+        // Pre-fill filename from protocol + serial; for unknown captures include 8-hex suffix so user sees it
+        let capture = self.captures.iter().find(|c| c.id == id);
+        let default_name = capture
             .map(|c| Self::default_export_filename(c))
             .unwrap_or_else(|| format!("capture_{}", id));
+        self.export_filename = if capture.map(|c| c.protocol.is_none()).unwrap_or(false) {
+            let suffix_nanos = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos() as u64;
+            let suffix = (suffix_nanos.wrapping_add(id as u64 * 2654435761) % 0x100_000_000) as u32;
+            format!("{}_{:08X}", default_name, suffix)
+        } else {
+            default_name.clone()
+        };
 
         // Pre-fill metadata from capture if set, otherwise make from protocol
-        let capture = self.captures.iter().find(|c| c.id == id);
         let make = capture
             .and_then(|c| c.make.as_ref().map(String::clone))
             .filter(|s| !s.is_empty())
@@ -1330,7 +1388,6 @@ impl App {
                     .unwrap_or_default()
             });
         self.export_capture_id = Some(id);
-        self.export_filename = default_name;
         self.export_format = Some(ExportFormat::Fob);
         self.fob_meta_year = capture
             .and_then(|c| c.year.as_ref())
@@ -1345,6 +1402,16 @@ impl App {
             .and_then(|c| c.region.as_ref())
             .map(String::clone)
             .unwrap_or_default();
+        self.fob_meta_command = capture
+            .and_then(|c| c.command.clone())
+            .unwrap_or_else(|| {
+                let b = capture.map(|c| c.button_name().to_string()).unwrap_or_default();
+                if b.is_empty() || b == "-" {
+                    String::new()
+                } else {
+                    b
+                }
+            });
         self.fob_meta_notes = String::new();
         self.input_mode = InputMode::ExportFilename;
         Ok(())
@@ -1378,10 +1445,37 @@ impl App {
             make: self.fob_meta_make.clone(),
             model: self.fob_meta_model.clone(),
             region: self.fob_meta_region.clone(),
+            command: self.fob_meta_command.clone(),
             notes: self.fob_meta_notes.clone(),
         };
 
-        let filename = format!("{}.fob", self.export_filename);
+        // Unknown captures or user-edited vehicle-style filenames always get 8-hex suffix to avoid overwrites.
+        let use_hex_suffix = capture.protocol.is_none()
+            || self.export_filename.ends_with("_Unknown")
+            || self.export_filename == "Unknown";
+        let already_has_8hex = self.export_filename.len() >= 9
+            && self.export_filename.as_bytes()[self.export_filename.len() - 9] == b'_'
+            && self.export_filename[self.export_filename.len() - 8..]
+                .chars()
+                .all(|c| c.is_ascii_hexdigit());
+        let filename = if use_hex_suffix && already_has_8hex {
+            format!("{}.fob", self.export_filename.trim())
+        } else if use_hex_suffix {
+            let base = self.export_filename.trim();
+            let suffix_nanos = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos() as u64;
+            let suffix = (suffix_nanos.wrapping_add(id as u64 * 2654435761) % 0x100_000_000) as u32;
+            let hex_suffix = format!("{:08X}", suffix);
+            if base.is_empty() {
+                format!("unknown_{}_{}.fob", id, hex_suffix)
+            } else {
+                format!("{}_{}.fob", base, hex_suffix)
+            }
+        } else {
+            format!("{}.fob", self.export_filename)
+        };
         let path = export_dir.join(&filename);
 
         crate::export::fob::export_fob(
@@ -1416,6 +1510,16 @@ impl App {
             .and_then(|c| c.region.as_ref())
             .map(|s| s.to_string())
             .unwrap_or_default();
+        self.capture_meta_command = capture
+            .and_then(|c| c.command.clone())
+            .unwrap_or_else(|| {
+                let b = capture.map(|c| c.button_name().to_string()).unwrap_or_default();
+                if b.is_empty() || b == "-" {
+                    String::new()
+                } else {
+                    b
+                }
+            });
         self.capture_meta_capture_id = Some(capture_id);
         self.input_mode = InputMode::CaptureMetaYear;
     }
@@ -1435,6 +1539,7 @@ impl App {
             capture.make = Some(self.capture_meta_make.clone()).filter(|s| !s.is_empty());
             capture.model = Some(self.capture_meta_model.clone()).filter(|s| !s.is_empty());
             capture.region = Some(self.capture_meta_region.clone()).filter(|s| !s.is_empty());
+            capture.command = Some(self.capture_meta_command.clone()).filter(|s| !s.is_empty());
         }
         self.input_mode = InputMode::Normal;
         self.capture_meta_capture_id = None;
@@ -1835,6 +1940,7 @@ impl App {
             make: None,
             model: None,
             region: None,
+            command: None,
             source_file: None,
         };
         self.next_capture_id += 1;

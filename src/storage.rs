@@ -1,6 +1,7 @@
-//! Storage management for configuration, exports, and keystores.
+//! Storage management for configuration and exports.
 //!
-//! All application data lives under `~/.config/KAT/`:
+//! All application data lives under `~/.config/KAT/`. **No keystore directory is created**
+//! — keys are embedded in the binary (see [crate::protocols::keys] and [crate::keystore]).
 //!
 //! ```text
 //! ~/.config/KAT/
@@ -57,7 +58,7 @@ impl Config {
             export_directory: config_dir.join("exports"),
             import_directory: config_dir.join("import"),
             max_captures: 100,
-            research_mode: false,
+            research_mode: true, // show unknown signals by default (researchers need to see them)
             default_frequency: 433_920_000,
             default_lna_gain: 24,
             default_vga_gain: 20,
@@ -160,6 +161,7 @@ impl Config {
 ; Location: {path}
 ;
 ; Edit this file to change default settings.
+; Keys are embedded in the program — no keystore directory is used or created.
 ; Lines starting with ; or # are comments.
 
 [general]

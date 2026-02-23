@@ -14,6 +14,8 @@ pub struct FobMetadata {
     pub make: String,
     pub model: String,
     pub region: String,
+    /// Command label (e.g. Unlock, Lock) for export filename and .fob vehicle info.
+    pub command: String,
     pub notes: String,
 }
 
@@ -61,6 +63,9 @@ pub struct FobVehicleInfo {
     pub model: Option<String>,
     #[serde(default)]
     pub region: Option<String>,
+    /// Command label (e.g. Unlock, Lock); optional for backwards compatibility.
+    #[serde(default)]
+    pub command: Option<String>,
     #[serde(default)]
     pub notes: Option<String>,
 }
@@ -119,6 +124,14 @@ pub fn export_fob(
             Some(m.notes.clone())
         }
     });
+    let command = metadata.and_then(|m| {
+        let s = m.command.trim();
+        if s.is_empty() {
+            None
+        } else {
+            Some(s.to_string())
+        }
+    });
 
     let raw_pairs = if include_raw && !capture.raw_pairs.is_empty() {
         Some(
@@ -163,6 +176,7 @@ pub fn export_fob(
             make,
             model,
             region,
+            command,
             notes,
         },
         capture: FobCapture {
@@ -287,6 +301,7 @@ fn import_fob_v2(fob: &FobFile, next_id: u32) -> Result<Capture> {
         CaptureStatus::Unknown
     };
 
+    let vehicle = &fob.vehicle;
     Ok(Capture {
         id: next_id,
         timestamp,
@@ -302,10 +317,11 @@ fn import_fob_v2(fob: &FobFile, next_id: u32) -> Result<Capture> {
         raw_pairs,
         status,
         received_rf: None,
-        year: None,
-        make: None,
-        model: None,
-        region: None,
+        year: vehicle.year.map(|y| y.to_string()),
+        make: Some(vehicle.make.clone()).filter(|s| !s.is_empty()),
+        model: vehicle.model.clone().filter(|s| !s.is_empty()),
+        region: vehicle.region.clone().filter(|s| !s.is_empty()),
+        command: vehicle.command.clone().filter(|s| !s.is_empty()),
         source_file: None,
     })
 }
@@ -377,6 +393,7 @@ fn import_fob_v1(fob: &FobFileV1, next_id: u32) -> Result<Capture> {
         make: None,
         model: None,
         region: None,
+        command: None,
         source_file: None,
     })
 }

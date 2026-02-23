@@ -388,16 +388,34 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             _ => {}
                         },
 
-                        // .fob export metadata: Region -> Notes
+                        // .fob export metadata: Region -> Command
                         InputMode::FobMetaRegion => match key.code {
                             KeyCode::Enter => {
-                                app.input_mode = InputMode::FobMetaNotes;
+                                app.input_mode = InputMode::FobMetaCommand;
                             }
                             KeyCode::Char(c) => {
                                 app.fob_meta_region.push(c);
                             }
                             KeyCode::Backspace => {
                                 app.fob_meta_region.pop();
+                            }
+                            KeyCode::Esc => {
+                                app.export_capture_id = None;
+                                app.input_mode = InputMode::Normal;
+                            }
+                            _ => {}
+                        },
+
+                        // .fob export metadata: Command -> Notes
+                        InputMode::FobMetaCommand => match key.code {
+                            KeyCode::Enter => {
+                                app.input_mode = InputMode::FobMetaNotes;
+                            }
+                            KeyCode::Char(c) => {
+                                app.fob_meta_command.push(c);
+                            }
+                            KeyCode::Backspace => {
+                                app.fob_meta_command.pop();
                             }
                             KeyCode::Esc => {
                                 app.export_capture_id = None;
@@ -425,7 +443,7 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             _ => {}
                         },
 
-                        // Capture metadata (Year/Make/Model/Region for vuln lookup)
+                        // Capture metadata (Year/Make/Model/Region/Command for vuln lookup)
                         InputMode::CaptureMetaYear => match key.code {
                             KeyCode::Enter => {
                                 app.input_mode = InputMode::CaptureMetaMake;
@@ -475,13 +493,28 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                         },
                         InputMode::CaptureMetaRegion => match key.code {
                             KeyCode::Enter => {
-                                app.save_capture_meta();
+                                app.input_mode = InputMode::CaptureMetaCommand;
                             }
                             KeyCode::Char(c) => {
                                 app.capture_meta_region.push(c);
                             }
                             KeyCode::Backspace => {
                                 app.capture_meta_region.pop();
+                            }
+                            KeyCode::Esc => {
+                                app.cancel_capture_meta();
+                            }
+                            _ => {}
+                        },
+                        InputMode::CaptureMetaCommand => match key.code {
+                            KeyCode::Enter => {
+                                app.save_capture_meta();
+                            }
+                            KeyCode::Char(c) => {
+                                app.capture_meta_command.push(c);
+                            }
+                            KeyCode::Backspace => {
+                                app.capture_meta_command.pop();
                             }
                             KeyCode::Esc => {
                                 app.cancel_capture_meta();

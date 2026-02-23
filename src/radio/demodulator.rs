@@ -113,7 +113,7 @@ impl Demodulator {
             pairs: Vec::with_capacity(2048),
             total_samples: 0,
             min_duration_us: 40, // 40µs debounce (was 50 — slightly more permissive)
-            max_gap_us: 20_000,  // 20ms gap = end of signal (was 10ms — wider to avoid splitting signals with internal gaps)
+            max_gap_us: 80_000,  // 80ms gap = end of signal; keeps multi-burst keyfob presses (e.g. 3–4 bursts with 25–50ms gaps) as one capture
             samples_since_edge: 0,
         }
     }
@@ -253,11 +253,11 @@ impl Demodulator {
                     .push(LevelDuration::new(self.current_level, duration_us));
             }
 
-            // Return the pairs and reset
+            // Return the pairs and reset (min 5 pairs so short/unknown keyfob bursts still show)
             let result = std::mem::take(&mut self.pairs);
             self.reset_state();
 
-            if result.len() >= 10 {
+            if result.len() >= 5 {
                 return Some(result);
             }
         }
@@ -405,7 +405,7 @@ impl FmDemodulator {
             pending_count: 0,
             pairs: Vec::with_capacity(2048),
             min_duration_us: 40,
-            max_gap_us: 20_000,
+            max_gap_us: 80_000, // match AM: 80ms so one button press (multi-burst) stays one capture
             samples_since_edge: 0,
         }
     }
@@ -495,7 +495,7 @@ impl FmDemodulator {
             }
             let result = std::mem::take(&mut self.pairs);
             self.fm_reset_state();
-            if result.len() >= 10 {
+            if result.len() >= 5 {
                 return Some(result);
             }
         }
@@ -559,8 +559,8 @@ mod tests {
         // Process (won't return signal yet since no long gap)
         let _ = demod.process_samples(&buf);
 
-        // Add a long gap to flush
-        let gap_buf: Vec<i8> = vec![1, 0].repeat(50_000); // 25ms LOW
+        // Add a long gap to flush (>= max_gap_us: 80ms at 2MHz = 160k samples)
+        let gap_buf: Vec<i8> = vec![1, 0].repeat(80_000); // 80ms LOW
         if let Some(pairs) = demod.process_samples(&gap_buf) {
             // Verify no consecutive same-level pairs
             for window in pairs.windows(2) {

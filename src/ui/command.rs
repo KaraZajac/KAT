@@ -53,6 +53,7 @@ pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
         | InputMode::FobMetaMake
         | InputMode::FobMetaModel
         | InputMode::FobMetaRegion
+        | InputMode::FobMetaCommand
         | InputMode::FobMetaNotes => (
             String::new(),
             "EXPORT",
@@ -61,7 +62,8 @@ pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
         InputMode::CaptureMetaYear
         | InputMode::CaptureMetaMake
         | InputMode::CaptureMetaModel
-        | InputMode::CaptureMetaRegion => (
+        | InputMode::CaptureMetaRegion
+        | InputMode::CaptureMetaCommand => (
             String::new(),
             "META",
             Style::default().fg(Color::Cyan),

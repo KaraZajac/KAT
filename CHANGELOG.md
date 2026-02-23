@@ -2,6 +2,24 @@
 
 All notable changes to KAT are documented here.
 
+## [1.1.3] - 2026-02-20
+
+### Added
+
+- **Command field** — Capture metadata (press **i**) and .fob export now include **Command** (e.g. Unlock, Lock, Trunk, Panic). Export filename for unknown protocol uses Year_Make_Model_Region_Command; 8-hex suffix is shown in the filename field and saved in uppercase (e.g. `…_A1B2C3D4.fob`). .fob vehicle info and import support optional `command`.
+
+### Changed
+
+- **Unknown signals** — Shown by default (`research_mode` default is now `true`). Config comment and storage docs clarify that no keystore directory is used or created (keys are embedded).
+- **Signal separation** — End-of-signal gap increased from 20 ms to **80 ms** so one button press (multiple bursts with 25–50 ms gaps) produces a single capture instead of 3–4.
+- **Short signals** — Demodulator now emits captures with **5+** level-duration pairs (was 10), so short or weak unknown keyfob bursts are no longer dropped (RSSI spike but no capture).
+
+### Fixed
+
+- **Export filename** — Unknown-protocol .fob exports always get the 8-hex suffix (including when filename ends with `Unknown`); suffix is uppercase.
+
+---
+
 ## [1.1.2] - 2026-02-20
 
 ### Added

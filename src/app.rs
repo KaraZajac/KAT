@@ -1307,52 +1307,52 @@ impl App {
             .unwrap_or_else(|_| path.to_string_lossy().to_string())
     }
 
-    /// For unknown protocol: Year_Make_Model_Region_Command (user can edit; we append _<8 hex> on save).
-    /// For known protocol: protocol_serial as before.
+    /// Default export filename for .fob: Year_Make_Model_Region_Command (same format for all captures).
+    /// Uses capture metadata when set; fallbacks: make from protocol for known, command from button_name(), else "Unknown".
     fn default_export_filename(capture: &Capture) -> String {
-        if capture.protocol_name().eq_ignore_ascii_case("unknown") {
-            let year = capture
-                .year
-                .as_deref()
-                .unwrap_or("Unknown")
-                .trim()
-                .replace(' ', "_");
-            let make = capture
-                .make
-                .as_deref()
-                .unwrap_or("Unknown")
-                .trim()
-                .replace(' ', "_");
-            let model = capture
-                .model
-                .as_deref()
-                .unwrap_or("Unknown")
-                .trim()
-                .replace(' ', "_");
-            let region = capture
-                .region
-                .as_deref()
-                .unwrap_or("Unknown")
-                .trim()
-                .replace(' ', "_");
-            let cmd_str = capture
-                .command
-                .as_deref()
-                .unwrap_or_else(|| capture.button_name())
-                .trim();
-            let command = if cmd_str.is_empty() || cmd_str == "-" {
-                "Unknown".to_string()
-            } else {
-                cmd_str.replace(' ', "_")
-            };
-            format!("{}_{}_{}_{}_{}", year, make, model, region, command)
+        let year = capture
+            .year
+            .as_deref()
+            .unwrap_or("Unknown")
+            .trim()
+            .replace(' ', "_");
+        let make = capture
+            .make
+            .as_deref()
+            .filter(|s| !s.trim().is_empty())
+            .map(|s| s.trim().replace(' ', "_"))
+            .unwrap_or_else(|| {
+                if capture.protocol_name().eq_ignore_ascii_case("unknown") {
+                    "Unknown".to_string()
+                } else {
+                    Self::get_make_for_protocol(capture.protocol_name())
+                        .trim()
+                        .replace(' ', "_")
+                }
+            });
+        let model = capture
+            .model
+            .as_deref()
+            .unwrap_or("Unknown")
+            .trim()
+            .replace(' ', "_");
+        let region = capture
+            .region
+            .as_deref()
+            .unwrap_or("Unknown")
+            .trim()
+            .replace(' ', "_");
+        let cmd_str = capture
+            .command
+            .as_deref()
+            .unwrap_or_else(|| capture.button_name())
+            .trim();
+        let command = if cmd_str.is_empty() || cmd_str == "-" {
+            "Unknown".to_string()
         } else {
-            format!(
-                "{}_{}",
-                capture.protocol_name().replace(' ', "_").to_lowercase(),
-                capture.serial_hex()
-            )
-        }
+            cmd_str.replace(' ', "_")
+        };
+        format!("{}_{}_{}_{}_{}", year, make, model, region, command)
     }
 
     /// Start .fob export by entering filename input mode
@@ -1362,21 +1362,17 @@ impl App {
             return Ok(());
         }
 
-        // Pre-fill filename from protocol + serial; for unknown captures include 8-hex suffix so user sees it
+        // Pre-fill filename: Year_Make_Model_Region_Command_8HEX for all .fob exports
         let capture = self.captures.iter().find(|c| c.id == id);
         let default_name = capture
             .map(|c| Self::default_export_filename(c))
             .unwrap_or_else(|| format!("capture_{}", id));
-        self.export_filename = if capture.map(|c| c.protocol.is_none()).unwrap_or(false) {
-            let suffix_nanos = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64;
-            let suffix = (suffix_nanos.wrapping_add(id as u64 * 2654435761) % 0x100_000_000) as u32;
-            format!("{}_{:08X}", default_name, suffix)
-        } else {
-            default_name.clone()
-        };
+        let suffix_nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos() as u64;
+        let suffix = (suffix_nanos.wrapping_add(id as u64 * 2654435761) % 0x100_000_000) as u32;
+        self.export_filename = format!("{}_{:08X}", default_name, suffix);
 
         // Pre-fill metadata from capture if set, otherwise make from protocol
         let make = capture
@@ -1449,18 +1445,15 @@ impl App {
             notes: self.fob_meta_notes.clone(),
         };
 
-        // Unknown captures or user-edited vehicle-style filenames always get 8-hex suffix to avoid overwrites.
-        let use_hex_suffix = capture.protocol.is_none()
-            || self.export_filename.ends_with("_Unknown")
-            || self.export_filename == "Unknown";
+        // All .fob exports use Year_Make_Model_Region_Command_8HEX; append 8-hex if user removed it
         let already_has_8hex = self.export_filename.len() >= 9
             && self.export_filename.as_bytes()[self.export_filename.len() - 9] == b'_'
             && self.export_filename[self.export_filename.len() - 8..]
                 .chars()
                 .all(|c| c.is_ascii_hexdigit());
-        let filename = if use_hex_suffix && already_has_8hex {
+        let filename = if already_has_8hex {
             format!("{}.fob", self.export_filename.trim())
-        } else if use_hex_suffix {
+        } else {
             let base = self.export_filename.trim();
             let suffix_nanos = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -1473,8 +1466,6 @@ impl App {
             } else {
                 format!("{}_{}.fob", base, hex_suffix)
             }
-        } else {
-            format!("{}.fob", self.export_filename)
         };
         let path = export_dir.join(&filename);
 

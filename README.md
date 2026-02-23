@@ -119,11 +119,12 @@ Press `Enter` on a capture to open the action menu. When using RTL-SDR (receive-
 
 When exporting to `.fob`, a metadata form collects filename and optional vehicle info:
 
-- **File** — output filename (extension added by format)
+- **File** — output filename (extension added by format). For unknown protocol, a unique 8-character hex suffix (e.g. `A1B2C3D4`) is shown in the field and appended to the filename so each export has a distinct file.
 - **Year** — vehicle model year
 - **Make** — manufacturer (auto-suggested from protocol)
 - **Model** — vehicle model
 - **Region** — region/market
+- **Command** — button/command label (e.g. Unlock, Lock, Trunk, Panic); used in the default filename for unknown protocol and stored in the .fob vehicle section.
 - **Notes** — free-form notes
 
 The exported `.fob` file is a versioned JSON document (v2.0, format `kat-fob`) containing:
@@ -153,17 +154,22 @@ The exported `.fob` file is a versioned JSON document (v2.0, format `kat-fob`) c
     "year": 2023,
     "make": "Kia",
     "model": "Sportage",
-    "region": "",
+    "region": "NA",
+    "command": "Lock",
     "notes": ""
   },
   "capture": {
     "timestamp": "2026-02-07T12:00:00Z",
+    "raw_data_hex": "0x...",
+    "raw_pair_count": 0,
     "raw_pairs": [{"level": true, "duration_us": 400}, {"level": false, "duration_us": 800}]
   }
 }
 ```
 
-`rf_modulation` is AM, FM, or AM/FM per protocol (from ProtoPirate). Raw pairs are included when config `include_raw_pairs` is true.
+- **vehicle.command** — optional; user-editable command label (e.g. Unlock, Lock). Set in the export form or via **i** (capture metadata). Used for unknown-protocol export filenames (`Year_Make_Model_Region_Command_8HEX.fob`).
+- **rf_modulation** — AM, FM, or AM/FM per protocol (from ProtoPirate). Omitted when unknown.
+- **capture** — `raw_data_hex`, `raw_pair_count`, and optionally `raw_pairs` when config `include_raw_pairs` is true.
 
 ### VIM-Style Commands
 
@@ -213,7 +219,7 @@ include_raw_pairs = true
 ```
 
 - **import_directory** — directory scanned at startup for .fob and .sub files to import (default `~/.config/KAT/import`). Exports are still saved to **export_directory**.
-- **research_mode** — when `false` (default), only successfully decoded signals appear in the list; when `true`, unknown (unidentified) signals are also shown.
+- **research_mode** — when `true` (default), unknown (unidentified) signals are shown in addition to decoded ones; when `false`, only successfully decoded signals appear.
 - **include_raw_pairs** — when `true`, .fob exports include raw level/duration pairs for replay.
 
 ## Supported Protocols
@@ -268,7 +274,7 @@ The **AM/OOK** demodulator turns IQ samples into level/duration pairs for protoc
 - **Exponential moving average** — magnitude smoothing
 - **Schmitt trigger hysteresis** — reduces chattering at the decision boundary
 - **Debounce** — 40µs minimum pulse width to reject noise spikes
-- **Gap detection** — 20 ms gap treated as end of signal
+- **Gap detection** — 80 ms gap treated as end of signal (multi-burst keyfob presses stay one capture)
 
 ## IMPORTS folder
 
@@ -313,6 +319,17 @@ src/
     ├── command.rs       # VIM-style command line
     └── status_bar.rs    # Status bar
 ```
+
+## Call for researchers
+
+**We need your help.** KAT’s protocol decoders and future analysis depend on real-world keyfob captures. If you use KAT for security research, authorized testing, or protocol development, please consider:
+
+- **Contributing to protocol analysis** — share timing, encoding, or decoder feedback; report bugs or suggest new protocols.
+- **Contributing captures to the research library** — add your `.fob` files to the **[FOB Research Library](https://github.com/KaraZajac/FOB_Research_Library)** so others can use them for decoder development, CVE validation, and protocol studies.
+
+The [FOB Research Library](https://github.com/KaraZajac/FOB_Research_Library) is a community collection of KAT `.fob` captures organized by manufacturer. Your submissions (with proper metadata: year, make, model, region, command) help grow test vectors and support the wider keyfob research community.
+
+---
 
 ## Credits
 

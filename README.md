@@ -335,18 +335,6 @@ The [FOB Research Library](https://github.com/KaraZajac/FOB_Research_Library) is
 
 KAT is developed by **Kara Zajac (.leviathan)**. KAT would not be possible without [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate)—the protocol decoders, reference implementations, and community work are the foundation this tool is built on. Truly standing on the shoulders of giants.
 
-### ProtoPirate Development Team
-
-RocketGod, MMX, Leeroy, gullradriel, Skorp (thanks for the Weather App inspiration!), Vadim's Radio Driver.
-
-### Protocol Magic
-
-L0rdDiakon, YougZ, RocketGod, MMX, DoobTheGoober, Skorp, Slackware, Trikk, Wootini, Li0ard, Leeroy.
-
-### Reverse Engineering Support
-
-DoobTheGoober, MMX, NeedNotApply, RocketGod, Slackware, Trikk, Li0ard.
-
 ---
 
 ## License

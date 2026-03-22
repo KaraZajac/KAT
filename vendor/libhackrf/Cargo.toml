@@ -1,0 +1,16 @@
+[package]
+edition = "2021"
+name = "libhackrf"
+version = "0.1.1"
+authors = ["Connor Slade <connor@connorcode.com>"]
+description = "A modern libhackrf wrapper that supports receiving and transmitting. (Patched for ARM cross-compilation)"
+license = "MIT"
+repository = "https://github.com/connorslade/libhackrf-rs"
+
+[lib]
+name = "libhackrf"
+path = "src/lib.rs"
+doctest = false
+
+[dependencies.num-complex]
+version = "0.4.6"

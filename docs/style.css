@@ -20,7 +20,9 @@ html {
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
     color: var(--text-color);
+    background-color: white;
     line-height: 1.6;
+    color-scheme: light;
 }
 
 .container {
@@ -135,6 +137,7 @@ header .tagline {
 /* Features Section */
 .features {
     padding: 60px 0;
+    background: white;
 }
 
 .features h2 {
@@ -213,6 +216,7 @@ header .tagline {
 /* Requirements Section */
 .requirements {
     padding: 60px 0;
+    background: white;
 }
 
 .requirements h2 {

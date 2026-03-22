@@ -36,10 +36,14 @@ mod subaru;
 mod ford_v0;
 mod vag;
 mod fiat_v0;
+mod fiat_v1;
 mod suzuki;
 mod scher_khan;
 mod star_line;
 mod psa;
+mod mazda_v0;
+mod mitsubishi_v0;
+mod porsche_touareg;
 
 pub use common::DecodedSignal;
 
@@ -109,11 +113,15 @@ impl ProtocolRegistry {
             Box::new(ford_v0::FordV0Decoder::new()),
             Box::new(subaru::SubaruDecoder::new()),
             Box::new(fiat_v0::FiatV0Decoder::new()),
+            Box::new(fiat_v1::FiatV1Decoder::new()),
             Box::new(suzuki::SuzukiDecoder::new()),
             Box::new(scher_khan::ScherKhanDecoder::new()),
             Box::new(star_line::StarLineDecoder::new()),
             Box::new(keeloq::KeeloqDecoder::new()),
             Box::new(psa::PsaDecoder::new()),
+            Box::new(mazda_v0::MazdaV0Decoder::new()),
+            Box::new(mitsubishi_v0::MitsubishiV0Decoder::new()),
+            Box::new(porsche_touareg::PorscheTouaregDecoder::new()),
         ];
 
         Self { decoders }

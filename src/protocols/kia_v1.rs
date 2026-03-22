@@ -7,7 +7,7 @@
 //! - Manchester encoding: 800/1600µs timing
 //! - 57 bits total (32 serial + 8 button + 12 counter + 4 CRC)
 //! - Long preamble of ~90 long pairs
-//! - CRC4 checksum with offset rules (cnt_high 0 / >= 6)
+//! - CRC4 checksum (XOR of nibbles + offset 1, 7 bytes including cnt_high)
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use crate::radio::demodulator::LevelDuration;
@@ -66,13 +66,14 @@ impl KiaV1Decoder {
         (crc.wrapping_add(offset)) & 0x0F
     }
 
-    /// Manchester state machine
-    fn manchester_advance(&mut self, is_short: bool, is_high: bool) -> Option<bool> {
-        let event = match (is_short, is_high) {
-            (true, false) => 0,  // Short Low
-            (true, true) => 1,   // Short High
-            (false, false) => 2, // Long Low
-            (false, true) => 3,  // Long High
+    /// Manchester state machine (Flipper convention: level ? ShortLow : ShortHigh)
+    fn manchester_advance(&mut self, is_short: bool, level: bool) -> Option<bool> {
+        // C: event = level ? ManchesterEventShortLow : ManchesterEventShortHigh (inverted)
+        let event = match (is_short, level) {
+            (true, true) => 0,   // level=true → ShortLow
+            (true, false) => 1,  // level=false → ShortHigh
+            (false, true) => 2,  // level=true → LongLow
+            (false, false) => 3, // level=false → LongHigh
         };
 
         let (new_state, output) = match (self.manchester_state, event) {
@@ -115,15 +116,9 @@ impl KiaV1Decoder {
         char_data[4] = button;
         char_data[5] = (counter & 0xFF) as u8;
 
-        let crc = if cnt_high == 0 {
-            let offset = if counter >= 0x098 { button } else { 1 };
-            Self::crc4(&char_data[..6], offset)
-        } else if cnt_high >= 0x6 {
-            char_data[6] = cnt_high as u8;
-            Self::crc4(&char_data, 1)
-        } else {
-            Self::crc4(&char_data[..6], 1)
-        };
+        // CRC4: always 7 bytes with offset 1 (matches updated ProtoPirate kia_v1.c)
+        char_data[6] = cnt_high as u8;
+        let crc = Self::crc4(&char_data, 1);
 
         DecodedSignal {
             serial: Some(serial),
@@ -194,8 +189,9 @@ impl ProtocolDecoder for KiaV1Decoder {
                 
                 if self.header_count > 70 {
                     if !level && is_short && duration_diff!(self.te_last, TE_LONG) < TE_DELTA {
-                        self.decode_count_bit = 1;
-                        self.decode_data = 1; // Add first bit
+                        // C: decode_count_bit=1, then add_bit(1) increments to 2
+                        self.decode_count_bit = 2;
+                        self.decode_data = 1;
                         self.header_count = 0;
                         self.step = DecoderStep::DecodeData;
                     }
@@ -218,7 +214,7 @@ impl ProtocolDecoder for KiaV1Decoder {
                     return None;
                 }
 
-                if self.decode_count_bit >= MIN_COUNT_BIT {
+                if self.decode_count_bit == MIN_COUNT_BIT {
                     let result = self.parse_data();
                     self.step = DecoderStep::Reset;
                     return Some(result);
@@ -247,15 +243,9 @@ impl ProtocolDecoder for KiaV1Decoder {
         char_data[4] = button;
         char_data[5] = (counter & 0xFF) as u8;
 
-        let crc = if cnt_high == 0 {
-            let offset = if counter >= 0x098 { button } else { 1 };
-            Self::crc4(&char_data[..6], offset)
-        } else if cnt_high >= 0x6 {
-            char_data[6] = cnt_high;
-            Self::crc4(&char_data, 1)
-        } else {
-            Self::crc4(&char_data[..6], 1)
-        };
+        // CRC4: always 7 bytes with offset 1 (matches updated ProtoPirate kia_v1.c)
+        char_data[6] = cnt_high;
+        let crc = Self::crc4(&char_data, 1);
 
         // Build data
         let data: u64 = ((serial as u64) << 24) |

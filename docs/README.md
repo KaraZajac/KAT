@@ -16,6 +16,10 @@ This folder describes how each keyfob protocol supported by KAT works. Each docu
 | Subaru | `subaru.rs` | [subaru.md](subaru.md) |
 | VAG | `vag.rs` | [vag.md](vag.md) |
 | Fiat V0 | `fiat_v0.rs` | [fiat_v0.md](fiat_v0.md) |
+| Fiat V1 | `fiat_v1.rs` | [fiat_v1.md](fiat_v1.md) |
+| Mazda V0 | `mazda_v0.rs` | [mazda_v0.md](mazda_v0.md) |
+| Mitsubishi V0 | `mitsubishi_v0.rs` | [mitsubishi_v0.md](mitsubishi_v0.md) |
+| Porsche Touareg | `porsche_touareg.rs` | [porsche_touareg.md](porsche_touareg.md) |
 | Suzuki | `suzuki.rs` | [suzuki.md](suzuki.md) |
 | Scher-Khan | `scher_khan.rs` | [scher_khan.md](scher_khan.md) |
 | Star Line | `star_line.rs` | [star_line.md](star_line.md) |

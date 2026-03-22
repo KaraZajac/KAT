@@ -17,7 +17,7 @@ A terminal-based RF signal analysis tool for capturing, decoding, and retransmit
 ## Features
 
 - **Real-time capture** — receive and demodulate AM/OOK keyfob signals at configurable frequencies (HackRF uses AM envelope detection; FM protocols are tagged for display and may decode when signal is strong)
-- **Multi-protocol decoding** — 14 protocol decoders: Kia V0–V6, Ford V0, Fiat V0, Subaru, Suzuki, VAG (VW/Audi/Seat/Skoda), PSA, Scher-Khan, Star Line; adaptive demodulation for real-world conditions
+- **Multi-protocol decoding** — 18 protocol decoders: Kia V0–V6, Ford V0, Fiat V0/V1, Mazda V0, Mitsubishi V0, Porsche Touareg, Subaru, Suzuki, VAG (VW/Audi/Seat/Skoda), PSA, Scher-Khan, Star Line; adaptive demodulation for real-world conditions
 - **KeeLoq generic fallback** — when a signal doesn’t match any known protocol, KAT tries decoding it as KeeLoq using every manufacturer key in the embedded keystore (Kia V3/V4 and Star Line air formats); successful decodes appear as **Keeloq (keystore name)** in the capture list
 - **RF modulation metadata** — each protocol tagged as AM, FM, or both (from ProtoPirate); shown in signal detail and exported in .fob
 - **Rich signal detail** — encoding (PWM/Manchester), RF (AM/FM), encryption, serial, counter, key data, CRC, frequency, and raw level/duration pairs
@@ -233,15 +233,19 @@ Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference. KA
 | Kia V2 | Manchester | FM | Fixed Code | 315 / 433.92 MHz |
 | Kia V3/V4 | PWM | AM/FM | KeeLoq | 315 / 433.92 MHz |
 | Kia V5 | Manchester | FM | Fixed Code | 433.92 MHz |
-| Kia V6 | Manchester | FM | Fixed Code | 433.92 MHz |
-| Ford V0 | Manchester | FM | Fixed Code | 433.92 MHz |
+| Kia V6 | Manchester | FM | AES-128 | 433.92 MHz |
+| Ford V0 | Manchester | FM | Rolling Code | 315 / 433.92 MHz |
 | Fiat V0 | Manchester | FM | Fixed Code | 433.92 MHz |
+| Fiat V1 (Magneti Marelli) | Manchester | FM | Rolling Code | 433.92 MHz |
+| Mazda V0 | Pair-based | FM | XOR Deobfuscation | 433.92 MHz |
+| Mitsubishi V0 | PWM | FM | Bit Negation + XOR | 868.35 MHz |
+| Porsche Touareg | PWM | AM | Rotation Cipher | 433.92 / 868.35 MHz |
 | Subaru | PWM | AM | Rolling Code | 433.92 MHz |
 | Suzuki | PWM | AM | Rolling Code | 433.92 MHz |
-| VAG (VW/Audi/Seat/Skoda) | Manchester | AM | AUT64/XTEA | 433.92 / 434.42 MHz (decode + encode) |
+| VAG (VW/Audi/Seat/Skoda) | Manchester | AM | AUT64/XTEA | 433.92 / 434.42 MHz |
 | Scher-Khan | PWM | FM | Magic Code | 433.92 MHz |
 | Star Line | PWM | AM | KeeLoq | 433.92 MHz |
-| PSA (Peugeot/Citroën) | Manchester | FM | XTEA/XOR | 433.92 MHz |
+| PSA (Peugeot/Citroën) | Manchester | FM | Modified TEA/XOR | 433.92 MHz |
 
 **KeeLoq generic fallback:** If no protocol decodes a capture, KAT tries KeeLoq with every keystore manufacturer key (Kia V3/V4 and Star Line bit layouts). On success the protocol is shown as **Keeloq (*keystore name*)** (e.g. Keeloq (Alligator), Keeloq (Pandora_PRO)). See [docs/keeloq_generic.md](docs/keeloq_generic.md).
 
@@ -262,6 +266,8 @@ Details (exact model/year scope) are in `src/vuln_db.rs`. The app shows the NVD 
 ### Cryptographic modules
 
 - **KeeLoq** — encrypt/decrypt with normal, secure, FAAC, and magic serial/XOR learning key derivation (keeloq_common, keys). Unknown signals are tried as KeeLoq with every keystore key via **keeloq_generic** (uses keeloq_common only).
+- **AES-128** — full encrypt/decrypt for Kia V6 (key derived from keystore A/B with XOR masks)
+- **Modified TEA** — XTEA-like cipher with dynamic key selection for PSA (Peugeot/Citroën)
 - **AUT64** — 12-round block cipher for VAG type 1/3/4 (aut64)
 - **Keystore** — manufacturer keys (Kia, VAG, etc.) built in; see `src/keystore/`
 
@@ -302,7 +308,8 @@ src/
 │   ├── aut64.rs         # AUT64 block cipher (VAG)
 │   ├── keys.rs          # Key loading (embedded + optional file), KIA/VAG
 │   ├── kia_v0..kia_v6.rs
-│   ├── ford_v0.rs, fiat_v0.rs, subaru.rs, suzuki.rs
+│   ├── ford_v0.rs, fiat_v0.rs, fiat_v1.rs, subaru.rs, suzuki.rs
+│   ├── mazda_v0.rs, mitsubishi_v0.rs, porsche_touareg.rs
 │   ├── vag.rs           # VAG decoder/encoder (4 sub-types; encode from capture via extra)
 │   ├── scher_khan.rs, star_line.rs, psa.rs
 │   └── ...

@@ -4,9 +4,9 @@
 //! `fiat_v0.h`. Preamble: count short pulses (HIGH or LOW, 200±100µs); when preamble_count >= 150
 //! (0x96), accept 800µs LOW gap (gap_threshold 800, te_delta 100) and enter Data. Data: 64 bits
 //! (serial=data_low, cnt=data_high) then 7 more bits; complete when bit_count > 0x46 with
-//! btn = (data_low << 1) | 1, 71 bits total. Encoder: differential Manchester, 150 preamble pairs,
-//! last LOW replaced by 800µs gap; 64 data bits then 6 btn bits (btn_to_send = btn >> 1); end
-//! marker te_short*8 LOW.
+//! btn = (uint8_t)data_low, 71 bits total. Encoder: standard Manchester, 150 preamble pairs,
+//! last LOW replaced by 800µs gap; 64 data bits then 7 endbyte bits (endbyte & 0x7F); end
+//! marker te_short*4 LOW.
 
 use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
@@ -294,8 +294,9 @@ impl ProtocolDecoder for FiatV0Decoder {
                             self.data_high = 0;
                         }
 
-                        if self.bit_count > 0x46 {
-                            self.btn = ((self.data_low << 1) | 1) as u8;
+                        if self.bit_count == 0x47 {
+                            // C: endbyte = (uint8_t)data_low (no transform)
+                            self.btn = self.data_low as u8;
                             let result = self.parse_data();
                             self.data_low = 0;
                             self.data_high = 0;
@@ -303,6 +304,19 @@ impl ProtocolDecoder for FiatV0Decoder {
                             self.step = DecoderStep::Reset;
                             return Some(result);
                         }
+                    }
+                } else {
+                    // Manchester reset event (gap path) — C extracts at exactly 71 bits
+                    if self.bit_count == 0x47 {
+                        self.btn = self.data_low as u8;
+                        let result = self.parse_data();
+                        self.data_low = 0;
+                        self.data_high = 0;
+                        self.bit_count = 0;
+                        self.step = DecoderStep::Reset;
+                        return Some(result);
+                    } else if self.bit_count < 0x40 {
+                        self.step = DecoderStep::Reset;
                     }
                 }
                 self.te_last = duration;
@@ -319,80 +333,56 @@ impl ProtocolDecoder for FiatV0Decoder {
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
         let serial = decoded.serial?;
         let cnt = decoded.counter.unwrap_or(0) as u32;
-        let btn = decoded.button.unwrap_or(0).max(button);
+        let endbyte = if button != 0 { button } else { decoded.button.unwrap_or(0) };
 
-        // Ref: data = (cnt<<32)|serial; btn_to_send = btn >> 1 (reverse decoder's (x<<1)|1)
+        // C: data = (hop << 32) | fix; endbyte sent as-is (7 bits, & 0x7F)
         let data = ((cnt as u64) << 32) | (serial as u64);
-        let btn_to_send = btn >> 1;
+        let te_short = TE_SHORT;
 
         let mut signal = Vec::with_capacity(1024);
-        let te_short = TE_SHORT;
-        let te_long = TE_LONG;
 
         for burst in 0..TOTAL_BURSTS {
             if burst > 0 {
                 signal.push(LevelDuration::new(false, INTER_BURST_GAP));
             }
 
-            // Preamble: HIGH-LOW pairs; last LOW replaced by gap (ref)
-            for i in 0..PREAMBLE_PAIRS {
+            // Preamble: alternating short pulses; last LOW extended to gap
+            for _ in 0..PREAMBLE_PAIRS {
                 signal.push(LevelDuration::new(true, te_short));
-                signal.push(LevelDuration::new(
-                    false,
-                    if i == PREAMBLE_PAIRS - 1 { GAP_US } else { te_short },
-                ));
-            }
-
-            // First bit (bit 63) - differential Manchester
-            let first_bit = (data >> 63) & 1 == 1;
-            if first_bit {
-                signal.push(LevelDuration::new(true, te_long));
-            } else {
-                signal.push(LevelDuration::new(true, te_short));
-                signal.push(LevelDuration::new(false, te_long));
-            }
-
-            let mut prev_bit = first_bit;
-
-            // Remaining 63 data bits
-            for bit in (0..63).rev() {
-                let curr_bit = (data >> bit) & 1 == 1;
-                if !prev_bit && !curr_bit {
-                    signal.push(LevelDuration::new(true, te_short));
-                    signal.push(LevelDuration::new(false, te_short));
-                } else if !prev_bit && curr_bit {
-                    signal.push(LevelDuration::new(true, te_long));
-                } else if prev_bit && !curr_bit {
-                    signal.push(LevelDuration::new(false, te_long));
-                } else {
-                    signal.push(LevelDuration::new(false, te_short));
-                    signal.push(LevelDuration::new(true, te_short));
-                }
-                prev_bit = curr_bit;
-            }
-
-            // 6 btn bits (ref: for bit 5 down to 0)
-            for bit in (0..6).rev() {
-                let curr_bit = (btn_to_send >> bit) & 1 == 1;
-                if !prev_bit && !curr_bit {
-                    signal.push(LevelDuration::new(true, te_short));
-                    signal.push(LevelDuration::new(false, te_short));
-                } else if !prev_bit && curr_bit {
-                    signal.push(LevelDuration::new(true, te_long));
-                } else if prev_bit && !curr_bit {
-                    signal.push(LevelDuration::new(false, te_long));
-                } else {
-                    signal.push(LevelDuration::new(false, te_short));
-                    signal.push(LevelDuration::new(true, te_short));
-                }
-                prev_bit = curr_bit;
-            }
-
-            // End marker (ref)
-            if prev_bit {
                 signal.push(LevelDuration::new(false, te_short));
             }
-            signal.push(LevelDuration::new(false, te_short * 8));
+            // Extend last LOW to create gap (matches C: upload[index-1] = gap)
+            if let Some(last) = signal.last_mut() {
+                *last = LevelDuration::new(false, GAP_US);
+            }
+
+            // Standard Manchester encode 64 bits of data (matches C)
+            for bit in (0..64).rev() {
+                let curr_bit = (data >> bit) & 1 == 1;
+                if curr_bit {
+                    signal.push(LevelDuration::new(true, te_short));
+                    signal.push(LevelDuration::new(false, te_short));
+                } else {
+                    signal.push(LevelDuration::new(false, te_short));
+                    signal.push(LevelDuration::new(true, te_short));
+                }
+            }
+
+            // Standard Manchester encode 7 bits of endbyte (matches C: endbyte & 0x7F, bits 6..0)
+            let endbyte_masked = endbyte & 0x7F;
+            for bit in (0..7).rev() {
+                let curr_bit = (endbyte_masked >> bit) & 1 == 1;
+                if curr_bit {
+                    signal.push(LevelDuration::new(true, te_short));
+                    signal.push(LevelDuration::new(false, te_short));
+                } else {
+                    signal.push(LevelDuration::new(false, te_short));
+                    signal.push(LevelDuration::new(true, te_short));
+                }
+            }
+
+            // End marker: te_short * 4 LOW (matches C)
+            signal.push(LevelDuration::new(false, te_short * 4));
         }
 
         Some(signal)

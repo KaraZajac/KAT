@@ -1,8 +1,8 @@
-//! Kia V6 protocol decoder (decode-only)
+//! Kia V6 protocol decoder/encoder
 //!
 //! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/kia_v6.c`.
 //! Decode logic (Manchester level mapping, 3-part 144-bit frame, AES-128, CRC8, keystore XOR) matches reference.
-//! No encoder in protopirate.
+//! Encoder ported from protopirate (ENABLE_EMULATE_FEATURE): AES-128 encrypt, two-pass Manchester.
 //!
 //! Protocol characteristics:
 //! - Manchester encoding: 200/400µs (level convention inverted vs Flipper; see manchester_advance)
@@ -275,6 +275,181 @@ impl KiaV6Decoder {
         *data = state;
     }
 
+    // =========================================================================
+    // Forward AES functions for encoder (matches kia_v6.c ENABLE_EMULATE_FEATURE)
+    // =========================================================================
+
+    /// AES forward SubBytes
+    fn aes_subbytes(state: &mut [u8; 16]) {
+        for i in 0..16 {
+            state[i] = AES_SBOX[state[i] as usize];
+        }
+    }
+
+    /// AES forward ShiftRows
+    fn aes_shiftrows(state: &mut [u8; 16]) {
+        let temp = state[1];
+        state[1] = state[5];
+        state[5] = state[9];
+        state[9] = state[13];
+        state[13] = temp;
+
+        let temp = state[2];
+        state[2] = state[10];
+        state[10] = temp;
+        let temp = state[6];
+        state[6] = state[14];
+        state[14] = temp;
+
+        let temp = state[3];
+        state[3] = state[15];
+        state[15] = state[11];
+        state[11] = state[7];
+        state[7] = temp;
+    }
+
+    /// AES forward MixColumns
+    fn aes_mixcolumns(state: &mut [u8; 16]) {
+        for i in 0..4 {
+            let a = state[i * 4];
+            let b = state[i * 4 + 1];
+            let c = state[i * 4 + 2];
+            let d = state[i * 4 + 3];
+            state[i * 4]     = Self::gf_mul2(a) ^ Self::gf_mul2(b) ^ b ^ c ^ d;
+            state[i * 4 + 1] = a ^ Self::gf_mul2(b) ^ Self::gf_mul2(c) ^ c ^ d;
+            state[i * 4 + 2] = a ^ b ^ Self::gf_mul2(c) ^ Self::gf_mul2(d) ^ d;
+            state[i * 4 + 3] = Self::gf_mul2(a) ^ a ^ b ^ c ^ Self::gf_mul2(d);
+        }
+    }
+
+    /// AES-128 encrypt
+    fn aes128_encrypt(expanded_key: &[u8; 176], data: &mut [u8; 16]) {
+        let mut state = *data;
+
+        Self::aes_addroundkey(&mut state, &expanded_key[0..16]);
+
+        for round in 1..10 {
+            Self::aes_subbytes(&mut state);
+            Self::aes_shiftrows(&mut state);
+            Self::aes_mixcolumns(&mut state);
+            Self::aes_addroundkey(&mut state, &expanded_key[round * 16..(round + 1) * 16]);
+        }
+
+        Self::aes_subbytes(&mut state);
+        Self::aes_shiftrows(&mut state);
+        Self::aes_addroundkey(&mut state, &expanded_key[160..176]);
+
+        *data = state;
+    }
+
+    /// Encrypt payload for transmission (matches kia_v6.c kia_v6_encrypt_payload)
+    fn encrypt_payload(
+        fx_field: u8,
+        serial: u32,
+        button: u8,
+        counter: u32,
+    ) -> (u32, u32, u32, u32, u16) {
+        let mut plain = [0u8; 16];
+        plain[0] = fx_field;
+        plain[4] = ((serial >> 16) & 0xFF) as u8;
+        plain[5] = ((serial >> 8) & 0xFF) as u8;
+        plain[6] = (serial & 0xFF) as u8;
+        plain[7] = button & 0x0F;
+        plain[8] = ((counter >> 24) & 0xFF) as u8;
+        plain[9] = ((counter >> 16) & 0xFF) as u8;
+        plain[10] = ((counter >> 8) & 0xFF) as u8;
+        plain[11] = (counter & 0xFF) as u8;
+        plain[12] = AES_SBOX[(counter & 0xFF) as usize];
+        plain[15] = Self::crc8(&plain[..15], 0xFF, 0x07);
+
+        let aes_key = Self::get_aes_key();
+        let expanded_key = Self::aes_key_expansion(&aes_key);
+        Self::aes128_encrypt(&expanded_key, &mut plain);
+
+        let fx_hi = 0x20 | (fx_field >> 4);
+        let fx_lo = fx_field & 0x0F;
+        let part1_high = ((fx_hi as u32) << 24)
+            | ((fx_lo as u32) << 16)
+            | ((plain[0] as u32) << 8)
+            | (plain[1] as u32);
+        let part1_low = ((plain[2] as u32) << 24)
+            | ((plain[3] as u32) << 16)
+            | ((plain[4] as u32) << 8)
+            | (plain[5] as u32);
+        let part2_high = ((plain[6] as u32) << 24)
+            | ((plain[7] as u32) << 16)
+            | ((plain[8] as u32) << 8)
+            | (plain[9] as u32);
+        let part2_low = ((plain[10] as u32) << 24)
+            | ((plain[11] as u32) << 16)
+            | ((plain[12] as u32) << 8)
+            | (plain[13] as u32);
+        let part3 = ((plain[14] as u16) << 8) | (plain[15] as u16);
+
+        (part1_low, part1_high, part2_low, part2_high, part3)
+    }
+
+    /// Build encoder signal: two-pass Manchester with preambles (matches kia_v6.c)
+    fn build_upload(
+        p1_lo: u32, p1_hi: u32,
+        p2_lo: u32, p2_hi: u32,
+        p3: u16,
+    ) -> Vec<LevelDuration> {
+        let mut signal = Vec::with_capacity(2000);
+
+        // Two passes: 640 preamble pairs, then 38 preamble pairs
+        for &preamble_pairs in &[640u32, 38u32] {
+            // Preamble: short/short pairs
+            for _ in 0..preamble_pairs {
+                signal.push(LevelDuration::new(true, TE_SHORT));
+                signal.push(LevelDuration::new(false, TE_SHORT));
+            }
+
+            // Sync: short LOW, long HIGH, short LOW
+            signal.push(LevelDuration::new(false, TE_SHORT));
+            signal.push(LevelDuration::new(true, TE_LONG));
+            signal.push(LevelDuration::new(false, TE_SHORT));
+
+            // Part1: bits 60 down to 0 (61 bits), inverted
+            for b in (0..=60).rev() {
+                let word = if b >= 32 { p1_hi } else { p1_lo };
+                let shift = if b >= 32 { b - 32 } else { b };
+                let bit = ((!word) >> shift) & 1 == 1;
+                Self::encode_manchester_bit(&mut signal, bit);
+            }
+
+            // Part2: bits 63 down to 0 (64 bits), inverted
+            for b in (0..=63).rev() {
+                let word = if b >= 32 { p2_hi } else { p2_lo };
+                let shift = if b >= 32 { b - 32 } else { b };
+                let bit = ((!word) >> shift) & 1 == 1;
+                Self::encode_manchester_bit(&mut signal, bit);
+            }
+
+            // Part3: bits 15 down to 0 (16 bits), inverted
+            for b in (0..=15).rev() {
+                let bit = ((!p3) >> b) & 1 == 1;
+                Self::encode_manchester_bit(&mut signal, bit);
+            }
+
+            // Gap between passes
+            signal.push(LevelDuration::new(false, TE_LONG));
+        }
+
+        signal
+    }
+
+    /// Encode one Manchester bit (matches kia_v6.c kia_v6_encode_manchester_bit)
+    fn encode_manchester_bit(signal: &mut Vec<LevelDuration>, bit: bool) {
+        if bit {
+            signal.push(LevelDuration::new(false, TE_SHORT));
+            signal.push(LevelDuration::new(true, TE_SHORT));
+        } else {
+            signal.push(LevelDuration::new(true, TE_SHORT));
+            signal.push(LevelDuration::new(false, TE_SHORT));
+        }
+    }
+
     /// AES-128 key from V6 keystores A+B with XOR_MASK_LOW/HIGH (matches kia_v6.c)
     fn get_aes_key() -> [u8; 16] {
         let keystore_a = Self::get_keystore_a();
@@ -304,6 +479,13 @@ impl KiaV6Decoder {
         }
 
         aes_key
+    }
+
+    /// Extract fx_field from stored_part1_high (matches kia_v6.c fx_field extraction)
+    fn extract_fx_field(&self) -> u8 {
+        let fx_byte0 = ((self.stored_part1_high >> 24) & 0xFF) as u8;
+        let fx_byte1 = ((self.stored_part1_high >> 16) & 0xFF) as u8;
+        ((fx_byte0 & 0xF) << 4) | (fx_byte1 & 0xF)
     }
 
     /// Decrypt 16-byte block: byte layout matches kia_v6.c; AES-128 then CRC8 check
@@ -528,6 +710,7 @@ impl ProtocolDecoder for KiaV6Decoder {
                     if let Some((serial, button, counter, crc_valid)) = self.decrypt() {
                         let key_data = ((self.stored_part1_high as u64) << 32) |
                                       (self.stored_part1_low as u64);
+                        let fx_field = self.extract_fx_field();
 
                         self.step = DecoderStep::Reset;
                         return Some(DecodedSignal {
@@ -537,8 +720,8 @@ impl ProtocolDecoder for KiaV6Decoder {
                             crc_valid,
                             data: key_data,
                             data_count_bit: MIN_COUNT_BIT,
-                            encoder_capable: false,
-                            extra: None,
+                            encoder_capable: true,
+                            extra: Some(fx_field as u64),
                             protocol_display_name: None,
                         });
                     }
@@ -552,11 +735,18 @@ impl ProtocolDecoder for KiaV6Decoder {
     }
 
     fn supports_encoding(&self) -> bool {
-        false // V6 is decode-only
+        true
     }
 
-    fn encode(&self, _decoded: &DecodedSignal, _button: u8) -> Option<Vec<LevelDuration>> {
-        None // V6 decode-only in protopirate
+    fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
+        let serial = decoded.serial?;
+        let counter = decoded.counter.unwrap_or(0) as u32;
+        let fx_field = decoded.extra.unwrap_or(0) as u8;
+
+        let (p1_lo, p1_hi, p2_lo, p2_hi, p3) =
+            Self::encrypt_payload(fx_field, serial, button, counter);
+
+        Some(Self::build_upload(p1_lo, p1_hi, p2_lo, p2_hi, p3))
     }
 }
 

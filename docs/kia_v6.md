@@ -30,7 +30,7 @@ Manchester (event mapping 0/2/4/6 for level convention). Three 64/64/16-bit segm
 - Part2: 64 bits (inverted)  
 - Part3: 16 bits (inverted)  
 
-AES-128 decrypt with key = f(keystore_a, keystore_b, XOR_MASK_LOW, XOR_MASK_HIGH). Serial/button/counter and CRC extracted after decryption.
+AES-128 decrypt with key = f(keystore_a, keystore_b, XOR_MASK_LOW, XOR_MASK_HIGH). Serial/button/counter, CRC, and fx_field extracted after decryption. The fx_field is derived from the top 2 bytes of stored_part1_high and stored in `DecodedSignal.extra`.
 
 ## Decoder Steps
 
@@ -40,7 +40,7 @@ AES-128 decrypt with key = f(keystore_a, keystore_b, XOR_MASK_LOW, XOR_MASK_HIGH
 
 ## Encoder
 
-Decode-only in KAT (no encoder in reference).
+Supported. Ported from ProtoPirate (`ENABLE_EMULATE_FEATURE`). Builds plaintext (fx_field, serial, button, counter, S-box CRC, CRC8), AES-128 encrypts, packs into 3 parts, then Manchester encodes with two-pass preamble (640 pairs + data, gap, 38 pairs + data). Requires fx_field from decoded signal's `extra` field.
 
 ## Frequencies
 

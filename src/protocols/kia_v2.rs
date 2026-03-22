@@ -57,18 +57,17 @@ impl KiaV2Decoder {
         }
     }
 
-    /// CRC4 for Kia V2 (matches kia_v2.c: 6-byte permuted input, XOR nibbles, offset 1)
+    /// CRC4 for Kia V2 (matches kia_v2.c: strip CRC nibble, XOR all remaining nibbles, + offset 1)
     fn calculate_crc(data: u64) -> u8 {
-        let serial = ((data >> 20) & 0xFFFFFFFF) as u32;
-        let u_var4 = (data & 0xFFFFFFFF) as u32;
-
+        // C code: data_without_crc = data >> 4; then read 6 sequential bytes (bits 4..51)
+        let data_without_crc = data >> 4;
         let mut bytes = [0u8; 6];
-        bytes[0] = (u_var4 >> 20) as u8;
-        bytes[1] = ((u_var4 >> 28) | ((serial & 0x0F) << 4)) as u8;
-        bytes[2] = (serial >> 4) as u8;
-        bytes[3] = (serial >> 12) as u8;
-        bytes[4] = (u_var4 >> 4) as u8;
-        bytes[5] = (u_var4 >> 12) as u8;
+        bytes[0] = (data_without_crc & 0xFF) as u8;
+        bytes[1] = ((data_without_crc >> 8) & 0xFF) as u8;
+        bytes[2] = ((data_without_crc >> 16) & 0xFF) as u8;
+        bytes[3] = ((data_without_crc >> 24) & 0xFF) as u8;
+        bytes[4] = ((data_without_crc >> 32) & 0xFF) as u8;
+        bytes[5] = ((data_without_crc >> 40) & 0xFF) as u8;
 
         let mut crc: u8 = 0;
         for &byte in &bytes {
@@ -181,19 +180,21 @@ impl ProtocolDecoder for KiaV2Decoder {
                         self.te_last = duration;
                         self.header_count += 1;
                     } else if is_short && self.header_count >= 100 {
+                        // C code: decode_count_bit=1, then add_bit(1) which shifts and increments to 2
                         self.header_count = 0;
-                        self.decode_data = 0;
-                        self.decode_count_bit = 1;
-                        self.step = DecoderStep::CollectRawBits;
                         self.decode_data = 1; // First bit
+                        self.decode_count_bit = 2;
+                        self.step = DecoderStep::CollectRawBits;
                     } else {
-                        self.step = DecoderStep::Reset;
+                        self.te_last = duration; // C stays in CheckPreamble, updates te_last
                     }
                 } else {
                     if is_long {
                         self.header_count += 1;
                         self.te_last = duration;
-                    } else if !is_short {
+                    } else if is_short {
+                        self.te_last = duration; // C stays in CheckPreamble for short LOW
+                    } else {
                         self.step = DecoderStep::Reset;
                     }
                 }

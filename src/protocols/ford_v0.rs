@@ -225,10 +225,26 @@ impl FordV0Decoder {
     }
 
     // =========================================================================
-    // BS calculation
+    // Checksum / BS calculation
     // =========================================================================
 
-    /// Calculate BS = (count_low_byte + bs_magic + (button << 4)) with overflow handling
+    /// Calculate checksum from serial, count, and button (matches psa.c ford_v0_calculate_checksum).
+    /// Sums all bytes of serial + all bytes of count + (button << 4), truncated to u8.
+    fn calculate_checksum(serial: u32, count: u32, button: u8) -> u8 {
+        let sum: u32 = ((count >> 24) & 0xFF)
+            .wrapping_add((count >> 16) & 0xFF)
+            .wrapping_add((count >> 8) & 0xFF)
+            .wrapping_add(count & 0xFF)
+            .wrapping_add((serial >> 24) & 0xFF)
+            .wrapping_add((serial >> 16) & 0xFF)
+            .wrapping_add((serial >> 8) & 0xFF)
+            .wrapping_add(serial & 0xFF)
+            .wrapping_add((button as u32) << 4);
+        (sum & 0xFF) as u8
+    }
+
+    /// Legacy BS calculation (kept for reference; encoder now uses calculate_checksum)
+    #[allow(dead_code)]
     fn calculate_bs(count: u32, button: u8, bs_magic: u8) -> u8 {
         let result: u16 = (count as u16 & 0xFF)
             .wrapping_add(bs_magic as u16)
@@ -651,21 +667,18 @@ impl ProtocolDecoder for FordV0Decoder {
             decoded.counter.unwrap_or(0) as u32
         }) & 0xFFFFF; // 20-bit
 
-        // Use stored bs_magic (or default to 0x6F for backward compatibility)
-        let bs_magic = if self.bs_magic != 0 { self.bs_magic } else { 0x6F };
-
-        // Calculate BS from count + button + bs_magic (matches C ford_v0_calculate_bs)
-        let bs = Self::calculate_bs(count, button, bs_magic);
+        // Calculate checksum from serial + count + button (matches ford_v0_calculate_checksum in C)
+        let checksum = Self::calculate_checksum(serial, count, button);
 
         // Extract header byte from the original key1 (first byte)
         let header_byte = (decoded.data >> 56) as u8;
 
         // Encode key1 from fields (same count, new button)
-        let new_key1 = Self::encode_ford_v0(header_byte, serial, button, count, bs);
+        let new_key1 = Self::encode_ford_v0(header_byte, serial, button, count, checksum);
 
         // Calculate CRC for key2
-        let crc = Self::calculate_crc_for_tx(new_key1, bs);
-        let new_key2 = ((bs as u16) << 8) | (crc as u16);
+        let crc = Self::calculate_crc_for_tx(new_key1, checksum);
+        let new_key2 = ((checksum as u16) << 8) | (crc as u16);
 
         // Build one 6-burst block and repeat TX_REPEAT times (matches reference encoder.repeat = 10)
         let single = Self::build_upload(new_key1, new_key2);

@@ -9,7 +9,7 @@ layout: default
 
 ## Overview
 
-Kia V1 uses Manchester encoding at 800/1600 µs. 57 bits total: 32 serial + 8 button + 12 counter + 4 CRC. Long preamble (~90 long pairs). CRC4 with offset rules (cnt_high 0 vs ≥ 6).
+Kia V1 uses Manchester encoding at 800/1600 us. 57 bits total: 32 serial + 8 button + 12 counter + 4 CRC. Long preamble (~90 long pairs). CRC4 uses XOR of nibbles over 7 bytes (serial + button + cnt_low + cnt_high) with offset 1.
 
 ## Timing
 
@@ -28,7 +28,7 @@ Manchester: symbol duration short or long; bit value from transition direction.
 - 32 bits: serial
 - 8 bits: button
 - 12 bits: counter
-- 4 bits: CRC4 (checksum with offset rules)
+- 4 bits: CRC4 (XOR of nibbles, 7 bytes, offset 1)
 
 ## Decoder Steps
 

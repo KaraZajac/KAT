@@ -1,13 +1,14 @@
 //! PSA (Peugeot/Citroën) protocol decoder/encoder
 //!
 //! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/psa.c`.
-//! Decode/encode logic (Manchester, preamble, TEA, XOR, mode 0x23/0x36) matches reference.
 //!
 //! Protocol characteristics:
 //! - Manchester encoding: 250/500µs symbol (125/250µs sub-symbol for preamble)
-//! - 128 bits total: key1 (64) + validation (16) + key2/rest (48); decode uses key1 + 16-bit validation
-//! - TEA decrypt/encrypt with fixed key schedules; mode 0x23 adds XOR layer
-//! - Two modes: seed 0x23 (TEA + XOR), seed 0xF3/0x36 (TEA, BF2 key schedule)
+//! - 128 bits total: key1 (64) + validation (16) + key2/rest (48)
+//! - Modified TEA (XTEA-like) with dynamic key selection (sum&3, (sum>>11)&3)
+//! - Mode 0x23: direct XOR decrypt with checksum validation
+//! - Mode 0x36: TEA brute-force with BF1/BF2 key schedules (deferred)
+//! - Dual preamble: Pattern 1 (250µs) and Pattern 2 (125µs)
 
 use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
@@ -21,7 +22,6 @@ const MIN_COUNT_BIT: usize = 128;
 // Internal timing for Manchester sub-symbol detection
 const TE_SHORT_125: u32 = 125;
 const TE_LONG_250: u32 = 250;
-const TE_TOLERANCE_49: u32 = 49;
 const TE_TOLERANCE_50: u32 = 50;
 const TE_TOLERANCE_99: u32 = 99;
 const TE_END_1000: u32 = 1000;
@@ -45,13 +45,19 @@ enum ManchesterState {
     Start1,
 }
 
-/// Decoder states (matches protopirate's PsaDecoderState)
+/// Decoder states (matches protopirate's PsaDecoderState 0-4)
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderState {
+    /// State0: Wait for first edge (pattern detection)
     WaitEdge,
-    CountPattern,
-    DecodeManchester,
-    End,
+    /// State1: Count 250µs preamble patterns (Pattern 1)
+    CountPattern250,
+    /// State2: Manchester decode at 250/500µs (Pattern 1)
+    DecodeManchester250,
+    /// State3: Count 125µs preamble patterns (Pattern 2)
+    CountPattern125,
+    /// State4: Manchester decode at 125/250µs (Pattern 2)
+    DecodeManchester125,
 }
 
 /// PSA protocol decoder
@@ -140,111 +146,268 @@ impl PsaDecoder {
         }
     }
 
-    /// TEA decrypt (matches psa.c / standard TEA)
+    /// Modified TEA decrypt with dynamic key selection (matches psa.c psa_tea_decrypt)
+    /// Uses XTEA-like key scheduling: key[sum&3] and key[(sum>>11)&3]
     fn tea_decrypt(v0: &mut u32, v1: &mut u32, key: &[u32; 4]) {
         let mut sum = TEA_DELTA.wrapping_mul(TEA_ROUNDS);
         for _ in 0..TEA_ROUNDS {
-            *v1 = v1.wrapping_sub(
-                (v0.wrapping_shl(4).wrapping_add(key[2]))
-                    ^ (v0.wrapping_add(sum))
-                    ^ (v0.wrapping_shr(5).wrapping_add(key[3])),
-            );
-            *v0 = v0.wrapping_sub(
-                (v1.wrapping_shl(4).wrapping_add(key[0]))
-                    ^ (v1.wrapping_add(sum))
-                    ^ (v1.wrapping_shr(5).wrapping_add(key[1])),
-            );
+            let k_idx2 = ((sum >> 11) & 3) as usize;
+            let temp = key[k_idx2].wrapping_add(sum);
             sum = sum.wrapping_sub(TEA_DELTA);
+            *v1 = v1.wrapping_sub(
+                temp ^ (v0.wrapping_shr(5) ^ v0.wrapping_shl(4)).wrapping_add(*v0),
+            );
+            let k_idx1 = (sum & 3) as usize;
+            let temp = key[k_idx1].wrapping_add(sum);
+            *v0 = v0.wrapping_sub(
+                temp ^ (v1.wrapping_shr(5) ^ v1.wrapping_shl(4)).wrapping_add(*v1),
+            );
         }
     }
 
-    /// TEA encrypt (matches psa.c / standard TEA)
+    /// Modified TEA encrypt with dynamic key selection (matches psa.c psa_tea_encrypt)
     fn tea_encrypt(v0: &mut u32, v1: &mut u32, key: &[u32; 4]) {
         let mut sum: u32 = 0;
         for _ in 0..TEA_ROUNDS {
+            let k_idx1 = (sum & 3) as usize;
+            let temp = key[k_idx1].wrapping_add(sum);
             sum = sum.wrapping_add(TEA_DELTA);
             *v0 = v0.wrapping_add(
-                (v1.wrapping_shl(4).wrapping_add(key[0]))
-                    ^ (v1.wrapping_add(sum))
-                    ^ (v1.wrapping_shr(5).wrapping_add(key[1])),
+                temp ^ (v1.wrapping_shr(5) ^ v1.wrapping_shl(4)).wrapping_add(*v1),
             );
+            let k_idx2 = ((sum >> 11) & 3) as usize;
+            let temp = key[k_idx2].wrapping_add(sum);
             *v1 = v1.wrapping_add(
-                (v0.wrapping_shl(4).wrapping_add(key[2]))
-                    ^ (v0.wrapping_add(sum))
-                    ^ (v0.wrapping_shr(5).wrapping_add(key[3])),
+                temp ^ (v0.wrapping_shr(5) ^ v0.wrapping_shl(4)).wrapping_add(*v0),
             );
         }
     }
 
-    /// XOR decrypt for mode 0x23 (matches psa.c)
+    /// XOR decrypt for mode 0x23 (matches psa.c psa_second_stage_xor_decrypt)
+    /// Uses psa_copy_reverse byte reordering then XOR operations
     fn xor_decrypt(buffer: &mut [u8]) {
+        // psa_copy_reverse: reorder source bytes
+        let temp = [
+            buffer[5], // temp[0] = source[5]
+            buffer[4], // temp[1] = source[4]
+            buffer[3], // temp[2] = source[3]
+            buffer[2], // temp[3] = source[2]
+            buffer[9], // temp[4] = source[9]
+            buffer[8], // temp[5] = source[8]
+            buffer[7], // temp[6] = source[7]
+            buffer[6], // temp[7] = source[6]
+        ];
+        buffer[2] = temp[0] ^ temp[6];
+        buffer[3] = temp[2] ^ temp[0];
+        buffer[4] = temp[6] ^ temp[3];
+        buffer[5] = temp[7] ^ temp[1];
+        buffer[6] = temp[3] ^ temp[1];
+        buffer[7] = temp[6] ^ temp[4] ^ temp[5];
+    }
+
+    /// XOR encrypt for mode 0x23 encoding (matches psa.c psa_second_stage_xor_encrypt)
+    fn xor_encrypt(buffer: &mut [u8]) {
         let e6 = buffer[8];
         let e7 = buffer[9];
-        let e5 = buffer[7];
-        let e0 = buffer[2];
-        let e1 = buffer[3];
-        let e2 = buffer[4];
-        let e3 = buffer[5];
-        let e4 = buffer[6];
+        let p0 = buffer[2];
+        let p1 = buffer[3];
+        let p2 = buffer[4];
+        let p3 = buffer[5];
+        let p4 = buffer[6];
+        let p5 = buffer[7];
 
-        buffer[2] = e0 ^ e5;
-        buffer[3] = e1 ^ (e0 ^ e5 ^ e6 ^ e7);
-        buffer[4] = e2 ^ e0;
-        buffer[5] = e3 ^ (e0 ^ e5 ^ e6 ^ e7);
-        buffer[6] = e4 ^ e2;
-        buffer[7] = e5 ^ e6 ^ e7;
+        let ne5 = p5 ^ e7 ^ e6;
+        let ne0 = p2 ^ ne5;
+        let ne2 = p4 ^ ne0;
+        let ne4 = p3 ^ ne2;
+        let ne3 = p0 ^ ne5;
+        let ne1 = p1 ^ ne3;
+
+        buffer[2] = ne0;
+        buffer[3] = ne1;
+        buffer[4] = ne2;
+        buffer[5] = ne3;
+        buffer[6] = ne4;
+        buffer[7] = ne5;
     }
 
-    /// Decrypt key1 + validation: mode 0x23 (TEA+XOR) or 0x36 (TEA, BF2) — matches psa.c
+    /// Calculate checksum over buffer[2..8] (matches psa.c psa_calculate_checksum)
+    fn calculate_checksum(buffer: &[u8]) -> u8 {
+        let mut checksum: u32 = 0;
+        for i in 2..8 {
+            checksum += (buffer[i] & 0xF) as u32 + ((buffer[i] >> 4) & 0xF) as u32;
+        }
+        ((checksum.wrapping_mul(0x10)) & 0xFF) as u8
+    }
+
+    /// Check if direct XOR is allowed by key2 high byte (matches psa.c)
+    fn direct_xor_allowed_by_key2(key2_high_byte: u8) -> bool {
+        let lo = key2_high_byte & 0xF;
+        if lo < 3 { return true; }
+        if lo < 7 && (key2_high_byte & 0xC) != 0 { return true; }
+        false
+    }
+
+    /// Setup byte buffer from key1/key2 (matches psa.c psa_setup_byte_buffer)
+    fn setup_byte_buffer(buffer: &mut [u8], key1_low: u32, key1_high: u32, key2_low: u32) {
+        for i in 0..8usize {
+            let shift = i * 8;
+            let byte_val = if shift < 32 {
+                ((key1_low >> shift) & 0xFF) as u8
+            } else {
+                ((key1_high >> (shift - 32)) & 0xFF) as u8
+            };
+            buffer[7 - i] = byte_val;
+        }
+        buffer[9] = (key2_low & 0xFF) as u8;
+        buffer[8] = ((key2_low >> 8) & 0xFF) as u8;
+    }
+
+    /// Decrypt using the C code's approach: setup_byte_buffer then attempt direct XOR
+    /// with checksum validation; mode 0x36 is marked for brute-force (matches psa.c)
     fn try_decrypt(&self) -> Option<(u32, u8, u32, u16, u8)> {
-        // Try mode 0x23 first (seed byte 0x23)
-        let seed_byte = (self.key1_high >> 24) as u8;
+        // C: key2_low = decode_data_low (the 16-bit validation sits in the low word)
+        let key2_low = self.validation_field as u32;
 
-        if seed_byte >= 0x23 && seed_byte < 0x24 {
-            // Mode 0x23 - TEA + XOR
-            let mut v0 = self.key1_high;
-            let mut v1 = self.key1_low;
-            Self::tea_decrypt(&mut v0, &mut v1, &BF1_KEY_SCHEDULE);
+        let mut buffer = [0u8; 48];
+        Self::setup_byte_buffer(&mut buffer, self.key1_low, self.key1_high, key2_low);
 
-            let mut buffer = [0u8; 10];
-            buffer[0] = (v0 >> 24) as u8;
-            buffer[1] = (v0 >> 16) as u8;
-            buffer[2] = (v0 >> 8) as u8;
-            buffer[3] = (v0 >> 0) as u8;
-            buffer[4] = (v1 >> 24) as u8;
-            buffer[5] = (v1 >> 16) as u8;
-            buffer[6] = (v1 >> 8) as u8;
-            buffer[7] = (v1 >> 0) as u8;
-            buffer[8] = (self.validation_field >> 8) as u8;
-            buffer[9] = (self.validation_field & 0xFF) as u8;
+        let key2_high_byte = buffer[8];
 
-            Self::xor_decrypt(&mut buffer);
+        // Try direct XOR decrypt (mode 0x23) if allowed by key2 filter
+        if Self::direct_xor_allowed_by_key2(key2_high_byte) {
+            let checksum = Self::calculate_checksum(&buffer);
+            let validation_result = (checksum ^ key2_high_byte) & 0xF0;
 
-            let serial = ((buffer[2] as u32) << 16)
-                | ((buffer[3] as u32) << 8)
-                | (buffer[4] as u32);
-            let counter = ((buffer[5] as u32) << 8) | (buffer[6] as u32);
-            let crc = buffer[7] as u16;
-            let btn = buffer[8] & 0x0F;
+            if validation_result == 0 {
+                // Direct XOR decrypt succeeded validation
+                Self::xor_decrypt(&mut buffer);
 
-            return Some((serial, btn, counter, crc, 0x23));
+                let serial = ((buffer[3] as u32) << 8)
+                    | ((buffer[2] as u32) << 16)
+                    | (buffer[4] as u32);
+                let counter = (buffer[6] as u32) | ((buffer[5] as u32) << 8);
+                let crc = buffer[7] as u16;
+                let btn = buffer[8] & 0x0F;
+
+                return Some((serial, btn, counter, crc, 0x23));
+            }
         }
 
-        if seed_byte >= 0xF3 && seed_byte < 0xF4 {
-            // Mode 0x36 - TEA + different key schedule
-            let mut v0 = self.key1_high;
-            let mut v1 = self.key1_low;
-            Self::tea_decrypt(&mut v0, &mut v1, &BF2_KEY_SCHEDULE);
+        // Mode 0x36 - TEA brute-force path
+        // Try direct TEA decrypt with BF1 key schedule for a quick decode attempt
+        {
+            let mut w0 = ((buffer[3] as u32) << 16)
+                | ((buffer[2] as u32) << 24)
+                | ((buffer[4] as u32) << 8)
+                | (buffer[5] as u32);
+            let mut w1 = ((buffer[7] as u32) << 16)
+                | ((buffer[6] as u32) << 24)
+                | ((buffer[8] as u32) << 8)
+                | (buffer[9] as u32);
 
-            let serial = ((v0 >> 8) & 0xFFFF00) | ((v0 & 0xFF) as u32);
-            let counter = v1 >> 16;
-            let btn = ((v1 >> 8) & 0xF) as u8;
-            let crc = (v1 & 0xFF) as u16;
+            Self::tea_decrypt(&mut w0, &mut w1, &BF1_KEY_SCHEDULE);
 
-            return Some((serial, btn, counter, crc, 0x36));
+            // Check if the TEA CRC validates (sum of bytes)
+            let crc_calc = Self::calculate_tea_crc(w0, w1);
+            if crc_calc == (w1 & 0xFF) as u8 {
+                let mut dec_buffer = [0u8; 48];
+                dec_buffer[2] = ((w0 >> 24) & 0xFF) as u8;
+                dec_buffer[3] = ((w0 >> 16) & 0xFF) as u8;
+                dec_buffer[4] = ((w0 >> 8) & 0xFF) as u8;
+                dec_buffer[5] = (w0 & 0xFF) as u8;
+                dec_buffer[6] = ((w1 >> 24) & 0xFF) as u8;
+                dec_buffer[7] = ((w1 >> 16) & 0xFF) as u8;
+                dec_buffer[8] = ((w1 >> 8) & 0xFF) as u8;
+                dec_buffer[9] = (w1 & 0xFF) as u8;
+
+                let btn = (dec_buffer[5] >> 4) & 0xF;
+                let serial = ((dec_buffer[3] as u32) << 8)
+                    | ((dec_buffer[2] as u32) << 16)
+                    | (dec_buffer[4] as u32);
+                let counter = ((dec_buffer[7] as u32) << 8)
+                    | ((dec_buffer[6] as u32) << 16)
+                    | (dec_buffer[8] as u32)
+                    | (((dec_buffer[5] as u32) & 0xF) << 24);
+                let crc = dec_buffer[9] as u16;
+
+                return Some((serial, btn, counter, crc, 0x36));
+            }
         }
 
-        // Cannot decrypt - return raw data
+        // Also try BF2 key schedule directly (XOR-derived keys)
+        {
+            let mut w0 = ((buffer[3] as u32) << 16)
+                | ((buffer[2] as u32) << 24)
+                | ((buffer[4] as u32) << 8)
+                | (buffer[5] as u32);
+            let mut w1 = ((buffer[7] as u32) << 16)
+                | ((buffer[6] as u32) << 24)
+                | ((buffer[8] as u32) << 8)
+                | (buffer[9] as u32);
+
+            Self::tea_decrypt(&mut w0, &mut w1, &BF2_KEY_SCHEDULE);
+
+            let crc_calc = Self::calculate_tea_crc(w0, w1);
+            if crc_calc == (w1 & 0xFF) as u8 {
+                let mut dec_buffer = [0u8; 48];
+                dec_buffer[2] = ((w0 >> 24) & 0xFF) as u8;
+                dec_buffer[3] = ((w0 >> 16) & 0xFF) as u8;
+                dec_buffer[4] = ((w0 >> 8) & 0xFF) as u8;
+                dec_buffer[5] = (w0 & 0xFF) as u8;
+                dec_buffer[6] = ((w1 >> 24) & 0xFF) as u8;
+                dec_buffer[7] = ((w1 >> 16) & 0xFF) as u8;
+                dec_buffer[8] = ((w1 >> 8) & 0xFF) as u8;
+                dec_buffer[9] = (w1 & 0xFF) as u8;
+
+                let btn = (dec_buffer[5] >> 4) & 0xF;
+                let serial = ((dec_buffer[3] as u32) << 8)
+                    | ((dec_buffer[2] as u32) << 16)
+                    | (dec_buffer[4] as u32);
+                let counter = ((dec_buffer[7] as u32) << 8)
+                    | ((dec_buffer[6] as u32) << 16)
+                    | (dec_buffer[8] as u32)
+                    | (((dec_buffer[5] as u32) & 0xF) << 24);
+                let crc = dec_buffer[9] as u16;
+
+                return Some((serial, btn, counter, crc, 0x36));
+            }
+        }
+
+        None
+    }
+
+    /// Calculate TEA CRC (matches psa.c psa_calculate_tea_crc)
+    fn calculate_tea_crc(v0: u32, v1: u32) -> u8 {
+        let mut crc: u32 = 0;
+        crc += (v0 >> 24) & 0xFF;
+        crc += (v0 >> 16) & 0xFF;
+        crc += (v0 >> 8) & 0xFF;
+        crc += v0 & 0xFF;
+        crc += (v1 >> 24) & 0xFF;
+        crc += (v1 >> 16) & 0xFF;
+        crc += (v1 >> 8) & 0xFF;
+        (crc & 0xFF) as u8
+    }
+
+    fn init_preamble_state(&mut self) {
+        self.data_low = 0;
+        self.data_high = 0;
+        self.pattern_counter = 0;
+        self.bit_count = 0;
+        self.manchester_state = ManchesterState::Mid1;
+    }
+
+    fn finalize_frame(&mut self) -> Option<DecodedSignal> {
+        self.state = DecoderState::WaitEdge;
+        if self.bit_count >= 80 {
+            // C validation: ((key1_high >> 16) & 0xF) == 0xA
+            if ((self.key1_high >> 16) & 0xF) != 0xA {
+                return None;
+            }
+            let result = self.parse_data();
+            return Some(result);
+        }
         None
     }
 
@@ -317,24 +480,96 @@ impl ProtocolDecoder for PsaDecoder {
 
     fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
         match self.state {
+            // State0: detect preamble pattern type
             DecoderState::WaitEdge => {
-                if level && duration_diff!(duration, TE_SHORT_125) < TE_TOLERANCE_49 {
-                    self.state = DecoderState::CountPattern;
+                if !level {
+                    return None;
+                }
+                let diff_250 = duration_diff!(duration, TE_SHORT);
+                let diff_125 = duration_diff!(duration, TE_SHORT_125);
+
+                if diff_250 < TE_TOLERANCE_99 {
+                    // Pattern 1: 250µs preamble
+                    self.init_preamble_state();
+                    self.state = DecoderState::CountPattern250;
+                } else if diff_125 < 40 && duration <= 180 {
+                    // Pattern 2: 125µs preamble
+                    self.init_preamble_state();
+                    self.state = DecoderState::CountPattern125;
+                }
+                self.prev_duration = duration;
+            }
+
+            // State1: count 250µs preamble (Pattern 1)
+            DecoderState::CountPattern250 => {
+                if level {
+                    return None;
+                }
+                let diff_short = duration_diff!(duration, TE_SHORT);
+                if diff_short < TE_TOLERANCE_99 + 1 {
+                    let prev_diff = duration_diff!(self.prev_duration, TE_SHORT);
+                    if prev_diff <= TE_TOLERANCE_99 {
+                        self.pattern_counter += 1;
+                    }
                     self.prev_duration = duration;
-                    self.pattern_counter = 0;
+                } else {
+                    let diff_long = duration_diff!(duration, TE_LONG);
+                    if diff_long < 100 && self.pattern_counter > 0x46 {
+                        // Transition to Manchester decode at 250/500µs
+                        self.state = DecoderState::DecodeManchester250;
+                        self.data_low = 0;
+                        self.data_high = 0;
+                        self.bit_count = 0;
+                        self.manchester_state = ManchesterState::Mid1;
+                        self.pattern_counter = 0;
+                        self.prev_duration = duration;
+                    } else {
+                        self.state = DecoderState::WaitEdge;
+                        self.pattern_counter = 0;
+                    }
                 }
             }
 
-            DecoderState::CountPattern => {
+            // State2: Manchester decode at 250/500µs (Pattern 1)
+            DecoderState::DecodeManchester250 => {
+                if self.bit_count >= 121 {
+                    return self.finalize_frame();
+                }
+                // Check for end-of-frame marker
+                if level && self.bit_count == 80 && duration >= 800 {
+                    let end_diff = duration_diff!(duration, TE_END_1000);
+                    if end_diff <= 199 {
+                        return self.finalize_frame();
+                    }
+                }
+                let is_short = duration_diff!(duration, TE_SHORT) < TE_DELTA;
+                let is_long = duration_diff!(duration, TE_LONG) < TE_DELTA;
+
+                if duration > 10000 {
+                    self.state = DecoderState::WaitEdge;
+                    self.pattern_counter = 0;
+                    return None;
+                }
+
+                if is_short || is_long {
+                    if let Some(bit) = self.manchester_advance(is_short, level) {
+                        self.add_bit(bit);
+                    }
+                }
+                self.prev_duration = duration;
+            }
+
+            // State3: count 125µs preamble (Pattern 2)
+            DecoderState::CountPattern125 => {
                 let diff_125 = duration_diff!(duration, TE_SHORT_125);
                 let diff_250 = duration_diff!(duration, TE_LONG_250);
 
                 if diff_125 < TE_TOLERANCE_50 {
                     self.pattern_counter += 1;
                     self.prev_duration = duration;
-                } else if diff_250 < TE_TOLERANCE_99 && self.pattern_counter >= 0x46 {
-                    // Found end of preamble, start Manchester decoding
-                    self.state = DecoderState::DecodeManchester;
+                } else if diff_250 < TE_TOLERANCE_99 && self.pattern_counter >= 0x45 {
+                    // Transition to Manchester decode at 125/250µs
+                    self.state = DecoderState::DecodeManchester125;
                     self.data_low = 0;
                     self.data_high = 0;
                     self.bit_count = 0;
@@ -347,23 +582,17 @@ impl ProtocolDecoder for PsaDecoder {
                 }
             }
 
-            DecoderState::DecodeManchester => {
-                let is_short = duration_diff!(duration, TE_SHORT) < TE_DELTA;
-                let is_long = duration_diff!(duration, TE_LONG) < TE_DELTA;
-                let is_end = duration > TE_END_1000;
+            // State4: Manchester decode at 125/250µs (Pattern 2)
+            DecoderState::DecodeManchester125 => {
+                if self.bit_count >= 121 {
+                    return self.finalize_frame();
+                }
+                let is_short = duration_diff!(duration, TE_SHORT_125) < TE_TOLERANCE_50;
+                let is_long = duration_diff!(duration, TE_LONG_250) < TE_TOLERANCE_99;
+                let is_end = duration > 500;
 
-                if is_end || self.bit_count >= 121 {
-                    // End of data
-                    self.state = DecoderState::End;
-
-                    if self.bit_count >= 96 {
-                        // Got enough data
-                        let result = self.parse_data();
-                        self.state = DecoderState::WaitEdge;
-                        return Some(result);
-                    }
-                    self.state = DecoderState::WaitEdge;
-                    return None;
+                if is_end {
+                    return self.finalize_frame();
                 }
 
                 if is_short || is_long {
@@ -373,12 +602,7 @@ impl ProtocolDecoder for PsaDecoder {
                 } else {
                     self.state = DecoderState::WaitEdge;
                 }
-
                 self.prev_duration = duration;
-            }
-
-            DecoderState::End => {
-                self.state = DecoderState::WaitEdge;
             }
         }
 
@@ -406,31 +630,8 @@ impl ProtocolDecoder for PsaDecoder {
         buffer[8] = button & 0x0F;
         buffer[9] = 0;
 
-        // XOR encrypt
-        {
-            let e6 = buffer[8];
-            let e7 = buffer[9];
-            let p0 = buffer[2];
-            let p1 = buffer[3];
-            let p2 = buffer[4];
-            let p3 = buffer[5];
-            let p4 = buffer[6];
-            let p5 = buffer[7];
-
-            let ne5 = p5 ^ e7 ^ e6;
-            let ne0 = p2 ^ ne5;
-            let ne2 = p4 ^ ne0;
-            let ne4 = p3 ^ ne2;
-            let ne3 = p0 ^ ne5;
-            let ne1 = p1 ^ ne3;
-
-            buffer[2] = ne0;
-            buffer[3] = ne1;
-            buffer[4] = ne2;
-            buffer[5] = ne3;
-            buffer[6] = ne4;
-            buffer[7] = ne5;
-        }
+        // XOR encrypt (matches psa.c psa_second_stage_xor_encrypt)
+        Self::xor_encrypt(&mut buffer);
 
         // TEA encrypt
         let mut v0 = ((buffer[0] as u32) << 24)
@@ -450,38 +651,42 @@ impl ProtocolDecoder for PsaDecoder {
 
         let mut signal = Vec::with_capacity(512);
 
-        // Preamble + sync (matches protopirate psa encode)
-        for _ in 0..70 {
-            signal.push(LevelDuration::new(true, TE_SHORT_125));
-            signal.push(LevelDuration::new(false, TE_SHORT_125));
+        // Preamble: 80 iterations at 250us HIGH+LOW (matches C: te = PSA_TE_LONG_250)
+        for _ in 0..80 {
+            signal.push(LevelDuration::new(true, TE_LONG_250));
+            signal.push(LevelDuration::new(false, TE_LONG_250));
         }
-        signal.push(LevelDuration::new(true, TE_LONG_250));
+
+        // Sync transition: LOW 250us, HIGH 500us, LOW 250us (matches C)
+        signal.push(LevelDuration::new(false, TE_LONG_250));
+        signal.push(LevelDuration::new(true, TE_LONG));
         signal.push(LevelDuration::new(false, TE_LONG_250));
 
-        // Key1: 64 bits Manchester, then validation 16 bits
+        // Key1: 64 bits Manchester at 250us (C: bit 1 = true,false; bit 0 = false,true)
         let key1 = ((key1_high as u64) << 32) | (key1_low as u64);
         for bit in (0..64).rev() {
             if (key1 >> bit) & 1 == 1 {
-                signal.push(LevelDuration::new(false, TE_SHORT));
-                signal.push(LevelDuration::new(true, TE_SHORT));
+                signal.push(LevelDuration::new(true, TE_LONG_250));
+                signal.push(LevelDuration::new(false, TE_LONG_250));
             } else {
-                signal.push(LevelDuration::new(true, TE_SHORT));
-                signal.push(LevelDuration::new(false, TE_SHORT));
+                signal.push(LevelDuration::new(false, TE_LONG_250));
+                signal.push(LevelDuration::new(true, TE_LONG_250));
             }
         }
 
-        // Validation: 16 bits Manchester encoded
+        // Validation: 16 bits Manchester at 250us
         for bit in (0..16).rev() {
             if (validation >> bit) & 1 == 1 {
-                signal.push(LevelDuration::new(false, TE_SHORT));
-                signal.push(LevelDuration::new(true, TE_SHORT));
+                signal.push(LevelDuration::new(true, TE_LONG_250));
+                signal.push(LevelDuration::new(false, TE_LONG_250));
             } else {
-                signal.push(LevelDuration::new(true, TE_SHORT));
-                signal.push(LevelDuration::new(false, TE_SHORT));
+                signal.push(LevelDuration::new(false, TE_LONG_250));
+                signal.push(LevelDuration::new(true, TE_LONG_250));
             }
         }
 
-        // End marker
+        // End marker: HIGH 1000us + LOW 1000us (matches C)
+        signal.push(LevelDuration::new(true, TE_END_1000));
         signal.push(LevelDuration::new(false, TE_END_1000));
 
         Some(signal)

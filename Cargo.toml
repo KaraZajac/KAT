@@ -54,6 +54,10 @@ atty = "0.2"
 [build-dependencies]
 pkg-config = "0.3"
 
+[patch.crates-io]
+# Vendored with ARM fix: c_char is u8 on ARM, so the upstream transmute fails
+libhackrf = { path = "vendor/libhackrf" }
+
 [profile.release]
 opt-level = 3
 lto = true

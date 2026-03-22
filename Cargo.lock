@@ -482,8 +482,6 @@ checksum = "bcc35a38544a891a5f7c865aca548a982ccb3b8650a5b06d0fd33a10283c56fc"
 [[package]]
 name = "libhackrf"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e640122f67f490129cd3ab1517149b4091eeca0a14de3df7510626df258196b9"
 dependencies = [
  "num-complex",
 ]

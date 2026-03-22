@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KAT — Keyfob Analysis Toolkit</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>KAT — Keyfob Analysis Toolkit</h1>
+            <p class="tagline">Terminal-based RF signal analysis for automotive keyfobs</p>
+        </div>
+    </header>
+
+    <nav class="navbar">
+        <div class="container">
+            <ul>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#supported-protocols">Protocols</a></li>
+                <li><a href="#requirements">Requirements</a></li>
+                <li><a href="#documentation">Docs</a></li>
+                <li><a href="https://github.com/KaraZajac/KAT" target="_blank">GitHub</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <section class="hero">
+            <div class="container">
+                <h2>Capture, Decode & Analyze Keyfob Signals</h2>
+                <p>A real-time terminal UI for RF signal analysis with support for HackRF One and RTL-SDR hardware.</p>
+                <div class="cta-buttons">
+                    <a href="https://github.com/KaraZajac/KAT#installation" class="btn btn-primary">Get Started</a>
+                    <a href="https://github.com/KaraZajac/KAT" class="btn btn-secondary">View on GitHub</a>
+                </div>
+            </div>
+        </section>
+
+        <section id="features" class="features">
+            <div class="container">
+                <h2>Key Features</h2>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h3>📡 Real-Time Capture</h3>
+                        <p>Receive and demodulate AM/OOK keyfob signals at configurable frequencies with HackRF or RTL-SDR</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>🔓 Multi-Protocol Decoding</h3>
+                        <p>14 protocol decoders including Kia V0–V6, Ford, Fiat, Subaru, Suzuki, VAG, PSA, and more</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>🔑 KeeLoq Keystore</h3>
+                        <p>Generic KeeLoq fallback with embedded manufacturer keys for automatic decoding</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>📤 Signal Retransmission</h3>
+                        <p>Transmit Lock, Unlock, Trunk, and Panic commands from decoded signals (HackRF only)</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>💾 Multiple Export Formats</h3>
+                        <p>.fob (JSON) and .sub (Flipper Zero compatible) formats for signal storage and sharing</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>🔧 Rich Signal Details</h3>
+                        <p>View encoding, RF modulation, encryption, serial, counter, key data, CRC, and raw timing data</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="supported-protocols" class="protocols">
+            <div class="container">
+                <h2>Supported Protocols</h2>
+                <div class="protocol-list">
+                    <div class="protocol-column">
+                        <h3>Kia</h3>
+                        <ul>
+                            <li>Kia V0</li>
+                            <li>Kia V1</li>
+                            <li>Kia V2</li>
+                            <li>Kia V3 / V4</li>
+                            <li>Kia V5</li>
+                            <li>Kia V6</li>
+                        </ul>
+                    </div>
+                    <div class="protocol-column">
+                        <h3>Other Manufacturers</h3>
+                        <ul>
+                            <li>Ford V0</li>
+                            <li>Fiat V0</li>
+                            <li>Subaru</li>
+                            <li>Suzuki</li>
+                            <li>VAG (VW/Audi/Seat/Skoda)</li>
+                            <li>PSA (Peugeot/Citroën)</li>
+                        </ul>
+                    </div>
+                    <div class="protocol-column">
+                        <h3>Generic</h3>
+                        <ul>
+                            <li>Scher-Khan</li>
+                            <li>Star Line</li>
+                            <li>KeeLoq (Generic)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="requirements" class="requirements">
+            <div class="container">
+                <h2>Requirements</h2>
+                <h3>Hardware</h3>
+                <ul>
+                    <li><strong>HackRF One</strong> (or compatible) — Full receive and transmit capabilities</li>
+                    <li><strong>RTL433 / RTL-SDR</strong> — Receive-only; no transmit supported</li>
+                </ul>
+
+                <h3>Software</h3>
+                <ul>
+                    <li>Rust 1.75+ (for building from source)</li>
+                    <li>libhackrf — HackRF C library and headers</li>
+                    <li>libusb — For RTL433/RTL-SDR support</li>
+                </ul>
+
+                <h3>Operating System</h3>
+                <p>macOS, Linux, and other Unix-like systems. Precompiled binaries and installation instructions available on GitHub.</p>
+            </div>
+        </section>
+
+        <section id="documentation" class="documentation">
+            <div class="container">
+                <h2>Protocol Documentation</h2>
+                <p>Detailed protocol specifications and decoder documentation:</p>
+                <div class="doc-links">
+                    <a href="kia_v0.html" class="doc-link">Kia V0</a>
+                    <a href="kia_v1.html" class="doc-link">Kia V1</a>
+                    <a href="kia_v2.html" class="doc-link">Kia V2</a>
+                    <a href="kia_v3_v4.html" class="doc-link">Kia V3/V4</a>
+                    <a href="kia_v5.html" class="doc-link">Kia V5</a>
+                    <a href="kia_v6.html" class="doc-link">Kia V6</a>
+                    <a href="ford_v0.html" class="doc-link">Ford V0</a>
+                    <a href="fiat_v0.html" class="doc-link">Fiat V0</a>
+                    <a href="subaru.html" class="doc-link">Subaru</a>
+                    <a href="suzuki.html" class="doc-link">Suzuki</a>
+                    <a href="vag.html" class="doc-link">VAG</a>
+                    <a href="psa.html" class="doc-link">PSA</a>
+                    <a href="scher_khan.html" class="doc-link">Scher-Khan</a>
+                    <a href="star_line.html" class="doc-link">Star Line</a>
+                    <a href="keeloq_generic.html" class="doc-link">KeeLoq (Generic)</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="security-notice">
+            <div class="container">
+                <h3>⚠️ Security and Legal Disclaimer</h3>
+                <p>Use KAT only on systems and vehicles you own or have explicit, written permission to test. Capturing, decoding, or transmitting keyfob and vehicle-access signals without authorization may be illegal in your jurisdiction. You are solely responsible for ensuring your use complies with applicable laws. KAT is intended for security research, authorized penetration testing, education, and legitimate testing on your own equipment.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 KAT — Keyfob Analysis Toolkit. Licensed under the terms in LICENSE file. <a href="https://github.com/KaraZajac/KAT" target="_blank">View on GitHub</a></p>
+        </div>
+    </footer>
+</body>
+</html>

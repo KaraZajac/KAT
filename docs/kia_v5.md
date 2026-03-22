@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # Kia V5 Protocol
 
 **Rust module:** `src/protocols/kia_v5.rs`  

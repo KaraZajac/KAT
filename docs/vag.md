@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # VAG (VW/Audi/Seat/Skoda) Protocol
 
 **Rust module:** `src/protocols/vag.rs`  

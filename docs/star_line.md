@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # Star Line Protocol
 
 **Rust module:** `src/protocols/star_line.rs`  

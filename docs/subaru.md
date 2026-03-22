@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # Subaru Protocol
 
 **Rust module:** `src/protocols/subaru.rs`  

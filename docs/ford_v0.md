@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # Ford V0 Protocol
 
 **Rust module:** `src/protocols/ford_v0.rs`  

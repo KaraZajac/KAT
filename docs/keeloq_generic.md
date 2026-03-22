@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # KeeLoq Generic Fallback
 
 **Rust module:** `src/protocols/keeloq_generic.rs`  

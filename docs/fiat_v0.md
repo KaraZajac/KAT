@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # Fiat V0 Protocol
 
 **Rust module:** `src/protocols/fiat_v0.rs`  

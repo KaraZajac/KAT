@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # PSA (Peugeot/Citroën) Protocol
 
 **Rust module:** `src/protocols/psa.rs`  

@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # Suzuki Protocol
 
 **Rust module:** `src/protocols/suzuki.rs`  

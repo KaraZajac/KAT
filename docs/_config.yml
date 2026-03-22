@@ -1,0 +1,6 @@
+title: KAT — Keyfob Analysis Toolkit
+description: Terminal-based RF signal analysis for automotive keyfobs
+theme: jekyll-theme-minimal
+show_downloads: false
+exclude:
+  - README.md

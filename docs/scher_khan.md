@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # Scher-Khan Protocol
 
 **Rust module:** `src/protocols/scher_khan.rs`  

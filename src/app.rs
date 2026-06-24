@@ -1898,13 +1898,23 @@ impl App {
         match protocol {
             p if p.starts_with("Kia") => "Kia/Hyundai",
             p if p.starts_with("Ford") => "Ford",
+            "Honda Static" => "Honda/Acura",
+            "Honda V1" => "Honda/Acura",
             p if p.starts_with("Fiat") => "Fiat",
             "Subaru" => "Subaru",
             "Suzuki" => "Suzuki",
             "VAG" | "VW" => "VW/Audi/Seat/Skoda",
-            "PSA" => "Peugeot/Citroen",
+            p if p.starts_with("PSA") => "Peugeot/Citroen",
             "Star Line" => "Star Line",
             "Scher-Khan" => "Scher-Khan",
+            "Chrysler V0" => "Chrysler/Dodge/Jeep",
+            p if p.starts_with("Land Rover") => "Land Rover",
+            "Toyota" => "Toyota/Lexus",
+            // Covers both "Mazda V0" and "Mazda Siemens".
+            p if p.starts_with("Mazda") => "Mazda",
+            "BMW CAS4" => "BMW",
+            // Covers "Porsche Touareg" and "Porsche Cayenne [First/Cont/Final]".
+            p if p.starts_with("Porsche") => "Porsche",
             _ => "Unknown",
         }
     }

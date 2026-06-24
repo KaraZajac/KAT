@@ -2,6 +2,24 @@
 
 All notable changes to KAT are documented here.
 
+## [1.3.0] - 2026-06-23
+
+### Added
+
+- **14 new protocol decoders** (total now 32), ported from the [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate) reference and the [Flipper-ARF](https://github.com/D4C1-Labs/Flipper-ARF) firmware:
+  - **ProtoPirate (8):** **Kia V7** (Manchester 250/500, header 0x4C + CRC8), **Ford V1** (Manchester 65/130, descramble + CRC16/CCITT), **Ford V2** (Manchester 200/400, 0x7FA7 sync), **Ford V3** (Manchester 240/480, plaintext, decode-only), **Chrysler V0** (PWM, seed-XOR transform; Dodge/Jeep), **Honda Static** (FM, XOR checksum), **Honda V1** (PWM/PPM, CRC-fold), **Land Rover V0** (differential Manchester, 3-bit check polynomial).
+  - **Flipper-ARF (6):** **Toyota** (dual PWM + NRZ variants, KeeLoq, decode-only; Lexus), **Land Rover RKE** (PWM, KeeLoq), **Mazda Siemens** (Siemens XOR/interleave), **BMW CAS4** (Manchester, 0x30/0xC5 markers, decode-only), **Porsche Cayenne** (PWM, VAG rolling-register cipher; adds an encoder to the shared Touareg air protocol), **PSA2 / "PSA OLD"** (Manchester, TEA with bounded brute-force gated behind a structural/checksum check).
+- **Real-capture validation** — decoders verified against `IMPORTS/` samples where they exist: **Ford V3** (LDV T80), **Honda Static** (Honda), **Toyota** (Camry NRZ variant), **PSA2** (Groupe PSA, recovered serial 0x99EB25 + rolling counter). The rest are validated by in-module encode→decode round-trip and synthetic-frame unit tests.
+- **Metadata, make-suggestion, and docs** — each new protocol is tagged with Encoding / RF (AM/FM) / Encryption in the signal detail panel, mapped to a Make suggestion (Honda/Acura, Chrysler/Dodge/Jeep, Toyota/Lexus, Land Rover, BMW, Porsche, Mazda, Peugeot/Citroën), and documented under `docs/`.
+
+### Fixed
+
+- **KeeLoq decrypt debug-panic** — `keeloq_common::keeloq_decrypt` computed `15 - r` (with `r` up to 527), underflowing and panicking in debug builds / `cargo test`; now uses `wrapping_sub` to match the reference's unsigned wraparound (release behavior, which silently wrapped, is unchanged).
+
+### Notes
+
+- All new decoders are gated (CRC / checksum / fixed markers / frame structure) so they do not false-match existing protocols — every previously-decoding `IMPORTS/*.sub` capture decodes unchanged. Where two decoders share a wire protocol (Porsche Cayenne ↔ Touareg; Mazda Siemens ↔ Mazda V0; Toyota variant-A ↔ Kia V3/V4 KeeLoq), the pre-existing decoder keeps first-match priority.
+
 ## [1.1.3] - 2026-02-20
 
 ### Added

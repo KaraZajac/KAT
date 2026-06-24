@@ -17,7 +17,7 @@ A terminal-based RF signal analysis tool for capturing, decoding, and retransmit
 ## Features
 
 - **Real-time capture** — receive and demodulate AM/OOK keyfob signals at configurable frequencies (HackRF uses AM envelope detection; FM protocols are tagged for display and may decode when signal is strong)
-- **Multi-protocol decoding** — 18 protocol decoders: Kia V0–V6, Ford V0, Fiat V0/V1, Mazda V0, Mitsubishi V0, Porsche Touareg, Subaru, Suzuki, VAG (VW/Audi/Seat/Skoda), PSA, Scher-Khan, Star Line; adaptive demodulation for real-world conditions
+- **Multi-protocol decoding** — 32 protocol decoders: Kia V0–V7, Ford V0–V3, Chrysler V0 (Dodge/Jeep), Honda Static, Honda V1, Toyota (Lexus), Land Rover V0, Land Rover RKE, Fiat V0/V1, Mazda V0, Mazda Siemens, Mitsubishi V0, BMW CAS4, Porsche Touareg, Porsche Cayenne, Subaru, Suzuki, VAG (VW/Audi/Seat/Skoda), PSA, PSA2, Scher-Khan, Star Line; adaptive demodulation for real-world conditions
 - **KeeLoq generic fallback** — when a signal doesn’t match any known protocol, KAT tries decoding it as KeeLoq using every manufacturer key in the embedded keystore (Kia V3/V4 and Star Line air formats); successful decodes appear as **Keeloq (keystore name)** in the capture list
 - **RF modulation metadata** — each protocol tagged as AM, FM, or both (from ProtoPirate); shown in signal detail and exported in .fob
 - **Rich signal detail** — encoding (PWM/Manchester), RF (AM/FM), encryption, serial, counter, key data, CRC, frequency, and raw level/duration pairs
@@ -234,18 +234,32 @@ Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference. KA
 | Kia V3/V4 | PWM | AM/FM | KeeLoq | 315 / 433.92 MHz |
 | Kia V5 | Manchester | FM | Fixed Code | 433.92 MHz |
 | Kia V6 | Manchester | FM | AES-128 | 433.92 MHz |
+| Kia V7 | Manchester | FM | Fixed Code (CRC8) | 315 / 433.92 MHz |
 | Ford V0 | Manchester | FM | Rolling Code | 315 / 433.92 MHz |
+| Ford V1 | Manchester | FM | Rolling Code (descramble + CRC16) | 315 / 433.92 MHz |
+| Ford V2 | Manchester | FM | Fixed Code (0x7FA7 sync) | 315 / 433.92 MHz |
+| Ford V3 | Manchester | FM | Fixed Code (decode-only) | 315 / 433.92 MHz |
+| Chrysler V0 (Dodge/Jeep) | PWM | AM | Rolling Code (seed-XOR) | 315 / 433.92 MHz |
+| Honda Static | Manchester | FM | Fixed Code | 315 / 433.92 MHz |
+| Honda V1 | PWM | AM | Fixed Code | 315 / 433.92 MHz |
+| Toyota (Lexus) | PWM / NRZ | AM | KeeLoq (decode-only) | 315 / 433.92 MHz |
+| Land Rover V0 | Diff. Manchester | FM | Rolling Code (3-bit check) | 315 / 433.92 MHz |
+| Land Rover RKE | PWM | AM | KeeLoq | 315 / 433.92 MHz |
 | Fiat V0 | Manchester | FM | Fixed Code | 433.92 MHz |
 | Fiat V1 (Magneti Marelli) | Manchester | FM | Rolling Code | 433.92 MHz |
 | Mazda V0 | Pair-based | FM | XOR Deobfuscation | 433.92 MHz |
+| Mazda Siemens | Manchester | FM | Siemens XOR/interleave | 433.92 MHz |
 | Mitsubishi V0 | PWM | FM | Bit Negation + XOR | 868.35 MHz |
+| BMW CAS4 | Manchester | AM | CAS4 rolling (decode-only) | 433.92 MHz |
 | Porsche Touareg | PWM | AM | Rotation Cipher | 433.92 / 868.35 MHz |
+| Porsche Cayenne | PWM | AM | VAG rolling register | 433.92 / 868.35 MHz |
 | Subaru | PWM | AM | Rolling Code | 433.92 MHz |
 | Suzuki | PWM | AM | Rolling Code | 433.92 MHz |
 | VAG (VW/Audi/Seat/Skoda) | Manchester | AM | AUT64/XTEA | 433.92 / 434.42 MHz |
 | Scher-Khan | PWM | FM | Magic Code | 433.92 MHz |
 | Star Line | PWM | AM | KeeLoq | 433.92 MHz |
 | PSA (Peugeot/Citroën) | Manchester | FM | Modified TEA/XOR | 433.92 MHz |
+| PSA2 (PSA OLD) | Manchester | AM | TEA | 433.92 MHz |
 
 **KeeLoq generic fallback:** If no protocol decodes a capture, KAT tries KeeLoq with every keystore manufacturer key (Kia V3/V4 and Star Line bit layouts). On success the protocol is shown as **Keeloq (*keystore name*)** (e.g. Keeloq (Alligator), Keeloq (Pandora_PRO)). See [docs/keeloq_generic.md](docs/keeloq_generic.md).
 

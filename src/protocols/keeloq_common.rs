@@ -30,7 +30,9 @@ fn g5(x: u32, a: u32, b: u32, c: u32, d: u32, e: u32) -> u32 {
 pub fn keeloq_decrypt(data: u32, key: u64) -> u32 {
     let mut x = data;
     for r in 0..528u32 {
-        let key_bit = ((key >> ((15 - r) & 63)) & 1) as u32;
+        // (15 - r) relies on unsigned wraparound (matches the C reference `(15 - r) & 63`);
+        // use wrapping_sub so debug builds don't panic on the overflow that release silently wraps.
+        let key_bit = ((key >> ((15u32.wrapping_sub(r)) & 63)) & 1) as u32;
         let new_lsb = bit(x, 31) ^ bit(x, 15) ^ key_bit
             ^ bit(KEELOQ_NLF, g5(x, 0, 8, 19, 25, 30));
         x = (x << 1) ^ new_lsb;

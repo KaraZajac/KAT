@@ -13,7 +13,7 @@ use crate::app::App;
 /// Credits text for the :credits command
 pub const CREDITS_TEXT: &str = r#"=============== CREDITS ==============
 
-KAT is developed by Kara Zajac (.leviathan).
+KAT is developed by Kara Zajac (.kara).
 
 KAT would not be possible without ProtoPirate. The protocol decoders, reference implementations, and community work are the foundation this tool is built on. I am truly standing on the shoulders of giants.
 

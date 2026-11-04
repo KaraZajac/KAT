@@ -1,0 +1,77 @@
+# Build prebuilt KAT binaries and attach them to a GitHub release.
+#
+# Runs when a release is published. For a release made before this workflow existed, run it by hand:
+#   gh workflow run release.yml -f tag=v1.5.0
+#
+# Linux builds use Ubuntu 22.04 (glibc 2.35) so the binaries also run on older distributions such as
+# Debian 12 and Raspberry Pi OS. At runtime KAT needs the HackRF library (libhackrf.so.0 /
+# libhackrf.0.dylib), even when only an RTL-SDR is used; libusb is built in.
+name: Release binaries
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build (e.g. v1.5.0)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-linux
+          - os: ubuntu-22.04-arm
+            target: aarch64-linux
+          - os: macos-latest
+            target: aarch64-macos
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Install native libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config libhackrf-dev libusb-1.0-0-dev
+
+      - name: Install native libraries (macOS)
+        if: runner.os == 'macOS'
+        run: brew install hackrf libusb pkg-config
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Check the binary starts
+        run: ./target/release/kat --version
+
+      - name: Package
+        run: |
+          name="kat-${TAG}-${{ matrix.target }}"
+          mkdir -p "dist/$name"
+          cp target/release/kat README.md LICENSE CHANGELOG.md "dist/$name/"
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+          (cd dist && shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256")
+          cat "dist/$name.tar.gz.sha256"
+
+      - name: Upload to the release
+        run: gh release upload "$TAG" dist/*.tar.gz dist/*.tar.gz.sha256 --clobber

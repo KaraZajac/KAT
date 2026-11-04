@@ -37,6 +37,31 @@ A terminal-based RF signal analysis tool for capturing, decoding, and retransmit
 - **VIM-style command line** — `:freq`, `:hop`, `:iq`, `:record`, `:lock`, `:unlock`, `:replay`, `:txpower`, `:timing`, `:load`, `:new`, `:delete`, `:clear`, `:q` / `:quit`, and more
 - **Interactive TUI** — captures list with detail panel (protocol, freq, mod, RF, encryption), signal action menu, radio settings, fob export form; header shows device (HackRF / RTL-SDR (RX only) / No device), status (DISCONNECTED in red when no device), hopping and recording state
 
+## Installation
+
+### Prebuilt binaries
+
+Every release from v1.5.0 on carries ready-to-run binaries on its [GitHub release page](https://github.com/KaraZajac/KAT/releases):
+`kat-<version>-x86_64-linux.tar.gz`, `kat-<version>-aarch64-linux.tar.gz` (64-bit Raspberry Pi OS and other ARM64 Linux) and `kat-<version>-aarch64-macos.tar.gz` (Apple Silicon), each with a `.sha256` checksum. The Linux builds run on glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Raspberry Pi OS bookworm and later).
+
+KAT needs the HackRF library at runtime, even when you only use an RTL-SDR:
+
+```bash
+sudo apt install libhackrf0     # Debian / Ubuntu / Raspberry Pi OS
+sudo dnf install hackrf         # Fedora
+sudo pacman -S hackrf           # Arch Linux
+brew install hackrf             # macOS
+```
+
+Then unpack and run:
+
+```bash
+tar xzf kat-v1.5.0-x86_64-linux.tar.gz
+./kat-v1.5.0-x86_64-linux/kat
+```
+
+On macOS the binary isn't notarized, so the first start may be blocked; `xattr -d com.apple.quarantine kat` clears that. Intel Macs and other platforms build from source (below).
+
 ## Requirements
 
 - **Radio hardware (one of):**

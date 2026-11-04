@@ -184,6 +184,7 @@ pub use tx::{tx_power_label, TX_POWER_STEPS};
 mod key_files;
 // `:new` ("Add Manually" remotes) and the signal menu's "Send button…".
 mod add_manually;
+mod keeloq_bf;
 pub use add_manually::{PickerRow, PICKER_VISIBLE_ROWS};
 
 /// Items available in the signal action menu
@@ -206,6 +207,8 @@ pub enum SignalAction {
     Delete,
     /// PSA TEA frame: run ProtoPirate's key brute force on a background thread.
     RecoverKey,
+    /// KeeLoq frame no key decrypts: Flipper-ARF's magic-serial key search (app/keeloq_bf.rs).
+    RecoverKeeloqKey,
     /// Stop a running "Recover key".
     CancelKeyRecovery,
 }
@@ -239,6 +242,7 @@ impl SignalAction {
             SignalAction::TimingAnalysis => "Timing analysis",
             SignalAction::Delete => "Delete Signal",
             SignalAction::RecoverKey => "Recover key (PSA brute force)",
+            SignalAction::RecoverKeeloqKey => "Recover key (KeeLoq magic serial)",
             SignalAction::CancelKeyRecovery => "Cancel key recovery",
         }
     }
@@ -455,8 +459,10 @@ pub struct App {
     /// State to restore when queue becomes empty (set when first item is queued).
     pending_transmit_restore: Option<RadioState>,
 
-    /// PSA key recovery running in the background (at most one at a time).
+    /// PSA key recovery running in the background (at most one key recovery at a time).
     psa_recover_job: Option<PsaRecoverJob>,
+    /// KeeLoq magic-serial key search running in the background.
+    keeloq_bf_job: Option<keeloq_bf::KeeloqBfJob>,
 
     // -- :load file browser --
     /// Current directory in the load file browser
@@ -597,6 +603,7 @@ impl App {
             tx_amp,
             pending_transmit_restore: None,
             psa_recover_job: None,
+            keeloq_bf_job: None,
             load_browser_cwd: PathBuf::new(),
             load_browser_selected: 0,
             load_browser_scroll: 0,
@@ -774,7 +781,13 @@ impl App {
                 self.overlay_scroll = 0;
             }
             "load" => {
-                self.open_load_browser()?;
+                // The rest of the line, so file names with spaces work.
+                let arg = command.trim()[parts[0].len()..].trim();
+                if arg.is_empty() {
+                    self.open_load_browser()?;
+                } else {
+                    self.load_path(arg)?;
+                }
             }
             "new" => self.new_remote_command(&parts[1..]),
             "delete" => {
@@ -790,6 +803,9 @@ impl App {
             }
             "timing" => {
                 self.timing_command(parts.get(1).copied());
+            }
+            "klbf" => {
+                self.klbf_command(&parts[1..]);
             }
             "clear" => {
                 self.request_clear();
@@ -1245,6 +1261,7 @@ impl App {
     /// Process pending radio events
     pub fn process_radio_events(&mut self) -> Result<()> {
         self.poll_psa_key_recovery();
+        self.poll_keeloq_key_recovery();
         if let Some(ref rssi_arc) = self.rssi_source {
             self.rssi = f32::from_bits(rssi_arc.load(Ordering::Relaxed));
         }
@@ -1328,15 +1345,22 @@ impl App {
         actions
     }
 
-    /// "Recover key" for an undecrypted PSA (TEA) capture, or "Cancel key recovery" while it runs.
+    /// "Recover key" for an undecrypted PSA (TEA) capture or a KeeLoq frame no key decrypts, or
+    /// "Cancel key recovery" while one runs.
     fn key_recovery_action(&self) -> Option<SignalAction> {
         let c = self.selected_capture.and_then(|idx| self.captures.get(idx))?;
         if let Some(job) = &self.psa_recover_job {
             return (job.capture_id == c.id).then_some(SignalAction::CancelKeyRecovery);
         }
+        if let Some(job) = &self.keeloq_bf_job {
+            return (job.capture_id == c.id).then_some(SignalAction::CancelKeyRecovery);
+        }
         let undecrypted_psa =
             c.protocol_name() == "PSA" && c.serial.is_none() && c.data_extra.is_some();
-        undecrypted_psa.then_some(SignalAction::RecoverKey)
+        if undecrypted_psa {
+            return Some(SignalAction::RecoverKey);
+        }
+        Self::keeloq_bf_offered(c).then_some(SignalAction::RecoverKeeloqKey)
     }
 
     fn signal_actions_base(&self) -> Vec<SignalAction> {
@@ -1458,10 +1482,15 @@ impl App {
             SignalAction::RecoverKey => {
                 self.start_psa_key_recovery(capture_id);
             }
+            SignalAction::RecoverKeeloqKey => {
+                self.start_keeloq_key_recovery(capture_id, None);
+            }
             SignalAction::CancelKeyRecovery => {
                 if let Some(job) = &self.psa_recover_job {
                     job.ctl.cancel.store(true, Ordering::Relaxed);
                     self.status_message = Some("Cancelling key recovery…".to_string());
+                } else {
+                    self.cancel_keeloq_key_recovery();
                 }
             }
         }
@@ -1871,6 +1900,33 @@ impl App {
             self.import_fob_files()?;
             self.input_mode = InputMode::Normal;
             self.status_message = Some(format!("Imported {}", name));
+        }
+        Ok(())
+    }
+
+    /// `:load <file|dir>`: import a `.sub` / `.fob` file, decode an IQ recording, or open the file
+    /// browser in a directory (`~/` = home).
+    pub fn load_path(&mut self, arg: &str) -> Result<()> {
+        let path = match arg.strip_prefix("~/") {
+            Some(rest) => dirs::home_dir().map_or_else(|| PathBuf::from(arg), |home| home.join(rest)),
+            None => PathBuf::from(arg),
+        };
+        if path.is_dir() {
+            self.load_browser_cwd = path;
+            self.load_browser_selected = 0;
+            self.refresh_load_browser_entries()?;
+            self.input_mode = InputMode::LoadFileBrowser;
+        } else if !path.exists() {
+            self.last_error = Some(format!("No such file: {}", path.display()));
+        } else if crate::radio::iq_file::is_iq_path(&path) {
+            self.start_iq_file(path, None, None);
+        } else {
+            let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            self.pending_fob_files = vec![path];
+            self.import_fob_files()?;
+            if self.last_error.is_none() {
+                self.status_message = Some(format!("Imported {}", name));
+            }
         }
         Ok(())
     }

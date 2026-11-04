@@ -337,7 +337,7 @@ fn identify(fix: u32, hop: u32) -> Option<Ident> {
 }
 
 /// Split a received 64-bit key into (fix, hop).
-fn fix_hop(data: u64) -> (u32, u32) {
+pub(super) fn fix_hop(data: u64) -> (u32, u32) {
     let reversed = reverse_key(data, MIN_COUNT_BIT);
     ((reversed >> 32) as u32, reversed as u32)
 }
@@ -640,7 +640,7 @@ impl KeeloqDecoder {
     /// frame and shows an unidentified one as "Unknown" (`Btn:x Cnt:????`), an unidentified frame
     /// is reported as `KeeLoq (Unknown)`: serial and button from the fixed part, no counter, not
     /// re-encodable (the hop cannot be regenerated; Replay sends the captured frame).
-    fn parse_data(data: u64) -> Option<DecodedSignal> {
+    pub(super) fn parse_data(data: u64) -> Option<DecodedSignal> {
         let (fix, hop) = fix_hop(data);
         let Some(ident) = identify(fix, hop) else {
             return Some(DecodedSignal {

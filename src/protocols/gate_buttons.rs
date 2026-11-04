@@ -74,10 +74,12 @@ pub fn button_label(protocol: &str, code: u8) -> &'static str {
     super::native_button_name(protocol, code).unwrap_or_else(|| hex_label(code))
 }
 
-/// Whether `protocol` is a gate / garage remote: a `Category::Gate` protocol or a KeeLoq barrier
-/// manufacturer. Their buttons are native codes, never KAT's car commands.
+/// Whether `protocol` is a gate / garage remote: a `Category::Gate` protocol, a KeeLoq barrier
+/// manufacturer, or a KeeLoq remote whose key KAT recovered (`BF_<serial>`, make unknown). Their
+/// buttons are native codes, never KAT's car commands.
 pub fn is_gate(protocol: &str) -> bool {
     super::keeloq_barriers::is_keeloq_barrier(protocol)
+        || super::keeloq_barriers::is_keeloq_recovered(protocol)
         || super::protocol_info(protocol).is_some_and(|i| i.category == super::info::Category::Gate)
 }
 
@@ -95,6 +97,7 @@ mod tests {
         assert_eq!(button_label("Beninca ARC", 0x4), "Btn 0x4");
         assert_eq!(button_label("Princeton", 0xA), "Btn A");
         assert!(is_gate("Roger") && is_gate("KeeLoq (DoorHan)") && is_gate("KeeLoq (FAAC_RC,XT)"));
+        assert!(is_gate("KeeLoq (BF_0B5A7E3)") && !is_gate("KeeLoq (Unknown)"));
         assert!(!is_gate("Kia V0") && !is_gate("KeeLoq (Star Line)") && !is_gate("Unknown"));
         // The button column: native names, "Btn 0xN" for gate remotes without them, KAT's car
         // commands for car protocols (unchanged).

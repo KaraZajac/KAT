@@ -2,6 +2,24 @@
 
 All notable changes to KAT are documented here.
 
+## [1.6.0] - 2026-11-04
+
+KeeLoq key recovery for "magic serial" remotes, prebuilt binaries for every release, the plain BSD 3-Clause license and a reorganised README.
+
+### Added
+
+- **KeeLoq key recovery** (Flipper-ARF's KeeLoq Decrypt, "BF2"): for a KeeLoq remote whose "magic serial" manufacturer key KAT doesn't have, **Recover key (KeeLoq magic serial)** in the signal menu, `:klbf` and `kat --keeloq-bf` search the unknown part of the key from two or more captures. The search tests 256 keys per pass with bitsliced AVX2 code on every core: types 6 and 7 (2^32 keys each, the Auto search) take about 5 s each on an 8-core laptop, and type 8 (2^40, opt-in, three captures) about 20 minutes. ARF's companion app, which does the search for the Flipper, isn't published, so KAT's search is its own. As ARF does, the key is saved to the user keystore as `BF_<serial>`, and the remote's captures then decode and transmit. The complete type 8 search over rtl_433's 12 real HCS200 recordings finds exactly that remote's real key (the keystore's Magic_3) and nothing else; types 6 and 7 were checked on synthetic remotes. See [docs/keeloq.md](docs/keeloq.md).
+- **Prebuilt binaries** for Linux x86_64 and arm64 (glibc 2.35 or newer) and macOS on Apple Silicon, built by GitHub Actions for every release (`.github/workflows/release.yml`); v1.5.0's were added afterwards. See *Installation* in the README.
+
+### Changed
+
+- **License**: KAT is now under the plain BSD 3-Clause License; the extra clause about military and government use is removed.
+- **README** reorganised: features grouped by task, a quick start, installation and building in one place, and the keys, signal actions, commands and config checked against the app. Newly documented: `d` (delete), `i` (capture metadata), `:lna`, `:vga`, `:amp`, `:license`, `:credits` and `:delete all`. Corrected: building needs Rust 1.88 or newer (it said 1.75); without a HackRF the transmit actions are hidden (not marked "(no TX)"); the example config shows research mode on, its default.
+
+### Fixed
+
+- `:load <file>` imports that file, as the README always said; it opened the file browser and ignored the argument. `:load <dir>` opens the browser in that directory.
+
 ## [1.5.0] - 2026-11-04
 
 A new receive chain (FM fobs now decode live, OOK is far more sensitive, and fobs are found up to ±325 kHz off frequency), FSK transmit at each protocol's reference deviation, **47 garage door / gate / barrier / shutter remote protocols** with Add Manually, Flipper key files, headless decoding, IQ recordings, frequency hopping, session autosave, saved-fob matching and ProtoPirate's timing analysis. Every new protocol was checked against the reference C compiled on a PC (host builds of doctor-firmware, Flipper-ARF, its garage app and ProtoPirate), on Flipper's own unit-test captures and on real recordings from the rtl_433 test suite. Radio performance is measured on synthetic and recorded signals; none of it has been checked on KAT's hardware yet.

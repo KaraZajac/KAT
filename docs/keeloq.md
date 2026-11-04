@@ -91,6 +91,65 @@ manufacturer name shown as `KeeLoq (<name>)`. Encrypted Flipper keystores (`Encr
 read. KAT reports how many keys it loaded in the status line at start-up (and on stderr for
 `kat --decode`).
 
+## Recovering a magic-serial manufacturer key
+
+Flipper-ARF's **KeeLoq Decrypt** ("BF2") finds the manufacturer key of a KeeLoq remote it has no key
+for, when the remote uses one of the "magic serial" learning types. KAT runs the same search on every
+CPU core:
+
+- **In the app:** select a `KeeLoq (Unknown)` capture and choose **Recover key (KeeLoq magic
+  serial)**. It uses every capture of that remote in the list: same serial, different presses, at
+  least two. `:klbf [ID] [auto|6|7|8]` does the same from the command line, and `:klbf stop` cancels.
+- **Headless:** `kat --keeloq-bf <files|folders> [--type auto|6|7|8] [--save]` reads `.sub` files
+  (RAW or key) and IQ recordings, picks the remote with the most captures and prints the keys that fit.
+  `--save` adds the best one to the user keystore.
+
+For these types the device key is the remote's `fix` combined with part of the manufacturer key, so
+only that part is unknown:
+
+| Type | Device key | Unknown | Keys | Time (8-core i9 laptop, AVX2) |
+|---|---|---|---|---|
+| 6, magic serial 1 | manufacturer key bits 0–31, serial bytes | 32 bits | 2^32 | ~5 s |
+| 7, magic serial 2 | manufacturer key bits 0–31, `fix` byte-swapped | 32 bits | 2^32 | ~5 s |
+| 8, magic serial 3 | manufacturer key bits 24–63, serial bits 0–23 | 40 bits | 2^40 | ~20 min |
+
+Auto tries type 6, then 7. Type 8 is opt-in and needs three captures.
+
+**How a key is accepted.** A candidate must decrypt every capture to that frame's button (4 bits) and
+discriminator `serial & 0x3FF` (10 bits). The counters must also be distinct and within ±256 of the
+first capture's. False keys are rare:
+
+- a 2^32 search from two captures leaves about 0.1 false keys, and none from three;
+- a 2^40 search from two captures would leave about 30, which is why type 8 needs a third.
+
+When several keys fit, the one with the closest counters is used and the others are listed.
+
+**What happens with the key.** As Flipper-ARF does, KAT names it `BF_<serial>` (seven hex digits) and
+adds it to the user keystore, `~/.config/KAT/keeloq_mfcodes_user`, creating the file with the Flipper
+header if needed. The remote's captures are decoded again with it: they become
+`KeeLoq (BF_<serial>)` with counters, and transmit like gate remotes (Send next code, Send button…).
+
+**Differences from the reference.** ARF's scene takes two saved captures and a type (Auto = 6 → 7 → 8)
+and sends them over Bluetooth to a companion app that searches 2^32 keys. That app isn't published,
+so KAT's search is its own, built on the learning functions the decoder uses:
+
+- **Type 8 is searched completely (2^40).** The keystore's own type 8 keys (Magic_3, Magic_4) use all
+  40 unknown bits, so a 2^32 search could not find them.
+- **The check uses ARF's 10-bit discriminator.** The scene prepares it as `serial & 0x3FF` for the
+  app; the decoder itself compares 8 bits.
+
+**Validation.**
+
+- The bitsliced decryption (64 or 256 keys per pass) equals the scalar one on every lane.
+- Full 2^32 searches find random type 6 and type 7 keys (`full_search_finds_random_keys`, an ignored
+  test; run it with `--release`).
+- In the app, three presses of a synthetic type 6 remote were recovered, saved and re-decoded.
+- rtl_433's real HCS200 remote (`Microchip/HCS200/01`, serial D0921) uses the keystore's Magic_3 key
+  (type 8). From three of its recordings, a search around that key finds exactly it
+  (`finds_the_real_hcs200_magic_3_key`). The complete 2^40 search over all 12 recordings
+  (`kat --keeloq-bf Microchip/HCS200/01 --type 8`) found that key and no other, with all 12 counters
+  (0ABE–0AD0), in 23 minutes on 12 threads of the 8-core laptop.
+
 ## RF
 
 - **Encoding:** PWM

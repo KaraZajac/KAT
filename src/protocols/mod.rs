@@ -30,6 +30,7 @@ pub mod gate_buttons;
 pub mod info;
 pub mod keeloq_common;
 mod keeloq;
+pub mod keeloq_bf;
 mod keeloq_barriers;
 pub use keeloq_barriers::is_keeloq_non_car;
 mod keeloq_generic;

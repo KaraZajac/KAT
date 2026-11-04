@@ -242,11 +242,17 @@ const LEARNING_TYPE_FIXES: &[(&str, u32, u32)] = &[
 
 /// The keystore as the C KeeLoq-family decoders iterate it (see the module doc): all embedded
 /// entries in blob order except ProtoPirate's KIA_KEY1..4 entries, with [`LEARNING_TYPE_FIXES`]
-/// applied. Parsed once.
+/// applied, then the user keystore, then keys added during this session ([`add_keeloq_key`]).
+/// Parsed once; the slice handed out stays valid when a key is added (the list is replaced, not
+/// changed).
 pub fn keeloq_keystore() -> &'static [MfKey] {
-    static KEYS: std::sync::OnceLock<Vec<MfKey>> = std::sync::OnceLock::new();
+    *keystore_cell().read().unwrap_or_else(|e| e.into_inner())
+}
+
+fn keystore_cell() -> &'static std::sync::RwLock<&'static [MfKey]> {
+    static KEYS: std::sync::OnceLock<std::sync::RwLock<&'static [MfKey]>> = std::sync::OnceLock::new();
     KEYS.get_or_init(|| {
-        crate::keystore::keystore_entries_with_names()
+        let keys: Vec<MfKey> = crate::keystore::keystore_entries_with_names()
             .into_iter()
             .filter(|(name, ty, _)| !((10..=13).contains(ty) && name.starts_with("KIA")))
             .map(|(name, ty, key)| {
@@ -256,8 +262,24 @@ pub fn keeloq_keystore() -> &'static [MfKey] {
                     .map_or(ty, |&(_, _, to)| to);
                 MfKey { name, learning, key }
             })
-            .collect()
+            .collect();
+        std::sync::RwLock::new(Vec::leak(keys))
     })
+}
+
+/// Add a manufacturer key for the rest of the session, after all others (where the user keystore
+/// file puts it at the next start), e.g. one recovered by [`super::keeloq_bf`]. Returns false when
+/// the same entry is already there. The previous list is leaked: decoders may still hold it, and
+/// keys are added rarely.
+pub fn add_keeloq_key(entry: MfKey) -> bool {
+    let mut keys = keystore_cell().write().unwrap_or_else(|e| e.into_inner());
+    if keys.contains(&entry) {
+        return false;
+    }
+    let mut next = keys.to_vec();
+    next.push(entry);
+    *keys = Vec::leak(next);
+    true
 }
 
 /// C "mirrored man": the manufacturer key with its byte order reversed (tried for

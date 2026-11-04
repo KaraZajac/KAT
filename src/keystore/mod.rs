@@ -68,6 +68,28 @@ pub fn load_user_keystore(config_dir: &std::path::Path) -> Option<String> {
     Some(msg)
 }
 
+/// Append a key to `<config dir>/keeloq_mfcodes_user` (`KEY:TYPE:NAME`, as the Flipper's user
+/// keystore), creating the file with the Flipper header when it doesn't exist. Returns the path; an
+/// identical line already in the file is not written again.
+pub fn append_user_key(config_dir: &std::path::Path, name: &str, learning: u32, key: u64) -> std::io::Result<std::path::PathBuf> {
+    use std::io::Write;
+    let path = config_dir.join(USER_KEYSTORE_FILE);
+    let line = format!("{key:016X}:{learning}:{name}");
+    let existing = std::fs::read_to_string(&path).unwrap_or_default();
+    if existing.lines().any(|l| l.trim() == line) {
+        return Ok(path);
+    }
+    std::fs::create_dir_all(config_dir)?;
+    let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&path)?;
+    if existing.is_empty() {
+        writeln!(f, "Filetype: Flipper SubGhz Keystore File\nVersion: 0\nEncryption: 0")?;
+    } else if !existing.ends_with('\n') {
+        writeln!(f)?;
+    }
+    writeln!(f, "{line}")?;
+    Ok(path)
+}
+
 /// User keystore entries (empty unless [load_user_keystore] found a file).
 fn user_entries() -> &'static [(String, u32, u64)] {
     USER_ENTRIES.get().map_or(&[], Vec::as_slice)
@@ -286,6 +308,27 @@ mod user_keystore_tests {
         );
         assert_eq!(errors, [(7, "bad line".to_string())]);
         assert!(parse_user_keystore("Encryption: 1\n0123456789ABCDEF:2:X\n").is_err());
+    }
+
+    /// A recovered key is appended in the Flipper format (header written once, no duplicate line) and
+    /// parses back.
+    #[test]
+    fn appends_keys_in_the_flipper_format() {
+        let dir = std::env::temp_dir().join(format!("kat-user-keystore-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let path = append_user_key(&dir, "BF_00D0921", 8, 0xABCD_EF12_3400_0000).unwrap();
+        append_user_key(&dir, "BF_00D0921", 8, 0xABCD_EF12_3400_0000).unwrap();
+        append_user_key(&dir, "BF_0C49A51", 6, 0x6D2A_91C3).unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(
+            text,
+            "Filetype: Flipper SubGhz Keystore File\nVersion: 0\nEncryption: 0\n\
+             ABCDEF1234000000:8:BF_00D0921\n000000006D2A91C3:6:BF_0C49A51\n"
+        );
+        let (entries, errors) = parse_user_keystore(&text).unwrap();
+        assert!(errors.is_empty());
+        assert_eq!(entries[1], ("BF_0C49A51".to_string(), 6, 0x6D2A_91C3));
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }
 

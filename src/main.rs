@@ -66,12 +66,15 @@ enum CliAction {
     Run(CliOptions),
     /// `--decode <path>...`: print decodes without the TUI.
     Decode(headless::DecodeOptions),
+    /// `--keeloq-bf <path>...`: recover a magic-serial KeeLoq manufacturer key.
+    KeeloqBf(headless::KeeloqBfOptions),
     Help,
     Version,
 }
 
 const USAGE: &str = "Usage: kat [--iq <file> [--freq <MHz|Hz>] [--rate <S/s>]]
        kat --decode <file|dir>... [--freq <MHz|Hz>] [--rate <S/s>] [--all] [--verbose]
+       kat --keeloq-bf <file|dir>... [--type auto|6|7|8] [--save] [--freq <MHz|Hz>] [--rate <S/s>]
 
   --iq <file>     Decode an IQ recording at startup, with or without a radio attached:
                   .cs8 (hackrf_transfer), .cu8 (rtl_sdr / rtl_433), .cf32 (GNU Radio, URH)
@@ -79,6 +82,10 @@ const USAGE: &str = "Usage: kat [--iq <file> [--freq <MHz|Hz>] [--rate <S/s>]]
                   Flipper .sub (RAW or key files) and IQ recordings; directories are searched
                   recursively. --all prints every decode in stream order; --verbose
                   also prints each IQ burst and its pulses to stderr.
+  --keeloq-bf <p>... Recover the manufacturer key of a \"magic serial\" KeeLoq remote (Flipper-ARF's
+                  KeeLoq Decrypt) from two or more captures of it (.sub or IQ files).
+                  --type: auto (6, then 7; the default), 6, 7 or 8 (8 searches 2^40 keys and
+                  needs three captures); --save adds the key to keeloq_mfcodes_user as BF_<serial>.
   --freq <f>      Centre frequency of the recording, MHz (433.92) or Hz (433920000);
                   default: from the file name, else the configured frequency (433.92 MHz
                   for --decode)
@@ -97,12 +104,15 @@ fn flag_value(inline: Option<String>, rest: &mut impl Iterator<Item = String>, f
 fn parse_args(args: impl IntoIterator<Item = String>) -> Result<CliAction, String> {
     let mut opts = CliOptions::default();
     let mut decode: Option<Vec<std::path::PathBuf>> = None;
+    let mut keeloq_bf: Option<Vec<std::path::PathBuf>> = None;
+    let mut bf_types: Option<Vec<u32>> = None;
+    let mut save = false;
     let mut all = false;
     let mut verbose = false;
     let mut it = args.into_iter();
     while let Some(arg) = it.next() {
-        // Paths after --decode (up to the next flag).
-        if let Some(paths) = decode.as_mut() {
+        // Paths after --decode / --keeloq-bf (up to the next flag).
+        if let Some(paths) = decode.as_mut().or(keeloq_bf.as_mut()) {
             if !arg.starts_with('-') {
                 paths.push(std::path::PathBuf::from(arg));
                 continue;
@@ -122,6 +132,14 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<CliAction, Strin
                     paths.push(std::path::PathBuf::from(v));
                 }
             }
+            "--keeloq-bf" => {
+                let paths = keeloq_bf.get_or_insert_with(Vec::new);
+                if let Some(v) = inline {
+                    paths.push(std::path::PathBuf::from(v));
+                }
+            }
+            "--type" => bf_types = Some(headless::parse_bf_types(&flag_value(inline, &mut it, "--type")?)?),
+            "--save" => save = true,
             "--all" => all = true,
             "-v" | "--verbose" => verbose = true,
             "--freq" => {
@@ -134,6 +152,19 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<CliAction, Strin
             }
             other => return Err(format!("unknown argument: {other}")),
         }
+    }
+    if let Some(paths) = keeloq_bf {
+        if paths.is_empty() {
+            return Err("--keeloq-bf needs at least one file or directory".to_string());
+        }
+        if decode.is_some() || opts.iq.is_some() || all || verbose {
+            return Err("--keeloq-bf cannot be combined with --decode, --iq, --all or --verbose".to_string());
+        }
+        let types = bf_types.unwrap_or_else(|| protocols::keeloq_bf::AUTO_TYPES.to_vec());
+        return Ok(CliAction::KeeloqBf(headless::KeeloqBfOptions { paths, freq: opts.freq, rate: opts.rate, types, save }));
+    }
+    if bf_types.is_some() || save {
+        return Err("--type and --save are --keeloq-bf options".to_string());
     }
     if let Some(paths) = decode {
         if paths.is_empty() {
@@ -157,6 +188,7 @@ fn main() -> Result<()> {
     let cli = match parse_args(std::env::args().skip(1)) {
         Ok(CliAction::Run(opts)) => opts,
         Ok(CliAction::Decode(opts)) => std::process::exit(headless::run(&opts)),
+        Ok(CliAction::KeeloqBf(opts)) => std::process::exit(headless::keeloq_bf(&opts)),
         Ok(CliAction::Help) => {
             println!("KAT v{VERSION} - Keyfob Analysis Toolkit\n\n{USAGE}");
             return Ok(());
@@ -775,6 +807,22 @@ mod cli_tests {
         );
         assert_eq!(parse_args(args(&["--decode=a.sub", "b.sub"])), decode(&["a.sub", "b.sub"], None, None, false));
         assert!(parse_args(args(&["--decode"])).is_err());
+        assert_eq!(
+            parse_args(args(&["--keeloq-bf", "a.cu8", "b.cu8", "--type", "8", "--save"])),
+            Ok(CliAction::KeeloqBf(headless::KeeloqBfOptions {
+                paths: vec!["a.cu8".into(), "b.cu8".into()],
+                types: vec![8],
+                save: true,
+                ..Default::default()
+            }))
+        );
+        assert_eq!(
+            parse_args(args(&["--keeloq-bf", "dir"])),
+            Ok(CliAction::KeeloqBf(headless::KeeloqBfOptions { paths: vec!["dir".into()], types: vec![6, 7], ..Default::default() }))
+        );
+        assert!(parse_args(args(&["--keeloq-bf", "x", "--type", "5"])).is_err());
+        assert!(parse_args(args(&["--keeloq-bf", "x", "--decode", "y"])).is_err());
+        assert!(parse_args(args(&["--save"])).is_err());
         assert!(parse_args(args(&["--all"])).is_err());
         assert!(parse_args(args(&["--iq", "x.cs8", "--decode", "y.sub"])).is_err());
     }

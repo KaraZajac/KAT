@@ -231,7 +231,18 @@ pub fn is_keeloq_alarm(protocol: &str) -> bool {
 
 /// True if this KeeLoq protocol should hide car-style TX actions (barrier/gate or alarm).
 pub fn is_keeloq_non_car(protocol: &str) -> bool {
-    is_keeloq_barrier(protocol) || is_keeloq_alarm(protocol)
+    is_keeloq_barrier(protocol) || is_keeloq_alarm(protocol) || is_keeloq_recovered(protocol)
+}
+
+/// Returns true if the protocol string is KeeLoq with a manufacturer key recovered by KAT's
+/// magic-serial key search (`BF_<serial>`, Flipper-ARF's name): a remote of unknown make, shown with
+/// its native buttons like a gate remote.
+pub fn is_keeloq_recovered(protocol: &str) -> bool {
+    protocol
+        .trim()
+        .strip_prefix("KeeLoq (")
+        .and_then(|rest| rest.strip_suffix(')'))
+        .is_some_and(|m| m.starts_with("BF_"))
 }
 
 #[cfg(test)]
@@ -256,6 +267,8 @@ mod tests {
         assert!(is_keeloq_barrier("KeeLoq (Normstahl)"));
         assert!(!is_keeloq_barrier("KeeLoq (Star Line)"));
         assert!(!is_keeloq_barrier("Unknown"));
+        assert!(is_keeloq_non_car("KeeLoq (BF_00D0921)"));
+        assert!(!is_keeloq_recovered("KeeLoq (Unknown)"));
     }
 
     #[test]

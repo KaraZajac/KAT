@@ -47,6 +47,8 @@ pub struct DecodeLine {
     pub source: &'static str,
     pub protocol: String,
     pub fields: String,
+    /// The decode's frame (`DecodedSignal::data`).
+    pub data: u64,
 }
 
 /// Result of one file.
@@ -109,7 +111,7 @@ fn push_stream(reg: &mut ProtocolRegistry, pairs: &[LevelDuration], freq: u32, s
         _ => None,
     };
     for (name, d, _) in reg.process_signal_stream_path(pairs, freq, path) {
-        out.push(DecodeLine { source, protocol: name, fields: fields(&d) });
+        out.push(DecodeLine { source, protocol: name, fields: fields(&d), data: d.data });
     }
 }
 
@@ -123,7 +125,7 @@ fn push_stream_rf(
     out: &mut Vec<DecodeLine>,
 ) {
     for (name, d, _) in reg.process_signal_stream_rf(pairs, freq, rf) {
-        out.push(DecodeLine { source, protocol: name, fields: fields(&d) });
+        out.push(DecodeLine { source, protocol: name, fields: fields(&d), data: d.data });
     }
 }
 
@@ -143,7 +145,7 @@ pub fn decode_sub(reg: &mut ProtocolRegistry, path: &Path) -> Result<FileResult,
     };
     let mut decodes = Vec::new();
     match reg.decode_key(&key) {
-        Some((name, d)) => decodes.push(DecodeLine { source: "key", protocol: name, fields: fields(&d) }),
+        Some((name, d)) => decodes.push(DecodeLine { source: "key", protocol: name, fields: fields(&d), data: d.data }),
         None => {
             return Err(format!(
                 "key file for protocol {:?} ({} bits) is not supported",
@@ -267,10 +269,7 @@ pub fn format_result(r: &Result<FileResult, String>, path: &Path, all: bool) -> 
 /// `kat --decode`: print the decodes of every file; returns the process exit code (0 when every
 /// file was read, 1 when any failed).
 pub fn run(opts: &DecodeOptions) -> i32 {
-    crate::protocols::keys::load_keystore_from_embedded();
-    if let Some(msg) = crate::storage::resolve_config_dir().and_then(|d| crate::keystore::load_user_keystore(&d)) {
-        eprintln!("{msg}");
-    }
+    load_keystores();
     let mut reg = ProtocolRegistry::new();
     let mut failed = false;
     for root in &opts.paths {
@@ -288,6 +287,133 @@ pub fn run(opts: &DecodeOptions) -> i32 {
         }
     }
     i32::from(failed)
+}
+
+/// The embedded keys and the user's `keeloq_mfcodes_user`, before any decode.
+fn load_keystores() {
+    crate::protocols::keys::load_keystore_from_embedded();
+    if let Some(msg) = crate::storage::resolve_config_dir().and_then(|d| crate::keystore::load_user_keystore(&d)) {
+        eprintln!("{msg}");
+    }
+}
+
+/// `kat --keeloq-bf`: recover a magic-serial KeeLoq manufacturer key from captures of one remote.
+#[derive(Debug, Default, PartialEq)]
+pub struct KeeloqBfOptions {
+    pub paths: Vec<PathBuf>,
+    /// Centre frequency / sample rate for IQ files (override the file name).
+    pub freq: Option<u32>,
+    pub rate: Option<u32>,
+    /// Learning types to search, in order (Auto: 6, 7).
+    pub types: Vec<u32>,
+    /// Append the best key to the user keystore (`keeloq_mfcodes_user`).
+    pub save: bool,
+}
+
+/// Parse `--type`: `auto`, or learning types 6, 7, 8 (comma separated).
+pub fn parse_bf_types(v: &str) -> Result<Vec<u32>, String> {
+    if v.eq_ignore_ascii_case("auto") {
+        return Ok(crate::protocols::keeloq_bf::AUTO_TYPES.to_vec());
+    }
+    v.split(',')
+        .map(|t| match t.trim() {
+            "6" | "7" | "8" => Ok(t.trim().parse().unwrap()),
+            _ => Err(format!("invalid --type {v}: auto, 6, 7 or 8 (magic serial 1, 2, 3)")),
+        })
+        .collect()
+}
+
+/// The KeeLoq frames of the files (one per hop code, in file order), with where each came from.
+fn keeloq_frames(opts: &KeeloqBfOptions) -> Vec<(crate::protocols::keeloq_bf::Frame, String)> {
+    let mut reg = ProtocolRegistry::new();
+    let mut frames: Vec<(crate::protocols::keeloq_bf::Frame, String)> = Vec::new();
+    for root in &opts.paths {
+        for path in collect_files(root) {
+            match decode_file(&mut reg, &path, opts.freq, opts.rate, false) {
+                Ok(r) => {
+                    for d in r.decodes.iter().filter(|d| d.protocol.starts_with("KeeLoq")) {
+                        let f = crate::protocols::keeloq_bf::Frame::from_data(d.data);
+                        if !frames.iter().any(|(g, _)| g.hop == f.hop) {
+                            frames.push((f, format!("{} ({})", path.display(), d.protocol)));
+                        }
+                    }
+                }
+                Err(e) => eprintln!("{}: {e}", path.display()),
+            }
+        }
+    }
+    frames
+}
+
+/// Run `kat --keeloq-bf`; the exit status is 0 when a key was found.
+pub fn keeloq_bf(opts: &KeeloqBfOptions) -> i32 {
+    use crate::protocols::keeloq_bf::{self as bf, Control, Outcome};
+    use std::sync::atomic::Ordering;
+    load_keystores();
+    let frames = keeloq_frames(opts);
+    let Some(serial) = frames.iter().map(|(f, _)| f.serial()).max_by_key(|&s| frames.iter().filter(|(f, _)| f.serial() == s).count()) else {
+        eprintln!("No KeeLoq frames in the given files");
+        return 1;
+    };
+    let group: Vec<bf::Frame> = frames.iter().filter(|(f, _)| f.serial() == serial).map(|(f, _)| *f).collect();
+    println!("Remote {serial:07X}: {} capture(s)", group.len());
+    for (f, from) in frames.iter().filter(|(f, _)| f.serial() == serial) {
+        println!("  btn {:X} hop {:08X}  {from}", f.fix >> 28, f.hop);
+    }
+    let others = frames.len() - group.len();
+    if others > 0 {
+        println!("  ({others} frame(s) of other remotes left out)");
+    }
+    if let Err(e) = bf::check_input(&group, &opts.types) {
+        eprintln!("Cannot search: {e}");
+        return 1;
+    }
+    let ctl = std::sync::Arc::new(Control::default());
+    let worker = std::sync::Arc::clone(&ctl);
+    let types = opts.types.clone();
+    let job = std::thread::spawn(move || bf::search(&group, &types, &worker));
+    let start = std::time::Instant::now();
+    eprintln!("Searching type(s) {:?} on {} threads…", opts.types, std::thread::available_parallelism().map_or(1, |n| n.get()));
+    while !job.is_finished() {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        let (tested, total) = (ctl.tested.load(Ordering::Relaxed), ctl.total.load(Ordering::Relaxed).max(1));
+        let secs = start.elapsed().as_secs_f64().max(0.001);
+        let rate = tested as f64 / secs;
+        let eta = if rate > 0.0 { (total - tested.min(total)) as f64 / rate } else { 0.0 };
+        eprint!("\r  {:5.1}%  {:6.0} M keys/s  ETA {:>5.0} s ", tested as f64 * 100.0 / total as f64, rate / 1e6, eta);
+    }
+    eprintln!();
+    match job.join() {
+        Ok(Outcome::Found(found)) => {
+            for (i, c) in found.iter().enumerate() {
+                let counters: Vec<String> = c.counters.iter().map(|n| format!("{n:04X}")).collect();
+                println!("{} type {} key {:016X}  counters {}", if i == 0 { "Found" } else { "  also" }, c.learning, c.man_key, counters.join(" "));
+            }
+            if found.len() > 1 {
+                println!("{} keys decrypt every capture; the first has the closest counters. A further capture would tell them apart.", found.len());
+            }
+            if opts.save {
+                let best = &found[0];
+                let name = format!("BF_{serial:07X}");
+                match crate::storage::resolve_config_dir()
+                    .ok_or_else(|| "no config directory".to_string())
+                    .and_then(|d| crate::keystore::append_user_key(&d, &name, best.learning, best.man_key).map_err(|e| e.to_string()))
+                {
+                    Ok(path) => println!("Saved as {name} in {}", path.display()),
+                    Err(e) => {
+                        eprintln!("Could not save the key: {e}");
+                        return 1;
+                    }
+                }
+            }
+            0
+        }
+        Ok(Outcome::NotFound) => {
+            println!("No key found ({} keys tried in {:.0} s)", ctl.tested.load(Ordering::Relaxed), start.elapsed().as_secs_f64());
+            1
+        }
+        Ok(Outcome::Cancelled) | Err(_) => 1,
+    }
 }
 
 #[cfg(test)]

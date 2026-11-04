@@ -1,8 +1,8 @@
 # KAT — Keyfob Analysis Toolkit
 
-A terminal-based RF signal analysis tool for capturing, decoding, and retransmitting car keyfob and garage door / gate remote signals. Built in Rust with a real-time TUI powered by `ratatui`. Protocol decoders are aligned with the [ProtoPirate](REFERENCES/ProtoPirate/) reference.
+KAT captures, decodes and retransmits car key fob and garage door, gate and barrier remote signals from a terminal. It works with a **HackRF One** (receive and transmit) or an **RTL-SDR** dongle (receive only), and decodes IQ recordings and Flipper Zero `.sub` files with no radio attached. It is written in Rust, with a [ratatui](https://ratatui.rs) interface.
 
-**Supported hardware:** KAT uses **HackRF One** (or compatible) when present for full receive and transmit. For **receive-only** operation, **RTL433** (or any compatible RTL-SDR dongle) is supported: if no HackRF is found, KAT uses the first available RTL-SDR for capture and decode; transmit (Lock/Unlock/Trunk/Panic, Replay) is disabled when using RTL433/RTL-SDR.
+Its 87 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate), [Flipper-ARF](https://github.com/D4C1-Labs/Flipper-ARF) and [doctor-firmware](https://github.com/thedoctorz/doctor-firmware), and each one is checked against the reference C code compiled on a PC.
 
 ![Keyfob Analysis Toolkit screenshot](images/kat-screenshot.png)
 
@@ -14,37 +14,62 @@ A terminal-based RF signal analysis tool for capturing, decoding, and retransmit
 
 ---
 
+**Contents:** [Features](#features) · [Installation](#installation) · [Quick start](#quick-start) · [Command line](#command-line) · [Using the TUI](#using-the-tui) · [Configuration](#configuration) · [Supported protocols](#supported-protocols) · [How it works](#how-it-works) · [Documentation](#documentation) · [Call for researchers](#call-for-researchers) · [Credits](#credits) · [License](#license)
+
 ## Features
 
-- **Real-time capture, AM/OOK and FM/2-FSK** — one receive pipeline for HackRF, RTL-SDR and IQ recordings. A wide-band detector finds fobs anywhere in the received band: at 2 MS/s from 1.15 MHz below to 0.65 MHz above the tuned frequency, two at once included. Each burst is then filtered around its own carrier and sliced with automatic frequency correction, so OOK and FSK fobs decode up to ±325 kHz off frequency ([docs/radio.md](docs/radio.md))
-- **Multi-protocol decoding** — 87 protocol decoders: 40 car keyfob and alarm protocols — Kia V0–V7 (Kia V0 also decodes Suzuki V0, Honda V0 and Mitsubishi V0), Ford V0–V3 (V3 with EU + US variants), Chrysler V0 (Dodge/Jeep), GM (Chevrolet/Buick/GMC/Cadillac), Honda Static, Honda V1, Honda V2, Toyota (Lexus), Fiat V0/V1/V2, Renault V0/V1 (+ Flipper-ARF’s type-table Renault V1), Mazda V0, Mazda V2, Mazda Siemens, Mitsubishi V0, BMW, Mercedes V0/V1, Opel V1, Datsun Lada, Porsche Cayenne, Subaru, VAG (VW/Audi/Seat/Skoda), PSA, Scher-Khan, Star Line, Sheriff CFM, KeeLoq (gates/garage doors/alarms) — and 47 garage door, gate, barrier and shutter remote protocols from Flipper-ARF's garage app and doctor-firmware (Security+ 1.0/2.0, Somfy Telis/Keytis, FAAC SLH, Nice FLO/FloR-S, CAME/TWEE/Atomo, Hörmann HSM, Marantec, Beninca ARC, KingGates, Jarolift, Princeton/PT2262 and more; see [Supported Protocols](#supported-protocols)), every one checked against the reference C compiled on a PC
-- **KeeLoq generic fallback** — when a signal doesn’t match any known protocol, KAT tries decoding it as KeeLoq using every manufacturer key in the embedded keystore (Kia V3/V4 and Star Line air formats); successful decodes appear as **Keeloq (keystore name)** in the capture list
-- **RF modulation metadata** — each protocol is tagged AM, FM or both and carries the TX presets the references use for it; shown in signal detail and exported in .fob
-- **Rich signal detail** — encoding (PWM/Manchester), RF (AM/FM), encryption, serial, counter, key data, CRC, frequency, and raw level/duration pairs
-- **Signal retransmission** — transmit Lock, Unlock, Trunk, and Panic commands from decoded captures, or Replay raw capture (HackRF only; when using RTL-SDR these show “(no TX)” and a receive-only message). Rolling-code protocols re-encode the next code with the requested button wherever the references do (e.g. VAG all types, Subaru, Chrysler V0, Kia, Ford, Mazda, Renault V0, Sheriff CFM); protocols without an available key re-send the captured frame, as the references do. FM protocols go out as continuous-phase 2-FSK at the references’ deviation, OOK ones as OOK, at a configurable TX power ([docs/transmit.md](docs/transmit.md)).
-- **Add Manually** — `:new` creates a new gate/garage remote of any of Flipper-ARF's and doctor-firmware's 101 types (78 available in KAT), to pair with a receiver. Each gets a fresh serial, the manufacturer key and a first code computed as the references do. Gate remotes get **Send button…** for their native buttons ([docs/add_manually.md](docs/add_manually.md))
-- **Export formats** — `.fob` (versioned JSON with vehicle metadata, signal info, optional raw pairs), `.sub` RAW (Flipper Zero compatible) and Flipper **key files** (the decode as ProtoPirate / Flipper-ARF save it, so a Flipper can load and send it)
-- **Import support** — load `.fob` files with automatic v1/v2 format detection, and Flipper `.sub` files: RAW captures, BinRAW captures and decoded **key files** (`Protocol`/`Bit`/`Key` + the protocol's lines, as ProtoPirate, Flipper-ARF and doctor-firmware write them; loaded keys transmit through the protocol's encoder). The file's CC1101 preset is kept for transmit and re-export ([docs/flipper_key_files.md](docs/flipper_key_files.md))
-- **Headless decoding** — `kat --decode <files or folders>` prints every decode of `.sub` files and IQ recordings without the TUI, one line per distinct decode (`--verbose` dumps each IQ burst's pulses) — for scripting and for checking capture collections
-- **IQ recordings** — decode `.cs8` (hackrf_transfer), `.cu8` (rtl_sdr / rtl_433) and `.cf32` recordings without a radio (`:iq`, `kat --iq`, or the `:load` browser), and record the raw IQ while receiving (`:record`)
-- **Frequency hopping** — `:hop` cycles Flipper's hopper list (315.00, 390.00, 430.50, 433.92, 434.25, 434.42, 868.35 MHz) and stays on a frequency while a signal is on air, like ProtoPirate
-- **Session autosave** — every capture is saved to `~/.config/KAT/session.json` (owner-only) and offered for restore at the next start; `:clear` wipes it ([docs/session.md](docs/session.md))
-- **Saved-fob matching** — decoded signals that match one of your `.fob` files (ProtoPirate's rules: protocol, serial or key, counter within ±50) get a ★ and show the saved vehicle
-- **Timing analysis** — ProtoPirate's Timing Tuner for any capture, plus pulse clusters, a base-TE estimate and a line-coding guess for unknown signals ([docs/timing_analysis.md](docs/timing_analysis.md))
-- **Research mode** — config option to show unknown (unidentified) signals in addition to successfully decoded ones
-- **INI configuration** — `~/.config/KAT/config.ini` (auto-created with comments on first run): export path, max captures, research_mode, radio defaults, export format
-- **Embedded keystore** — manufacturer keys (Kia, VAG, KeeLoq brands, etc.) built in for decoding; add your own KeeLoq manufacturer keys in a Flipper-format `~/.config/KAT/keeloq_mfcodes_user` ([docs/keeloq.md](docs/keeloq.md))
-- **VIM-style command line** — `:freq`, `:hop`, `:iq`, `:record`, `:lock`, `:unlock`, `:replay`, `:txpower`, `:timing`, `:load`, `:new`, `:delete`, `:clear`, `:q` / `:quit`, and more
-- **Interactive TUI** — captures list with detail panel (protocol, freq, mod, RF, encryption), signal action menu, radio settings, fob export form; header shows device (HackRF / RTL-SDR (RX only) / No device), status (DISCONNECTED in red when no device), hopping and recording state
+**Receive**
+
+- **HackRF, RTL-SDR or a recording** — one receive chain for all three, AM/OOK and FM/2-FSK. A wide-band detector finds fobs anywhere in the received band (at 2 MS/s from 1.15 MHz below to 0.65 MHz above the tuned frequency, two at once included), and each burst is filtered and sliced around its own carrier, so fobs decode up to ±325 kHz off frequency ([docs/radio.md](docs/radio.md)).
+- **Frequency hopping** — `:hop` cycles Flipper's hopper list (315.00, 390.00, 430.50, 433.92, 434.25, 434.42, 868.35 MHz) and stays on a frequency while a signal is on air, like ProtoPirate.
+- **IQ recordings** — decode `.cs8` (hackrf_transfer), `.cu8` (rtl_sdr / rtl_433) and `.cf32` recordings without a radio, and record the raw IQ while receiving (`:record`).
+
+**Decode**
+
+- **87 protocols** — 40 car key fob and alarm protocols and 47 garage door, gate, barrier and shutter remote protocols ([the full list](#supported-protocols)).
+- **KeeLoq keystore fallback** — a signal no protocol claims is tried as KeeLoq with every manufacturer key in the embedded keystore and in your own `keeloq_mfcodes_user` ([docs/keeloq.md](docs/keeloq.md)).
+- **Signal detail** — encoding, RF modulation, encryption, serial, button, counter, key data, CRC, frequency and the raw level/duration pairs.
+- **Research mode** (on by default) — unidentified signals are listed too, ready for timing analysis.
+
+**Transmit** (HackRF)
+
+- **Lock, Unlock, Trunk and Panic** from a decoded capture. Rolling-code protocols re-encode the next code with the requested button wherever the references do (e.g. VAG, Subaru, Chrysler V0, Kia, Ford, Mazda, Renault V0, Sheriff CFM); protocols without an available key re-send the captured frame, as the references do.
+- **Gate and garage remotes** — **Send next code**, and **Send button…** with any of the remote's native buttons.
+- **Replay** any capture as recorded.
+- **The references' modulation** — FM protocols go out as continuous-phase 2-FSK at the references' deviation, OOK ones as OOK, at a configurable TX power ([docs/transmit.md](docs/transmit.md)).
+- **Add Manually** — `:new` creates a new gate or garage remote to pair with a receiver: any of Flipper-ARF's and doctor-firmware's 101 types (78 available in KAT), with a fresh serial, the manufacturer key and a first code computed as the references do ([docs/add_manually.md](docs/add_manually.md)).
+
+**Recover keys**
+
+- **KeeLoq magic serial** — Flipper-ARF's KeeLoq Decrypt: finds the manufacturer key of a KeeLoq remote KAT has no key for from two captures of it, on every core — about 5 s per type for types 6 and 7, about 20 minutes for type 8 on an 8-core laptop. The key is saved, and the remote then decodes and transmits ([docs/keeloq.md](docs/keeloq.md)).
+- **PSA (Peugeot/Citroën)** — ProtoPirate's TEA key brute force, in under a second.
+
+**Files**
+
+- **`.fob`** — KAT's JSON format: signal fields, vehicle metadata and optionally the raw pulses ([format below](#capture-metadata-and-fob-export)).
+- **Flipper Zero `.sub`** — RAW and BinRAW captures, and key files: the decoded form ProtoPirate, Flipper-ARF and doctor-firmware save, so a Flipper can load and send KAT's decodes and KAT can transmit a Flipper's. The file's CC1101 preset is kept for transmit and re-export ([docs/flipper_key_files.md](docs/flipper_key_files.md)).
+- **Headless decoding** — `kat --decode` prints the decodes of files and folders without the TUI, for scripts and for checking capture collections.
+
+**Analyse**
+
+- **Timing analysis** — ProtoPirate's Timing Tuner for any capture; for unknown signals, pulse clusters, a base-TE estimate and a line-coding guess ([docs/timing_analysis.md](docs/timing_analysis.md)).
+- **Saved-fob matching** — a capture that matches one of your `.fob` files (ProtoPirate's rules: protocol, serial or key, counter within ±50) gets a ★ and shows the saved vehicle.
+- **Vulnerability database** — capture metadata (year, make, model, region) is matched against a built-in CVE list ([below](#vulnerability-database)).
+- **Session autosave** — captures are saved as they arrive and offered for restore at the next start ([docs/session.md](docs/session.md)).
 
 ## Installation
 
 ### Prebuilt binaries
 
-Every release from v1.5.0 on carries ready-to-run binaries on its [GitHub release page](https://github.com/KaraZajac/KAT/releases):
-`kat-<version>-x86_64-linux.tar.gz`, `kat-<version>-aarch64-linux.tar.gz` (64-bit Raspberry Pi OS and other ARM64 Linux) and `kat-<version>-aarch64-macos.tar.gz` (Apple Silicon), each with a `.sha256` checksum. The Linux builds run on glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Raspberry Pi OS bookworm and later).
+Releases from v1.5.0 on have ready-to-run binaries on the [releases page](https://github.com/KaraZajac/KAT/releases), each with a `.sha256` checksum:
 
-KAT needs the HackRF library and libusb at runtime, even when you only use an RTL-SDR. Installing the HackRF library brings libusb along:
+| Archive | Runs on |
+|---|---|
+| `kat-<version>-x86_64-linux.tar.gz` | 64-bit Intel/AMD Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and later) |
+| `kat-<version>-aarch64-linux.tar.gz` | 64-bit ARM Linux with glibc 2.35 or newer, such as 64-bit Raspberry Pi OS bookworm |
+| `kat-<version>-aarch64-macos.tar.gz` | Apple Silicon Macs |
+
+KAT needs the HackRF library at runtime, even if you only use an RTL-SDR. Installing it brings libusb along:
 
 ```bash
 sudo apt install libhackrf0     # Debian / Ubuntu / Raspberry Pi OS
@@ -53,112 +78,127 @@ sudo pacman -S hackrf           # Arch Linux
 brew install hackrf             # macOS
 ```
 
-Then unpack and run:
+Then check, unpack and run (with your version and platform):
 
 ```bash
-tar xzf kat-v1.5.0-x86_64-linux.tar.gz
-./kat-v1.5.0-x86_64-linux/kat
+sha256sum -c kat-v1.6.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.6.0-x86_64-linux.tar.gz
+./kat-v1.6.0-x86_64-linux/kat
 ```
 
-On macOS the binary isn't notarized, so the first start may be blocked; `xattr -d com.apple.quarantine kat` clears that. Intel Macs and other platforms build from source (below).
+The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. Intel Macs and other platforms build from source.
 
-## Requirements
+### Building from source
 
-- **Radio hardware (one of):**
-  - **HackRF One** (or compatible) — full receive and transmit
-  - **RTL433 / RTL-SDR** — receive-only; no transmit (RTL433 dongles and compatible RTL-SDR hardware)
-- **Rust 1.75+** (for building from source)
-- **libhackrf** — HackRF C library and headers (required at build time even when using RTL-SDR)
-- **libusb** — for RTL433/RTL-SDR (usually provided by OS)
-
-At runtime, KAT tries **HackRF first**; if none is found, it uses the first available **RTL433/RTL-SDR** for receive-only. If neither is connected, it runs without TX/RX support (no live capture); a startup warning offers to continue or you can connect a device and restart.
-
-### Installing Dependencies
-
-**macOS:**
+You need Rust 1.88 or newer ([rustup](https://rustup.rs)) and the HackRF library with its headers. The library is needed to build KAT even if you only use an RTL-SDR.
 
 ```bash
-brew install hackrf
-# RTL433/RTL-SDR: no extra system lib required; rtl-sdr-rs uses rusb
+brew install hackrf                                          # macOS
+sudo apt install libhackrf-dev pkg-config libusb-1.0-0-dev   # Debian / Ubuntu / Raspberry Pi OS
+sudo dnf install hackrf-devel pkg-config libusb1-devel       # Fedora
+sudo pacman -S hackrf libusb                                 # Arch Linux
 ```
 
-**Debian / Ubuntu:**
-
 ```bash
-sudo apt install libhackrf-dev pkg-config libusb-1.0-0-dev
-```
-
-**Fedora:**
-
-```bash
-sudo dnf install hackrf-devel pkg-config libusb1-devel
-```
-
-**Arch Linux:**
-
-```bash
-sudo pacman -S hackrf libusb
-```
-
-On **Linux**, if using RTL433/RTL-SDR, you may need to unload DVB-T kernel modules so the device is not claimed by the kernel (see [rtl-sdr-rs](https://crates.io/crates/rtl-sdr-rs)).
-
-## Building
-
-```bash
-git clone <repo-url> && cd KAT
+git clone https://github.com/KaraZajac/KAT.git
+cd KAT
 cargo build --release
 ```
 
-The binary is placed at `target/release/kat`.
+The binary is `target/release/kat`. Use a release build for live receive and IQ decoding: a debug build is about 20 times slower.
 
-## Usage
+### Radio hardware
+
+- **HackRF One** (or compatible) — receive and transmit.
+- **RTL-SDR** dongle — receive only.
+
+KAT uses a HackRF if one is connected, otherwise the first RTL-SDR. With neither, it warns at startup and then runs without a radio: you can still open, decode, analyse and export captures. The header shows the radio in use: **HackRF**, **RTL-SDR (RX only)** or **No device** (status DISCONNECTED, in red).
+
+On Linux, the kernel's DVB-T driver can claim an RTL-SDR before KAT does; unload it with `sudo rmmod dvb_usb_rtl28xxu` or blacklist it (see [rtl-sdr-rs](https://crates.io/crates/rtl-sdr-rs)).
+
+## Quick start
+
+1. Connect the radio and start KAT: `kat` (`target/release/kat` when built from source).
+2. Press `r` to start receiving. KAT listens on 433.92 MHz by default; `:freq 315` changes the frequency and `:hop on` hops over the common key fob frequencies.
+3. Press a button on the fob. Each burst appears in the captures list, decoded when KAT knows the protocol.
+4. Move through the list with `j` / `k` or the arrow keys; the detail panel shows the selected capture.
+5. Press `Enter` for the capture's actions: transmit, export, timing analysis, key recovery.
+6. Press `Tab` for the radio settings, `:` for commands (`:load` opens files and recordings), and `q` to quit.
+
+## Command line
 
 ```bash
-./target/release/kat                                        # start the TUI
-./target/release/kat --iq fob.cs8 --freq 433.92 --rate 2M   # also decode an IQ recording at startup
-./target/release/kat --help                                 # options; --version prints the version
-./target/release/kat --decode IMPORTS/ fob.cu8 --rate 250k  # decode files/folders without the TUI
+kat                                         # start the TUI
+kat --iq fob.cs8 --freq 433.92 --rate 2M    # also decode an IQ recording at startup
+kat --decode IMPORTS/ fob.cu8 --rate 250k   # decode files and folders without the TUI
+kat --keeloq-bf captures/ --save            # recover a magic-serial KeeLoq key (--type auto|6|7|8)
+kat --help                                  # all options; --version prints the version
 ```
 
 `--decode` prints `file | frequency | source | protocol | xcount | data=…/bits sn= btn= cnt= crc= tx=` per distinct decode (`source` is `raw`, `key`, or the IQ path `am`/`fm`); `--all` prints every decode in stream order, `--verbose` also dumps each IQ burst (time, length, SNR, carrier offset, FSK deviation, pulses) to stderr. Files whose name carries no rate (e.g. rtl_433 `gfile001.cu8`) need `--rate`.
 
-`--freq` and `--rate` default to values in the recording's file name (e.g. `kat_433670000Hz_2000000sps_….cs8`), else the configured frequency and 2 MS/s. Live receive and IQ decoding need a release build (`cargo build --release`); a debug build is about 20× slower.
+`--freq` and `--rate` default to values in the recording's file name (e.g. `kat_433670000Hz_2000000sps_….cs8`), else the configured frequency and 2 MS/s.
 
-KAT starts in an interactive terminal UI. If no HackRF or RTL433/RTL-SDR is detected, a warning appears (“No HackRF or RTL-SDR detected”) and you can press any key to continue without TX/RX support—you can still view, import, and export captures. The header shows the active device (**HackRF**, **RTL-SDR (RX only)** when using RTL433/RTL-SDR, or **No device**) and radio status; when no device is connected, the status is shown in red (DISCONNECTED). When using RTL433/RTL-SDR, transmit actions (Replay, TX Lock/Unlock/Trunk/Panic) show “(no TX)” in the signal menu and display a receive-only message if selected.
+## Using the TUI
 
-### Keyboard Controls
+### Keys
 
 | Key | Action |
 |---|---|
-| `j` / `k` or Arrow Up / Down | Navigate captures list |
-| `Enter` | Open signal action menu on selected capture |
-| `Tab` | Open radio settings menu (Frequency, Hop, LNA, VGA, AMP, TX power) |
-| `r` | Toggle receive mode (start/stop RX) |
-| `:` | Enter VIM-style command mode |
-| `Esc` | Close menu / cancel current action |
-| `q` | Quit (restores terminal) |
-| `:q` or `:quit` | Quit from command line (same as `q`; restores terminal) |
+| `j` / `k` or `↓` / `↑` | Move through the captures |
+| `Enter` | Open the selected capture's action menu |
+| `i` | Edit the capture's metadata: year, make, model, region and command (used by the CVE match and `.fob` export) |
+| `d` | Delete the selected capture |
+| `r` | Start or stop receiving |
+| `Tab` | Radio settings: choose a setting with `←` / `→` (or `Tab`), `Enter` to change it, `↑` / `↓` to pick a value, `Enter` to apply |
+| `:` | Command line |
+| `Esc` | Close a menu, form or overlay |
+| `q` | Quit (also `:q`) |
 
-### Signal Action Menu
+### Signal actions
 
-Press `Enter` on a capture to open the action menu. When using RTL-SDR (receive-only), transmit actions show **(no TX)** and are disabled.
+`Enter` on a capture opens its actions. Without a HackRF (RTL-SDR or no radio), the transmit actions are not offered.
 
 | Action | Description |
 |---|---|
-| Recover key (PSA brute force) | PSA TEA frame without a key: run ProtoPirate’s key brute force in the background (progress in the status line; **Cancel key recovery** stops it). On success the capture gets its serial/button/counter and TX actions |
-| Replay | Re-transmit raw capture (HackRF only; “no TX” with RTL-SDR) |
-| TX Lock | Transmit lock command |
-| TX Unlock | Transmit unlock command |
-| TX Trunk | Transmit trunk release command |
-| TX Panic | Transmit panic alarm command |
+| Recover key (KeeLoq magic serial) | KeeLoq frame no key decrypts: search the remote's magic-serial manufacturer key using all of its captures (two or more presses), on every core (Flipper-ARF's KeeLoq Decrypt). The key is saved as `BF_<serial>` and the remote's captures decode ([docs/keeloq.md](docs/keeloq.md)) |
+| Recover key (PSA brute force) | PSA TEA frame without a key: run ProtoPirate's key brute force in the background. On success the capture gets its serial, button and counter, and transmit actions |
+| Cancel key recovery | Stop a running key recovery (progress shows in the status line) |
+| Replay | Re-transmit the capture as recorded |
 | Send next code | Gate, garage and barrier remotes (instead of TX Lock … Panic): transmit the code after the stored one |
 | Send button… | Gate and garage remotes: pick one of the remote's native buttons, or type a hex code, and send the next code with it (the list stays open) |
-| Export .fob | Export signal with full vehicle + signal metadata |
-| Export .sub | Export in Flipper Zero SubGHz format (with the capture’s preset) |
-| Timing analysis | Compare the capture’s pulse timing with its protocol’s definition (ProtoPirate’s Timing Tuner); for unknown signals: pulse clusters, a TE estimate and a line-coding guess |
-| Delete | Remove capture from the list |
+| TX Lock / TX Unlock / TX Trunk / TX Panic | Car remotes KAT can encode: transmit the next code with that button |
+| Export .fob | Save the capture with vehicle metadata ([below](#capture-metadata-and-fob-export)) |
+| Export .sub (Flipper) | Save the raw capture as a Flipper Zero RAW `.sub`, with the capture's preset |
+| Export Flipper key (.sub) | Save the decode as a Flipper key file, as ProtoPirate and Flipper-ARF save it |
+| Timing analysis | Compare the capture's pulse timing with its protocol's definition (ProtoPirate's Timing Tuner); for unknown signals: pulse clusters, a TE estimate and a line-coding guess |
+| Delete Signal | Remove the capture from the list |
 
-### Fob Export
+### Commands
+
+Press `:` and type a command. `<ID>` is a capture ID, a comma list or a range: `1`, `1,3,5`, `1-5`. Transmit commands need a HackRF.
+
+| Command | Description |
+|---|---|
+| `:freq <MHz>` | Set the receive frequency (e.g. `:freq 433.92`) |
+| `:hop on` / `:hop off` | Frequency hopping over the hop list; KAT stays on a frequency while a signal is on air |
+| `:hop <MHz> <MHz> …` | Set the hop list (`:hop default` restores Flipper's list; `:hop dwell <ms>` sets the time per quiet frequency) |
+| `:lna <0-40>` / `:vga <0-62>` / `:amp [on\|off]` | Receive gains and the RF amplifier (`:amp` alone toggles it) |
+| `:txpower <0-47> [amp on/off]` | TX VGA gain and RF amp for every transmission; no argument shows the setting |
+| `:iq <file> [MHz] [rate]` | Decode a `.cs8` / `.cu8` / `.cf32` IQ recording in the background (no radio needed); `:iq stop` cancels |
+| `:record [file]` / `:record stop` | Record the raw IQ as received to the export folder (`.cs8` for HackRF, `.cu8` for RTL-SDR) |
+| `:load [file\|dir]` | Import a `.fob` or `.sub` file, or decode an IQ recording; a directory, or no argument, opens the file browser there |
+| `:lock <ID>` / `:unlock <ID>` / `:trunk <ID>` / `:panic <ID>` | Transmit that button's next code |
+| `:replay <ID>` | Replay the raw capture(s) in order |
+| `:new [type…]` | Create a new gate/garage remote ("Add Manually"): opens the type picker, or creates the one type the words name (e.g. `:new princeton 433`) |
+| `:klbf [ID] [auto\|6\|7\|8]` | Recover the magic-serial KeeLoq key of a remote (default: the selected capture, Auto = types 6 and 7); `:klbf stop` cancels |
+| `:timing [ID]` | Timing analysis of a capture (default: the selected one) |
+| `:delete <ID>` / `:delete all` | Delete captures |
+| `:clear` | Clear all captures and the saved session (asks first) |
+| `:license` / `:credits` | Show the license or the credits |
+| `:q` or `:quit` | Quit |
+
+### Capture metadata and .fob export
 
 When exporting to `.fob`, a metadata form collects filename and optional vehicle info:
 
@@ -215,40 +255,20 @@ The exported `.fob` file is a versioned JSON document (v2.0, format `kat-fob`) c
 - **Optional signal fields (1.5)** — `data_extra` (encoder state for frames over 64 bits), `received_rf` (the path KAT received it on: AM or FM), `preset` with `custom_preset_module` / `custom_preset_data` (the Flipper preset the signal was recorded or will be sent with) and `tx_modulation` (informational, e.g. `2-FSK ±47.61 kHz`). Files without them still load.
 - **capture** — `raw_data_hex`, `raw_pair_count`, and optionally `raw_pairs` when config `include_raw_pairs` is true.
 
-### VIM-Style Commands
-
-Transmit commands (`:lock`, `:unlock`, `:trunk`, `:panic`) require HackRF; with RTL-SDR they report that transmit is not available.
-
-| Command | Description |
-|---|---|
-| `:freq <MHz>` | Set receive frequency (e.g. `:freq 433.92`) |
-| `:hop on` / `:hop off` | Frequency hopping over the hop list; KAT stays on a frequency while a signal is on air |
-| `:hop <MHz> <MHz> …` | Set the hop list (`:hop default` restores Flipper's list; `:hop dwell <ms>` sets the time per quiet frequency) |
-| `:iq <file> [MHz] [rate]` | Decode a `.cs8` / `.cu8` / `.cf32` IQ recording in the background (no radio needed); `:iq stop` cancels |
-| `:record [file]` / `:record stop` | Record the raw IQ as received to the export folder (`.cs8` for HackRF, `.cu8` for RTL-SDR) |
-| `:lock <ID>` | Transmit lock signal (ID: single, comma list, or range; e.g. `1`, `1, 3, 5`, `1-5`) |
-| `:unlock <ID>` | Transmit unlock signal (same ID formats) |
-| `:trunk <ID>` | Transmit trunk release (same ID formats) |
-| `:panic <ID>` | Transmit panic alarm (same ID formats) |
-| `:replay <ID>` | Replay raw capture(s) by ID in order (same ID formats; HackRF only) |
-| `:delete <ID>` | Delete capture from list |
-| `:clear` | Clear all captures and the saved session (asks first) |
-| `:txpower <0-47> [amp on/off]` | TX VGA gain and RF amp for every transmission; no argument shows the setting |
-| `:timing [ID]` | Timing analysis of a capture (default: the selected one) |
-| `:load <file>` | Import capture from `.fob` or `.sub` file (`:load` alone opens a file browser, which also opens IQ recordings) |
-| `:new [type…]` | Create a new gate/garage remote ("Add Manually"): opens the type picker, or creates the one type the words name (e.g. `:new princeton 433`) |
-| `:q` or `:quit` | Quit application (terminal restored cleanly, same as pressing `q`) |
-
 ## Configuration
 
-On first launch, KAT creates the config directory and a default config file. Captures are autosaved to `session.json` and offered for restore at the next start; set `session_autosave = false` under `[session]` to keep them in memory only.
+On first start KAT creates its folder and a commented `config.ini`:
 
 ```
 ~/.config/KAT/
-├── config.ini      # Application settings (auto-generated with comments)
-├── session.json    # Autosaved captures (owner-only; see docs/session.md)
-└── exports/        # Default export directory for .fob / .sub files
+├── config.ini            # Settings (written with comments on first start)
+├── session.json          # Autosaved captures (owner-only; see docs/session.md)
+├── keeloq_mfcodes_user   # Your KeeLoq manufacturer keys, Flipper format; recovered keys are added here
+├── exports/              # .fob and .sub exports
+└── import/               # .fob and .sub files imported at startup
 ```
+
+Nice FloR-S and Alutech AT-4N need their tables there to decode and transmit fully (`nice_flor_s.bin`, `alutech_at_4n.bin`; see their docs).
 
 Example `config.ini` (all keys optional; defaults are used if missing):
 
@@ -257,7 +277,7 @@ Example `config.ini` (all keys optional; defaults are used if missing):
 export_directory = ~/.config/KAT/exports
 import_directory = ~/.config/KAT/import
 max_captures = 100
-research_mode = false
+research_mode = true
 
 [radio]
 default_frequency = 433920000
@@ -284,9 +304,11 @@ session_autosave = true
 - **tx_vga_gain / tx_amp** — transmit power (0–47 dB TX VGA, RF amp); the defaults are the HackRF's maximum, as in KAT ≤ 1.4.
 - **session_autosave** — autosave captures to `session.json` (default on); **max_captures** also caps the saved session.
 
-## Supported Protocols
+## Supported protocols
 
 Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference; protocols ProtoPirate does not carry are ported from [Flipper-ARF](https://github.com/D4C1-Labs/Flipper-ARF) and [doctor-firmware](https://github.com/thedoctorz/doctor-firmware). KAT receives AM/OOK and FM/2-FSK and transmits each protocol with the modulation and FSK deviation the references use ([docs/transmit.md](docs/transmit.md)). “Replay” encoders re-send the captured rolling code (optionally re-stamping the button) because no manufacturer key is available.
+
+### Car key fobs and alarms
 
 | Protocol | Encoding | RF | Encryption | Frequency |
 |---|---|---|---|---|
@@ -369,9 +391,9 @@ Each protocol has its own page in [docs/](docs/README.md). Not ported (in the re
 
 **Retired (mirrors the references):** **BMW CAS4** — Flipper-ARF disabled `bmw_cas4.c` and replaced it with **BMW**; **Porsche Touareg** — ProtoPirate removed `porsche_touareg.c`, a port of the same `porsche_cayenne.c` that KAT keeps as **Porsche Cayenne** (old “Porsche Touareg” captures resolve to it); the **KeeLoq Toyota** decoder — Flipper-ARF replaced it with the current Toyota/Lexus protocol above; **PSA2** (“PSA OLD”) — Flipper-ARF never registers `psa2.c`, and PSA now decodes those frames with the same fields (old “PSA2” captures resolve to PSA); **Suzuki** — ProtoPirate folded `suzuki.c` into Kia V0 (now the “Suzuki V0” frame type; old “Suzuki” captures resolve to Kia V0).
 
-### Vulnerability database
+## Vulnerability database
 
-KAT matches capture metadata (Year / Make / Model / Region, set via **i** on a capture) against a built-in CVE list. The **Vuln Found** column and **Vulnerability** detail panel show matches; each CVE links to the NVD for further reading.
+KAT matches capture metadata (Year / Make / Model / Region, set with `i` on a capture) against a built-in CVE list. The **Vuln Found** column and **Vulnerability** detail panel show matches; each CVE links to the NVD for further reading.
 
 | CVE | Make(s) | Models | Year range | Description |
 |-----|---------|--------|------------|-------------|
@@ -383,15 +405,7 @@ KAT matches capture metadata (Year / Make / Model / Region, set via **i** on a c
 
 Details (exact model/year scope) are in `src/vuln_db.rs`. The app shows the NVD URL for each matched CVE in the Vulnerability panel.
 
-### Cryptographic modules
-
-- **KeeLoq** — encrypt/decrypt with normal, secure, FAAC, and magic serial/XOR learning key derivation (keeloq_common, keys). Unknown signals are tried as KeeLoq with every keystore key via **keeloq_generic** (uses keeloq_common only).
-- **AES-128** — full encrypt/decrypt for Kia V6 (key derived from keystore A/B with XOR masks)
-- **TEA / XOR** — PSA (Peugeot/Citroën): XOR fast path on decode; TEA frames are recovered on demand with ProtoPirate’s key brute force (two 2^24 ranges, multithreaded, ≈0.5 s worst case) from the signal menu’s **Recover key** action
-- **AUT64** — 12-round block cipher for VAG type 1/3/4 (aut64)
-- **HITAG2** — keystream/authenticator shared by Fiat V1 (hop verified against ProtoPirate’s 9 keys plus Flipper-ARF’s dictionary/heuristics → fresh frame) and Renault V1 (ProtoPirate’s 2^18 serial-derived seed search, ~10 ms, runs on every frame → fresh frame); without a key/seed both replay the captured frame, as the references do (hitag2)
-- **XTEA** — Opel V1 frames decrypted with the published Bosch key (opel_v1)
-- **Keystore** — manufacturer keys (Kia, VAG, etc.) built in; see `src/keystore/`
+## How it works
 
 ### Receiver
 
@@ -405,11 +419,23 @@ One receive pipeline serves the HackRF, the RTL-SDR and IQ recordings ([docs/rad
 - **Measured on synthetic signals** — OOK and 2FSK fobs decode equally well anywhere from 325 kHz below to 325 kHz above the target: half the presses decode at about −8.5 dB SNR for OOK and −6 dB for FSK (±20 and ±47.6 kHz; SNR over 2 MHz); KAT 1.4 needed 12–18 dB for OOK and decoded no FSK once there was noise
 - **Real recordings** — rtl_433's test recordings decode as before, plus six HCS200 KeeLoq presses whose carrier is ~120 kHz below the file's frequency
 
-## IMPORTS folder
+### Cryptography
 
-The `IMPORTS/` directory holds sample `.sub` captures by manufacturer for testing. If you see `desktop.ini` files in subfolders (e.g. from Windows), you can delete them; they are ignored by git (see `.gitignore`).
+- **KeeLoq** — encrypt/decrypt with normal, secure, FAAC, and magic serial/XOR learning key derivation (keeloq_common, keys). Unknown signals are tried as KeeLoq with every keystore key via **keeloq_generic** (uses keeloq_common only).
+- **AES-128** — full encrypt/decrypt for Kia V6 (key derived from keystore A/B with XOR masks)
+- **TEA / XOR** — PSA (Peugeot/Citroën): XOR fast path on decode; TEA frames are recovered on demand with ProtoPirate’s key brute force (two 2^24 ranges, multithreaded, ≈0.5 s worst case) from the signal menu’s **Recover key** action
+- **AUT64** — 12-round block cipher for VAG type 1/3/4 (aut64)
+- **HITAG2** — keystream/authenticator shared by Fiat V1 (hop verified against ProtoPirate’s 9 keys plus Flipper-ARF’s dictionary/heuristics → fresh frame) and Renault V1 (ProtoPirate’s 2^18 serial-derived seed search, ~10 ms, runs on every frame → fresh frame); without a key/seed both replay the captured frame, as the references do (hitag2)
+- **XTEA** — Opel V1 frames decrypted with the published Bosch key (opel_v1)
+- **Keystore** — manufacturer keys (Kia, VAG, etc.) built in; see `src/keystore/`
 
-## Project Structure
+## Documentation
+
+Each protocol has its own page in [docs/](docs/README.md): how it works, the frame layout and what KAT does with it. Feature pages: [receive](docs/radio.md), [transmit](docs/transmit.md), [session autosave and saved-fob matching](docs/session.md), [timing analysis](docs/timing_analysis.md), [Add Manually](docs/add_manually.md), [Flipper key files](docs/flipper_key_files.md), [KeeLoq and key recovery](docs/keeloq.md) and [unidentified captures](docs/unidentified_captures.md).
+
+The `IMPORTS/` directory holds sample `.sub` captures by manufacturer; the test suite decodes all of them. If you see `desktop.ini` files in its subfolders (from Windows), you can delete them; git ignores them.
+
+### Project structure
 
 ```
 src/
@@ -417,13 +443,14 @@ src/
 ├── app.rs               # Application state, radio events, signal actions
 ├── app/                 # rx.rs (:iq, :record, :hop), tx.rs (transmit queue, :txpower), persistence.rs (session),
 │                        # fob_matching.rs (saved-fob ★), timing_view.rs (timing overlay), key_files.rs (Flipper key
-│                        # files), add_manually.rs (:new, Send button…)
-├── headless.rs          # kat --decode: decode .sub files and IQ recordings without the TUI
+│                        # files), add_manually.rs (:new, Send button…), keeloq_bf.rs (KeeLoq key recovery)
+├── headless.rs          # kat --decode / --keeloq-bf: decode files, recover KeeLoq keys without the TUI
 ├── analysis/timing.rs   # Timing analysis (ProtoPirate Timing Tuner, pulse clusters, line-coding guess)
 ├── session.rs           # session.json format and atomic writer
 ├── saved_fobs.rs        # Index of saved .fob files for matching
 ├── capture.rs           # Capture data (data_extra for protocol encode state), encoding/RF modulation
 ├── storage.rs           # Config (INI), export dir, resolve_config_dir, Storage
+├── vuln_db.rs           # Built-in CVE list matched against capture metadata
 ├── keystore/
 │   ├── mod.rs           # Keystore trait and access
 │   └── embedded.rs      # Embedded manufacturer keys (Kia, VAG, etc.)
@@ -437,6 +464,7 @@ src/
 │   ├── common.rs        # DecodedSignal (extra for VAG encode), CRC, bit helpers, button codes
 │   ├── keeloq_common.rs # KeeLoq cipher + learning key algorithms (used by Kia V3/V4, Star Line, keeloq_generic)
 │   ├── keeloq_generic.rs # KeeLoq fallback: try every keystore key when no protocol matches (uses keeloq_common)
+│   ├── keeloq_bf.rs     # Magic-serial KeeLoq key search (bitsliced, all cores; Flipper-ARF's KeeLoq Decrypt)
 │   ├── aut64.rs         # AUT64 block cipher (VAG)
 │   ├── keys.rs          # Key loading (embedded + optional file), KIA/VAG
 │   ├── kia_v0..kia_v7.rs
@@ -464,7 +492,7 @@ src/
 │   ├── tx.rs            # TX waveform (OOK / continuous-phase 2-FSK on a digital offset), TX stream
 │   ├── sim.rs           # Synthetic-signal tests and sensitivity sweeps (test only)
 │   ├── demodulator.rs   # KAT 1.4's demodulators (comparison baseline in the sweeps)
-│   └── modulator.rs    # Level/duration -> TX waveform helpers
+│   └── modulator.rs     # Level/duration -> TX waveform helpers
 └── ui/
     ├── layout.rs        # TUI layout, fob metadata form
     ├── captures_list.rs # Captures table + detail (protocol, mod, RF, enc)
@@ -472,6 +500,7 @@ src/
     ├── settings_menu.rs # Radio settings (Freq, Hop, LNA, VGA, AMP, TX)
     ├── app_prompts.rs   # Session restore / clear prompts
     ├── command.rs       # VIM-style command line
+    ├── text_overlay.rs  # License, credits and timing-analysis overlays
     ├── add_manually.rs  # :new type picker and field editor, Send button… list
     └── status_bar.rs    # Status bar
 ```
@@ -495,4 +524,4 @@ KAT is developed by **Kara Zajac (.kara)**. KAT would not be possible without [P
 
 ## License
 
-[BSD-3-Clause NO MILITARY NO GOVERNMENT](LICENSE)
+KAT is released under the [BSD 3-Clause License](LICENSE).

@@ -1,8 +1,14 @@
 # KAT Protocol Documentation
 
-This folder describes how each keyfob protocol supported by KAT works. Each document corresponds to a decoder/encoder in `src/protocols/`.
+This folder describes how each keyfob and gate/garage remote protocol supported by KAT works. Each document corresponds to a decoder/encoder in `src/protocols/`.
+
+**Radio and app features:** [radio.md](radio.md) (receive pipeline, IQ recordings, `:record`, frequency hopping), [transmit.md](transmit.md) (OOK / 2-FSK transmit, per-protocol presets and deviations, TX power), [session.md](session.md) (session autosave and saved-fob matching), [timing_analysis.md](timing_analysis.md) (ProtoPirate's Timing Tuner and line-coding guesses), [add_manually.md](add_manually.md) (`:new`: new gate / garage remotes of 101 Flipper-ARF / doctor-firmware types, and the signal menu's "Send button…").
 
 **Capture/encode model:** Decoded signals expose optional `extra` (e.g. VAG: Key2 + type + key index + counter high byte; protocols with frames longer than 64 bits keep the remaining bits there). When present, the app stores it in `Capture.data_extra` (persisted in `.fob` as `signal.data_extra`) so retransmit can encode from the capture without decoder instance state. See [vag.md](vag.md) for the VAG encode-from-capture flow.
+
+**Flipper key files:** [flipper_key_files.md](flipper_key_files.md) — loading and saving decoded keys (`Protocol` / `Bit` / `Key` `.sub` files, as ProtoPirate and Flipper-ARF save every decode): the name and lines each protocol writes, and what loads.
+
+**Unidentified captures:** [unidentified_captures.md](unidentified_captures.md) — the owner-collection captures in `IMPORTS/` that no decoder (KAT's or a reference's) reads: which were recorded with the wrong preset, and what is known of the formats no reference implements (VW Polo 5 2017, Lexus UX 250 2021, Volvo S40 1999).
 
 | Protocol | Rust module | Doc |
 |----------|-------------|-----|
@@ -51,6 +57,62 @@ This folder describes how each keyfob protocol supported by KAT works. Each docu
 | Mazda Infinity (experimental, Pandora RE — **not registered**) | `mazda_infinity.rs` | [mazda_infinity.md](mazda_infinity.md) |
 | Hyundai (experimental, Pandora RE — **not registered**) | `hyundai.rs` | [hyundai.md](hyundai.md) |
 | KeeLoq generic (fallback) | `keeloq_generic.rs` | [keeloq_generic.md](keeloq_generic.md) |
+
+### Garage door, gate, barrier and shutter remotes
+
+Ported from Flipper-ARF's garage app (`applications/system/subghz_garage/protocols/`) and doctor-firmware; registered after every car protocol, most strongly gated first. Shared helpers: `g1_common.rs` … `g6_common.rs`.
+
+| Protocol | Rust module | Doc |
+|----------|-------------|-----|
+| Beninca ARC | `beninca_arc.rs` | [beninca_arc.md](beninca_arc.md) |
+| KingGates Stylo4k | `kinggates_stylo_4k.rs` | [kinggates_stylo_4k.md](kinggates_stylo_4k.md) |
+| Jarolift | `jarolift.rs` | [jarolift.md](jarolift.md) |
+| Faac SLH | `faac_slh.rs` | [faac_slh.md](faac_slh.md) |
+| Security+ 2.0 | `secplus_v2.rs` | [secplus_v2.md](secplus_v2.md) |
+| Somfy Keytis | `somfy_keytis.rs` | [somfy_keytis.md](somfy_keytis.md) |
+| Somfy Telis | `somfy_telis.rs` | [somfy_telis.md](somfy_telis.md) |
+| Security+ 1.0 | `secplus_v1.rs` | [secplus_v1.md](secplus_v1.md) |
+| Alutech AT-4N | `alutech_at_4n.rs` | [alutech_at_4n.md](alutech_at_4n.md) |
+| Nice FloR-S / Nice One | `nice_flor_s.rs` | [nice_flor_s.md](nice_flor_s.md) |
+| Ditec GOL4 | `ditec_gol4.rs` | [ditec_gol4.md](ditec_gol4.md) |
+| CAME Atomo | `came_atomo.rs` | [came_atomo.md](came_atomo.md) |
+| Power Smart | `power_smart.rs` | [power_smart.md](power_smart.md) |
+| Urmet | `urmet.rs` | [urmet.md](urmet.md) |
+| Revers RB2 | `revers_rb2.rs` | [revers_rb2.md](revers_rb2.md) |
+| Telcoma/Cardin EDGE | `telcoma_edge.rs` | [telcoma_edge.md](telcoma_edge.md) |
+| Phoenix V2 | `phoenix_v2.rs` | [phoenix_v2.md](phoenix_v2.md) |
+| Dooya | `dooya.rs` | [dooya.md](dooya.md) |
+| Roger | `roger.rs` | [roger.md](roger.md) |
+| Hay21 | `hay21.rs` | [hay21.md](hay21.md) |
+| Allstar Firefly | `allstar_firefly.rs` | [allstar_firefly.md](allstar_firefly.md) |
+| Marantec | `marantec.rs` | [marantec.md](marantec.md) |
+| Hörmann HSM | `hormann.rs` | [hormann.md](hormann.md) |
+| Nero Radio | `nero_radio.rs` | [nero_radio.md](nero_radio.md) |
+| Nero Sketch | `nero_sketch.rs` | [nero_sketch.md](nero_sketch.md) |
+| iDo 117/111 | `ido.rs` | [ido.md](ido.md) |
+| Dickert MAHS | `dickert_mahs.rs` | [dickert_mahs.md](dickert_mahs.md) |
+| Doitrand | `doitrand.rs` | [doitrand.md](doitrand.md) |
+| Mastercode | `mastercode.rs` | [mastercode.md](mastercode.md) |
+| Marantec24 | `marantec24.rs` | [marantec24.md](marantec24.md) |
+| Clemsa | `clemsa.rs` | [clemsa.md](clemsa.md) |
+| BETT | `bett.rs` | [bett.md](bett.md) |
+| Elplast | `elplast.rs` | [elplast.md](elplast.md) |
+| Ansonic | `ansonic.rs` | [ansonic.md](ansonic.md) |
+| Holtek | `holtek.rs` | [holtek.md](holtek.md) |
+| CAME TWEE | `came_twee.rs` | [came_twee.md](came_twee.md) |
+| MegaCode | `megacode.rs` | [megacode.md](megacode.md) |
+| Chamberlain Code (Cham_Code) | `chamberlain_code.rs` | [chamberlain_code.md](chamberlain_code.md) |
+| GateTX | `gate_tx.rs` | [gate_tx.md](gate_tx.md) |
+| Holtek HT12X | `holtek_ht12x.rs` | [holtek_ht12x.md](holtek_ht12x.md) |
+| CAME | `came.rs` | [came.md](came.md) |
+| Prastel | `prastel.rs` | [prastel.md](prastel.md) |
+| Nice FLO | `nice_flo.rs` | [nice_flo.md](nice_flo.md) |
+| Linear | `linear.rs` | [linear.md](linear.md) |
+| Linear Delta3 | `linear_delta3.rs` | [linear_delta3.md](linear_delta3.md) |
+| SMC5326 | `smc5326.rs` | [smc5326.md](smc5326.md) |
+| Princeton (PT2262 / EV1527) | `princeton.rs` | [princeton.md](princeton.md) |
+
+**Add Manually** (new remotes of a chosen type): see [add_manually.md](add_manually.md).
 
 **Shared cipher modules:** `hitag2.rs` (HITAG2 keystream/authenticator, used by Fiat V1 and Renault V1), `aut64.rs`, `keeloq_common.rs`.
 

@@ -12,20 +12,27 @@ layout: default
 
 Generic Microchip KeeLoq (HCS2xx/HCS3xx-style) remotes: gates, garage doors, barriers and car alarms. The
 decoder identifies the manufacturer from the embedded keystore exactly as ARF's
-`check_remote_controller` does and reports `KeeLoq (<manufacturer>)`. Unidentified frames are not
-reported (the C lists them as "Unknown"); KAT's separate KeeLoq generic fallback
-([keeloq_generic.md](keeloq_generic.md)) still tries captures that no decoder reports.
+`check_remote_controller` does and reports `KeeLoq (<manufacturer>)`. Like the C, it also reports
+every frame it cannot identify, as `KeeLoq (Unknown)`: serial and button from the fixed part, no
+counter (the hop is encrypted with a key KAT does not have), decode and replay only. It runs on every
+band (the C has no frequency filter), so 300–318, 390 MHz and other gate frequencies decode too. KAT's
+separate KeeLoq generic fallback ([keeloq_generic.md](keeloq_generic.md)) still tries captures that no
+decoder reports.
+
+Validated on real recordings from the rtl_433 test suite (HCS200 remotes, IQ through KAT's receive
+pipeline): `Microchip/HCS200` → `KeeLoq (Magic_3)` serial D0921 with consecutive counters,
+`keeloq/01` → `KeeLoq (Unknown)` serial 174ACD (rtl_433 reports the same serial).
 
 ## Timing
 
 | Parameter | Value    | Notes                                                        |
 |-----------|----------|--------------------------------------------------------------|
-| Short     | 400 µs   | ±140 µs                                                      |
-| Long      | 800 µs   | ±280 µs                                                      |
+| Short     | 400 µs   | ±180 µs (ARF's gate-app copy; its library copy: ±140 µs)     |
+| Long      | 800 µs   | ±360 µs                                                      |
 | Preamble  | > 2 × 400 µs HIGH | LOW ~400 µs (or ~800 µs: Superrollo/HCS361)         |
-| Header    | 4000 µs  | ±1400 µs (LOW; Superrollo also a 10·Te HIGH sync)            |
+| Header    | 4000 µs  | ±1800 µs (LOW; Superrollo also a 10·Te HIGH sync)            |
 | Bit 1 / 0 | 400 HIGH + 800 LOW / 800 HIGH + 400 LOW |                               |
-| End       | LOW ≥ 940 µs | 64..66 bits, first 64 kept                               |
+| End       | LOW ≥ 980 µs | 64..66 bits, first 64 kept                               |
 
 ## Frame Layout (64 bits, MSB-first, bit-reversed = fix | hop)
 
@@ -63,6 +70,27 @@ Three remotes with consecutive counters and discriminator = serial & 0x3FF leave
 `keeloq_common::LEARNING_TYPE_FIXES` maps DoorHan to SIMPLE in the keystore view both KeeLoq and Star Line
 use. Without it these remotes are not identified at all.
 
+## Your own manufacturer keys
+
+KAT's keystore is built in. Like the Flipper firmwares, KAT also reads a plaintext **user keystore**:
+put a file named `keeloq_mfcodes_user` in `~/.config/KAT/`, in the Flipper's format, and its keys are
+used after the built-in ones (identification, the Star Line / Sheriff / generic fallbacks, and the
+encoder, so identified remotes can be re-encoded):
+
+```text
+Filetype: Flipper SubGhz Keystore File
+Version: 0
+Encryption: 0
+0123456789ABCDEF:2:My_Gate_Brand
+```
+
+Each line is `KEY:TYPE:NAME`: the 64-bit manufacturer key as 16 hex digits, the learning type in the
+Flipper's numbering (1 simple, 2 normal, 3 secure, 4 magic XOR type 1, 6–8 magic serial types 1–3, …;
+0 = unknown, KAT tries simple/normal/secure/magic XOR with the key and its byte-mirrored copy) and the
+manufacturer name shown as `KeeLoq (<name>)`. Encrypted Flipper keystores (`Encryption: 1`) cannot be
+read. KAT reports how many keys it loaded in the status line at start-up (and on stderr for
+`kat --decode`).
+
 ## RF
 
 - **Encoding:** PWM
@@ -73,7 +101,10 @@ use. Without it these remotes are not identified at all.
 ## Encoder
 
 ARF `gen_data` + `encode_to_timings` (counter mode 0): manufacturer, learning mode, counter and seed are
-re-derived from the key; counter + 1 (wraps to 0). `fix = button << 28 | serial` (Pecinin: serial only).
+re-derived from the key — restricted to the manufacturer the capture names (`KeeLoq (<name>)`, e.g. a
+key file's `Manufacture` or an "Add Manually" remote), as ARF's encoder restricts its search to the
+file's `Manufacture`, so a key whose frame an earlier keystore entry would also validate, or a BFT key
+with its own seed, is transmitted with its own manufacturer; counter + 1 (wraps to 0). `fix = button << 28 | serial` (Pecinin: serial only).
 Discriminator per manufacturer (default serial & 0x3FF; Aprimatic parity form; 12-bit for DTM_Neo,
 FAAC_RC,XT, Mutanco/Clemsa, Came_Space, Genius_Bravo, GSN, Rosh, Rossi, Pecinin, Steelmate, Cardin_S449,
 Stilmatic, …; 8-bit for NICE_Smilo/MHOUSE, JCM_Tech, Pujol, Erreka; 0 Beninca/Merlin; 0x1CE Centurion; 0x100

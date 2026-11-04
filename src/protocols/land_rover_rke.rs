@@ -35,6 +35,23 @@
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use crate::radio::demodulator::LevelDuration;
 
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Land Rover RKE",
+    decoder: "Land Rover RKE",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Pwm,
+    rf: Rf::AM,
+    encryption: "KeeLoq",
+    make: "Land Rover",
+    category: Category::Vehicle,
+    buttons: None,
+    presets: &[&AM650],
+};
+
 // Timing constants (microseconds) — verbatim from landrover_rke.h.
 const PREAMBLE_HIGH_US: u32 = 400;
 const PREAMBLE_LOW_US: u32 = 600;

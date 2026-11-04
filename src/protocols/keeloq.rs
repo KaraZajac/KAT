@@ -5,10 +5,14 @@
 //! more learning types whose keys are not in KAT's keystore; ARF is followed where they differ.
 //!
 //! **Air format** (`subghz_protocol_decoder_keeloq_feed`): PWM, te_short 400 µs, te_long 800 µs,
-//! te_delta 140 µs. Preamble: HIGH 400 ± 140 µs pulses, each followed by a LOW of ~400 µs (or ~800 µs,
-//! ARF's Superrollo/HCS361 asymmetric preamble); after > 2 of them a 4000 ± 1400 µs pulse (LOW, or a
+//! te_delta 180 µs — the tolerance of ARF's gate app copy
+//! (`applications/system/subghz_garage/protocols/keeloq.c`, a receive-only KeeLoq that ARF uses for
+//! gate remotes); its main library copy uses 140 µs. KAT takes the wider one (union of what the two
+//! decode: the real rtl_433 HCS200 recording `keeloq/01/g013` yields 2 frames instead of 1).
+//! Preamble: HIGH 400 ± 180 µs pulses, each followed by a LOW of ~400 µs (or ~800 µs, ARF's
+//! Superrollo/HCS361 asymmetric preamble); after > 2 of them a 4000 ± 1800 µs pulse (LOW, or a
 //! Superrollo HIGH sync followed by the LOW) starts the data. Bit 1 = 400 HIGH + 800 LOW, bit 0 = 800
-//! HIGH + 400 LOW (long side ± 280 µs). A LOW ≥ 940 µs ends the frame; 64..66 bits → frame (first 64
+//! HIGH + 400 LOW (long side ± 360 µs). A LOW ≥ 980 µs ends the frame; 64..66 bits → frame (first 64
 //! kept). Out-of-range lengths leave `header_count` as is, exactly like the C.
 //!
 //! **Frame**: 64 bits MSB-first; bit-reversed: `fix(32) | hop(32)`, fix = button(4) << 28 | serial(28).
@@ -24,16 +28,19 @@
 //! fix button AND plaintext bits 23..16 == `fix & 0xFF` or == 0. The first match names the
 //! manufacturer. Counter = plaintext[15:0] (AN-Motors/HCS101: hop >> 16).
 //!
-//! KAT emits a frame only when it is identified (`KeeLoq (<manufacturer>)`); the C also lists
-//! unidentified frames as "Unknown" (KAT's separate `keeloq_generic` fallback covers captures no
-//! decoder reports). The keystore is the embedded one with one evidence-backed learning-type
-//! correction (DoorHan: SIMPLE, see `keeloq_common::LEARNING_TYPE_FIXES`). With it a random 64-bit
-//! frame is identified ≈6% of the time, so strongly-gated KeeLoq-PWM protocols (Sheriff CFM) are
-//! registered first.
+//! Identified frames are reported as `KeeLoq (<manufacturer>)`; like the C, every other frame is
+//! reported too, as `KeeLoq (Unknown)` (serial and button from the fixed part, no counter, decode
+//! and replay only: ARF would re-send the captured hop under a new button, which receivers
+//! reject). The keystore is the embedded one with one evidence-backed learning-type correction
+//! (DoorHan: SIMPLE, see `keeloq_common::LEARNING_TYPE_FIXES`). With it a random 64-bit frame is
+//! identified ≈6% of the time, so strongly-gated KeeLoq-PWM protocols (Sheriff CFM) are registered
+//! first. The decoder runs on every band (the C has no frequency filter).
 //!
 //! **Encoder** (`subghz_protocol_keeloq_gen_data` + `encode_to_timings`, counter mode 0): the
 //! manufacturer, learning mode, counter and seed are re-derived from the key by the same
-//! identification (the C re-runs it on the saved key and saved "Manufacture"/"Seed"). Counter + 1 (0
+//! identification (the C re-runs it on the saved key and saved "Manufacture"/"Seed"), restricted
+//! to the manufacturer the decode names (`KeeLoq (<name>)`, e.g. a key file's `Manufacture`, as
+//! ARF's encoder restricts it to the file's name) when the key validates under it. Counter + 1 (0
 //! past 0xFFFF). `fix = button << 28 | serial` (Pecinin: serial only). Plaintext `button << 28 |
 //! disc << 16 | counter` with disc = serial & 0x3FF, or the manufacturer's rule (Aprimatic parity
 //! form, 12-bit for DTM_Neo/FAAC_RC,XT/Mutanco/Came_Space/Genius_Bravo/GSN/Rosh/Rossi/Pecinin/
@@ -64,9 +71,43 @@ use super::keeloq_common::{
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
 
+use super::info::prelude::*;
+
+/// Metadata (see `info.rs`) for "KeeLoq (<manufacturer>)" decodes and the generic fallback's
+/// "Keeloq (<key>)" captures (`keeloq_generic.rs`).
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "KeeLoq",
+    decoder: "KeeLoq",
+    aliases: &[],
+    name_prefix: Some("keeloq ("),
+    encoding: Coding::Pwm,
+    rf: Rf::AM,
+    encryption: "KeeLoq",
+    make: "KeeLoq",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650],
+};
+
+/// KeeLoq function codes are generic-compatible (1/2/4/8); Flipper-ARF only relabels the
+/// "shifted" brands' codes 2/4/8/1 as physical buttons B1..B4 (registry decodes only).
+fn native_buttons(name: &str, code: u8) -> Option<&'static str> {
+    let manufacturer = name.strip_prefix("KeeLoq (")?.strip_suffix(')')?;
+    Some(match keeloq_button_position(manufacturer, code)? {
+        1 => "B1",
+        2 => "B2",
+        3 => "B3",
+        4 => "B4",
+        _ => return None,
+    })
+}
+
+/// Display name of a frame no manufacturer key or rule identifies.
+pub(super) const UNKNOWN_NAME: &str = "KeeLoq (Unknown)";
+
 const TE_SHORT: u32 = 400;
 const TE_LONG: u32 = 800;
-const TE_DELTA: u32 = 140;
+const TE_DELTA: u32 = 180;
 const MIN_COUNT_BIT: usize = 64;
 /// C `encoder.repeat` (counter mode 0).
 const TX_REPEAT: usize = 3;
@@ -378,35 +419,12 @@ fn gen_data(data: u64, btn: u8, ident: Option<&Ident>, fallback_cnt: u16) -> u64
             }
             Some(Ident::Hcs101) => (cnt << 16) | (btn32 << 12),
             Some(Ident::Key(m)) => {
-                let plain = (btn32 << 28) | (discriminator(mf, serial) << 16) | cnt;
                 // The C uses the first keystore entry with this name.
                 let entry = keeloq_keystore()
                     .iter()
                     .find(|e| e.name == m.entry.name)
                     .unwrap_or(m.entry);
-                let key = entry.key;
-                match entry.learning {
-                    lt::SIMPLE => keeloq_encrypt(plain, key),
-                    lt::NORMAL => keeloq_encrypt(plain, keeloq_normal_learning(fix, key)),
-                    lt::SECURE => keeloq_encrypt(plain, keeloq_secure_learning(fix, seed, key)),
-                    lt::MAGIC_XOR_TYPE_1 => {
-                        keeloq_encrypt(plain, keeloq_magic_xor_type1_learning(serial, key))
-                    }
-                    lt::MAGIC_SERIAL_TYPE_1 => {
-                        keeloq_encrypt(plain, keeloq_magic_serial_type1_learning(fix, key))
-                    }
-                    lt::AERF => keeloq_encrypt(plain, keeloq_learning_aerf(fix, key)),
-                    lt::ERREKA => keeloq_encrypt(plain, keeloq_learning_erreka(fix, seed, key)),
-                    lt::PUJOL => keeloq_encrypt(plain, keeloq_learning_pujol(fix, key)),
-                    lt::SIMPLE_JCM => {
-                        let plain = (btn32 << 28) | ((serial & 0xFF) << 16) | cnt;
-                        keeloq_encrypt(plain, key)
-                    }
-                    // C: per kl_type, always with the key as stored (never the mirrored copy).
-                    lt::UNKNOWN => unknown_encrypt(plain, m.kl_type, fix, serial, seed, key),
-                    // MAGIC_SERIAL_TYPE_2/3 and the rest have no encode case: hop stays 0.
-                    _ => 0,
-                }
+                encrypt_hop(mf, entry, m.kl_type, fix, serial, btn32, cnt, seed)
             }
         };
     }
@@ -416,6 +434,113 @@ fn gen_data(data: u64, btn: u8, ident: Option<&Ident>, fallback_cnt: u16) -> u64
         // C: the key is left as it was — the captured frame is sent unchanged.
         data
     }
+}
+
+/// `gen_data`'s hop for a keystore manufacturer: the plaintext `button << 28 | disc << 16 |
+/// counter` ([discriminator]) encrypted per the entry's learning type, as the C's `switch`.
+#[allow(clippy::too_many_arguments)]
+fn encrypt_hop(mf: &str, entry: &MfKey, kl_type: u8, fix: u32, serial: u32, btn32: u32, cnt: u32, seed: u32) -> u32 {
+    let plain = (btn32 << 28) | (discriminator(mf, serial) << 16) | cnt;
+    let key = entry.key;
+    match entry.learning {
+        lt::SIMPLE => keeloq_encrypt(plain, key),
+        lt::NORMAL => keeloq_encrypt(plain, keeloq_normal_learning(fix, key)),
+        lt::SECURE => keeloq_encrypt(plain, keeloq_secure_learning(fix, seed, key)),
+        lt::MAGIC_XOR_TYPE_1 => keeloq_encrypt(plain, keeloq_magic_xor_type1_learning(serial, key)),
+        lt::MAGIC_SERIAL_TYPE_1 => keeloq_encrypt(plain, keeloq_magic_serial_type1_learning(fix, key)),
+        lt::AERF => keeloq_encrypt(plain, keeloq_learning_aerf(fix, key)),
+        lt::ERREKA => keeloq_encrypt(plain, keeloq_learning_erreka(fix, seed, key)),
+        lt::PUJOL => keeloq_encrypt(plain, keeloq_learning_pujol(fix, key)),
+        lt::SIMPLE_JCM => {
+            let plain = (btn32 << 28) | ((serial & 0xFF) << 16) | cnt;
+            keeloq_encrypt(plain, key)
+        }
+        // C: per kl_type, always with the key as stored (never the mirrored copy).
+        lt::UNKNOWN => unknown_encrypt(plain, kl_type, fix, serial, seed, key),
+        // MAGIC_SERIAL_TYPE_2/3 and the rest have no encode case: hop stays 0.
+        _ => 0,
+    }
+}
+
+/// `subghz_protocol_keeloq_create_data` / `_bft_create_data` (the SubGHz app's "Add Manually",
+/// `subghz_txrx_gen_keeloq_protocol` / `_keeloq_bft_protocol`): the key file of a new remote.
+/// `gen_data` with the counter as given (`counter_up` false) and the button as given
+/// (`skip_btn_check`), programming mode for button 0xF of BFT / Aprimatic / Dea_Mio as in
+/// [gen_data]; the hop of a keystore manufacturer uses its first entry (a learning type 0 entry
+/// encrypts nothing: the keystore's `kl_type` is 0 in a fresh session). Lines: `Bit: 64`, `Key`,
+/// then `Seed` (4 hex bytes, seed types only) and `Manufacture`. None when no hop can be built
+/// (the manufacturer is not in the keystore, or its learning type has no encode case): the C
+/// would save the encoder's empty key.
+pub(super) fn create_data(
+    serial: u32,
+    btn: u8,
+    cnt: u16,
+    manufacturer: &str,
+    seed: Option<u32>,
+) -> Option<super::FlipperKey> {
+    let mf = manufacturer;
+    let btn32 = u32::from(btn & 0x0F);
+    let fix = if mf == "Pecinin" { serial } else { (btn32 << 28) | serial };
+    let seed_value = seed.unwrap_or(0);
+    let prog = btn == 0xF && matches!(mf, "BFT" | "Aprimatic" | "Dea_Mio");
+    let cnt = u32::from(cnt);
+    let hop = match (prog, mf) {
+        (true, "BFT") => seed_value,
+        (true, "Aprimatic") => 0x1A2B_3C4D,
+        (true, _) => 0,
+        (false, "AN-Motors") => ((cnt & 0xFF) << 24) | ((cnt & 0xFF) << 16) | (btn32 << 12) | 0x404,
+        (false, "HCS101") => (cnt << 16) | (btn32 << 12),
+        (false, _) => {
+            let entry = keeloq_keystore().iter().find(|e| e.name == mf)?;
+            encrypt_hop(mf, entry, 0, fix, serial, btn32, cnt, seed_value)
+        }
+    };
+    if hop == 0 && !(prog && matches!(mf, "BFT" | "Dea_Mio")) {
+        return None;
+    }
+    let data = reverse_key((u64::from(fix) << 32) | u64::from(hop), MIN_COUNT_BIT);
+    let mut key = super::FlipperKey::for_protocol("KeeLoq", MIN_COUNT_BIT, data);
+    if let Some(seed) = seed {
+        key.push_hex("Seed", u64::from(seed), 4);
+    }
+    key.push("Manufacture", mf);
+    Some(key)
+}
+
+/// Whether [create_data] can build `manufacturer`'s hops with KAT's keystore.
+pub(super) fn can_create(manufacturer: &str) -> bool {
+    matches!(manufacturer, "AN-Motors" | "HCS101")
+        || keeloq_keystore().iter().find(|e| e.name == manufacturer).is_some_and(|e| {
+            matches!(
+                e.learning,
+                lt::SIMPLE
+                    | lt::NORMAL
+                    | lt::SECURE
+                    | lt::MAGIC_XOR_TYPE_1
+                    | lt::MAGIC_SERIAL_TYPE_1
+                    | lt::AERF
+                    | lt::ERREKA
+                    | lt::PUJOL
+                    | lt::SIMPLE_JCM
+            )
+        })
+}
+
+/// The manufacturer a decode names ("KeeLoq (<manufacturer>)": a key file's `Manufacture`, or the
+/// identification on air), when the key validates under it — what Flipper-ARF's encoder uses: its
+/// deserialize sets `keystore->mfname` from the file, so `check_remote_controller` searches only
+/// that manufacturer's entries instead of the whole keystore. A BFT decode's `extra` holds the
+/// seed a key file gave.
+fn named_ident(decoded: &DecodedSignal, fix: u32, hop: u32) -> Option<Ident> {
+    let mf = decoded
+        .protocol_display_name
+        .as_deref()?
+        .strip_prefix("KeeLoq (")?
+        .strip_suffix(')')?;
+    if mf == "Unknown" {
+        return None;
+    }
+    key_file_identify(fix, hop, mf, decoded.extra.map(|e| e as u32))
 }
 
 /// `gen_data`'s `KEELOQ_LEARNING_UNKNOWN` case: encrypt per `kl_type`.
@@ -511,10 +636,25 @@ impl KeeloqDecoder {
         self.decode_count_bit += 1;
     }
 
-    /// A completed 64..66-bit frame → the reported signal, if a manufacturer is identified.
+    /// A completed 64..66-bit frame → the reported signal. Like the C, which calls back for every
+    /// frame and shows an unidentified one as "Unknown" (`Btn:x Cnt:????`), an unidentified frame
+    /// is reported as `KeeLoq (Unknown)`: serial and button from the fixed part, no counter, not
+    /// re-encodable (the hop cannot be regenerated; Replay sends the captured frame).
     fn parse_data(data: u64) -> Option<DecodedSignal> {
         let (fix, hop) = fix_hop(data);
-        let ident = identify(fix, hop)?;
+        let Some(ident) = identify(fix, hop) else {
+            return Some(DecodedSignal {
+                serial: Some(fix & 0x0FFF_FFFF),
+                button: Some((fix >> 28) as u8),
+                counter: None,
+                crc_valid: false,
+                data,
+                data_count_bit: MIN_COUNT_BIT,
+                encoder_capable: false,
+                extra: None,
+                protocol_display_name: Some(UNKNOWN_NAME.to_string()),
+            });
+        };
         let (serial, btn, cnt) = fields(fix, hop, &ident);
         Some(DecodedSignal {
             serial: Some(serial),
@@ -551,7 +691,9 @@ impl super::ProtocolDecoder for KeeloqDecoder {
     }
 
     fn supported_frequencies(&self) -> &[u32] {
-        &[315_000_000, 433_920_000, 868_350_000]
+        // Every band, like the C (KeeLoq gate/garage remotes are sold for 300–318, 390, 433 and
+        // 868 MHz).
+        super::ANY_FREQUENCY
     }
 
     fn reset(&mut self) {
@@ -646,7 +788,9 @@ impl super::ProtocolDecoder for KeeloqDecoder {
             return None;
         }
         let (fix, hop) = fix_hop(decoded.data);
-        let ident = identify(fix, hop);
+        // The manufacturer the capture names (its key file's, as ARF's encoder reads it), else the
+        // decoder's identification.
+        let ident = named_ident(decoded, fix, hop).or_else(|| identify(fix, hop));
         let orig_btn = match &ident {
             Some(i) => fields(fix, hop, i).1,
             None => (fix >> 28) as u8,
@@ -668,6 +812,131 @@ impl super::ProtocolDecoder for KeeloqDecoder {
             upload_once(data, mf, &mut signal);
         }
         Some(signal)
+    }
+
+    /// Key files: Flipper-ARF `subghz_protocol_decoder_keeloq_deserialize` (Bit must be 64; `Seed`
+    /// = 4 hex bytes; `Manufacture`, with ARF's "Sommer(fsk476)" → "Sommer" fix) + the
+    /// `check_remote_controller` its display runs with that manufacturer: "AN-Motors" / "HCS101"
+    /// are forced, any other name restricts the keystore selector to that name's entries (BFT
+    /// tries the file's Seed first, then the serial, then 0). A key that does not validate under
+    /// the named manufacturer (the C then shows "Unknown"), or a name KAT's keystore lacks, is
+    /// refused. "Manufacture: Unknown" or no line: the frame is identified like one on air.
+    ///
+    /// The decode keeps the name ("KeeLoq (<manufacturer>)") and KAT's encoder transmits with that
+    /// manufacturer, as ARF's encoder does with the file's `Manufacture` (also when KAT's
+    /// first-match search on air would pick another entry, e.g. a reference keystore's order, or a
+    /// BFT key with a user-chosen seed: a seed the decode flow cannot reproduce is kept in `extra`,
+    /// for the encoder and so the key file can be written back). A forced AN-Motors / HCS101 that
+    /// the frame does not confirm is shown but not transmitted.
+    fn from_flipper_key(&self, key: &super::FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != MIN_COUNT_BIT {
+            return None;
+        }
+        let data = key.key_u64()?;
+        let manufacturer = match key.field("Manufacture").map(str::trim) {
+            Some("Sommer(fsk476)") => Some("Sommer"),
+            other => other,
+        };
+        match manufacturer {
+            None | Some("") | Some("Unknown") => Self::parse_data(data),
+            Some(mf) => {
+                let (fix, hop) = fix_hop(data);
+                let seed = key
+                    .hex_bytes_field("Seed")
+                    .and_then(|b| <[u8; 4]>::try_from(b.as_slice()).ok())
+                    .map(u32::from_be_bytes);
+                let ident = key_file_identify(fix, hop, mf, seed)?;
+                Some(key_file_signal(data, fix, hop, &ident))
+            }
+        }
+    }
+
+    /// Key files: Flipper-ARF `subghz_protocol_decoder_keeloq_serialize`: Protocol "KeeLoq", Bit
+    /// 64, Key, then — for BFT — `Seed` (4 hex bytes, the seed the decrypt used) and `Manufacture`
+    /// (the decode's `(<manufacturer>)`, re-checked against the key as the C re-runs its check;
+    /// "Unknown" when nothing validates).
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<super::FlipperKey> {
+        if decoded.data_count_bit != MIN_COUNT_BIT {
+            return None;
+        }
+        let (fix, hop) = fix_hop(decoded.data);
+        let named = decoded
+            .protocol_display_name
+            .as_deref()
+            .and_then(|n| n.strip_prefix("KeeLoq ("))
+            .and_then(|n| n.strip_suffix(')'))
+            .filter(|&n| n != "Unknown");
+        let ident = match named {
+            Some(mf) => key_file_identify(fix, hop, mf, decoded.extra.map(|e| e as u32)),
+            None => identify(fix, hop),
+        };
+        let mut key = super::FlipperKey::for_protocol("KeeLoq", MIN_COUNT_BIT, decoded.data);
+        if let Some(Ident::Key(m)) = &ident {
+            if m.entry.name == "BFT" {
+                key.push_hex("Seed", u64::from(m.seed), 4);
+            }
+        }
+        key.push("Manufacture", ident.as_ref().map_or("Unknown", Ident::name));
+        Some(key)
+    }
+}
+
+/// Key files: the C's `check_remote_controller` with a saved manufacturer (see
+/// `KeeloqDecoder::from_flipper_key`).
+fn key_file_identify(fix: u32, hop: u32, manufacturer: &str, seed: Option<u32>) -> Option<Ident> {
+    match manufacturer {
+        "AN-Motors" => return Some(Ident::AnMotors),
+        "HCS101" => return Some(Ident::Hcs101),
+        _ => {}
+    }
+    for entry in keeloq_keystore().iter().filter(|e| e.name == manufacturer) {
+        if let (Some(seed), lt::SECURE, "BFT") = (seed, entry.learning, entry.name.as_str()) {
+            let decrypt = keeloq_decrypt(hop, keeloq_secure_learning(fix, seed, entry.key));
+            if check_decrypt(decrypt, fix >> 28, fix & 0xFF) {
+                return Some(Ident::Key(KeyMatch {
+                    entry,
+                    kl_type: 0,
+                    decrypt,
+                    seed,
+                }));
+            }
+        }
+        if let Some(m) = select_key(fix, hop, std::slice::from_ref(entry)) {
+            return Some(Ident::Key(m));
+        }
+    }
+    None
+}
+
+/// Key files: the decode for a key identified as `ident` (`parse_data`'s fields). Encoder-capable
+/// when the decoder's own identification finds the same match, or when the named manufacturer's
+/// key validates the frame (the encoder then uses that manufacturer, see `named_ident`); a forced
+/// AN-Motors / HCS101 the frame does not confirm is not (see `KeeloqDecoder::from_flipper_key`).
+fn key_file_signal(data: u64, fix: u32, hop: u32, ident: &Ident) -> DecodedSignal {
+    let (serial, btn, cnt) = fields(fix, hop, ident);
+    let reproduced = match (identify(fix, hop), ident) {
+        (Some(Ident::AnMotors), Ident::AnMotors) | (Some(Ident::Hcs101), Ident::Hcs101) => true,
+        (Some(Ident::Key(a)), Ident::Key(b)) => {
+            std::ptr::eq(a.entry, b.entry)
+                && (a.kl_type, a.decrypt, a.seed) == (b.kl_type, b.decrypt, b.seed)
+        }
+        _ => false,
+    };
+    let encoder_capable = reproduced || matches!(ident, Ident::Key(_));
+    let extra = match ident {
+        Ident::Key(m) if m.entry.name == "BFT" && !reproduced => Some(u64::from(m.seed)),
+        _ => None,
+    };
+    DecodedSignal {
+        serial: Some(serial),
+        button: Some(btn),
+        counter: Some(cnt),
+        crc_valid: true,
+        data,
+        data_count_bit: MIN_COUNT_BIT,
+        encoder_capable,
+        extra,
+        protocol_display_name: Some(format!("KeeLoq ({})", ident.name())),
     }
 }
 
@@ -1142,7 +1411,7 @@ mod tests {
                 else {
                     continue;
                 };
-                for &f in dec.supported_frequencies() {
+                for f in crate::protocols::test_frequencies(dec.supported_frequencies()) {
                     let mut reg = ProtocolRegistry::new();
                     for (got, _, _) in reg.process_signal_stream(&wire, f) {
                         assert!(!is_family(&got), "{name} at {f} Hz decoded as {got}");
@@ -1190,7 +1459,7 @@ mod tests {
         for (name, data, bits, expect) in cases {
             let dec = reg0.get(name).unwrap();
             let wire = dec.encode(&sig(data, bits), 0x02).expect(name);
-            for &f in dec.supported_frequencies() {
+            for f in crate::protocols::test_frequencies(dec.supported_frequencies()) {
                 let mut reg = ProtocolRegistry::new();
                 let got = reg.process_signal_stream(&wire, f);
                 assert!(!got.is_empty(), "{name} at {f} Hz: nothing decoded");
@@ -1211,13 +1480,162 @@ mod tests {
         for _ in 0..n {
             s = s.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
             let (fix, hop) = fix_hop(s);
-            let identified = KeeloqDecoder::parse_data(s).is_some();
+            // Every frame is reported; unidentified ones as "KeeLoq (Unknown)".
+            let d = KeeloqDecoder::parse_data(s).expect("every frame is reported");
+            let identified = d.protocol_display_name.as_deref() != Some(UNKNOWN_NAME);
             assert_eq!(identified, identify(fix, hop).is_some());
+            assert_eq!((d.encoder_capable, d.counter.is_some()), (identified, identified));
+            if !identified {
+                assert_eq!((d.serial, d.button), (Some(fix & 0x0FFF_FFFF), Some((fix >> 28) as u8)));
+            }
             if identified {
                 accepted += 1;
             }
         }
         assert!(accepted * 100 >= n * 2, "accepted {accepted}/{n}");
         assert!(accepted * 100 < n * 10, "accepted {accepted}/{n}");
+    }
+
+    /// Key files (Flipper-ARF `subghz_protocol_decoder_keeloq_serialize` / `_deserialize` +
+    /// `check_remote_controller` with the saved manufacturer).
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = KeeloqDecoder::new();
+        // Every learning type's decode round-trips; DoorHan's real remote with the C's exact lines.
+        let serial = 0x0ABC_DE12;
+        let fix = (0x2u32 << 28) | serial;
+        let plain = (0x2u32 << 28) | ((serial & 0x3FF) << 16) | 0x0777;
+        for (name, man) in [
+            ("Sheriff", entry("Sheriff").key),
+            ("Mongoose", keeloq_normal_learning(fix, entry("Mongoose").key)),
+            ("Beninca", keeloq_magic_xor_type1_learning(fix, entry("Beninca").key)),
+            ("KGB/Subaru", keeloq_magic_serial_type1_learning(fix, entry("KGB/Subaru").key)),
+            ("BFT", keeloq_secure_learning(fix, serial, entry("BFT").key)),
+            ("Leopard", mirrored_key(entry("Leopard").key)),
+        ] {
+            let d = decode_all(&capture(frame(0x2, serial, plain, man))).pop().unwrap();
+            let text = assert_round_trip(&dec, &d);
+            assert!(text.ends_with(&format!("Manufacture: {name}\n")), "{text}");
+            // ARF writes Seed for BFT only: here the seed the decrypt used, the serial.
+            assert_eq!(text.contains("\nSeed: 0A BC DE 12\n"), name == "BFT", "{text}");
+        }
+        let doorhan = decode_all(&capture(0x5AB6_695A_8163_6CB4)).pop().unwrap();
+        assert!(assert_round_trip(&dec, &doorhan)
+            .ends_with("Protocol: KeeLoq\nBit: 64\nKey: 5A B6 69 5A 81 63 6C B4\nManufacture: DoorHan\n"));
+        for special in [
+            reverse_key((u64::from((0x4u32 << 28) | 0x0055_1234) << 32) | 0x3737_4404, 64), // AN-Motors
+            reverse_key((u64::from((0x4u32 << 28) | 0x0055_1234) << 32) | 0x1234_4000, 64), // HCS101
+        ] {
+            assert_round_trip(&dec, &decode_all(&capture(special)).pop().unwrap());
+        }
+
+        // A file Flipper-ARF wrote (its keystore named the manufacturer).
+        let arf = "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+                   Preset: FuriHalSubGhzPresetOok650Async\nProtocol: KeeLoq\nBit: 64\n\
+                   Key: 1C 81 AD D4 81 63 6C B4\nManufacture: DoorHan\n";
+        let loaded = dec.from_flipper_key(&key(arf)).unwrap();
+        assert_eq!(loaded, decode_all(&capture(0x1C81_ADD4_8163_6CB4)).pop().unwrap());
+        assert_eq!((loaded.serial, loaded.button, loaded.counter), (Some(0x0D36_C681), Some(0x2), Some(0x04BE)));
+        // TX from the loaded key: same remote, counter + 1.
+        let tx = decode_all(&dec.encode(&loaded, 0x2).unwrap()).pop().unwrap();
+        assert_eq!(tx.protocol_display_name.as_deref(), Some("KeeLoq (DoorHan)"));
+        assert_eq!((tx.serial, tx.counter), (Some(0x0D36_C681), Some(0x04BF)));
+        // "Unknown" or no Manufacture line: identified like the frame on air.
+        assert_eq!(dec.from_flipper_key(&key(&arf.replace("DoorHan", "Unknown"))), Some(loaded.clone()));
+        assert_eq!(dec.from_flipper_key(&key(&arf.replace("Manufacture: DoorHan\n", ""))), Some(loaded.clone()));
+        // A manufacturer whose key does not validate the frame (the C shows "Unknown"), or Bit ≠ 64.
+        assert!(dec.from_flipper_key(&key(&arf.replace("DoorHan", "Sheriff"))).is_none());
+        assert!(dec.from_flipper_key(&key(&arf.replace("DoorHan", "No Such Brand"))).is_none());
+        assert!(dec.from_flipper_key(&key(&arf.replace("Bit: 64", "Bit: 66"))).is_none());
+        // A forced "AN-Motors" (the C does not validate it): shown, but KAT's encoder would
+        // identify DoorHan, so it is not offered for TX.
+        let forced = dec.from_flipper_key(&key(&arf.replace("DoorHan", "AN-Motors"))).unwrap();
+        assert_eq!(forced.protocol_display_name.as_deref(), Some("KeeLoq (AN-Motors)"));
+        assert!(!forced.encoder_capable);
+        assert_round_trip(&dec, &forced);
+
+        // ARF's "Sommer(fsk476)" fix.
+        let e = entry("Sommer");
+        let sommer_plain = (0x2u32 << 28) | ((serial & 0x3FF) << 16) | 0x0100;
+        let man = match e.learning {
+            lt::NORMAL => keeloq_normal_learning(fix, e.key),
+            _ => e.key,
+        };
+        let sommer = decode_all(&capture(frame(0x2, serial, sommer_plain, man))).pop().unwrap();
+        assert_eq!(sommer.protocol_display_name.as_deref(), Some("KeeLoq (Sommer)"));
+        let mut old = dec.to_flipper_key(&sommer).unwrap();
+        old.fields = vec![("Manufacture".into(), "Sommer(fsk476)".into())];
+        assert_eq!(dec.from_flipper_key(&old), Some(sommer));
+
+        // BFT with a user-chosen seed (Flipper "Add manually"): the file's Seed decrypts it; the
+        // decode keeps it in `extra` (identification on air cannot reproduce it), the encoder
+        // transmits with it (the named manufacturer, as ARF), and it is written back with the same
+        // Seed.
+        let custom_seed = 0x1357_9BDF;
+        let bft = frame(0x2, serial, plain, keeloq_secure_learning(fix, custom_seed, entry("BFT").key));
+        let text = format!(
+            "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+             Preset: FuriHalSubGhzPresetOok650Async\nProtocol: KeeLoq\nBit: 64\nKey: {}\n\
+             Seed: 13 57 9B DF\nManufacture: BFT\n",
+            bft.to_be_bytes().iter().map(|b| format!("{b:02X}")).collect::<Vec<_>>().join(" ")
+        );
+        let d = dec.from_flipper_key(&key(&text)).unwrap();
+        assert_eq!(d.protocol_display_name.as_deref(), Some("KeeLoq (BFT)"));
+        assert_eq!((d.serial, d.button, d.counter), (Some(serial), Some(0x2), Some(0x0777)));
+        assert_eq!((d.encoder_capable, d.extra), (true, Some(u64::from(custom_seed))));
+        assert!(assert_round_trip(&dec, &d).contains("\nSeed: 13 57 9B DF\nManufacture: BFT\n"));
+        // TX: the next code under the same seed (counter + 1), another button too.
+        for (button, want) in [(0x2u8, 0x2u32), (0x4, 0x4)] {
+            let tx = dec.encode(&d, button).unwrap();
+            let frame = decode_all(&tx).pop().unwrap().data;
+            let (fix, hop) = fix_hop(frame);
+            let plain = keeloq_decrypt(hop, keeloq_secure_learning(fix, custom_seed, entry("BFT").key));
+            assert_eq!((fix >> 28, plain >> 28, plain & 0xFFFF), (want, want, 0x0778), "button {button:#x}");
+        }
+        // Without the name (identification on air) the custom seed is unknown: replayed hop.
+        let anonymous = DecodedSignal { protocol_display_name: None, ..d.clone() };
+        let tx = decode_all(&dec.encode(&anonymous, 0x2).unwrap()).pop().unwrap();
+        assert_eq!(fix_hop(tx.data).1, fix_hop(bft).1);
+    }
+
+    /// `KAT_KEY_VECTORS=<dir> cargo test keeloq_oracle_vectors -- --ignored`: RAW uploads and KAT's
+    /// key files for the C oracle, one per supported learning type (with its manufacturer).
+    #[test]
+    #[ignore]
+    fn keeloq_oracle_vectors() {
+        let Some(dir) = std::env::var_os("KAT_KEY_VECTORS") else { return };
+        let dir = std::path::PathBuf::from(dir);
+        let dec = KeeloqDecoder::new();
+        let serial = 0x0ABC_DE12;
+        let fix = (0x2u32 << 28) | serial;
+        let mut n = 0;
+        for name in ["DoorHan", "Mongoose", "BFT", "Beninca", "KGB/Subaru", "Leopard", "Centurion", "AN-Motors", "HCS101"] {
+            let data = match name {
+                "AN-Motors" => reverse_key((u64::from(fix) << 32) | 0x3737_2404, 64),
+                "HCS101" => reverse_key((u64::from(fix) << 32) | 0x1234_2000, 64),
+                _ => {
+                    let e = entry(name);
+                    let disc = discriminator(name, serial);
+                    let plain = (0x2u32 << 28) | (disc << 16) | 0x0100;
+                    let man = match e.learning {
+                        lt::SIMPLE => e.key,
+                        lt::NORMAL => keeloq_normal_learning(fix, e.key),
+                        lt::SECURE => keeloq_secure_learning(fix, serial, e.key),
+                        lt::MAGIC_XOR_TYPE_1 => keeloq_magic_xor_type1_learning(fix, e.key),
+                        lt::MAGIC_SERIAL_TYPE_1 => keeloq_magic_serial_type1_learning(fix, e.key),
+                        _ => e.key,
+                    };
+                    frame(0x2, serial, plain, man)
+                }
+            };
+            let src = decode_all(&capture(data)).pop().unwrap_or_else(|| panic!("{name}"));
+            let tx = dec.encode(&src, 0x1).unwrap();
+            let once = &tx[..tx.len() / TX_REPEAT];
+            let d = decode_all(once).pop().unwrap_or_else(|| panic!("{name} TX"));
+            let key = dec.to_flipper_key(&d).unwrap();
+            n += 1;
+            super::super::star_line::write_oracle_vector(&dir, &format!("keeloq_{n}"), 433_920_000, "FuriHalSubGhzPresetOok650Async", once, &key);
+        }
     }
 }

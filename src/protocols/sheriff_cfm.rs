@@ -47,13 +47,47 @@
 //! Lock → 0x10, Unlock → 0x20, Trunk → 0x40, Panic → 0x80; native codes pass through and any other
 //! code keeps the captured button. The C yields the upload 3 times (`encoder.repeat`), so the KAT
 //! waveform holds 3 copies.
+//!
+//! **Key files** (`subghz_protocol_decoder_sheriff_cfm_serialize` / `_deserialize`): `Protocol:
+//! Sheriff CFM`, `Bit: 64`, `Key`, then `Model` (0 ZX-750, 1 ZX-930), `Serial`, `Btn`, `Cnt`
+//! (decimal). Loading requires Bit 64 and takes every field from the decrypt, as the C decoder
+//! does; a key that decrypts under neither model is refused (the C loads it with empty fields,
+//! which KAT never reports and cannot transmit).
 
 use super::keeloq_common::{keeloq_decrypt, keeloq_encrypt};
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::keystore;
 use crate::radio::demodulator::LevelDuration;
 use std::sync::OnceLock;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Sheriff CFM",
+    decoder: "Sheriff CFM",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Pwm,
+    rf: Rf::AM,
+    encryption: "KeeLoq",
+    make: "Sheriff",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650],
+};
+
+/// Sheriff CFM buttons.
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x10 => "Lock",
+        0x20 => "Unlock",
+        0x40 => "Trunk",
+        0x80 => "Panic",
+        _ => "Other",
+    })
+}
 
 const TE_SHORT: u32 = 400;
 const TE_LONG: u32 = 800;
@@ -185,6 +219,22 @@ fn build_frame(model: Model, btn: u8, fix: u32, cnt: u16) -> u64 {
     let mut hop = keeloq_encrypt(hop_plain, model.key()).to_le_bytes();
     encrypt_transform(&mut hop, model);
     (u64::from(fix) << 32) | u64::from(u32::from_le_bytes(hop))
+}
+
+/// The reported signal for a 64-bit frame: only frames that decrypt (`cfm_try_decrypt`).
+fn signal(data: u64) -> Option<DecodedSignal> {
+    let (_model, btn, serial, cnt) = try_decrypt(data)?;
+    Some(DecodedSignal {
+        serial: Some(serial),
+        button: Some(btn),
+        counter: Some(cnt),
+        crc_valid: true,
+        data,
+        data_count_bit: MIN_COUNT_BIT,
+        encoder_capable: true,
+        extra: None,
+        protocol_display_name: None,
+    })
 }
 
 /// The C upload for one 64-bit frame.
@@ -321,20 +371,7 @@ impl ProtocolDecoder for SheriffCfmDecoder {
                         self.step = DecoderStep::Reset;
                         let mut result = None;
                         if (MIN_COUNT_BIT..=MIN_COUNT_BIT + 2).contains(&self.decode_count_bit) {
-                            if let Some((_model, btn, serial, cnt)) = try_decrypt(self.decode_data)
-                            {
-                                result = Some(DecodedSignal {
-                                    serial: Some(serial),
-                                    button: Some(btn),
-                                    counter: Some(cnt),
-                                    crc_valid: true,
-                                    data: self.decode_data,
-                                    data_count_bit: MIN_COUNT_BIT,
-                                    encoder_capable: true,
-                                    extra: None,
-                                    protocol_display_name: None,
-                                });
-                            }
+                            result = signal(self.decode_data);
                         }
                         self.decode_data = 0;
                         self.decode_count_bit = 0;
@@ -381,6 +418,35 @@ impl ProtocolDecoder for SheriffCfmDecoder {
         let fix = (decoded.data >> 32) as u32;
         let once = upload(build_frame(model, btn, fix, cnt));
         Some(once.repeat(TX_REPEAT))
+    }
+
+    /// `subghz_protocol_decoder_sheriff_cfm_deserialize`: Bit must be 64; the model, button,
+    /// serial and counter come from the decrypt (the file's Model/Serial/Btn/Cnt only matter to
+    /// the C encoder's emulate overrides). A key that decrypts under neither model loads in the C
+    /// with empty fields; KAT reports no such frame (and cannot encode one), so it returns None.
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != MIN_COUNT_BIT {
+            return None;
+        }
+        signal(key.key_u64()?)
+    }
+
+    /// `subghz_protocol_decoder_sheriff_cfm_serialize`: Protocol "Sheriff CFM", Bit 64, Key, then
+    /// Model (0 ZX-750, 1 ZX-930), Serial, Btn, Cnt (decimal) from the decrypt.
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        if decoded.data_count_bit != MIN_COUNT_BIT {
+            return None;
+        }
+        let (model, btn, serial, cnt) = try_decrypt(decoded.data)?;
+        let mut key = FlipperKey::for_protocol("Sheriff CFM", MIN_COUNT_BIT, decoded.data);
+        key.push_u32("Model", match model {
+            Model::Zx750 => 0,
+            Model::Zx930 => 1,
+        });
+        key.push_u32("Serial", serial);
+        key.push_u32("Btn", btn.into());
+        key.push_u32("Cnt", cnt.into());
+        Some(key)
     }
 }
 
@@ -582,6 +648,66 @@ mod tests {
                 *claims.entry(key).or_default() += 1;
             }
             eprintln!("{n} Sheriff frames @ {freq} Hz: {claims:?}");
+        }
+    }
+
+    /// Key files (Flipper-ARF `subghz_protocol_decoder_sheriff_cfm_serialize` / `_deserialize`):
+    /// both models round-trip with the C's lines, an ARF file loads with the decrypted fields
+    /// (stale Model/Serial/Btn/Cnt lines are ignored like the C decoder ignores them), wrong bit
+    /// counts and keys that do not decrypt are refused, and TX from a loaded key decodes back.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = SheriffCfmDecoder::new();
+        let fix = 0x5A3C_10C5;
+        for (model, n) in [(Model::Zx750, 0), (Model::Zx930, 1)] {
+            let data = build_frame(model, CFM_TRUNK, fix, 0x1234);
+            let d = decode_all(&upload(data)).pop().unwrap();
+            let text = assert_round_trip(&dec, &d);
+            let bytes: Vec<String> = data.to_be_bytes().iter().map(|b| format!("{b:02X}")).collect();
+            let tail = format!(
+                "Protocol: Sheriff CFM\nBit: 64\nKey: {}\nModel: {n}\nSerial: {fix}\nBtn: 64\nCnt: 4660\n",
+                bytes.join(" ")
+            );
+            assert!(text.ends_with(&tail), "{text}");
+        }
+        let data = build_frame(Model::Zx930, CFM_UNLOCK, fix, 0x0042);
+        let bytes: Vec<String> = data.to_be_bytes().iter().map(|b| format!("{b:02X}")).collect();
+        let arf = format!(
+            "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+             Preset: FuriHalSubGhzPresetOok650Async\nProtocol: Sheriff CFM\nBit: 64\nKey: {}\n\
+             Model: 0\nSerial: 1\nBtn: 2\nCnt: 3\n",
+            bytes.join(" ")
+        );
+        let loaded = dec.from_flipper_key(&key(&arf)).unwrap();
+        assert_eq!(loaded, decode_all(&upload(data)).pop().unwrap());
+        assert_eq!((loaded.serial, loaded.button, loaded.counter), (Some(fix), Some(CFM_UNLOCK), Some(0x0042)));
+        assert!(dec.from_flipper_key(&key(&arf.replace("Bit: 64", "Bit: 66"))).is_none());
+        let mut corrupt = key(&arf);
+        corrupt.key ^= 1;
+        corrupt.key_bytes = corrupt.key.to_be_bytes().to_vec();
+        assert!(dec.from_flipper_key(&corrupt).is_none());
+        // TX from the loaded key: same remote and model, counter + 1.
+        let tx = decode_all(&dec.encode(&loaded, BTN_LOCK).unwrap()).pop().unwrap();
+        assert_eq!((tx.serial, tx.button, tx.counter), (Some(fix), Some(CFM_LOCK), Some(0x0043)));
+        assert_eq!(try_decrypt(tx.data).map(|r| r.0), Some(Model::Zx930));
+    }
+
+    /// `KAT_KEY_VECTORS=<dir> cargo test sheriff_cfm_oracle_vectors -- --ignored`: RAW uploads and
+    /// KAT's key files for the C oracle.
+    #[test]
+    #[ignore]
+    fn sheriff_cfm_oracle_vectors() {
+        let Some(dir) = std::env::var_os("KAT_KEY_VECTORS") else { return };
+        let dir = std::path::PathBuf::from(dir);
+        let dec = SheriffCfmDecoder::new();
+        for (i, model) in MODELS.into_iter().enumerate() {
+            let src = decode_all(&upload(build_frame(model, CFM_LOCK, 0x5A3C_10C5, 0x0100))).pop().unwrap();
+            let tx = dec.encode(&src, BTN_UNLOCK).unwrap();
+            let once = &tx[..tx.len() / TX_REPEAT];
+            let d = decode_all(once).pop().unwrap();
+            let key = dec.to_flipper_key(&d).unwrap();
+            super::super::star_line::write_oracle_vector(&dir, &format!("sheriff_cfm_{}", i + 1), 433_920_000, "FuriHalSubGhzPresetOok650Async", once, &key);
         }
     }
 }

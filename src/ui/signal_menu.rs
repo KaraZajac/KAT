@@ -66,7 +66,7 @@ pub fn render_signal_menu(frame: &mut Frame, app: &App) {
         } else {
             match action {
                 SignalAction::Delete => Style::default().fg(Color::Red),
-                SignalAction::ExportFob | SignalAction::ExportFlipper => {
+                SignalAction::ExportFob | SignalAction::ExportFlipper | SignalAction::ExportFlipperKey => {
                     Style::default().fg(Color::Green)
                 }
                 _ => Style::default().fg(Color::White),

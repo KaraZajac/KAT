@@ -18,9 +18,47 @@
 //!
 //! The exported `data` (Key) word is the C `generic.data`: a compact nibble-packed layout
 //! (`honda_static_pack_compact`), NOT the raw decoded packet bytes.
+//!
+//! **Key files** (`subghz_protocol_decoder_honda_static_serialize` / `_deserialize`, the same in
+//! all three references): Protocol "Honda Static", Bit 64, Key = the compact word, then Serial,
+//! Btn, Cnt (the 24-bit counter) and Checksum (the XOR of the 7 packet bytes, i.e. the checksum
+//! a forward packet carries), all decimal. Loading needs Bit 64, unpacks the Key, lets the file's
+//! Serial / Btn / Cnt override it and repacks it (as the C does; repacking unedited fields gives
+//! the same Key). KAT's `crc_valid` (true only for frames read through the checksum-verified
+//! forward path; the C's unverified bit-reversed path gives false) has no line of its own in the
+//! format, so KAT carries it in the Checksum line: it is written only for a verified frame, and
+//! on load `crc_valid` = "the file has a Checksum line equal to the fields' checksum". Every
+//! reference writes Checksum (and none reads it back), so their files load as verified unless
+//! Serial/Btn/Cnt were edited; a KAT file of an unverified frame simply has no Checksum line.
 
-use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Honda Static",
+    decoder: "Honda Static",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::FM,
+    encryption: "Fixed Code",
+    make: "Honda/Acura",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&HONDA1],
+};
+
+/// 1/2/4/8 are KAT's generic codes (honda_static_button_names).
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x5 => "Remote start",
+        0x9 => "Lock x2",
+        _ => return None,
+    })
+}
 
 const BIT_COUNT: usize = 64;
 const MIN_SYMBOLS: usize = 36;
@@ -473,6 +511,42 @@ impl ProtocolDecoder for HondaStaticDecoder {
 
         Some(signal)
     }
+
+    /// `subghz_protocol_decoder_honda_static_deserialize` (see the module doc, Key files).
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != BIT_COUNT {
+            return None;
+        }
+        let mut fields = Self::unpack_compact(key.key_u64()?);
+        if let Some(serial) = key.u32_field("Serial") {
+            fields.serial = serial;
+        }
+        if let Some(button) = key.u32_field("Btn") {
+            fields.button = button as u8;
+        }
+        if let Some(counter) = key.u32_field("Cnt") {
+            fields.counter = counter & 0x00FF_FFFF;
+        }
+        // honda_static_pack_compact, then the fields as the packed Key holds them.
+        let fields = Self::unpack_compact(Self::pack_compact(&fields));
+        let checksum = Self::build_packet_bytes(&fields)[7];
+        let verified = key.u32_field("Checksum") == Some(checksum.into());
+        Some(Self::build_signal(&fields, verified))
+    }
+
+    /// `subghz_protocol_decoder_honda_static_serialize`; Checksum only for a verified frame (see
+    /// the module doc, Key files).
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        let fields = Self::unpack_compact(decoded.data);
+        let mut key = FlipperKey::for_protocol("Honda Static", BIT_COUNT, Self::pack_compact(&fields));
+        key.push_u32("Serial", fields.serial);
+        key.push_u32("Btn", fields.button.into());
+        key.push_u32("Cnt", fields.counter);
+        if decoded.crc_valid {
+            key.push_u32("Checksum", Self::build_packet_bytes(&fields)[7].into());
+        }
+        Some(key)
+    }
 }
 
 impl Default for HondaStaticDecoder {
@@ -515,6 +589,77 @@ mod tests {
         // the alternating preamble) — reproduced here, exactly as the reference behaves.
         let signal = HondaStaticDecoder::new().encode(&original, BTN_PANIC).unwrap();
         assert!(decode_wave(&signal).is_none());
+    }
+
+    /// Key files: a verified (forward-path) decode round-trips with ProtoPirate's lines, an
+    /// unverified (reverse-path) one without the Checksum line; a reference file loads as
+    /// verified, edited fields repack the Key as the C does, and a loaded key transmits.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = HondaStaticDecoder::new();
+        let fields = HondaStaticFields { button: 0x2, serial: 0x0123456, counter: 0x12_3456, checksum: 0 };
+        let tx = dec.encode(&HondaStaticDecoder::build_signal(&fields, true), 0x02).unwrap();
+        let verified = decode_wave(&tx).expect("forward frame decodes");
+        assert!(verified.crc_valid);
+        let text = assert_round_trip(&dec, &verified);
+        // Packet 20 12 34 56 12 34 57: checksum 0x20 ^ 0x12 ^ 0x34 ^ 0x56 ^ 0x12 ^ 0x34 ^ 0x57 = 0x21.
+        assert!(
+            text.ends_with(
+                "Protocol: Honda Static\nBit: 64\nKey: 02 01 23 45 60 12 34 57\nSerial: 1193046\n\
+                 Btn: 2\nCnt: 1193047\nChecksum: 33\n"
+            ),
+            "{text}"
+        );
+        let unverified = HondaStaticDecoder::build_signal(&fields, false);
+        let text = assert_round_trip(&dec, &unverified);
+        assert!(text.ends_with("Cnt: 1193046\n"), "no Checksum line: {text}");
+
+        // A reference-written file (ProtoPirate / ARF / doctor: Checksum always present) loads as
+        // verified; an edited Cnt repacks the Key and no longer matches the stale Checksum.
+        let file = key(
+            "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433657070\n\
+             Preset: FuriHalSubGhzPresetCustom\nProtocol: Honda Static\nBit: 64\n\
+             Key: 02 01 23 45 60 12 34 57\nSerial: 1193046\nBtn: 2\nCnt: 1193047\nChecksum: 33\n",
+        );
+        assert_eq!(dec.from_flipper_key(&file), Some(verified.clone()));
+        let mut edited = file.clone();
+        for (n, v) in edited.fields.iter_mut() {
+            if n == "Cnt" {
+                *v = "1193048".into();
+            }
+        }
+        let e = dec.from_flipper_key(&edited).unwrap();
+        assert_eq!((e.data, e.counter, e.crc_valid), (0x0201_2345_6012_3458, Some(0x3458), false));
+        let mut bits = file.clone();
+        bits.bits = 68;
+        assert!(dec.from_flipper_key(&bits).is_none());
+
+        // TX from the loaded key: counter + 1, same serial.
+        let loaded = dec.from_flipper_key(&file).unwrap();
+        let again = decode_wave(&dec.encode(&loaded, 0x01).unwrap()).unwrap();
+        assert_eq!((again.serial, again.button, again.counter), (Some(0x0123456), Some(0x1), Some(0x3458)));
+    }
+
+    /// Oracle vectors (see `fiat_v0::write_oracle_vector`): two forward (checksum-verified)
+    /// frames. FM476 stands in for the Honda1 custom preset.
+    #[test]
+    #[ignore]
+    fn oracle_vectors() {
+        let cases = [
+            ("honda_static_1", HondaStaticFields { button: 0x2, serial: 0x0123456, counter: 0x12_3456, checksum: 0 }),
+            ("honda_static_2", HondaStaticFields { button: 0x4, serial: 0x0B78238, counter: 0x05_6BE7, checksum: 0 }),
+        ];
+        for (name, fields) in cases {
+            let up = HondaStaticDecoder::new().encode(&HondaStaticDecoder::build_signal(&fields, true), 0x40).unwrap();
+            crate::protocols::fiat_v0::write_oracle_vector(
+                name,
+                433_920_000,
+                "FuriHalSubGhzPreset2FSKDev476Async",
+                &up,
+                &mut HondaStaticDecoder::new(),
+            );
+        }
     }
 
     /// The packed Key word must reproduce the C compact layout for a known field set.

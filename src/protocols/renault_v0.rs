@@ -59,9 +59,43 @@
 //! - Waveform: 3 bursts of [HIGH 1000µs sync, 16 preamble 1-bits, 82 data bits (key MSB-first then
 //!   Key2), closing HIGH 125µs if the last half-bit was low, LOW 25000µs (last burst: 250µs)],
 //!   encoded with the C's two-state emitter and same-level merging (`pp_emit_merge`). C repeat = 1.
+//!
+//! **Key files** (`subghz_protocol_decoder_renault_v0_serialize` / `_deserialize`): KAT writes
+//! ProtoPirate's lines — Protocol "Renault V0", Bit 82, Key = the 64-bit key, then Serial, Btn,
+//! Cnt, Key2 (the 18-bit Key2, decimal) and `Disp: Renault V0 - Trunk|Lock|Unlock|?`. Loading
+//! follows the C: Bit 82, a Key2 line and the type-13 gate are required, the fields come from
+//! the Key (Serial/Btn/Cnt are not read). doctor-firmware writes the same Key/Key2; Flipper-ARF's
+//! older Renault V0 adds Preamble/Rolling lines (ignored here) and also loads only type 13.
 
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Renault V0",
+    decoder: "Renault V0",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::AM,
+    encryption: "Rolling Code",
+    make: "Renault",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650],
+};
+
+/// Renault V0 buttons.
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x06 => "Lock",
+        0x0A => "Unlock",
+        0x05 => "Trunk",
+        _ => "Other",
+    })
+}
 
 const TE_SHORT: u32 = 125; // 0x7D
 const TE_LONG: u32 = 250; // 0xFA
@@ -552,6 +586,39 @@ impl ProtocolDecoder for RenaultV0Decoder {
 
         Some(Self::build_upload(data, key2))
     }
+
+    /// `subghz_protocol_decoder_renault_v0_deserialize` (see the module doc, Key files).
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != FRAME_BITS {
+            return None;
+        }
+        let data = key.key_u64()?;
+        let key2 = (u64::from(key.u32_field("Key2")?) & KEY2_MASK) as u32;
+        Self::type13_valid(data, key2).then(|| Self::build_signal(data, key2))
+    }
+
+    /// `subghz_protocol_decoder_renault_v0_serialize` (see the module doc, Key files).
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        let data = decoded.data;
+        let key2 = (decoded.extra? & KEY2_MASK) as u32;
+        if decoded.data_count_bit != FRAME_BITS || !Self::type13_valid(data, key2) {
+            return None;
+        }
+        let (serial, button, counter) = Self::parse_fields(data);
+        let mut key = FlipperKey::for_protocol("Renault V0", FRAME_BITS, data);
+        key.push_u32("Serial", serial);
+        key.push_u32("Btn", button.into());
+        key.push_u32("Cnt", counter.into());
+        key.push_u32("Key2", key2);
+        let name = match button {
+            BTN_TRUNK => "Trunk",
+            BTN_LOCK => "Lock",
+            BTN_UNLOCK => "Unlock",
+            _ => "?",
+        };
+        key.push("Disp", format!("Renault V0 - {name}"));
+        Some(key)
+    }
 }
 
 impl Default for RenaultV0Decoder {
@@ -628,6 +695,60 @@ mod tests {
             assert_eq!(d.serial, Some(serial));
             assert_eq!(d.button, Some(BTN_UNLOCK));
             assert_eq!(d.counter, Some(0x22));
+        }
+    }
+
+    /// Key files: ProtoPirate's lines round-trip (model and non-model frames); the C's gates
+    /// (Bit 82, Key2 present, type-13 checksum) reject bad files; a loaded key transmits.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = RenaultV0Decoder::new();
+        let decoded = decode_all(&dec.encode(&model_frame(BTN_LOCK, 0x41), GENERIC_LOCK).unwrap()).remove(0);
+        let text = assert_round_trip(&dec, &decoded);
+        let key2 = decoded.extra.unwrap();
+        assert!(
+            text.ends_with(&format!(
+                "Protocol: Renault V0\nBit: 82\nKey: {}\nSerial: 1193124\nBtn: 6\nCnt: 66\n\
+                 Key2: {key2}\nDisp: Renault V0 - Lock\n",
+                decoded.data.to_be_bytes().map(|b| format!("{b:02X}")).join(" ")
+            )),
+            "{text}"
+        );
+        // A frame that is not the key model (replayed verbatim on TX) round-trips too.
+        let other = RenaultV0Decoder::build_signal(decoded.data ^ (1 << 20), (key2 as u32) ^ (1 << 14));
+        assert!(RenaultV0Decoder::type13_valid(other.data, other.extra.unwrap() as u32));
+        assert_round_trip(&dec, &other);
+
+        let good = key(&text);
+        let mut no_key2 = good.clone();
+        no_key2.fields.retain(|(n, _)| n != "Key2");
+        assert!(dec.from_flipper_key(&no_key2).is_none(), "Key2 is required");
+        let mut bad = no_key2.clone();
+        bad.push_u32("Key2", (key2 as u32) ^ 1);
+        assert!(dec.from_flipper_key(&bad).is_none(), "type-13 checksum");
+        let mut bits = good.clone();
+        bits.bits = 64;
+        assert!(dec.from_flipper_key(&bits).is_none());
+
+        let loaded = dec.from_flipper_key(&good).unwrap();
+        let again = decode_all(&dec.encode(&loaded, GENERIC_UNLOCK).unwrap()).remove(0);
+        assert_eq!((again.serial, again.button, again.counter), (Some(SERIAL), Some(BTN_UNLOCK), Some(0x43)));
+    }
+
+    /// Oracle vectors (see `fiat_v0::write_oracle_vector`): Lock and Unlock model frames.
+    #[test]
+    #[ignore]
+    fn oracle_vectors() {
+        for (name, button, generic) in [("renault_v0_1", BTN_LOCK, GENERIC_LOCK), ("renault_v0_2", BTN_UNLOCK, GENERIC_UNLOCK)] {
+            let up = RenaultV0Decoder::new().encode(&model_frame(button, 0x41), generic).unwrap();
+            crate::protocols::fiat_v0::write_oracle_vector(
+                name,
+                433_920_000,
+                "FuriHalSubGhzPresetOok650Async",
+                &up,
+                &mut RenaultV0Decoder::new(),
+            );
         }
     }
 

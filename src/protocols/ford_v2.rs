@@ -39,11 +39,47 @@
 //! 240µs), bursts separated by HIGH 16 000µs (merged into the adjacent HIGH half-bits, as the C's
 //! `ford_v2_encoder_add_level` merges every same-level element). The Flipper TX loop repeats the
 //! upload `repeat` = 10 times; KAT's `encode()` returns the single upload.
+//!
+//! **Key files** (`subghz_protocol_decoder_ford_v2_serialize` / `_deserialize`; Flipper-ARF's are
+//! the same): `Protocol: Ford V2`, `Bit: 104`, `Key` = raw[0..8], then `Serial`, `Btn` (raw[6]),
+//! `Cnt` (the 16-bit counter), `Tail31` (decimal) and `TailRaw` = raw[8..13]. Loading needs Bit 104
+//! and rebuilds the frame from Key + TailRaw (all-zero when the line is missing, as in the C); the
+//! fields come from the frame (the C's decoder ignores the file's Serial/Btn/Cnt) and a frame that
+//! fails the C's structure check (sync bytes + known button) is rejected, as the C rejects it.
 
 use super::common::{ManchesterEvent, ManchesterState};
-use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
+use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal, FlipperKey};
 use crate::radio::demodulator::LevelDuration;
 use crate::duration_diff;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Ford V2",
+    decoder: "Ford V2",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::FM,
+    encryption: "Rolling Code",
+    make: "Ford",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&F4],
+};
+
+/// Ford V2 buttons.
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x10 => "Lock",
+        0x11 => "Unlock",
+        0x13 => "Trunk",
+        0x14 => "Panic",
+        0x15 => "Remote start",
+        _ => "Other",
+    })
+}
 
 const TE_SHORT: u32 = 200;
 const TE_LONG: u32 = 400;
@@ -207,7 +243,12 @@ impl FordV2Decoder {
 
     /// Validate sync bytes + structure and build the decoded signal.
     fn commit_frame(&self) -> Option<DecodedSignal> {
-        let k = &self.raw_bytes;
+        Self::frame_signal(&self.raw_bytes)
+    }
+
+    /// The decode of a 13-byte frame, or None when it fails the structure check (sync bytes +
+    /// known button, `ford_v2_decoder_extract_from_raw`).
+    fn frame_signal(k: &[u8; DATA_BYTES]) -> Option<DecodedSignal> {
         if k[0] != SYNC_0 || k[1] != SYNC_1 {
             return None;
         }
@@ -400,6 +441,39 @@ impl ProtocolDecoder for FordV2Decoder {
         }
         Some(signal)
     }
+
+    /// `subghz_protocol_decoder_ford_v2_deserialize` (see the module doc, "Key files").
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != DATA_BITS {
+            return None;
+        }
+        let mut raw = [0u8; DATA_BYTES];
+        raw[..8].copy_from_slice(&key.key_u64()?.to_be_bytes());
+        if let Some(tail) = key.hex_bytes_field("TailRaw").filter(|t| t.len() == TAIL_RAW_BYTES) {
+            raw[8..].copy_from_slice(&tail);
+        }
+        Self::frame_signal(&raw)
+    }
+
+    /// `subghz_protocol_decoder_ford_v2_serialize` (see the module doc, "Key files").
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        let extra = decoded.extra.unwrap_or(0);
+        if decoded.data_count_bit != DATA_BITS || extra >> (TAIL_RAW_BYTES * 8) != 0 {
+            return None;
+        }
+        let mut raw = [0u8; DATA_BYTES];
+        raw[..8].copy_from_slice(&decoded.data.to_be_bytes());
+        raw[8..].copy_from_slice(&extra.to_be_bytes()[3..]);
+        let d = Self::frame_signal(&raw)?;
+        let tail31 = u32::from_be_bytes([raw[9] & 0x7F, raw[10], raw[11], raw[12]]);
+        let mut key = FlipperKey::for_protocol("Ford V2", DATA_BITS, decoded.data);
+        key.push_u32("Serial", d.serial?);
+        key.push_u32("Btn", raw[6].into());
+        key.push_u32("Cnt", d.counter?.into());
+        key.push_u32("Tail31", tail31);
+        key.push_hex_bytes("TailRaw", &raw[8..]);
+        Some(key)
+    }
 }
 
 impl Default for FordV2Decoder {
@@ -512,5 +586,61 @@ mod tests {
 
         let bad_button = frame_bytes(0x12, 0x2468);
         assert!(feed_all(&burst_wave(&bad_button)).is_empty(), "button 0x12");
+    }
+
+    /// Key files (ProtoPirate `subghz_protocol_decoder_ford_v2_serialize` / `_deserialize`): a
+    /// decoded burst round-trips with the C's lines, the C's structure check rejects a bad
+    /// frame, a file without TailRaw loads with a zero tail, and TX from a loaded key decodes back.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = FordV2Decoder::new();
+        let d = feed_all(&burst_wave(&frame_bytes(0x11, 0x2468))).pop().expect("decodes");
+        let text = assert_round_trip(&dec, &d);
+        // raw = 7F A7 12 34 56 78 11 12 34 35 9A BC DE; Tail31 = 0x359ABCDE.
+        assert!(
+            text.ends_with(
+                "Protocol: Ford V2\nBit: 104\nKey: 7F A7 12 34 56 78 11 12\nSerial: 305419896\nBtn: 17\n\
+                 Cnt: 9320\nTail31: 899333342\nTailRaw: 34 35 9A BC DE\n"
+            ),
+            "{text}"
+        );
+        let file = key(&text);
+        let (name, loaded) = crate::protocols::ProtocolRegistry::new().decode_key(&file).unwrap();
+        assert_eq!((name.as_str(), &loaded), ("Ford V2", &d));
+
+        // Missing TailRaw: the C keeps a zero tail (counter LSB and tail bits 0).
+        let mut no_tail = file.clone();
+        no_tail.fields.retain(|(n, _)| n != "TailRaw");
+        let t = dec.from_flipper_key(&no_tail).unwrap();
+        assert_eq!((t.serial, t.button, t.extra), (d.serial, d.button, Some(0)));
+        // A frame that fails the structure check (unknown button 0x12) is rejected; so is Bit 64.
+        let mut bad = file.clone();
+        bad.key = (bad.key & !0xFF00) | 0x1200;
+        bad.key_bytes = bad.key.to_be_bytes().to_vec();
+        assert!(dec.from_flipper_key(&bad).is_none());
+        let mut wrong = file.clone();
+        wrong.bits = 64;
+        assert!(dec.from_flipper_key(&wrong).is_none());
+
+        // TX from the loaded key: Lock with the counter bumped.
+        let next = feed_all(&dec.encode(&loaded, 0x01).unwrap()).remove(0);
+        assert_eq!((next.serial, next.button, next.counter), (d.serial, Some(0x10), Some(0x2469)));
+    }
+
+    /// Reference-oracle vectors: `KAT_KEY_VECTORS=<dir> cargo test oracle_vectors -- --ignored`.
+    #[test]
+    #[ignore]
+    fn oracle_vectors() {
+        let dec = FordV2Decoder::new();
+        for (n, (button, counter)) in [(0x11u8, 0x2468u16), (0x14, 0x01FF)].into_iter().enumerate() {
+            let d = feed_all(&burst_wave(&frame_bytes(button, counter))).pop().unwrap();
+            let upload = dec.encode(&d, 0x40).unwrap();
+            let sent = feed_all(&upload).remove(0);
+            let mut key = dec.to_flipper_key(&sent).unwrap();
+            key.frequency = 433_920_000;
+            key.set_preset(&crate::radio::preset::RfPreset::from_def(INFO.presets[0]));
+            super::super::ford_v0::write_oracle_vector(&format!("ford_v2_{}", n + 1), &upload, &key);
+        }
     }
 }

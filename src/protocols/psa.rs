@@ -70,11 +70,52 @@
 //!   crc8 (28-bit counter; `DecodedSignal.counter` shows its low 16 bits). The serial is unknown
 //!   until the 2^24-per-range brute force finds it; afterwards everything is O(1) from
 //!   (key1, key2, serial) ([`tea_decrypt_with_serial`]), which is all `encode()` needs.
+//!
+//! **Key files** (ProtoPirate `subghz_protocol_decoder_psa_serialize` / `_deserialize`):
+//! `Protocol: PSA`, `Bit: 128`, `Key` (key1), `Key_2` (key2, 8 bytes), `ValidationField` (key2's
+//! low 16 bits), and for a decrypted frame `Serial`, `Btn`, `Cnt`, `Type` (35 = 0x23 XOR, 54 =
+//! 0x36 TEA), `CRC`, `Seed` (= serial), decimal — the lines PP's brute force patches into a TEA
+//! file. Loading runs the decoder's fast path on Key/Key_2; a TEA frame whose file carries
+//! `Type` 0x36 + `Serial` is reported recovered when that serial's key decrypts it (O(1), so a
+//! recovered key survives save/load and transmits; PP's decoder re-defers it to its brute force,
+//! doctor-firmware and Flipper-ARF trust the lines). Flipper-ARF's "PSA GROUP" / "PSA OLD" files
+//! (hex-byte fields, no ValidationField) load too. Key/Key_2 are 16-digit words, as ProtoPirate writes
+//! them (its saved-signal match compares the Key text; every reference's parser also reads spaced
+//! bytes); the preset is the full Flipper name (PP writes the short "AM650"). Captures without key2
+//! (retired PSA2 decoder) cannot be written.
 
 use super::common::{ManchesterEvent, ManchesterState};
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+
+use super::info::prelude::*;
+
+/// Metadata (see `info.rs`): ProtoPirate "[AM650+F3]". PSA2 / "PSA OLD" (Flipper-ARF's
+/// unregistered psa2.c) were retired into PSA; "PSA GROUP" is ARF's display name.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "PSA",
+    decoder: "PSA",
+    aliases: &["PSA2", "PSA OLD", "PSA GROUP"],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::Both,
+    encryption: "TEA/XOR",
+    make: "Peugeot/Citroen",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650, &F3],
+};
+
+/// Flipper-ARF psa_button_name (the genuine IMPORTS frames carry 0).
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x0 => "Lock",
+        0x1 => "Unlock",
+        0x2 => "Trunk",
+        _ => "Other",
+    })
+}
 
 // ---------------------------------------------------------------------------------------------
 // Constants (psa.c)
@@ -1222,6 +1263,68 @@ impl ProtocolDecoder for PsaDecoder {
         }
         Some(signal)
     }
+
+    /// Key files: ProtoPirate `subghz_protocol_decoder_psa_deserialize` (Key + Key_2, then
+    /// `psa_decrypt_router`: PP's XOR fast path) gives the decoder's report for the frame. A TEA
+    /// frame whose file carries the brute-force result (`Type` 0x36 + `Serial`, as PP's brute
+    /// force patches it in and Flipper-ARF / doctor-firmware load it) is reported recovered when
+    /// that serial's key decrypts it (`tea_decrypt_with_serial`, a 2^-32 check), as after the
+    /// signal menu's "Recover key"; the other fields always come from the decrypt. Field values
+    /// are decimal, except in Flipper-ARF's "PSA GROUP" / "PSA OLD" files (hex bytes).
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        let key1 = key.key_u64()?;
+        let key2 = key.hex_field("Key_2")?;
+        let frame = RawFrame { key1, key2_high: (key2 >> 32) as u32, key2_low: key2 as u32, am: false };
+        let d = self.emit(frame)?;
+        if d.serial.is_some() {
+            return Some(d);
+        }
+        // Flipper-ARF ("PSA GROUP", and its retired psa2.c "PSA OLD") writes hex-byte fields.
+        let arf = ["PSA GROUP", "PSA OLD"].iter().any(|n| key.protocol.trim().eq_ignore_ascii_case(n));
+        let number = |name: &str| if arf { key.hex_field(name).map(|v| v as u32) } else { key.u32_field(name) };
+        let recovered = (number("Type") == Some(u32::from(MODE_TEA)))
+            .then(|| number("Serial"))
+            .flatten()
+            .and_then(|serial| tea_decrypt_with_serial(key1, key2 as u32, serial));
+        Some(match recovered {
+            Some((f, _)) => DecodedSignal {
+                serial: Some(f.serial),
+                button: Some(f.button),
+                counter: Some(f.counter as u16),
+                crc_valid: true,
+                encoder_capable: true,
+                ..d
+            },
+            None => d,
+        })
+    }
+
+    /// Key files: ProtoPirate `subghz_protocol_decoder_psa_serialize`: Protocol "PSA", Bit 128,
+    /// Key (key1), Key_2 (key2, 8 bytes), ValidationField (key2's low 16 bits), and for a decrypted
+    /// frame Serial, Btn, Cnt (16-bit XOR / 28-bit TEA counter), Type (35 = 0x23 XOR, 54 = 0x36
+    /// TEA), CRC and Seed (= serial), decimal. A TEA frame is written decrypted once its serial is
+    /// known (after "Recover key"). None for captures without key2 (the retired PSA2 decoder's),
+    /// which a key file cannot carry.
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        let key2 = decoded.extra?;
+        let (key1, key2_low) = (decoded.data, key2 as u32);
+        let fields = fast_decrypt(key1, key2_low).or_else(|| {
+            decoded.serial.and_then(|s| tea_decrypt_with_serial(key1, key2_low, s).map(|(f, _)| f))
+        });
+        let mut key = FlipperKey::for_protocol("PSA", MIN_COUNT_BIT, key1);
+        key.key_word = true;
+        key.push("Key_2", format!("{key2:016X}"));
+        key.push_u32("ValidationField", key2_low & 0xFFFF);
+        if let Some(f) = fields {
+            key.push_u32("Serial", f.serial);
+            key.push_u32("Btn", f.button.into());
+            key.push_u32("Cnt", f.counter);
+            key.push_u32("Type", f.mode.into());
+            key.push_u32("CRC", f.crc.into());
+            key.push_u32("Seed", f.serial);
+        }
+        Some(key)
+    }
 }
 
 impl Default for PsaDecoder {
@@ -1760,5 +1863,87 @@ mod tests {
         assert_eq!(map_button(0x02, 2), 1);
         assert_eq!(map_button(0x04, 0), 2);
         assert_eq!(map_button(0x08, 2), 2);
+    }
+
+    /// Key files (ProtoPirate `subghz_protocol_decoder_psa_serialize` / `_deserialize`): the XOR
+    /// and TEA frames of the genuine fobs round-trip with PP's lines (decrypted XOR, undecrypted
+    /// TEA, TEA after "Recover key"); PP's own file (16-digit words) and Flipper-ARF's "PSA GROUP"
+    /// file (hex-byte fields) load the recovered TEA frame; a serial that does not decrypt leaves
+    /// it undecrypted; TX from a loaded key is the C's upload.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = PsaDecoder::new();
+        let frame = |key1: u64, key2: u64| RawFrame { key1, key2_high: 0, key2_low: key2 as u32, am: false };
+        let (key1, key2, ..) = PSA_523_536[0];
+        let xor = dec.emit(frame(key1, key2)).unwrap();
+        assert!(assert_round_trip(&dec, &xor).ends_with(
+            "Protocol: PSA\nBit: 128\nKey: 6EDAE3B4785F7BC6\nKey_2: 00000000000070F6\n\
+             ValidationField: 28918\nSerial: 10087205\nBtn: 0\nCnt: 923\nType: 35\nCRC: 64\nSeed: 10087205\n"
+        ));
+        let (key1, key2, serial, ..) = PSA_523_536[1];
+        let tea = dec.emit(frame(key1, key2)).unwrap();
+        assert_eq!(tea.serial, None);
+        assert!(assert_round_trip(&dec, &tea).ends_with("Key: F47A2EA11A4C7CAF\nKey_2: 0000000000002927\nValidationField: 10535\n"));
+        // After the signal menu's "Recover key" (fields from the brute force, as app.rs stores them).
+        let (f, _) = tea_decrypt_with_serial(key1, key2 as u32, serial).unwrap();
+        let recovered = DecodedSignal {
+            serial: Some(f.serial),
+            button: Some(f.button),
+            counter: Some(f.counter as u16),
+            crc_valid: true,
+            encoder_capable: true,
+            ..tea.clone()
+        };
+        assert!(assert_round_trip(&dec, &recovered)
+            .ends_with("Serial: 83344\nBtn: 0\nCnt: 152407635\nType: 54\nCRC: 213\nSeed: 83344\n"));
+        let header = "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+                      Preset: FuriHalSubGhzPresetOok650Async\n";
+        let pp = format!(
+            "{header}Protocol: PSA\nBit: 128\nKey: F47A2EA11A4C7CAF\nKey_2: 0000000000002927\n\
+             ValidationField: 10535\nSerial: 83344\nBtn: 0\nCnt: 152407635\nType: 54\nCRC: 213\nSeed: 83344\n"
+        );
+        assert_eq!(dec.from_flipper_key(&key(&pp)), Some(recovered.clone()));
+        let arf = format!(
+            "{header}Protocol: PSA GROUP\nBit: 128\nKey: F4 7A 2E A1 1A 4C 7C AF\n\
+             Key_2: 00 00 00 00 00 00 29 27\nSerial: 01 45 90\nCnt: 09 15 8E 53\nBtn: 00\nType: 36\n\
+             CRC: 00 D5\nSeed: 01 45 90\n"
+        );
+        assert_eq!(dec.from_flipper_key(&key(&arf)), Some(recovered.clone()));
+        assert_eq!(dec.from_flipper_key(&key(&arf.replace("PSA GROUP", "PSA OLD"))), Some(recovered.clone()));
+        // A serial whose key does not decrypt the frame, or an XOR-typed claim: undecrypted.
+        assert_eq!(dec.from_flipper_key(&key(&pp.replace("Serial: 83344", "Serial: 83345"))), Some(tea.clone()));
+        assert_eq!(dec.from_flipper_key(&key(&pp.replace("Type: 54", "Type: 35"))), Some(tea.clone()));
+        // Key_2 is required (all three references).
+        assert!(dec.from_flipper_key(&key(&pp.replace("Key_2: 0000000000002927\n", ""))).is_none());
+        // TX from the loaded key: the C upload (PP encoder, Lock, counter + 1).
+        let loaded = dec.from_flipper_key(&key(&pp)).unwrap();
+        let got = decode_all(&merged(&dec.encode(&loaded, 0x01).unwrap()));
+        assert_eq!((got[0].data, got[0].extra), (0xF47A_38D3_2DE3_24CE, Some(0xFC13)));
+        // A capture without key2 (retired PSA2 decoder) has no key file.
+        assert!(dec.to_flipper_key(&DecodedSignal { extra: None, ..xor }).is_none());
+    }
+
+    /// `KAT_KEY_VECTORS=<dir> cargo test psa_oracle_vectors -- --ignored`: RAW uploads and KAT's
+    /// key files for the C oracle (XOR frame; TEA frame, which the decoder leaves undecrypted).
+    /// Both captured frames end in a 1 bit: the references' upload of a frame ending in a 0 bit
+    /// is not re-decodable (`uploads_ending_in_a_zero_bit_are_not_redecoded`).
+    #[test]
+    #[ignore]
+    fn psa_oracle_vectors() {
+        let Some(dir) = std::env::var_os("KAT_KEY_VECTORS") else { return };
+        let dir = std::path::PathBuf::from(dir);
+        let dec = PsaDecoder::new();
+        let cases = [
+            psa_from(0x6EDA_D681_4A6A_49F3, 0x9023, Some(0x99EB25)),
+            psa_from(0xF47A_2EA1_1A4C_7CAF, 0x2927, Some(0x014590)),
+        ];
+        for (i, src) in cases.iter().enumerate() {
+            let tx = dec.encode(src, 0x01).unwrap();
+            let once = merged(&tx[..ENC_UPLOAD_LEN]);
+            let d = decode_all(&once).pop().unwrap();
+            let key = dec.to_flipper_key(&d).unwrap();
+            super::super::star_line::write_oracle_vector(&dir, &format!("psa_{}", i + 1), 433_920_000, "FuriHalSubGhzPresetOok650Async", &once, &key);
+        }
     }
 }

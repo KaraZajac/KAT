@@ -55,10 +55,44 @@
 //! transmits the `encode()` output once, like the other ports). Note: rtl_433 needs ≥113 bits and drops
 //! the last one, so real fobs evidently send one bit after the payload; its value is not captured by the
 //! 112-bit window, so the replay does not synthesize it (unverified against a vehicle).
+//!
+//! **Key files** (`subghz_protocol_decoder_gm_serialize` / `_deserialize`): `Protocol: GM`,
+//! `Bit: 112`, `Key` = the C's `generic.data` (`id << 16 | seq16`, a hash value — 112 bits do not
+//! fit), then `Data` (the 14 frame bytes), `Serial`, `Btn` and `Cnt` (decimal). Loading reads
+//! `Data` — required, and it must pass both checksums (`gm_frame_valid`), as in the C — and rebuilds
+//! the decode from it; Key/Serial/Btn/Cnt are not read back.
 
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (see `info.rs`). Gap-width PPM; the closest line-coding label is PWM.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "GM",
+    decoder: "GM",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Pwm,
+    rf: Rf::AM,
+    encryption: "Rolling Code",
+    make: "Chevrolet/Buick/GMC/Cadillac",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650],
+};
+
+/// GM buttons (low 3 bits).
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code & 0x07 {
+        2 => "Lock",
+        1 => "Unlock",
+        3 => "Trunk",
+        4 => "Panic",
+        _ => "Other",
+    })
+}
 
 /// Short gap → bit 0 (also the transmitted pulse width).
 const TE_SHORT: u32 = 300;
@@ -304,6 +338,27 @@ impl ProtocolDecoder for GmDecoder {
         signal.push(LevelDuration::new(false, RESET_US));
         Some(signal)
     }
+
+    /// `subghz_protocol_decoder_gm_deserialize`: Bit 112 and a valid 14-byte `Data` line.
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != WIRE_BITS {
+            return None;
+        }
+        let raw: [u8; WIRE_BYTES] = key.hex_bytes_field("Data")?.try_into().ok()?;
+        Self::frame_valid(&raw).then(|| Self::signal_from_frame(&raw))
+    }
+
+    /// `subghz_protocol_decoder_gm_serialize`: Key (`id << 16 | seq16`), Data, Serial, Btn, Cnt.
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        let raw = Self::frame_from_signal(decoded)?;
+        let (serial, button, cnt) = (Self::id(&raw), Self::button(&raw), Self::sequence(&raw) & 0xFFFF);
+        let mut key = FlipperKey::for_protocol("GM", WIRE_BITS, (u64::from(serial) << 16) | u64::from(cnt));
+        key.push_hex_bytes("Data", &raw);
+        key.push_u32("Serial", serial);
+        key.push_u32("Btn", button.into());
+        key.push_u32("Cnt", cnt);
+        Some(key)
+    }
 }
 
 impl Default for GmDecoder {
@@ -495,5 +550,53 @@ mod tests {
         let mut signal = ppm(&frame_bits(&f), 300);
         signal[100] = LevelDuration::new(true, 1500);
         assert!(decode_all(&signal).is_empty());
+    }
+
+    /// Key files: the C's lines round-trip the frame, a file without (or with a corrupted) Data
+    /// line is refused like the C, and TX from a loaded key replays the frame.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = GmDecoder::new();
+        let f = make_frame(0x5A, 2, 0x1234_5678, 0x01_ABCD, 0x00C0_FFEE);
+        let decoded = decode_all(&ppm(&frame_bits(&f), 300)).remove(0);
+        let text = assert_round_trip(&dec, &decoded);
+        let data: Vec<String> = f.iter().map(|b| format!("{b:02X}")).collect();
+        assert!(
+            text.ends_with(&format!(
+                "Protocol: GM\nBit: 112\nKey: 00 00 12 34 56 78 AB CD\nData: {}\n\
+                 Serial: 305419896\nBtn: 2\nCnt: 43981\n",
+                data.join(" ")
+            )),
+            "{text}"
+        );
+        let mut k = key(&text);
+        k.fields.retain(|(n, _)| n != "Data");
+        assert!(dec.from_flipper_key(&k).is_none(), "Data is required");
+        let mut bad = f;
+        bad[13] ^= 1;
+        let mut k = key(&text);
+        k.fields.retain(|(n, _)| n != "Data");
+        k.push_hex_bytes("Data", &bad);
+        assert!(dec.from_flipper_key(&k).is_none(), "checksums are checked");
+
+        let loaded = dec.from_flipper_key(&key(&text)).unwrap();
+        let tx = decode_all(&dec.encode(&loaded, 0).unwrap());
+        assert_eq!(tx, vec![decoded]);
+    }
+
+    /// Oracle vectors (`KAT_KEY_VECTORS=<dir> cargo test gm_key_vectors -- --ignored`).
+    #[test]
+    #[ignore]
+    fn gm_key_vectors() {
+        use super::super::bmw::{key_vector_dir, write_key_vector};
+        let dec = GmDecoder::new();
+        let frames = [make_frame(0x5A, 2, 0x1234_5678, 0x01_ABCD, 0x00C0_FFEE), make_frame(0x3C, 1, 0x0102_0304, 0x00_1000, 0x00AB_CDEF)];
+        for (n, f) in frames.iter().enumerate() {
+            let wire = dec.encode(&GmDecoder::signal_from_frame(f), 0).unwrap();
+            let decoded = decode_all(&wire).remove(0);
+            let key = dec.to_flipper_key(&decoded).unwrap();
+            write_key_vector(&key_vector_dir(), &format!("gm_{}", n + 1), 315_000_000, "FuriHalSubGhzPresetOok650Async", &wire, &key);
+        }
     }
 }

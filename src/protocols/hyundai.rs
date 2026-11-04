@@ -83,6 +83,23 @@ use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
 
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Hyundai",
+    decoder: "Hyundai",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::AM,
+    encryption: "Rolling Code",
+    make: "Hyundai",
+    category: Category::Vehicle,
+    buttons: None,
+    presets: &[&AM650],
+};
+
 const TE_SHORT: u32 = 500;
 const TE_LONG: u32 = 1000;
 const TE_DELTA: u32 = 125;

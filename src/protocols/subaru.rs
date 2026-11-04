@@ -48,9 +48,48 @@
 //! of the five captured frames reproduces it bit for bit and encoding its successor's counter gives
 //! the next captured frame exactly (9/9); ProtoPirate's encoder gets 0/9. ARF's `encode_count` is
 //! ProtoPirate's minus the `rel` bits and gets 0/9 too.
+//!
+//! # Key files
+//!
+//! `subghz_protocol_decoder_subaru_serialize`: `Protocol: Subaru`, `Bit: 64`, `Key`, then
+//! `pp_serialize_fields`-style `Serial`, `Btn`, `Cnt` (decimal, from `subaru_decode_fields_exact`)
+//! and `pp_write_display`'s `Disp: Subaru - <name>`, where the name is the decoder's
+//! `names[btn & 3]` table (Lock, Unlock, Trunk, Panic — the label table discussed above). Loading
+//! (`_deserialize`) needs exactly Bit 64 (`subghz_block_generic_deserialize_check_count_bit`) and
+//! decodes everything from the Key, as the C's `get_string` does; Flipper-ARF's "SUBARU" files
+//! (the same lines without `Disp`) load the same way. The file's Serial/Btn/Cnt are not applied
+//! (ProtoPirate's decoder ignores them; only its encoder rebuilds a key from them).
 
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Subaru",
+    decoder: "Subaru",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Pwm,
+    rf: Rf::AM,
+    encryption: "Rolling Code",
+    make: "Subaru",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650],
+};
+
+/// ProtoPirate emulate / Flipper-ARF codes (1 and 2 coincide with the generic ones).
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x1 => "Lock",
+        0x2 => "Unlock",
+        0x3 => "Trunk",
+        0x4 => "Panic",
+        _ => "Other",
+    })
+}
 
 const TE_SHORT: u32 = 800;
 const TE_LONG: u32 = 1600;
@@ -553,6 +592,31 @@ impl ProtocolDecoder for SubaruDecoder {
         let cnt = decoded.counter.unwrap_or(from_key.cnt).wrapping_add(1);
         Some(Self::build_upload(Self::build_key(key, serial, btn, cnt)))
     }
+
+    /// `subghz_protocol_decoder_subaru_deserialize`: exactly 64 bits; everything comes from the Key
+    /// (see the module doc, "Key files").
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != MIN_COUNT_BIT as usize {
+            return None;
+        }
+        Some(Self::frame(key.key_u64()?))
+    }
+
+    /// `subghz_protocol_decoder_subaru_serialize` (see the module doc, "Key files").
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        if decoded.data_count_bit != MIN_COUNT_BIT as usize {
+            return None;
+        }
+        let f = Self::decode_fields(decoded.data);
+        let mut key = FlipperKey::for_protocol("Subaru", MIN_COUNT_BIT as usize, decoded.data);
+        key.push_u32("Serial", f.serial);
+        key.push_u32("Btn", f.btn.into());
+        key.push_u32("Cnt", f.cnt.into());
+        // subaru_get_button_name: names[btn & 3].
+        let name = ["Lock", "Unlock", "Trunk", "Panic"][(f.btn & 0x03) as usize];
+        key.push("Disp", format!("Subaru - {name}"));
+        Some(key)
+    }
 }
 
 impl Default for SubaruDecoder {
@@ -680,5 +744,56 @@ mod tests {
         assert_eq!((up[152].duration_us, up[153].duration_us), (1600, 800));
         assert_eq!((up[154].duration_us, up[155].duration_us), (800, 1600));
         assert_eq!((up[280].level, up[281].level), (false, true));
+    }
+
+    /// Key files (ProtoPirate `subghz_protocol_decoder_subaru_serialize` / `_deserialize`): the
+    /// Impreza frames round-trip with the C's lines (Disp from its `names[btn & 3]` table), the same
+    /// frame saved by Flipper-ARF ("SUBARU", no Disp) loads, only Bit 64 loads, and TX from a
+    /// loaded key sends the next counter.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = SubaruDecoder::new();
+        for &(k, _) in &IMPREZA {
+            assert_round_trip(&dec, &SubaruDecoder::frame(k));
+        }
+        let d = SubaruDecoder::frame(IMPREZA[0].0);
+        let text = assert_round_trip(&dec, &d);
+        assert!(
+            text.ends_with(
+                "Protocol: Subaru\nBit: 64\nKey: E1 CB 71 5E 4F D1 C3 F8\nSerial: 13332830\nBtn: 1\n\
+                 Cnt: 51466\nDisp: Subaru - Unlock\n"
+            ),
+            "{text}"
+        );
+        let arf = key(
+            "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+             Preset: FuriHalSubGhzPresetOok650Async\nProtocol: SUBARU\nBit: 64\n\
+             Key: E1 CB 71 5E 4F D1 C3 F8\nSerial: 13332830\nBtn: 1\nCnt: 51466\n",
+        );
+        let (name, loaded) = crate::protocols::ProtocolRegistry::new().decode_key(&arf).unwrap();
+        assert_eq!((name.as_str(), &loaded), ("Subaru", &d));
+        let mut wrong = arf.clone();
+        wrong.bits = 65;
+        assert!(dec.from_flipper_key(&wrong).is_none(), "the C loads exactly 64 bits");
+
+        // TX from the loaded key: the next captured press.
+        let next = decode_all(&dec.encode(&loaded, 0x01).unwrap()).remove(0);
+        assert_eq!(next.data, IMPREZA[1].0);
+    }
+
+    /// Reference-oracle vectors: `KAT_KEY_VECTORS=<dir> cargo test oracle_vectors -- --ignored`.
+    #[test]
+    #[ignore]
+    fn oracle_vectors() {
+        let dec = SubaruDecoder::new();
+        for (n, (k, cmd)) in [(IMPREZA[0].0, 0x01u8), (IMPREZA[2].0, 0x04)].into_iter().enumerate() {
+            let upload = dec.encode(&SubaruDecoder::frame(k), cmd).unwrap();
+            let sent = decode_all(&upload).remove(0);
+            let mut key = dec.to_flipper_key(&sent).unwrap();
+            key.frequency = 433_920_000;
+            key.set_preset(&crate::radio::preset::RfPreset::from_def(INFO.presets[0]));
+            super::super::ford_v0::write_oracle_vector(&format!("subaru_{}", n + 1), &upload, &key);
+        }
     }
 }

@@ -1,0 +1,32 @@
+# Build and test KAT on every push and pull request.
+# The test suite includes `imports_decode_golden`, which decodes every IMPORTS/*.sub capture and
+# compares all fields with testdata/imports_decodes.txt, so a decoder regression fails CI.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config libhackrf-dev libusb-1.0-0-dev
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --locked --all-targets
+
+      - name: Test
+        run: cargo test --locked

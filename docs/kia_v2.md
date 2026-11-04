@@ -30,7 +30,10 @@ of bits 4–51, plus 1.
 ## RF
 
 - **Encoding:** Manchester, common.rs port with `pp_manchester_event` (`level ? ShortLow : ShortHigh`)
-- **RF modulation:** AM (ProtoPirate flag and catalog route; its README lists it under FM)
+- **RF modulation:** AM/FM. The references disagree: ProtoPirate's flag and catalog route say AM (as do
+  Flipper-ARF and doctor-firmware), its help text ("V2 [FM476 315/433]") and README say FM476, and both Kia V2
+  key files in `IMPORTS/HYUNDAI` were received with FM476. Since v1.5 KAT takes the union and transmits 2-FSK
+  ±47.6 kHz (FM476) unless the capture carries its own preset; see [transmit.md](transmit.md).
 - **Frequencies:** 315 MHz, 433.92 MHz
 
 ## Decoder Steps (`kia_protocol_decoder_v2_feed`)

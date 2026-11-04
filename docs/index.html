@@ -29,7 +29,7 @@
     <main>
         <section class="hero">
             <div class="container">
-                <h2>Capture, Decode & Analyze Keyfob Signals</h2>
+                <h2>Capture, Decode & Analyze Keyfob and Gate Remote Signals</h2>
                 <p>A real-time terminal UI for RF signal analysis with support for HackRF One and RTL-SDR hardware.</p>
                 <div class="cta-buttons">
                     <a href="https://github.com/KaraZajac/KAT#installation" class="btn btn-primary">Get Started</a>
@@ -44,23 +44,51 @@
                 <div class="feature-grid">
                     <div class="feature-card">
                         <h3>📡 Real-Time Capture</h3>
-                        <p>Receive and demodulate AM/OOK keyfob signals at configurable frequencies with HackRF or RTL-SDR</p>
+                        <p>Receive AM/OOK and FM/2-FSK keyfob signals with HackRF or RTL-SDR: a wide-band detector finds fobs up to ±325 kHz off frequency (two at once too), with per-burst frequency correction and frequency hopping</p>
                     </div>
                     <div class="feature-card">
                         <h3>🔓 Multi-Protocol Decoding</h3>
-                        <p>40 protocol decoders including Kia V0–V7, Ford V0–V3, GM, Chrysler/Fiat (FCA), Honda, Toyota, Mazda, Renault, BMW, Mercedes, VAG, PSA, Porsche, and car alarms</p>
+                        <p>87 protocol decoders: 40 car keyfob and alarm protocols (Kia V0–V7, Ford V0–V3, GM, Chrysler/Fiat (FCA), Honda, Toyota, Mazda, Renault, BMW, Mercedes, VAG, PSA, Porsche …) and 47 garage door, gate, barrier and shutter remote protocols</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>🚧 Garage &amp; Gate Remotes</h3>
+                        <p>Security+ 1.0/2.0, Somfy, FAAC SLH, Nice, CAME, Hörmann, Marantec, KeeLoq brands, Princeton and more — decoded and re-sent with the next rolling code, checked against the reference C</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>🐬 Flipper Key Files</h3>
+                        <p>Load decoded keys saved by a Flipper, ProtoPirate or Flipper-ARF and save KAT decodes the same way; RAW and BinRAW <code>.sub</code> captures too</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>🖥️ Headless Decoding</h3>
+                        <p><code>kat --decode</code> runs whole folders of <code>.sub</code> captures and IQ recordings through every decoder from the command line</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>➕ Add Manually</h3>
+                        <p>Create a new gate or garage remote with <code>:new</code> (78 of Flipper-ARF's and doctor-firmware's 101 types), then send its next code or any native button</p>
                     </div>
                     <div class="feature-card">
                         <h3>🔑 KeeLoq Keystore</h3>
-                        <p>Generic KeeLoq fallback with embedded manufacturer keys for automatic decoding</p>
+                        <p>Embedded manufacturer keys plus your own Flipper-format <code>keeloq_mfcodes_user</code>; unknown KeeLoq remotes are listed with serial and button</p>
                     </div>
                     <div class="feature-card">
                         <h3>📤 Signal Retransmission</h3>
-                        <p>Transmit Lock, Unlock, Trunk, and Panic commands from decoded signals (HackRF only)</p>
+                        <p>Transmit Lock, Unlock, Trunk, and Panic commands from decoded signals as OOK or 2-FSK at each protocol's deviation, with adjustable TX power (HackRF only)</p>
                     </div>
                     <div class="feature-card">
                         <h3>💾 Multiple Export Formats</h3>
-                        <p>.fob (JSON) and .sub (Flipper Zero compatible) formats for signal storage and sharing</p>
+                        <p>.fob (JSON) and .sub (Flipper Zero compatible) formats for signal storage and sharing: RAW captures and decoded Flipper / ProtoPirate key files, loaded and saved</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>🎙️ IQ Recordings</h3>
+                        <p>Decode .cs8 / .cu8 / .cf32 recordings without a radio, and record raw IQ while receiving</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>⏱️ Timing Analysis</h3>
+                        <p>ProtoPirate's Timing Tuner for any capture, with pulse clusters and a line-coding guess for unknown signals</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>🗂️ Sessions &amp; Saved Fobs</h3>
+                        <p>Captures autosave and restore across restarts; signals matching your saved .fob files are marked</p>
                     </div>
                     <div class="feature-card">
                         <h3>🔧 Rich Signal Details</h3>
@@ -132,6 +160,27 @@
                             <li>KeeLoq (Generic)</li>
                         </ul>
                     </div>
+                    <div class="protocol-column">
+                        <h3>Garage &amp; Gate (rolling)</h3>
+                        <ul>
+                            <li>Security+ 1.0 / 2.0</li>
+                            <li>Somfy Telis / Keytis</li>
+                            <li>FAAC SLH, KingGates, Jarolift</li>
+                            <li>Beninca ARC, Nice FloR-S</li>
+                            <li>CAME Atomo, Alutech AT-4N</li>
+                            <li>Ditec GOL4, Phoenix V2, Hay21, Prastel</li>
+                        </ul>
+                    </div>
+                    <div class="protocol-column">
+                        <h3>Garage &amp; Gate (fixed)</h3>
+                        <ul>
+                            <li>Princeton, SMC5326, Holtek</li>
+                            <li>CAME, CAME TWEE, Nice FLO</li>
+                            <li>Linear, MegaCode, Chamberlain</li>
+                            <li>Hörmann HSM, Marantec</li>
+                            <li>BETT, Clemsa, Ansonic, Doitrand …</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </section>
@@ -159,7 +208,15 @@
 
         <section id="documentation" class="documentation">
             <div class="container">
-                <h2>Protocol Documentation</h2>
+                <h2>Documentation</h2>
+                <p>Receiver, transmitter and app features:</p>
+                <div class="doc-links">
+                    <a href="radio.html" class="doc-link">Receiver &amp; IQ files</a>
+                    <a href="transmit.html" class="doc-link">Transmit (OOK / FSK presets)</a>
+                    <a href="session.html" class="doc-link">Sessions &amp; saved fobs</a>
+                    <a href="timing_analysis.html" class="doc-link">Timing analysis</a>
+                    <a href="flipper_key_files.html" class="doc-link">Flipper key files</a>
+                </div>
                 <p>Detailed protocol specifications and decoder documentation:</p>
                 <div class="doc-links">
                     <a href="kia_v0.html" class="doc-link">Kia V0</a>
@@ -207,6 +264,56 @@
                     <a href="hyundai.html" class="doc-link">Hyundai (experimental)</a>
                     <a href="keeloq.html" class="doc-link">KeeLoq</a>
                     <a href="keeloq_generic.html" class="doc-link">KeeLoq (Generic)</a>
+                </div>
+                <p>Garage door, gate, barrier and shutter remotes:</p>
+                <div class="doc-links">
+                    <a href="secplus_v1.html" class="doc-link">Security+ 1.0</a>
+                    <a href="secplus_v2.html" class="doc-link">Security+ 2.0</a>
+                    <a href="somfy_telis.html" class="doc-link">Somfy Telis</a>
+                    <a href="somfy_keytis.html" class="doc-link">Somfy Keytis</a>
+                    <a href="faac_slh.html" class="doc-link">FAAC SLH</a>
+                    <a href="kinggates_stylo_4k.html" class="doc-link">KingGates Stylo4k</a>
+                    <a href="jarolift.html" class="doc-link">Jarolift</a>
+                    <a href="beninca_arc.html" class="doc-link">Beninca ARC</a>
+                    <a href="nice_flor_s.html" class="doc-link">Nice FloR-S</a>
+                    <a href="came_atomo.html" class="doc-link">CAME Atomo</a>
+                    <a href="alutech_at_4n.html" class="doc-link">Alutech AT-4N</a>
+                    <a href="ditec_gol4.html" class="doc-link">Ditec GOL4</a>
+                    <a href="phoenix_v2.html" class="doc-link">Phoenix V2</a>
+                    <a href="hay21.html" class="doc-link">Hay21</a>
+                    <a href="prastel.html" class="doc-link">Prastel</a>
+                    <a href="ido.html" class="doc-link">iDo 117/111</a>
+                    <a href="princeton.html" class="doc-link">Princeton</a>
+                    <a href="came.html" class="doc-link">CAME</a>
+                    <a href="came_twee.html" class="doc-link">CAME TWEE</a>
+                    <a href="nice_flo.html" class="doc-link">Nice FLO</a>
+                    <a href="gate_tx.html" class="doc-link">GateTX</a>
+                    <a href="linear.html" class="doc-link">Linear</a>
+                    <a href="linear_delta3.html" class="doc-link">Linear Delta3</a>
+                    <a href="megacode.html" class="doc-link">MegaCode</a>
+                    <a href="holtek.html" class="doc-link">Holtek</a>
+                    <a href="holtek_ht12x.html" class="doc-link">Holtek HT12X</a>
+                    <a href="chamberlain_code.html" class="doc-link">Chamberlain Code</a>
+                    <a href="smc5326.html" class="doc-link">SMC5326</a>
+                    <a href="marantec.html" class="doc-link">Marantec</a>
+                    <a href="marantec24.html" class="doc-link">Marantec24</a>
+                    <a href="hormann.html" class="doc-link">Hörmann HSM</a>
+                    <a href="bett.html" class="doc-link">BETT</a>
+                    <a href="doitrand.html" class="doc-link">Doitrand</a>
+                    <a href="clemsa.html" class="doc-link">Clemsa</a>
+                    <a href="ansonic.html" class="doc-link">Ansonic</a>
+                    <a href="mastercode.html" class="doc-link">Mastercode</a>
+                    <a href="dickert_mahs.html" class="doc-link">Dickert MAHS</a>
+                    <a href="nero_sketch.html" class="doc-link">Nero Sketch</a>
+                    <a href="nero_radio.html" class="doc-link">Nero Radio</a>
+                    <a href="elplast.html" class="doc-link">Elplast</a>
+                    <a href="roger.html" class="doc-link">Roger</a>
+                    <a href="revers_rb2.html" class="doc-link">Revers RB2</a>
+                    <a href="telcoma_edge.html" class="doc-link">Telcoma/Cardin EDGE</a>
+                    <a href="allstar_firefly.html" class="doc-link">Allstar Firefly</a>
+                    <a href="power_smart.html" class="doc-link">Power Smart</a>
+                    <a href="dooya.html" class="doc-link">Dooya</a>
+                    <a href="urmet.html" class="doc-link">Urmet</a>
                 </div>
             </div>
         </section>

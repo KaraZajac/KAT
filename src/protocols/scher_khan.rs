@@ -56,11 +56,55 @@
 //! KAT's generic Lock/Unlock/Trunk/Panic map to 1/2/4/F; other native codes 1..F pass through; any
 //! other value keeps the captured button.
 //!
+//! **Key files** (`subghz_protocol_decoder_scher_khan_serialize` / `_deserialize`; ProtoPirate and
+//! Flipper-ARF write the same lines): `Protocol: Scher-Khan`, `Bit` (35..64), `Key`, then `Serial`,
+//! `Btn`, `Cnt` (decimal, zero for variants without fields). Loading rebuilds the variant and fields
+//! from Key and Bit like the C's display (the file's Serial/Btn/Cnt are only copies). Frames longer
+//! than 64 bits are neither written nor loaded: the C's key keeps only their last 64 bits and
+//! ProtoPirate refuses Bit > 64. `Key` is one 16-digit word, as both references write it
+//! (`%016llX`; doctor-firmware writes spaced bytes, which they read too).
+//!
 //! 315 + 433.92 MHz, FM/AM (ARF flags; PP: 433 FM). Reference: https://phreakerclub.com/72
 
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (see `info.rs`): ProtoPirate flags it FM, Flipper-ARF (Magic Code PRO1/PRO2) FM + AM.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Scher-Khan",
+    decoder: "Scher-Khan",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Pwm,
+    rf: Rf::Both,
+    encryption: "Magic Code",
+    make: "Scher-Khan",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&FM476, &AM650],
+};
+
+/// Flipper-ARF scher_khan_btn_name (combination presses included).
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x1 => "Lock",
+        0x2 => "Unlock",
+        0x3 => "Lock+Unlock",
+        0x4 => "Trunk",
+        0x5 => "Lock+Trunk",
+        0x6 => "Unlock+Trunk",
+        0x7 => "Lk+Ul+Tr",
+        0x8 => "Start",
+        0x9 => "Lock+Start",
+        0xA => "Unlock+Start",
+        0xC => "Trunk+Start",
+        0xF => "All/Panic",
+        _ => "Other",
+    })
+}
 
 const TE_SHORT: u32 = 750;
 const TE_LONG: u32 = 1100;
@@ -546,6 +590,35 @@ impl ProtocolDecoder for ScherKhanDecoder {
         }
         Some(signal)
     }
+
+    /// `subghz_protocol_decoder_scher_khan_deserialize` (ProtoPirate: generic Bit/Key, Bit 35..=64)
+    /// + the `check_remote_controller` its display runs: the variant and fields come from the key
+    /// and the bit count; the file's Serial/Btn/Cnt are display copies the C overwrites. Longer
+    /// frames (81/82-bit "MAGIC CODE PRO, Response") are refused like ProtoPirate refuses them: the
+    /// C's 64-bit key keeps only their last 64 bits.
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if !(MIN_COUNT_BIT..=64).contains(&key.bits) {
+            return None;
+        }
+        Some(Self::build(u128::from(key.key_u64()?), key.bits))
+    }
+
+    /// `subghz_protocol_decoder_scher_khan_serialize` (ProtoPirate = Flipper-ARF): Protocol
+    /// "Scher-Khan", Bit, Key, then Serial, Btn, Cnt (decimal; 0 for variants without fields, as
+    /// `check_remote_controller` zeroes them). None for frames longer than 64 bits (see above).
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        let bits = decoded.data_count_bit;
+        if !(MIN_COUNT_BIT..=64).contains(&bits) {
+            return None;
+        }
+        let (serial, btn, cnt) = parse(decoded.data, bits).fields.unwrap_or((0, 0, 0));
+        let mut key = FlipperKey::for_protocol("Scher-Khan", bits, decoded.data);
+        key.key_word = true;
+        key.push_u32("Serial", serial);
+        key.push_u32("Btn", btn.into());
+        key.push_u32("Cnt", cnt.into());
+        Some(key)
+    }
 }
 
 impl Default for ScherKhanDecoder {
@@ -779,5 +852,73 @@ mod tests {
     fn scher_khan_short_frames_are_ignored() {
         assert!(decode_all(&capture(0x1234, 34)).is_empty());
         assert_eq!(decode_all(&capture(0x1234, 35)).len(), 1);
+    }
+
+    /// "0123456789ABCDEF": the key as the C writes it (`%016llX`).
+    fn word(data: u64) -> String {
+        format!("{data:016X}")
+    }
+
+    /// Key files (ProtoPirate / Flipper-ARF `subghz_protocol_decoder_scher_khan_serialize` /
+    /// `_deserialize`): every variant round-trips with the C's lines, a file the C wrote loads,
+    /// frames over 64 bits are refused, and TX from a loaded key decodes back.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = ScherKhanDecoder::new();
+        // The C's own 51-bit sample (MAGIC CODE, Dynamic).
+        let d = decode_all(&capture(0x0E8C1619E830C, 51)).pop().unwrap();
+        let text = assert_round_trip(&dec, &d);
+        let serial = d.serial.unwrap();
+        assert!(
+            text.ends_with(&format!(
+                "Protocol: Scher-Khan\nBit: 51\nKey: {}\nSerial: {serial}\nBtn: 1\nCnt: 33548\n",
+                word(0x0E8C1619E830C)
+            )),
+            "{text}"
+        );
+        // PRO1 (57 bits, decrypted fields), Static (35) and Response (63/64): no fields → zeros.
+        let pro = pro_frame(Pro::Pro1, [0x00, 0x7A, 0x51, 0x21, 0x00, 0x41, 0x00]);
+        for (data, bits) in [(pro, 57), (0x2_DEAD_BEEF, 35), (0x1234_5678_9ABC_DEF0 >> 1, 63)] {
+            let d = decode_all(&capture(data, bits)).pop().unwrap();
+            let text = assert_round_trip(&dec, &d);
+            if d.serial.is_none() {
+                assert!(text.ends_with("Serial: 0\nBtn: 0\nCnt: 0\n"), "{text}");
+            }
+        }
+        // Over 64 bits: not written, not loaded (ProtoPirate's Bit check).
+        let long = DecodedSignal { data_count_bit: 81, extra: Some(1), ..d.clone() };
+        assert!(dec.to_flipper_key(&long).is_none());
+        // A file as Flipper-ARF writes it (one-word Key; stale Serial/Btn/Cnt are only copies).
+        let arf = "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+                   Preset: FuriHalSubGhzPresetOok650Async\nProtocol: Scher-Khan\nBit: 51\n\
+                   Key: 0000E8C1619E830C\nSerial: 0\nBtn: 0\nCnt: 0\n";
+        let loaded = dec.from_flipper_key(&key(arf)).unwrap();
+        assert_eq!(loaded, decode_all(&capture(0x0E8C1619E830C, 51)).pop().unwrap());
+        assert_eq!(loaded.protocol_display_name.as_deref(), Some("Scher-Khan [MAGIC CODE, Dynamic]"));
+        for bits in ["34", "65", "81"] {
+            assert!(dec.from_flipper_key(&key(&arf.replace("Bit: 51", &format!("Bit: {bits}")))).is_none());
+        }
+        // TX from the loaded key: same serial, counter + 1 (the 52-bit air frame is the C's quirk).
+        let tx = decode_all(&dec.encode(&loaded, BTN_LOCK).unwrap());
+        assert_eq!(parse(tx[0].data, 51).fields.map(|f| (f.0, f.2)), Some((serial, 0x830D)));
+    }
+
+    /// `KAT_KEY_VECTORS=<dir> cargo test scher_khan_oracle_vectors -- --ignored`: RAW uploads and
+    /// KAT's key files for the C oracle.
+    #[test]
+    #[ignore]
+    fn scher_khan_oracle_vectors() {
+        let Some(dir) = std::env::var_os("KAT_KEY_VECTORS") else { return };
+        let dir = std::path::PathBuf::from(dir);
+        let dec = ScherKhanDecoder::new();
+        let pro = pro_frame(Pro::Pro1, [0x00, 0x7A, 0x51, 0x21, 0x00, 0x41, 0x00]);
+        for (i, (data, bits)) in [(0x0E8C1619E830Cu64, 51usize), (pro, 57)].into_iter().enumerate() {
+            let src = decode_all(&capture(data, bits)).pop().unwrap();
+            let upload = dec.encode(&src, BTN_LOCK).unwrap();
+            let d = decode_all(&upload).pop().unwrap();
+            let key = dec.to_flipper_key(&d).unwrap();
+            super::super::star_line::write_oracle_vector(&dir, &format!("scher_khan_{}", i + 1), 433_920_000, "FuriHalSubGhzPreset2FSKDev476Async", &upload, &key);
+        }
     }
 }

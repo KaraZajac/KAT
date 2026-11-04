@@ -3,12 +3,16 @@
 //! A terminal UI application for capturing, decoding, and transmitting
 //! keyfob signals using HackRF.
 
+mod analysis;
 mod app;
 mod capture;
 mod export;
+mod headless;
 mod keystore;
 mod protocols;
 mod radio;
+mod saved_fobs;
+mod session;
 mod storage;
 mod ui;
 mod vuln_db;
@@ -20,7 +24,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 use std::panic;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -46,9 +50,135 @@ fn restore_terminal_panic() {
     let _ = stdout.flush();
 }
 
+/// Command-line options (`kat --help`).
+#[derive(Debug, Default, PartialEq)]
+struct CliOptions {
+    /// IQ recording to decode at startup (`--iq <file>`)
+    iq: Option<std::path::PathBuf>,
+    /// Its centre frequency (`--freq`, MHz or Hz)
+    freq: Option<u32>,
+    /// Its sample rate (`--rate`, e.g. 2M, 2.4M, 2048000)
+    rate: Option<u32>,
+}
+
+#[derive(Debug, PartialEq)]
+enum CliAction {
+    Run(CliOptions),
+    /// `--decode <path>...`: print decodes without the TUI.
+    Decode(headless::DecodeOptions),
+    Help,
+    Version,
+}
+
+const USAGE: &str = "Usage: kat [--iq <file> [--freq <MHz|Hz>] [--rate <S/s>]]
+       kat --decode <file|dir>... [--freq <MHz|Hz>] [--rate <S/s>] [--all] [--verbose]
+
+  --iq <file>     Decode an IQ recording at startup, with or without a radio attached:
+                  .cs8 (hackrf_transfer), .cu8 (rtl_sdr / rtl_433), .cf32 (GNU Radio, URH)
+  --decode <p>... Decode files without the TUI and print one line per distinct decode:
+                  Flipper .sub (RAW or key files) and IQ recordings; directories are searched
+                  recursively. --all prints every decode in stream order; --verbose
+                  also prints each IQ burst and its pulses to stderr.
+  --freq <f>      Centre frequency of the recording, MHz (433.92) or Hz (433920000);
+                  default: from the file name, else the configured frequency (433.92 MHz
+                  for --decode)
+  --rate <r>      Sample rate (2M, 2.4M, 2048000); default: from the file name, else 2M
+  -h, --help      Show this help
+  -V, --version   Show the version
+
+In the app: :iq <file> [freq] [rate], :record [file] / :record stop, :hop on|off.";
+
+/// The value of `--flag value` or `--flag=value`.
+fn flag_value(inline: Option<String>, rest: &mut impl Iterator<Item = String>, flag: &str) -> Result<String, String> {
+    inline.or_else(|| rest.next()).ok_or_else(|| format!("{flag} needs a value"))
+}
+
+/// Minimal argument parser (no extra crate needed for three flags).
+fn parse_args(args: impl IntoIterator<Item = String>) -> Result<CliAction, String> {
+    let mut opts = CliOptions::default();
+    let mut decode: Option<Vec<std::path::PathBuf>> = None;
+    let mut all = false;
+    let mut verbose = false;
+    let mut it = args.into_iter();
+    while let Some(arg) = it.next() {
+        // Paths after --decode (up to the next flag).
+        if let Some(paths) = decode.as_mut() {
+            if !arg.starts_with('-') {
+                paths.push(std::path::PathBuf::from(arg));
+                continue;
+            }
+        }
+        let (flag, inline) = match arg.split_once('=') {
+            Some((f, v)) if f.starts_with("--") => (f.to_string(), Some(v.to_string())),
+            _ => (arg.clone(), None),
+        };
+        match flag.as_str() {
+            "-h" | "--help" => return Ok(CliAction::Help),
+            "-V" | "--version" => return Ok(CliAction::Version),
+            "--iq" => opts.iq = Some(std::path::PathBuf::from(flag_value(inline, &mut it, "--iq")?)),
+            "-d" | "--decode" => {
+                let paths = decode.get_or_insert_with(Vec::new);
+                if let Some(v) = inline {
+                    paths.push(std::path::PathBuf::from(v));
+                }
+            }
+            "--all" => all = true,
+            "-v" | "--verbose" => verbose = true,
+            "--freq" => {
+                let v = flag_value(inline, &mut it, "--freq")?;
+                opts.freq = Some(radio::iq_file::parse_frequency_arg(&v).ok_or(format!("invalid frequency: {v}"))?);
+            }
+            "--rate" => {
+                let v = flag_value(inline, &mut it, "--rate")?;
+                opts.rate = Some(radio::iq_file::parse_rate_arg(&v).ok_or(format!("invalid sample rate: {v}"))?);
+            }
+            other => return Err(format!("unknown argument: {other}")),
+        }
+    }
+    if let Some(paths) = decode {
+        if paths.is_empty() {
+            return Err("--decode needs at least one file or directory".to_string());
+        }
+        if opts.iq.is_some() {
+            return Err("--iq and --decode cannot be combined".to_string());
+        }
+        return Ok(CliAction::Decode(headless::DecodeOptions { paths, freq: opts.freq, rate: opts.rate, all, verbose }));
+    }
+    if all || verbose {
+        return Err("--all and --verbose are --decode options".to_string());
+    }
+    if opts.iq.is_none() && (opts.freq.is_some() || opts.rate.is_some()) {
+        return Err("--freq and --rate describe the --iq recording".to_string());
+    }
+    Ok(CliAction::Run(opts))
+}
+
 fn main() -> Result<()> {
+    let cli = match parse_args(std::env::args().skip(1)) {
+        Ok(CliAction::Run(opts)) => opts,
+        Ok(CliAction::Decode(opts)) => std::process::exit(headless::run(&opts)),
+        Ok(CliAction::Help) => {
+            println!("KAT v{VERSION} - Keyfob Analysis Toolkit\n\n{USAGE}");
+            return Ok(());
+        }
+        Ok(CliAction::Version) => {
+            println!("kat {VERSION}");
+            return Ok(());
+        }
+        Err(e) => {
+            eprintln!("kat: {e}\n\n{USAGE}");
+            std::process::exit(2);
+        }
+    };
+    if let Some(path) = &cli.iq {
+        if !path.is_file() {
+            eprintln!("kat: --iq {}: no such file", path.display());
+            std::process::exit(2);
+        }
+    }
+
     // Check if we have a TTY first
-    if !atty::is(atty::Stream::Stdout) {
+    if !std::io::stdout().is_terminal() {
         eprintln!("Error: KAT requires a terminal (TTY) to run.");
         eprintln!("Please run this program in a real terminal, not via a script or IDE runner.");
         std::process::exit(1);
@@ -98,6 +228,13 @@ fn main() -> Result<()> {
 
     // Create app and run
     let mut app = App::new()?;
+    if let Some(path) = cli.iq {
+        // A file needs no radio: skip the "no device" warning.
+        if app.input_mode == InputMode::HackRfNotDetected {
+            app.input_mode = if app.pending_fob_files.is_empty() { InputMode::Normal } else { InputMode::StartupImport };
+        }
+        app.start_iq_file(path, cli.freq, cli.rate);
+    }
     let res = run_app(&mut terminal, &mut app);
 
     // Restore terminal properly using the terminal's backend
@@ -275,11 +412,8 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
 
                         // Startup: HackRF not detected — any key to dismiss
                         InputMode::HackRfNotDetected => {
-                            app.input_mode = if app.pending_fob_files.is_empty() {
-                                InputMode::Normal
-                            } else {
-                                InputMode::StartupImport
-                            };
+                            // Next: session restore prompt, then import prompt, then normal.
+                            app.input_mode = app.next_startup_mode();
                         }
 
                         // Startup: found .fob files, y/n to import
@@ -295,6 +429,13 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             _ => {}
                         },
 
+                        // Session restore prompt, :clear confirmation, timing overlay (app/persistence.rs)
+                        InputMode::SessionRestore
+                        | InputMode::ConfirmClear
+                        | InputMode::TimingAnalysis => {
+                            app.handle_app_mode_key(key.code)?;
+                        }
+
                         // Export: filename input
                         InputMode::ExportFilename => match key.code {
                             KeyCode::Enter => {
@@ -307,6 +448,10 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                                         }
                                         Some(ExportFormat::Flipper) => {
                                             app.complete_flipper_export()?;
+                                            app.input_mode = InputMode::Normal;
+                                        }
+                                        Some(ExportFormat::FlipperKey) => {
+                                            app.complete_flipper_key_export()?;
                                             app.input_mode = InputMode::Normal;
                                         }
                                         None => {
@@ -522,6 +667,15 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             _ => {}
                         },
 
+                        // :new picker / field form, "Send button…" list (app/add_manually.rs)
+                        InputMode::NewRemote | InputMode::NewRemoteEdit | InputMode::SendButton => {
+                            app.handle_add_manually_key(key.code);
+                            while app.has_pending_transmit() {
+                                terminal.draw(|f| draw_ui(f, app))?;
+                                app.run_one_pending_transmit()?;
+                            }
+                        }
+
                         InputMode::LoadFileBrowser => {
                         const VISIBLE: usize = 16;
                         match key.code {
@@ -571,5 +725,57 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
 
         // Process any pending radio events
         app.process_radio_events()?;
+        // IQ file progress, recordings, hopping (src/app/rx.rs)
+        app.poll_rx();
+    }
+}
+
+#[cfg(test)]
+mod cli_tests {
+    use super::*;
+
+    fn args(a: &[&str]) -> Vec<String> {
+        a.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn parses_iq_options() {
+        assert_eq!(parse_args(args(&[])), Ok(CliAction::Run(CliOptions::default())));
+        assert_eq!(
+            parse_args(args(&["--iq", "fob.cu8", "--freq", "433.92", "--rate=2.4M"])),
+            Ok(CliAction::Run(CliOptions {
+                iq: Some("fob.cu8".into()),
+                freq: Some(433_920_000),
+                rate: Some(2_400_000),
+            }))
+        );
+        assert_eq!(parse_args(args(&["--help"])), Ok(CliAction::Help));
+        assert_eq!(parse_args(args(&["-V"])), Ok(CliAction::Version));
+        assert!(parse_args(args(&["--iq"])).is_err());
+        assert!(parse_args(args(&["--freq", "433.92"])).is_err());
+        assert!(parse_args(args(&["--bogus"])).is_err());
+        assert!(parse_args(args(&["--iq", "x.cs8", "--rate", "fast"])).is_err());
+    }
+
+    #[test]
+    fn parses_decode_options() {
+        let decode = |paths: &[&str], freq, rate, all| {
+            Ok(CliAction::Decode(headless::DecodeOptions {
+                paths: paths.iter().map(std::path::PathBuf::from).collect(),
+                freq,
+                rate,
+                all,
+                verbose: false,
+            }))
+        };
+        assert_eq!(parse_args(args(&["--decode", "a.sub", "dir"])), decode(&["a.sub", "dir"], None, None, false));
+        assert_eq!(
+            parse_args(args(&["--freq", "315", "-d", "x.cu8", "--all", "--rate=250k"])),
+            decode(&["x.cu8"], Some(315_000_000), Some(250_000), true)
+        );
+        assert_eq!(parse_args(args(&["--decode=a.sub", "b.sub"])), decode(&["a.sub", "b.sub"], None, None, false));
+        assert!(parse_args(args(&["--decode"])).is_err());
+        assert!(parse_args(args(&["--all"])).is_err());
+        assert!(parse_args(args(&["--iq", "x.cs8", "--decode", "y.sub"])).is_err());
     }
 }

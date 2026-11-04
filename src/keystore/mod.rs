@@ -4,6 +4,74 @@
 mod embedded;
 
 use std::convert::TryInto;
+use std::sync::OnceLock;
+
+/// File name of the user keystore in KAT's config folder: the Flipper's plaintext user keystore
+/// (`subghz/assets/keeloq_mfcodes_user`), lines `KEY:TYPE:NAME` (16 hex digits, the learning type
+/// in Flipper numbering, the manufacturer name) after an optional `Filetype`/`Version`/`Encryption: 0`
+/// header. Its keys are appended to the embedded ones, as the Flipper loads the user keystore after
+/// its own.
+pub const USER_KEYSTORE_FILE: &str = "keeloq_mfcodes_user";
+
+static USER_ENTRIES: OnceLock<Vec<(String, u32, u64)>> = OnceLock::new();
+
+/// Parse a Flipper user keystore. Returns the entries and the line errors (1-based line, text).
+pub fn parse_user_keystore(text: &str) -> Result<(Vec<(String, u32, u64)>, Vec<(usize, String)>), String> {
+    let mut entries = Vec::new();
+    let mut errors = Vec::new();
+    for (i, raw) in text.lines().enumerate() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if let Some(v) = line.strip_prefix("Encryption:") {
+            if v.trim() != "0" {
+                return Err("encrypted keystore (only plaintext `Encryption: 0` files can be read)".to_string());
+            }
+            continue;
+        }
+        if line.starts_with("Filetype:") || line.starts_with("Version:") {
+            continue;
+        }
+        let mut parts = line.splitn(3, ':');
+        let (Some(key), Some(ty), Some(name)) = (parts.next(), parts.next(), parts.next()) else {
+            errors.push((i + 1, raw.to_string()));
+            continue;
+        };
+        match (u64::from_str_radix(key.trim(), 16), ty.trim().parse::<u32>()) {
+            (Ok(k), Ok(t)) if key.trim().len() == 16 && !name.trim().is_empty() => {
+                entries.push((name.trim().to_string(), t, k))
+            }
+            _ => errors.push((i + 1, raw.to_string())),
+        }
+    }
+    Ok((entries, errors))
+}
+
+/// Load `<config dir>/keeloq_mfcodes_user` if it exists (once, at startup, before any decode).
+/// Returns a status line for the user when a file was found.
+pub fn load_user_keystore(config_dir: &std::path::Path) -> Option<String> {
+    let path = config_dir.join(USER_KEYSTORE_FILE);
+    let text = std::fs::read_to_string(&path).ok()?;
+    let msg = match parse_user_keystore(&text) {
+        Ok((entries, errors)) => {
+            let n = entries.len();
+            let _ = USER_ENTRIES.set(entries);
+            if errors.is_empty() {
+                format!("Loaded {n} user KeeLoq key(s) from {}", path.display())
+            } else {
+                format!("Loaded {n} user KeeLoq key(s) from {} ({} bad line(s), first: line {})", path.display(), errors.len(), errors[0].0)
+            }
+        }
+        Err(e) => format!("{}: {e}", path.display()),
+    };
+    Some(msg)
+}
+
+/// User keystore entries (empty unless [load_user_keystore] found a file).
+fn user_entries() -> &'static [(String, u32, u64)] {
+    USER_ENTRIES.get().map_or(&[], Vec::as_slice)
+}
 
 /// Type IDs that are KeeLoq manufacturer keys (64-bit keys used for keeloq_decrypt).
 const KEELOQ_MF_TYPES: &[u32] = &[0, 1, 2, 10, 20];
@@ -162,10 +230,16 @@ pub fn keeloq_mf_keys_with_names() -> Vec<(String, u64)> {
                 Some((name, *key))
             }
         })
+        .chain(
+            user_entries()
+                .iter()
+                .filter(|(_, ty, key)| KEELOQ_MF_TYPES.contains(ty) && *key != 0)
+                .map(|(name, _, key)| (name.clone(), *key)),
+        )
         .collect()
 }
 
-/// Every keystore entry as `(name, type, key)` in blob order, unfiltered. The type is the entry's
+/// Every keystore entry as `(name, type, key)` in blob order, unfiltered, then the user keystore's. The type is the entry's
 /// learning type as stored (Flipper `KEELOQ_LEARNING_*` numbering, except ProtoPirate's KIA_KEY1..4
 /// entries "KIA"/"KIAV6A"/"KIAV6B"/"KIAV5" = 10..13 and KAT's "Star Line" alias = 20). The KeeLoq
 /// family decoders (keeloq, star_line) walk this list the way the C walks the Flipper keystore.
@@ -181,6 +255,7 @@ pub fn keystore_entries_with_names() -> Vec<(String, u32, u64)> {
             let name = KEY_ENTRY_NAMES.get(i).copied().unwrap_or("?").to_string();
             (name, ty, key)
         })
+        .chain(user_entries().iter().cloned())
         .collect()
 }
 
@@ -194,6 +269,24 @@ pub fn embedded_blob() -> &'static [u8] {
 #[cfg(test)]
 pub fn embedded_entries_for_compare() -> Vec<(u32, u64)> {
     parse_blob(embedded_blob()).map(|p| p.entries).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod user_keystore_tests {
+    use super::*;
+
+    #[test]
+    fn parses_the_flipper_user_format() {
+        let text = "Filetype: Flipper SubGhz Keystore File\nVersion: 0\nEncryption: 0\n\
+                    0123456789ABCDEF:2:My Gate\n# comment\nAABBCCDDEEFF0011:1:Other:Name\nbad line\n";
+        let (entries, errors) = parse_user_keystore(text).unwrap();
+        assert_eq!(
+            entries,
+            [("My Gate".to_string(), 2, 0x0123_4567_89AB_CDEF), ("Other:Name".to_string(), 1, 0xAABB_CCDD_EEFF_0011)]
+        );
+        assert_eq!(errors, [(7, "bad line".to_string())]);
+        assert!(parse_user_keystore("Encryption: 1\n0123456789ABCDEF:2:X\n").is_err());
+    }
 }
 
 #[cfg(test)]

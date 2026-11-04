@@ -21,6 +21,13 @@
 //! V1/V2, Mercedes, BMW and Mazda decode half-bit cells/chips directly, as their C files do.
 
 mod common;
+/// "Add Manually": new gate / garage remotes of a chosen type (Flipper-ARF / doctor-firmware).
+pub mod add_manually;
+pub mod flipper_key;
+/// Native buttons of the gate / garage remotes ("Send button…", button labels).
+pub mod gate_buttons;
+/// Per-protocol metadata (line coding, RF, encryption, make, native buttons, TX presets).
+pub mod info;
 pub mod keeloq_common;
 mod keeloq;
 mod keeloq_barriers;
@@ -73,6 +80,69 @@ mod fiat_v2;
 mod gm;
 mod datsun_lada;
 mod sheriff_cfm;
+// Garage door / gate / barrier / shutter remotes (doctor-firmware's lib/subghz set). Each porting
+// group adds its `mod` lines directly below its own anchor line.
+// [gate-mods: G5 KeeLoq family]
+mod g5_common;
+mod beninca_arc;
+mod kinggates_stylo_4k;
+mod jarolift;
+mod faac_slh;
+// [gate-mods: G4 Security+ / Somfy]
+mod g4_common;
+mod secplus_v2;
+mod somfy_keytis;
+mod somfy_telis;
+mod secplus_v1;
+// [gate-mods: G6 Nice FloR-S / CAME Atomo / Alutech / Ditec]
+mod alutech_at_4n;
+mod came_atomo;
+mod ditec_gol4;
+mod g6_common;
+mod nice_flor_s;
+// [gate-mods: G3 misc]
+// G3: Flipper-ARF garage-app copies (doctor-firmware for Urmet and Power Smart); shared helpers
+// (Manchester encoder, reverse_key, upload builder) in g3_common.
+mod g3_common;
+mod power_smart;
+mod urmet;
+mod revers_rb2;
+mod telcoma_edge;
+mod phoenix_v2;
+mod prastel;
+mod dooya;
+mod roger;
+mod hay21;
+mod allstar_firefly;
+// [gate-mods: G2 static B]
+mod g2_common;
+mod marantec;
+mod hormann;
+mod nero_radio;
+mod nero_sketch;
+mod ido;
+mod dickert_mahs;
+mod doitrand;
+mod mastercode;
+mod marantec24;
+mod clemsa;
+mod bett;
+mod elplast;
+mod ansonic;
+// [gate-mods: G1 static A]
+mod g1_common;
+mod holtek;
+mod came_twee;
+mod megacode;
+mod chamberlain_code;
+mod gate_tx;
+mod holtek_ht12x;
+mod came;
+mod nice_flo;
+mod linear;
+mod linear_delta3;
+mod smc5326;
+mod princeton;
 // Experimental (Pandora RE) Flipper-ARF ports. Flipper-ARF ships all three disabled and KAT mirrors
 // that: they stay out of the registry (see the comment at the end of `ProtocolRegistry::new()`);
 // the modules stay so their tests still run and enabling one is a one-line change.
@@ -84,6 +154,8 @@ mod hyundai;
 mod mazda_infinity;
 
 pub use common::DecodedSignal;
+pub use flipper_key::FlipperKey;
+pub use info::{lookup as protocol_info, ProtocolInfo};
 /// PSA TEA key recovery for the signal menu's "Recover key" action (ProtoPirate's brute force,
 /// which the references also run on demand rather than while decoding).
 pub use psa::{
@@ -111,6 +183,26 @@ pub struct ProtocolTiming {
 /// Trait for protocol decoders
 /// 
 /// Each protocol implements a state machine that processes level+duration pairs.
+/// `supported_frequencies()` for a decoder that runs on every band, like every Flipper decoder
+/// (gate and garage remotes are sold for 300–318, 390, 418, 433 and 868 MHz).
+pub const ANY_FREQUENCY: &[u32] = &[0];
+
+/// Whether a capture at `frequency` goes to a decoder with these `supported_frequencies()`: within
+/// 2 % of an entry (315 MHz covers ~308.7–321.3 MHz), or always when the list holds 0
+/// ([ANY_FREQUENCY]).
+pub fn frequency_supported(supported: &[u32], frequency: u32) -> bool {
+    supported.iter().any(|&f| f == 0 || f.abs_diff(frequency) < f / 50)
+}
+
+/// Concrete frequencies to exercise a decoder at in tests ([ANY_FREQUENCY] → the main bands).
+#[cfg(test)]
+pub(crate) fn test_frequencies(supported: &[u32]) -> Vec<u32> {
+    supported
+        .iter()
+        .flat_map(|&f| if f == 0 { vec![315_000_000, 433_920_000, 868_350_000] } else { vec![f] })
+        .collect()
+}
+
 pub trait ProtocolDecoder: Send + Sync {
     /// Get the protocol name
     fn name(&self) -> &'static str;
@@ -134,11 +226,40 @@ pub trait ProtocolDecoder: Send + Sync {
 
     /// Encode a signal with the given button command
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>>;
+
+    /// Rebuild a decode from a Flipper key file (`Protocol`/`Bit`/`Key` plus the protocol's own
+    /// lines), as the reference's `deserialize` does. None when KAT cannot load this protocol's
+    /// key files or the key does not validate.
+    fn from_flipper_key(&self, _key: &FlipperKey) -> Option<DecodedSignal> {
+        None
+    }
+
+    /// The key file the reference's `serialize` writes for this decode (Protocol name as the
+    /// reference spells it, Bit, Key and the protocol's own lines, in the reference's order), so a
+    /// Flipper can load a KAT capture. `frequency`/`preset` are filled in by the caller. None when
+    /// not supported. `from_flipper_key(to_flipper_key(d))` must give back `d`.
+    fn to_flipper_key(&self, _decoded: &DecodedSignal) -> Option<FlipperKey> {
+        None
+    }
 }
 
 /// Registry of all supported protocols
 pub struct ProtocolRegistry {
     decoders: Vec<Box<dyn ProtocolDecoder>>,
+    /// Each decoder's RF modulation (its `ProtocolInfo::rf`), for the modulation gate.
+    rf: Vec<crate::capture::RfModulation>,
+    /// Whether each decoder is a gate/garage protocol (`Category::Gate`): those take part in the
+    /// inverted-polarity pass only for FSK input (see [Self::process_signal_stream_opts]).
+    gate: Vec<bool>,
+}
+
+/// Whether a decoder flagged `decoder_rf` may see a capture received as `capture_rf` (Flipper-ARF's
+/// receiver modulation gate, after ProtoPirate's per-preset registry): an AM-only protocol is not
+/// fed FM (2-FSK) captures and vice versa; protocols flagged for both, and captures whose modulation
+/// is unknown, are not gated.
+pub fn modulation_allows(decoder_rf: crate::capture::RfModulation, capture_rf: Option<crate::capture::RfModulation>) -> bool {
+    use crate::capture::RfModulation::{AM, FM};
+    !matches!((decoder_rf, capture_rf), (AM, Some(FM)) | (FM, Some(AM)))
 }
 
 impl ProtocolRegistry {
@@ -334,6 +455,126 @@ impl ProtocolRegistry {
             // only a 29-toggle run before its sync, so the preamble gate keeps Datsun Lada off Fiat
             // captures; placed last so Fiat V1 and every earlier 250/500µs decoder keep priority.
             Box::new(datsun_lada::DatsunLadaDecoder::new()),
+            // --- Garage door / gate / barrier / shutter remotes --------------------------------
+            // After every car decoder (their IMPORTS decodes keep first-match priority), most
+            // strongly gated first: rolling codes with a cipher/CRC check before loose fixed-code
+            // formats (Princeton and other PT2262-style encoders last). Each porting group adds its
+            // decoders directly below its own anchor line.
+            // [gate-registry: G5 KeeLoq family]
+            // Beninca ARC (Flipper-ARF garage app beninca_arc.c): 300/600µs PWM, 128 bits after a
+            // 9600±2325µs LOW; AES-128 frame, reported only when it decrypts to the 0xAA55 constant.
+            Box::new(beninca_arc::BenincaArcDecoder::new()),
+            // KingGates Stylo4k: 400/1100µs LOW-first PWM behind a 2200µs header + 800µs start bit,
+            // 89 bits; reported only when the KeeLoq hop passes the C's 16-bit check.
+            Box::new(kinggates_stylo_4k::KingGatesStylo4kDecoder::new()),
+            // Jarolift: KeeLoq PWM (400/800µs) behind exactly 8 preamble pulses + a 4000µs gap, 72
+            // bits (KeeLoq's 64..66-bit window never takes them); reported only when the
+            // normal-learning hop passes the C's 8-bit serial check.
+            Box::new(jarolift::JaroliftDecoder::new()),
+            // Faac SLH: 255/595µs PWM behind a 1190/1190µs preamble, 64 bits. Without the remote's
+            // seed nothing can be checked: like the C, every such frame is reported (last here).
+            Box::new(faac_slh::FaacSlhDecoder::new()),
+            // [gate-registry: G4 Security+ / Somfy]
+            // Security+ 2.0 (garage app secplus_v2.c + doctor-firmware's 86-bit keypad frames):
+            // 250/500µs Manchester, armed only by a 65 ± 11 ms (or 89.5 ± 7.9 ms) LOW; a 0x3C-header
+            // packet pair whose order/invert codes and trits decode (KAT gate). Reset is a no-op.
+            Box::new(secplus_v2::SecPlusV2Decoder::new()),
+            // Somfy Keytis / Telis (Somfy RTS): ≥2 HIGH/LOW 2560µs sync pairs + 4.5 ms sync, 640/1280µs
+            // Manchester, exactly 80 / 56 bits + the 4-bit checksum (Keytis: this frame's, see module).
+            // The bit counts keep the two apart.
+            Box::new(somfy_keytis::SomfyKeytisDecoder::new()),
+            Box::new(somfy_telis::SomfyTelisDecoder::new()),
+            // Security+ 1.0: 2 ms ternary symbols in two 21-symbol packets behind 60 ± 12 ms LOWs; no
+            // checksum (structure only, as the C), so last in the block. Reset is a no-op.
+            Box::new(secplus_v1::SecPlusV1Decoder::new()),
+            // [gate-registry: G6 Nice FloR-S / CAME Atomo / Alutech / Ditec]
+            // G6, most strongly gated first. Alutech AT-4N: 400/800µs PWM, >9-pair preamble + 4ms
+            // gap, exactly 72 bits, KAT reports CRC-8-valid frames only. Nice FloR-S / Nice One:
+            // 500/1000µs PWM framed by a ~19ms gap + 1500/1500µs start and a 1500µs stop bit,
+            // exactly 52 or 72 bits. Ditec GOL4: 400/1100µs PWM, 24ms gap + 800µs start, exactly 54
+            // bits, reported only when the next gap + start follow. CAME Atomo (weakest): 600/1200µs
+            // Manchester after a 12/19/72ms LOW, exactly 61 bits up to a LOW of >=2650µs.
+            Box::new(alutech_at_4n::AlutechAt4nDecoder::new()),
+            Box::new(nice_flor_s::NiceFlorSDecoder::new()),
+            Box::new(ditec_gol4::DitecGol4Decoder::new()),
+            Box::new(came_atomo::CameAtomoDecoder::new()),
+            // [gate-registry: G3 misc]
+            // G3, most strongly gated first. None fires on IMPORTS, the other protocols' Flipper
+            // unit-test captures, the UberGuidoZ garage/gate set or the rtl_433 recordings.
+            // Power Smart: 225/450 µs Manchester, sync bytes 0xFD/0xAA + inverted-copy check.
+            Box::new(power_smart::PowerSmartDecoder::new()),
+            // Urmet: Manchester wake-up burst + 20–60 ms pause + PPM preamble, 16..40 USART bytes
+            // all in the 5/7/D/F nibble alphabet. Decode only (see urmet.rs).
+            Box::new(urmet::UrmetDecoder::new()),
+            // Revers RB2: 250/500 µs Manchester, 64 bits with 0xFF at bits 48..55 + stop code 0x200.
+            Box::new(revers_rb2::ReversRb2Decoder::new()),
+            // Telcoma/Cardin EDGE: 1270/2540 µs Manchester burst of exactly 32/33 bits, top byte 0xFF.
+            Box::new(telcoma_edge::TelcomaEdgeDecoder::new()),
+            // Phoenix V2: 25.6 ms header + 2.56 ms start pulse, exactly 52 bits (427/853 µs).
+            Box::new(phoenix_v2::PhoenixV2Decoder::new()),
+            // Dooya: 8.8 ms header + 4.76 ms / 1.47 ms start, exactly 40 bits (366/733 µs).
+            Box::new(dooya::DooyaDecoder::new()),
+            // Roger, Hay21, Allstar Firefly: a frame between two gaps (9.5 / 4.2 / 30 ms), exactly 28 /
+            // 21 / 18 bits, no checksum — the loosest, last.
+            Box::new(roger::RogerDecoder::new()),
+            Box::new(hay21::Hay21Decoder::new()),
+            Box::new(allstar_firefly::AllstarFireflyDecoder::new()),
+            // [gate-registry: G2 static B]
+            // G2 static B (doctor-firmware / Flipper-ARF garage-app fixed codes), most strongly
+            // gated first. Marantec: 10 ms header + Manchester, 49 bits, CRC-8 (KAT reports only
+            // valid frames). Hormann HSM: 12 ms start pulse, frame ends only on the 0xFF…3
+            // pattern. Nero Radio / Nero Sketch: > 40 preamble pairs + start pulse, 56|57 / 40 bits.
+            // iDo 117/111: 4.5 ms HIGH + LOW preamble, ≥ 48 bits (decode-only).
+            Box::new(marantec::MarantecDecoder::new()),
+            Box::new(hormann::HormannDecoder::new()),
+            Box::new(nero_radio::NeroRadioDecoder::new()),
+            Box::new(nero_sketch::NeroSketchDecoder::new()),
+            Box::new(ido::IdoDecoder::new()),
+            // Header-delimited PWM without checksum: Dickert MAHS (40 ms gap, 1200 µs bit pairs,
+            // ≥ 36 bits), Doitrand (24.8 ms gap + start pulse, 37 bits), Mastercode (36 bits).
+            Box::new(dickert_mahs::DickertMahsDecoder::new()),
+            Box::new(doitrand::DoitrandDecoder::new()),
+            Box::new(mastercode::MastercodeDecoder::new()),
+            // Short gap-delimited PWM fixed codes, longest first; Ansonic (≥ 12 bits) last.
+            Box::new(marantec24::Marantec24Decoder::new()),
+            Box::new(clemsa::ClemsaDecoder::new()),
+            Box::new(bett::BettDecoder::new()),
+            Box::new(elplast::ElplastDecoder::new()),
+            Box::new(ansonic::AnsonicDecoder::new()),
+            // [gate-registry: G1 static A]
+            // G1 static fixed codes (Flipper-ARF garage app), most strongly gated first. Only frames
+            // completing on the same pulse depend on this order. Holtek: 40 bits + 0x5 header nibble.
+            Box::new(holtek::HoltekDecoder::new()),
+            // CAME TWEE: 54-bit Manchester parcels behind a 51 ms (or 12 ms) header.
+            Box::new(came_twee::CameTweeDecoder::new()),
+            // MegaCode: 24 one-pulse 6 ms slots behind a 13 ms LOW, start bit 1.
+            Box::new(megacode::MegaCodeDecoder::new()),
+            // Cham_Code: 10/11 symbols that must match a 7/8/9-DIP stop-symbol mask.
+            Box::new(chamberlain_code::ChamberlainCodeDecoder::new()),
+            // GateTX: exactly 24 bits behind a 16 ms header and a 700 µs start bit.
+            Box::new(gate_tx::GateTxDecoder::new()),
+            // Holtek_HT12X: 12 bits confirmed by a repeat. It shares CAME's 320/640 µs air format (an
+            // HT12X frame after a 9..13 ms header is also a CAME 12-bit frame), so it stays BEFORE
+            // CAME, as in the garage app's registry (group g1 before g5).
+            Box::new(holtek_ht12x::HoltekHt12xDecoder::new()),
+            // CAME: exactly 12/18/24/25/42 bits, no repeat check.
+            Box::new(came::CameDecoder::new()),
+            // Prastel (G3's module): CAME timing (320/640 µs), exactly 42 bits. A 42-bit frame also
+            // completes CAME (its "CAME [Prastel]" variant) on the same pulse; both references
+            // register CAME first (doctor-firmware: came before prastel; the garage app: group g5
+            // before g12), so CAME reports those frames and Prastel only what CAME does not take
+            // (its wider header-gap window).
+            Box::new(prastel::PrastelDecoder::new()),
+            // Nice FLO: >= 12 bits at 700/1400 µs behind a 25 ms header.
+            Box::new(nice_flo::NiceFloDecoder::new()),
+            // Linear: 10 bits ending on a 21 ms guard.
+            Box::new(linear::LinearDecoder::new()),
+            // LinearDelta3: 8 bits, confirmed by a repeat.
+            Box::new(linear_delta3::LinearDelta3Decoder::new()),
+            // SMC5326: 25 bits, confirmed by a repeat.
+            Box::new(smc5326::Smc5326Decoder::new()),
+            // Princeton (PT2262/EV1527-style 24 bits, confirmed by a repeat): the loosest, last.
+            Box::new(princeton::PrincetonDecoder::new()),
             // --- Experimental (Pandora RE): NOT registered -----------------------------------
             // Audi, Mazda Infinity and Hyundai are Flipper-ARF ports reverse-engineered from the
             // Pandora alarm firmware. ARF ships all three disabled, and KAT mirrors that. None of
@@ -349,7 +590,15 @@ impl ProtocolRegistry {
             //       framing alone (16..32-byte 0x55 preamble + duplicate frame).
         ];
 
-        Self { decoders }
+        let rf = decoders
+            .iter()
+            .map(|d| info::lookup(d.name()).map_or(crate::capture::RfModulation::Both, |i| i.rf))
+            .collect();
+        let gate = decoders
+            .iter()
+            .map(|d| info::lookup(d.name()).is_some_and(|i| i.category == info::Category::Gate))
+            .collect();
+        Self { decoders, rf, gate }
     }
 
     /// Process level+duration pairs from demodulator
@@ -357,12 +606,46 @@ impl ProtocolRegistry {
     /// Tries normal polarity first, then inverted polarity (so OOK captures where
     /// carrier-on is recorded as LOW can still decode as Fiat/Ford etc.).
     pub fn process_signal(&mut self, pairs: &[LevelDuration], frequency: u32) -> Option<(String, DecodedSignal)> {
+        self.process_signal_rf(pairs, frequency, None)
+    }
+
+    /// [Self::process_signal] for pulses from one of KAT's receive paths: gated first, then
+    /// ungated (see [Self::process_signal_stream_path]).
+    pub fn process_signal_path(
+        &mut self,
+        pairs: &[LevelDuration],
+        frequency: u32,
+        path: Option<crate::capture::RfModulation>,
+    ) -> Option<(String, DecodedSignal)> {
+        let fsk = path == Some(crate::capture::RfModulation::FM);
+        self.process_signal_opts(pairs, frequency, path, fsk)
+            .or_else(|| path.and_then(|_| self.process_signal_opts(pairs, frequency, None, fsk)))
+    }
+
+    /// [Self::process_signal] for a capture received as `rf` (see [modulation_allows]).
+    pub fn process_signal_rf(
+        &mut self,
+        pairs: &[LevelDuration],
+        frequency: u32,
+        rf: Option<crate::capture::RfModulation>,
+    ) -> Option<(String, DecodedSignal)> {
+        self.process_signal_opts(pairs, frequency, rf, rf == Some(crate::capture::RfModulation::FM))
+    }
+
+    /// See [Self::process_signal_stream_opts].
+    fn process_signal_opts(
+        &mut self,
+        pairs: &[LevelDuration],
+        frequency: u32,
+        rf: Option<crate::capture::RfModulation>,
+        fsk: bool,
+    ) -> Option<(String, DecodedSignal)> {
         // Try normal polarity first
-        if let Some(result) = self.process_signal_inner(pairs, frequency, false) {
+        if let Some(result) = self.process_signal_inner(pairs, frequency, false, rf, fsk) {
             return Some(result);
         }
         // Try inverted polarity (capture LOW = RF HIGH)
-        if let Some(result) = self.process_signal_inner(pairs, frequency, true) {
+        if let Some(result) = self.process_signal_inner(pairs, frequency, true, rf, fsk) {
             return Some(result);
         }
         // No known protocol: try KeeLoq generic (uses keeloq_common with every keystore key)
@@ -372,16 +655,64 @@ impl ProtocolRegistry {
     /// ProtoPirate-style streaming decode: feed the whole stream, on each decode record and reset decoders, continue.
     /// Returns one entry per decode: (protocol name, decoded signal, pairs that produced it).
     /// Tries normal polarity first; if no decodes, runs again with inverted polarity.
+    #[allow(dead_code)] // the app passes the modulation; tests and tools use the ungated form
     pub fn process_signal_stream(
         &mut self,
         pairs: &[LevelDuration],
         frequency: u32,
     ) -> Vec<(String, DecodedSignal, Vec<LevelDuration>)> {
-        let with_normal = self.process_signal_stream_inner(pairs, frequency, false);
+        self.process_signal_stream_rf(pairs, frequency, None)
+    }
+
+    /// [Self::process_signal_stream] for pulses from one of KAT's own receive paths (live RX, IQ
+    /// files): the receiver splits each burst into an AM and/or an FM path itself, and protocol
+    /// flags are approximations (real OOK Hyundai fobs send Kia V3 frames, which the references
+    /// flag FM), so protocols flagged for the path's modulation are tried first and, when none
+    /// decodes, every protocol is ([Self::process_signal_stream_rf] is the strict, preset-based
+    /// gate Flipper-ARF applies).
+    pub fn process_signal_stream_path(
+        &mut self,
+        pairs: &[LevelDuration],
+        frequency: u32,
+        path: Option<crate::capture::RfModulation>,
+    ) -> Vec<(String, DecodedSignal, Vec<LevelDuration>)> {
+        let fsk = path == Some(crate::capture::RfModulation::FM);
+        let gated = self.process_signal_stream_opts(pairs, frequency, path, fsk);
+        if !gated.is_empty() || path.is_none() {
+            return gated;
+        }
+        self.process_signal_stream_opts(pairs, frequency, None, fsk)
+    }
+
+    /// [Self::process_signal_stream] for a capture received as `rf` (AM/OOK or FM/2-FSK; None =
+    /// unknown): decoders whose protocol is flagged for the other modulation only are not fed
+    /// ([modulation_allows]). This is Flipper-ARF's gate, which follows the receive preset; use it
+    /// for `.sub` files (their preset), [Self::process_signal_stream_path] for KAT's own receiver.
+    pub fn process_signal_stream_rf(
+        &mut self,
+        pairs: &[LevelDuration],
+        frequency: u32,
+        rf: Option<crate::capture::RfModulation>,
+    ) -> Vec<(String, DecodedSignal, Vec<LevelDuration>)> {
+        self.process_signal_stream_opts(pairs, frequency, rf, rf == Some(crate::capture::RfModulation::FM))
+    }
+
+    /// Normal polarity, then (if nothing decoded) inverted. `fsk`: the pulses come from an FSK
+    /// discriminator, where which tone is "on" depends on the fob, so the gate/garage protocols
+    /// take part in the inverted pass too (for OOK the carrier is HIGH, and only the car protocols
+    /// keep the inverted pass, see [Self::process_signal_stream]).
+    fn process_signal_stream_opts(
+        &mut self,
+        pairs: &[LevelDuration],
+        frequency: u32,
+        rf: Option<crate::capture::RfModulation>,
+        fsk: bool,
+    ) -> Vec<(String, DecodedSignal, Vec<LevelDuration>)> {
+        let with_normal = self.process_signal_stream_inner(pairs, frequency, false, rf, fsk);
         if !with_normal.is_empty() {
             return with_normal;
         }
-        self.process_signal_stream_inner(pairs, frequency, true)
+        self.process_signal_stream_inner(pairs, frequency, true, rf, fsk)
     }
 
     /// Inner streaming decode with optional level inversion.
@@ -390,7 +721,20 @@ impl ProtocolRegistry {
         pairs: &[LevelDuration],
         frequency: u32,
         invert_level: bool,
+        rf: Option<crate::capture::RfModulation>,
+        fsk: bool,
     ) -> Vec<(String, DecodedSignal, Vec<LevelDuration>)> {
+        // The inverted-polarity pass on OOK/unknown input (a capture whose carrier-on was recorded
+        // as LOW) is a KAT addition for the strongly-gated car protocols: the Flipper has no such
+        // pass, and the gate/garage formats (many of them loose fixed codes such as Princeton or
+        // CAME) would turn inverted noise into frames. On FSK input either tone can be "on", so
+        // they take part there (a real FSK PT2262 remote in rtl_433's tests needs it).
+        let allowed: Vec<bool> = self
+            .rf
+            .iter()
+            .zip(&self.gate)
+            .map(|(&d, &gate)| modulation_allows(d, rf) && !(invert_level && gate && !fsk))
+            .collect();
         let mut out = Vec::new();
         let mut segment_start = 0_usize;
 
@@ -402,18 +746,11 @@ impl ProtocolRegistry {
             let level = if invert_level { !pair.level } else { pair.level };
             let duration_us = pair.duration_us;
 
-            // Feed this pulse to all decoders that support this frequency (Flipper-style).
-            // Whoever actually produces a valid frame is reported; decoder order no longer decides.
+            // Feed this pulse to all decoders that support this frequency and modulation
+            // (Flipper-style); the first in registry order that completes a frame on it wins.
             let mut hits: Vec<(String, DecodedSignal)> = Vec::new();
-            for decoder in &mut self.decoders {
-                let freq_supported = decoder
-                    .supported_frequencies()
-                    .iter()
-                    .any(|&f| {
-                        let diff = if f > frequency { f - frequency } else { frequency - f };
-                        diff < (f / 50)
-                    });
-                if !freq_supported {
+            for (decoder, &ok) in self.decoders.iter_mut().zip(&allowed) {
+                if !ok || !frequency_supported(decoder.supported_frequencies(), frequency) {
                     continue;
                 }
                 if let Some(decoded) = decoder.feed(level, duration_us) {
@@ -446,7 +783,15 @@ impl ProtocolRegistry {
         pairs: &[LevelDuration],
         frequency: u32,
         invert_level: bool,
+        rf: Option<crate::capture::RfModulation>,
+        fsk: bool,
     ) -> Option<(String, DecodedSignal)> {
+        let allowed: Vec<bool> = self
+            .rf
+            .iter()
+            .zip(&self.gate)
+            .map(|(&d, &gate)| modulation_allows(d, rf) && !(invert_level && gate && !fsk))
+            .collect();
         for decoder in &mut self.decoders {
             decoder.reset();
         }
@@ -457,16 +802,8 @@ impl ProtocolRegistry {
 
             // Feed this pulse to all decoders; report first valid frame (Flipper-style).
             let mut hits: Vec<(String, DecodedSignal)> = Vec::new();
-            for decoder in &mut self.decoders {
-                let freq_supported = decoder
-                    .supported_frequencies()
-                    .iter()
-                    .any(|&f| {
-                        let diff = if f > frequency { f - frequency } else { frequency - f };
-                        diff < (f / 50) // 2% tolerance
-                    });
-
-                if !freq_supported {
+            for (decoder, &ok) in self.decoders.iter_mut().zip(&allowed) {
+                if !ok || !frequency_supported(decoder.supported_frequencies(), frequency) {
                     continue;
                 }
 
@@ -502,44 +839,42 @@ impl ProtocolRegistry {
         self.process_signal(&pairs, capture.frequency)
     }
 
-    /// Get a decoder by name
+    /// Get a decoder by name: a registry name, a decoder display name (a " [variant]" suffix is
+    /// dropped, e.g. "Porsche Cayenne [First]"), or a legacy / reference alias ("Land Rover V0" →
+    /// Honda V2, "PSA2" → PSA, "Suzuki V0" → Kia V0 …). The aliases live with each protocol's
+    /// metadata ([info]), so names resolve to the same protocol for TX and for display.
     pub fn get(&self, name: &str) -> Option<&dyn ProtocolDecoder> {
-        // Display names may carry a variant suffix (e.g. "Porsche Cayenne [First]"); the decoder's
-        // name() is the part before " [".
-        let name = name.split(" [").next().unwrap_or(name);
+        let name = info::strip_variant(name);
+        // "KeeLoq (<manufacturer>)" decodes; the generic fallback's "Keeloq (<key>)" captures do
+        // not resolve (their Kia V3/V4- or Star Line-format frames are not KeeLoq-encoder frames).
         let lookup = if name.starts_with("KeeLoq") {
             "KeeLoq"
-        } else if name.eq_ignore_ascii_case("Land Rover V0") {
-            // Legacy name: ProtoPirate renamed Land Rover V0 to Honda V2 (same protocol), and
-            // decoded .fob imports keep the protocol name they were exported with.
-            "Honda V2"
-        } else if name.eq_ignore_ascii_case("Porsche Touareg") {
-            // Retired with ProtoPirate's porsche_touareg.c, a port of the same porsche_cayenne.c
-            // (identical frame and cipher): old captures transmit with Porsche Cayenne.
-            "Porsche Cayenne"
-        } else if ["Suzuki", "Suzuki V0", "Honda V0"].iter().any(|n| name.eq_ignore_ascii_case(n)) {
-            // Kia V0 frame types (display names), and ProtoPirate's retired standalone Suzuki.
-            "Kia V0"
-        } else if name.eq_ignore_ascii_case("Mitsu V0") {
-            // ProtoPirate's alias for Mitsubishi V0.
-            "Mitsubishi V0"
-        } else if ["Kia V3", "Kia V4", "KIA/HYU V3", "KIA/HYU V4"]
-            .iter()
-            .any(|n| name.eq_ignore_ascii_case(n))
-        {
-            // Kia V3/V4 reports its version as the display name (ProtoPirate's catalog aliases).
-            "Kia V3/V4"
-        } else if ["PSA2", "PSA OLD", "PSA GROUP"].iter().any(|n| name.eq_ignore_ascii_case(n)) {
-            // Retired PSA2 (Flipper-ARF psa2.c "PSA OLD", unregistered upstream) and ARF's display
-            // name for PSA: the same frames, decoded and encoded by PSA.
-            "PSA"
         } else {
-            name
+            info::by_name(name).map_or(name, |i| i.decoder)
         };
         self.decoders
             .iter()
             .find(|d| d.name().eq_ignore_ascii_case(lookup))
             .map(|d| d.as_ref())
+    }
+
+    /// Decode a Flipper key file with the decoder its `Protocol` line names (aliases resolve as
+    /// in [Self::get], plus the names other firmwares write, [flipper_key::registry_name]).
+    /// Returns the display name and the rebuilt decode.
+    pub fn decode_key(&self, key: &FlipperKey) -> Option<(String, DecodedSignal)> {
+        let decoder = self.get(flipper_key::registry_name(&key.protocol))?;
+        let d = decoder.from_flipper_key(key)?;
+        let name = d.protocol_display_name.clone().unwrap_or_else(|| decoder.name().to_string());
+        Some((name, d))
+    }
+
+    /// Feed `pairs` to the decoder `name` resolves to, alone (reset first): every frame it reports.
+    #[cfg(test)]
+    pub(crate) fn decode_with(&mut self, name: &str, pairs: &[LevelDuration]) -> Vec<DecodedSignal> {
+        let Some(lookup) = self.get(name).map(|d| d.name()) else { return Vec::new() };
+        let Some(dec) = self.decoders.iter_mut().find(|d| d.name() == lookup) else { return Vec::new() };
+        dec.reset();
+        pairs.iter().filter_map(|p| dec.feed(p.level, p.duration_us)).collect()
     }
 
     /// List all protocol names
@@ -557,273 +892,10 @@ impl Default for ProtocolRegistry {
 
 /// Human-readable name for a protocol's NATIVE button code, for protocols whose `DecodedSignal.button`
 /// is not KAT's generic code (0x01 Lock, 0x02 Unlock, 0x04 Trunk, 0x08 Panic). `None` means "use the
-/// generic names". Codes and labels come from each protocol's C reference (see its module doc).
+/// generic names". The labels live with each protocol's metadata ([info]); codes and labels come
+/// from each protocol's C reference (see its module doc).
 pub fn native_button_name(protocol: &str, code: u8) -> Option<&'static str> {
-    let name = match protocol.split(" [").next().unwrap_or(protocol) {
-        "BMW" => match code {
-            0x1 => "Unlock",
-            0x2 => "Lock",
-            0x3 => "Trunk",
-            _ => "Other",
-        },
-        // bit 7 is carried through; 0x06/0x0A/0x0E are the "alt" Lock/Unlock/Trunk family.
-        "Mazda V2" => match code & 0x7F {
-            0x04 | 0x06 => "Lock",
-            0x08 | 0x0A => "Unlock",
-            0x10 | 0x0E => "Trunk",
-            _ => "Other",
-        },
-        "Mazda V0" if code == 0x8 => "Remote",
-        "Mazda Siemens" | "Mazda Infinity" => match code {
-            0x10 => "Lock",
-            0x20 => "Unlock",
-            0x40 => "Trunk",
-            _ => "Other",
-        },
-        "Mercedes V0" => match code {
-            0xC => "Lock",
-            0x8 => "Unlock",
-            0xA => "Aux",
-            0x0 => "Follow-up",
-            _ => "Other",
-        },
-        "Mercedes V1" => match code {
-            0 => "Lock",
-            1 => "Unlock",
-            _ => "Other",
-        },
-        "Opel V1" => match code {
-            0x04 => "Lock",
-            0x08 => "Unlock",
-            0x20 => "Trunk",
-            _ => "Other",
-        },
-        "Renault V0" => match code {
-            0x06 => "Lock",
-            0x0A => "Unlock",
-            0x05 => "Trunk",
-            _ => "Other",
-        },
-        "Renault V1" if code == 0 => "Sync",
-        // ARF renault_v1_get_button_name: the low nibble is the action, the high nibble the family.
-        "Renault V1 (ARF)" => match code & 0x0F {
-            0x4..=0x7 => "Lock",
-            0x8..=0xB => "Unlock",
-            _ => "Other",
-        },
-        "Fiat V1" => match code {
-            0x4 => "Lock",
-            0x8 => "Unlock",
-            0x2 => "Trunk",
-            0x1 => "Close",
-            _ => "Other",
-        },
-        // Button selector = top two bits of the raw button byte.
-        "Fiat V2" => match code >> 6 {
-            2 => "Lock",
-            3 => "Unlock",
-            1 => "Trunk",
-            _ => "Other",
-        },
-        "GM" => match code & 0x07 {
-            2 => "Lock",
-            1 => "Unlock",
-            3 => "Trunk",
-            4 => "Panic",
-            _ => "Other",
-        },
-        // The C only labels these BTN0/1/3/5; the Lock/Unlock/Trunk/Panic meaning is unverified.
-        "Datsun Lada" => match code {
-            0x40 => "Btn0",
-            0x80 => "Btn1",
-            0x20 => "Btn3",
-            0x60 => "Btn5",
-            _ => "Other",
-        },
-        "Sheriff CFM" => match code {
-            0x10 => "Lock",
-            0x20 => "Unlock",
-            0x40 => "Trunk",
-            0x80 => "Panic",
-            _ => "Other",
-        },
-        // Flipper-ARF scher_khan_btn_name (combination presses included).
-        "Scher-Khan" => match code {
-            0x1 => "Lock",
-            0x2 => "Unlock",
-            0x3 => "Lock+Unlock",
-            0x4 => "Trunk",
-            0x5 => "Lock+Trunk",
-            0x6 => "Unlock+Trunk",
-            0x7 => "Lk+Ul+Tr",
-            0x8 => "Start",
-            0x9 => "Lock+Start",
-            0xA => "Unlock+Start",
-            0xC => "Trunk+Start",
-            0xF => "All/Panic",
-            _ => "Other",
-        },
-        // Flipper-ARF star_line_btn_name (0x2x = 2-way remotes).
-        "Star Line" => match code {
-            0x01 | 0x21 => "Lock",
-            0x02 | 0x22 => "Unlock",
-            0x03 | 0x23 => "Trunk",
-            0x04 => "Panic",
-            0x24 => "Start",
-            0x25 => "Stop",
-            0x26 => "Extra",
-            _ => "Other",
-        },
-        // KeeLoq function codes are generic-compatible (1/2/4/8); Flipper-ARF only relabels the
-        // "shifted" brands' codes 2/4/8/1 as physical buttons B1..B4.
-        p if p.starts_with("KeeLoq (") && p.ends_with(')') => {
-            match keeloq::keeloq_button_position(&p["KeeLoq (".len()..p.len() - 1], code) {
-                Some(1) => "B1",
-                Some(2) => "B2",
-                Some(3) => "B3",
-                Some(4) => "B4",
-                _ => return None,
-            }
-        }
-        // Ford V0 reports KAT's generic codes plus a fifth one-hot button.
-        "Ford V0" if code == 0x10 => "Remote start",
-        // Ford V1: 1/2/4/8 are KAT's generic codes; 0 is ford_v1_get_button_name's "Sync".
-        "Ford V1" if code == 0x0 => "Sync",
-        "Ford V2" => match code {
-            0x10 => "Lock",
-            0x11 => "Unlock",
-            0x13 => "Trunk",
-            0x14 => "Panic",
-            0x15 => "Remote start",
-            _ => "Other",
-        },
-        // 1/2/4/8 are KAT's generic codes (honda_static_button_names).
-        "Honda Static" => match code {
-            0x5 => "Remote start",
-            0x9 => "Lock x2",
-            _ => return None,
-        },
-        "Honda V1" => match code {
-            0x0 => "Unlock",
-            0x8 => "Lock",
-            0x9 => "Trunk",
-            0xA => "Panic",
-            _ => "Other",
-        },
-        // The 7 tail bits; ProtoPirate's fiat_v0_display_suffix labels by the low nibble.
-        "Fiat V0" => match code & 0x0F {
-            0x4..=0x7 => "Lock",
-            0x8..=0xB => "Unlock",
-            _ => "Other",
-        },
-        // US variant; the EU variant reports 0x01/0x02 (generic Lock/Unlock).
-        "Ford V3" => match code {
-            0x07 => "Trunk",
-            0x06 => "Panic",
-            _ => return None,
-        },
-        "Honda V2" | "Land Rover V0" => match code {
-            0x02 => "Lock",
-            0x04 => "Unlock",
-            _ => "Other",
-        },
-        // toyota_button_name: the Estima button bytes, or the C's command 1-3 ("Cmd").
-        "Toyota" => match code {
-            0xD1 | 0xD4 | 0x99 | 0x9C => "Estima",
-            1 => "Cmd 1",
-            2 => "Cmd 2",
-            3 => "Cmd 3",
-            _ => "Unknown",
-        },
-        // porsche_cayenne_custom_to_btn names 0x08 "Open" (KAT's generic table says Panic).
-        "Porsche Cayenne" | "Porsche Touareg" => match code {
-            0x01 => "Lock",
-            0x02 => "Unlock",
-            0x04 => "Trunk",
-            0x08 => "Open",
-            _ => "Other",
-        },
-        // Types 2/3/4 report the decrypted button nibble, Type 1 the whole byte (button in the
-        // high nibble; ProtoPirate's vag_button_name, which calls 4/0x40 "Boot").
-        "VAG" => match if code > 0x0F { code >> 4 } else { code } {
-            0x1 => "Unlock",
-            0x2 => "Lock",
-            0x4 => "Trunk",
-            _ => "Other",
-        },
-        // ProtoPirate emulate / Flipper-ARF codes (1 and 2 coincide with the generic ones).
-        "Subaru" => match code {
-            0x1 => "Lock",
-            0x2 => "Unlock",
-            0x3 => "Trunk",
-            0x4 => "Panic",
-            _ => "Other",
-        },
-        // Kia V0 family (ProtoPirate kia_v0_button_name; Panic = the emulate D-pad's Left code).
-        "Kia V0" | "Mitsubishi V0" => match code {
-            0x1 => "Lock",
-            0x2 => "Unlock",
-            0x3 => "Trunk",
-            0x4 => "Panic",
-            _ => "Other",
-        },
-        "Suzuki V0" | "Suzuki" => match code {
-            0x3 => "Lock",
-            0x4 => "Unlock",
-            0x2 => "Trunk",
-            0x1 => "Panic",
-            _ => "Other",
-        },
-        "Kia V3/V4" | "Kia V3" | "Kia V4" => match code {
-            0x1 => "Lock",
-            0x2 => "Unlock",
-            0x3 => "Trunk",
-            0x4 => "Panic",
-            0x8 => "Horn",
-            _ => "Other",
-        },
-        // ProtoPirate kia_v1.c names (Close/Open/Boot) and the emulate D-pad's Panic; Flipper-ARF
-        // uses the same codes for Kia V2 and V6.
-        "Kia V1" | "Kia V2" | "Kia V6" => match code {
-            0x1 => "Lock",
-            0x2 => "Unlock",
-            0x3 => "Trunk",
-            0x4 => "Panic",
-            _ => "Other",
-        },
-        // 1/2/8 are KAT's generic Lock/Unlock/Panic.
-        "Kia V7" => match code {
-            0x3 => "Trunk",
-            _ => return None,
-        },
-        // Flipper-ARF kia_v5.c names.
-        "Kia V5" => match code {
-            0x1 => "Unlock",
-            0x2 => "Lock",
-            0x4 => "Trunk",
-            0x8 => "Horn",
-            _ => "Other",
-        },
-        "Honda V0" => match code {
-            1 => "Unlock",
-            2 => "Trunk",
-            3 => "Lock2",
-            4 => "Unlock2",
-            5 => "Trunk2",
-            6 => "Unlock3",
-            7 => "Trunk3",
-            _ => "Other",
-        },
-        // Flipper-ARF psa_button_name (the genuine IMPORTS frames carry 0).
-        "PSA" | "PSA2" | "PSA OLD" | "PSA GROUP" => match code {
-            0x0 => "Lock",
-            0x1 => "Unlock",
-            0x2 => "Trunk",
-            _ => "Other",
-        },
-        _ => return None,
-    };
-    Some(name)
+    info::lookup(protocol)?.button_name(protocol, code)
 }
 
 /// Helper macro for duration comparison (matches protopirate's DURATION_DIFF)
@@ -1091,6 +1163,12 @@ mod tests {
         for legacy in ["PSA2", "psa2", "PSA OLD", "PSA GROUP"] {
             assert_eq!(reg.get(legacy).map(|d| d.name()), Some("PSA"), "{legacy}");
         }
+        // ProtoPirate catalog aliases, from the protocols' metadata (`info.rs`).
+        assert_eq!(reg.get("VW").map(|d| d.name()), Some("VAG"));
+        assert_eq!(reg.get("StarLine").map(|d| d.name()), Some("Star Line"));
+        // The generic KeeLoq fallback's captures (Kia V3/V4- or Star Line-format frames) must not
+        // reach the KeeLoq encoder.
+        assert!(reg.get("Keeloq (DoorHan)").is_none());
         assert!(reg.get("No Such Protocol").is_none());
     }
 
@@ -1157,52 +1235,534 @@ mod tests {
         assert_eq!(native_button_name("PSA2", 2), Some("Trunk"));
     }
 
-    /// Diagnostic: sweep every IMPORTS/*.sub and print which protocol(s) each decodes as.
-    /// `#[ignore]`d (noisy, always passes); run with
-    /// `cargo test sweep_imports_decodes -- --ignored --nocapture`.
-    #[test]
-    #[ignore]
-    fn sweep_imports_decodes() {
-        use std::fs;
-        // Keystore as the app loads it at startup (Kia V3/V4's KeeLoq check, Kia V5/V6 decryption).
-        crate::protocols::keys::load_keystore_from_embedded();
+    /// Every `IMPORTS/<make>/*.sub` capture, sorted (None when IMPORTS is absent).
+    fn imports_subs() -> Option<Vec<std::path::PathBuf>> {
         let root = Path::new("IMPORTS");
         if !root.exists() {
-            eprintln!("Skip: IMPORTS not found");
+            return None;
+        }
+        let mut subs: Vec<std::path::PathBuf> = std::fs::read_dir(root)
+            .ok()?
+            .flatten()
+            .filter(|make| make.path().is_dir())
+            .filter_map(|make| std::fs::read_dir(make.path()).ok())
+            .flat_map(|files| files.flatten().map(|f| f.path()))
+            .filter(|p| p.extension().map(|e| e == "sub").unwrap_or(false))
+            .collect();
+        subs.sort();
+        Some(subs)
+    }
+
+    /// Decode a capture file the way the app imports it (keystore loaded, streaming decode).
+    /// Decode a `.sub` the way the app imports it: gated by the file's preset modulation.
+    fn decode_import(reg: &mut ProtocolRegistry, path: &Path) -> anyhow::Result<(u32, Vec<(String, DecodedSignal)>)> {
+        let sub = crate::export::flipper::import_sub(path)?;
+        let pairs: Vec<LevelDuration> = sub
+            .pairs
+            .iter()
+            .map(|p| LevelDuration::new(p.level, p.duration_us))
+            .collect();
+        let rf = sub.preset.as_ref().and_then(|p| p.rf());
+        let results = reg.process_signal_stream_rf(&pairs, sub.frequency, rf);
+        Ok((sub.frequency, results.into_iter().map(|(n, d, _)| (n, d)).collect()))
+    }
+
+    fn golden_fields(d: &DecodedSignal) -> String {
+        let hex = |v: Option<u64>| v.map(|v| format!("{v:X}")).unwrap_or_else(|| "-".to_string());
+        format!(
+            "data={:X}/{}{} sn={} btn={} cnt={} crc={} tx={}",
+            d.data,
+            d.data_count_bit,
+            d.extra.map(|e| format!(" extra={e:X}")).unwrap_or_default(),
+            hex(d.serial.map(u64::from)),
+            hex(d.button.map(u64::from)),
+            hex(d.counter.map(u64::from)),
+            u8::from(d.crc_valid),
+            u8::from(d.encoder_capable),
+        )
+    }
+
+    /// Regression guard: every decode of every IMPORTS capture (all fields) must match
+    /// `testdata/imports_decodes.txt`. After an intended change, regenerate it with
+    /// `KAT_UPDATE_GOLDEN=1 cargo test imports_decode_golden` and review the diff.
+    #[test]
+    fn imports_decode_golden() {
+        crate::protocols::keys::load_keystore_from_embedded();
+        let Some(subs) = imports_subs() else {
+            eprintln!("Skip: IMPORTS not found (run from crate root)");
+            return;
+        };
+        let mut reg = ProtocolRegistry::new();
+        let mut lines = Vec::new();
+        for path in &subs {
+            let rel = path.strip_prefix("IMPORTS").unwrap_or(path).display().to_string();
+            match decode_import(&mut reg, path) {
+                Ok((freq, decodes)) if decodes.is_empty() => lines.push(format!("{rel} | {freq} | (none)")),
+                Ok((freq, decodes)) => {
+                    for (name, d) in &decodes {
+                        lines.push(format!("{rel} | {freq} | {name} | {}", golden_fields(d)));
+                    }
+                }
+                Err(e) => lines.push(format!("{rel} | ERR {e}")),
+            }
+        }
+        let actual = lines.join("\n") + "\n";
+        let golden = Path::new("testdata/imports_decodes.txt");
+        if std::env::var_os("KAT_UPDATE_GOLDEN").is_some() {
+            std::fs::create_dir_all("testdata").unwrap();
+            std::fs::write(golden, &actual).unwrap();
             return;
         }
-        // Collect IMPORTS/<make>/*.sub
-        let mut subs: Vec<std::path::PathBuf> = Vec::new();
-        if let Ok(makes) = fs::read_dir(root) {
-            for make in makes.flatten() {
-                if make.path().is_dir() {
-                    if let Ok(files) = fs::read_dir(make.path()) {
-                        for f in files.flatten() {
-                            let p = f.path();
-                            if p.extension().map(|e| e == "sub").unwrap_or(false) {
-                                subs.push(p);
+        let expected = std::fs::read_to_string(golden)
+            .expect("testdata/imports_decodes.txt missing; create it with KAT_UPDATE_GOLDEN=1");
+        if expected != actual {
+            use std::collections::HashSet;
+            let exp: HashSet<&str> = expected.lines().collect();
+            let act: HashSet<&str> = actual.lines().collect();
+            let mut diff: Vec<String> = expected.lines().filter(|l| !act.contains(l)).map(|l| format!("- {l}")).collect();
+            diff.extend(actual.lines().filter(|l| !exp.contains(l)).map(|l| format!("+ {l}")));
+            if diff.is_empty() {
+                diff.push("(same lines, different order or repeat counts)".to_string());
+            }
+            diff.truncate(60);
+            panic!(
+                "IMPORTS decodes changed (- expected, + now). If intended, regenerate with \
+                 KAT_UPDATE_GOLDEN=1 cargo test imports_decode_golden and review the diff:\n{}",
+                diff.join("\n")
+            );
+        }
+    }
+
+    /// Whether `pulses` (an encoder's upload) decodes as `name` with `d`'s serial, through the whole
+    /// registry (first-match, both polarities) as the receiver would see it on air.
+    fn tx_decodes_back(reg: &mut ProtocolRegistry, name: &str, d: &DecodedSignal, freq: u32, pulses: &[LevelDuration]) -> Result<(), String> {
+        // The upload once more after a gap, as the transmitter repeats it; adjacent pulses of the
+        // same level are one pulse on air.
+        let mut stream: Vec<LevelDuration> = Vec::with_capacity(2 * pulses.len() + 2);
+        let gap = [LevelDuration::new(false, 20_000)];
+        for p in pulses.iter().chain(&gap).chain(pulses).chain(&gap) {
+            match stream.last_mut() {
+                Some(last) if last.level == p.level => last.duration_us += p.duration_us,
+                _ => stream.push(LevelDuration::new(p.level, p.duration_us)),
+            }
+        }
+        let base = |n: &str| reg.get(n).map(|x| x.name());
+        let want = base(name);
+        let hits = reg.process_signal_stream(&stream, freq);
+        let got: Vec<String> = hits.iter().map(|(n, x, _)| format!("{n} sn={:X?}", x.serial)).collect();
+        let ok = hits.iter().any(|(n, x, _)| {
+            let same_protocol = reg.get(n).map(|p| p.name()) == want;
+            same_protocol && (d.serial.is_none() || x.serial == d.serial)
+        });
+        if ok {
+            return Ok(());
+        }
+        // Another decoder completing on the same pulse wins the registry's first-match race (an
+        // encoder-exact waveform can pass a loose gate, e.g. Mazda Siemens' 8-bit sum on one Fiat V2
+        // frame); the frame itself must still decode with its own protocol.
+        let own = reg.decode_with(name, &stream);
+        if own.iter().any(|x| d.serial.is_none() || x.serial == d.serial) {
+            eprintln!("note: {name} sn={:X?}: TX decodes with its own decoder; the registry reports {got:?}", d.serial);
+            Ok(())
+        } else if name == "PSA" && stream.iter().any(|p| p.level && p.duration_us == 1250) {
+            // Reference quirk, not a key-file one: when the last key2 bit is 0 its 250 µs HIGH half
+            // merges with the 1000 µs end HIGH, and ProtoPirate's / ARF's decoder rejects its own
+            // upload too (psa.rs `uploads_ending_in_a_zero_bit_are_not_redecoded`).
+            eprintln!("note: PSA sn={:X?}: upload ends in a 0 bit (not re-decodable, as in the references)", d.serial);
+            Ok(())
+        } else {
+            Err(format!("{name} sn={:X?}: TX decodes as {got:?} (own decoder: {} frames)", d.serial, own.len()))
+        }
+    }
+
+    /// The Flipper key files in IMPORTS (saved by Flipper-ARF builds, one by an older third-party
+    /// build) load with the fields the references show after loading them; where IMPORTS also has
+    /// a RAW capture of the same press (VAG Passat, Fiat Bravo), the decode equals that capture's
+    /// (see `testdata/imports_decodes.txt`). Each reloaded key transmits a frame that decodes
+    /// again with the same serial (TX from a loaded key file).
+    #[test]
+    fn imports_key_files_load() {
+        crate::protocols::keys::load_keystore_from_embedded();
+        let Some(subs) = imports_subs() else {
+            eprintln!("Skip: IMPORTS not found (run from crate root)");
+            return;
+        };
+        // (file, display name, fields as in the golden file)
+        let expected: &[(&str, &str, &str)] = &[
+            // = the RAW capture VAG/Vw_passat_b5_3bg.sub
+            ("VAG/Passat_b5_3bg.sub", "VAG", "data=C09EBD0792CA7FC3/80 extra=800000010204A72B sn=C21578B btn=2 cnt=2B06 crc=1 tx=1"),
+            // Same writer (`Key_2`, `Type: 7428` = 0x1D04 → Type 4): its sender's screenshot of a
+            // later press shows "Ser:3BF8E083 Btn:10:OP Cnt:019C63". ProtoPirate and doctor only
+            // read `Key2`, so they cannot decrypt this file.
+            ("VAG/Audi A3 2012 key.sub", "VAG", "data=C129194B7ABCFEC2/80 extra=8000000101032F1D sn=3BF8E083 btn=1 cnt=9C61 crc=1 tx=1"),
+            // = frame A03BF868… of the RAW capture FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub
+            ("FIAT/Fiat type 0 N1.sub", "Fiat V0", "data=A03BF86854536200/71 sn=54536200 btn=3B cnt=F868 crc=1 tx=1"),
+            ("HYUNDAI/HYU V0 N1.sub", "Kia V0", "data=F739167BD75B2BD/61 sn=67BD75B btn=2 cnt=7391 crc=1 tx=1"),
+            ("HYUNDAI/HYU V0_great_konserva.sub", "Kia V0", "data=F6F4667BD75B2BF/61 sn=67BD75B btn=2 cnt=6F46 crc=1 tx=1"),
+            // Flipper-ARF "KIA/HYU Vn" keys. KAT's transmission of each decodes in doctor-firmware's
+            // decoders (C oracle) with the same serial and button and the counter + 1.
+            ("HYUNDAI/HYU V2 N1.sub", "Kia V2", "data=E18CC1429A2CE/53 sn=E18CC142 btn=9 cnt=CA2 crc=1 tx=1"),
+            ("HYUNDAI/HYU V2_random_habar.sub", "Kia V2", "data=E18CC1422E6B2/53 sn=E18CC142 btn=2 cnt=BE6 crc=1 tx=1"),
+            ("HYUNDAI/HYU V4 N1.sub", "Kia V4", "data=C3B1790C8FC0C864/68 extra=0 sn=61303F1 btn=2 cnt=BDE9 crc=1 tx=1"),
+            // Kia V5: the files' `CRC: 3` matches neither CRC of the key (ARF shows it as failed too).
+            ("HYUNDAI/test_new_kia_hyu.sub", "Kia V5", "data=7AA31142AF951B84/67 extra=3 sn=1D8A9F5 btn=2 cnt=3B54 crc=0 tx=1"),
+            ("KIA/KIA V5 N3.sub", "Kia V5", "data=4CD2BB72AF951B84/67 extra=3 sn=1D8A9F5 btn=2 cnt=3C12 crc=0 tx=1"),
+            // Kia V6: 144-bit frames (Key, Key_2, Key_3); KAT keeps the 16 low counter bits
+            // (C106C04B in the second file).
+            ("HYUNDAI/HYU V6_test.sub", "Kia V6", "data=ED028AE751F0ECAE/144 extra=D2 sn=1AD9C3 btn=1 cnt=2012 crc=1 tx=1"),
+            ("KIA/KIA V6 N2.sub", "Kia V6", "data=DA07827EFCA4EA82/144 extra=1C106A7 sn=109DA7 btn=B cnt=C04B crc=1 tx=1"),
+        ];
+        let reg = ProtocolRegistry::new();
+        let mut found = Vec::new();
+        let mut failures = Vec::new();
+        for path in &subs {
+            let Ok(crate::export::flipper::SubContent::Key(key)) = crate::export::flipper::read_sub(path) else { continue };
+            let rel = path.strip_prefix("IMPORTS").unwrap_or(path).display().to_string();
+            found.push(rel.clone());
+            let Some(&(_, want_name, want_fields)) = expected.iter().find(|e| e.0 == rel) else {
+                failures.push(format!("{rel}: key file without an expectation"));
+                continue;
+            };
+            let Some((name, d)) = reg.decode_key(&key) else {
+                failures.push(format!("{rel}: does not load"));
+                continue;
+            };
+            if (name.as_str(), golden_fields(&d).as_str()) != (want_name, want_fields) {
+                failures.push(format!("{rel}: {name} | {}\n   expected {want_name} | {want_fields}", golden_fields(&d)));
+                continue;
+            }
+            let dec = reg.get(&name).unwrap();
+            match dec.encode(&d, d.button.unwrap_or(0)) {
+                Some(pulses) => {
+                    let mut tx_reg = ProtocolRegistry::new();
+                    if let Err(e) = tx_decodes_back(&mut tx_reg, &name, &d, key.frequency, &pulses) {
+                        failures.push(format!("{rel}: {e}"));
+                    }
+                }
+                None => failures.push(format!("{rel}: {name} does not encode")),
+            }
+        }
+        for (file, ..) in expected {
+            if !found.iter().any(|f| f == file) {
+                failures.push(format!("{file}: expected key file not found"));
+            }
+        }
+        assert!(failures.is_empty(), "{} failure(s):\n{}", failures.len(), failures.join("\n"));
+    }
+
+    /// Every `Protocol:` name KAT writes in a key file resolves (through `decode_key`'s lookup) to
+    /// the decoder that wrote it, so a key KAT saved loads in KAT again.
+    #[test]
+    fn written_key_names_resolve_to_their_decoder() {
+        let reg = ProtocolRegistry::new();
+        let written: &[(&str, &str)] = &[
+            ("Kia V0", "Kia V0"), ("Kia V1", "Kia V1"), ("Kia V2", "Kia V2"), ("Kia V3", "Kia V3/V4"),
+            ("Kia V4", "Kia V3/V4"), ("Kia V5", "Kia V5"), ("Kia V6", "Kia V6"), ("Kia V7", "Kia V7"),
+            ("VAG", "VAG"), ("Ford V0", "Ford V0"), ("Ford V1", "Ford V1"), ("Ford V2", "Ford V2"),
+            ("Ford V3", "Ford V3"), ("Honda Static", "Honda Static"), ("Honda V1", "Honda V1"),
+            ("Honda V2", "Honda V2"), ("Subaru", "Subaru"), ("Fiat V0", "Fiat V0"), ("Fiat V1", "Fiat V1"),
+            ("Fiat V2", "Fiat V2"), ("Scher-Khan", "Scher-Khan"), ("Star Line", "Star Line"),
+            ("Sheriff CFM", "Sheriff CFM"), ("KeeLoq", "KeeLoq"), ("PSA", "PSA"),
+            ("Chrysler V0", "Chrysler V0"), ("Mazda V0", "Mazda V0"), ("MazdaSiemens", "Mazda Siemens"),
+            ("Mitsubishi V0", "Mitsubishi V0"), ("Porsche AG", "Porsche Cayenne"), ("Toyota", "Toyota"),
+            ("BMW", "BMW"), ("Mazda V2", "Mazda V2"), ("Mercedes V0", "Mercedes V0"),
+            ("Mercedes V1", "Mercedes V1"), ("Opel V1", "Opel V1"), ("Renault V1", "Renault V1"),
+            ("Renault V0", "Renault V0"), ("GM", "GM"), ("Datsun Lada", "Datsun Lada"),
+            // Names other references write for the same protocols.
+            ("KIA/HYU V3/V4", "Kia V3/V4"), ("VAG GROUP", "VAG"), ("PSA GROUP", "PSA"), ("FORD V0", "Ford V0"),
+            ("SUBARU", "Subaru"), ("Chrysler", "Chrysler V0"), ("Toyota Lexus", "Toyota"),
+            ("Land Rover V0", "Honda V2"), ("Suzuki", "Kia V0"),
+        ];
+        for &(file_name, decoder) in written {
+            let got = reg.get(flipper_key::registry_name(file_name)).map(|d| d.name());
+            assert_eq!(got, Some(decoder), "{file_name}");
+        }
+        // Every registered car decoder writes key files (none is left at the trait's default).
+        // "Renault V1 (ARF)" writes Flipper-ARF's "Renault V1"; the Renault V1 decoder hands its
+        // `Bit: 82` keys over (renault_v1_arf.rs `flipper_key_files` loads them via `decode_key`).
+        // (Gate/garage protocols test their key files in their own modules.)
+        for d in &reg.decoders {
+            let name = d.name();
+            if info::lookup(name).is_some_and(|i| i.category == info::Category::Gate) {
+                continue;
+            }
+            let listed = written.iter().any(|&(_, dec)| dec == name) || name == "Renault V1 (ARF)";
+            assert!(listed, "{name}: no key-file name listed");
+        }
+    }
+
+    /// Key files for every decode of every IMPORTS RAW capture: `to_flipper_key` → file text →
+    /// `FlipperKey::parse` → `from_flipper_key` gives back the same decode (every field), and
+    /// transmitting the reloaded decode produces a frame that decodes again (TX from a key file).
+    #[test]
+    fn imports_decodes_round_trip_through_key_files() {
+        crate::protocols::keys::load_keystore_from_embedded();
+        let Some(subs) = imports_subs() else {
+            eprintln!("Skip: IMPORTS not found (run from crate root)");
+            return;
+        };
+        let mut reg = ProtocolRegistry::new();
+        let mut tx_reg = ProtocolRegistry::new();
+        let mut failures = Vec::new();
+        let mut supported: std::collections::BTreeMap<String, usize> = Default::default();
+        let mut unsupported: std::collections::BTreeSet<String> = Default::default();
+        let mut seen = std::collections::HashSet::new();
+        for path in &subs {
+            let rel = path.strip_prefix("IMPORTS").unwrap_or(path).display().to_string();
+            let Ok((freq, decodes)) = decode_import(&mut reg, path) else { continue };
+            for (name, d) in decodes {
+                if !seen.insert((name.clone(), d.data, d.extra, d.data_count_bit)) {
+                    continue;
+                }
+                let dec = reg.get(&name).unwrap_or_else(|| panic!("{rel}: no decoder for {name}"));
+                let Some((text, back)) = flipper_key::testing::round_trip(dec, &d) else {
+                    unsupported.insert(name);
+                    continue;
+                };
+                *supported.entry(name.clone()).or_default() += 1;
+                if back != d {
+                    failures.push(format!("{rel}: {name}: round trip\n  decoded {d:?}\n  reloaded {back:?}\n{text}"));
+                    continue;
+                }
+                // The registry resolves the written Protocol name back to the same decode.
+                let reloaded = reg.decode_key(&FlipperKey::parse(&text).unwrap());
+                if reloaded.as_ref().map(|(n, x)| (n.as_str(), x)) != Some((name.as_str(), &d)) {
+                    failures.push(format!("{rel}: {name}: decode_key gave {reloaded:?}\n{text}"));
+                    continue;
+                }
+                if back.encoder_capable {
+                    match dec.encode(&back, back.button.unwrap_or(0)) {
+                        Some(pulses) => {
+                            if let Err(e) = tx_decodes_back(&mut tx_reg, &name, &back, freq, &pulses) {
+                                failures.push(format!("{rel}: {e}"));
                             }
                         }
+                        None => failures.push(format!("{rel}: {name}: encoder_capable but encode() is None")),
                     }
                 }
             }
         }
-        subs.sort();
+        eprintln!("key-file round trip: {supported:?}; not supported: {unsupported:?}");
+        assert!(failures.is_empty(), "{} failure(s):\n{}", failures.len(), failures.join("\n"));
+    }
+
+    /// Diagnostic for the reference oracles: print KAT's key-file lines for every distinct decode
+    /// of every IMPORTS RAW capture as `<file> | <protocol> | <lines joined by "; ">` (the
+    /// oracle's `decode` output layout; Frequency/Preset from the file). `#[ignore]`d; run with
+    /// `cargo test dump_imports_key_files -- --ignored --nocapture 2>&1 | grep ' | '`.
+    #[test]
+    #[ignore]
+    fn dump_imports_key_files() {
+        crate::protocols::keys::load_keystore_from_embedded();
+        let Some(subs) = imports_subs() else { return };
         let mut reg = ProtocolRegistry::new();
         for path in &subs {
-            match import_sub_raw(path) {
-                Ok((freq, raw_pairs)) => {
-                    let pairs: Vec<LevelDuration> = raw_pairs
-                        .iter()
-                        .map(|p| LevelDuration::new(p.level, p.duration_us))
-                        .collect();
-                    let results = reg.process_signal_stream(&pairs, freq);
-                    let names: Vec<&str> = results.iter().map(|(n, _, _)| n.as_str()).collect();
-                    let rel = path.strip_prefix("IMPORTS").unwrap_or(path);
+            let Ok(sub) = crate::export::flipper::import_sub(path) else { continue };
+            let rel = path.strip_prefix("IMPORTS").unwrap_or(path).display().to_string();
+            let Ok((_, decodes)) = decode_import(&mut reg, path) else { continue };
+            let mut seen = std::collections::HashSet::new();
+            for (name, d) in decodes {
+                let Some(mut key) = reg.get(&name).and_then(|dec| dec.to_flipper_key(&d)) else { continue };
+                key.frequency = sub.frequency;
+                if let Some(p) = &sub.preset {
+                    key.set_preset(p);
+                }
+                let lines: Vec<String> = key
+                    .to_text()
+                    .lines()
+                    .filter(|l| !l.starts_with("Filetype:") && !l.starts_with("Version:"))
+                    .map(str::to_string)
+                    .collect();
+                let text = lines.join("; ");
+                if seen.insert(text.clone()) {
+                    eprintln!("{rel} | {name} | {text}");
+                }
+            }
+        }
+    }
+
+    /// Diagnostic for the reference oracles: load every IMPORTS key file, transmit it (KAT's
+    /// encoder, the captured button) and write the upload as a RAW `.sub` (twice, 20 ms apart)
+    /// into `$KAT_KEY_TX_DIR`, printing KAT's decode of the key. A reference decoder run on those
+    /// files shows what KAT's TX from a loaded key looks like to the references. `#[ignore]`d.
+    #[test]
+    #[ignore]
+    fn dump_imports_key_file_tx() {
+        crate::protocols::keys::load_keystore_from_embedded();
+        let (Some(subs), Ok(dir)) = (imports_subs(), std::env::var("KAT_KEY_TX_DIR")) else { return };
+        let reg = ProtocolRegistry::new();
+        for path in &subs {
+            let Ok(crate::export::flipper::SubContent::Key(key)) = crate::export::flipper::read_sub(path) else { continue };
+            let Some((name, d)) = reg.decode_key(&key) else { continue };
+            let Some(pulses) = reg.get(&name).and_then(|p| p.encode(&d, d.button.unwrap_or(0))) else { continue };
+            let mut values: Vec<i64> = Vec::new();
+            for _ in 0..2 {
+                for p in pulses.iter().chain(&[LevelDuration::new(false, 20_000)]) {
+                    let v = i64::from(p.duration_us);
+                    match values.last_mut() {
+                        Some(last) if (*last > 0) == p.level => *last += if p.level { v } else { -v },
+                        _ => values.push(if p.level { v } else { -v }),
+                    }
+                }
+            }
+            let stem = path.file_stem().unwrap().to_string_lossy().replace(' ', "_");
+            let mut text = format!(
+                "Filetype: Flipper SubGhz RAW File\nVersion: 1\nFrequency: {}\nPreset: {}\nProtocol: RAW\n",
+                key.frequency,
+                key.preset.as_deref().unwrap_or("FuriHalSubGhzPresetOok650Async")
+            );
+            for chunk in values.chunks(512) {
+                text += &format!("RAW_Data: {}\n", chunk.iter().map(i64::to_string).collect::<Vec<_>>().join(" "));
+            }
+            std::fs::write(Path::new(&dir).join(format!("{stem}.tx.sub")), text).unwrap();
+            eprintln!("{stem} | {name} | {}", golden_fields(&d));
+        }
+    }
+
+    /// Diagnostic: print which protocol(s) each IMPORTS/*.sub decodes as. `#[ignore]`d (always
+    /// passes); run with `cargo test sweep_imports_decodes -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn sweep_imports_decodes() {
+        crate::protocols::keys::load_keystore_from_embedded();
+        let Some(subs) = imports_subs() else {
+            eprintln!("Skip: IMPORTS not found");
+            return;
+        };
+        let mut reg = ProtocolRegistry::new();
+        for path in &subs {
+            let rel = path.strip_prefix("IMPORTS").unwrap_or(path);
+            match decode_import(&mut reg, path) {
+                Ok((freq, decodes)) => {
+                    let names: Vec<&str> = decodes.iter().map(|(n, _)| n.as_str()).collect();
                     eprintln!("{:<42} {:>9}Hz => {:?}", rel.display(), freq, names);
                 }
                 Err(e) => eprintln!("{:<42} ERR {:?}", path.display(), e),
             }
         }
+    }
+
+    /// Flipper's own Sub-GHz unit test (`applications/debug/unit_tests/tests/subghz/subghz_test.c`,
+    /// Flipper-ARF copy), over its captures in `REFERENCES/` (skipped when absent, e.g. in CI):
+    /// every `subghz_decoder_*` case must decode at least one frame of its protocol.
+    const FLIPPER_UNIT_TESTS: &str = "REFERENCES/Flipper-ARF/applications/debug/unit_tests/resources/unit_tests/subghz";
+
+    /// (capture, protocol) of every decoder case for a protocol KAT implements.
+    const FLIPPER_DECODER_CASES: &[(&str, &str)] = &[
+        ("came_atomo_raw.sub", "CAME Atomo"),
+        ("came_raw.sub", "CAME"),
+        ("came_twee_raw.sub", "CAME TWEE"),
+        ("faac_slh_raw.sub", "Faac SLH"),
+        ("gate_tx_raw.sub", "GateTX"),
+        ("hormann_hsm_raw.sub", "Hormann HSM"),
+        ("ido_117_111_raw.sub", "iDo 117/111"),
+        ("doorhan_raw.sub", "KeeLoq"),
+        ("nero_radio_raw.sub", "Nero Radio"),
+        ("nero_sketch_raw.sub", "Nero Sketch"),
+        ("nice_flo_raw.sub", "Nice FLO"),
+        ("nice_flor_s_raw.sub", "Nice FloR-S"),
+        ("princeton_raw.sub", "Princeton"),
+        ("somfy_keytis_raw.sub", "Somfy Keytis"),
+        ("somfy_telis_raw.sub", "Somfy Telis"),
+        ("linear_raw.sub", "Linear"),
+        ("linear_delta3_raw.sub", "LinearDelta3"),
+        ("megacode_raw.sub", "MegaCode"),
+        ("security_pls_1_0_raw.sub", "Security+ 1.0"),
+        ("security_pls_2_0_raw.sub", "Security+ 2.0"),
+        ("holtek_raw.sub", "Holtek"),
+        ("power_smart_raw.sub", "Power Smart"),
+        ("marantec_raw.sub", "Marantec"),
+        ("bett_raw.sub", "BETT"),
+        ("doitrand_raw.sub", "Doitrand"),
+        ("phoenix_v2_raw.sub", "Phoenix_V2"),
+        ("clemsa_raw.sub", "Clemsa"),
+        ("ansonic_raw.sub", "Ansonic"),
+        ("smc5326_raw.sub", "SMC5326"),
+        ("holtek_ht12x_raw.sub", "Holtek_HT12X"),
+        ("dooya_raw.sub", "Dooya"),
+        ("alutech_at_4n_raw.sub", "Alutech AT-4N"),
+        ("nice_one_raw.sub", "Nice FloR-S"),
+        ("kinggates_stylo4k_raw.sub", "KingGates Stylo4k"),
+        ("mastercode_raw.sub", "Mastercode"),
+        ("dickert_raw.sub", "Dickert_MAHS"),
+        ("marantec24_raw.sub", "Marantec24"),
+        ("roger_raw.sub", "Roger"),
+        ("revers_rb2_raw.sub", "Revers_RB2"),
+        ("hay21_raw.sub", "Hay21"),
+    ];
+
+    /// Key files of every `subghz_encoder_*` case for a protocol KAT implements. Three cases fail in
+    /// the reference C itself (host build, see the oracle notes), so they are not listed:
+    /// `linear_delta3.sub` (LinearDelta3 reports only every third confirmed frame, and the upload
+    /// has three), `revers_rb2.sub` (back-to-back Revers_RB2 frames never re-sync; a held button
+    /// decodes) and `marantec24.sub` (the encoder's 15 200 µs gap sits exactly on the decoder's
+    /// exclusive limit). Flipper's own test passes them only with state left over from earlier
+    /// cases.
+    const FLIPPER_ENCODER_CASES: &[&str] = &[
+        "princeton.sub", "came.sub", "came_twee.sub", "gate_tx.sub", "nice_flo.sub", "doorhan.sub",
+        "linear.sub", "megacode.sub", "holtek.sub", "security_pls_1_0.sub",
+        "security_pls_2_0.sub", "power_smart.sub", "marantec.sub", "bett.sub", "doitrand.sub",
+        "phoenix_v2.sub", "clemsa.sub", "ansonic.sub", "smc5326.sub", "holtek_ht12x.sub",
+        "dooya.sub", "mastercode.sub", "dickert_mahs.sub", "roger.sub",
+    ];
+
+    /// The decoder name a decode belongs to ("KeeLoq (DoorHan)" → "KeeLoq").
+    fn decoder_of(reg: &ProtocolRegistry, display: &str) -> String {
+        reg.get(display).map_or_else(|| display.to_string(), |d| d.name().to_string())
+    }
+
+    #[test]
+    fn flipper_unit_test_decoders() {
+        crate::protocols::keys::load_keystore_from_embedded();
+        let dir = Path::new(FLIPPER_UNIT_TESTS);
+        if !dir.is_dir() {
+            eprintln!("Skip: {FLIPPER_UNIT_TESTS} not found");
+            return;
+        }
+        let mut reg = ProtocolRegistry::new();
+        let mut failures = Vec::new();
+        for &(file, protocol) in FLIPPER_DECODER_CASES {
+            let (_, decodes) = decode_import(&mut reg, &dir.join(file)).expect(file);
+            let found: Vec<String> = decodes.iter().map(|(n, _)| decoder_of(&reg, n)).collect();
+            if !found.iter().any(|n| n == protocol) {
+                failures.push(format!("{file}: no {protocol} decode (got {found:?})"));
+            }
+        }
+        assert!(failures.is_empty(), "Flipper decoder cases failing:\n{}", failures.join("\n"));
+    }
+
+    #[test]
+    fn flipper_unit_test_encoders() {
+        crate::protocols::keys::load_keystore_from_embedded();
+        let dir = Path::new(FLIPPER_UNIT_TESTS);
+        if !dir.is_dir() {
+            eprintln!("Skip: {FLIPPER_UNIT_TESTS} not found");
+            return;
+        }
+        let mut reg = ProtocolRegistry::new();
+        let mut failures = Vec::new();
+        for &file in FLIPPER_ENCODER_CASES {
+            let text = std::fs::read_to_string(dir.join(file)).expect(file);
+            let key = FlipperKey::parse(&text).expect(file);
+            let Some((name, decoded)) = reg.decode_key(&key) else {
+                failures.push(format!("{file}: key file for {:?} does not load", key.protocol));
+                continue;
+            };
+            let protocol = decoder_of(&reg, &name);
+            let wire = reg.get(&name).and_then(|d| d.encode(&decoded, decoded.button.unwrap_or(0)));
+            let Some(wire) = wire else {
+                failures.push(format!("{file}: {name} does not encode"));
+                continue;
+            };
+            let back: Vec<String> = reg
+                .process_signal_stream(&wire, key.frequency)
+                .iter()
+                .map(|(n, _, _)| decoder_of(&reg, n))
+                .collect();
+            if !back.iter().any(|n| *n == protocol) {
+                failures.push(format!("{file}: {protocol} upload decodes as {back:?}"));
+            }
+        }
+        assert!(failures.is_empty(), "Flipper encoder cases failing:\n{}", failures.join("\n"));
     }
 }

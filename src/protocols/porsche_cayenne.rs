@@ -30,10 +30,46 @@
 //! Lock/Unlock/Trunk/Panic (0x01/0x02/0x04/0x08) are the C's D-pad codes Lock/Unlock/Trunk/Open;
 //! any other request re-sends the captured button (the C's OK path does the same for captured
 //! codes 1/2/4/8, but maps any other captured code to 0x01).
+//!
+//! Key files (`subghz_protocol_decoder_porsche_cayenne_serialize` / `_deserialize`): `Protocol:
+//! Porsche AG` (ARF's name; KAT's key-file name table maps it back), `Bit: 64`, `Key` = the frame,
+//! then `Serial` (24-bit), `Btn`, `Counter` and `Cnt` (the same counter under both names). The C
+//! refuses a file without Serial, Btn or Counter and takes those three as the capture's fields (its
+//! encoder transmits from them), so KAT does too: a loaded key is the decode of its frame with the
+//! file's Serial/Btn, and its Counter unless that is 0 — the C writes 0 when its 1..=256 sweep finds
+//! nothing, while KAT recovers the full 16-bit counter from the frame (see above).
 
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (see `info.rs`); "Porsche Touareg" was ProtoPirate's port of the same frame (retired).
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Porsche Cayenne",
+    decoder: "Porsche Cayenne",
+    aliases: &["Porsche Touareg"],
+    name_prefix: None,
+    encoding: Coding::Pwm,
+    rf: Rf::AM,
+    encryption: "VAG rolling",
+    make: "Porsche",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650],
+};
+
+/// porsche_cayenne_custom_to_btn names 0x08 "Open" (KAT's generic table says Panic).
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x01 => "Lock",
+        0x02 => "Unlock",
+        0x04 => "Trunk",
+        0x08 => "Open",
+        _ => "Other",
+    })
+}
 
 const TE_SHORT: u32 = 1680;
 const TE_LONG: u32 = 3370;
@@ -393,6 +429,40 @@ impl ProtocolDecoder for PorscheCayenneDecoder {
 
         Some(signal)
     }
+
+    /// `subghz_protocol_decoder_porsche_cayenne_deserialize` (see the module doc, "Key files").
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != MIN_COUNT_BIT {
+            return None;
+        }
+        let mut decoded = parse_data(key.key_u64()?);
+        let serial = key.u32_field("Serial")?;
+        let button = key.u32_field("Btn")?;
+        let counter = key.u32_field("Counter")?;
+        decoded.serial = Some(serial & 0xFF_FFFF);
+        decoded.button = Some(button as u8);
+        if counter != 0 {
+            decoded.counter = Some(counter as u16);
+        }
+        Some(decoded)
+    }
+
+    /// `subghz_protocol_decoder_porsche_cayenne_serialize`: Key, Serial, Btn, Counter, Cnt.
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        if decoded.data_count_bit != MIN_COUNT_BIT {
+            return None;
+        }
+        let parsed = parse_data(decoded.data);
+        let serial = decoded.serial.or(parsed.serial)? & 0xFF_FFFF;
+        let button = decoded.button.or(parsed.button)?;
+        let counter = u32::from(decoded.counter.or(parsed.counter).unwrap_or(0));
+        let mut key = FlipperKey::for_protocol("Porsche AG", MIN_COUNT_BIT, decoded.data);
+        key.push_u32("Serial", serial);
+        key.push_u32("Btn", button.into());
+        key.push_u32("Counter", counter);
+        key.push_u32("Cnt", counter);
+        Some(key)
+    }
 }
 
 impl Default for PorscheCayenneDecoder {
@@ -592,6 +662,59 @@ mod tests {
             let names: Vec<String> =
                 reg.process_signal_stream(&up, f).into_iter().map(|(n, _, _)| n).collect();
             assert_eq!(names, vec!["Porsche Cayenne"; 4], "{f}");
+        }
+    }
+
+    /// Key files: the C's lines round-trip the decode (and resolve through the registry's name
+    /// table), the C's required fields are required, and the file's Serial/Btn/Counter are the
+    /// capture's (Counter 0 = "not found" keeps the recovered one); TX from a loaded key decodes.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = PorscheCayenneDecoder::new();
+        let up = dec.encode(&seed(0x5A5A5A, 0x1, 0x2345), 0x01).unwrap();
+        let decoded = decode_all(&up).remove(0);
+        assert_eq!(decoded.counter, Some(0x2346));
+        let text = assert_round_trip(&dec, &decoded);
+        let hex = |v: u64| v.to_be_bytes().iter().map(|b| format!("{b:02X}")).collect::<Vec<_>>().join(" ");
+        assert!(
+            text.ends_with(&format!(
+                "Protocol: Porsche AG\nBit: 64\nKey: {}\nSerial: 5921370\nBtn: 1\nCounter: 9030\nCnt: 9030\n",
+                hex(decoded.data)
+            )),
+            "{text}"
+        );
+        let reg = crate::protocols::ProtocolRegistry::new();
+        assert_eq!(reg.decode_key(&key(&text)), Some(("Porsche Cayenne".to_string(), decoded.clone())));
+
+        for missing in ["Serial", "Btn", "Counter"] {
+            let mut k = key(&text);
+            k.fields.retain(|(n, _)| n != missing);
+            assert!(dec.from_flipper_key(&k).is_none(), "{missing} is required");
+        }
+        // An ARF file of a counter beyond its 1..=256 sweep says Counter 0: KAT keeps the counter
+        // it recovers from the frame. An edited counter is taken as the capture's.
+        let zero = text.replace("Counter: 9030", "Counter: 0").replace("Cnt: 9030", "Cnt: 0");
+        assert_eq!(dec.from_flipper_key(&key(&zero)), Some(decoded.clone()));
+        let edited = dec.from_flipper_key(&key(&text.replace("Counter: 9030", "Counter: 100"))).unwrap();
+        assert_eq!(edited.counter, Some(100));
+
+        let loaded = dec.from_flipper_key(&key(&text)).unwrap();
+        let tx = decode_all(&dec.encode(&loaded, 0x02).unwrap());
+        assert_eq!((tx[0].serial, tx[0].button, tx[0].counter), (Some(0x5A5A5A), Some(0x2), Some(0x2347)));
+    }
+
+    /// Oracle vectors (`KAT_KEY_VECTORS=<dir> cargo test porsche_cayenne_key_vectors -- --ignored`).
+    #[test]
+    #[ignore]
+    fn porsche_cayenne_key_vectors() {
+        use super::super::bmw::{key_vector_dir, write_key_vector};
+        let dec = PorscheCayenneDecoder::new();
+        for (n, serial, btn, cnt) in [(1, 0x5A5A5Au32, 0x1u8, 0x2345u16), (2, 0x123456, 0x8, 9)] {
+            let up = dec.encode(&seed(serial, btn, cnt), 0).unwrap();
+            let decoded = decode_all(&up).remove(0);
+            let key = dec.to_flipper_key(&decoded).unwrap();
+            write_key_vector(&key_vector_dir(), &format!("porsche_cayenne_{n}"), 433_920_000, "FuriHalSubGhzPresetOok650Async", &up, &key);
         }
     }
 }

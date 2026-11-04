@@ -22,7 +22,9 @@
 //! Decoder (`subghz_protocol_decoder_mitsubishi_v0_feed`): Reset → (HIGH saved) DataCheck → (LOW)
 //! the pair must be short/long or long/short, else the payload is discarded; DataSave waits for the
 //! next HIGH. A frame is reported on the LOW of its 96th pair, with no preamble, gap or checksum
-//! gate (as in the C). `data` holds wire bytes 0..7 and `extra` bytes 8..11 (KAT's >64-bit
+//! gate (as in the C) — except that KAT drops 96 identical symbols (all 0x00 or all 0xFF wire
+//! bytes): real GM ABO1502T recordings (rtl_433_tests) produced that all-ones "frame" from the GM
+//! fob's preamble, and no real frame can have it (serial, counter and button would all be 0). `data` holds wire bytes 0..7 and `extra` bytes 8..11 (KAT's >64-bit
 //! convention), i.e. ARF's saved `Raw_Frame`.
 //!
 //! Encoder (ARF `subghz_protocol_encoder_mitsubishi_v0_get_upload`): replay-only, like ARF — the
@@ -40,6 +42,23 @@ use super::kia_v0::{self, KiaV0Type};
 use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (see `info.rs`): both formats; ProtoPirate "Mitsubishi V0 [FM476]", Flipper-ARF FM.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Mitsubishi V0",
+    decoder: "Mitsubishi V0",
+    aliases: &["Mitsu V0"],
+    name_prefix: None,
+    encoding: Coding::Pwm,
+    rf: Rf::FM,
+    encryption: "Rolling Code",
+    make: "Mitsubishi",
+    category: Category::Vehicle,
+    buttons: Some(super::kia_v0::native_buttons),
+    presets: &[&FM476],
+};
 
 const TE_SHORT: u32 = 250;
 const TE_LONG: u32 = 500;
@@ -243,10 +262,15 @@ impl ProtocolDecoder for MitsubishiV0Decoder {
                 if !level {
                     if self.collect_pair(self.te_last, duration) {
                         if self.bit_count >= BIT_COUNT {
-                            let result = self.publish_frame();
+                            // KAT gate (deviation from ARF, which reports any 96 pairs): 96
+                            // identical symbols are a preamble or carrier, not a frame — a GM
+                            // ABO1502T fob (rtl_433_tests general_motors) "decodes" as all-ones.
+                            let uniform = self.decode_data.iter().all(|&b| b == 0x00)
+                                || self.decode_data.iter().all(|&b| b == 0xFF);
+                            let result = (!uniform).then(|| self.publish_frame());
                             self.reset_payload();
                             self.step = DecoderStep::Reset;
-                            return Some(result);
+                            return result;
                         }
                         self.step = DecoderStep::DataSave;
                     } else {
@@ -279,6 +303,65 @@ impl ProtocolDecoder for MitsubishiV0Decoder {
         };
         let one = upload(&payload);
         Some(one.iter().cycle().take(one.len() * TX_REPEAT).cloned().collect())
+    }
+
+    /// Key files, 96-bit format (Flipper-ARF `subghz_protocol_encoder_mitsubishi_v0_deserialize`):
+    /// the frame is `Raw_Frame` (the 12 wire bytes) when present, else ARF's fallback frame built
+    /// from `Serial` / `Cnt` / `Btn`; the decode is then the decoder's own for that frame. (ARF's
+    /// decoder deserialize checks `Bit` against `min_count_bit_for_found` = 80, which no saved frame
+    /// has — its own 96-bit files only load into its encoder — so KAT follows the encoder.) Any
+    /// other bit count is ProtoPirate's Mitsubishi V0, a Kia V0 frame type: handed to Kia V0, as
+    /// ProtoPirate's catalog loads a "Mitsubishi V0" key.
+    fn from_flipper_key(&self, key: &super::FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != BIT_COUNT {
+            return kia_v0::KiaV0Decoder::new().from_flipper_key(key);
+        }
+        key.key_u64()?;
+        let raw: [u8; DATA_BYTES] = match key.hex_bytes_field("Raw_Frame") {
+            Some(raw) => raw.try_into().ok()?,
+            None => fallback_frame(
+                key.u32_field("Serial").unwrap_or(0),
+                key.u32_field("Cnt").unwrap_or(0) as u16,
+                key.u32_field("Btn").unwrap_or(0) as u8,
+            ),
+        };
+        let mut decoder = MitsubishiV0Decoder::new();
+        decoder.decode_data = raw;
+        Some(decoder.publish_frame())
+    }
+
+    /// Key files, 96-bit format (Flipper-ARF `subghz_protocol_decoder_mitsubishi_v0_serialize`):
+    /// `Protocol: Mitsubishi V0`, `Bit: 96`, `Key` all zero (ARF's decoder never sets
+    /// `generic.data`), then `Serial`, `Cnt`, `Btn` (the unscrambled fields) and `Raw_Frame`. A
+    /// 61-bit (ProtoPirate) Mitsubishi V0 is written by Kia V0, as ProtoPirate does: `Protocol: Kia
+    /// V0` with `Type: 4`.
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<super::FlipperKey> {
+        if decoded.data_count_bit == kia_v0::BIT_COUNT_KIA {
+            let mitsubishi = DecodedSignal {
+                protocol_display_name: Some(KiaV0Type::Mitsubishi.display_name().to_string()),
+                ..decoded.clone()
+            };
+            return kia_v0::KiaV0Decoder::new().to_flipper_key(&mitsubishi);
+        }
+        if decoded.data_count_bit != BIT_COUNT {
+            return None;
+        }
+        let (serial, counter, button, raw) = match decoded.extra {
+            Some(extra) => {
+                let raw = raw_frame(decoded.data, extra);
+                let (serial, counter, button) = unscramble(&raw);
+                (serial, counter, button, Some(raw))
+            }
+            None => (decoded.serial?, decoded.counter?, decoded.button.unwrap_or(0), None),
+        };
+        let mut key = super::FlipperKey::for_protocol("Mitsubishi V0", BIT_COUNT, 0);
+        key.push_u32("Serial", serial);
+        key.push_u32("Cnt", counter.into());
+        key.push_u32("Btn", button.into());
+        if let Some(raw) = raw {
+            key.push_hex_bytes("Raw_Frame", &raw);
+        }
+        Some(key)
     }
 }
 
@@ -344,6 +427,11 @@ mod tests {
                 .encode(&signal(data, Some(extra), 0, 0, 0), 0x01)
                 .unwrap();
             let got = feed_all(&wire);
+            if raw.iter().all(|&b| b == raw[0]) && (raw[0] == 0x00 || raw[0] == 0xFF) {
+                // The C reports this one; KAT's uniform-symbol gate drops it (see the module doc).
+                assert!(got.is_empty());
+                continue;
+            }
             // On air the last copy's final LOW runs into silence; as a pulse list it is exact.
             assert_eq!(got.len(), TX_REPEAT);
             for d in &got {
@@ -363,6 +451,16 @@ mod tests {
 
     /// Replay is verbatim whatever the requested button, and the serial/counter/button reported
     /// for a frame are the unscramble of its wire bytes.
+    #[test]
+    fn uniform_symbols_are_not_a_frame() {
+        // 120 "1" pairs (HIGH 250 + LOW 500) and 120 "0" pairs: preamble-like, never reported.
+        for (h, l) in [(250, 500), (500, 250)] {
+            let wire: Vec<LevelDuration> =
+                (0..120).flat_map(|_| [LevelDuration::new(true, h), LevelDuration::new(false, l)]).collect();
+            assert!(feed_all(&wire).is_empty(), "{h}/{l}");
+        }
+    }
+
     #[test]
     fn replay_is_verbatim() {
         let raw = [0x26, 0x18, 0x75, 0x2E, 0x41, 0x85, 0x52, 0x0E, 0x03, 0xD7, 0xD7, 0x7C];
@@ -396,6 +494,82 @@ mod tests {
             let names: Vec<String> =
                 reg.process_signal_stream(&wire, f).into_iter().map(|r| r.0).collect();
             assert_eq!(names, vec!["Mitsubishi V0"; TX_REPEAT], "{f} Hz");
+        }
+    }
+
+    /// Key files: a 96-bit decode round-trips with ARF's lines (Key all zero, the frame in
+    /// Raw_Frame); a file without Raw_Frame rebuilds ARF's fallback frame (C vectors); a 61-bit
+    /// (ProtoPirate / Kia V0 type 4) Mitsubishi V0 is written and loaded as Kia V0 does; TX from a
+    /// loaded key replays the frame.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = MitsubishiV0Decoder::new();
+        let raw = C_RAW[0].0;
+        let src = signal(u64::from_be_bytes(raw[..8].try_into().unwrap()), Some(0x03D7_D77C), 0, 0, 0);
+        let wire = dec.encode(&src, 0x01).unwrap();
+        let decoded = feed_all(&wire).remove(0);
+        let text = assert_round_trip(&dec, &decoded);
+        assert!(
+            text.ends_with(
+                "Protocol: Mitsubishi V0\nBit: 96\nKey: 00 00 00 00 00 00 00 00\nSerial: 488853013\n\
+                 Cnt: 31354\nBtn: 173\nRaw_Frame: 26 18 75 2E 41 85 52 0E 03 D7 D7 7C\n"
+            ),
+            "{text}"
+        );
+        let loaded = dec.from_flipper_key(&key(&text)).unwrap();
+        let pulses = |v: &[LevelDuration]| v.iter().map(|p| (p.level, p.duration_us)).collect::<Vec<_>>();
+        assert_eq!(pulses(&dec.encode(&loaded, 0x02).unwrap()), pulses(&wire));
+
+        // No Raw_Frame: ARF's encoder fallback from Serial/Cnt/Btn (the C_FIELDS vectors).
+        for &(serial, counter, button, raw, dser, dcnt, dbtn) in C_FIELDS {
+            let k = key(&format!(
+                "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+                 Preset: FuriHalSubGhzPreset2FSKDev476Async\nProtocol: Mitsubishi V0\nBit: 96\n\
+                 Key: 00 00 00 00 00 00 00 00\nSerial: {serial}\nCnt: {counter}\nBtn: {button}\n"
+            ));
+            let d = dec.from_flipper_key(&k).unwrap();
+            assert_eq!(d.data, u64::from_be_bytes(raw[..8].try_into().unwrap()));
+            assert_eq!((d.serial, d.counter, d.button), (Some(dser), Some(dcnt), Some(dbtn)));
+        }
+
+        // ProtoPirate's 61-bit Mitsubishi V0 (Kia V0 type 4): written as Kia V0, loaded back here
+        // or through the registry under its display name.
+        let frame = 0x1F12_3400_0000_1276u64;
+        let kia = kia_v0::KiaV0Decoder::new();
+        let mut mitsu = kia.from_flipper_key(&key(
+            "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+             Preset: FuriHalSubGhzPreset2FSKDev476Async\nProtocol: Kia V0\nBit: 61\n\
+             Key: 1F 12 34 00 00 00 12 76\nType: 4\n",
+        ))
+        .unwrap();
+        assert_eq!((mitsu.data, mitsu.protocol_display_name.as_deref()), (frame, Some("Mitsubishi V0")));
+        let text = assert_round_trip(&dec, &mitsu);
+        assert!(text.contains("\nProtocol: Kia V0\n") && text.ends_with("Type: 4\n"), "{text}");
+        let reg = ProtocolRegistry::new();
+        assert_eq!(reg.decode_key(&key(&text)), Some(("Mitsubishi V0".to_string(), mitsu.clone())));
+        // A legacy "Mitsubishi V0" 61-bit key (no Type line) is the Mitsubishi type of Kia V0.
+        let legacy = text.replace("Protocol: Kia V0", "Protocol: Mitsubishi V0").replace("Type: 4\n", "");
+        assert_eq!(reg.decode_key(&key(&legacy)), Some(("Mitsubishi V0".to_string(), mitsu.clone())));
+        mitsu.protocol_display_name = None;
+        assert!(dec.to_flipper_key(&mitsu).unwrap().to_text().ends_with("Type: 4\n"));
+    }
+
+    /// Oracle vectors (`KAT_KEY_VECTORS=<dir> cargo test mitsubishi_v0_key_vectors -- --ignored`).
+    #[test]
+    #[ignore]
+    fn mitsubishi_v0_key_vectors() {
+        use super::super::bmw::{key_vector_dir, write_key_vector};
+        let dec = MitsubishiV0Decoder::new();
+        for (n, i) in [(1, 0), (2, 3)] {
+            let raw = C_RAW[i].0;
+            let extra = u32::from_be_bytes(raw[8..].try_into().unwrap()) as u64;
+            let src = signal(u64::from_be_bytes(raw[..8].try_into().unwrap()), Some(extra), 0, 0, 0);
+            let wire = dec.encode(&src, 0x01).unwrap();
+            let one = &wire[..wire.len() / TX_REPEAT];
+            let decoded = feed_all(&wire).remove(0);
+            let key = dec.to_flipper_key(&decoded).unwrap();
+            write_key_vector(&key_vector_dir(), &format!("mitsubishi_v0_{n}"), 433_920_000, "FuriHalSubGhzPreset2FSKDev476Async", one, &key);
         }
     }
 }

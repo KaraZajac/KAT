@@ -93,10 +93,47 @@
 //! - UID sanity gate and dedup cleared on reset (above). The short 26-bit frames the C encoder
 //!   appends are ignored by the C decoder too (they never reach 104 bits).
 //! - The seed brute force runs at decode time instead of on user request (same result).
+//!
+//! ## Key files
+//! ProtoPirate `subghz_protocol_decoder_renault_v1_serialize` / `_deserialize`: `Protocol: Renault
+//! V1`, `Bit: 88`, `Key` (the C's 64-bit Key = `data << 16 | extra >> 24`), `Key_2` (8 bytes, the
+//! 24-bit tail), `Recovered` (1 byte), `Seed` (4 bytes), then `Serial`, `Btn`, `Cnt`, `Hop`
+//! (decimal). KAT writes what PP's file holds after its "Hitag2 BF": `Recovered: 01` + the
+//! recovered IV as Seed + the 16-bit counter, or `Recovered: 02` (brute force missed) + Seed 0 +
+//! the 10-bit counter. Loading needs Bit 88 and a frame that passes the decoder's gates, and
+//! re-runs the (deterministic) seed search, so a PP file saved before its brute force loads with
+//! the recovered counter too. "Hitag2 Key" / "Hitag2 Epoch" (PP's user-typed key) are not used.
+//! Flipper-ARF names its type-table protocol "Renault V1" too (KAT's "Renault V1 (ARF)",
+//! `renault_v1_arf.rs`); its keys (`Bit: 82`, decimal `Key2`) are handed to that decoder.
 
 use super::hitag2;
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Renault V1",
+    decoder: "Renault V1",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::Both,
+    encryption: "HITAG2",
+    make: "Renault",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650, &FM476],
+};
+
+/// Renault V1 buttons (2 is KAT's generic Unlock).
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0 => "Sync",
+        _ => return None,
+    })
+}
 
 /// Nominal half-bit (encoder `HITAG2_TE_US`).
 const TE_US: u32 = 125;
@@ -323,26 +360,45 @@ impl RenaultV1Decoder {
             return None;
         }
         self.last_frame = Some((self.key, key_2));
+        let iv = self.recover_seed(&raw);
+        Some(Self::frame_signal(self.key, key_2, iv))
+    }
 
-        // hitag2_unpack_frame; with a recovered seed, hitag2_apply_check_remote's 16-bit counter.
+    /// The reported signal for an accepted frame (Key, Key_2) and its seed search result:
+    /// `hitag2_unpack_frame`; with a recovered seed, `hitag2_apply_check_remote`'s 16-bit counter.
+    fn frame_signal(key: u64, key_2: u32, iv: Option<[u8; 4]>) -> DecodedSignal {
+        let raw = Self::payload(key, key_2);
         let button = raw[4] >> 4;
-        let cnt10 = (((raw[4] & 0x0F) as u16) << 6) | (raw[5] >> 2) as u16;
-        let counter = match self.recover_seed(&raw) {
+        let counter = match iv {
             Some(iv) => hitag2::renault_counter_from_seed(hitag2::renault_seed_from_iv(&iv)),
-            None => cnt10,
+            None => Self::cnt10(&raw),
         };
-        Some(DecodedSignal {
-            serial: Some(uid),
+        DecodedSignal {
+            serial: Some((key >> 32) as u32),
             button: Some(button),
             counter: Some(counter),
             crc_valid: true,
-            data: (1u64 << 48) | (self.key >> 16),
+            data: (1u64 << 48) | (key >> 16),
             data_count_bit: WIRE_BITS,
             // Seed recovered → fresh frames; otherwise doctor-firmware's replay (see Encoder).
             encoder_capable: true,
-            extra: Some(((self.key & 0xFFFF) << 24) | key_2 as u64),
+            extra: Some(((key & 0xFFFF) << 24) | key_2 as u64),
             protocol_display_name: None,
-        })
+        }
+    }
+
+    /// `hitag2_frame_cnt10`: counter bits 9..0 of a payload.
+    fn cnt10(raw: &[u8; 11]) -> u16 {
+        (((raw[4] & 0x0F) as u16) << 6) | (raw[5] >> 2) as u16
+    }
+
+    /// `hitag2_frame_hop`: the 32-bit authenticator of a payload.
+    fn hop(raw: &[u8; 11]) -> u32 {
+        ((raw[5] as u32 & 3) << 30)
+            | ((raw[6] as u32) << 22)
+            | ((raw[7] as u32) << 14)
+            | ((raw[8] as u32) << 6)
+            | (raw[9] as u32 >> 2)
     }
 
     /// KAT generic button → Renault code (ProtoPirate emulate plugin: Up = Lock 1, OK = Unlock 2,
@@ -545,6 +601,55 @@ impl ProtocolDecoder for RenaultV1Decoder {
         let raw = Self::payload_from_signal(decoded)?;
         let (payload, shape) = Self::tx_payload(&raw, button);
         Some(Self::build_upload(&payload, shape))
+    }
+
+    /// Key files: ProtoPirate `subghz_protocol_decoder_renault_v1_deserialize`: Bit must be 88;
+    /// Key (the C's 64-bit `generic.data`) and Key_2 (8 bytes, the 24-bit tail) rebuild the
+    /// frame, which must pass the decoder's gates (XOR byte, sane UID; the C loads any key).
+    /// The counter is the decoder's: the seed brute force runs as on air, so "Recovered" / "Seed"
+    /// (which PP's brute force writes) and the Serial/Btn/Cnt/Hop display lines are not needed;
+    /// "Hitag2 Key" is ignored (KAT has no HITAG2 key path). A `Bit: 82` key is Flipper-ARF's
+    /// "Renault V1" (KAT's "Renault V1 (ARF)") and loads through that decoder.
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits == 82 {
+            return super::renault_v1_arf::RenaultV1ArfDecoder::new().from_flipper_key(key);
+        }
+        if key.bits != 88 {
+            return None;
+        }
+        let k = key.key_u64()?;
+        let key_2 = (key.hex_field("Key_2")? & 0xFF_FFFF) as u32;
+        let raw = Self::payload(k, key_2);
+        if !Self::payload_valid(&raw) {
+            return None;
+        }
+        Some(Self::frame_signal(k, key_2, hitag2::renault_seed_recover(&raw)))
+    }
+
+    /// Key files: ProtoPirate `subghz_protocol_decoder_renault_v1_serialize`: Protocol "Renault V1",
+    /// Bit 88, Key, then Key_2 (8 bytes), Recovered (1 byte: 01 = seed recovered, 02 = brute force
+    /// missed — KAT always runs it), Seed (4 bytes: the recovered IV, else 0), Serial, Btn, Cnt
+    /// (16-bit with a recovered seed, else 10-bit) and Hop (decimal), as PP's file reads after its
+    /// "Hitag2 BF".
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        let raw = Self::payload_from_signal(decoded)?;
+        let k = u64::from_be_bytes(raw[..8].try_into().ok()?);
+        let key_2 = u32::from_be_bytes([0, raw[8], raw[9], raw[10]]);
+        let iv = hitag2::renault_seed_recover(&raw);
+        let seed = iv.as_ref().map_or(0, hitag2::renault_seed_from_iv);
+        let counter = match iv {
+            Some(_) => hitag2::renault_counter_from_seed(seed),
+            None => Self::cnt10(&raw),
+        };
+        let mut key = FlipperKey::for_protocol("Renault V1", 88, k);
+        key.push_hex("Key_2", u64::from(key_2), 8);
+        key.push_hex("Recovered", if iv.is_some() { 1 } else { 2 }, 1);
+        key.push_hex("Seed", u64::from(seed), 4);
+        key.push_u32("Serial", (k >> 32) as u32);
+        key.push_u32("Btn", u32::from(raw[4] >> 4));
+        key.push_u32("Cnt", counter.into());
+        key.push_u32("Hop", Self::hop(&raw));
+        Some(key)
     }
 }
 
@@ -1040,6 +1145,61 @@ mod tests {
                     }
                 }
             }
+        }
+    }
+
+    /// Key files (ProtoPirate `subghz_protocol_decoder_renault_v1_serialize` / `_deserialize`):
+    /// seed-scheme and no-seed frames round-trip with the C's lines as they read after PP's
+    /// "Hitag2 BF"; a PP file saved before its brute force loads with the recovered counter; Bit
+    /// ≠ 88 and frames failing the gates are refused; TX from a loaded key is the C's fresh frame.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = RenaultV1Decoder::new();
+        let seed_frame = signal_for(&hex11("1234567848D122E6FC52FB"));
+        assert!(assert_round_trip(&dec, &seed_frame).ends_with(
+            "Protocol: Renault V1\nBit: 88\nKey: 12 34 56 78 48 D1 22 E6\nKey_2: 00 00 00 00 00 FC 52 FB\n\
+             Recovered: 01\nSeed: 44 23 E1 01\nSerial: 305419896\nBtn: 4\nCnt: 4660\nHop: 1220132628\n"
+        ));
+        for frame in ["EFB82D6622345188720EAF", "C2064F3E2B1CDFDB258625", "378F852988DFF51255F203"] {
+            assert_round_trip(&dec, &signal_for(&hex11(frame)));
+        }
+        let no_seed = signal_for(&pack(0x5EED1234, 0x1, 0x2C3, 0xA5A55A5A, 2));
+        let text = assert_round_trip(&dec, &no_seed);
+        assert!(text.contains("\nRecovered: 02\nSeed: 00 00 00 00\nSerial: 1592594996\nBtn: 1\nCnt: 707\n"), "{text}");
+
+        // A file ProtoPirate saved straight after decoding (before its brute force): Recovered 00,
+        // Seed 0, the 10-bit counter. KAT's decoder recovers the seed, so the counter is the 16-bit one.
+        let pp = "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+                  Preset: FuriHalSubGhzPresetOok650Async\nProtocol: Renault V1\nBit: 88\n\
+                  Key: EF B8 2D 66 22 34 51 88\nKey_2: 00 00 00 00 00 72 0E AF\nRecovered: 00\n\
+                  Seed: 00 00 00 00\nSerial: 4022873446\nBtn: 2\nCnt: 141\nHop: 0\n";
+        let loaded = dec.from_flipper_key(&key(pp)).unwrap();
+        assert_eq!(loaded, signal_for(&hex11("EFB82D6622345188720EAF")));
+        assert_eq!((loaded.serial, loaded.button, loaded.counter), (Some(0xEFB8_2D66), Some(2), Some(0x008D)));
+        assert!(dec.from_flipper_key(&key(&pp.replace("Bit: 88", "Bit: 104"))).is_none());
+        assert!(dec.from_flipper_key(&key(&pp.replace("72 0E AF", "72 0E AE"))).is_none(), "XOR byte");
+        assert!(dec.from_flipper_key(&key(&pp.replace("Key_2: 00 00 00 00 00 72 0E AF\n", ""))).is_none());
+        // TX from the loaded key: a fresh seed-scheme frame, counter + 1.
+        let up = dec.encode(&loaded, 0x01).unwrap();
+        let tx = payload_of(&up);
+        let d = signal_for(&tx[0]);
+        assert_eq!((d.serial, d.button, d.counter), (Some(0xEFB8_2D66), Some(1), Some(0x008E)));
+    }
+
+    /// `KAT_KEY_VECTORS=<dir> cargo test renault_v1_oracle_vectors -- --ignored`: RAW uploads and
+    /// KAT's key files for the C oracle (seed path and no-seed replay).
+    #[test]
+    #[ignore]
+    fn renault_v1_oracle_vectors() {
+        let Some(dir) = std::env::var_os("KAT_KEY_VECTORS") else { return };
+        let dir = std::path::PathBuf::from(dir);
+        let dec = RenaultV1Decoder::new();
+        for (i, raw) in [hex11("1234567848D122E6FC52FB"), pack(0x5EED1234, 0x1, 0x2C3, 0xA5A55A5A, 2)].iter().enumerate() {
+            let up = dec.encode(&signal_for(raw), 0x02).unwrap();
+            let d = decode_all(&mut RenaultV1Decoder::new(), &up).remove(0);
+            let key = dec.to_flipper_key(&d).unwrap();
+            super::super::star_line::write_oracle_vector(&dir, &format!("renault_v1_{}", i + 1), 433_920_000, "FuriHalSubGhzPresetOok650Async", &up, &key);
         }
     }
 }

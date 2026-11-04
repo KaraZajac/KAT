@@ -1,0 +1,356 @@
+# KAT 1.4 protocol metadata (Capture::modulation / rf_modulation / encryption_type,
+# App::get_make_for_protocol, protocols::native_button_name), frozen before the v1.5
+# move to per-module ProtocolInfo. name | line coding | RF | encryption | make | buttons
+Kia V0 | PWM | AM/FM | Rolling Code | Kia/Hyundai | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-255=Other
+Kia V1 | Manchester | AM | Rolling Code | Kia/Hyundai | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-255=Other
+Kia V2 | Manchester | AM | Rolling Code | Kia/Hyundai | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-255=Other
+Kia V3/V4 | PWM | FM | KeeLoq | Kia/Hyundai | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-7=Other,8=Horn,9-255=Other
+Kia V5 | Manchester | FM | Rolling Code | Kia/Hyundai | 0=Other,1=Unlock,2=Lock,3=Other,4=Trunk,5-7=Other,8=Horn,9-255=Other
+Kia V6 | Manchester | FM | AES-128 | Kia/Hyundai | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-255=Other
+Kia V7 | Manchester | FM | Rolling Code | Kia/Hyundai | 0-2=-,3=Trunk,4-255=-
+VAG | Manchester | AM | AUT64/XTEA | VW/Audi/Seat/Skoda | 0=Other,1=Unlock,2=Lock,3=Other,4=Trunk,5-15=Other,16-31=Unlock,32-47=Lock,48-63=Other,64-79=Trunk,80-255=Other
+Ford V0 | Manchester | AM | Rolling Code | Ford | 0-15=-,16=Remote start,17-255=-
+Ford V1 | Manchester | FM | Rolling Code | Ford | 0=Sync,1-255=-
+Ford V3 | Manchester | AM/FM | Rolling Code | Ford | 0-5=-,6=Panic,7=Trunk,8-255=-
+Ford V2 | Manchester | FM | Rolling Code | Ford | 0-15=Other,16=Lock,17=Unlock,18=Other,19=Trunk,20=Panic,21=Remote start,22-255=Other
+Honda Static | Manchester | FM | Fixed Code | Honda/Acura | 0-4=-,5=Remote start,6-8=-,9=Lock x2,10-255=-
+Honda V1 | PWM | AM | Fixed Code | Honda/Acura | 0=Unlock,1-7=Other,8=Lock,9=Trunk,10=Panic,11-255=Other
+Subaru | PWM | AM | Rolling Code | Subaru | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-255=Other
+Fiat V0 | Manchester | AM | Rolling Code | Fiat | 0-3=Other,4-7=Lock,8-11=Unlock,12-19=Other,20-23=Lock,24-27=Unlock,28-35=Other,36-39=Lock,40-43=Unlock,44-51=Other,52-55=Lock,56-59=Unlock,60-67=Other,68-71=Lock,72-75=Unlock,76-83=Other,84-87=Lock,88-91=Unlock,92-99=Other,100-103=Lock,104-107=Unlock,108-115=Other,116-119=Lock,120-123=Unlock,124-131=Other,132-135=Lock,136-139=Unlock,140-147=Other,148-151=Lock,152-155=Unlock,156-163=Other,164-167=Lock,168-171=Unlock,172-179=Other,180-183=Lock,184-187=Unlock,188-195=Other,196-199=Lock,200-203=Unlock,204-211=Other,212-215=Lock,216-219=Unlock,220-227=Other,228-231=Lock,232-235=Unlock,236-243=Other,244-247=Lock,248-251=Unlock,252-255=Other
+Fiat V1 | Manchester | AM | HITAG2 | Fiat | 0=Other,1=Close,2=Trunk,3=Other,4=Lock,5-7=Other,8=Unlock,9-255=Other
+Scher-Khan | PWM | AM/FM | Magic Code | Scher-Khan | 0=Other,1=Lock,2=Unlock,3=Lock+Unlock,4=Trunk,5=Lock+Trunk,6=Unlock+Trunk,7=Lk+Ul+Tr,8=Start,9=Lock+Start,10=Unlock+Start,11=Other,12=Trunk+Start,13-14=Other,15=All/Panic,16-255=Other
+Star Line | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+Sheriff CFM | PWM | AM | KeeLoq | Sheriff | 0-15=Other,16=Lock,17-31=Other,32=Unlock,33-63=Other,64=Trunk,65-127=Other,128=Panic,129-255=Other
+KeeLoq | Unknown | — | Unknown | Unknown | 0-255=-
+PSA | Manchester | AM/FM | TEA/XOR | Peugeot/Citroen | 0=Lock,1=Unlock,2=Trunk,3-255=Other
+Chrysler V0 | PWM | AM | Rolling Code | Chrysler/Dodge/Jeep | 0-255=-
+Honda V2 | Diff. Manchester | FM | Rolling Code | Honda/Acura | 0-1=Other,2=Lock,3=Other,4=Unlock,5-255=Other
+Mazda V0 | Manchester | AM/FM | XOR whitening | Mazda | 0-7=-,8=Remote,9-255=-
+Mazda Siemens | Manchester | FM | Siemens XOR | Mazda | 0-15=Other,16=Lock,17-31=Other,32=Unlock,33-63=Other,64=Trunk,65-255=Other
+Mitsubishi V0 | PWM | FM | Rolling Code | Mitsubishi | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-255=Other
+Porsche Cayenne | PWM | AM | VAG rolling | Porsche | 0=Other,1=Lock,2=Unlock,3=Other,4=Trunk,5-7=Other,8=Open,9-255=Other
+Toyota | Diff. Manchester | AM | Rolling Code | Toyota/Lexus | 0=Unknown,1=Cmd 1,2=Cmd 2,3=Cmd 3,4-152=Unknown,153=Estima,154-155=Unknown,156=Estima,157-208=Unknown,209=Estima,210-211=Unknown,212=Estima,213-255=Unknown
+BMW | Manchester | AM | Rolling Code | BMW | 0=Other,1=Unlock,2=Lock,3=Trunk,4-255=Other
+Mazda V2 | Diff. Manchester | AM/FM | Rolling Code | Mazda | 0-3=Other,4=Lock,5=Other,6=Lock,7=Other,8=Unlock,9=Other,10=Unlock,11-13=Other,14=Trunk,15=Other,16=Trunk,17-131=Other,132=Lock,133=Other,134=Lock,135=Other,136=Unlock,137=Other,138=Unlock,139-141=Other,142=Trunk,143=Other,144=Trunk,145-255=Other
+Mercedes V0 | Manchester | FM | Rolling Code | Mercedes-Benz | 0=Follow-up,1-7=Other,8=Unlock,9=Other,10=Aux,11=Other,12=Lock,13-255=Other
+Mercedes V1 | Manchester | FM | Rolling Code | Mercedes-Benz | 0=Lock,1=Unlock,2-255=Other
+Opel V1 | Manchester | AM | XTEA | Opel | 0-3=Other,4=Lock,5-7=Other,8=Unlock,9-31=Other,32=Trunk,33-255=Other
+Renault V1 | Manchester | AM/FM | HITAG2 | Renault | 0=Sync,1-255=-
+Renault V0 | Manchester | AM | Rolling Code | Renault | 0-4=Other,5=Trunk,6=Lock,7-9=Other,10=Unlock,11-255=Other
+Renault V1 (ARF) | Manchester | AM/FM | Rolling Code | Renault | 0-3=Other,4-7=Lock,8-11=Unlock,12-19=Other,20-23=Lock,24-27=Unlock,28-35=Other,36-39=Lock,40-43=Unlock,44-51=Other,52-55=Lock,56-59=Unlock,60-67=Other,68-71=Lock,72-75=Unlock,76-83=Other,84-87=Lock,88-91=Unlock,92-99=Other,100-103=Lock,104-107=Unlock,108-115=Other,116-119=Lock,120-123=Unlock,124-131=Other,132-135=Lock,136-139=Unlock,140-147=Other,148-151=Lock,152-155=Unlock,156-163=Other,164-167=Lock,168-171=Unlock,172-179=Other,180-183=Lock,184-187=Unlock,188-195=Other,196-199=Lock,200-203=Unlock,204-211=Other,212-215=Lock,216-219=Unlock,220-227=Other,228-231=Lock,232-235=Unlock,236-243=Other,244-247=Lock,248-251=Unlock,252-255=Other
+Fiat V2 | Manchester | AM | Rolling Code | Fiat/Chrysler/Jeep | 0-63=Other,64-127=Trunk,128-191=Lock,192-255=Unlock
+GM | PWM | AM | Rolling Code | Chevrolet/Buick/GMC/Cadillac | 0=Other,1=Unlock,2=Lock,3=Trunk,4=Panic,5-8=Other,9=Unlock,10=Lock,11=Trunk,12=Panic,13-16=Other,17=Unlock,18=Lock,19=Trunk,20=Panic,21-24=Other,25=Unlock,26=Lock,27=Trunk,28=Panic,29-32=Other,33=Unlock,34=Lock,35=Trunk,36=Panic,37-40=Other,41=Unlock,42=Lock,43=Trunk,44=Panic,45-48=Other,49=Unlock,50=Lock,51=Trunk,52=Panic,53-56=Other,57=Unlock,58=Lock,59=Trunk,60=Panic,61-64=Other,65=Unlock,66=Lock,67=Trunk,68=Panic,69-72=Other,73=Unlock,74=Lock,75=Trunk,76=Panic,77-80=Other,81=Unlock,82=Lock,83=Trunk,84=Panic,85-88=Other,89=Unlock,90=Lock,91=Trunk,92=Panic,93-96=Other,97=Unlock,98=Lock,99=Trunk,100=Panic,101-104=Other,105=Unlock,106=Lock,107=Trunk,108=Panic,109-112=Other,113=Unlock,114=Lock,115=Trunk,116=Panic,117-120=Other,121=Unlock,122=Lock,123=Trunk,124=Panic,125-128=Other,129=Unlock,130=Lock,131=Trunk,132=Panic,133-136=Other,137=Unlock,138=Lock,139=Trunk,140=Panic,141-144=Other,145=Unlock,146=Lock,147=Trunk,148=Panic,149-152=Other,153=Unlock,154=Lock,155=Trunk,156=Panic,157-160=Other,161=Unlock,162=Lock,163=Trunk,164=Panic,165-168=Other,169=Unlock,170=Lock,171=Trunk,172=Panic,173-176=Other,177=Unlock,178=Lock,179=Trunk,180=Panic,181-184=Other,185=Unlock,186=Lock,187=Trunk,188=Panic,189-192=Other,193=Unlock,194=Lock,195=Trunk,196=Panic,197-200=Other,201=Unlock,202=Lock,203=Trunk,204=Panic,205-208=Other,209=Unlock,210=Lock,211=Trunk,212=Panic,213-216=Other,217=Unlock,218=Lock,219=Trunk,220=Panic,221-224=Other,225=Unlock,226=Lock,227=Trunk,228=Panic,229-232=Other,233=Unlock,234=Lock,235=Trunk,236=Panic,237-240=Other,241=Unlock,242=Lock,243=Trunk,244=Panic,245-248=Other,249=Unlock,250=Lock,251=Trunk,252=Panic,253-255=Other
+Datsun Lada | Manchester | FM | HITAG2 | Datsun/Lada | 0-31=Other,32=Btn3,33-63=Other,64=Btn0,65-95=Other,96=Btn5,97-127=Other,128=Btn1,129-255=Other
+Land Rover RKE | PWM | AM | KeeLoq | Land Rover | 0-255=-
+Audi | PWM | AM | Rolling Code | Audi | 0-255=-
+Hyundai | Manchester | AM | Rolling Code | Hyundai | 0-255=-
+Mazda Infinity | Manchester | AM | Rolling Code | Mazda | 0-15=Other,16=Lock,17-31=Other,32=Unlock,33-63=Other,64=Trunk,65-255=Other
+Kia V3 | PWM | FM | KeeLoq | Kia/Hyundai | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-7=Other,8=Horn,9-255=Other
+Kia V4 | PWM | FM | KeeLoq | Kia/Hyundai | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-7=Other,8=Horn,9-255=Other
+Suzuki V0 | PWM | AM/FM | Rolling Code | Suzuki | 0=Other,1=Panic,2=Trunk,3=Lock,4=Unlock,5-255=Other
+Honda V0 | PWM | AM/FM | Rolling Code | Honda/Acura | 0=Other,1=Unlock,2=Trunk,3=Lock2,4=Unlock2,5=Trunk2,6=Unlock3,7=Trunk3,8-255=Other
+KeeLoq (KGB/Subaru) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (KGB/Subaru) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [KGB/Subaru] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Magic_2) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Magic_2) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Magic_2] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (IronLogic) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (IronLogic) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [IronLogic] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Stilmatic) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Stilmatic) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Stilmatic] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Pandora_Test_Debug_2) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Pandora_Test_Debug_2) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Pandora_Test_Debug_2] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Rosh) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Rosh) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Rosh] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Dea_Mio) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Dea_Mio) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Dea_Mio] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Leopard) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Leopard) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Leopard] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Sheriff) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Sheriff) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Sheriff] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Cenmax) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Cenmax) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Cenmax] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Centurion) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Centurion) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Centurion] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Guard_RF-311A) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Guard_RF-311A) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Guard_RF-311A] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Pandora_PRO) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Pandora_PRO) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Pandora_PRO] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Cardin_S449) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Cardin_S449) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Cardin_S449] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Pandora_DEA) | PWM | AM | KeeLoq | KeeLoq | 0=-,1=B4,2=B1,3=-,4=B2,5-7=-,8=B3,9-255=-
+Keeloq (Pandora_DEA) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Pandora_DEA] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Pandora_GIBIDI) | PWM | AM | KeeLoq | KeeLoq | 0=-,1=B4,2=B1,3=-,4=B2,5-7=-,8=B3,9-255=-
+Keeloq (Pandora_GIBIDI) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Pandora_GIBIDI] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Pandora_MCODE) | PWM | AM | KeeLoq | KeeLoq | 0=-,1=B4,2=B1,3=-,4=B2,5-7=-,8=B3,9-255=-
+Keeloq (Pandora_MCODE) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Pandora_MCODE] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Pandora_Unknown_1) | PWM | AM | KeeLoq | KeeLoq | 0=-,1=B4,2=B1,3=-,4=B2,5-7=-,8=B3,9-255=-
+Keeloq (Pandora_Unknown_1) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Pandora_Unknown_1] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Pandora_SUZUKI) | PWM | AM | KeeLoq | KeeLoq | 0=-,1=B4,2=B1,3=-,4=B2,5-7=-,8=B3,9-255=-
+Keeloq (Pandora_SUZUKI) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Pandora_SUZUKI] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Harpoon) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Harpoon) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Harpoon] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Gibidi) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Gibidi) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Gibidi] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Pandora_Unknown_2) | PWM | AM | KeeLoq | KeeLoq | 0=-,1=B4,2=B1,3=-,4=B2,5-7=-,8=B3,9-255=-
+Keeloq (Pandora_Unknown_2) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Pandora_Unknown_2] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Jarolift) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Jarolift) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Jarolift] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (KEY) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (KEY) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [KEY] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Novoferm) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Novoferm) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Novoferm] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Pandora_SUBARU) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Pandora_SUBARU) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Pandora_SUBARU] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Pecinin) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Pecinin) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Pecinin] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Merlin) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Merlin) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Merlin] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Pandora_M101) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Pandora_M101) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Pandora_M101] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (IL-100(Smart)) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (IL-100(Smart)) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [IL-100(Smart)] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Pantera_CLK) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Pantera_CLK) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Pantera_CLK] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Kingates_Stylo4k) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Kingates_Stylo4k) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Kingates_Stylo4k] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Monarch) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Monarch) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Monarch] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Aprimatic) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Aprimatic) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Aprimatic] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (NICE_MHOUSE) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (NICE_MHOUSE) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [NICE_MHOUSE] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (BFT) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (BFT) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [BFT] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Pantera) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Pantera) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Pantera] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (KIAV5) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (KIAV5) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [KIAV5] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (FAAC_SLH) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (FAAC_SLH) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [FAAC_SLH] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Alligator_S-275) | PWM | AM | KeeLoq | KeeLoq | 0=-,1=B4,2=B1,3=-,4=B2,5-7=-,8=B3,9-255=-
+Keeloq (Alligator_S-275) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Alligator_S-275] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (NICE_Smilo) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (NICE_Smilo) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [NICE_Smilo] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (SL_A6-A9/Tomahawk_9010) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (SL_A6-A9/Tomahawk_9010) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [SL_A6-A9/Tomahawk_9010] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Motorline) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Motorline) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Motorline] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (KIAV6A) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (KIAV6A) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [KIAV6A] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Tomahawk_TZ-9030) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Tomahawk_TZ-9030) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Tomahawk_TZ-9030] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Cenmax_St-7) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Cenmax_St-7) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Cenmax_St-7] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Pantera_XS/Jaguar) | PWM | AM | KeeLoq | KeeLoq | 0=-,1=B4,2=B1,3=-,4=B2,5-7=-,8=B3,9-255=-
+Keeloq (Pantera_XS/Jaguar) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Pantera_XS/Jaguar] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (APS-1100_APS-2550) | PWM | AM | KeeLoq | KeeLoq | 0=-,1=B4,2=B1,3=-,4=B2,5-7=-,8=B3,9-255=-
+Keeloq (APS-1100_APS-2550) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [APS-1100_APS-2550] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Reff) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Reff) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Reff] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (KIAV6B) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (KIAV6B) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [KIAV6B] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Beninca_ARC) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Beninca_ARC) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Beninca_ARC] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Tomahawk_Z,X_3-5) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Tomahawk_Z,X_3-5) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Tomahawk_Z,X_3-5] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Sommer) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Sommer) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Sommer] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Pandora_PRO2) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Pandora_PRO2) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Pandora_PRO2] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (DoorHan) | PWM | AM | KeeLoq | KeeLoq | 0=-,1=B4,2=B1,3=-,4=B2,5-7=-,8=B3,9-255=-
+Keeloq (DoorHan) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [DoorHan] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (EcoStar) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (EcoStar) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [EcoStar] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (JCM_Tech) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (JCM_Tech) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [JCM_Tech] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Faraon) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Faraon) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Faraon] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Came_Space) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Came_Space) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Came_Space] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Magic_4) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Magic_4) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Magic_4] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (SL_A2-A4) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (SL_A2-A4) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [SL_A2-A4] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Elmes_Poland) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Elmes_Poland) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Elmes_Poland] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Normstahl) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Normstahl) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Normstahl] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (KIA) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (KIA) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [KIA] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (GSN) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (GSN) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [GSN] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Mutanco_Mutancode) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Mutanco_Mutancode) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Mutanco_Mutancode] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Cenmax_St-5) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Cenmax_St-5) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Cenmax_St-5] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Magic_3) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Magic_3) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Magic_3] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Partisan_RX) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Partisan_RX) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Partisan_RX] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Steelmate) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Steelmate) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Steelmate] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Teco) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Teco) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Teco] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (ZX-730-750-1055) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (ZX-730-750-1055) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [ZX-730-750-1055] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Jolly_Motors) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Jolly_Motors) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Jolly_Motors] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Beninca) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Beninca) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Beninca] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Mongoose) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Mongoose) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Mongoose] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Alligator) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Alligator) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Alligator] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Comunello) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Comunello) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Comunello] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (SL_B6,B9_dop) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (SL_B6,B9_dop) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [SL_B6,B9_dop] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (FAAC_RC,XT) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (FAAC_RC,XT) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [FAAC_RC,XT] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Genius_Bravo) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Genius_Bravo) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Genius_Bravo] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Rossi) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Rossi) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Rossi] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (DTM_Neo) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (DTM_Neo) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [DTM_Neo] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (Star Line) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Keeloq (Star Line) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+Star Line [Star Line] | PWM | AM | KeeLoq | Star Line | 0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-32=Other,33=Lock,34=Unlock,35=Trunk,36=Start,37=Stop,38=Extra,39-255=Other
+KeeLoq (AN-Motors) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+KeeLoq (HCS101) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+KeeLoq (Unknown) | PWM | AM | KeeLoq | KeeLoq | 0-255=-
+KeeLoq (Nissan) | PWM | AM | KeeLoq | KeeLoq | 0=-,1=B4,2=B1,3=-,4=B2,5-7=-,8=B3,9-255=-
+KeeLoq (Suzuki) | PWM | AM | KeeLoq | KeeLoq | 0=-,1=B4,2=B1,3=-,4=B2,5-7=-,8=B3,9-255=-
+Scher-Khan [MAGIC CODE, Static] | PWM | AM/FM | Magic Code | Scher-Khan | 0=Other,1=Lock,2=Unlock,3=Lock+Unlock,4=Trunk,5=Lock+Trunk,6=Unlock+Trunk,7=Lk+Ul+Tr,8=Start,9=Lock+Start,10=Unlock+Start,11=Other,12=Trunk+Start,13-14=Other,15=All/Panic,16-255=Other
+Scher-Khan [MAGIC CODE, Dynamic] | PWM | AM/FM | Magic Code | Scher-Khan | 0=Other,1=Lock,2=Unlock,3=Lock+Unlock,4=Trunk,5=Lock+Trunk,6=Unlock+Trunk,7=Lk+Ul+Tr,8=Start,9=Lock+Start,10=Unlock+Start,11=Other,12=Trunk+Start,13-14=Other,15=All/Panic,16-255=Other
+Scher-Khan [MAGIC CODE, Response] | PWM | AM/FM | Magic Code | Scher-Khan | 0=Other,1=Lock,2=Unlock,3=Lock+Unlock,4=Trunk,5=Lock+Trunk,6=Unlock+Trunk,7=Lk+Ul+Tr,8=Start,9=Lock+Start,10=Unlock+Start,11=Other,12=Trunk+Start,13-14=Other,15=All/Panic,16-255=Other
+Scher-Khan [MAGICAR, Response] | PWM | AM/FM | Magic Code | Scher-Khan | 0=Other,1=Lock,2=Unlock,3=Lock+Unlock,4=Trunk,5=Lock+Trunk,6=Unlock+Trunk,7=Lk+Ul+Tr,8=Start,9=Lock+Start,10=Unlock+Start,11=Other,12=Trunk+Start,13-14=Other,15=All/Panic,16-255=Other
+Scher-Khan [MAGIC CODE PRO, Response] | PWM | AM/FM | Magic Code | Scher-Khan | 0=Other,1=Lock,2=Unlock,3=Lock+Unlock,4=Trunk,5=Lock+Trunk,6=Unlock+Trunk,7=Lk+Ul+Tr,8=Start,9=Lock+Start,10=Unlock+Start,11=Other,12=Trunk+Start,13-14=Other,15=All/Panic,16-255=Other
+Scher-Khan [MAGIC CODE PRO1] | PWM | AM/FM | Magic Code | Scher-Khan | 0=Other,1=Lock,2=Unlock,3=Lock+Unlock,4=Trunk,5=Lock+Trunk,6=Unlock+Trunk,7=Lk+Ul+Tr,8=Start,9=Lock+Start,10=Unlock+Start,11=Other,12=Trunk+Start,13-14=Other,15=All/Panic,16-255=Other
+Scher-Khan [MAGIC CODE PRO2] | PWM | AM/FM | Magic Code | Scher-Khan | 0=Other,1=Lock,2=Unlock,3=Lock+Unlock,4=Trunk,5=Lock+Trunk,6=Unlock+Trunk,7=Lk+Ul+Tr,8=Start,9=Lock+Start,10=Unlock+Start,11=Other,12=Trunk+Start,13-14=Other,15=All/Panic,16-255=Other
+Scher-Khan [MAGIC CODE PRO/PRO2] | PWM | AM/FM | Magic Code | Scher-Khan | 0=Other,1=Lock,2=Unlock,3=Lock+Unlock,4=Trunk,5=Lock+Trunk,6=Unlock+Trunk,7=Lk+Ul+Tr,8=Start,9=Lock+Start,10=Unlock+Start,11=Other,12=Trunk+Start,13-14=Other,15=All/Panic,16-255=Other
+Scher-Khan [Unknown] | PWM | AM/FM | Magic Code | Scher-Khan | 0=Other,1=Lock,2=Unlock,3=Lock+Unlock,4=Trunk,5=Lock+Trunk,6=Unlock+Trunk,7=Lk+Ul+Tr,8=Start,9=Lock+Start,10=Unlock+Start,11=Other,12=Trunk+Start,13-14=Other,15=All/Panic,16-255=Other
+Renault V1 (ARF) [0x04] | Manchester | AM/FM | Rolling Code | Renault | 0-3=Other,4-7=Lock,8-11=Unlock,12-19=Other,20-23=Lock,24-27=Unlock,28-35=Other,36-39=Lock,40-43=Unlock,44-51=Other,52-55=Lock,56-59=Unlock,60-67=Other,68-71=Lock,72-75=Unlock,76-83=Other,84-87=Lock,88-91=Unlock,92-99=Other,100-103=Lock,104-107=Unlock,108-115=Other,116-119=Lock,120-123=Unlock,124-131=Other,132-135=Lock,136-139=Unlock,140-147=Other,148-151=Lock,152-155=Unlock,156-163=Other,164-167=Lock,168-171=Unlock,172-179=Other,180-183=Lock,184-187=Unlock,188-195=Other,196-199=Lock,200-203=Unlock,204-211=Other,212-215=Lock,216-219=Unlock,220-227=Other,228-231=Lock,232-235=Unlock,236-243=Other,244-247=Lock,248-251=Unlock,252-255=Other
+Renault V1 (ARF) [0x0C] | Manchester | AM/FM | Rolling Code | Renault | 0-3=Other,4-7=Lock,8-11=Unlock,12-19=Other,20-23=Lock,24-27=Unlock,28-35=Other,36-39=Lock,40-43=Unlock,44-51=Other,52-55=Lock,56-59=Unlock,60-67=Other,68-71=Lock,72-75=Unlock,76-83=Other,84-87=Lock,88-91=Unlock,92-99=Other,100-103=Lock,104-107=Unlock,108-115=Other,116-119=Lock,120-123=Unlock,124-131=Other,132-135=Lock,136-139=Unlock,140-147=Other,148-151=Lock,152-155=Unlock,156-163=Other,164-167=Lock,168-171=Unlock,172-179=Other,180-183=Lock,184-187=Unlock,188-195=Other,196-199=Lock,200-203=Unlock,204-211=Other,212-215=Lock,216-219=Unlock,220-227=Other,228-231=Lock,232-235=Unlock,236-243=Other,244-247=Lock,248-251=Unlock,252-255=Other
+Renault V1 (ARF) [0x1A] | Manchester | AM/FM | Rolling Code | Renault | 0-3=Other,4-7=Lock,8-11=Unlock,12-19=Other,20-23=Lock,24-27=Unlock,28-35=Other,36-39=Lock,40-43=Unlock,44-51=Other,52-55=Lock,56-59=Unlock,60-67=Other,68-71=Lock,72-75=Unlock,76-83=Other,84-87=Lock,88-91=Unlock,92-99=Other,100-103=Lock,104-107=Unlock,108-115=Other,116-119=Lock,120-123=Unlock,124-131=Other,132-135=Lock,136-139=Unlock,140-147=Other,148-151=Lock,152-155=Unlock,156-163=Other,164-167=Lock,168-171=Unlock,172-179=Other,180-183=Lock,184-187=Unlock,188-195=Other,196-199=Lock,200-203=Unlock,204-211=Other,212-215=Lock,216-219=Unlock,220-227=Other,228-231=Lock,232-235=Unlock,236-243=Other,244-247=Lock,248-251=Unlock,252-255=Other
+Renault V1 (ARF) [0x3B] | Manchester | AM/FM | Rolling Code | Renault | 0-3=Other,4-7=Lock,8-11=Unlock,12-19=Other,20-23=Lock,24-27=Unlock,28-35=Other,36-39=Lock,40-43=Unlock,44-51=Other,52-55=Lock,56-59=Unlock,60-67=Other,68-71=Lock,72-75=Unlock,76-83=Other,84-87=Lock,88-91=Unlock,92-99=Other,100-103=Lock,104-107=Unlock,108-115=Other,116-119=Lock,120-123=Unlock,124-131=Other,132-135=Lock,136-139=Unlock,140-147=Other,148-151=Lock,152-155=Unlock,156-163=Other,164-167=Lock,168-171=Unlock,172-179=Other,180-183=Lock,184-187=Unlock,188-195=Other,196-199=Lock,200-203=Unlock,204-211=Other,212-215=Lock,216-219=Unlock,220-227=Other,228-231=Lock,232-235=Unlock,236-243=Other,244-247=Lock,248-251=Unlock,252-255=Other
+Renault V1 (ARF) [0x3F] | Manchester | AM/FM | Rolling Code | Renault | 0-3=Other,4-7=Lock,8-11=Unlock,12-19=Other,20-23=Lock,24-27=Unlock,28-35=Other,36-39=Lock,40-43=Unlock,44-51=Other,52-55=Lock,56-59=Unlock,60-67=Other,68-71=Lock,72-75=Unlock,76-83=Other,84-87=Lock,88-91=Unlock,92-99=Other,100-103=Lock,104-107=Unlock,108-115=Other,116-119=Lock,120-123=Unlock,124-131=Other,132-135=Lock,136-139=Unlock,140-147=Other,148-151=Lock,152-155=Unlock,156-163=Other,164-167=Lock,168-171=Unlock,172-179=Other,180-183=Lock,184-187=Unlock,188-195=Other,196-199=Lock,200-203=Unlock,204-211=Other,212-215=Lock,216-219=Unlock,220-227=Other,228-231=Lock,232-235=Unlock,236-243=Other,244-247=Lock,248-251=Unlock,252-255=Other
+Renault V1 (ARF) [Dynamic 0x17] | Manchester | AM/FM | Rolling Code | Renault | 0-3=Other,4-7=Lock,8-11=Unlock,12-19=Other,20-23=Lock,24-27=Unlock,28-35=Other,36-39=Lock,40-43=Unlock,44-51=Other,52-55=Lock,56-59=Unlock,60-67=Other,68-71=Lock,72-75=Unlock,76-83=Other,84-87=Lock,88-91=Unlock,92-99=Other,100-103=Lock,104-107=Unlock,108-115=Other,116-119=Lock,120-123=Unlock,124-131=Other,132-135=Lock,136-139=Unlock,140-147=Other,148-151=Lock,152-155=Unlock,156-163=Other,164-167=Lock,168-171=Unlock,172-179=Other,180-183=Lock,184-187=Unlock,188-195=Other,196-199=Lock,200-203=Unlock,204-211=Other,212-215=Lock,216-219=Unlock,220-227=Other,228-231=Lock,232-235=Unlock,236-243=Other,244-247=Lock,248-251=Unlock,252-255=Other
+Renault V1 (ARF) [Dynamic 0x2A] | Manchester | AM/FM | Rolling Code | Renault | 0-3=Other,4-7=Lock,8-11=Unlock,12-19=Other,20-23=Lock,24-27=Unlock,28-35=Other,36-39=Lock,40-43=Unlock,44-51=Other,52-55=Lock,56-59=Unlock,60-67=Other,68-71=Lock,72-75=Unlock,76-83=Other,84-87=Lock,88-91=Unlock,92-99=Other,100-103=Lock,104-107=Unlock,108-115=Other,116-119=Lock,120-123=Unlock,124-131=Other,132-135=Lock,136-139=Unlock,140-147=Other,148-151=Lock,152-155=Unlock,156-163=Other,164-167=Lock,168-171=Unlock,172-179=Other,180-183=Lock,184-187=Unlock,188-195=Other,196-199=Lock,200-203=Unlock,204-211=Other,212-215=Lock,216-219=Unlock,220-227=Other,228-231=Lock,232-235=Unlock,236-243=Other,244-247=Lock,248-251=Unlock,252-255=Other
+Porsche Cayenne [First] | PWM | AM | VAG rolling | Porsche | 0=Other,1=Lock,2=Unlock,3=Other,4=Trunk,5-7=Other,8=Open,9-255=Other
+Porsche Cayenne [Cont] | PWM | AM | VAG rolling | Porsche | 0=Other,1=Lock,2=Unlock,3=Other,4=Trunk,5-7=Other,8=Open,9-255=Other
+Porsche Cayenne [Final] | PWM | AM | VAG rolling | Porsche | 0=Other,1=Lock,2=Unlock,3=Other,4=Trunk,5-7=Other,8=Open,9-255=Other
+Porsche Touareg | PWM | AM | VAG rolling | Porsche | 0=Other,1=Lock,2=Unlock,3=Other,4=Trunk,5-7=Other,8=Open,9-255=Other
+Porsche Touareg [First] | PWM | AM | VAG rolling | Porsche | 0=Other,1=Lock,2=Unlock,3=Other,4=Trunk,5-7=Other,8=Open,9-255=Other
+Porsche Touareg [Cont] | PWM | AM | VAG rolling | Porsche | 0=Other,1=Lock,2=Unlock,3=Other,4=Trunk,5-7=Other,8=Open,9-255=Other
+Porsche Touareg [Final] | PWM | AM | VAG rolling | Porsche | 0=Other,1=Lock,2=Unlock,3=Other,4=Trunk,5-7=Other,8=Open,9-255=Other
+Porsche Touareg [??] | PWM | AM | VAG rolling | Porsche | 0=Other,1=Lock,2=Unlock,3=Other,4=Trunk,5-7=Other,8=Open,9-255=Other
+Land Rover V0 | Diff. Manchester | FM | Rolling Code | Honda/Acura | 0-1=Other,2=Lock,3=Other,4=Unlock,5-255=Other
+land rover v0 | Unknown | — | Unknown | Unknown | 0-255=-
+LAND ROVER V0 | Unknown | — | Unknown | Unknown | 0-255=-
+Suzuki | PWM | AM/FM | Rolling Code | Suzuki | 0=Other,1=Panic,2=Trunk,3=Lock,4=Unlock,5-255=Other
+SUZUKI | Unknown | — | Unknown | Unknown | 0-255=-
+Mitsu V0 | Unknown | — | Unknown | Unknown | 0-255=-
+Mitsu v0 | Unknown | — | Unknown | Unknown | 0-255=-
+Mitsubishi v0 | Unknown | — | Unknown | Unknown | 0-255=-
+KIA/HYU V3 | Unknown | — | Unknown | Unknown | 0-255=-
+KIA/HYU V4 | Unknown | — | Unknown | Unknown | 0-255=-
+PSA2 | Manchester | AM/FM | TEA/XOR | Peugeot/Citroen | 0=Lock,1=Unlock,2=Trunk,3-255=Other
+psa2 | Unknown | — | Unknown | Unknown | 0-255=-
+PSA OLD | Unknown | — | Unknown | Peugeot/Citroen | 0=Lock,1=Unlock,2=Trunk,3-255=Other
+PSA GROUP | Unknown | — | Unknown | Peugeot/Citroen | 0=Lock,1=Unlock,2=Trunk,3-255=Other
+VW | Unknown | — | Unknown | VW/Audi/Seat/Skoda | 0-255=-
+StarLine | Unknown | — | Unknown | Unknown | 0-255=-
+honda v2 | Unknown | — | Unknown | Unknown | 0-255=-
+kia v0 | Unknown | — | Unknown | Unknown | 0-255=-
+BMW CAS4 | Manchester | AM | CAS4 (rolling) | BMW | 0-255=-
+Toyota Lexus | Unknown | — | Unknown | Unknown | 0-255=-
+Unknown | Unknown | — | Unknown | Unknown | 0-255=-
+ | Unknown | — | Unknown | Unknown | 0-255=-
+No Such Protocol | Unknown | — | Unknown | Unknown | 0-255=-
+Keeloq | Unknown | — | Unknown | Unknown | 0-255=-
+Ford | Manchester | FM | Fixed Code | Ford | 0-255=-
+Fiat | Unknown | — | Fixed Code | Fiat | 0-255=-
+Kia | Unknown | — | Unknown | Kia/Hyundai | 0-255=-

@@ -76,12 +76,56 @@
 //! with AUT64 key 1 (consistent serial, consecutive counters), i.e. those fobs speak Type 1; KAT
 //! therefore keeps Type 1. (Using the full-byte button form for Type 1 avoids the nibble-button
 //! problem that conversion papered over.)
+//!
+//! # Key files
+//!
+//! ProtoPirate's `subghz_protocol_decoder_vag_serialize`: "VAG", Bit 80, Key = Key1, `Key2: 00 00
+//! 00 00 00 00 <Key2>`, `Type`, and for decrypted frames Serial, Btn, Cnt (24 bit) and `KeyIdx`.
+//! Loading is `_deserialize`: Key1/Key2/Type → `vag_parse_data` (Flipper-ARF's "VAG GROUP" files
+//! carry the same lines; it also writes BtnFlags, ignored). Also read: `Key_2` for `Key2`, as in
+//! `IMPORTS/VAG/Passat_b5_3bg.sub` (whose `Type: 11011` the C truncates to 3), which loads as the
+//! Type 4 frame of `IMPORTS/VAG/Vw_passat_b5_3bg.sub`, and `IMPORTS/VAG/Audi A3 2012 key.sub`
+//! (`Type: 7428`, i.e. Type 4). That writer stores `Type` as (last `Key_2` byte << 8) | type; the
+//! Audi file loads with serial 3BF8E083, Unlock, counter 019C61, and its sender's screenshot of a
+//! later press of the same fob reads "Ser:3BF8E083 Btn:10:OP Cnt:019C63". `Type: 4` is parsed as the decoder parses
+//! every 500 µs frame (as Type 3, key 3 first): ProtoPirate's own deserialize parses it strictly as
+//! Type 4 and loses frames whose dispatch byte is not a Type 3/4 one (some of `Golf4.sub`'s). Serial/
+//! Btn/Cnt that differ from the decrypted ones rebuild the frame, as ProtoPirate's encoder
+//! transmits a saved key.
 
 use super::aut64;
 use super::common::{ManchesterEvent, ManchesterState};
 use super::keys;
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (see `info.rs`); "VW" is ProtoPirate's catalog alias.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "VAG",
+    decoder: "VAG",
+    aliases: &["VW"],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::AM,
+    encryption: "AUT64/XTEA",
+    make: "VW/Audi/Seat/Skoda",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650],
+};
+
+/// Types 2/3/4 report the decrypted button nibble, Type 1 the whole byte (button in the high
+/// nibble; ProtoPirate's vag_button_name, which calls 4/0x40 "Boot").
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match if code > 0x0F { code >> 4 } else { code } {
+        0x1 => "Unlock",
+        0x2 => "Lock",
+        0x4 => "Trunk",
+        _ => "Other",
+    })
+}
 
 // subghz_protocol_vag_const (reported via timing())
 const TE_SHORT: u32 = 500;
@@ -861,6 +905,75 @@ impl ProtocolDecoder for VagDecoder {
         f.btn = Self::map_button(f.vag_type, f.btn, button);
         Self::build(&f).map(|(upload, _, _)| Self::merge_levels(upload))
     }
+
+    /// Key files: `subghz_protocol_decoder_vag_deserialize` — Bit 80, Key = Key1, `Key2` (8 hex
+    /// bytes, the low two used), `Type` read as the C does (`(uint8_t)` of the number), then
+    /// `vag_parse_data`. `Key_2` is accepted for `Key2` (`IMPORTS/VAG/Passat_b5_3bg.sub`, written by
+    /// a build no reference matches, spells it so; its `Type: 11011` is Type 3 to the C). The C
+    /// encoder transmits from Serial/Btn/Cnt (+ KeyIdx): when those differ from the decrypted
+    /// fields, KAT rebuilds Key1/Key2 from them the same way.
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != MIN_COUNT_BIT {
+            return None;
+        }
+        let key1 = key.key_u64()?;
+        let key2 = key.hex_field("Key2").or_else(|| key.hex_field("Key_2")).unwrap_or(0) as u16;
+        // A 500 µs frame is parsed as Type 3 (key 3 first, reported as Type 4), as the decoder
+        // does: the C saves the post-parse Type 4, which its own deserialize then parses strictly
+        // and rejects when the dispatch byte is not a Type 3/4 one (e.g. some IMPORTS/VAG/Golf4.sub
+        // frames).
+        let vag_type = match key.u32_field("Type").unwrap_or(0) as u8 {
+            4 => 3,
+            t => t,
+        };
+        let p = Self::parse_data(vag_type, key1, key2);
+        let d = Self::signal_from(key1, key2, &p);
+        let (serial, button, counter) = (key.u32_field("Serial"), key.u32_field("Btn"), key.u32_field("Cnt"));
+        if serial.is_none() && button.is_none() && counter.is_none() {
+            return Some(d);
+        }
+        let now = p.decrypted.then_some((p.serial, p.btn, p.cnt));
+        let want = (
+            serial.or(now.map(|n| n.0)),
+            button.map(|b| b as u8).or(now.map(|n| n.1)),
+            counter.map(|c| c & 0xFF_FFFF).or(now.map(|n| n.2)),
+        );
+        let (Some(serial), Some(btn), Some(cnt)) = want else { return Some(d) };
+        let f = EncodeFields {
+            vag_type: p.vag_type,
+            key_idx: key.u32_field("KeyIdx").map_or(p.key_idx, |k| k as u8),
+            type_byte: (key1 >> 56) as u8,
+            serial,
+            cnt,
+            btn,
+        };
+        if Some((serial, btn, cnt)) == now || !(1..=4).contains(&f.vag_type) {
+            return Some(d);
+        }
+        let (k1, k2) = Self::build_keys(&f)?;
+        Some(Self::signal_from(k1, k2, &Self::parse_data(f.vag_type, k1, k2)))
+    }
+
+    /// Key files: `subghz_protocol_decoder_vag_serialize` — "VAG", Bit 80, Key = Key1, `Key2` (8 hex
+    /// bytes, Key2 in the last two), `Type` (after parsing: 3 → 4 for key 3), and for a decrypted
+    /// frame Serial, Btn, Cnt (24 bit; `pp_serialize_fields`) and `KeyIdx` (0..2, 255 = XTEA).
+    /// None for a capture without Key2 (KAT ≤ 1.3 `extra` layout).
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        if decoded.data_count_bit != MIN_COUNT_BIT {
+            return None;
+        }
+        let (vag_type, key_idx, key2, cnt_hi) = Self::parse_extra(decoded.extra?);
+        let mut key = FlipperKey::for_protocol("VAG", MIN_COUNT_BIT, decoded.data);
+        key.push_hex("Key2", key2? as u64, 8);
+        key.push_u32("Type", vag_type.into());
+        if let (Some(serial), Some(btn), Some(cnt)) = (decoded.serial, decoded.button, decoded.counter) {
+            key.push_u32("Serial", serial);
+            key.push_u32("Btn", btn.into());
+            key.push_u32("Cnt", cnt_hi << 16 | cnt as u32);
+            key.push_u32("KeyIdx", key_idx.into());
+        }
+        Some(key)
+    }
 }
 
 impl Default for VagDecoder {
@@ -1219,5 +1332,78 @@ mod tests {
         assert_eq!(up.len(), 518);
         assert_eq!((up[90].level, up[90].duration_us, up[91].duration_us), (true, 1000, 500));
         assert_eq!((up[258].level, up[258].duration_us), (false, 10000));
+    }
+
+    /// Key files: real decodes of every type round-trip with ProtoPirate's lines; the IMPORTS key
+    /// file loads as the matching RAW capture's frame; undecrypted frames keep Key2/Type only;
+    /// edited fields rebuild the frame; TX from a loaded key decodes back.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        load_keys();
+        let dec = VagDecoder::new();
+        let Some(passat) = sub_frames("VAG/Vw_passat_b5_3bg.sub") else { return };
+        for rel in ["VAG/Passat_2015.sub", "VAG/VAG_2.sub", "VAG/Golf4.sub"] {
+            for f in sub_frames(rel).unwrap_or_default() {
+                assert_round_trip(&dec, &f);
+            }
+        }
+        // IMPORTS/VAG/Passat_b5_3bg.sub is a frame of Vw_passat_b5_3bg.sub.
+        let file = key(
+            "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 434390000\n\
+             Preset: FuriHalSubGhzPresetOok650Async\nProtocol: VAG\nBit: 80\nKey: C0 9E BD 07 92 CA 7F C3\n\
+             Key_2: 00 00 00 00 00 00 A7 2B\nType: 11011\n",
+        );
+        let l = dec.from_flipper_key(&file).unwrap();
+        let raw = passat.iter().find(|f| f.data == 0xC09E_BD07_92CA_7FC3).unwrap();
+        assert_eq!(&l, raw);
+        assert_eq!(fields(&l), (0x0C21_578B, 2, 0x012B06, 4, 2));
+        let text = assert_round_trip(&dec, &l);
+        assert!(
+            text.ends_with(
+                "Protocol: VAG\nBit: 80\nKey: C0 9E BD 07 92 CA 7F C3\nKey2: 00 00 00 00 00 00 A7 2B\nType: 4\n\
+                 Serial: 203511691\nBtn: 2\nCnt: 76550\nKeyIdx: 2\n"
+            ),
+            "{text}"
+        );
+        // An undecrypted frame: Key2 and Type only, and it reloads as such.
+        let undec = VagDecoder::signal_from(0xC012_3456_789A_BCDE, 0x5A00, &VagDecoder::parse_data(3, 0xC012_3456_789A_BCDE, 0x5A00));
+        let t = assert_round_trip(&dec, &undec);
+        assert!(t.ends_with("Key2: 00 00 00 00 00 00 5A 00\nType: 3\n"), "{t}");
+        // Edited counter: rebuilt like the C encoder (same key index), decodes to the new counter.
+        let e = dec.from_flipper_key(&key(&text.replace("Cnt: 76550", "Cnt: 76600"))).unwrap();
+        assert_eq!(fields(&e), (0x0C21_578B, 2, 76600, 4, 2));
+        assert!(dec.from_flipper_key(&key(&text.replace("Bit: 80", "Bit: 64"))).is_none());
+        // TX from the loaded key: counter + 1.
+        let tx = decode_all(&dec.encode(&l, 0x02).unwrap());
+        assert_eq!(fields(&tx[0]), (0x0C21_578B, 1, 0x012B07, 4, 2));
+    }
+
+    /// Oracle vectors (`#[ignore]`d): `KAT_KEY_VECTORS=<dir> cargo test vag::tests::key_vectors --
+    /// --ignored` writes `vag_<n>.sub` / `.kat.txt` (a Type 1 and a Type 3/4 upload).
+    #[test]
+    #[ignore]
+    fn key_vectors() {
+        let Some(dir) = std::env::var_os("KAT_KEY_VECTORS") else { return };
+        let dir = std::path::PathBuf::from(dir);
+        load_keys();
+        let fields = [
+            EncodeFields { vag_type: 1, key_idx: 0, type_byte: 0x00, serial: 0xFD77_9294, cnt: 0x009392, btn: 0x20 },
+            EncodeFields { vag_type: 4, key_idx: 2, type_byte: 0xC0, serial: 0x0C21_578B, cnt: 0x012B06, btn: 2 },
+        ];
+        for (n, f) in fields.iter().enumerate() {
+            let (upload, _, _) = VagDecoder::build(f).unwrap();
+            let upload = VagDecoder::merge_levels(upload);
+            let d = decode_all(&upload).remove(0);
+            let key = VagDecoder::new().to_flipper_key(&d).unwrap();
+            crate::protocols::kia_v1::tests::write_key_vector(
+                &dir,
+                &format!("vag_{n}"),
+                434_420_000,
+                "FuriHalSubGhzPresetOok650Async",
+                &upload,
+                &key,
+            );
+        }
     }
 }

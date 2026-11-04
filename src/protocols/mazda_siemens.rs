@@ -52,10 +52,44 @@
 //! Lock, 0x02 → 0x20 Unlock, 0x04 → 0x40 Trunk; anything else (incl. 0x08 Panic, which the fob
 //! lacks) keeps the captured button. The Flipper TX loop repeats the upload 4 times; KAT's
 //! `encode()` returns the single upload, like other KAT encoders.
+//!
+//! Key files (`subghz_protocol_decoder_mazda_siemens_serialize` / `_deserialize`): `Protocol:
+//! MazdaSiemens` (ARF's name; KAT's key-file name table maps it back), `Bit: 64`, `Key` = the
+//! cleartext, then `Serial`, `Btn` and `Cnt` (decimal). Loading parses a 64-bit key
+//! (`mazda_parse_data`); the C loads any value, and `crc_valid` reports the additive checksum the
+//! decoder gates on. The Serial/Btn/Cnt lines are not read back (they are overrides for ARF's
+//! encoder, applied at transmit time; the decoder's deserialize takes the key).
 
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Mazda Siemens",
+    decoder: "Mazda Siemens",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::FM,
+    encryption: "Siemens XOR",
+    make: "Mazda",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&FM476],
+};
+
+/// Mazda Siemens / Mazda Infinity buttons.
+pub(super) fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x10 => "Lock",
+        0x20 => "Unlock",
+        0x40 => "Trunk",
+        _ => "Other",
+    })
+}
 
 const TE_SHORT: u32 = 250;
 const TE_LONG: u32 = 500;
@@ -198,19 +232,26 @@ impl MazdaSiemensDecoder {
         // Pack into u64 (big-endian byte order).
         let packed = u64::from_be_bytes(data);
 
-        let (serial, button, counter) = Self::parse_fields(packed);
+        Some(Self::signal_from_packed(packed))
+    }
 
-        Some(DecodedSignal {
+    /// The decode of a cleartext frame (`mazda_parse_data`). `crc_valid` = the additive checksum
+    /// (always true for a frame the decoder reports).
+    fn signal_from_packed(packed: u64) -> DecodedSignal {
+        let (serial, button, counter) = Self::parse_fields(packed);
+        let bytes = packed.to_be_bytes();
+        let checksum = bytes[..7].iter().fold(0u8, |acc, &b| acc.wrapping_add(b));
+        DecodedSignal {
             serial: Some(serial),
             button: Some(button),
             counter: Some(counter),
-            crc_valid: true,
+            crc_valid: checksum == bytes[7],
             data: packed,
             data_count_bit: MIN_COUNT_BIT,
             encoder_capable: true,
             extra: None,
             protocol_display_name: None,
-        })
+        }
     }
 
     /// Field extraction (mazda_parse_data).
@@ -460,6 +501,27 @@ impl ProtocolDecoder for MazdaSiemensDecoder {
         let clear =
             Self::build_cleartext(serial, Self::map_button(button, captured_button), counter);
         Some(Self::build_upload(&clear))
+    }
+
+    /// `subghz_protocol_decoder_mazda_siemens_deserialize`: a 64-bit cleartext key.
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != MIN_COUNT_BIT {
+            return None;
+        }
+        Some(Self::signal_from_packed(key.key_u64()?))
+    }
+
+    /// `subghz_protocol_decoder_mazda_siemens_serialize`: Key, then Serial, Btn, Cnt.
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        if decoded.data_count_bit != MIN_COUNT_BIT {
+            return None;
+        }
+        let (serial, button, counter) = Self::parse_fields(decoded.data);
+        let mut key = FlipperKey::for_protocol("MazdaSiemens", MIN_COUNT_BIT, decoded.data);
+        key.push_u32("Serial", serial);
+        key.push_u32("Btn", button.into());
+        key.push_u32("Cnt", counter.into());
+        Some(key)
     }
 }
 
@@ -742,5 +804,52 @@ mod tests {
             "Mazda V0 reads the button nibble"
         );
         assert_eq!(d.counter, Some(counter));
+    }
+
+    /// Key files: the C's lines round-trip the decode (also through the registry's name table),
+    /// a bad checksum loads with crc_valid false like the C, and TX from a loaded key decodes.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        use crate::protocols::ProtocolRegistry;
+        let dec = MazdaSiemensDecoder::new();
+        let (serial, button, counter, clear, _) = C_VECTORS[0];
+        let upload = MazdaSiemensDecoder::build_upload(&MazdaSiemensDecoder::build_cleartext(serial, button, counter));
+        let decoded = decode_all(&upload).remove(0);
+        assert_eq!(decoded.data, clear);
+        let text = assert_round_trip(&dec, &decoded);
+        assert!(
+            text.ends_with(
+                "Protocol: MazdaSiemens\nBit: 64\nKey: 12 34 56 78 20 00 06 3A\nSerial: 305419896\nBtn: 32\nCnt: 6\n"
+            ),
+            "{text}"
+        );
+        let reg = ProtocolRegistry::new();
+        assert_eq!(reg.decode_key(&key(&text)), Some(("Mazda Siemens".to_string(), decoded.clone())));
+        let mut bad = key(&text);
+        bad.key ^= 1;
+        bad.key_bytes = bad.key.to_be_bytes().to_vec();
+        assert!(!dec.from_flipper_key(&bad).unwrap().crc_valid);
+        bad.bits = 63;
+        assert!(dec.from_flipper_key(&bad).is_none());
+
+        let loaded = dec.from_flipper_key(&key(&text)).unwrap();
+        let tx = decode_all(&dec.encode(&loaded, 0x01).unwrap());
+        assert_eq!((tx[0].serial, tx[0].button, tx[0].counter), (Some(serial), Some(0x10), Some(counter + 1)));
+    }
+
+    /// Oracle vectors (`KAT_KEY_VECTORS=<dir> cargo test mazda_siemens_key_vectors -- --ignored`).
+    #[test]
+    #[ignore]
+    fn mazda_siemens_key_vectors() {
+        use super::super::bmw::{key_vector_dir, write_key_vector};
+        let dec = MazdaSiemensDecoder::new();
+        for (n, i) in [(1, 0), (2, 3)] {
+            let (serial, button, counter, _, _) = C_VECTORS[i];
+            let upload = MazdaSiemensDecoder::build_upload(&MazdaSiemensDecoder::build_cleartext(serial, button, counter));
+            let decoded = decode_all(&upload).remove(0);
+            let key = dec.to_flipper_key(&decoded).unwrap();
+            write_key_vector(&key_vector_dir(), &format!("mazda_siemens_{n}"), 433_920_000, "FuriHalSubGhzPreset2FSKDev476Async", &upload, &key);
+        }
     }
 }

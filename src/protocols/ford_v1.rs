@@ -53,11 +53,51 @@
 //!
 //! As in the C, a frame whose first air bit is 0 cannot be decoded (the sync LOW merges with the
 //! first half-bit, so the decoder stays in the preamble) — see the tests.
+//!
+//! **Key files** (`subghz_protocol_decoder_ford_v1_serialize` / `_deserialize`; Flipper-ARF's
+//! are the same): `Protocol: Ford V1`, `Bit: 136`, `Key` = key1 (56 bits, so the first byte is
+//! 00), then `Serial`, `Btn`, `Cnt` (the C's saved fields: plaintext serial/button/20-bit counter,
+//! or header serial + 0 + 0 for a non-strict frame), `Key_2` = key2 (8 bytes) and `Key_3` =
+//! `00 00` + the CRC16 — the order the C's `insert_or_update` calls leave them in. Loading follows
+//! `ford_v1_keys_file_to_canonical_raw`: Bit 136, Key and Key_2 required, Key_3 optional (CRC 0
+//! when missing), Serial/Btn/Cnt required (the C rejects the file without them); the frame
+//! key1 ‖ key2 ‖ CRC is tried as written, then with each key's 32-bit halves byte-swapped (the
+//! C's legacy layout), and the first one whose plaintext is recoverable is decoded exactly as the
+//! stream decoder does. A frame that only passes the CRC loads as the decoder reports it
+//! (`encoder_capable` false); one that fails it (wrong or missing Key_3) still loads, as in the C,
+//! with the file's fields and `crc_valid`/`encoder_capable` false. The fields are the frame's
+//! (the C displays the file's Serial/Btn/Cnt, which it writes from the frame; hand-edited values
+//! are not applied).
 
 use super::common::{ManchesterEvent, ManchesterState};
-use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
+use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal, FlipperKey};
 use crate::radio::demodulator::LevelDuration;
 use crate::duration_diff;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Ford V1",
+    decoder: "Ford V1",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::FM,
+    encryption: "Rolling Code",
+    make: "Ford",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&F4],
+};
+
+/// 1/2/4/8 are KAT's generic codes; 0 is ford_v1_get_button_name's "Sync".
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x0 => "Sync",
+        _ => return None,
+    })
+}
 
 const TE_SHORT: u32 = 65;
 const TE_LONG: u32 = 130;
@@ -385,6 +425,31 @@ impl FordV1Decoder {
         None
     }
 
+    /// `ford_v1_crc16_from_key3_bytes`: the CRC16 from a `Key_3` line (`00 00 HI LO`; the legacy
+    /// `HI LO 00 00` layout byte-swapped).
+    fn crc16_from_key3(key3: &[u8; 4]) -> u16 {
+        let crc = u32::from_be_bytes(*key3);
+        if crc & 0xFFFF == 0 && crc >> 16 != 0 {
+            ((crc >> 16) as u16).swap_bytes()
+        } else {
+            crc as u16
+        }
+    }
+
+    /// `ford_v1_u64_legacy_halves_bswap`: each 32-bit half of a stored key byte-swapped.
+    fn legacy_halves_bswap(stored: u64) -> u64 {
+        (((stored >> 32) as u32).swap_bytes() as u64) << 32 | (stored as u32).swap_bytes() as u64
+    }
+
+    /// The 17-byte frame `key1[1..8] ‖ key2 ‖ crc16` as a key file stores it (CRC not recomputed).
+    fn frame_from_file(key1: u64, key2: u64, crc16: u16) -> [u8; DATA_BYTES] {
+        let mut raw = [0u8; DATA_BYTES];
+        raw[..7].copy_from_slice(&key1.to_be_bytes()[1..]);
+        raw[7..15].copy_from_slice(&key2.to_be_bytes());
+        raw[15..17].copy_from_slice(&crc16.to_be_bytes());
+        raw
+    }
+
     fn enc_add_level(signal: &mut Vec<LevelDuration>, level: bool, duration: u32) {
         if let Some(last) = signal.last_mut() {
             if last.level == level {
@@ -574,6 +639,67 @@ impl ProtocolDecoder for FordV1Decoder {
         Self::rebuild_raw_from_plain(&mut raw_tx, &plain);
         Some(Self::build_burst0(&raw_tx))
     }
+
+    /// `subghz_protocol_decoder_ford_v1_deserialize` (see the module doc, "Key files").
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != DATA_BITS {
+            return None;
+        }
+        let key1 = key.key_u64()?;
+        let key2: [u8; 8] = key.hex_bytes_field("Key_2")?.try_into().ok()?;
+        let key2 = u64::from_be_bytes(key2);
+        let crc16 = key
+            .hex_bytes_field("Key_3")
+            .and_then(|b| <[u8; 4]>::try_from(b).ok())
+            .map_or(0, |b| Self::crc16_from_key3(&b));
+        let (serial, btn, cnt) = (key.u32_field("Serial")?, key.u32_field("Btn")?, key.u32_field("Cnt")?);
+        // ford_v1_keys_file_to_canonical_raw: as written, then the legacy halves-swapped keys.
+        let attempts = [
+            (key1, key2),
+            (Self::legacy_halves_bswap(key1), Self::legacy_halves_bswap(key2)),
+        ];
+        for (k1, k2) in attempts {
+            let raw = Self::frame_from_file(k1, k2, crc16);
+            if Self::extract_plain(&raw).is_some() {
+                return Self::process_data(&raw);
+            }
+        }
+        // No plaintext: the frame as the decoder reports it when its CRC holds, else the C's
+        // "CRC ERR" view of the file.
+        Self::process_data(&Self::frame_from_file(key1, key2, crc16)).or(Some(DecodedSignal {
+            serial: Some(serial),
+            button: Some(btn as u8),
+            counter: Some(cnt as u16),
+            crc_valid: false,
+            data: key1,
+            data_count_bit: DATA_BITS,
+            encoder_capable: false,
+            extra: Some(key2),
+            protocol_display_name: None,
+        }))
+    }
+
+    /// `subghz_protocol_decoder_ford_v1_serialize` (see the module doc, "Key files").
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        if decoded.data_count_bit != DATA_BITS || decoded.data >> 56 != 0 {
+            return None;
+        }
+        let extra = decoded.extra?;
+        let key2 = Self::legacy_key2(decoded, extra).unwrap_or(extra);
+        // The C's `crc_calc` is the CRC16 recomputed over the (canonical) frame.
+        let raw = Self::frame_from_keys(decoded.data, key2);
+        let (serial, btn, cnt) = match Self::strict_plain(&raw) {
+            Some(plain) => Self::fields_from_plain(&plain),
+            None => (u32::from_be_bytes([raw[3], raw[4], raw[5], raw[6]]), 0, 0),
+        };
+        let mut key = FlipperKey::for_protocol("Ford V1", DATA_BITS, decoded.data);
+        key.push_u32("Serial", serial);
+        key.push_u32("Btn", btn.into());
+        key.push_u32("Cnt", cnt);
+        key.push_hex("Key_2", key2, 8);
+        key.push_hex_bytes("Key_3", &[0, 0, raw[15], raw[16]]);
+        Some(key)
+    }
 }
 
 impl Default for FordV1Decoder {
@@ -718,5 +844,121 @@ mod tests {
         let crc = u16::from_be_bytes([raw[15], raw[16]]) as u64;
         decoded.extra = Some((crc << 48) | (1 << 40) | ((0x4Du64) << 32));
         assert_eq!(pulses(&decoded), fresh);
+    }
+
+    /// Transmit loopback at Ford V1's F4 preset (2-FSK ±14.28 kHz, ProtoPirate "V1 [F4]"): the
+    /// re-encoded frame goes out as 2-FSK on the 500 kHz digital offset, is shifted back and read by
+    /// KAT's current FM demodulator, and the registry decodes the same serial and button.
+    #[test]
+    fn fsk_transmit_loopback_at_f4() {
+        let m = INFO.presets[0].modulation();
+        assert!(matches!(m, crate::radio::preset::TxModulation::Fsk { deviation_hz } if (deviation_hz - 14_282.23).abs() < 0.01));
+        let raw = build_frame([0xC0, 0xFF, 0xEE, 0x1A, 0x2B], 0x1A2B_3C4D, 0x2, 0x1_2300, 0x5A);
+        let decoded = feed_all(&burst_wave(&raw, ENC_GAP_REPEAT_US)).pop().expect("decodes");
+        let upload = FordV1Decoder::new().encode(&decoded, 0x04).unwrap();
+        let caps = crate::radio::tx::fm_loopback(&upload, m);
+        assert!(!caps.is_empty(), "FM demodulator emitted nothing");
+        let hit = caps.iter().find_map(|p| crate::protocols::ProtocolRegistry::new().process_signal(p, 433_920_000));
+        let (name, d) = hit.expect("loopback decodes");
+        assert_eq!(name, "Ford V1");
+        assert_eq!((d.serial, d.button), (Some(0x1A2B_3C4D), Some(0x4)));
+    }
+
+    /// Key files (ProtoPirate `subghz_protocol_decoder_ford_v1_serialize` / `_deserialize`): a
+    /// strict frame round-trips with the C's lines in the C's order, the legacy halves-swapped
+    /// layout and a missing Key_3 load as the C loads them, Serial/Btn/Cnt are required, and TX
+    /// from a loaded key decodes back.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = FordV1Decoder::new();
+        let raw = build_frame([0xC0, 0xFF, 0xEE, 0x1A, 0x2B], 0x1A2B_3C4D, 0x2, 0x1_2345, 0x5A);
+        let d = feed_all(&burst_wave(&raw, ENC_GAP_REPEAT_US)).pop().expect("decodes");
+        let text = assert_round_trip(&dec, &d);
+        assert!(
+            text.ends_with(
+                "Protocol: Ford V1\nBit: 136\nKey: 00 C0 FF EE 1A 2B 3C 4D\nSerial: 439041101\nBtn: 2\n\
+                 Cnt: 74565\nKey_2: 1B 2A 3D 4C 20 66 01 5A\nKey_3: 00 00 4A 37\n"
+            ),
+            "{text}"
+        );
+
+        // A non-strict frame (plaintext only via the round trip, or none): header serial, 0, 0.
+        let mut header_only = raw;
+        header_only[5] ^= 0x01; // breaks the strict plain[3] == raw[5] link
+        let c = FordV1Decoder::crc16(&header_only[3..15]);
+        header_only[15..17].copy_from_slice(&c.to_be_bytes());
+        let h = feed_all(&burst_wave(&header_only, ENC_GAP_REPEAT_US)).pop().expect("decodes");
+        assert_eq!((h.button, h.counter), (Some(0), Some(0)));
+        let text = assert_round_trip(&dec, &h);
+        assert!(text.contains("\nBtn: 0\nCnt: 0\n"), "{text}");
+
+        let file = key(&text_for(&d));
+        let mut legacy = file.clone();
+        let swap = |name: &str, k: &mut FlipperKey| {
+            let v = FordV1Decoder::legacy_halves_bswap(k.hex_field(name).unwrap());
+            k.fields.retain(|(n, _)| n != name);
+            k.push_hex(name, v, 8);
+        };
+        legacy.key = FordV1Decoder::legacy_halves_bswap(legacy.key);
+        legacy.key_bytes = legacy.key.to_be_bytes().to_vec();
+        swap("Key_2", &mut legacy);
+        assert_eq!(dec.from_flipper_key(&legacy).as_ref(), Some(&d), "legacy halves-swapped keys");
+
+        // Key_3 in the legacy `HI LO 00 00` layout.
+        let mut key3_legacy = file.clone();
+        let crc = key3_legacy.hex_bytes_field("Key_3").unwrap();
+        key3_legacy.fields.retain(|(n, _)| n != "Key_3");
+        key3_legacy.push_hex_bytes("Key_3", &[crc[3], crc[2], 0, 0]);
+        assert_eq!(dec.from_flipper_key(&key3_legacy).as_ref(), Some(&d));
+
+        // No Key_3: CRC 0 fails, the C still loads the file (CRC ERR, no TX).
+        let mut no_crc = file.clone();
+        no_crc.fields.retain(|(n, _)| n != "Key_3");
+        let n = dec.from_flipper_key(&no_crc).unwrap();
+        assert!(!n.crc_valid && !n.encoder_capable);
+        assert_eq!((n.serial, n.button, n.data, n.extra), (d.serial, d.button, d.data, d.extra));
+
+        // Serial/Btn/Cnt are required; Bit must be 136.
+        for field in ["Serial", "Btn", "Cnt", "Key_2"] {
+            let mut k = file.clone();
+            k.fields.retain(|(n, _)| n != field);
+            assert!(dec.from_flipper_key(&k).is_none(), "{field}");
+        }
+        let mut wrong = file.clone();
+        wrong.bits = 64;
+        assert!(dec.from_flipper_key(&wrong).is_none());
+
+        // TX from the loaded key.
+        let loaded = crate::protocols::ProtocolRegistry::new().decode_key(&file).unwrap().1;
+        let next = feed_all(&dec.encode(&loaded, 0x01).unwrap()).pop().expect("TX decodes");
+        assert_eq!((next.serial, next.button, next.counter), (Some(0x1A2B_3C4D), Some(0x1), Some(0x2346)));
+    }
+
+    fn text_for(d: &DecodedSignal) -> String {
+        let mut k = FordV1Decoder::new().to_flipper_key(d).unwrap();
+        k.frequency = 433_920_000;
+        k.preset = Some("FuriHalSubGhzPresetCustom".into());
+        k.to_text()
+    }
+
+    /// Reference-oracle vectors: `KAT_KEY_VECTORS=<dir> cargo test oracle_vectors -- --ignored`.
+    #[test]
+    #[ignore]
+    fn oracle_vectors() {
+        let dec = FordV1Decoder::new();
+        let frames = [
+            build_frame([0xC0, 0xFF, 0xEE, 0x1A, 0x2B], 0x1A2B_3C4D, 0x2, 0x1_2345, 0x5A),
+            build_frame([0x80, 0x12, 0x34, 0x56, 0x78], 0x0BAD_F00D, 0x8, 0x0_0042, 0xC3),
+        ];
+        for (n, raw) in frames.iter().enumerate() {
+            let d = feed_all(&burst_wave(raw, ENC_GAP_REPEAT_US)).pop().unwrap();
+            let upload = dec.encode(&d, d.button.unwrap()).unwrap();
+            let sent = feed_all(&upload).pop().unwrap();
+            let mut key = dec.to_flipper_key(&sent).unwrap();
+            key.frequency = 433_920_000;
+            key.set_preset(&crate::radio::preset::RfPreset::from_def(INFO.presets[0]));
+            super::super::ford_v0::write_oracle_vector(&format!("ford_v1_{}", n + 1), &upload, &key);
+        }
     }
 }

@@ -29,12 +29,49 @@
 //! Like the emulate scene each press sends counter + 1; KAT's generic button maps to the C/ARF
 //! codes: Lock 1, Unlock 2, Trunk 3, Panic 4 (ARF also names 8 "Horn"); others keep the captured
 //! button.
+//!
+//! Key files: written as ProtoPirate's `kia_protocol_decoder_v3_v4_serialize` does — Protocol
+//! "Kia V4" / "Kia V3", Bit 68, Key = bytes 0..7 as one 16-digit word, Serial, Btn, Cnt, Encrypted,
+//! Decrypted, KIAVersion — except that there is no CRC line (KAT does not keep the CRC nibble; see
+//! `to_flipper_key`) and the preset is the full Flipper name (the C writes the short "FM476"). Loading follows ProtoPirate's encoder and Flipper-ARF's
+//! decoder (whose current "KIA/HYU V3/V4" files have the same lines; older ARF builds wrote
+//! "KIA/HYU V4" + Key + CRC only, e.g. `IMPORTS/HYUNDAI/HYU V4 N1.sub`): the frame must pass the
+//! decoder's KeeLoq check, and edited Serial/Btn/Cnt rebuild it (see `from_flipper_key`).
 
 use super::keeloq_common::{keeloq_decrypt, keeloq_encrypt};
 use super::keys;
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (see `info.rs`); decodes report "Kia V3" / "Kia V4" (ProtoPirate's catalog aliases).
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Kia V3/V4",
+    decoder: "Kia V3/V4",
+    aliases: &["Kia V3", "Kia V4", "KIA/HYU V3", "KIA/HYU V4"],
+    name_prefix: None,
+    encoding: Coding::Pwm,
+    rf: Rf::FM,
+    encryption: "KeeLoq",
+    make: "Kia/Hyundai",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&FM476],
+};
+
+/// Kia V3/V4 buttons.
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x1 => "Lock",
+        0x2 => "Unlock",
+        0x3 => "Trunk",
+        0x4 => "Panic",
+        0x8 => "Horn",
+        _ => "Other",
+    })
+}
 
 const TE_SHORT: u32 = 400;
 const TE_LONG: u32 = 800;
@@ -129,30 +166,52 @@ impl KiaV3V4Decoder {
                 *b = !*b;
             }
         }
-        let b = &self.raw_bits;
-        let encrypted = u32::from_le_bytes([b[0], b[1], b[2], b[3]].map(u8::reverse_bits));
-        let serial = ((((b[7] & 0xF0).reverse_bits()) as u32) << 24)
-            | ((b[6].reverse_bits() as u32) << 16)
-            | ((b[5].reverse_bits() as u32) << 8)
-            | b[4].reverse_bits() as u32;
-        let button = (b[7].reverse_bits() & 0xF0) >> 4;
-        let decrypted = keeloq_decrypt(encrypted, mf_key());
-        if (decrypted >> 28) as u8 != button || (decrypted >> 16) as u8 != serial as u8 {
-            return None;
-        }
-        let version = self.is_v3_sync as u64;
-        Some(DecodedSignal {
-            serial: Some(serial),
-            button: Some(button),
-            counter: Some(decrypted as u16),
-            crc_valid: true,
-            data: u64::from_be_bytes(b[..8].try_into().unwrap()),
-            data_count_bit: MIN_COUNT_BIT,
-            encoder_capable: true,
-            extra: Some(version),
-            protocol_display_name: Some(if self.is_v3_sync { "Kia V3" } else { "Kia V4" }.to_string()),
-        })
+        frame_signal(u64::from_be_bytes(self.raw_bits[..8].try_into().unwrap()), self.is_v3_sync)
     }
+}
+
+/// Hop, serial and button of frame bytes 0..7 (V3 frames already inverted), as
+/// `kia_v3_v4_process_buffer` reads them: (encrypted, serial, button).
+fn frame_fields(data: u64) -> (u32, u32, u8) {
+    let b = data.to_be_bytes();
+    let encrypted = u32::from_le_bytes([b[0], b[1], b[2], b[3]].map(u8::reverse_bits));
+    let serial = ((((b[7] & 0xF0).reverse_bits()) as u32) << 24)
+        | ((b[6].reverse_bits() as u32) << 16)
+        | ((b[5].reverse_bits() as u32) << 8)
+        | b[4].reverse_bits() as u32;
+    let button = (b[7].reverse_bits() & 0xF0) >> 4;
+    (encrypted, serial, button)
+}
+
+/// The decode of frame bytes 0..7 (`data`; V3 frames already inverted) when the KeeLoq hop
+/// decrypts to the frame's button and serial LSB (`kia_v3_v4_process_buffer`), else None.
+fn frame_signal(data: u64, v3: bool) -> Option<DecodedSignal> {
+    let (encrypted, serial, button) = frame_fields(data);
+    let decrypted = keeloq_decrypt(encrypted, mf_key());
+    if (decrypted >> 28) as u8 != button || (decrypted >> 16) as u8 != serial as u8 {
+        return None;
+    }
+    Some(DecodedSignal {
+        serial: Some(serial),
+        button: Some(button),
+        counter: Some(decrypted as u16),
+        crc_valid: true,
+        data,
+        data_count_bit: MIN_COUNT_BIT,
+        encoder_capable: true,
+        extra: Some(v3 as u64),
+        protocol_display_name: Some(if v3 { "Kia V3" } else { "Kia V4" }.to_string()),
+    })
+}
+
+/// Frame bytes 0..7 for the fields (`kia_protocol_encoder_v3_v4_build_packet`): the bit-reversed
+/// KeeLoq hop of `cnt16 | (serial & 0x3FF) << 16 | btn << 28`, then the bit-reversed
+/// serial28 | btn << 28.
+fn frame_data(serial: u32, button: u8, counter: u16) -> u64 {
+    let plaintext = counter as u32 | ((serial & 0x3FF) << 16) | (((button & 0x0F) as u32) << 28);
+    let encrypted = keeloq_encrypt(plaintext, mf_key());
+    let serial_btn = (serial & 0x0FFF_FFFF) | (((button & 0x0F) as u32) << 28);
+    (((serial_btn as u64) << 32) | encrypted as u64).reverse_bits()
 }
 
 /// Collect 68-bit Kia V3/V4 payload from level+duration pairs (for keeloq_generic fallback).
@@ -349,6 +408,68 @@ impl ProtocolDecoder for KiaV3V4Decoder {
         }
         Some(out)
     }
+
+    /// Key files: ProtoPirate's decoder deserialize wants Bit 64 and cannot read its own 68-bit
+    /// files, so KAT loads them the way its encoder and Flipper-ARF's decoder do: Protocol "Kia V3"
+    /// / "Kia V4" (or ARF's "KIA/HYU V3"/"V4") give the version, else `KIAVersion` (default V4);
+    /// Bit 64 or 68 (ARF's tolerance); Key = frame bytes 0..7, which must pass the decoder's KeeLoq
+    /// check (KIA key); Serial/Btn/Cnt that differ from the Key's rebuild the frame, as
+    /// ProtoPirate's encoder transmits them.
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != 64 && key.bits != MIN_COUNT_BIT {
+            return None;
+        }
+        let name = key.protocol.trim().to_ascii_uppercase();
+        let v3 = if name.ends_with(" V3") {
+            true
+        } else if name.ends_with(" V4") {
+            false
+        } else {
+            key.u32_field("KIAVersion").is_some_and(|v| v as u8 != 0)
+        };
+        let data = key.key_u64()?;
+        let d = frame_signal(data, v3);
+        let (serial, button, counter) = (key.u32_field("Serial"), key.u32_field("Btn"), key.u32_field("Cnt"));
+        if serial.is_none() && button.is_none() && counter.is_none() {
+            return d;
+        }
+        let (_, key_serial, key_button) = frame_fields(data);
+        let key_counter = d.as_ref().and_then(|d| d.counter);
+        let fields = (
+            serial.unwrap_or(key_serial),
+            button.map_or(key_button, |b| (b & 0x0F) as u8),
+            counter.map(|c| c as u16).or(key_counter)?,
+        );
+        if Some(fields) == d.as_ref().map(|d| (key_serial, key_button, d.counter.unwrap_or(0))) {
+            return d;
+        }
+        frame_signal(frame_data(fields.0, fields.1, fields.2), v3)
+    }
+
+    /// Key files: ProtoPirate `kia_protocol_decoder_v3_v4_serialize` — Protocol "Kia V4" / "Kia V3"
+    /// (the version), Bit 68, Key = frame bytes 0..7, then Serial, Btn, Cnt, Encrypted, Decrypted,
+    /// KIAVersion (decimal); the Key is one 16-digit word (`%016llX`), as the C writes it. One
+    /// difference: there is no `CRC` line — KAT's decode does not keep the frame's 4-bit CRC
+    /// nibble (unknown algorithm, and it varies between the repeats of one press in ProtoPirate's
+    /// own output; the encoder sweeps all 16 values, like the C).
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        let v3 = match decoded.extra {
+            Some(version) => version != 0,
+            None => decoded.protocol_display_name.as_deref() == Some("Kia V3"),
+        };
+        let (encrypted, serial, button) = frame_fields(decoded.data);
+        let decrypted = keeloq_decrypt(encrypted, mf_key());
+        let counter = decoded.counter.unwrap_or(decrypted as u16);
+        let mut key = FlipperKey::for_protocol(if v3 { "Kia V3" } else { "Kia V4" }, MIN_COUNT_BIT, decoded.data);
+        key.key_word = true;
+        key.push_u32("Serial", serial);
+        key.push_u32("Btn", button.into());
+        key.push_u32("Cnt", counter.into());
+        key.push_u32("Encrypted", encrypted);
+        key.push_u32("Decrypted", decrypted);
+        key.push_u32("KIAVersion", v3.into());
+        Some(key)
+    }
 }
 
 impl Default for KiaV3V4Decoder {
@@ -482,5 +603,83 @@ mod tests {
         wire.push(LevelDuration::new(false, 30_000));
         let got = feed_all(&wire);
         assert_eq!((got.len(), got[0].data, got[0].extra), (1, key, Some(0)));
+    }
+
+    /// Key files: both versions round-trip with ProtoPirate's lines (one-word Key, no CRC), the
+    /// IMPORTS key file (old Flipper-ARF "KIA/HYU V4") loads, a spaced Key loads too, edited
+    /// fields rebuild the frame, and TX from a loaded key decodes back.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        keys::load_keystore_from_embedded();
+        let dec = KiaV3V4Decoder::new();
+        let mut decodes = Vec::new();
+        for &(_, serial, button, counter, version) in C_CAPTURE {
+            let mut wire = build_burst(serial, button, counter, version == 0, 0);
+            wire.push(LevelDuration::new(false, 30_000));
+            let d = feed_all(&wire).remove(0);
+            let text = assert_round_trip(&dec, &d);
+            decodes.push((d, text));
+        }
+        let (v4, v4_text) = &decodes[0];
+        assert!(
+            v4_text.ends_with(
+                "Protocol: Kia V4\nBit: 68\nKey: 20FD579060B70384\nSerial: 29420806\nBtn: 2\nCnt: 19\n\
+                 Encrypted: 166379268\nDecrypted: 554041363\nKIAVersion: 0\n"
+            ),
+            "{v4_text}"
+        );
+        assert!(decodes[1].1.contains("\nProtocol: Kia V3\n") && decodes[1].1.ends_with("KIAVersion: 1\n"));
+        // The Flipper's spaced bytes load the same (the C's encoder reads both).
+        let spaced = key(&v4_text.replace("Key: 20FD579060B70384", "Key: 20 FD 57 90 60 B7 03 84"));
+        assert_eq!(dec.from_flipper_key(&spaced).as_ref(), Some(v4));
+        // IMPORTS/HYUNDAI/HYU V4 N1.sub (old Flipper-ARF: name, Key and CRC only).
+        let arf = key(
+            "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+             Preset: FuriHalSubGhzPreset2FSKDev476Async\nProtocol: KIA/HYU V4\nBit: 68\n\
+             Key: C3 B1 79 0C 8F C0 C8 64\nCRC: 6\n",
+        );
+        let l = dec.from_flipper_key(&arf).unwrap();
+        assert_eq!(l.protocol_display_name.as_deref(), Some("Kia V4"));
+        assert_eq!((l.data, l.extra, l.crc_valid), (0xC3B1_790C_8FC0_C864, Some(0), true));
+        let (serial, button, counter) = (l.serial.unwrap(), l.button.unwrap(), l.counter.unwrap());
+        assert_eq!((serial, button), (0x0613_03F1, 0x2));
+        // The same Key under "KIAVersion: 1" without a versioned name is V3; a failing KeeLoq check
+        // or another Bit does not load.
+        let v3 = key("Protocol: Kia V3/V4\nBit: 64\nKey: C3 B1 79 0C 8F C0 C8 64\nKIAVersion: 1\n");
+        assert_eq!(dec.from_flipper_key(&v3).map(|d| d.extra), Some(Some(1)));
+        assert!(dec.from_flipper_key(&key("Protocol: Kia V4\nBit: 68\nKey: C3 B1 79 0C 8F C0 C8 65\n")).is_none());
+        assert!(dec.from_flipper_key(&key("Protocol: Kia V4\nBit: 66\nKey: C3 B1 79 0C 8F C0 C8 64\n")).is_none());
+        // An edited counter rebuilds the frame as ProtoPirate's encoder would send it.
+        let e = dec.from_flipper_key(&key(&v4_text.replace("Cnt: 19", "Cnt: 500"))).unwrap();
+        assert_eq!((e.serial, e.button, e.counter, e.extra), (v4.serial, v4.button, Some(500), Some(0)));
+        // TX from the loaded IMPORTS key: counter + 1, decodes back.
+        let tx = feed_all(&dec.encode(&l, 0x02).unwrap());
+        assert_eq!((tx[0].serial, tx[0].button, tx[0].counter), (Some(serial), Some(0x2), Some(counter + 1)));
+    }
+
+    /// Oracle vectors (`#[ignore]`d): `KAT_KEY_VECTORS=<dir> cargo test kia_v3_v4::tests::key_vectors
+    /// -- --ignored` writes `kia_v3_v4_<n>.sub` / `.kat.txt` (one burst + trailing gap per version).
+    #[test]
+    #[ignore]
+    fn key_vectors() {
+        let Some(dir) = std::env::var_os("KAT_KEY_VECTORS") else { return };
+        let dir = std::path::PathBuf::from(dir);
+        keys::load_keystore_from_embedded();
+        for (n, &(_, serial, button, counter, version)) in C_CAPTURE.iter().enumerate() {
+            let upload = build_burst(serial, button, counter, version == 0, 0);
+            let mut wire = upload.clone();
+            wire.push(LevelDuration::new(false, 30_000));
+            let d = feed_all(&wire).remove(0);
+            let key = KiaV3V4Decoder::new().to_flipper_key(&d).unwrap();
+            crate::protocols::kia_v1::tests::write_key_vector(
+                &dir,
+                &format!("kia_v3_v4_{n}"),
+                if version == 1 { 315_000_000 } else { 433_920_000 },
+                "FuriHalSubGhzPreset2FSKDev476Async",
+                &upload,
+                &key,
+            );
+        }
     }
 }

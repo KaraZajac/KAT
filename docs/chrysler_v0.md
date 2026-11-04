@@ -65,18 +65,43 @@ seed (the C's `Cnt`), `extra` = `Key_2`.
 ## Encoder
 
 Supported. Recovers the plaintext from the captured frame, flips the button bits (`plain_a[5] ^= 0x0C`,
-`plain_b[3] ^= 0x30`) when the requested button differs, advances the seed to the next press (seed + 2,
-made even — Flipper-ARF's `cnt + 2 * mult`; ProtoPirate's emulate scene adds 1, which re-sends the
-captured press when it was payload A) and emits payload A (even counter) then B (counter − 1), each as
-24 preamble pairs + short + 15.6 ms gap + 80 PWM bits + short + 15.6 ms gap (424 entries; the Flipper
-repeats the upload twice while held, KAT sends it once). Buttons: Lock → 1, Unlock → 2; Trunk/Panic
-keep the captured button (no reference models other buttons).
+`plain_b[3] ^= 0x30`) when the requested button differs, and emits payload A (even counter) then B
+(counter − 1), each as 24 preamble pairs + short + 15.6 ms gap + 80 PWM bits + short + 15.6 ms gap
+(424 entries; the Flipper repeats the upload twice while held, KAT sends it once). Buttons: Lock → 1,
+Unlock → 2; Trunk/Panic keep the captured button (no reference models other buttons).
+
+**Counter — deviation, from real captures.** KAT's counter is seed − 1, made even:
+
+- from a payload-A capture of seed N it sends A(N−2) + B(N−3);
+- from a payload-B capture it sends A(N−1) + B(N−2).
+
+The payload of the captured type is the fob's next press of that type. The other payload carries
+the captured plaintext, as in the C, but A and B frames don't share their plaintext, so the fob
+never sends that frame.
+
+The evidence is the Chrysler PT Cruiser 2006 fob in `IMPORTS/chrysler` (two files, ten presses each,
+about 1.5 s apart). It sends one payload per press, alternating A and B, and its seed counts **down**
+by one: A(N), B(N−1), A(N−2)… Re-encoding each press reproduces the press two later bit for bit, all
+80 bits, in 16 of 16 cases (test `reencode_reproduces_the_fobs_next_press`).
+
+The references count up:
+
+- ProtoPirate's emulate scene and doctor-firmware's encoder add 1 to `Cnt`, which re-sends the
+  captured press.
+- Flipper-ARF adds 2 ("to keep the seed even and actually move it"), which sends an earlier press.
+
+A fob that counts down has already sent both. The A/B frame layout and the transform are the C's
+unchanged.
 
 ## Validation
 
 Compared with the compiled ProtoPirate `chrysler_v0.c` and Flipper-ARF `chrysler.c` (host harness):
 decoder output identical on 3933 frames from 4500 C-encoded uploads (plain, ±140 µs jitter, glitched)
-and on every IMPORTS capture (none decodes, in KAT or the references); encoder upload identical
-pulse-for-pulse on 4500 random captured frames × buttons (ProtoPirate with `Btn`/`Cnt` = seed + 2 and ARF
-with its D-pad give the same uploads). Unit tests cover `reverse6`, `transform_block`, payload-A fields
+and on every IMPORTS capture. The two real PT Cruiser 2006 captures decode to the same 20 frames
+(80 bits each) in KAT, ProtoPirate, Flipper-ARF and doctor-firmware: payload A serial A11E7D24,
+payload B serial 4725BF79, Open = 2 and Close = 1. No other capture decodes as Chrysler V0.
+
+The encoder upload was identical pulse-for-pulse on 4500 random captured frames × buttons
+(ProtoPirate with `Btn`/`Cnt` set, and ARF with its D-pad). Only KAT's choice of `Cnt` differs since
+then (the counter deviation above); the upload for a given `Cnt` is unchanged. Unit tests cover `reverse6`, `transform_block`, payload-A fields
 and the encode → decode of every seed and button.

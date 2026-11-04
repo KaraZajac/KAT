@@ -9,6 +9,7 @@ use ratatui::{
 };
 
 use crate::app::{App, InputMode, SettingsField, PRESET_FREQUENCIES, LNA_STEPS, VGA_STEPS};
+use crate::app::{tx_power_label, TX_POWER_STEPS};
 
 /// Render the settings selector tabs in the header area
 pub fn render_settings_tabs(frame: &mut Frame, area: Rect, app: &App) {
@@ -31,9 +32,13 @@ pub fn render_settings_tabs(frame: &mut Frame, area: Rect, app: &App) {
 
         let value = match field {
             SettingsField::Freq => format!("{:.2}MHz", app.frequency as f64 / 1_000_000.0),
+            SettingsField::Hop => if app.rx.hop_enabled { "ON".to_string() } else { "OFF".to_string() },
             SettingsField::Lna => format!("{}dB", app.lna_gain),
             SettingsField::Vga => format!("{}dB", app.vga_gain),
             SettingsField::Amp => if app.amp_enabled { "ON".to_string() } else { "OFF".to_string() },
+            SettingsField::TxPower => {
+                format!("{}dB{}", app.tx_vga_gain, if app.tx_amp { "+AMP" } else { "" })
+            }
         };
 
         spans.push(Span::styled(
@@ -67,9 +72,11 @@ pub fn render_settings_dropdown(frame: &mut Frame, app: &App) {
             .iter()
             .map(|(_, label)| label.to_string())
             .collect(),
+        SettingsField::Hop => vec!["ON".to_string(), "OFF".to_string()],
         SettingsField::Lna => LNA_STEPS.iter().map(|g| format!("{} dB", g)).collect(),
         SettingsField::Vga => VGA_STEPS.iter().map(|g| format!("{} dB", g)).collect(),
         SettingsField::Amp => vec!["ON".to_string(), "OFF".to_string()],
+        SettingsField::TxPower => TX_POWER_STEPS.iter().map(|&(g, a)| tx_power_label(g, a)).collect(),
     };
 
     let menu_width = 22u16;

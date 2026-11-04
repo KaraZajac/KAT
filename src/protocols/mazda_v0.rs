@@ -60,10 +60,42 @@
 //!
 //! Deviations from the C: none in the decoded result or the air waveform. The u16 preamble
 //! counter wraps explicitly (the C relies on unsigned wraparound).
+//!
+//! Key files (`subghz_protocol_decoder_mazda_v0_serialize` / `_deserialize`; Flipper-ARF's are the
+//! same): `Protocol: Mazda V0`, `Bit: 64`, `Key`, then `Checksum` (recomputed from the fields,
+//! decimal), `Serial`, `Btn`, `Cnt` (20 bits) and `Disp: Mazda V0 - <name>` (Lock / Unlock / Trunk
+//! / Remote / ??). Loading needs exactly Bit 64 and decodes the fields from the Key, as the C's
+//! `get_string` does (the file's Serial/Btn/Cnt are not applied); a key whose checksum byte is
+//! wrong still loads, as in the C (shown "CRC:BAD"), with `crc_valid` false.
 
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (see `info.rs`): ProtoPirate "Mazda V0 [AM650+F2]".
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Mazda V0",
+    decoder: "Mazda V0",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::Both,
+    encryption: "XOR whitening",
+    make: "Mazda",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650, &F2],
+};
+
+/// Mazda V0 buttons.
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x8 => "Remote",
+        _ => return None,
+    })
+}
 
 const TE_SHORT: u32 = 250;
 const TE_LONG: u32 = 500;
@@ -293,22 +325,24 @@ impl MazdaV0Decoder {
 
     /// Validate a complete 64-bit frame (Data step, count == 64).
     fn finish_frame(&self) -> Option<DecodedSignal> {
-        let key = !self.decode_data;
+        let s = Self::key_signal(!self.decode_data);
+        s.crc_valid.then_some(s)
+    }
+
+    /// The decode of a 64-bit key (`crc_valid` = its checksum byte holds).
+    fn key_signal(key: u64) -> DecodedSignal {
         let (serial, button, counter) = Self::decode_key(key);
-        if Self::calculate_checksum(serial, button, counter) != key as u8 {
-            return None;
-        }
-        Some(DecodedSignal {
+        DecodedSignal {
             serial: Some(serial),
             button: Some(button),
             counter: Some(counter as u16),
-            crc_valid: true,
+            crc_valid: Self::calculate_checksum(serial, button, counter) == key as u8,
             data: key,
             data_count_bit: MIN_COUNT_BIT,
             encoder_capable: true,
             extra: None,
             protocol_display_name: None,
-        })
+        }
     }
 }
 
@@ -419,6 +453,37 @@ impl ProtocolDecoder for MazdaV0Decoder {
         let counter = counter.wrapping_add(1) & COUNTER_MASK;
         let key = Self::encode_key(serial, button, counter);
         Some(Self::build_upload(key))
+    }
+
+    /// `subghz_protocol_decoder_mazda_v0_deserialize` (see the module doc, "Key files").
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != MIN_COUNT_BIT {
+            return None;
+        }
+        Some(Self::key_signal(key.key_u64()?))
+    }
+
+    /// `subghz_protocol_decoder_mazda_v0_serialize` (see the module doc, "Key files").
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        if decoded.data_count_bit != MIN_COUNT_BIT {
+            return None;
+        }
+        let (serial, button, counter) = Self::decode_key(decoded.data);
+        let mut key = FlipperKey::for_protocol("Mazda V0", MIN_COUNT_BIT, decoded.data);
+        key.push_u32("Checksum", Self::calculate_checksum(serial, button, counter).into());
+        key.push_u32("Serial", serial);
+        key.push_u32("Btn", button.into());
+        key.push_u32("Cnt", counter);
+        // mazda_v0_write_display → pp_write_display(name, mazda_v0_get_button_name(button)).
+        let name = match button {
+            0x01 => "Lock",
+            0x02 => "Unlock",
+            0x04 => "Trunk",
+            0x08 => "Remote",
+            _ => "??",
+        };
+        key.push("Disp", format!("Mazda V0 - {name}"));
+        Some(key)
     }
 }
 
@@ -728,6 +793,58 @@ mod tests {
             assert_eq!(d.serial, Some(serial));
             assert_eq!(d.button, Some(BTN_UNLOCK));
             assert_eq!(d.counter, Some((counter + 1) as u16));
+        }
+    }
+
+    /// Key files (ProtoPirate `subghz_protocol_decoder_mazda_v0_serialize` / `_deserialize`): every
+    /// C vector's decode round-trips with the C's lines (Checksum, Serial, Btn, Cnt, Disp), a key
+    /// with a wrong checksum loads flagged, only Bit 64 loads, and TX from a loaded key decodes back.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = MazdaV0Decoder::new();
+        for &(_, _, _, k) in &C_KEY_VECTORS {
+            let frames = decode_all(&MazdaV0Decoder::build_upload(k));
+            assert_round_trip(&dec, &frames[0]);
+        }
+        let d = decode_all(&MazdaV0Decoder::build_upload(C_KEY_VECTORS[0].3)).remove(0);
+        let text = assert_round_trip(&dec, &d);
+        assert!(
+            text.ends_with(
+                "Protocol: Mazda V0\nBit: 64\nKey: 12 34 56 78 10 01 00 25\nChecksum: 37\nSerial: 305419896\n\
+                 Btn: 1\nCnt: 1\nDisp: Mazda V0 - Lock\n"
+            ),
+            "{text}"
+        );
+        let file = key(&text);
+        let (name, loaded) = ProtocolRegistry::new().decode_key(&file).unwrap();
+        assert_eq!((name.as_str(), &loaded), ("Mazda V0", &d));
+
+        let mut bad = file.clone();
+        bad.key ^= 1;
+        bad.key_bytes = bad.key.to_be_bytes().to_vec();
+        let b = dec.from_flipper_key(&bad).unwrap();
+        assert!(!b.crc_valid, "the C loads it and shows CRC:BAD");
+        let mut wrong = file.clone();
+        wrong.bits = 80;
+        assert!(dec.from_flipper_key(&wrong).is_none());
+
+        let next = decode_all(&dec.encode(&loaded, 0x02).unwrap()).remove(0);
+        assert_eq!((next.serial, next.button, next.counter), (d.serial, Some(BTN_UNLOCK), Some(2)));
+    }
+
+    /// Reference-oracle vectors: `KAT_KEY_VECTORS=<dir> cargo test oracle_vectors -- --ignored`.
+    #[test]
+    #[ignore]
+    fn oracle_vectors() {
+        let dec = MazdaV0Decoder::new();
+        for (n, &(serial, button, counter, _)) in [C_KEY_VECTORS[0], C_KEY_VECTORS[4]].iter().enumerate() {
+            let upload = dec.encode(&captured(serial, button, counter), 0x40).unwrap();
+            let sent = decode_all(&upload).remove(0);
+            let mut key = dec.to_flipper_key(&sent).unwrap();
+            key.frequency = 433_920_000;
+            key.set_preset(&crate::radio::preset::RfPreset::from_def(INFO.presets[0]));
+            super::super::ford_v0::write_oracle_vector(&format!("mazda_v0_{}", n + 1), &upload, &key);
         }
     }
 }

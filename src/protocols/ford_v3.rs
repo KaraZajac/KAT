@@ -48,10 +48,46 @@
 //! (40 bits: the counter's low byte and the hop — the C saves the whole frame as `Raw`),
 //! `data_count_bit` = 104. The variant is not stored; as in the C's deserialize it can be
 //! re-derived (`cell_frame_valid(raw)` ⇒ US).
+//!
+//! **Key files** (`subghz_protocol_decoder_ford_v3_serialize` / `_deserialize`; Flipper-ARF's are
+//! the same): `Protocol: Ford V3`, `Bit: 104`, `Key` = raw[0..8], then `Raw` (all 13 bytes),
+//! `Serial`, `Btn`, `Cnt` and `Variant` (0 EU, 1 US). KAT writes the variant whose fields the
+//! decode reports (the two read the counter bytes inverted vs plain, so exactly one matches).
+//! Loading needs Bit 104, takes the frame from Key (+ zeros) overlaid by `Raw`, the variant from
+//! `Variant`, and — without that line — from the C's own US check (`ford_v3_cell_frame_valid`:
+//! 0xFF header, sane serial, flag bit 7, button 1/2; stricter than KAT's US decoder gate), then
+//! parses the fields as the decoder does (the file's Serial/Btn/Cnt are not read, as in the C).
+//! Decode-only, like the reference: a loaded key can be listed and exported, not transmitted.
 
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (see `info.rs`): ProtoPirate "V3 [AM650+F4 434]" (EU + US variants).
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Ford V3",
+    decoder: "Ford V3",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::Both,
+    encryption: "Rolling Code",
+    make: "Ford",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650, &F4],
+};
+
+/// US variant; the EU variant reports 0x01/0x02 (generic Lock/Unlock).
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x07 => "Trunk",
+        0x06 => "Panic",
+        _ => return None,
+    })
+}
 
 const TE_SHORT: u32 = 240;
 const TE_LONG: u32 = 480;
@@ -195,6 +231,12 @@ impl FordV3Decoder {
             return false;
         }
         true
+    }
+
+    /// The C's `ford_v3_cell_frame_valid` as written (flag bit 7 set, buttons 1/2 only): how its
+    /// deserialize picks the variant of a key file without a `Variant` line.
+    fn c_cell_frame_valid(raw: &[u8; DATA_BYTES]) -> bool {
+        Self::cell_frame_valid(raw) && raw[5] & 0x80 != 0 && matches!(raw[6], BTN_LOCK | BTN_UNLOCK)
     }
 
     /// ford_v3_cell_decode: phase 0 then phase 1, bit = first cell of each pair.
@@ -390,6 +432,51 @@ impl ProtocolDecoder for FordV3Decoder {
 
     fn encode(&self, _decoded: &DecodedSignal, _button: u8) -> Option<Vec<LevelDuration>> {
         None
+    }
+
+    /// `subghz_protocol_decoder_ford_v3_deserialize` (see the module doc, "Key files").
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != DATA_BITS {
+            return None;
+        }
+        let mut raw = [0u8; DATA_BYTES];
+        raw[..8].copy_from_slice(&key.key_u64()?.to_be_bytes());
+        if let Some(full) = key.hex_bytes_field("Raw").filter(|r| r.len() == DATA_BYTES) {
+            raw.copy_from_slice(&full);
+        }
+        let variant = match key.u32_field("Variant") {
+            Some(0) => Variant::Eu,
+            Some(1) => Variant::Us,
+            _ if Self::c_cell_frame_valid(&raw) => Variant::Us,
+            _ => Variant::Eu,
+        };
+        Some(Self::build_signal(&raw, variant))
+    }
+
+    /// `subghz_protocol_decoder_ford_v3_serialize` (see the module doc, "Key files").
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        let extra = decoded.extra?;
+        if decoded.data_count_bit != DATA_BITS || extra >> 40 != 0 {
+            return None;
+        }
+        let mut raw = [0u8; DATA_BYTES];
+        raw[..8].copy_from_slice(&decoded.data.to_be_bytes());
+        raw[8..].copy_from_slice(&extra.to_be_bytes()[3..]);
+        let variant = [Variant::Us, Variant::Eu]
+            .into_iter()
+            .find(|&v| {
+                let s = Self::build_signal(&raw, v);
+                (s.button, s.counter) == (decoded.button, decoded.counter)
+            })
+            .unwrap_or(if Self::c_cell_frame_valid(&raw) { Variant::Us } else { Variant::Eu });
+        let s = Self::build_signal(&raw, variant);
+        let mut key = FlipperKey::for_protocol("Ford V3", DATA_BITS, decoded.data);
+        key.push_hex_bytes("Raw", &raw);
+        key.push_u32("Serial", s.serial?);
+        key.push_u32("Btn", s.button?.into());
+        key.push_u32("Cnt", s.counter?.into());
+        key.push_u32("Variant", if variant == Variant::Us { 1 } else { 0 });
+        Some(key)
     }
 }
 
@@ -641,5 +728,71 @@ mod tests {
             }
         }
         assert_eq!(order, vec![0x02, 0x01, 0x07, 0x06]);
+    }
+
+    /// Key files (ProtoPirate `subghz_protocol_decoder_ford_v3_serialize` / `_deserialize`): EU and
+    /// US decodes round-trip with the C's lines (Raw, Serial, Btn, Cnt, Variant), a file without
+    /// Variant / Raw loads as the C loads it, and Bit must be 104.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = FordV3Decoder::new();
+        let eu = decode(&eu_pulses(&RAW_EU)).remove(0);
+        let text = assert_round_trip(&dec, &eu);
+        assert!(
+            text.ends_with(
+                "Protocol: Ford V3\nBit: 104\nKey: 44 43 A8 8F 90 65 68 00\n\
+                 Raw: 44 43 A8 8F 90 65 68 00 00 09 48 ED D7\nSerial: 1135120272\nBtn: 1\nCnt: 65535\nVariant: 0\n"
+            ),
+            "{text}"
+        );
+        let us = decode(&us_pulses(&RAW_US)).remove(0);
+        let text = assert_round_trip(&dec, &us);
+        assert!(text.ends_with("Serial: 1311007972\nBtn: 2\nCnt: 60173\nVariant: 1\n"), "{text}");
+        let (name, loaded) = crate::protocols::ProtocolRegistry::new().decode_key(&key(&text)).unwrap();
+        assert_eq!((name.as_str(), &loaded), ("Ford V3", &us));
+
+        // No Variant line: the C's own US check decides (RAW_US has flag bit 7 and button 2).
+        for (d, raw) in [(&eu, RAW_EU), (&us, RAW_US)] {
+            let mut k = dec.to_flipper_key(d).unwrap();
+            k.fields.retain(|(n, _)| n != "Variant");
+            assert_eq!(dec.from_flipper_key(&k).as_ref(), Some(d), "{raw:02X?}");
+            // No Raw either: only the Key's 8 bytes, the tail is zero.
+            k.fields.retain(|(n, _)| n != "Raw");
+            let short = dec.from_flipper_key(&k).unwrap();
+            assert_eq!((short.serial, short.data, short.extra), (d.serial, d.data, Some(0)));
+        }
+        // A real 2022 Escape frame (flag 0x08, KAT's relaxed US gate): its Variant line keeps it US.
+        let mut escape = RAW_US;
+        escape[5] = 0x08;
+        let e = decode(&us_pulses(&escape)).remove(0);
+        assert_round_trip(&dec, &e);
+        let mut wrong = dec.to_flipper_key(&eu).unwrap();
+        wrong.bits = 64;
+        assert!(dec.from_flipper_key(&wrong).is_none());
+        assert!(!eu.encoder_capable, "decode-only, as the reference");
+    }
+
+    /// Reference-oracle vectors (real IMPORTS frames: Ford V3 has no encoder):
+    /// `KAT_KEY_VECTORS=<dir> cargo test oracle_vectors -- --ignored`.
+    #[test]
+    #[ignore]
+    fn oracle_vectors() {
+        let dec = FordV3Decoder::new();
+        for (n, rel) in ["LDV/LDV-T80_lock.sub", "FORD/22_ford_escape_u2_l2_t2_p2.sub"].iter().enumerate() {
+            let path = Path::new("IMPORTS").join(rel);
+            let Ok((freq, raw_pairs)) = import_sub_raw(&path) else { continue };
+            let pairs: Vec<LevelDuration> =
+                raw_pairs.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
+            let mut reg = ProtocolRegistry::new();
+            let Some((_, d, seg)) = reg.process_signal_stream(&pairs, freq).into_iter().find(|(n, _, _)| n == "Ford V3")
+            else {
+                continue;
+            };
+            let mut key = dec.to_flipper_key(&d).unwrap();
+            key.frequency = freq;
+            key.preset = crate::export::flipper::import_sub(&path).unwrap().preset.map(|p| p.name);
+            super::super::ford_v0::write_oracle_vector(&format!("ford_v3_{}", n + 1), &seg, &key);
+        }
     }
 }

@@ -27,11 +27,45 @@
 //! counter plus one; KAT's generic button maps to the C's names: Lock → 1 ("Close"), Unlock → 2
 //! ("Open"), Trunk → 3 ("Boot"), Panic → 4 (emulate D-pad Left); anything else keeps the captured
 //! button.
+//!
+//! Key files (`kia_protocol_decoder_v1_serialize` / `_deserialize`): Protocol "Kia V1", Bit 57,
+//! Key = the frame, then Serial, Btn, Cnt (decimal; `pp_serialize_fields`). Flipper-ARF's
+//! "KIA/HYU V1" files carry the same lines. Loading checks Bit = 57 and decodes the Key as the
+//! decoder does. ProtoPirate's encoder transmits from Serial/Btn/Cnt (CRC recomputed): when a
+//! file's fields differ from its Key's, KAT rebuilds the frame from them the same way.
 
 use super::common::{ManchesterEvent, ManchesterState};
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Kia V1",
+    decoder: "Kia V1",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::AM,
+    encryption: "Rolling Code",
+    make: "Kia/Hyundai",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650],
+};
+
+/// ProtoPirate kia_v1.c names (Close/Open/Boot) and the emulate D-pad's Panic; Flipper-ARF uses the same codes for Kia V2 and V6.
+pub(super) fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x1 => "Lock",
+        0x2 => "Unlock",
+        0x3 => "Trunk",
+        0x4 => "Panic",
+        _ => "Other",
+    })
+}
 
 const TE_SHORT: u32 = 800;
 const TE_LONG: u32 = 1600;
@@ -219,6 +253,43 @@ impl ProtocolDecoder for KiaV1Decoder {
         };
         Some(build_upload(build_frame(serial, button, counter)))
     }
+
+    /// `kia_protocol_decoder_v1_deserialize` (Bit must be 57) + the encoder's use of
+    /// Serial/Btn/Cnt: a file whose fields differ from its Key's is rebuilt from them (see the
+    /// module docs).
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != MIN_COUNT_BIT {
+            return None;
+        }
+        let data = key.key_u64()?;
+        let d = parse_frame(data);
+        let (serial, button, counter) = (key.u32_field("Serial"), key.u32_field("Btn"), key.u32_field("Cnt"));
+        if serial.is_none() && button.is_none() && counter.is_none() {
+            return Some(d);
+        }
+        let fields = (
+            serial.or(d.serial)?,
+            button.map_or(d.button, |b| Some(b as u8))?,
+            counter.map_or(d.counter, |c| Some((c & 0x0FFF) as u16))?,
+        );
+        if fields == (d.serial?, d.button?, d.counter?) {
+            return Some(d);
+        }
+        Some(parse_frame(build_frame(fields.0, fields.1, fields.2)))
+    }
+
+    /// `kia_protocol_decoder_v1_serialize`: "Kia V1", 57 bits, Key, then Serial, Btn, Cnt.
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        if decoded.data_count_bit != MIN_COUNT_BIT {
+            return None;
+        }
+        let f = parse_frame(decoded.data);
+        let mut key = FlipperKey::for_protocol("Kia V1", MIN_COUNT_BIT, decoded.data);
+        key.push_u32("Serial", f.serial?);
+        key.push_u32("Btn", f.button?.into());
+        key.push_u32("Cnt", f.counter?.into());
+        Some(key)
+    }
 }
 
 impl Default for KiaV1Decoder {
@@ -257,7 +328,7 @@ fn build_upload(frame: u64) -> Vec<LevelDuration> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::*;
 
     fn feed_all(wire: &[LevelDuration]) -> Vec<DecodedSignal> {
@@ -294,6 +365,67 @@ mod tests {
             let d = &got[0];
             assert_eq!((d.serial, d.button, d.counter), (Some(0xB444_706E), Some(want), Some(0)));
             assert!(d.crc_valid);
+        }
+    }
+
+    /// Key files (ProtoPirate `kia_protocol_decoder_v1_serialize` / `_deserialize`): the capture's
+    /// decodes round-trip with the C's lines, a file with edited fields is rebuilt from them like
+    /// the C encoder does, and TX from a loaded key decodes back.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = KiaV1Decoder::new();
+        for &(frame, ..) in C_CAPTURE {
+            for d in feed_all(&build_upload(frame)) {
+                assert_round_trip(&dec, &d);
+            }
+        }
+        let d = feed_all(&build_upload(C_CAPTURE[0].0)).remove(0);
+        let text = assert_round_trip(&dec, &d);
+        assert!(
+            text.ends_with("Protocol: Kia V1\nBit: 57\nKey: 00 B4 44 70 6E 01 91 0A\nSerial: 3024384110\nBtn: 1\nCnt: 145\n"),
+            "{text}"
+        );
+        // Flipper-ARF ("KIA/HYU V1", same lines) and a bare key both load; a wrong Bit does not.
+        let arf = key("Protocol: KIA/HYU V1\nBit: 57\nKey: 00 B4 44 70 6E 01 95 0E\n");
+        let l = dec.from_flipper_key(&arf).unwrap();
+        assert_eq!((l.serial, l.button, l.counter, l.crc_valid), (Some(0xB444_706E), Some(0x01), Some(0x095), true));
+        assert!(dec.from_flipper_key(&key("Protocol: Kia V1\nBit: 56\nKey: 00 B4 44 70 6E 01 95 0E\n")).is_none());
+        // Edited Cnt: rebuilt (CRC recomputed), as ProtoPirate's encoder transmits it.
+        let edited = key(&text.replace("Cnt: 145", "Cnt: 2000"));
+        let e = dec.from_flipper_key(&edited).unwrap();
+        assert_eq!((e.serial, e.button, e.counter, e.crc_valid), (Some(0xB444_706E), Some(0x01), Some(2000), true));
+        // TX from the loaded key: counter + 1.
+        let tx = feed_all(&dec.encode(&l, 0x02).unwrap());
+        assert_eq!((tx[0].serial, tx[0].button, tx[0].counter), (Some(0xB444_706E), Some(0x2), Some(0x096)));
+    }
+
+    /// `kia_v1`'s and the other modules' oracle vectors: write `<name>.sub` (a Flipper RAW file of
+    /// `upload` sent twice, 20 ms apart) and `<name>.kat.txt` (`key` with that Frequency/Preset)
+    /// into `dir`.
+    pub(in crate::protocols) fn write_key_vector(
+        dir: &std::path::Path,
+        name: &str,
+        frequency: u32,
+        preset: &str,
+        upload: &[LevelDuration],
+        key: &FlipperKey,
+    ) {
+        crate::protocols::flipper_key::testing::write_vector(dir, name, frequency, preset, upload, key);
+    }
+
+    /// Oracle vectors (`#[ignore]`d): `KAT_KEY_VECTORS=<dir> cargo test kia_v1::tests::key_vectors
+    /// -- --ignored` writes `kia_v1_<n>.sub` / `.kat.txt` (see [write_key_vector]).
+    #[test]
+    #[ignore]
+    fn key_vectors() {
+        let Some(dir) = std::env::var_os("KAT_KEY_VECTORS") else { return };
+        let dir = std::path::PathBuf::from(dir);
+        for (n, &(frame, ..)) in C_CAPTURE.iter().take(2).enumerate() {
+            let upload = build_upload(frame);
+            let d = feed_all(&upload).remove(0);
+            let key = KiaV1Decoder::new().to_flipper_key(&d).unwrap();
+            write_key_vector(&dir, &format!("kia_v1_{n}"), 433_920_000, "FuriHalSubGhzPresetOok650Async", &upload, &key);
         }
     }
 }

@@ -1,9 +1,21 @@
 //! Radio subsystem for HackRF and RTL-SDR control.
 
 pub mod demodulator;
+pub mod dsp;
 mod hackrf;
+pub mod hopper;
+pub mod iq_file;
 mod modulator;
+pub mod pipeline;
+/// CC1101 RF presets and the transmit modulation they imply (TX).
+pub mod preset;
+pub mod recorder;
+/// Transmit waveform (OOK / 2-FSK on a digital offset) and the TX sample stream (TX).
+pub mod tx;
 mod rtlsdr;
+pub mod rx;
+#[cfg(test)]
+mod sim;
 
 pub use demodulator::LevelDuration;
 pub use hackrf::HackRfController;

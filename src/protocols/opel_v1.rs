@@ -35,17 +35,57 @@
 //! with `data_count_bit` = 64.
 //!
 //! # Gating
-//! C: framing `0x02` + exact 93-bit Manchester window + decrypted tail `0x05` (13 bits). Because the
-//! window slides (one test per received bit), KAT also requires the decrypted button to be one of
-//! the three codes the C names — Trunk `0x20`, Lock `0x04`, Unlock `0x08` (the C only labels other
-//! values "Unknown"). `crc_valid` = true means the XTEA tail validated.
+//! As in the C: framing `0x02` + exact 93-bit Manchester window + decrypted tail `0x05` (13 bits).
+//! Any button is reported; the C names Trunk `0x20`, Lock `0x04` and Unlock `0x08` and shows other
+//! values as "Unknown". (KAT used to drop the other values; a real 2016 Holden Barina fob sends
+//! button 0x73 with a valid tail, which Flipper-ARF and doctor-firmware decode — serial 4F2679 —
+//! so the whitelist was removed.) `crc_valid` = true means the XTEA tail validated.
 //!
 //! # Encoder
 //! None — the C encoder is a NULL stub (decode-only). `supports_encoding()` is false.
+//!
+//! # Key files
+//! `subghz_protocol_decoder_opel_v1_serialize` writes `Protocol: Opel V1`, `Bit: 64`, `Key` = the
+//! cipher block, then `XteaKey` (16 bytes), `Disp` ("Opel V1 - Trunk|Lock|Unlock|Unknown") and
+//! `Burst`. The 24-bit serial is not in the key: the C's deserialize reads it from a `Serial` line,
+//! which only doctor-firmware's generic writer produces (with `Btn` = the decrypted button and
+//! `Cnt` = the 32-bit count, right after Key); Flipper-ARF's writer (same C file) stops after Key,
+//! so an ARF-saved Opel key reloads with serial 0. KAT writes doctor's lines, so its files keep the
+//! serial. Loading follows the C: exactly 64 bits, the cipher decrypted with the file's `XteaKey`
+//! (the static "RobertBOSCH48331" when absent), serial from `Serial` (24 bits; 0 when absent),
+//! framing 0x02 implied. The C loads any block; `crc_valid` reports its plaintext-tail check, and
+//! KAT's receive-side button whitelist is not applied. Decode-only: nothing to transmit.
 
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Opel V1",
+    decoder: "Opel V1",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::AM,
+    encryption: "XTEA",
+    make: "Opel",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650],
+};
+
+/// Opel V1 buttons.
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x04 => "Lock",
+        0x08 => "Unlock",
+        0x20 => "Trunk",
+        _ => "Other",
+    })
+}
 
 const TE_SHORT: u32 = 120;
 const TE_LONG: u32 = 240;
@@ -119,7 +159,21 @@ fn xtea_decrypt(block: u64, k: &[u32; 4]) -> u64 {
 
 /// `opel_v1_parse_fields`: decrypt the cipher block into its plaintext fields.
 fn decrypt_fields(cipher: u64) -> Plaintext {
-    let b = xtea_decrypt(cipher, &xtea_key_words()).to_be_bytes();
+    plaintext(xtea_decrypt(cipher, &xtea_key_words()))
+}
+
+/// [decrypt_fields] under any 16-byte XTEA key (a key file's `XteaKey`).
+fn decrypt_with_key(cipher: u64, key: &[u8; 16]) -> Plaintext {
+    let mut k = [0u32; 4];
+    for (i, word) in k.iter_mut().enumerate() {
+        *word = u32::from_be_bytes(key[i * 4..i * 4 + 4].try_into().unwrap());
+    }
+    plaintext(xtea_decrypt(cipher, &k))
+}
+
+/// The plaintext fields of a decrypted block.
+fn plaintext(block: u64) -> Plaintext {
+    let b = block.to_be_bytes();
     Plaintext {
         check: b[0],
         button: b[1],
@@ -185,10 +239,6 @@ impl OpelV1Decoder {
         }
     }
 
-    fn button_known(button: u8) -> bool {
-        matches!(button, BTN_TRUNK | BTN_LOCK | BTN_UNLOCK)
-    }
-
     /// `opel_v1_try_finish` + callback decision. Returns `None` while the window is not a frame;
     /// `Some(result)` when the framing matched (accumulator must then be cleared), where `result`
     /// is the signal to emit if the frame also validated.
@@ -202,22 +252,39 @@ impl OpelV1Decoder {
         let serial = (self.data_high & 0xFF_FFFF) as u32;
         let cipher = self.data_low;
         let pt = decrypt_fields(cipher);
-        if pt.tail != PLAINTEXT_TAIL || !Self::button_known(pt.button) {
+        if pt.tail != PLAINTEXT_TAIL {
             return Some(None);
         }
-        let frame_hi = ((FRAMING as u64) << 24) | serial as u64; // wire bits 92..64
-        Some(Some(DecodedSignal {
-            serial: Some(serial),
-            button: Some(pt.button),
-            counter: Some(pt.count as u16),
-            crc_valid: true,
-            data: (frame_hi << (64 - EXTRA_BITS)) | (cipher >> EXTRA_BITS),
-            data_count_bit: FRAME_BITS as usize,
-            encoder_capable: false,
-            extra: Some(cipher & ((1u64 << EXTRA_BITS) - 1)),
-            protocol_display_name: None,
-        }))
+        Some(Some(frame_signal(serial, cipher, &pt)))
     }
+}
+
+/// The decode of a frame (framing 0x02, 24-bit `serial`, `cipher`) whose block decrypts to `pt`.
+/// `crc_valid` = the plaintext-tail check (always true for a frame the decoder reports).
+fn frame_signal(serial: u32, cipher: u64, pt: &Plaintext) -> DecodedSignal {
+    let frame_hi = ((FRAMING as u64) << 24) | serial as u64; // wire bits 92..64
+    DecodedSignal {
+        serial: Some(serial),
+        button: Some(pt.button),
+        counter: Some(pt.count as u16),
+        crc_valid: pt.tail == PLAINTEXT_TAIL,
+        data: (frame_hi << (64 - EXTRA_BITS)) | (cipher >> EXTRA_BITS),
+        data_count_bit: FRAME_BITS as usize,
+        encoder_capable: false,
+        extra: Some(cipher & ((1u64 << EXTRA_BITS) - 1)),
+        protocol_display_name: None,
+    }
+}
+
+/// (serial, cipher) of a decode (`data` / `extra` as packed by [frame_signal]).
+fn frame_of(decoded: &DecodedSignal) -> Option<(u32, u64)> {
+    if decoded.data_count_bit != FRAME_BITS as usize {
+        return None;
+    }
+    let extra = decoded.extra?;
+    let serial = ((decoded.data >> (64 - EXTRA_BITS)) & 0xFF_FFFF) as u32;
+    let cipher = ((decoded.data & ((1u64 << (64 - EXTRA_BITS)) - 1)) << EXTRA_BITS) | (extra & ((1u64 << EXTRA_BITS) - 1));
+    Some((serial, cipher))
 }
 
 impl ProtocolDecoder for OpelV1Decoder {
@@ -276,6 +343,42 @@ impl ProtocolDecoder for OpelV1Decoder {
 
     fn encode(&self, _decoded: &DecodedSignal, _button: u8) -> Option<Vec<LevelDuration>> {
         None
+    }
+
+    /// `subghz_protocol_decoder_opel_v1_deserialize` (see the module doc, "Key files").
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != 64 {
+            return None;
+        }
+        let cipher = key.key_u64()?;
+        let xtea: [u8; 16] = key
+            .hex_bytes_field("XteaKey")
+            .and_then(|k| k.try_into().ok())
+            .unwrap_or(XTEA_KEY);
+        let serial = key.u32_field("Serial").unwrap_or(0) & 0xFF_FFFF;
+        Some(frame_signal(serial, cipher, &decrypt_with_key(cipher, &xtea)))
+    }
+
+    /// `subghz_protocol_decoder_opel_v1_serialize` as doctor-firmware writes it (see "Key files").
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        let (serial, cipher) = frame_of(decoded)?;
+        let pt = decrypt_fields(cipher);
+        let mut key = FlipperKey::for_protocol("Opel V1", 64, cipher);
+        if serial != 0 || pt.button != 0 || pt.count != 0 {
+            key.push_u32("Serial", serial);
+            key.push_u32("Btn", pt.button.into());
+            key.push_u32("Cnt", pt.count);
+        }
+        key.push_hex_bytes("XteaKey", &XTEA_KEY);
+        let name = match pt.button {
+            BTN_TRUNK => "Trunk",
+            BTN_LOCK => "Lock",
+            BTN_UNLOCK => "Unlock",
+            _ => "Unknown",
+        };
+        key.push("Disp", format!("Opel V1 - {name}"));
+        key.push_u32("Burst", pt.burst.into());
+        Some(key)
     }
 }
 
@@ -433,11 +536,13 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unknown_button() {
-        // Valid tail (the C would emit "Unknown"); KAT's button whitelist rejects it.
-        let cipher = cipher_for(0x10, 42, PLAINTEXT_TAIL);
+    fn reports_unnamed_buttons_like_the_c() {
+        // Valid tail, a button the C labels "Unknown" (a real Holden Barina fob sends 0x73).
+        let cipher = cipher_for(0x73, 42, PLAINTEXT_TAIL);
         assert_eq!(decrypt_fields(cipher).tail, PLAINTEXT_TAIL);
-        assert!(decode_all(&build_wire(FRAMING, SERIAL, cipher, 16)).is_empty());
+        let got = decode_all(&build_wire(FRAMING, SERIAL, cipher, 16));
+        assert!(!got.is_empty());
+        assert!(got.iter().all(|d| d.button == Some(0x73) && d.serial == Some(SERIAL) && d.crc_valid));
     }
 
     #[test]
@@ -454,6 +559,58 @@ mod tests {
             let names: Vec<&str> = results.iter().map(|(n, _, _)| n.as_str()).collect();
             assert_eq!(names, vec!["Opel V1"], "{label}");
             assert_eq!(results[0].1.serial, Some(SERIAL), "{label}");
+        }
+    }
+
+    /// Key files: doctor-firmware's lines round-trip every field (serial included); an ARF file
+    /// (no Serial line) loads with serial 0 like ARF's own load; a custom XteaKey is honoured.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = OpelV1Decoder::new();
+        let cipher = cipher_for(BTN_UNLOCK, 0x0001_2345, PLAINTEXT_TAIL);
+        let decoded = decode_all(&build_wire(FRAMING, SERIAL, cipher, 16)).remove(0);
+        let text = assert_round_trip(&dec, &decoded);
+        let hex = |v: u64| v.to_be_bytes().iter().map(|b| format!("{b:02X}")).collect::<Vec<_>>().join(" ");
+        assert!(
+            text.ends_with(&format!(
+                "Protocol: Opel V1\nBit: 64\nKey: {}\nSerial: {SERIAL}\nBtn: 8\nCnt: 74565\n\
+                 XteaKey: 52 6F 62 65 72 74 42 4F 53 43 48 34 38 33 33 31\nDisp: Opel V1 - Unlock\nBurst: 1\n",
+                hex(cipher)
+            )),
+            "{text}"
+        );
+        // Flipper-ARF's file of the same capture: no Serial line → serial 0, fields decrypted.
+        let arf = key(&format!(
+            "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+             Preset: FuriHalSubGhzPresetOok650Async\nProtocol: Opel V1\nBit: 64\nKey: {}\n\
+             XteaKey: 52 6F 62 65 72 74 42 4F 53 43 48 34 38 33 33 31\nDisp: Opel V1 - Unlock\nBurst: 1\n",
+            hex(cipher)
+        ));
+        let d = dec.from_flipper_key(&arf).unwrap();
+        assert_eq!((d.serial, d.button, d.counter, d.crc_valid), (Some(0), Some(BTN_UNLOCK), Some(0x2345), true));
+        // Another XTEA key decrypts the block differently (tail check fails here).
+        let mut other = arf.clone();
+        other.fields.retain(|(n, _)| n != "XteaKey");
+        other.push_hex_bytes("XteaKey", &[0u8; 16]);
+        assert!(!dec.from_flipper_key(&other).unwrap().crc_valid);
+        let mut wrong = arf.clone();
+        wrong.bits = 93;
+        assert!(dec.from_flipper_key(&wrong).is_none());
+    }
+
+    /// Oracle vectors (`KAT_KEY_VECTORS=<dir> cargo test opel_v1_key_vectors -- --ignored`).
+    /// Decode-only protocol: the RAW files carry the test-built frames.
+    #[test]
+    #[ignore]
+    fn opel_v1_key_vectors() {
+        use super::super::bmw::{key_vector_dir, write_key_vector};
+        let dec = OpelV1Decoder::new();
+        for (n, btn, count) in [(1, BTN_UNLOCK, 0x0001_2345u32), (2, BTN_TRUNK, 99)] {
+            let wire = build_wire(FRAMING, SERIAL, cipher_for(btn, count, PLAINTEXT_TAIL), 16);
+            let decoded = decode_all(&wire).remove(0);
+            let key = dec.to_flipper_key(&decoded).unwrap();
+            write_key_vector(&key_vector_dir(), &format!("opel_v1_{n}"), 433_920_000, "FuriHalSubGhzPresetOok650Async", &wire, &key);
         }
     }
 }

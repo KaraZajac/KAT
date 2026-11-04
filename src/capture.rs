@@ -64,6 +64,11 @@ pub struct Capture {
     /// Which demodulator path produced this capture (AM or FM). None if unknown/imported.
     #[serde(default)]
     pub received_rf: Option<RfModulation>,
+    /// RF preset the capture was recorded with: an imported `.sub`'s `Preset:` (+ custom CC1101
+    /// registers) or the one a `.fob` persisted. Decides OOK vs 2-FSK (and the deviation) for
+    /// transmit and the `.sub` export's `Preset:`; None for live captures (see [Capture::tx_preset]).
+    #[serde(default)]
+    pub rf_preset: Option<crate::radio::preset::RfPreset>,
     /// Vehicle/year for vulnerability lookup and .fob export (set via 'i' in UI).
     #[serde(default)]
     pub year: Option<String>,
@@ -90,7 +95,6 @@ pub enum ModulationType {
     Unknown,
     Pwm,
     Manchester,
-    #[allow(dead_code)]
     DifferentialManchester,
 }
 
@@ -156,6 +160,7 @@ impl Capture {
             raw_pairs: pairs,
             status: CaptureStatus::Unknown,
             received_rf,
+            rf_preset: None,
             year: None,
             make: None,
             model: None,
@@ -194,11 +199,15 @@ impl Capture {
         }
     }
 
-    /// Get button name
+    /// Get button name: the protocol's own name for its button code; for a gate / garage remote
+    /// whose protocol names none, "Btn 0xN"; else KAT's car commands.
     pub fn button_name(&self) -> &str {
         if let Some(code) = self.button {
             if let Some(name) = crate::protocols::native_button_name(self.protocol_name(), code) {
                 return name;
+            }
+            if crate::protocols::gate_buttons::is_gate(self.protocol_name()) {
+                return crate::protocols::gate_buttons::hex_label(code);
             }
         }
         match self.button {
@@ -222,158 +231,56 @@ impl Capture {
         }
     }
 
-    /// Get the modulation type based on the protocol
-    pub fn modulation(&self) -> ModulationType {
-        match self.protocol_name() {
-            // Manchester-encoded protocols
-            p if p.starts_with("Kia V1") => ModulationType::Manchester,
-            p if p.starts_with("Kia V2") => ModulationType::Manchester,
-            p if p.starts_with("Kia V5") => ModulationType::Manchester,
-            p if p.starts_with("Kia V6") => ModulationType::Manchester,
-            p if p.starts_with("Kia V7") => ModulationType::Manchester,
-            p if p.starts_with("Ford") => ModulationType::Manchester,
-            "Honda Static" => ModulationType::Manchester,
-            "Mazda Siemens" => ModulationType::Manchester,
-            "Mazda V0" => ModulationType::Manchester,
-            "BMW CAS4" => ModulationType::Manchester,
-            "Fiat V0" => ModulationType::Manchester,
-            // "PSA2" is the retired name (PSA now decodes those frames); kept for old captures.
-            "PSA" | "PSA2" => ModulationType::Manchester,
-            "VAG" => ModulationType::Manchester,
-            // Differential Manchester
-            // Honda V2 (legacy name "Land Rover V0" kept for older .fob imports).
-            "Honda V2" | "Land Rover V0" => ModulationType::DifferentialManchester,
-            // PWM-encoded protocols
-            p if p.starts_with("Kia V0") => ModulationType::Pwm,
-            // Kia V0 frame types (ProtoPirate display names) and ARF's 96-bit Mitsubishi V0.
-            "Suzuki V0" | "Honda V0" | "Mitsubishi V0" => ModulationType::Pwm,
-            p if p.starts_with("Kia V3") => ModulationType::Pwm,
-            p if p.starts_with("Kia V4") => ModulationType::Pwm,
-            "Honda V1" => ModulationType::Pwm,
-            "Subaru" => ModulationType::Pwm,
-            "Suzuki" => ModulationType::Pwm,
-            p if p.starts_with("Star Line") => ModulationType::Pwm,
-            // "Keeloq (<keystore name>)" (generic fallback) and "KeeLoq (<manufacturer>)" (registry).
-            p if p.to_ascii_lowercase().starts_with("keeloq (") => ModulationType::Pwm,
-            p if p.starts_with("Scher-Khan") => ModulationType::Pwm,
-            "Chrysler V0" => ModulationType::Pwm,
-            "Land Rover RKE" => ModulationType::Pwm,
-            // Toyota (ARF/doctor "Toyota Lexus"): bi-phase, two shorts = 0, one long = 1.
-            "Toyota" => ModulationType::DifferentialManchester,
-            // "Porsche Cayenne", plus legacy "Porsche Touareg [...]" captures (same protocol).
-            p if p.starts_with("Porsche") => ModulationType::Pwm,
-            // v1.4.0 additions (ProtoPirate / Flipper-ARF / doctor-firmware ports)
-            "Fiat V1" | "Fiat V2" => ModulationType::Manchester,
-            "Renault V0" | "Renault V1" => ModulationType::Manchester,
-            // Display names carry the frame type, e.g. "Renault V1 (ARF) [0x0C]".
-            p if p.starts_with("Renault V1 (ARF)") => ModulationType::Manchester,
-            "Mercedes V0" | "Mercedes V1" => ModulationType::Manchester,
-            "Opel V1" | "BMW" | "Datsun Lada" => ModulationType::Manchester,
-            "Mazda Infinity" | "Hyundai" => ModulationType::Manchester,
-            // Bi-phase with a transition at every bit boundary (the bit is the second half's level).
-            "Mazda V2" => ModulationType::DifferentialManchester,
-            // GM is pulse-position (gap width) — closest label is PWM.
-            "GM" | "Sheriff CFM" | "Audi" => ModulationType::Pwm,
-            // Unknown
-            _ => ModulationType::Unknown,
-        }
+    /// The protocol's metadata (line coding, RF, encryption, make, buttons, TX presets), resolved
+    /// from the protocol / display name ([crate::protocols::info]). None for unknown protocols.
+    pub fn protocol_info(&self) -> Option<&'static crate::protocols::ProtocolInfo> {
+        self.protocol.as_deref().and_then(crate::protocols::protocol_info)
     }
 
-    /// Get the RF modulation (AM/FM) for this protocol. From ProtoPirate SubGhzProtocolFlag_AM / _FM.
-    /// KAT's demodulator is AM/OOK only; FM protocols may still decode if the signal is strong.
+    /// Get the modulation type (line coding) based on the protocol
+    pub fn modulation(&self) -> ModulationType {
+        self.protocol_info().map_or(ModulationType::Unknown, |i| i.encoding)
+    }
+
+    /// Get the RF modulation (AM/FM) the references flag this protocol with (ProtoPirate
+    /// SubGhzProtocolFlag_AM / _FM, Flipper-ARF / doctor-firmware for their protocols). Which
+    /// demodulator actually received the capture is [Capture::received_rf].
     pub fn rf_modulation(&self) -> RfModulation {
-        match self.protocol_name() {
-            // FM only (ProtoPirate SubGhzProtocolFlag_FM)
-            // Kia V0 family: ProtoPirate flags FM, Flipper-ARF AM + FM.
-            p if p.starts_with("Kia V0") => RfModulation::Both,
-            "Suzuki" | "Suzuki V0" | "Honda V0" => RfModulation::Both,
-            "Mitsubishi V0" => RfModulation::FM,
-            // Kia V2: ProtoPirate flags AM.
-            p if p.starts_with("Kia V2") => RfModulation::AM,
-            p if p.starts_with("Kia V5") => RfModulation::FM,
-            p if p.starts_with("Kia V6") => RfModulation::FM,
-            p if p.starts_with("Kia V7") => RfModulation::FM,
-            // ProtoPirate flags Scher-Khan FM; Flipper-ARF (Magic Code PRO1/PRO2) FM + AM.
-            p if p.starts_with("Scher-Khan") => RfModulation::Both,
-            // PSA: ProtoPirate routes by preset (AM and FM); the IMPORTS captures are OOK.
-            "PSA" | "PSA2" => RfModulation::Both,
-            // Fiat V0 / Ford V0: ProtoPirate flags AM (the IMPORTS captures are AM650).
-            "Fiat V0" => RfModulation::AM,
-            "Ford V0" => RfModulation::AM,
-            // Ford V3 is flagged AM | FM in ProtoPirate (EU + US variants).
-            "Ford V3" => RfModulation::Both,
-            p if p.starts_with("Ford") => RfModulation::FM,
-            "Honda Static" => RfModulation::FM,
-            "Mazda Siemens" => RfModulation::FM,
-            // Mazda V0 (ProtoPirate) is flagged AM | FM.
-            "Mazda V0" => RfModulation::Both,
-            "Honda V2" | "Land Rover V0" => RfModulation::FM,
-            // AM only (SubGhzProtocolFlag_AM)
-            p if p.starts_with("Kia V1") => RfModulation::AM,
-            "Honda V1" => RfModulation::AM,
-            "VAG" => RfModulation::AM,
-            "Subaru" => RfModulation::AM,
-            p if p.starts_with("Star Line") => RfModulation::AM,
-            "Chrysler V0" => RfModulation::AM,
-            "Land Rover RKE" => RfModulation::AM,
-            "Toyota" => RfModulation::AM,
-            "BMW CAS4" => RfModulation::AM,
-            p if p.starts_with("Porsche") => RfModulation::AM,
-            p if p.to_ascii_lowercase().starts_with("keeloq (") => RfModulation::AM,
-            // Kia V3/V4: ProtoPirate routes it to the FM registry.
-            p if p.starts_with("Kia V3") || p.starts_with("Kia V4") => RfModulation::FM,
-            // v1.4.0 additions
-            "Mercedes V0" | "Mercedes V1" | "Datsun Lada" => RfModulation::FM,
-            "Fiat V1" | "Fiat V2" | "Renault V0" | "Opel V1" | "BMW" | "GM" => RfModulation::AM,
-            "Sheriff CFM" | "Audi" | "Mazda Infinity" | "Hyundai" => RfModulation::AM,
-            "Renault V1" | "Mazda V2" => RfModulation::Both,
-            p if p.starts_with("Renault V1 (ARF)") => RfModulation::Both,
-            _ => RfModulation::Unknown,
-        }
+        self.protocol_info().map_or(RfModulation::Unknown, |i| i.rf)
     }
 
     /// Get the encryption/encoding type based on the protocol
     pub fn encryption_type(&self) -> &'static str {
-        match self.protocol_name() {
-            p if p.starts_with("Kia V3") || p.starts_with("Kia V4") => "KeeLoq",
-            p if p.starts_with("Star Line") => "KeeLoq",
-            p if p.to_ascii_lowercase().starts_with("keeloq (") => "KeeLoq",
-            "PSA" | "PSA2" => "TEA/XOR",
-            "VAG" => "AUT64/XTEA",
-            p if p.starts_with("Scher-Khan") => "Magic Code",
-            "Subaru" | "Suzuki" | "Suzuki V0" | "Honda V0" | "Mitsubishi V0" => "Rolling Code",
-            "Chrysler V0" => "Rolling Code",
-            "Honda V2" | "Land Rover V0" => "Rolling Code",
-            "Land Rover RKE" => "KeeLoq",
-            "Toyota" => "Rolling Code",
-            "Mazda Siemens" => "Siemens XOR",
-            "Mazda V0" => "XOR whitening",
-            "BMW CAS4" => "CAS4 (rolling)",
-            p if p.starts_with("Porsche") => "VAG rolling",
-            // Ford V0/V1/V2 are rolling codes; must precede the generic Ford "Fixed Code" arm below.
-            "Ford V0" | "Ford V1" | "Ford V2" => "Rolling Code",
-            // Ford V3 carries a counter + hop in both variants.
-            "Ford V3" => "Rolling Code",
-            p if p.starts_with("Ford") => "Fixed Code",
-            "Honda Static" => "Fixed Code",
-            "Honda V1" => "Fixed Code",
-            // Fiat V1 (ProtoPirate re-port) verifies the hop against embedded HITAG2 keys.
-            "Fiat V1" => "HITAG2",
-            "Fiat V0" | "Fiat V2" => "Rolling Code",
-            p if p.starts_with("Fiat") => "Fixed Code",
-            p if p.starts_with("Kia V6") => "AES-128",
-            p if p.starts_with("Kia V0") || p.starts_with("Kia V1") || p.starts_with("Kia V2") => "Rolling Code",
-            p if p.starts_with("Kia V5") || p.starts_with("Kia V7") => "Rolling Code",
-            // v1.4.0 additions
-            "Renault V1" | "Datsun Lada" => "HITAG2",
-            // ARF's type-table frames: rolling, replay-only (no key path is validated upstream).
-            p if p.starts_with("Renault V1 (ARF)") => "Rolling Code",
-            "Opel V1" => "XTEA",
-            "Sheriff CFM" => "KeeLoq",
-            "Renault V0" | "Mercedes V0" | "Mercedes V1" | "BMW" | "GM" => "Rolling Code",
-            "Mazda V2" | "Mazda Infinity" | "Audi" | "Hyundai" => "Rolling Code",
-            _ => "Unknown",
-        }
+        self.protocol_info().map_or("Unknown", |i| i.encryption)
+    }
+
+    /// Make suggested by the protocol (e.g. "Kia/Hyundai"), "Unknown" for unknown protocols.
+    pub fn protocol_make(&self) -> &'static str {
+        self.protocol_info().map_or("Unknown", |i| i.make)
+    }
+
+    /// The preset KAT transmits this capture with, and the modulation it implies: the capture's
+    /// own preset, else the protocol's preset for the demodulator path that received it, else the
+    /// protocol's primary preset (see [crate::radio::preset::choose_tx_preset]).
+    pub fn tx_preset(
+        &self,
+    ) -> (crate::radio::preset::RfPreset, crate::radio::preset::TxModulation) {
+        crate::radio::preset::choose_tx_preset(
+            self.rf_preset.as_ref(),
+            self.received_rf,
+            self.protocol_info().map(|i| i.presets),
+        )
+    }
+
+    /// Modulation KAT transmits this capture with (replay and re-encode alike).
+    pub fn tx_modulation(&self) -> crate::radio::preset::TxModulation {
+        self.tx_preset().1
+    }
+
+    /// Preset written on export (`.sub` `Preset:`, `.fob` `preset`): the capture's own preset
+    /// verbatim when it has one, else the one KAT transmits with.
+    pub fn export_preset(&self) -> crate::radio::preset::RfPreset {
+        self.rf_preset.clone().unwrap_or_else(|| self.tx_preset().0)
     }
 
     /// Get the counter as a formatted string
@@ -414,6 +321,22 @@ impl Capture {
     /// Whether this capture has raw signal data for replay
     pub fn has_raw_data(&self) -> bool {
         !self.raw_pairs.is_empty()
+    }
+
+    /// The decode this capture holds, as the protocols take it (`encode`, `to_flipper_key`): the
+    /// capture's protocol name is the decode's display name (e.g. "KeeLoq (DoorHan)").
+    pub fn decoded_signal(&self) -> crate::protocols::DecodedSignal {
+        crate::protocols::DecodedSignal {
+            serial: self.serial,
+            button: self.button,
+            counter: self.counter,
+            crc_valid: self.crc_valid,
+            data: self.data,
+            data_count_bit: self.data_count_bit,
+            encoder_capable: self.status == CaptureStatus::EncoderCapable,
+            extra: self.data_extra,
+            protocol_display_name: self.protocol.clone(),
+        }
     }
 
     /// Number of raw signal transitions

@@ -36,11 +36,48 @@
 //! (IMPORTS/FIAT/Fiat Bravo...: frames with hop bit 31 = 1 start `-754 +201 -218 +145`), i.e. a
 //! short HIGH followed by the normal transition from an implied 1. KAT does that; for a first bit
 //! of 0 the output is identical to the C.
+//!
+//! **Key files** (`subghz_protocol_decoder_fiat_v0_serialize` / `_deserialize`): KAT writes
+//! ProtoPirate's lines — Protocol "Fiat V0", Bit 71, Key = hop << 32 | fix, then Serial (fix),
+//! Btn (EndByte), Cnt (the 32-bit hop), EndByte and `Disp: Fiat V0 - Lock|Unlock|??` (the C's
+//! display suffix from the EndByte's low nibble). EndByte is KAT's 7-bit tail (the C masks it to 6
+//! bits on decode; equal on every real capture, and its deserialize keeps 7). Loading accepts Bit
+//! 64 or 71 (ProtoPirate's encoder and doctor-firmware's decoder; ProtoPirate's own decoder
+//! `deserialize` checks for 64 and so rejects the 71-bit files it writes) and takes the tail from
+//! EndByte, else `CRC` (doctor-firmware's fallback — `IMPORTS/FIAT/Fiat type 0 N1.sub`, saved as
+//! "Fiat type 0", carries only `CRC: 59`), else Btn; Serial/Cnt are not read (fix and hop come
+//! from the Key, as in all three C files).
 
 use super::common::{ManchesterEvent, ManchesterState};
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Fiat V0",
+    decoder: "Fiat V0",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::AM,
+    encryption: "Rolling Code",
+    make: "Fiat",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650],
+};
+
+/// The 7 tail bits; ProtoPirate's fiat_v0_display_suffix labels by the low nibble.
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code & 0x0F {
+        0x4..=0x7 => "Lock",
+        0x8..=0xB => "Unlock",
+        _ => "Other",
+    })
+}
 
 const TE_SHORT: u32 = 200;
 const TE_LONG: u32 = 400;
@@ -61,6 +98,31 @@ enum DecoderStep {
     Reset,
     Preamble,
     Data,
+}
+
+/// The decode of frame `data` = hop << 32 | fix with the 7 tail bits `tail7`
+/// (`fiat_v0_finish_packet`).
+fn signal(data: u64, tail7: u8) -> DecodedSignal {
+    DecodedSignal {
+        serial: Some(data as u32),
+        button: Some(tail7),
+        counter: Some((data >> 32) as u16),
+        crc_valid: true,
+        data,
+        data_count_bit: FRAME_BITS as usize,
+        encoder_capable: true,
+        extra: None,
+        protocol_display_name: None,
+    }
+}
+
+/// `fiat_v0_display_suffix`: the `Disp` label from the EndByte's low nibble.
+fn display_suffix(endbyte: u8) -> &'static str {
+    match endbyte & 0x0F {
+        0x4..=0x7 => "Lock",
+        0x8..=0xB => "Unlock",
+        _ => "??",
+    }
 }
 
 pub struct FiatV0Decoder {
@@ -97,19 +159,7 @@ impl FiatV0Decoder {
     }
 
     fn parse_data(&self) -> DecodedSignal {
-        let data = ((self.cnt as u64) << 32) | (self.serial as u64);
-
-        DecodedSignal {
-            serial: Some(self.serial),
-            button: Some(self.btn),
-            counter: Some(self.cnt as u16),
-            crc_valid: true,
-            data,
-            data_count_bit: FRAME_BITS as usize,
-            encoder_capable: true,
-            extra: None,
-            protocol_display_name: None,
-        }
+        signal(((self.cnt as u64) << 32) | (self.serial as u64), self.btn)
     }
 
     /// fiat_v0_finish_packet: capture the tail bits, build the signal and return to Reset.
@@ -333,12 +383,68 @@ impl ProtocolDecoder for FiatV0Decoder {
 
         Some(signal)
     }
+
+    /// ProtoPirate's encoder / doctor-firmware's decoder `deserialize` (see the module doc): Bit
+    /// 64 or 71, fix/hop from the Key, the tail from EndByte, CRC or Btn (masked to 7 bits).
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != 64 && key.bits != FRAME_BITS as usize {
+            return None;
+        }
+        let data = key.key_u64()?;
+        let tail = ["EndByte", "CRC", "Btn"].iter().find_map(|f| key.u32_field(f)).unwrap_or(0);
+        Some(signal(data, (tail & 0x7F) as u8))
+    }
+
+    /// `subghz_protocol_decoder_fiat_v0_serialize` (see the module doc).
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        let endbyte = decoded.button.unwrap_or(0) & 0x7F;
+        let mut key = FlipperKey::for_protocol("Fiat V0", FRAME_BITS as usize, decoded.data);
+        key.push_u32("Serial", decoded.data as u32);
+        key.push_u32("Btn", endbyte.into());
+        key.push_u32("Cnt", (decoded.data >> 32) as u32);
+        key.push_u32("EndByte", endbyte.into());
+        key.push("Disp", format!("Fiat V0 - {}", display_suffix(endbyte)));
+        Some(key)
+    }
 }
 
 impl Default for FiatV0Decoder {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Oracle test vector for the reference C (the `oracle_vectors` tests of the Fiat / Honda /
+/// Renault V0 modules; run with `KAT_KEY_VECTORS=<dir> cargo test oracle_vectors -- --ignored`):
+/// `<dir>/<name>.sub` is a Flipper RAW file of `upload` sent twice, each copy followed by a
+/// 20 000 µs LOW gap (equal adjacent levels merged; HIGH positive, LOW negative, ≤ 512 values per
+/// line), and `<dir>/<name>.kat.txt` KAT's key file (same Frequency / Preset) for the first frame
+/// `decoder` reports on that stream. Does nothing without `KAT_KEY_VECTORS`.
+#[cfg(test)]
+pub(super) fn write_oracle_vector(
+    name: &str,
+    frequency: u32,
+    preset: &str,
+    upload: &[LevelDuration],
+    decoder: &mut dyn ProtocolDecoder,
+) {
+    use crate::protocols::flipper_key::testing::{vector_dir, write_vector};
+    let Some(dir) = vector_dir() else { return };
+    let mut stream: Vec<LevelDuration> = Vec::new();
+    let gap = [LevelDuration::new(false, 20_000)];
+    for p in upload.iter().chain(gap.iter()).cycle().take(2 * (upload.len() + 1)) {
+        match stream.last_mut() {
+            Some(last) if last.level == p.level => last.duration_us += p.duration_us,
+            _ => stream.push(*p),
+        }
+    }
+    decoder.reset();
+    let decoded = stream
+        .iter()
+        .find_map(|p| decoder.feed(p.level, p.duration_us))
+        .unwrap_or_else(|| panic!("{name}: the upload does not decode"));
+    let key = decoder.to_flipper_key(&decoded).unwrap_or_else(|| panic!("{name}: no key file"));
+    write_vector(&dir, name, frequency, preset, upload, &key);
 }
 
 #[cfg(test)]
@@ -445,6 +551,82 @@ mod tests {
             }
         }
         assert!(feed_all(&short_pre).is_empty(), "short preamble");
+    }
+
+    /// Key files: ProtoPirate's lines round-trip; the IMPORTS key file (saved as "Fiat type 0",
+    /// tail in `CRC`) loads as exactly the stream decode of the same frame in the Bravo RAW
+    /// capture; a loaded key transmits a frame that decodes back.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = FiatV0Decoder::new();
+        for (hop, tail7) in [(0x0DE2_1BFEu32, 0x13u8), (0xFEC0_E84D, 0x1B), (0xA03B_F868, 0x3B)] {
+            let upload = dec.encode(&frame(hop, FIX, tail7), 0x02).unwrap();
+            for d in feed_all(&upload) {
+                assert_round_trip(&dec, &d);
+            }
+        }
+        let d = feed_all(&dec.encode(&frame(0xA03B_F868, FIX, 0x3B), 0).unwrap()).remove(0);
+        assert!(assert_round_trip(&dec, &d).ends_with(
+            "Protocol: Fiat V0\nBit: 71\nKey: A0 3B F8 68 54 53 62 00\nSerial: 1414750720\nBtn: 59\n\
+             Cnt: 2688284776\nEndByte: 59\nDisp: Fiat V0 - Unlock\n"
+        ));
+
+        // IMPORTS/FIAT/Fiat type 0 N1.sub, inlined (CRLF-free copy of the file's lines).
+        let file = key(
+            "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433889000\n\
+             Preset: FuriHalSubGhzPresetOok650Async\nProtocol: Fiat type 0\nBit: 71\n\
+             Key: A0 3B F8 68 54 53 62 00\nCRC: 59\n",
+        );
+        let reg = ProtocolRegistry::new();
+        let (name, loaded) = reg.decode_key(&file).expect("Fiat type 0 loads as Fiat V0");
+        assert_eq!(name, "Fiat V0");
+        assert_eq!(loaded, frame(0xA03B_F868, FIX, 0x3B));
+        let path = Path::new("IMPORTS/FIAT/Fiat type 0 N1.sub");
+        if path.exists() {
+            let on_disk = key(&std::fs::read_to_string(path).unwrap());
+            assert_eq!(reg.decode_key(&on_disk), Some((name.clone(), loaded.clone())));
+        }
+        let raw = Path::new("IMPORTS/FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub");
+        if raw.exists() {
+            let (freq, pairs) = import_sub_raw(raw).unwrap();
+            let pairs: Vec<LevelDuration> =
+                pairs.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
+            let same = ProtocolRegistry::new()
+                .process_signal_stream(&pairs, freq)
+                .into_iter()
+                .find(|(n, d, _)| n == "Fiat V0" && d.data == loaded.data)
+                .expect("the key's frame is in the RAW capture");
+            assert_eq!(same.1, loaded, "key file = stream decode of the same frame");
+        }
+        // TX from the loaded key: the replayed frame decodes back.
+        let tx = feed_all(&dec.encode(&loaded, 0x01).unwrap());
+        assert!(!tx.is_empty() && tx.iter().all(|d| *d == loaded));
+
+        // EndByte wins over CRC/Btn; 64-bit keys (older files) load; other Bit counts do not.
+        let mut k = dec.to_flipper_key(&loaded).unwrap();
+        k.push_u32("CRC", 1);
+        assert_eq!(dec.from_flipper_key(&k).unwrap().button, Some(0x3B));
+        k.bits = 64;
+        assert_eq!(dec.from_flipper_key(&k), Some(loaded.clone()));
+        k.bits = 70;
+        assert!(dec.from_flipper_key(&k).is_none());
+    }
+
+    /// Oracle vectors (see [super::write_oracle_vector]): the IMPORTS key's frame and one more.
+    #[test]
+    #[ignore]
+    fn oracle_vectors() {
+        for (n, (hop, tail7)) in [(0xA03B_F868u32, 0x3Bu8), (0xFEC0_E84D, 0x1B)].into_iter().enumerate() {
+            let up = FiatV0Decoder::new().encode(&frame(hop, FIX, tail7), 0).unwrap();
+            super::write_oracle_vector(
+                &format!("fiat_v0_{}", n + 1),
+                433_920_000,
+                "FuriHalSubGhzPresetOok650Async",
+                &up,
+                &mut FiatV0Decoder::new(),
+            );
+        }
     }
 
     /// Real capture: IMPORTS/FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub decodes as Fiat V0 with

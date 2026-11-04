@@ -26,11 +26,41 @@
 //! **Flipper-ARF** `kia_v7.c`: same decoder (C oracle: identical on 600 random frames × 2 copies
 //! and on IMPORTS); its encoder is ProtoPirate's pre-2026-09-14 one (a single 319-pair frame, the
 //! second pass overwriting the first), which ProtoPirate replaced with the two-frame upload above.
+//!
+//! **Key files** (`kia_protocol_decoder_v7_serialize` / `_deserialize`): "Kia V7", Bit 64, Key, then
+//! Serial, Btn, Cnt, `Repeat: 3` and `Disp: Kia V7 - <button>`. Loading rebuilds the key from
+//! Serial/Btn/Cnt when present (CRC recomputed), as the C does; a key without the 0x4C header or
+//! with a bad CRC and no fields does not load (KAT's decoder would not report it).
 
-use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
+use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal, FlipperKey};
 use super::common::{crc8, ManchesterEvent, ManchesterState};
 use crate::radio::demodulator::LevelDuration;
 use crate::duration_diff;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Kia V7",
+    decoder: "Kia V7",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::FM,
+    encryption: "Rolling Code",
+    make: "Kia/Hyundai",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&FM476],
+};
+
+/// 1/2/8 are KAT's generic Lock/Unlock/Panic.
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x3 => "Trunk",
+        _ => return None,
+    })
+}
 
 const TE_SHORT: u32 = 250;
 const TE_LONG: u32 = 500;
@@ -97,6 +127,23 @@ impl KiaV7Decoder {
         let crc_calc = crc8(&bytes[0..7], 0x7F, 0x4C);
         let crc_valid = crc_calc == bytes[7];
         (serial, button, counter, crc_valid)
+    }
+
+    /// The decode of a 64-bit key with the 0x4C header: reported only when its CRC checks (the C's
+    /// emission gate).
+    fn frame_signal(key: u64) -> Option<DecodedSignal> {
+        let (serial, button, counter, crc_valid) = Self::decode_key(key);
+        crc_valid.then_some(DecodedSignal {
+            serial: Some(serial),
+            button: Some(button),
+            counter: Some(counter),
+            crc_valid: true,
+            data: key,
+            data_count_bit: KEY_BITS,
+            encoder_capable: true,
+            extra: None,
+            protocol_display_name: None,
+        })
     }
 
     /// Rebuild the 64-bit key from fields (matches kia_v7_encode_key).
@@ -238,20 +285,7 @@ impl ProtocolDecoder for KiaV7Decoder {
                     self.manchester_state.advance(ManchesterEvent::Reset);
 
                     if hdr == HEADER {
-                        let (serial, button, counter, crc_valid) = Self::decode_key(candidate);
-                        if crc_valid {
-                            return Some(DecodedSignal {
-                                serial: Some(serial),
-                                button: Some(button),
-                                counter: Some(counter),
-                                crc_valid: true,
-                                data: candidate,
-                                data_count_bit: KEY_BITS,
-                                encoder_capable: true,
-                                extra: None,
-                                protocol_display_name: None,
-                            });
-                        }
+                        return Self::frame_signal(candidate);
                     }
                 }
             }
@@ -268,6 +302,53 @@ impl ProtocolDecoder for KiaV7Decoder {
         let counter = decoded.counter.unwrap_or(0).wrapping_add(1);
         let button = Self::map_button(button, decoded.button.unwrap_or(0));
         Some(Self::build_upload(Self::encode_key(serial, button, counter)))
+    }
+
+    /// Key files: `kia_protocol_decoder_v7_deserialize` — Bit 64; when the file has Serial/Btn/Cnt
+    /// the key is rebuilt from them (header byte kept, CRC recomputed), as the C does. KAT reports
+    /// only what its decoder reports: a 0x4C header and a valid CRC (else None).
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != KEY_BITS {
+            return None;
+        }
+        let mut data = key.key_u64()?;
+        if (data >> 56) as u8 != HEADER {
+            return None;
+        }
+        let (serial, button, counter) = (key.u32_field("Serial"), key.u32_field("Btn"), key.u32_field("Cnt"));
+        if serial.is_some() || button.is_some() || counter.is_some() {
+            let (s, b, c, _) = Self::decode_key(data);
+            data = Self::encode_key(
+                serial.unwrap_or(s),
+                button.map_or(b, |b| b as u8),
+                counter.map_or(c, |c| c as u16),
+            );
+        }
+        Self::frame_signal(data)
+    }
+
+    /// Key files: `kia_protocol_decoder_v7_serialize` — "Kia V7", 64 bits, Key, then Serial, Btn,
+    /// Cnt (`pp_serialize_fields`), `Repeat: 3` and ProtoPirate's display line
+    /// (`Disp: Kia V7 - <button>`, `pp_write_display`).
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        if decoded.data_count_bit != KEY_BITS {
+            return None;
+        }
+        let (serial, button, counter, _) = Self::decode_key(decoded.data);
+        let mut key = FlipperKey::for_protocol("Kia V7", KEY_BITS, decoded.data);
+        key.push_u32("Serial", serial);
+        key.push_u32("Btn", button.into());
+        key.push_u32("Cnt", counter.into());
+        key.push_u32("Repeat", 3);
+        // kia_v7_get_button_name
+        let label = match button {
+            0x01 => "Lock",
+            0x02 => "Unlock",
+            0x03 | 0x08 => "Trunk",
+            _ => "??",
+        };
+        key.push("Disp", format!("Kia V7 - {label}"));
+        Some(key)
     }
 }
 
@@ -412,5 +493,61 @@ mod tests {
         bytes[0] = 0x4D;
         bytes[7] = crc8(&bytes[0..7], 0x7F, 0x4C);
         assert!(feed_all(&frame_wave(u64::from_be_bytes(bytes))).is_empty(), "header 0x4D");
+    }
+
+    /// Key files: decodes round-trip with ProtoPirate's lines (Repeat + Disp), Serial/Btn/Cnt
+    /// rebuild the key as the C does (fixing a bad CRC too), and TX from a loaded key decodes.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = KiaV7Decoder::new();
+        let d = feed_all(&KiaV7Decoder::new().encode(&sample(), 0x02).unwrap()).remove(0);
+        let text = assert_round_trip(&dec, &d);
+        let k = d.data.to_be_bytes().iter().map(|b| format!("{b:02X}")).collect::<Vec<_>>().join(" ");
+        assert!(
+            text.ends_with(&format!(
+                "Protocol: Kia V7\nBit: 64\nKey: {k}\nSerial: 180150001\nBtn: 2\nCnt: 4661\nRepeat: 3\nDisp: Kia V7 - Unlock\n"
+            )),
+            "{text}"
+        );
+        for button in [0x01u8, 0x04, 0x08] {
+            let d = feed_all(&KiaV7Decoder::new().encode(&sample(), button).unwrap()).remove(0);
+            assert_round_trip(&dec, &d);
+        }
+        // A bare key loads; a broken CRC only with fields (rebuilt), and never another header.
+        let bare = format!("Protocol: Kia V7\nBit: 64\nKey: {k}\n");
+        assert_eq!(dec.from_flipper_key(&key(&bare)).as_ref(), Some(&d));
+        let bad = d.data ^ 1;
+        let bad_k = bad.to_be_bytes().iter().map(|b| format!("{b:02X}")).collect::<Vec<_>>().join(" ");
+        assert!(dec.from_flipper_key(&key(&format!("Protocol: Kia V7\nBit: 64\nKey: {bad_k}\n"))).is_none());
+        let fixed = dec.from_flipper_key(&key(&format!("Protocol: Kia V7\nBit: 64\nKey: {bad_k}\nCnt: 4661\n")));
+        assert_eq!(fixed.as_ref(), Some(&d));
+        let edited = dec.from_flipper_key(&key(&text.replace("Cnt: 4661", "Cnt: 5000"))).unwrap();
+        assert_eq!((edited.serial, edited.button, edited.counter), (d.serial, d.button, Some(5000)));
+        // TX from the loaded key: counter + 1.
+        let tx = feed_all(&dec.encode(&edited, 0x01).unwrap());
+        assert_eq!((tx[0].serial, tx[0].button, tx[0].counter), (d.serial, Some(0x01), Some(5001)));
+    }
+
+    /// Oracle vectors (`#[ignore]`d): `KAT_KEY_VECTORS=<dir> cargo test kia_v7::tests::key_vectors
+    /// -- --ignored` writes `kia_v7_<n>.sub` / `.kat.txt`.
+    #[test]
+    #[ignore]
+    fn key_vectors() {
+        let Some(dir) = std::env::var_os("KAT_KEY_VECTORS") else { return };
+        let dir = std::path::PathBuf::from(dir);
+        for (n, button) in [0x01u8, 0x04].into_iter().enumerate() {
+            let upload = KiaV7Decoder::new().encode(&sample(), button).unwrap();
+            let d = feed_all(&upload).remove(0);
+            let key = KiaV7Decoder::new().to_flipper_key(&d).unwrap();
+            crate::protocols::kia_v1::tests::write_key_vector(
+                &dir,
+                &format!("kia_v7_{n}"),
+                433_920_000,
+                "FuriHalSubGhzPreset2FSKDev476Async",
+                &upload,
+                &key,
+            );
+        }
     }
 }

@@ -59,9 +59,48 @@
 //! BTN0/1/3/5, so the Lock/Unlock/Trunk/Panic assignment is an unverified guess. Native codes pass
 //! through; any other code keeps the captured button, which must be one of the four (else no encode,
 //! as in the C).
+//!
+//! **Key files** (`subghz_protocol_decoder_datsun_lada_serialize` / `_deserialize`, doctor-firmware's
+//! generic writer): `Protocol: Datsun Lada`, `Bit: 88`, `Key` = `r[10..=3]`, then the generic
+//! `Serial`, `Btn` (`r[6] & 0xF0`) and `Cnt` (the `learn` state counter, written even when the frame
+//! does not verify, as the C does), and `Raw` (the 11 frame bytes `r[0..11]`). The C's `Learned`
+//! checkpoint (written by its encoder after a transmission: the anchor frame + `Cnt`) is not
+//! produced by decodes and is not carried: KAT loads a file that has one from its `Raw` frame
+//! alone, so a frame that `learn` cannot verify (counter ≥ 256, button 0x60) shows "no counter"
+//! where doctor-firmware would show the checkpoint's `Cnt`, and does not transmit. Loading follows
+//! `datsun_lada_read`: the `Protocol` line must be exactly "Datsun Lada", 88 bits, and `Raw` must be
+//! present and pass the XOR checksum.
 
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Datsun Lada",
+    decoder: "Datsun Lada",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::FM,
+    encryption: "HITAG2",
+    make: "Datsun/Lada",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&FM476],
+};
+
+/// The C only labels these BTN0/1/3/5; the Lock/Unlock/Trunk/Panic meaning is unverified.
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x40 => "Btn0",
+        0x80 => "Btn1",
+        0x20 => "Btn3",
+        0x60 => "Btn5",
+        _ => "Other",
+    })
+}
 
 const TE_SHORT: u32 = 250;
 const TE_LONG: u32 = 500;
@@ -532,6 +571,32 @@ impl ProtocolDecoder for DatsunLadaDecoder {
         // C overflow check (cannot trigger: the largest possible upload is 3169 entries).
         (signal.len() <= UPLOAD_CAPACITY).then_some(signal)
     }
+
+    /// `subghz_protocol_decoder_datsun_lada_deserialize` (`datsun_lada_read`; see "Key files").
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.protocol != "Datsun Lada" || key.bits != FRAME_BITS {
+            return None;
+        }
+        key.key_u64()?;
+        let raw: Frame = key.hex_bytes_field("Raw")?.try_into().ok()?;
+        checksum(&raw).then(|| Self::signal_from_frame(&raw))
+    }
+
+    /// `subghz_protocol_decoder_datsun_lada_serialize` (see the module doc, "Key files").
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        let raw = Self::frame_from_signal(decoded)?;
+        let serial = u32::from_be_bytes([raw[10], raw[9], raw[8], raw[7]]);
+        let button = u32::from(raw[6] & 0xF0);
+        let counter = u32::from(counter_of(learn(&raw).1));
+        let mut key = FlipperKey::for_protocol("Datsun Lada", FRAME_BITS, decoded.data);
+        if serial != 0 || button != 0 || counter != 0 {
+            key.push_u32("Serial", serial);
+            key.push_u32("Btn", button);
+            key.push_u32("Cnt", counter);
+        }
+        key.push_hex_bytes("Raw", &raw);
+        Some(key)
+    }
 }
 
 impl Default for DatsunLadaDecoder {
@@ -857,5 +922,77 @@ mod tests {
             !names.is_empty() && names.iter().all(|n| n == "Datsun Lada"),
             "got {names:?}"
         );
+    }
+
+    /// Key files: doctor-firmware's lines round-trip learnable and unlearnable frames, the C's
+    /// Protocol/Raw/checksum checks refuse bad files, and TX from a loaded key decodes.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = DatsunLadaDecoder::new();
+        let air = anchor();
+        let decoded = decode_all(&transmit(&air, 0x5A, 0)).remove(0);
+        assert!(decoded.crc_valid);
+        let text = assert_round_trip(&dec, &decoded);
+        assert!(
+            text.ends_with(
+                "Protocol: Datsun Lada\nBit: 88\nKey: 12 34 56 78 41 6A 2A 5C\nSerial: 305419896\n\
+                 Btn: 64\nCnt: 90\nRaw: 10 A2 E7 5C 2A 6A 41 78 56 34 12\n"
+            ),
+            "{text}"
+        );
+        // A frame learn() cannot verify still round-trips (no counter, not encoder-capable); the
+        // C writes its state counter anyway.
+        let mut odd = air;
+        odd[3] ^= 0x01;
+        odd[0] ^= 0x01;
+        let unverified = DatsunLadaDecoder::signal_from_frame(&odd);
+        assert!(!unverified.crc_valid && unverified.counter.is_none());
+        assert!(assert_round_trip(&dec, &unverified).contains("\nCnt: "));
+
+        // datsun_lada_read: exact Protocol name, Raw present with a valid XOR.
+        let mut k = key(&text);
+        k.protocol = "datsun lada".into();
+        assert!(dec.from_flipper_key(&k).is_none());
+        let mut k = key(&text);
+        k.fields.retain(|(n, _)| n != "Raw");
+        assert!(dec.from_flipper_key(&k).is_none());
+        let mut k = key(&text);
+        k.fields.retain(|(n, _)| n != "Raw");
+        k.push("Raw", "11 A2 E7 5C 2A 6A 41 78 56 34 12");
+        assert!(dec.from_flipper_key(&k).is_none());
+        // A doctor encoder checkpoint (Learned + Cnt) is ignored: the Raw frame decides.
+        let mut k = key(&text);
+        k.push("Learned", "10 A2 E7 5C 2A 6A 41 78 56 34 12");
+        assert_eq!(dec.from_flipper_key(&k), Some(decoded.clone()));
+
+        // TX from the loaded key: the next code (counter + 1) decodes.
+        let loaded = dec.from_flipper_key(&key(&text)).unwrap();
+        let tx = decode_all(&dec.encode(&loaded, BTN_LOCK).unwrap());
+        assert_eq!((tx[0].serial, tx[0].counter), (Some(0x1234_5678), Some(0x5B)));
+        // doctor-firmware's encoder (C oracle) given KAT's file for the frame one press later
+        // (counter 0x5B) transmits Raw 91 C6 2C 7E 3F 73 41 78 56 34 12 (counter 0x5C); KAT's
+        // transmission from the same file is that frame.
+        let reloaded = dec.from_flipper_key(&key(&assert_round_trip(&dec, &tx[0]))).unwrap();
+        let tx2 = decode_all(&dec.encode(&reloaded, BTN_LOCK).unwrap());
+        assert_eq!(
+            DatsunLadaDecoder::frame_from_signal(&tx2[0]).unwrap(),
+            [0x91, 0xC6, 0x2C, 0x7E, 0x3F, 0x73, 0x41, 0x78, 0x56, 0x34, 0x12]
+        );
+    }
+
+    /// Oracle vectors (`KAT_KEY_VECTORS=<dir> cargo test datsun_lada_key_vectors -- --ignored`).
+    #[test]
+    #[ignore]
+    fn datsun_lada_key_vectors() {
+        use super::super::bmw::{key_vector_dir, write_key_vector};
+        let dec = DatsunLadaDecoder::new();
+        let original = DatsunLadaDecoder::signal_from_frame(&anchor());
+        for (n, btn) in [(1, BTN_LOCK), (2, BTN_UNLOCK)] {
+            let wire = dec.encode(&original, btn).unwrap();
+            let decoded = decode_all(&wire).remove(0);
+            let key = dec.to_flipper_key(&decoded).unwrap();
+            write_key_vector(&key_vector_dir(), &format!("datsun_lada_{n}"), 433_920_000, "FuriHalSubGhzPreset2FSKDev476Async", &wire, &key);
+        }
     }
 }

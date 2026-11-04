@@ -1,0 +1,1193 @@
+BYD/BYD Atto 3 2022 boot.sub | 433920000 | (none)
+BYD/BYD Atto 3 2022 unlock.sub | 433920000 | (none)
+BYD/BYD Seal 2025 lock x5.sub | 433075000 | (none)
+BYD/BYD Seal 2025 unlock x5.sub | 433075000 | (none)
+BYD/BYD Sealion lock x4.sub | 433889000 | (none)
+BYD/BYD Sealion unlock x3.sub | 433889000 | (none)
+BYD/BYD apertura.sub | 433920000 | (none)
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=DE21BFE54536200/71 sn=54536200 btn=13 cnt=1BFE crc=1 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=FEC0E84D54536200/71 sn=54536200 btn=1B cnt=E84D crc=1 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=52D6A31154536200/71 sn=54536200 btn=27 cnt=A311 crc=1 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=9A3D037D54536200/71 sn=54536200 btn=33 cnt=37D crc=1 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=A03BF86854536200/71 sn=54536200 btn=3B cnt=F868 crc=1 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=5AD291DB54536200/71 sn=54536200 btn=33 cnt=91DB crc=1 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=F6773EA154536200/71 sn=54536200 btn=3 cnt=3EA1 crc=1 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=A41DDE9554536200/71 sn=54536200 btn=33 cnt=DE95 crc=1 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=455C47A54536200/71 sn=54536200 btn=13 cnt=C47A crc=1 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=5A14385B54536200/71 sn=54536200 btn=23 cnt=385B crc=1 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=444A91254536200/71 sn=54536200 btn=2B cnt=A912 crc=1 tx=1
+FIAT/Fiat Panda.sub | 433920000 | Fiat V1 | data=1EFB82D662234/104 extra=A66F54FA6D sn=EFB82D66 btn=2 cnt=8D crc=1 tx=1
+FIAT/Fiat Panda.sub | 433920000 | Fiat V1 | data=1EFB82D662234/104 extra=A66F54FA6D sn=EFB82D66 btn=2 cnt=8D crc=1 tx=1
+FIAT/Fiat Panda.sub | 433920000 | Fiat V1 | data=1EFB82D662234/104 extra=A66F54FA6D sn=EFB82D66 btn=2 cnt=8D crc=1 tx=1
+FIAT/Fiat Panda.sub | 433920000 | Fiat V1 | data=1EFB82D662234/104 extra=A66F54FA6D sn=EFB82D66 btn=2 cnt=8D crc=1 tx=1
+FIAT/Fiat Panda.sub | 433920000 | Fiat V1 | data=1EFB82D662234/104 extra=A66F54FA6D sn=EFB82D66 btn=2 cnt=8D crc=1 tx=1
+FIAT/Fiat Panda.sub | 433920000 | Fiat V1 | data=1EFB82D662234/104 extra=A66F54FA6D sn=EFB82D66 btn=2 cnt=8D crc=1 tx=1
+FIAT/Fiat Panda.sub | 433920000 | Fiat V1 | data=1EFB82D662234/104 extra=A66F54FA6D sn=EFB82D66 btn=2 cnt=8D crc=1 tx=1
+FIAT/Fiat type 0 N1.sub | ERR No RAW_Data in .sub file
+FIAT/Fiat type 0 N2.sub | ERR No RAW_Data in .sub file
+FORD/0000_Ford_ts_x4.sub | 433920000 | Ford V0 | data=55DA59BD61897199/64 extra=B099 sn=43C024F8 btn=1 cnt=B9C8 crc=1 tx=1
+FORD/0000_Ford_ts_x4.sub | 433920000 | Ford V0 | data=55DA59BD61897199/64 extra=B099 sn=43C024F8 btn=1 cnt=B9C8 crc=1 tx=1
+FORD/0000_Ford_ts_x4.sub | 433920000 | Ford V0 | data=55DA59BD61897199/64 extra=B099 sn=43C024F8 btn=1 cnt=B9C8 crc=1 tx=1
+FORD/0000_Ford_ts_x4.sub | 433920000 | Ford V0 | data=55DA59BD61897199/64 extra=B099 sn=43C024F8 btn=1 cnt=B9C8 crc=1 tx=1
+FORD/0000_Ford_ts_x4.sub | 433920000 | Ford V0 | data=55AA29CD11F9E970/64 extra=B1F6 sn=43C024F8 btn=1 cnt=B9C9 crc=1 tx=1
+FORD/0000_Ford_ts_x4.sub | 433920000 | Ford V0 | data=55AA29CD11F9E970/64 extra=B1F6 sn=43C024F8 btn=1 cnt=B9C9 crc=1 tx=1
+FORD/0000_Ford_ts_x4.sub | 433920000 | Ford V0 | data=55AA29CD11F9E970/64 extra=B1F6 sn=43C024F8 btn=1 cnt=B9C9 crc=1 tx=1
+FORD/0000_Ford_ts_x4.sub | 433920000 | Ford V0 | data=55AA29CD11F9E970/64 extra=B1F6 sn=43C024F8 btn=1 cnt=B9C9 crc=1 tx=1
+FORD/0000_Ford_ts_x4.sub | 433920000 | Ford V0 | data=55D85BBF63BB739B/64 extra=C29F sn=43C024F8 btn=2 cnt=B9CA crc=1 tx=1
+FORD/0000_Ford_ts_x4.sub | 433920000 | Ford V0 | data=55D85BBF63BB739B/64 extra=C29F sn=43C024F8 btn=2 cnt=B9CA crc=1 tx=1
+FORD/0000_Ford_ts_x4.sub | 433920000 | Ford V0 | data=55D85BBF63BB739B/64 extra=C29F sn=43C024F8 btn=2 cnt=B9CA crc=1 tx=1
+FORD/0000_Ford_ts_x4.sub | 433920000 | Ford V0 | data=55D85BBF63BB739B/64 extra=C29F sn=43C024F8 btn=2 cnt=B9CA crc=1 tx=1
+FORD/0000_Ford_ts_x4.sub | 433920000 | Ford V0 | data=55AA29CD11C9E972/64 extra=C34E sn=43C024F8 btn=2 cnt=B9CB crc=1 tx=1
+FORD/0000_Ford_ts_x4.sub | 433920000 | Ford V0 | data=55AA29CD11C9E972/64 extra=C34E sn=43C024F8 btn=2 cnt=B9CB crc=1 tx=1
+FORD/0000_Ford_ts_x4.sub | 433920000 | Ford V0 | data=55AA29CD11C9E972/64 extra=C34E sn=43C024F8 btn=2 cnt=B9CB crc=1 tx=1
+FORD/0000_Ford_ts_x4.sub | 433920000 | Ford V0 | data=55AA29CD11C9E972/64 extra=C34E sn=43C024F8 btn=2 cnt=B9CB crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=55C49FFF87B8CD38/64 extra=D68E sn=FCA7C7BF btn=10 cnt=B07D crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=55C49FFF87B8CD38/64 extra=D68E sn=FCA7C7BF btn=10 cnt=B07D crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=55C49FFF87B8CD38/64 extra=D68E sn=FCA7C7BF btn=10 cnt=B07D crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=55C49FFF87B8CD38/64 extra=D68E sn=FCA7C7BF btn=10 cnt=B07D crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=550853334B74F4CE/64 extra=D74B sn=FCA7C7BF btn=10 cnt=B07E crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=550853334B74F4CE/64 extra=D74B sn=FCA7C7BF btn=10 cnt=B07E crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=550853334B74F4CE/64 extra=D74B sn=FCA7C7BF btn=10 cnt=B07E crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=550853334B74F4CE/64 extra=D74B sn=FCA7C7BF btn=10 cnt=B07E crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=55C69DFD852ACF3A/64 extra=68F9 sn=FCA7C7BF btn=1 cnt=B07F crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=55C69DFD852ACF3A/64 extra=68F9 sn=FCA7C7BF btn=1 cnt=B07F crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=55C69DFD852ACF3A/64 extra=68F9 sn=FCA7C7BF btn=1 cnt=B07F crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=55C69DFD852ACF3A/64 extra=68F9 sn=FCA7C7BF btn=1 cnt=B07F crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=555C07671FB0A030/64 extra=6999 sn=FCA7C7BF btn=1 cnt=B080 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=555C07671FB0A030/64 extra=6999 sn=FCA7C7BF btn=1 cnt=B080 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=555C07671FB0A030/64 extra=6999 sn=FCA7C7BF btn=1 cnt=B080 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=555C07671FB0A030/64 extra=6999 sn=FCA7C7BF btn=1 cnt=B080 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=556C37572FB03190/64 extra=7A63 sn=FCA7C7BF btn=2 cnt=B081 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=556C37572FB03190/64 extra=7A63 sn=FCA7C7BF btn=2 cnt=B081 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=556C37572FB03190/64 extra=7A63 sn=FCA7C7BF btn=2 cnt=B081 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=556C37572FB03190/64 extra=7A63 sn=FCA7C7BF btn=2 cnt=B081 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=555C07671F80A032/64 extra=7B22 sn=FCA7C7BF btn=2 cnt=B082 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=555C07671F80A032/64 extra=7B22 sn=FCA7C7BF btn=2 cnt=B082 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=555C07671F80A032/64 extra=7B22 sn=FCA7C7BF btn=2 cnt=B082 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=555C07671F80A032/64 extra=7B22 sn=FCA7C7BF btn=2 cnt=B082 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=555D06661EE1A133/64 extra=9C5F sn=FCA7C7BF btn=4 cnt=B083 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=555D06661EE1A133/64 extra=9C5F sn=FCA7C7BF btn=4 cnt=B083 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=556C37572FD03490/64 extra=9D18 sn=FCA7C7BF btn=4 cnt=B084 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=556C37572FD03490/64 extra=9D18 sn=FCA7C7BF btn=4 cnt=B084 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=556C37572FD03490/64 extra=9D18 sn=FCA7C7BF btn=4 cnt=B084 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=556C37572FD03490/64 extra=9D18 sn=FCA7C7BF btn=4 cnt=B084 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=555902621AADA535/64 extra=661E sn=FCA7C7BF btn=8 cnt=B085 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=555902621AADA535/64 extra=661E sn=FCA7C7BF btn=8 cnt=B085 crc=1 tx=1
+FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub | 314980000 | Ford V0 | data=556E35552D9A3692/64 extra=6765 sn=FCA7C7BF btn=8 cnt=B086 crc=1 tx=1
+FORD/2008_Focus_Lock.sub | 433920000 | Ford V0 | data=556C29917F3FF82F/64 extra=6DD2 sn=4306BE50 btn=1 cnt=877F crc=1 tx=1
+FORD/2008_Focus_Lock.sub | 433920000 | Ford V0 | data=556C29917F3FF82F/64 extra=6DD2 sn=4306BE50 btn=1 cnt=877F crc=1 tx=1
+FORD/2008_Focus_Lock.sub | 433920000 | Ford V0 | data=556C29917F3FF82F/64 extra=6DD2 sn=4306BE50 btn=1 cnt=877F crc=1 tx=1
+FORD/2008_Focus_Lock.sub | 433920000 | Ford V0 | data=55C6833BD5950785/64 extra=6EF9 sn=4306BE50 btn=1 cnt=8780 crc=1 tx=1
+FORD/2008_Focus_Lock.sub | 433920000 | Ford V0 | data=55C6833BD5950785/64 extra=6EF9 sn=4306BE50 btn=1 cnt=8780 crc=1 tx=1
+FORD/2008_Focus_Lock.sub | 433920000 | Ford V0 | data=55C6833BD5950785/64 extra=6EF9 sn=4306BE50 btn=1 cnt=8780 crc=1 tx=1
+FORD/2008_Focus_Lock.sub | 433920000 | Ford V0 | data=55C6833BD5950785/64 extra=6EF9 sn=4306BE50 btn=1 cnt=8780 crc=1 tx=1
+FORD/2008_Focus_Lock.sub | 433920000 | Ford V0 | data=55C0853DD3938306/64 extra=6F90 sn=4306BE50 btn=1 cnt=8781 crc=1 tx=1
+FORD/2008_Focus_Lock.sub | 433920000 | Ford V0 | data=55C0853DD3938306/64 extra=6F90 sn=4306BE50 btn=1 cnt=8781 crc=1 tx=1
+FORD/2008_Focus_Lock.sub | 433920000 | Ford V0 | data=55C0853DD3938306/64 extra=6F90 sn=4306BE50 btn=1 cnt=8781 crc=1 tx=1
+FORD/2008_Focus_Lock.sub | 433920000 | Ford V0 | data=55C0853DD3938306/64 extra=6F90 sn=4306BE50 btn=1 cnt=8781 crc=1 tx=1
+FORD/2008_Focus_Trunk.sub | 433920000 | Ford V0 | data=55C1843CD2C28205/64 extra=A055 sn=4306BE50 btn=4 cnt=8782 crc=1 tx=1
+FORD/2008_Focus_Trunk.sub | 433920000 | Ford V0 | data=55C1843CD2C28205/64 extra=A055 sn=4306BE50 btn=4 cnt=8782 crc=1 tx=1
+FORD/2008_Focus_Trunk.sub | 433920000 | Ford V0 | data=55C1843CD2C28205/64 extra=A055 sn=4306BE50 btn=4 cnt=8782 crc=1 tx=1
+FORD/2008_Focus_Trunk.sub | 433920000 | Ford V0 | data=55C1843CD2C28205/64 extra=A055 sn=4306BE50 btn=4 cnt=8782 crc=1 tx=1
+FORD/2008_Focus_Trunk.sub | 433920000 | Ford V0 | data=55C48139D7C70487/64 extra=A130 sn=4306BE50 btn=4 cnt=8783 crc=1 tx=1
+FORD/2008_Focus_Trunk.sub | 433920000 | Ford V0 | data=55C48139D7C70487/64 extra=A130 sn=4306BE50 btn=4 cnt=8783 crc=1 tx=1
+FORD/2008_Focus_Trunk.sub | 433920000 | Ford V0 | data=55C48139D7C70487/64 extra=A130 sn=4306BE50 btn=4 cnt=8783 crc=1 tx=1
+FORD/2008_Focus_Trunk.sub | 433920000 | Ford V0 | data=55C48139D7C70487/64 extra=A130 sn=4306BE50 btn=4 cnt=8783 crc=1 tx=1
+FORD/2008_Focus_Trunk.sub | 433920000 | Ford V0 | data=55C6833BD5C50385/64 extra=A230 sn=4306BE50 btn=4 cnt=8784 crc=1 tx=1
+FORD/2008_Focus_Trunk.sub | 433920000 | Ford V0 | data=55C6833BD5C50385/64 extra=A230 sn=4306BE50 btn=4 cnt=8784 crc=1 tx=1
+FORD/2008_Focus_Trunk.sub | 433920000 | Ford V0 | data=55C6833BD5C50385/64 extra=A230 sn=4306BE50 btn=4 cnt=8784 crc=1 tx=1
+FORD/2008_Focus_Trunk.sub | 433920000 | Ford V0 | data=55C6833BD5C50385/64 extra=A230 sn=4306BE50 btn=4 cnt=8784 crc=1 tx=1
+FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=556E2B937D0DFF2D/64 extra=7656 sn=4306BE50 btn=2 cnt=8778 crc=1 tx=1
+FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=556E2B937D0DFF2D/64 extra=7656 sn=4306BE50 btn=2 cnt=8778 crc=1 tx=1
+FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=556E2B937D0DFF2D/64 extra=7656 sn=4306BE50 btn=2 cnt=8778 crc=1 tx=1
+FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=556E2B937D0DFF2D/64 extra=7656 sn=4306BE50 btn=2 cnt=8778 crc=1 tx=1
+FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=556E2B937D0DFF2D/64 extra=7656 sn=4306BE50 btn=2 cnt=8778 crc=1 tx=1
+FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=556E2B937D0DFF2D/64 extra=7656 sn=4306BE50 btn=2 cnt=8778 crc=1 tx=1
+FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=5590D56D83F3D3FE/64 extra=778D sn=4306BE50 btn=2 cnt=8779 crc=1 tx=1
+FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=5590D56D83F3D3FE/64 extra=778D sn=4306BE50 btn=2 cnt=8779 crc=1 tx=1
+FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=5590D56D83F3D3FE/64 extra=778D sn=4306BE50 btn=2 cnt=8779 crc=1 tx=1
+FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=5590D56D83F3D3FE/64 extra=778D sn=4306BE50 btn=2 cnt=8779 crc=1 tx=1
+FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=5590D56D83F3D3FE/64 extra=778D sn=4306BE50 btn=2 cnt=8779 crc=1 tx=1
+FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=5590D56D83F3D3FE/64 extra=778D sn=4306BE50 btn=2 cnt=8779 crc=1 tx=1
+FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=5590D56D83F3D3FE/64 extra=778D sn=4306BE50 btn=2 cnt=8779 crc=1 tx=1
+FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=5591D46C82F2D2FD/64 extra=78B4 sn=4306BE50 btn=2 cnt=877A crc=1 tx=1
+FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=5591D46C82F2D2FD/64 extra=78B4 sn=4306BE50 btn=2 cnt=877A crc=1 tx=1
+FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=5591D46C82F2D2FD/64 extra=78B4 sn=4306BE50 btn=2 cnt=877A crc=1 tx=1
+FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=5591D46C82F2D2FD/64 extra=78B4 sn=4306BE50 btn=2 cnt=877A crc=1 tx=1
+FORD/21_ford_escape.sub | 312000000 | (none)
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40802EB/104 extra=DD7DCEFA7 sn=4E2464E4 btn=2 cnt=EB0D crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40802EB/104 extra=DD7DCEFA7 sn=4E2464E4 btn=2 cnt=EB0D crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40802EB/104 extra=EAE5D2242 sn=4E2464E4 btn=2 cnt=EB0E crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40802EB/104 extra=EAE5D2242 sn=4E2464E4 btn=2 cnt=EB0E crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40801EB/104 extra=F8F588C22 sn=4E2464E4 btn=1 cnt=EB0F crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40801EB/104 extra=F8F588C22 sn=4E2464E4 btn=1 cnt=EB0F crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40801EB/104 extra=F8F588C22 sn=4E2464E4 btn=1 cnt=EB0F crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40801EB/104 extra=1057DF9F5E sn=4E2464E4 btn=1 cnt=EB10 crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=113E15FA11 sn=4E2464E4 btn=7 cnt=EB11 crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=113E15FA11 sn=4E2464E4 btn=7 cnt=EB11 crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=113E15FA11 sn=4E2464E4 btn=7 cnt=EB11 crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=14BDAD1305 sn=4E2464E4 btn=7 cnt=EB14 crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=14BDAD1305 sn=4E2464E4 btn=7 cnt=EB14 crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=14BDAD1305 sn=4E2464E4 btn=7 cnt=EB14 crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=15C7D1FEBF sn=4E2464E4 btn=6 cnt=EB15 crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=15C7D1FEBF sn=4E2464E4 btn=6 cnt=EB15 crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=15C7D1FEBF sn=4E2464E4 btn=6 cnt=EB15 crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=16B69BCC5D sn=4E2464E4 btn=6 cnt=EB16 crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=16B69BCC5D sn=4E2464E4 btn=6 cnt=EB16 crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=16B69BCC5D sn=4E2464E4 btn=6 cnt=EB16 crc=1 tx=0
+FORD/25_ford_bronco_u2_l2_rs2_p2.sub | 433420000 | (none)
+FORD/3_unlock_ford.sub | 433920000 | Ford V0 | data=55CE9E199FA686AB/64 extra=EBCF sn=48189F19 btn=2 cnt=872C crc=1 tx=1
+FORD/3_unlock_ford.sub | 433920000 | Ford V0 | data=55CE9E199FA686AB/64 extra=EBCF sn=48189F19 btn=2 cnt=872C crc=1 tx=1
+FORD/3_unlock_ford.sub | 433920000 | Ford V0 | data=55CE9E199FA686AB/64 extra=EBCF sn=48189F19 btn=2 cnt=872C crc=1 tx=1
+FORD/3_unlock_ford.sub | 433920000 | Ford V0 | data=55CE9E199FA686AB/64 extra=EBCF sn=48189F19 btn=2 cnt=872C crc=1 tx=1
+FORD/3_unlock_ford.sub | 433920000 | Ford V0 | data=556535B2340DAA2D/64 extra=ECBD sn=48189F19 btn=2 cnt=872D crc=1 tx=1
+FORD/3_unlock_ford.sub | 433920000 | Ford V0 | data=556535B2340DAA2D/64 extra=ECBD sn=48189F19 btn=2 cnt=872D crc=1 tx=1
+FORD/3_unlock_ford.sub | 433920000 | Ford V0 | data=556535B2340DAA2D/64 extra=ECBD sn=48189F19 btn=2 cnt=872D crc=1 tx=1
+FORD/3_unlock_ford.sub | 433920000 | Ford V0 | data=556535B2340DAA2D/64 extra=ECBD sn=48189F19 btn=2 cnt=872D crc=1 tx=1
+FORD/3_unlock_ford.sub | 433920000 | Ford V0 | data=55CE9E199FA686A9/64 extra=ED71 sn=48189F19 btn=2 cnt=872E crc=1 tx=1
+FORD/3_unlock_ford.sub | 433920000 | Ford V0 | data=55CE9E199FA686A9/64 extra=ED71 sn=48189F19 btn=2 cnt=872E crc=1 tx=1
+FORD/3_unlock_ford.sub | 433920000 | Ford V0 | data=55CE9E199FA686A9/64 extra=ED71 sn=48189F19 btn=2 cnt=872E crc=1 tx=1
+FORD/3_unlock_ford.sub | 433920000 | Ford V0 | data=55CE9E199FA686A9/64 extra=ED71 sn=48189F19 btn=2 cnt=872E crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5503E802A34757F1/64 extra=6939 sn=54BF55F4 btn=1 cnt=6F7 crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5503E802A34757F1/64 extra=6939 sn=54BF55F4 btn=1 cnt=6F7 crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5503E802A34757F1/64 extra=6939 sn=54BF55F4 btn=1 cnt=6F7 crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5503E802A34757F1/64 extra=6939 sn=54BF55F4 btn=1 cnt=6F7 crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5506ED07A64252FE/64 extra=6AB8 sn=54BF55F4 btn=1 cnt=6F8 crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5506ED07A64252FE/64 extra=6AB8 sn=54BF55F4 btn=1 cnt=6F8 crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5506ED07A64252FE/64 extra=6AB8 sn=54BF55F4 btn=1 cnt=6F8 crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5506ED07A64252FE/64 extra=6AB8 sn=54BF55F4 btn=1 cnt=6F8 crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=55F813F958BCFFAC/64 extra=6BF3 sn=54BF55F4 btn=1 cnt=6F9 crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=55F813F958BCFFAC/64 extra=6BF3 sn=54BF55F4 btn=1 cnt=6F9 crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=55F813F958BCFFAC/64 extra=6BF3 sn=54BF55F4 btn=1 cnt=6F9 crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=55F813F958BCFFAC/64 extra=6BF3 sn=54BF55F4 btn=1 cnt=6F9 crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5506ED07A64252FC/64 extra=6C06 sn=54BF55F4 btn=1 cnt=6FA crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5506ED07A64252FC/64 extra=6C06 sn=54BF55F4 btn=1 cnt=6FA crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5506ED07A64252FC/64 extra=6C06 sn=54BF55F4 btn=1 cnt=6FA crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5506ED07A64252FC/64 extra=6C06 sn=54BF55F4 btn=1 cnt=6FA crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=55FA11FB5ABEFDAE/64 extra=6DF3 sn=54BF55F4 btn=1 cnt=6FB crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=55FA11FB5ABEFDAE/64 extra=6DF3 sn=54BF55F4 btn=1 cnt=6FB crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=55FA11FB5ABEFDAE/64 extra=6DF3 sn=54BF55F4 btn=1 cnt=6FB crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=55FA11FB5ABEFDAE/64 extra=6DF3 sn=54BF55F4 btn=1 cnt=6FB crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=55F813F958BCFAAC/64 extra=6EF3 sn=54BF55F4 btn=1 cnt=6FC crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=55F813F958BCFAAC/64 extra=6EF3 sn=54BF55F4 btn=1 cnt=6FC crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=55F813F958BCFAAC/64 extra=6EF3 sn=54BF55F4 btn=1 cnt=6FC crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=55F813F958BCFAAC/64 extra=6EF3 sn=54BF55F4 btn=1 cnt=6FC crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5503E802A34757FB/64 extra=6F3C sn=54BF55F4 btn=1 cnt=6FD crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5503E802A34757FB/64 extra=6F3C sn=54BF55F4 btn=1 cnt=6FD crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5503E802A34757FB/64 extra=6F3C sn=54BF55F4 btn=1 cnt=6FD crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5503E802A34757FB/64 extra=6F3C sn=54BF55F4 btn=1 cnt=6FD crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=55FA11FB5ABEF8AE/64 extra=7074 sn=54BF55F4 btn=1 cnt=6FE crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=55FA11FB5ABEF8AE/64 extra=7074 sn=54BF55F4 btn=1 cnt=6FE crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=55FA11FB5ABEF8AE/64 extra=7074 sn=54BF55F4 btn=1 cnt=6FE crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=55FA11FB5ABEF8AE/64 extra=7074 sn=54BF55F4 btn=1 cnt=6FE crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5503E802A34757F9/64 extra=7105 sn=54BF55F4 btn=1 cnt=6FF crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5503E802A34757F9/64 extra=7105 sn=54BF55F4 btn=1 cnt=6FF crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5503E802A34757F9/64 extra=7105 sn=54BF55F4 btn=1 cnt=6FF crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5503E802A34757F9/64 extra=7105 sn=54BF55F4 btn=1 cnt=6FF crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5551BA50F1150705/64 extra=73ED sn=54BF55F4 btn=1 cnt=700 crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5551BA50F1150705/64 extra=73ED sn=54BF55F4 btn=1 cnt=700 crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5551BA50F1150705/64 extra=73ED sn=54BF55F4 btn=1 cnt=700 crc=1 tx=1
+FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5551BA50F1150705/64 extra=73ED sn=54BF55F4 btn=1 cnt=700 crc=1 tx=1
+GROUPE PSA/PSA_523_536.sub | 433920000 | PSA | data=6EDAE3B4785F7BC6/128 extra=70F6 sn=99EB25 btn=0 cnt=39B crc=1 tx=1
+GROUPE PSA/PSA_523_536.sub | 433920000 | PSA | data=F47A2EA11A4C7CAF/128 extra=2927 sn=- btn=- cnt=- crc=0 tx=0
+GROUPE PSA/PSA_536_523.sub | 433920000 | PSA | data=F47A25DEC980F0DE/128 extra=1621 sn=- btn=- cnt=- crc=0 tx=0
+GROUPE PSA/PSA_536_523.sub | 433920000 | PSA | data=6EDAD6814A6A49F3/128 extra=9023 sn=99EB25 btn=0 cnt=39C crc=1 tx=1
+GROUPE PSA/Peugeot 307 close.sub | 433920000 | PSA | data=FF5A34B657455304/128 extra=D82E sn=- btn=- cnt=- crc=0 tx=0
+GROUPE PSA/Peugeot 307 close.sub | 433920000 | PSA | data=FF5A4535426A5221/128 extra=F092 sn=- btn=- cnt=- crc=0 tx=0
+GROUPE PSA/Peugeot 307 close.sub | 433920000 | PSA | data=FF5A6C6F2B656826/128 extra=19F6 sn=- btn=- cnt=- crc=0 tx=0
+GROUPE PSA/Peugeot 307 close.sub | 433920000 | PSA | data=FF5A5D83B1DC11D5/128 extra=F055 sn=- btn=- cnt=- crc=0 tx=0
+GROUPE PSA/Peugeot 307 close.sub | 433920000 | PSA | data=FF5AA7401F1A5EF2/128 extra=AA07 sn=- btn=- cnt=- crc=0 tx=0
+GROUPE PSA/Peugeot 307 open.sub | 433920000 | PSA | data=FF5AACD4B81D8ECA/128 extra=4A8A sn=- btn=- cnt=- crc=0 tx=0
+GROUPE PSA/Peugeot 307 open.sub | 433920000 | PSA | data=FF5A46B0A050C1AE/128 extra=10A sn=- btn=- cnt=- crc=0 tx=0
+GROUPE PSA/Peugeot 307 open.sub | 433920000 | PSA | data=FF5A0FF42B00718E/128 extra=3120 sn=- btn=- cnt=- crc=0 tx=0
+GROUPE PSA/Peugeot 307 open.sub | 433920000 | PSA | data=FF5AF5639B459A27/128 extra=7D4E sn=- btn=- cnt=- crc=0 tx=0
+GROUPE PSA/Peugeot 307 open.sub | 433920000 | PSA | data=FF5A78138FC3F295/128 extra=4DF9 sn=- btn=- cnt=- crc=0 tx=0
+GROUPE PSA/Peugeot 307 open.sub | 433920000 | PSA | data=FF5A7C3F9F960FFF/128 extra=FFFF sn=- btn=- cnt=- crc=0 tx=0
+HOLDEN/Holden Barina 2016 AU.sub | 433920000 | Opel V1 | data=127933CB45276D80/93 extra=8AB37A9 sn=4F2679 btn=73 cnt=6B5E crc=1 tx=0
+HOLDEN/Holden Barina 2016 AU.sub | 433920000 | Opel V1 | data=127933CB45276D80/93 extra=8AB37A9 sn=4F2679 btn=73 cnt=6B5E crc=1 tx=0
+HOLDEN/Holden Barina 2016 AU.sub | 433920000 | Opel V1 | data=127933CB45276D80/93 extra=8AB37A9 sn=4F2679 btn=73 cnt=6B5E crc=1 tx=0
+HOLDEN/Holden Barina 2016 AU.sub | 433920000 | Opel V1 | data=127933CB45276D80/93 extra=8AB37A9 sn=4F2679 btn=73 cnt=6B5E crc=1 tx=0
+HOLDEN/Holden Barina 2016 AU.sub | 433920000 | Opel V1 | data=127933CB45276D80/93 extra=8AB37A9 sn=4F2679 btn=73 cnt=6B5E crc=1 tx=0
+HYUNDAI/18_hyun_santafe_ll_uu_t_p.sub | 433889000 | (none)
+HYUNDAI/18_hyunai_santa_fe_l2_u2_t2_p2.sub | 433889000 | (none)
+HYUNDAI/2017_Hyundai_Elantra_panic.sub | 433920000 | (none)
+HYUNDAI/25_hyundai_sonata_l2_u2_rs2_p2.sub | 433920000 | (none)
+HYUNDAI/HYU V0 N1.sub | ERR No RAW_Data in .sub file
+HYUNDAI/HYU V0_great_konserva.sub | ERR No RAW_Data in .sub file
+HYUNDAI/HYU V1  N1 RAW.sub | 315000000 | Kia V1 | data=B444706E016602/57 sn=B444706E btn=1 cnt=66 crc=1 tx=1
+HYUNDAI/HYU V1  N1 RAW.sub | 315000000 | Kia V1 | data=B444706E016701/57 sn=B444706E btn=1 cnt=67 crc=1 tx=1
+HYUNDAI/HYU V1  N1 RAW.sub | 315000000 | Kia V1 | data=B444706E016800/57 sn=B444706E btn=1 cnt=68 crc=1 tx=1
+HYUNDAI/HYU V1  N1 RAW.sub | 315000000 | Kia V1 | data=B444706E01690F/57 sn=B444706E btn=1 cnt=69 crc=1 tx=1
+HYUNDAI/HYU V1  N1 RAW.sub | 315000000 | Kia V1 | data=B444706E016A0E/57 sn=B444706E btn=1 cnt=6A crc=1 tx=1
+HYUNDAI/HYU V1  N1 RAW.sub | 315000000 | Kia V1 | data=B444706E026B00/57 sn=B444706E btn=2 cnt=6B crc=1 tx=1
+HYUNDAI/HYU V1  N1 RAW.sub | 315000000 | Kia V1 | data=B444706E026C09/57 sn=B444706E btn=2 cnt=6C crc=1 tx=1
+HYUNDAI/HYU V1  N1 RAW.sub | 315000000 | Kia V1 | data=B444706E026D0A/57 sn=B444706E btn=2 cnt=6D crc=1 tx=1
+HYUNDAI/HYU V1  N1 RAW.sub | 315000000 | Kia V1 | data=B444706E026E0B/57 sn=B444706E btn=2 cnt=6E crc=1 tx=1
+HYUNDAI/HYU V1  N1 RAW.sub | 315000000 | Kia V1 | data=B444706E026F0C/57 sn=B444706E btn=2 cnt=6F crc=1 tx=1
+HYUNDAI/HYU V1  N1 RAW.sub | 315000000 | Kia V1 | data=B444706E027006/57 sn=B444706E btn=2 cnt=70 crc=1 tx=1
+HYUNDAI/HYU V1  N1 RAW.sub | 315000000 | Kia V1 | data=B444706E027105/57 sn=B444706E btn=2 cnt=71 crc=1 tx=1
+HYUNDAI/HYU V1  N1 RAW.sub | 315000000 | Kia V1 | data=B444706E027208/57 sn=B444706E btn=2 cnt=72 crc=1 tx=1
+HYUNDAI/HYU V1  N1 RAW.sub | 315000000 | Kia V1 | data=B444706E027307/57 sn=B444706E btn=2 cnt=73 crc=1 tx=1
+HYUNDAI/HYU V1  N1 RAW.sub | 315000000 | Kia V1 | data=B444706E027402/57 sn=B444706E btn=2 cnt=74 crc=1 tx=1
+HYUNDAI/HYU V2 N1.sub | ERR No RAW_Data in .sub file
+HYUNDAI/HYU V2_random_habar.sub | ERR No RAW_Data in .sub file
+HYUNDAI/HYU V4 N1.sub | ERR No RAW_Data in .sub file
+HYUNDAI/HYU V6_test.sub | ERR No RAW_Data in .sub file
+HYUNDAI/test_new_kia_hyu.sub | ERR No RAW_Data in .sub file
+Isuzu/Isuzu_Lock.sub | 433889000 | (none)
+Isuzu/Isuzu_Unlock.sub | 433889000 | (none)
+Isuzu/Isuzu_fts_lock.sub | 433920000 | (none)
+Isuzu/Isuzu_fts_unlock.sub | 433920000 | (none)
+KIA/23_kia_sorento_l2_ul2_t2_p2.sub | 433920000 | (none)
+KIA/23_kia_sportage_l2_u2_t2_p2.sub | 433889000 | (none)
+KIA/24_kia_sorento_l2_u2_rs2_p2.sub | 433889000 | (none)
+KIA/25_kia_carnval_l2_u2_t2_p2_rs2_lr2_rr2.sub | 433889000 | (none)
+KIA/KIA V1 N1 RAW.sub | 315000000 | Kia V1 | data=B444706E01910A/57 sn=B444706E btn=1 cnt=91 crc=1 tx=1
+KIA/KIA V1 N1 RAW.sub | 315000000 | Kia V1 | data=B444706E01920B/57 sn=B444706E btn=1 cnt=92 crc=1 tx=1
+KIA/KIA V1 N1 RAW.sub | 315000000 | Kia V1 | data=B444706E01930C/57 sn=B444706E btn=1 cnt=93 crc=1 tx=1
+KIA/KIA V1 N1 RAW.sub | 315000000 | Kia V1 | data=B444706E01940D/57 sn=B444706E btn=1 cnt=94 crc=1 tx=1
+KIA/KIA V1 N1 RAW.sub | 315000000 | Kia V1 | data=B444706E01950E/57 sn=B444706E btn=1 cnt=95 crc=1 tx=1
+KIA/KIA V1 N1 RAW.sub | 315000000 | Kia V1 | data=B444706E02960E/57 sn=B444706E btn=2 cnt=96 crc=1 tx=1
+KIA/KIA V1 N1 RAW.sub | 315000000 | Kia V1 | data=B444706E02970D/57 sn=B444706E btn=2 cnt=97 crc=1 tx=1
+KIA/KIA V1 N1 RAW.sub | 315000000 | Kia V1 | data=B444706E029804/57 sn=B444706E btn=2 cnt=98 crc=1 tx=1
+KIA/KIA V1 N1 RAW.sub | 315000000 | Kia V1 | data=B444706E029903/57 sn=B444706E btn=2 cnt=99 crc=1 tx=1
+KIA/KIA V1 N1 RAW.sub | 315000000 | Kia V1 | data=B444706E029A02/57 sn=B444706E btn=2 cnt=9A crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=295DF62960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=26 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=295DF62960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=26 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=295DF62960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=26 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=295DF62960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=26 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=295DF62960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=26 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=4C0ECCC660B70304/68 extra=1 sn=C0ED06 btn=2 cnt=27 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=4C0ECCC660B70304/68 extra=1 sn=C0ED06 btn=2 cnt=27 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=4C0ECCC660B70304/68 extra=1 sn=C0ED06 btn=2 cnt=27 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=4C0ECCC660B70304/68 extra=1 sn=C0ED06 btn=2 cnt=27 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=4C0ECCC660B70304/68 extra=1 sn=C0ED06 btn=2 cnt=27 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=CD10DF0C60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=28 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=CD10DF0C60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=28 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=CD10DF0C60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=28 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=CD10DF0C60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=28 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=CD10DF0C60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=28 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=754EB5B960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=29 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=754EB5B960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=29 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=754EB5B960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=29 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=754EB5B960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=29 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=754EB5B960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=29 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=624C932A60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=2A crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=624C932A60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=2A crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=624C932A60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=2A crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=624C932A60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=2A crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=624C932A60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=2A crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=8248BCA460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2B crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=8248BCA460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2B crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=8248BCA460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2B crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=8248BCA460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2B crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=8248BCA460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2B crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=2C5F7E9460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2C crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=2C5F7E9460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2C crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=2C5F7E9460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2C crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=2C5F7E9460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2C crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=2C5F7E9460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2C crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=9517A58760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2D crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=9517A58760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2D crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=9517A58760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2D crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=9517A58760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2D crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=9517A58760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2D crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=7421F8C460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2E crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=7421F8C460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2E crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=7421F8C460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2E crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=7421F8C460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2E crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=7421F8C460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2E crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=74FBB64B60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2F crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=74FBB64B60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2F crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=74FBB64B60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2F crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=74FBB64B60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2F crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=74FBB64B60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2F crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=60BDC7CE60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=30 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=60BDC7CE60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=30 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=60BDC7CE60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=30 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=60BDC7CE60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=30 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=60BDC7CE60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=30 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=2C62ABA60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=31 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=2C62ABA60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=31 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=2C62ABA60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=31 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=2C62ABA60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=31 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=2C62ABA60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=31 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=135FC1AC60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=32 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=135FC1AC60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=32 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=135FC1AC60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=32 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=135FC1AC60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=32 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=135FC1AC60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=32 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=C60CE55760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=33 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=C60CE55760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=33 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=C60CE55760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=33 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=C60CE55760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=33 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=C60CE55760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=33 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=AE84905760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=34 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=AE84905760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=34 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=AE84905760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=34 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=AE84905760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=34 crc=1 tx=1
+KIA/KIA V3 N1 RAW.sub | 315000000 | Kia V3 | data=AE84905760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=34 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=20FD579060B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=13 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=20FD579060B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=13 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=20FD579060B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=13 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=20FD579060B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=13 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=20FD579060B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=13 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=C0D10C0160B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=14 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=C0D10C0160B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=14 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=C0D10C0160B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=14 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=C0D10C0160B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=14 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=C0D10C0160B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=14 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=EB40E34360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=15 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=EB40E34360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=15 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=EB40E34360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=15 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=EB40E34360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=15 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=EB40E34360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=15 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=61F1DF5360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=16 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=61F1DF5360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=16 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=61F1DF5360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=16 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=61F1DF5360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=16 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=61F1DF5360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=16 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=C79F189C60B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=17 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=C79F189C60B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=17 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=C79F189C60B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=17 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=C79F189C60B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=17 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=C79F189C60B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=17 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=7E0E0C0860B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=18 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=7E0E0C0860B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=18 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=7E0E0C0860B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=18 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=7E0E0C0860B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=18 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=7E0E0C0860B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=18 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=8E788F160B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=19 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=8E788F160B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=19 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=8E788F160B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=19 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=8E788F160B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=19 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=8E788F160B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=19 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=FCDC2C760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1A crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=FCDC2C760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1A crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=FCDC2C760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1A crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=FCDC2C760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1A crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=FCDC2C760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1A crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=F945611A60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1B crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=F945611A60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1B crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=F945611A60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1B crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=F945611A60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1B crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=F945611A60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1B crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=EF41010760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1C crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=EF41010760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1C crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=EF41010760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1C crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=EF41010760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1C crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=EF41010760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1C crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=753A2A3F60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1D crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=753A2A3F60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1D crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=753A2A3F60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1D crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=753A2A3F60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1D crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=753A2A3F60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1D crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=86EAC8E660B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1E crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=86EAC8E660B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1E crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=86EAC8E660B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1E crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=86EAC8E660B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1E crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=86EAC8E660B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1E crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=62C8714560B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1F crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=62C8714560B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1F crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=62C8714560B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1F crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=62C8714560B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1F crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=62C8714560B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1F crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=991D730C60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=20 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=991D730C60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=20 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=991D730C60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=20 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=991D730C60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=20 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=991D730C60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=20 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=D5D64E960B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=21 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=D5D64E960B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=21 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=D5D64E960B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=21 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=D5D64E960B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=21 crc=1 tx=1
+KIA/KIA V4 N1 RAW.sub | 315000000 | Kia V4 | data=D5D64E960B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=21 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=9CAF491D68030228/67 extra=1 sn=440C016 btn=1 cnt=5360 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=9CAF491D68030228/67 extra=1 sn=440C016 btn=1 cnt=5360 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=561D6DAA68030228/67 extra=2 sn=440C016 btn=1 cnt=5361 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=561D6DAA68030228/67 extra=2 sn=440C016 btn=1 cnt=5361 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=AA293B68030228/67 extra=0 sn=440C016 btn=1 cnt=5362 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=AA293B68030228/67 extra=0 sn=440C016 btn=1 cnt=5362 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=F90BCF3468030228/67 extra=0 sn=440C016 btn=1 cnt=5363 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=F90BCF3468030228/67 extra=0 sn=440C016 btn=1 cnt=5363 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=A910900268030228/67 extra=1 sn=440C016 btn=1 cnt=5364 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=A910900268030228/67 extra=1 sn=440C016 btn=1 cnt=5364 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=74806CF768030228/67 extra=0 sn=440C016 btn=1 cnt=5365 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=74806CF768030228/67 extra=0 sn=440C016 btn=1 cnt=5365 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=5CF99A968030228/67 extra=1 sn=440C016 btn=1 cnt=5366 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=5CF99A968030228/67 extra=1 sn=440C016 btn=1 cnt=5366 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=6A80A3EB68030228/67 extra=2 sn=440C016 btn=1 cnt=5367 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=6A80A3EB68030228/67 extra=2 sn=440C016 btn=1 cnt=5367 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=281F21E968030228/67 extra=0 sn=440C016 btn=1 cnt=5368 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=281F21E968030228/67 extra=0 sn=440C016 btn=1 cnt=5368 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=3C0B4F6B68030228/67 extra=1 sn=440C016 btn=1 cnt=5369 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=3C0B4F6B68030228/67 extra=1 sn=440C016 btn=1 cnt=5369 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=F6A6AEC68030228/67 extra=0 sn=440C016 btn=1 cnt=536A crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=F6A6AEC68030228/67 extra=0 sn=440C016 btn=1 cnt=536A crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=65468A4468030228/67 extra=2 sn=440C016 btn=1 cnt=536B crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=65468A4468030228/66 extra=1 sn=440C016 btn=1 cnt=536B crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=BBAD9A3C68030228/67 extra=3 sn=440C016 btn=1 cnt=536C crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=BBAD9A3C68030228/67 extra=3 sn=440C016 btn=1 cnt=536C crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=3720DED768030228/67 extra=0 sn=440C016 btn=1 cnt=536D crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=3720DED768030228/67 extra=0 sn=440C016 btn=1 cnt=536D crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=935B4EDD68030228/67 extra=1 sn=440C016 btn=1 cnt=536E crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=935B4EDD68030228/67 extra=1 sn=440C016 btn=1 cnt=536E crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=2945F4DC68030228/67 extra=0 sn=440C016 btn=1 cnt=536F crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=2945F4DC68030228/67 extra=0 sn=440C016 btn=1 cnt=536F crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=9811416668030228/67 extra=3 sn=440C016 btn=1 cnt=5370 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=9811416668030228/67 extra=3 sn=440C016 btn=1 cnt=5370 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=CD833C1468030228/67 extra=2 sn=440C016 btn=1 cnt=5371 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=CD833C1468030228/67 extra=2 sn=440C016 btn=1 cnt=5371 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=BA09636468030228/67 extra=0 sn=440C016 btn=1 cnt=5372 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=BA09636468030228/67 extra=0 sn=440C016 btn=1 cnt=5372 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=619ACF9468030228/67 extra=1 sn=440C016 btn=1 cnt=5373 crc=1 tx=1
+KIA/KIA V5 N1 RAW.sub | 433920000 | Kia V5 | data=619ACF9468030228/67 extra=1 sn=440C016 btn=1 cnt=5373 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=B8BEDC9270A4EE88/67 extra=2 sn=177250E btn=1 cnt=2DE4 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=A07F45FC70A4EE88/67 extra=3 sn=177250E btn=1 cnt=2DE5 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=A07F45FC70A4EE88/67 extra=3 sn=177250E btn=1 cnt=2DE5 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=4E30487670A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DE6 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=4E30487670A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DE6 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=B7298AC770A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DE7 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=B7298AC770A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DE7 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=21EE199B70A4EE88/67 extra=3 sn=177250E btn=1 cnt=2DE8 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=21EE199B70A4EE88/67 extra=3 sn=177250E btn=1 cnt=2DE8 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=9555F40170A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DE9 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=9555F40170A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DE9 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=5558D88E70A4EE88/67 extra=0 sn=177250E btn=1 cnt=2DEA crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=5558D88E70A4EE88/67 extra=0 sn=177250E btn=1 cnt=2DEA crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=9993E04070A4EE88/67 extra=0 sn=177250E btn=1 cnt=2DEB crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=9993E04070A4EE88/67 extra=0 sn=177250E btn=1 cnt=2DEB crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=379232970A4EE88/67 extra=0 sn=177250E btn=1 cnt=2DEC crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=379232970A4EE88/67 extra=0 sn=177250E btn=1 cnt=2DEC crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=C55AB68070A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DED crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=C55AB68070A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DED crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=A4DA2B470A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DEE crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=A4DA2B470A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DEE crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=34893D3A70A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DEF crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=34893D3A70A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DEF crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=37072CC470A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DF0 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=37072CC470A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DF0 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=C2CCE69570A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DF1 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=C2CCE69570A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DF1 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=3E6F995670A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DF2 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=3E6F995670A4EE88/67 extra=1 sn=177250E btn=1 cnt=2DF2 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=F5F3D9DA70A4EE88/67 extra=2 sn=177250E btn=1 cnt=2DF3 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=F5F3D9DA70A4EE88/67 extra=2 sn=177250E btn=1 cnt=2DF3 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=1908158170A4EE88/67 extra=2 sn=177250E btn=1 cnt=2DF4 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=1908158170A4EE88/67 extra=2 sn=177250E btn=1 cnt=2DF4 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=44623EBB70A4EE88/67 extra=0 sn=177250E btn=1 cnt=2DF5 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=44623EBB70A4EE88/67 extra=0 sn=177250E btn=1 cnt=2DF5 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=245999EF70A4EE88/67 extra=0 sn=177250E btn=1 cnt=2DF6 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=245999EF70A4EE88/67 extra=0 sn=177250E btn=1 cnt=2DF6 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=FB5C70D270A4EE88/67 extra=3 sn=177250E btn=1 cnt=2DF7 crc=1 tx=1
+KIA/KIA V5 N2 RAW.sub | 433920000 | Kia V5 | data=FB5C70D270A4EE88/67 extra=3 sn=177250E btn=1 cnt=2DF7 crc=1 tx=1
+KIA/KIA V5 N3.sub | ERR No RAW_Data in .sub file
+KIA/KIA V6 N2.sub | ERR No RAW_Data in .sub file
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=9CAF491D68030228/67 extra=1 sn=440C016 btn=1 cnt=5360 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=9CAF491D68030228/67 extra=1 sn=440C016 btn=1 cnt=5360 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=561D6DAA68030228/67 extra=2 sn=440C016 btn=1 cnt=5361 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=561D6DAA68030228/67 extra=2 sn=440C016 btn=1 cnt=5361 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=AA293B68030228/67 extra=0 sn=440C016 btn=1 cnt=5362 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=AA293B68030228/67 extra=0 sn=440C016 btn=1 cnt=5362 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=F90BCF3468030228/67 extra=0 sn=440C016 btn=1 cnt=5363 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=F90BCF3468030228/67 extra=0 sn=440C016 btn=1 cnt=5363 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=A910900268030228/67 extra=1 sn=440C016 btn=1 cnt=5364 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=A910900268030228/67 extra=1 sn=440C016 btn=1 cnt=5364 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=74806CF768030228/67 extra=0 sn=440C016 btn=1 cnt=5365 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=74806CF768030228/67 extra=0 sn=440C016 btn=1 cnt=5365 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=5CF99A968030228/67 extra=1 sn=440C016 btn=1 cnt=5366 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=5CF99A968030228/67 extra=1 sn=440C016 btn=1 cnt=5366 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=6A80A3EB68030228/67 extra=2 sn=440C016 btn=1 cnt=5367 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=6A80A3EB68030228/67 extra=2 sn=440C016 btn=1 cnt=5367 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=281F21E968030228/67 extra=0 sn=440C016 btn=1 cnt=5368 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=281F21E968030228/67 extra=0 sn=440C016 btn=1 cnt=5368 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=3C0B4F6B68030228/67 extra=1 sn=440C016 btn=1 cnt=5369 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=3C0B4F6B68030228/67 extra=1 sn=440C016 btn=1 cnt=5369 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=F6A6AEC68030228/67 extra=0 sn=440C016 btn=1 cnt=536A crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=F6A6AEC68030228/67 extra=0 sn=440C016 btn=1 cnt=536A crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=65468A4468030228/67 extra=2 sn=440C016 btn=1 cnt=536B crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=65468A4468030228/66 extra=1 sn=440C016 btn=1 cnt=536B crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=BBAD9A3C68030228/67 extra=3 sn=440C016 btn=1 cnt=536C crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=BBAD9A3C68030228/67 extra=3 sn=440C016 btn=1 cnt=536C crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=3720DED768030228/67 extra=0 sn=440C016 btn=1 cnt=536D crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=3720DED768030228/67 extra=0 sn=440C016 btn=1 cnt=536D crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=935B4EDD68030228/67 extra=1 sn=440C016 btn=1 cnt=536E crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=935B4EDD68030228/67 extra=1 sn=440C016 btn=1 cnt=536E crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=2945F4DC68030228/67 extra=0 sn=440C016 btn=1 cnt=536F crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=2945F4DC68030228/67 extra=0 sn=440C016 btn=1 cnt=536F crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=9811416668030228/67 extra=3 sn=440C016 btn=1 cnt=5370 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=9811416668030228/67 extra=3 sn=440C016 btn=1 cnt=5370 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=CD833C1468030228/67 extra=2 sn=440C016 btn=1 cnt=5371 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=CD833C1468030228/67 extra=2 sn=440C016 btn=1 cnt=5371 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=BA09636468030228/67 extra=0 sn=440C016 btn=1 cnt=5372 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=BA09636468030228/67 extra=0 sn=440C016 btn=1 cnt=5372 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=619ACF9468030228/67 extra=1 sn=440C016 btn=1 cnt=5373 crc=1 tx=1
+KIA/KIA_V5_x20.sub | 433920000 | Kia V5 | data=619ACF9468030228/67 extra=1 sn=440C016 btn=1 cnt=5373 crc=1 tx=1
+KIA/Kia0_orig.sub | ERR No RAW_Data in .sub file
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=295DF62960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=26 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=295DF62960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=26 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=295DF62960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=26 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=295DF62960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=26 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=295DF62960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=26 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=4C0ECCC660B70304/68 extra=1 sn=C0ED06 btn=2 cnt=27 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=4C0ECCC660B70304/68 extra=1 sn=C0ED06 btn=2 cnt=27 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=4C0ECCC660B70304/68 extra=1 sn=C0ED06 btn=2 cnt=27 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=4C0ECCC660B70304/68 extra=1 sn=C0ED06 btn=2 cnt=27 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=4C0ECCC660B70304/68 extra=1 sn=C0ED06 btn=2 cnt=27 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=CD10DF0C60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=28 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=CD10DF0C60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=28 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=CD10DF0C60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=28 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=CD10DF0C60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=28 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=CD10DF0C60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=28 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=754EB5B960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=29 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=754EB5B960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=29 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=754EB5B960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=29 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=754EB5B960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=29 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=754EB5B960B70304/68 extra=1 sn=C0ED06 btn=2 cnt=29 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=624C932A60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=2A crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=624C932A60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=2A crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=624C932A60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=2A crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=624C932A60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=2A crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=624C932A60B70304/68 extra=1 sn=C0ED06 btn=2 cnt=2A crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=8248BCA460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2B crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=8248BCA460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2B crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=8248BCA460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2B crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=8248BCA460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2B crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=8248BCA460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2B crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=2C5F7E9460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2C crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=2C5F7E9460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2C crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=2C5F7E9460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2C crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=2C5F7E9460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2C crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=2C5F7E9460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2C crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=9517A58760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2D crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=9517A58760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2D crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=9517A58760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2D crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=9517A58760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2D crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=9517A58760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2D crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=7421F8C460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2E crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=7421F8C460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2E crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=7421F8C460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2E crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=7421F8C460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2E crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=7421F8C460B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2E crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=74FBB64B60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2F crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=74FBB64B60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2F crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=74FBB64B60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2F crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=74FBB64B60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2F crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=74FBB64B60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=2F crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=60BDC7CE60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=30 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=60BDC7CE60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=30 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=60BDC7CE60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=30 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=60BDC7CE60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=30 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=60BDC7CE60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=30 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=2C62ABA60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=31 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=2C62ABA60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=31 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=2C62ABA60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=31 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=2C62ABA60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=31 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=2C62ABA60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=31 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=135FC1AC60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=32 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=135FC1AC60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=32 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=135FC1AC60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=32 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=135FC1AC60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=32 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=135FC1AC60B70302/68 extra=1 sn=C0ED06 btn=4 cnt=32 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=C60CE55760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=33 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=C60CE55760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=33 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=C60CE55760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=33 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=C60CE55760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=33 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=C60CE55760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=33 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=AE84905760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=34 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=AE84905760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=34 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=AE84905760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=34 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=AE84905760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=34 crc=1 tx=1
+KIA/Kia3_5cl_5op_5tr.sub | 315000000 | Kia V3 | data=AE84905760B70302/68 extra=1 sn=C0ED06 btn=4 cnt=34 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=20FD579060B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=13 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=20FD579060B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=13 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=20FD579060B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=13 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=20FD579060B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=13 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=20FD579060B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=13 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=C0D10C0160B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=14 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=C0D10C0160B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=14 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=C0D10C0160B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=14 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=C0D10C0160B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=14 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=C0D10C0160B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=14 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=EB40E34360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=15 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=EB40E34360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=15 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=EB40E34360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=15 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=EB40E34360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=15 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=EB40E34360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=15 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=61F1DF5360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=16 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=61F1DF5360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=16 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=61F1DF5360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=16 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=61F1DF5360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=16 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=61F1DF5360B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=16 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=C79F189C60B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=17 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=C79F189C60B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=17 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=C79F189C60B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=17 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=C79F189C60B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=17 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=C79F189C60B70384/68 extra=0 sn=1C0ED06 btn=2 cnt=17 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=7E0E0C0860B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=18 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=7E0E0C0860B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=18 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=7E0E0C0860B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=18 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=7E0E0C0860B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=18 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=7E0E0C0860B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=18 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=8E788F160B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=19 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=8E788F160B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=19 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=8E788F160B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=19 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=8E788F160B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=19 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=8E788F160B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=19 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=FCDC2C760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1A crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=FCDC2C760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1A crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=FCDC2C760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1A crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=FCDC2C760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1A crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=FCDC2C760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1A crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=F945611A60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1B crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=F945611A60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1B crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=F945611A60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1B crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=F945611A60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1B crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=F945611A60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1B crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=EF41010760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1C crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=EF41010760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1C crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=EF41010760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1C crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=EF41010760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1C crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=EF41010760B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1C crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=753A2A3F60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1D crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=753A2A3F60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1D crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=753A2A3F60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1D crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=753A2A3F60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1D crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=753A2A3F60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1D crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=86EAC8E660B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1E crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=86EAC8E660B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1E crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=86EAC8E660B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1E crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=86EAC8E660B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1E crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=86EAC8E660B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1E crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=62C8714560B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1F crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=62C8714560B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1F crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=62C8714560B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1F crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=62C8714560B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1F crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=62C8714560B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=1F crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=991D730C60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=20 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=991D730C60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=20 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=991D730C60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=20 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=991D730C60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=20 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=991D730C60B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=20 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=D5D64E960B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=21 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=D5D64E960B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=21 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=D5D64E960B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=21 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=D5D64E960B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=21 crc=1 tx=1
+KIA/Kia4_5cl_5op_5tr.sub | 315000000 | Kia V4 | data=D5D64E960B70382/68 extra=0 sn=1C0ED06 btn=4 cnt=21 crc=1 tx=1
+KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E01910A/57 sn=B444706E btn=1 cnt=91 crc=1 tx=1
+KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E01920B/57 sn=B444706E btn=1 cnt=92 crc=1 tx=1
+KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E01930C/57 sn=B444706E btn=1 cnt=93 crc=1 tx=1
+KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E01940D/57 sn=B444706E btn=1 cnt=94 crc=1 tx=1
+KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E01950E/57 sn=B444706E btn=1 cnt=95 crc=1 tx=1
+KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E02960E/57 sn=B444706E btn=2 cnt=96 crc=1 tx=1
+KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E02970D/57 sn=B444706E btn=2 cnt=97 crc=1 tx=1
+KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E029804/57 sn=B444706E btn=2 cnt=98 crc=1 tx=1
+KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E029903/57 sn=B444706E btn=2 cnt=99 crc=1 tx=1
+KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E029A02/57 sn=B444706E btn=2 cnt=9A crc=1 tx=1
+LDV/LDV-T80_lock.sub | 433889000 | Ford V3 | data=4443A88F90656800/104 extra=948EDD7 sn=43A88F90 btn=1 cnt=FFFF crc=1 tx=0
+LDV/LDV-T80_lock.sub | 433889000 | Ford V3 | data=4443A88F90656800/104 extra=9686DA9 sn=43A88F90 btn=1 cnt=FFFF crc=1 tx=0
+LDV/LDV-T80_lock.sub | 433889000 | Ford V3 | data=4443A88F90656800/104 extra=9880F60 sn=43A88F90 btn=1 cnt=FFFF crc=1 tx=0
+LDV/LDV-T80_lock.sub | 433889000 | Ford V3 | data=4443A88F90656800/104 extra=9A99BFC sn=43A88F90 btn=1 cnt=FFFF crc=1 tx=0
+LDV/LDV-T80_unlock.sub | 433889000 | Ford V3 | data=4443A88F90657000/104 extra=8F0060D sn=43A88F90 btn=1 cnt=FFFF crc=1 tx=0
+LDV/LDV-T80_unlock.sub | 433889000 | Ford V3 | data=4443A88F90657000/104 extra=9109804 sn=43A88F90 btn=1 cnt=FFFF crc=1 tx=0
+LDV/LDV-T80_unlock.sub | 433889000 | Ford V3 | data=4443A88F90657000/104 extra=93093CD sn=43A88F90 btn=1 cnt=FFFF crc=1 tx=0
+Lamborghini/Lambo_Lock.sub | 315000000 | (none)
+Lamborghini/Lambo_Trunk.sub | 315000000 | (none)
+Lamborghini/Lambo_Unlock.sub | 315000000 | (none)
+Mazda/25mazda_cx50_ll_uu_tt_pp_x2.sub | 314980000 | (none)
+Mazda/Rx8_2007_10x_alarm.sub | 433889000 | (none)
+Mazda/Rx8_2007_10x_lock.sub | 433889000 | (none)
+Mazda/Rx8_2007_10x_trunk.sub | 433889000 | (none)
+Mazda/Rx8_2007_10x_unlock.sub | 433889000 | (none)
+OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D25114D/104 extra=1C26188AE68 sn=468F5D25 btn=1 cnt=53 crc=1 tx=1
+OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D251150/104 extra=1DACE693AB7 sn=468F5D25 btn=1 cnt=54 crc=1 tx=1
+OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D25115A/104 extra=1FACCD31609 sn=468F5D25 btn=1 cnt=56 crc=1 tx=1
+OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D25115A/104 extra=1FACCD31609 sn=468F5D25 btn=1 cnt=56 crc=1 tx=1
+OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D25115A/104 extra=1FACCD31609 sn=468F5D25 btn=1 cnt=56 crc=1 tx=1
+OPEL/Opel Vectra 2008.sub | 433920000 | Renault V1 | data=1468F5D25115E/104 extra=FA649B36CD sn=468F5D25 btn=1 cnt=57 crc=1 tx=1
+OPEL/Opel Vectra 2008.sub | 433920000 | Renault V1 | data=1468F5D25115E/104 extra=FA649B36CD sn=468F5D25 btn=1 cnt=57 crc=1 tx=1
+OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D251160/104 extra=1E288DC5E28 sn=468F5D25 btn=1 cnt=58 crc=1 tx=1
+OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D251160/104 extra=1E288DC5E28 sn=468F5D25 btn=1 cnt=58 crc=1 tx=1
+OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D251160/104 extra=1E288DC5E28 sn=468F5D25 btn=1 cnt=58 crc=1 tx=1
+OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D251164/104 extra=1E2215FFEA6 sn=468F5D25 btn=1 cnt=59 crc=1 tx=1
+OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D251164/104 extra=1E2215FFEA6 sn=468F5D25 btn=1 cnt=59 crc=1 tx=1
+OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D251164/104 extra=1E2215FFEA6 sn=468F5D25 btn=1 cnt=59 crc=1 tx=1
+RENAULT/Renault Megane Scenic 2005 lock.sub | 433075000 | (none)
+RENAULT/Renault Megane Scenic 2005 trunk.sub | 433075000 | (none)
+RENAULT/Renault Megane Scenic 2005 unlock.sub | 433075000 | (none)
+SKODA/Skoda_Fabia_2007 RAW.sub | 434390000 | VAG | data=C0F195199E9C29A3/80 extra=800000000204392B sn=7687620 btn=0 cnt=8477 crc=1 tx=1
+SKODA/Skoda_Fabia_2007 RAW.sub | 434390000 | VAG | data=C02E4D517FFCE747/80 extra=800000000204B12B sn=7687620 btn=0 cnt=8478 crc=1 tx=1
+SKODA/Skoda_Fabia_2007 RAW.sub | 434390000 | VAG | data=C00FDC5634239909/80 extra=800000000204732B sn=7687620 btn=0 cnt=8479 crc=1 tx=1
+SKODA/Skoda_Fabia_2007 RAW.sub | 434390000 | VAG | data=C0D61B7A42017AFA/80 extra=8000000002047B2B sn=7687620 btn=0 cnt=847A crc=1 tx=1
+SKODA/Skoda_Fabia_2007 RAW.sub | 434390000 | VAG | data=C0D61B7A42017AFA/80 extra=8000000002047B2B sn=7687620 btn=0 cnt=847A crc=1 tx=1
+SUBARU/20_subaru_outback_ll_tt_ulul_pp.sub | 433657070 | (none)
+SUBARU/Subaro Impreza RAW .sub | 433920000 | Subaru | data=E1CB715E4FD1C3F8/64 sn=CB715E btn=1 cnt=C90A crc=1 tx=1
+SUBARU/Subaro Impreza RAW .sub | 433920000 | Subaru | data=E1CB715E16DDF787/64 sn=CB715E btn=1 cnt=C90B crc=1 tx=1
+SUBARU/Subaro Impreza RAW .sub | 433920000 | Subaru | data=E1CB715EE4C09F78/64 sn=CB715E btn=1 cnt=C90C crc=1 tx=1
+SUBARU/Subaro Impreza RAW .sub | 433920000 | Subaru | data=E1CB715E80F44BA6/64 sn=CB715E btn=1 cnt=C90D crc=1 tx=1
+SUBARU/Subaro Impreza RAW .sub | 433920000 | Subaru | data=E1CB715E49CCE71A/64 sn=CB715E btn=1 cnt=C90E crc=1 tx=1
+SUBARU/Subaru Forester 2012 AU.sub | 433920000 | Subaru | data=E2324AFE5BE7500A/64 sn=324AFE btn=2 cnt=32 crc=1 tx=1
+SUBARU/Subaru WRX Impreza 2018 AU.sub | 433920000 | Subaru | data=E12A90CEF2FEDF44/64 sn=2A90CE btn=1 cnt=1904 crc=1 tx=1
+SUBARU/Subaru WRX Impreza 2018 AU.sub | 433920000 | Subaru | data=E12A90CEADCA8B6F/64 sn=2A90CE btn=1 cnt=1905 crc=1 tx=1
+SUBARU/Subaru WRX Impreza 2018 AU.sub | 433920000 | Subaru | data=E12A90CE52F62329/64 sn=2A90CE btn=1 cnt=1906 crc=1 tx=1
+SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F001915302423C10/64 sn=1530242 btn=3 cnt=19 crc=1 tx=1
+SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F001A15302423580/64 sn=1530242 btn=3 cnt=1A crc=1 tx=1
+SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F001B15302423FA0/64 sn=1530242 btn=3 cnt=1B crc=1 tx=1
+SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F001C15302423150/64 sn=1530242 btn=3 cnt=1C crc=1 tx=1
+SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F001D15302423B70/64 sn=1530242 btn=3 cnt=1D crc=1 tx=1
+SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F001E153024242C0/64 sn=1530242 btn=4 cnt=1E crc=1 tx=1
+SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F001F153024248E0/64 sn=1530242 btn=4 cnt=1F crc=1 tx=1
+SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F0020153024241B0/64 sn=1530242 btn=4 cnt=20 crc=1 tx=1
+SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F002115302424B90/64 sn=1530242 btn=4 cnt=21 crc=1 tx=1
+SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F002215302424200/64 sn=1530242 btn=4 cnt=22 crc=1 tx=1
+SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F002315302422FF0/64 sn=1530242 btn=2 cnt=23 crc=1 tx=1
+SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F002415302422100/64 sn=1530242 btn=2 cnt=24 crc=1 tx=1
+SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F002515302422B20/64 sn=1530242 btn=2 cnt=25 crc=1 tx=1
+SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F0026153024222B0/64 sn=1530242 btn=2 cnt=26 crc=1 tx=1
+SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F002715302422890/64 sn=1530242 btn=2 cnt=27 crc=1 tx=1
+Skyline/Skyline_close_US.sub | 314980000 | (none)
+Skyline/Skyline_open_US.sub | 314980000 | (none)
+Toyota + Lexus/18_toyota_tacoma_l2_ul2_p2.sub | 312100000 | (none)
+Toyota + Lexus/19_lexus_is_sk_l_u_t_p.sub | 312100000 | (none)
+Toyota + Lexus/19_toyota_camry_hv_ul2_l2_t2_p2.sub | 312100000 | (none)
+Toyota + Lexus/19_toyota_camry_l2_u2_t2_p2.sub | 312000000 | (none)
+Toyota + Lexus/2017 Lexus NX200t_312.sub | 312000000 | (none)
+Toyota + Lexus/2017 Lexus NX200t_314.sub | 314350000 | (none)
+Toyota + Lexus/21_lexus_is300_lluulluut.sub | 314350000 | (none)
+Toyota + Lexus/21_toyota_tacoma_l_u.sub | 315000000 | (none)
+Toyota + Lexus/23_toyota_rav4_l2_ul2_t2_p2.sub | 314350000 | (none)
+Toyota + Lexus/23_toyota_tacoma_l2_u2_p2.sub | 312000000 | (none)
+Toyota + Lexus/Lexus UX 250 2021 lock.sub | 433657070 | (none)
+Toyota + Lexus/Lexus UX 250 2021 unlock.sub | 433657070 | (none)
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=DFA0C0B6CEAB92/96 extra=A3CBB7A1 sn=4AB9A1 btn=D1 cnt=60 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=DFA0C0B6CEAB92/96 extra=A3CBB7A1 sn=4AB9A1 btn=D1 cnt=60 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=DFA0C0B6CEAB92/96 extra=A3CBB7A1 sn=4AB9A1 btn=D1 cnt=60 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=DFA0C0B6CEAB92/96 extra=A3CBB7A1 sn=4AB9A1 btn=D1 cnt=60 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=DFA0C0B6CEAB92/96 extra=A3CBB7A1 sn=4AB9A1 btn=D1 cnt=60 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=DFA0C0B6CEAB92/96 extra=A3CBB7A1 sn=4AB9A1 btn=D1 cnt=60 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=DFA0C0B6CEAB92/96 extra=A3CBB7A1 sn=4AB9A1 btn=D1 cnt=60 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=9CE182BE9A8AC2/96 extra=B3D6F781 sn=4AB9A1 btn=0 cnt=- crc=0 tx=0
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=9CE182BE9A8AC2/96 extra=B3D6F781 sn=4AB9A1 btn=0 cnt=- crc=0 tx=0
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=BBA0D1B4DC8692/96 extra=B3D3F3A5 sn=4AB9A1 btn=D1 cnt=5E crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=BBA0D1B4DC8692/96 extra=B3D3F3A5 sn=4AB9A1 btn=D1 cnt=5E crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=BBA0D1B4DC8692/96 extra=B3D3F3A5 sn=4AB9A1 btn=D1 cnt=5E crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=BBA0D1B4DC8692/96 extra=B3D3F3A5 sn=4AB9A1 btn=D1 cnt=5E crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=BBA0D1B4DC8692/96 extra=B3D3F3A5 sn=4AB9A1 btn=D1 cnt=5E crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=BBA0D1B4DC8692/96 extra=B3D3F3A5 sn=4AB9A1 btn=D1 cnt=5E crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=BBA0D1B4DC8692/96 extra=B3D3F3A5 sn=4AB9A1 btn=D1 cnt=5E crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=BBA0D1B4DC8692/96 extra=B3D3F3A5 sn=4AB9A1 btn=D1 cnt=5E crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=BBA0D1B4DC8692/96 extra=B3D3F3A5 sn=4AB9A1 btn=D1 cnt=5E crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=BBA0D1B4DC8692/96 extra=B3D3F3A5 sn=4AB9A1 btn=D1 cnt=5E crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub | 314350000 | Toyota | data=BBA0D1B4DC8692/96 extra=B3D3F3A5 sn=4AB9A1 btn=D1 cnt=5E crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30.sub | 314350000 | Toyota | data=88E1D1ACDAA6C0/96 extra=B183BFA5 sn=4AB9A1 btn=D1 cnt=66 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30.sub | 314350000 | Toyota | data=88E1D1ACDAA6C0/96 extra=B183BFA5 sn=4AB9A1 btn=D1 cnt=66 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30.sub | 314350000 | Toyota | data=88E1D1ACDAA6C0/96 extra=B183BFA5 sn=4AB9A1 btn=D1 cnt=66 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30.sub | 314350000 | Toyota | data=88E1D1ACDAA6C0/96 extra=B183BFA5 sn=4AB9A1 btn=D1 cnt=66 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30.sub | 314350000 | Toyota | data=AAE199948A8B91/96 extra=BB93FF81 sn=4AB9A1 btn=D1 cnt=65 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30.sub | 314350000 | Toyota | data=AAE199948A8B91/96 extra=BB93FF81 sn=4AB9A1 btn=D1 cnt=65 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30.sub | 314350000 | Toyota | data=AAE199948A8B91/96 extra=BB93FF81 sn=4AB9A1 btn=D1 cnt=65 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30.sub | 314350000 | Toyota | data=AAE199948A8B91/96 extra=BB93FF81 sn=4AB9A1 btn=D1 cnt=65 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30.sub | 314350000 | Toyota | data=AAE199948A8B91/96 extra=BB93FF81 sn=4AB9A1 btn=D1 cnt=65 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30.sub | 314350000 | Toyota | data=AAE199948A8B91/96 extra=BB93FF81 sn=4AB9A1 btn=D1 cnt=65 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30.sub | 314350000 | Toyota | data=AAE199948A8B91/96 extra=BB93FF81 sn=4AB9A1 btn=D1 cnt=65 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30.sub | 314350000 | Toyota | data=AAE199948A8B91/96 extra=BB93FF81 sn=4AB9A1 btn=D1 cnt=65 crc=1 tx=1
+Toyota + Lexus/Toyota Estima 2000 ACR30.sub | 314350000 | Toyota | data=AAE199948A8B91/96 extra=BB93FF81 sn=4AB9A1 btn=D1 cnt=65 crc=1 tx=1
+Toyota + Lexus/Toyota_Lexus NX200t_2017_312.sub | 312000000 | (none)
+Toyota + Lexus/Toyota_Lexus NX200t_2017_314.sub | 314350000 | (none)
+Toyota + Lexus/Toyota_Prius2006_lock.sub | 433920000 | (none)
+Toyota + Lexus/Toyota_Prius2006_unlock.sub | 433920000 | (none)
+VAG/20_vw_atlas_l2_u2_t2_rs2.sub | 314980000 | (none)
+VAG/24_vw_atlas_l2_t2_ul2.sub | 433420000 | (none)
+VAG/Audi A3 2012 key.sub | ERR No RAW_Data in .sub file
+VAG/Golf4.sub | 434420000 | VAG | data=C0B4A66EF3E921B1/80 extra=800000000204CB2B sn=A2F9F3C btn=2 cnt=5195 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0B4A66EF3E921B1/80 extra=800000000204CB2B sn=A2F9F3C btn=2 cnt=5195 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0B4A66EF3E921B1/80 extra=800000000204CB2B sn=A2F9F3C btn=2 cnt=5195 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0C27ADBB7034BD1/80 extra=800000000204292B sn=A2F9F3C btn=2 cnt=5196 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0C27ADBB7034BD1/80 extra=800000000204292B sn=A2F9F3C btn=2 cnt=5196 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0C7FFFFFFFFFFE0/80 extra=80000000FF03613D sn=- btn=- cnt=- crc=0 tx=0
+VAG/Golf4.sub | 434420000 | VAG | data=C0C27ADBB7034BD1/80 extra=800000000204292B sn=A2F9F3C btn=2 cnt=5196 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0C27ADBB7034BD1/80 extra=800000000204292B sn=A2F9F3C btn=2 cnt=5196 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0C27ADBB7034BD1/80 extra=800000000204292B sn=A2F9F3C btn=2 cnt=5196 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0C27ADBFFFFFFFF/80 extra=800000F60103FFF8 sn=56A905C8 btn=1 cnt=1E39 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0C27ADBB7034BD1/80 extra=800000000204292B sn=A2F9F3C btn=2 cnt=5196 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0C27ADBB7034BD2/80 extra=800000C302045256 sn=E9AD1718 btn=2 cnt=2CF3 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0C27ADBB7034BD1/80 extra=800000000204292B sn=A2F9F3C btn=2 cnt=5196 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0C27ADBB7034BD1/80 extra=800000000204292B sn=A2F9F3C btn=2 cnt=5196 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C02F1BFC5C6D3650/80 extra=800000000204C72B sn=A2F9F3C btn=2 cnt=5197 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C02F1BFC5C6D3650/80 extra=800000000204C72B sn=A2F9F3C btn=2 cnt=5197 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0DBD0F22592D5A6/80 extra=800000000204231D sn=A2F9F3C btn=1 cnt=5198 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0DBD0F22592D5A6/80 extra=800000000204231D sn=A2F9F3C btn=1 cnt=5198 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C097C951ADA2D5D6/80 extra=800000000204BB1D sn=A2F9F3C btn=1 cnt=5199 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C097C951ADA2D5D6/80 extra=800000000204BB1D sn=A2F9F3C btn=1 cnt=5199 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0CFA91183D1965C/80 extra=800000000204DE1D sn=A2F9F3C btn=1 cnt=519A crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0CFA91183D1965C/80 extra=800000000204DE1D sn=A2F9F3C btn=1 cnt=519A crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0CABB583DE76EE0/80 extra=800000000204212B sn=A2F9F3C btn=2 cnt=519B crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0CABB583DE76EE0/80 extra=800000000204212B sn=A2F9F3C btn=2 cnt=519B crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C034AF183D24C5B2/80 extra=800000000204F72B sn=A2F9F3C btn=2 cnt=519C crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C034AF183D24C5B2/80 extra=800000000204F72B sn=A2F9F3C btn=2 cnt=519C crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C08EAAA7A118CD9F/80 extra=800000000204402B sn=A2F9F3C btn=2 cnt=519D crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C08EAAA7A118CD9F/80 extra=800000000204402B sn=A2F9F3C btn=2 cnt=519D crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C09A0634E3C1000E/80 extra=8000000002046E1D sn=A2F9F3C btn=1 cnt=519E crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C09A0634E3C1000E/80 extra=8000000002046E1D sn=A2F9F3C btn=1 cnt=519E crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0136726CDDDFD1C/80 extra=8000000002046E1D sn=A2F9F3C btn=1 cnt=519F crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0136726CDDDFD1C/80 extra=8000000002046E1D sn=A2F9F3C btn=1 cnt=519F crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0120C2C28CDB427/80 extra=800000000204132B sn=A2F9F3C btn=2 cnt=51A0 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0120C2C28CDB427/80 extra=800000000204132B sn=A2F9F3C btn=2 cnt=51A0 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C06E2D380787C009/80 extra=800000000204272B sn=A2F9F3C btn=2 cnt=51A1 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0692BE39FBF4A8E/80 extra=8000000002047C2B sn=A2F9F3C btn=2 cnt=51A2 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0692BE39FBF4A8E/80 extra=8000000002047C2B sn=A2F9F3C btn=2 cnt=51A2 crc=1 tx=1
+VAG/Golf4.sub | 434420000 | VAG | data=C0F129B34EC9A07F/80 extra=80000000FF03FFFF sn=- btn=- cnt=- crc=0 tx=0
+VAG/Passat_2015.sub | 434420000 | VAG | data=976AC900C8799/80 extra=800000000001142A sn=FD779294 btn=20 cnt=9391 crc=1 tx=1
+VAG/Passat_2015.sub | 434420000 | VAG | data=976AC900C8799/80 extra=800000000001142A sn=FD779294 btn=20 cnt=9391 crc=1 tx=1
+VAG/Passat_2015.sub | 434420000 | VAG | data=D711F86F2858A1/80 extra=800000000001662A sn=FD779294 btn=20 cnt=9392 crc=1 tx=1
+VAG/Passat_2015.sub | 434420000 | VAG | data=D711F86F2858A1/80 extra=800000000001662A sn=FD779294 btn=20 cnt=9392 crc=1 tx=1
+VAG/Passat_2015.sub | 434420000 | VAG | data=A42FEFCD6BE5EE/80 extra=8000000000011B1C sn=FD779294 btn=10 cnt=9393 crc=1 tx=1
+VAG/Passat_2015.sub | 434420000 | VAG | data=A42FEFCD6BE5EE/80 extra=8000000000011B1C sn=FD779294 btn=10 cnt=9393 crc=1 tx=1
+VAG/Passat_2015.sub | 434420000 | VAG | data=29C8F39C20AC3C/80 extra=800000000001BF1C sn=FD779294 btn=10 cnt=9394 crc=1 tx=1
+VAG/Passat_2015.sub | 434420000 | VAG | data=29C8F39C20AC3C/80 extra=800000000001BF1C sn=FD779294 btn=10 cnt=9394 crc=1 tx=1
+VAG/Passat_b5_3bg.sub | ERR No RAW_Data in .sub file
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=32628E1C42455F/80 extra=80000000FF023D1C sn=10C70EF7 btn=1 cnt=7873 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=D48C1689BC7457/80 extra=80000000FF02EC1C sn=10C70EF7 btn=1 cnt=7874 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=AD48F90031FF06/80 extra=80000000FF021A1C sn=10C70EF7 btn=1 cnt=7875 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=95BBC870B32A36/80 extra=80000000FF02821C sn=10C70EF7 btn=1 cnt=7876 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=AF0CDBCF204FF8/80 extra=80000000FF024B1C sn=10C70EF7 btn=1 cnt=7877 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=8839791C56B214/80 extra=80000000FF02041C sn=10C70EF7 btn=1 cnt=7878 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=C3EF2315447D49/80 extra=80000000FF02221C sn=10C70EF7 btn=1 cnt=7879 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=4CBAC9E80E0DEB/80 extra=80000000FF02A21C sn=10C70EF7 btn=1 cnt=787A crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=D74A47509A9891/80 extra=80000000FF027D1C sn=10C70EF7 btn=1 cnt=787B crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=601D2600197DB0/80 extra=80000000FF02CB1C sn=10C70EF7 btn=1 cnt=787C crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=31A0026714659/80 extra=80000000FF02AF1C sn=10C70EF7 btn=1 cnt=787D crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=58C6B948C0B6C4/80 extra=80000000FF023A1C sn=10C70EF7 btn=1 cnt=787E crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=852923EE3B0290/80 extra=80000000FF024E1C sn=10C70EF7 btn=1 cnt=787F crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=A9B54B37EC2E92/80 extra=80000000FF02A01C sn=10C70EF7 btn=1 cnt=7880 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=2CA6647DC95538/80 extra=80000000FF02C61C sn=10C70EF7 btn=1 cnt=7881 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=F1AA574809B757/80 extra=80000000FF021C1C sn=10C70EF7 btn=1 cnt=7882 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=A3B649850A7C5D/80 extra=80000000FF02B81C sn=10C70EF7 btn=1 cnt=7883 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=7E0BC5079CA626/80 extra=80000000FF024B1C sn=10C70EF7 btn=1 cnt=7884 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=40157C489EC11B/80 extra=80000000FF02421C sn=10C70EF7 btn=1 cnt=7885 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=DDF01EB1B11D1D/80 extra=80000000FF02551C sn=10C70EF7 btn=1 cnt=7886 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=CD504BB80CDFCB/80 extra=80000000FF026B1C sn=10C70EF7 btn=1 cnt=7887 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=B5D0238927D87D/80 extra=80000000FF02581C sn=10C70EF7 btn=1 cnt=7888 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=F5D4233B14F580/80 extra=80000000FF02C41C sn=10C70EF7 btn=1 cnt=7889 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=9F6252791F4D3A/80 extra=80000000FF028E1C sn=10C70EF7 btn=1 cnt=788A crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=9F6252791F4D3A/80 extra=80000000FF028E1C sn=10C70EF7 btn=1 cnt=788A crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=D57C7788904145/80 extra=80000000FF02681C sn=10C70EF7 btn=1 cnt=788B crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=3CEB5A164E2BEF/80 extra=80000000FF02BA1C sn=10C70EF7 btn=1 cnt=788C crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=9DCA03F60AA930/80 extra=80000000FF02F61C sn=10C70EF7 btn=1 cnt=788D crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=15D47C07007A4A/80 extra=80000000FF02BB1C sn=10C70EF7 btn=1 cnt=788E crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=977CFB93ABD13A/80 extra=80000000FF02611C sn=10C70EF7 btn=1 cnt=788F crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=20EF981F5C60E3/80 extra=80000000FF024D1C sn=10C70EF7 btn=1 cnt=7890 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=BB85F756671469/80 extra=80000000FF028A1C sn=10C70EF7 btn=1 cnt=7891 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=9A24F244868AAA/80 extra=80000000FF02D41C sn=10C70EF7 btn=1 cnt=7892 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=85549740876AC3/80 extra=80000000FF024D1C sn=10C70EF7 btn=1 cnt=7893 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=DFEE98A4AB8A53/80 extra=80000000FF026A1C sn=10C70EF7 btn=1 cnt=7894 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=DFEE98A4AB8A53/80 extra=80000000FF026A1C sn=10C70EF7 btn=1 cnt=7894 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=75C95DDB63848B/80 extra=80000000FF02D51C sn=10C70EF7 btn=1 cnt=7895 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=75C95DDB63848B/80 extra=80000000FF02D51C sn=10C70EF7 btn=1 cnt=7895 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=A22A7114C6CEFE/80 extra=80000000FF02331C sn=10C70EF7 btn=1 cnt=7896 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=62BAC7A17CD935/80 extra=80000000FF02DF1C sn=10C70EF7 btn=1 cnt=7897 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=CD07EE80DE0230/80 extra=80000000FF02D51C sn=10C70EF7 btn=1 cnt=7898 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=CD07EE80DE0230/80 extra=80000000FF02D51C sn=10C70EF7 btn=1 cnt=7898 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=F49994B9E9D7DE/80 extra=80000000FF027D1C sn=10C70EF7 btn=1 cnt=7899 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=8D28757636D2/80 extra=80000000FF020A1C sn=10C70EF7 btn=1 cnt=789A crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=16565AE2940892/80 extra=80000000FF02081C sn=10C70EF7 btn=1 cnt=789B crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=51DE4C71A902B2/80 extra=80000000FF02BA1C sn=10C70EF7 btn=1 cnt=789C crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=AC40D349B31B67/80 extra=80000000FF02FD1C sn=10C70EF7 btn=1 cnt=789D crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=F55CCBC10B8B7A/80 extra=80000000FF02E51C sn=10C70EF7 btn=1 cnt=789E crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=71BE0176ED79FC/80 extra=80000000FF02741C sn=10C70EF7 btn=1 cnt=789F crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=A5DE9E22517A14/80 extra=80000000FF02F11C sn=10C70EF7 btn=1 cnt=78A0 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=1CA3DA02596033/80 extra=80000000FF028E1C sn=10C70EF7 btn=1 cnt=78A1 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=1CA3DA02596033/80 extra=80000000FF028E1C sn=10C70EF7 btn=1 cnt=78A1 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=7849B0E3559A27/80 extra=80000000FF02FE1C sn=10C70EF7 btn=1 cnt=78A2 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=7849B0E3559A27/80 extra=80000000FF02FE1C sn=10C70EF7 btn=1 cnt=78A2 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=E83112B9AD0510/80 extra=80000000FF02591C sn=10C70EF7 btn=1 cnt=78A3 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=83D604C490FC8E/80 extra=80000000FF02991C sn=10C70EF7 btn=1 cnt=78A4 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=83D604C490FC8E/80 extra=80000000FF02991C sn=10C70EF7 btn=1 cnt=78A4 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=ECCA65B2C4F22F/80 extra=80000000FF02361C sn=10C70EF7 btn=1 cnt=78A5 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=DCAB3960E9C201/80 extra=80000000FF02421C sn=10C70EF7 btn=1 cnt=78A6 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=507284C6C6235E/80 extra=80000000FF02331C sn=10C70EF7 btn=1 cnt=78A7 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=507284C6C6235E/80 extra=80000000FF02331C sn=10C70EF7 btn=1 cnt=78A7 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=10755F4386BD71/80 extra=80000000FF02371C sn=10C70EF7 btn=1 cnt=78A8 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=10755F4386BD71/80 extra=80000000FF02371C sn=10C70EF7 btn=1 cnt=78A8 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=D44A5D3BE0E024/80 extra=80000000FF02C81C sn=10C70EF7 btn=1 cnt=78A9 crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=36BF5B8DD50DF3/80 extra=80000000FF02471C sn=10C70EF7 btn=1 cnt=78AA crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=309A3134E1B5AB/80 extra=80000000FF021B1C sn=10C70EF7 btn=1 cnt=78AB crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=AA6E65EF78700C/80 extra=80000000FF02041C sn=10C70EF7 btn=1 cnt=78AC crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=6FCD9CBB463EB9/80 extra=80000000FF02051C sn=10C70EF7 btn=1 cnt=78AD crc=1 tx=1
+VAG/Test_55_unlock_and_55_lock_suran.sub | 434620000 | VAG | data=23153D09CC3F23/80 extra=80000000FF02B51C sn=10C70EF7 btn=1 cnt=78AE crc=1 tx=1
+VAG/VAG_2.sub | 434420000 | VAG | data=DDDC5D8521FD0F/80 extra=80000000FF02972A sn=DED2BA3 btn=2 cnt=2FED crc=1 tx=1
+VAG/VAG_2.sub | 434420000 | VAG | data=DDDC5D8521FD0F/80 extra=80000000FF02972A sn=DED2BA3 btn=2 cnt=2FED crc=1 tx=1
+VAG/VAG_2.sub | 434420000 | VAG | data=B93EA4382BE9ED/80 extra=80000000FF02C62A sn=DED2BA3 btn=2 cnt=2FEE crc=1 tx=1
+VAG/VAG_2.sub | 434420000 | VAG | data=B93EA4382BE9ED/80 extra=80000000FF02C62A sn=DED2BA3 btn=2 cnt=2FEE crc=1 tx=1
+VAG/VAG_2.sub | 434420000 | VAG | data=7244E6232FD8DC/80 extra=80000000FF02FE1C sn=DED2BA3 btn=1 cnt=2FEF crc=1 tx=1
+VAG/VAG_2.sub | 434420000 | VAG | data=7244E6232FD8DC/80 extra=80000000FF02FE1C sn=DED2BA3 btn=1 cnt=2FEF crc=1 tx=1
+VAG/VAG_2.sub | 434420000 | VAG | data=181B6EF8CB287D/80 extra=80000000FF02D91C sn=DED2BA3 btn=1 cnt=2FF0 crc=1 tx=1
+VAG/VAG_2.sub | 434420000 | VAG | data=181B6EF8CB287D/80 extra=80000000FF02D91C sn=DED2BA3 btn=1 cnt=2FF0 crc=1 tx=1
+VAG/VW Polo 5 2017 lock x5.sub | 434420000 | (none)
+VAG/VW Polo 5 2017 lock1.sub | 434420000 | (none)
+VAG/VW Polo 5 2017 lock2.sub | 434420000 | (none)
+VAG/VW Polo 5 2017 lock3.sub | 434420000 | (none)
+VAG/VW Polo 5 2017 unlock x5.sub | 434420000 | (none)
+VAG/VW Polo 5 2017 unlock1.sub | 434420000 | (none)
+VAG/VW Polo 5 2017 unlock2.sub | 434420000 | PSA | data=737AD61FFFFFFFFF/128 extra=FFFF sn=- btn=- cnt=- crc=0 tx=0
+VAG/VW Polo 5 2017 unlock3.sub | 434420000 | (none)
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C023972E6ABF0094/80 extra=800000000204CA2B sn=15302419 btn=2 cnt=36 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C023972E6ABF0094/80 extra=800000000204CA2B sn=15302419 btn=2 cnt=36 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C023972E6ABF0094/80 extra=800000000204CA2B sn=15302419 btn=2 cnt=36 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C023972E6ABF0094/80 extra=800000000204CA2B sn=15302419 btn=2 cnt=36 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C023972E6ABF0094/80 extra=800000000204CA2B sn=15302419 btn=2 cnt=36 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C023972E6ABF0094/80 extra=800000000204CA2B sn=15302419 btn=2 cnt=36 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C023972E6ABF0094/80 extra=800000000204CA2B sn=15302419 btn=2 cnt=36 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C023972E6ABF0094/80 extra=800000000204CA2B sn=15302419 btn=2 cnt=36 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C0166EE958F10B7E/80 extra=800000000204562B sn=15302419 btn=2 cnt=37 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C0166EE958F10B7E/80 extra=800000000204562B sn=15302419 btn=2 cnt=37 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C0166EE958F10B7E/80 extra=800000000204562B sn=15302419 btn=2 cnt=37 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C0166EE958F10B7E/80 extra=800000000204562B sn=15302419 btn=2 cnt=37 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C0166EE958F10B7E/80 extra=800000000204562B sn=15302419 btn=2 cnt=37 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C0166EE958F10B7E/80 extra=800000000204562B sn=15302419 btn=2 cnt=37 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C0166EE958F10B7E/80 extra=800000000204562B sn=15302419 btn=2 cnt=37 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C0166EE958F10B7E/80 extra=800000000204562B sn=15302419 btn=2 cnt=37 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C0E43A012D9EB632/80 extra=8000000002042A1D sn=15302419 btn=1 cnt=38 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C0E43A012D9EB632/80 extra=8000000002042A1D sn=15302419 btn=1 cnt=38 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C0E43A012D9EB632/80 extra=8000000002042A1D sn=15302419 btn=1 cnt=38 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C0E43A012D9EB632/80 extra=8000000002042A1D sn=15302419 btn=1 cnt=38 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C0E43A012D9EB632/80 extra=8000000002042A1D sn=15302419 btn=1 cnt=38 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C0E43A012D9EB632/80 extra=8000000002042A1D sn=15302419 btn=1 cnt=38 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C0E43A012D9EB632/80 extra=8000000002042A1D sn=15302419 btn=1 cnt=38 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C0E43A012D9EB632/80 extra=8000000002042A1D sn=15302419 btn=1 cnt=38 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C046EBEA174E724E/80 extra=800000000204881D sn=15302419 btn=1 cnt=39 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C046EBEA174E724E/80 extra=800000000204881D sn=15302419 btn=1 cnt=39 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C046EBEA174E724E/80 extra=800000000204881D sn=15302419 btn=1 cnt=39 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C046EBEA174E724E/80 extra=800000000204881D sn=15302419 btn=1 cnt=39 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C046EBEA174E724E/80 extra=800000000204881D sn=15302419 btn=1 cnt=39 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C046EBEA174E724E/80 extra=800000000204881D sn=15302419 btn=1 cnt=39 crc=1 tx=1
+VAG/VW_Skoda_Seat_2008.sub | 434420000 | VAG | data=C046EBEA174E724E/80 extra=800000000204881D sn=15302419 btn=1 cnt=39 crc=1 tx=1
+VAG/Vw pasat B7.sub | 434390000 | VAG | data=3B04A6EEF02C5B/80 extra=800000010001D22A sn=3C07EAA9 btn=20 cnt=8298 crc=1 tx=1
+VAG/Vw pasat B7.sub | 434390000 | VAG | data=3B04A6EEF02C5B/80 extra=800000010001D22A sn=3C07EAA9 btn=20 cnt=8298 crc=1 tx=1
+VAG/Vw pasat B7.sub | 434390000 | VAG | data=9EE4BDB29262F3/80 extra=800000010001832A sn=3C07EAA9 btn=20 cnt=8299 crc=1 tx=1
+VAG/Vw pasat B7.sub | 434390000 | VAG | data=9EE4BDB29262F3/80 extra=800000010001832A sn=3C07EAA9 btn=20 cnt=8299 crc=1 tx=1
+VAG/Vw pasat B7.sub | 434390000 | VAG | data=56E9E70C8FAF71/80 extra=800000010001F82A sn=3C07EAA9 btn=20 cnt=829A crc=1 tx=1
+VAG/Vw pasat B7.sub | 434390000 | VAG | data=56E9E70C8FAF71/80 extra=800000010001F82A sn=3C07EAA9 btn=20 cnt=829A crc=1 tx=1
+VAG/Vw pasat B7.sub | 434390000 | VAG | data=63AF4568597BE2/80 extra=800000010001121C sn=3C07EAA9 btn=10 cnt=829B crc=1 tx=1
+VAG/Vw pasat B7.sub | 434390000 | VAG | data=65319D7B3A6D66/80 extra=8000000100011C1C sn=3C07EAA9 btn=10 cnt=829C crc=1 tx=1
+VAG/Vw pasat B7.sub | 434390000 | VAG | data=411A5F56B7759D/80 extra=800000010001052A sn=3C07EAA9 btn=20 cnt=829D crc=1 tx=1
+VAG/Vw pasat B7.sub | 434390000 | VAG | data=411A5F56B7759D/80 extra=800000010001052A sn=3C07EAA9 btn=20 cnt=829D crc=1 tx=1
+VAG/Vw pasat B7.sub | 434390000 | VAG | data=6C0AF6EF693A23/80 extra=800000010001A32A sn=3C07EAA9 btn=20 cnt=829E crc=1 tx=1
+VAG/Vw pasat B7.sub | 434390000 | VAG | data=6C0AF6EF693A23/80 extra=800000010001A32A sn=3C07EAA9 btn=20 cnt=829E crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C0A35F117FDFBA60/80 extra=800000010204742B sn=C21578B btn=2 cnt=2B04 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C0A35F117FDFBA60/80 extra=800000010204742B sn=C21578B btn=2 cnt=2B04 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C0A35F117FDFBA60/80 extra=800000010204742B sn=C21578B btn=2 cnt=2B04 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C0A35F117FDFBA60/80 extra=800000010204742B sn=C21578B btn=2 cnt=2B04 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C0A35F117FDFBA60/80 extra=800000010204742B sn=C21578B btn=2 cnt=2B04 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C0A35F117FDFBA60/80 extra=800000010204742B sn=C21578B btn=2 cnt=2B04 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C0C9342C9B92D13A/80 extra=8000000102043F2B sn=C21578B btn=2 cnt=2B05 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C0C9342C9B92D13A/80 extra=8000000102043F2B sn=C21578B btn=2 cnt=2B05 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C0C9342C9B92D13A/80 extra=8000000102043F2B sn=C21578B btn=2 cnt=2B05 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C0C9342C9B92D13A/80 extra=8000000102043F2B sn=C21578B btn=2 cnt=2B05 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C0C9342C9B92D13A/80 extra=8000000102043F2B sn=C21578B btn=2 cnt=2B05 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C0C9342C9B92D13A/80 extra=8000000102043F2B sn=C21578B btn=2 cnt=2B05 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C0C9342C9B92D13A/80 extra=8000000102043F2B sn=C21578B btn=2 cnt=2B05 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C09EBD0792CA7FC3/80 extra=800000010204A72B sn=C21578B btn=2 cnt=2B06 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C09EBD0792CA7FC3/80 extra=800000010204A72B sn=C21578B btn=2 cnt=2B06 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C09EBD0792CA7FC3/80 extra=800000010204A72B sn=C21578B btn=2 cnt=2B06 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C09EBD0792CA7FC3/80 extra=800000010204A72B sn=C21578B btn=2 cnt=2B06 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C09EBD0792CA7FC3/80 extra=800000010204A72B sn=C21578B btn=2 cnt=2B06 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C09EBD0792CA7FC3/80 extra=800000010204A72B sn=C21578B btn=2 cnt=2B06 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C09EBD0792CA7FC3/80 extra=800000010204A72B sn=C21578B btn=2 cnt=2B06 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C081FC34D4BB1ACC/80 extra=8000000102044E2B sn=C21578B btn=2 cnt=2B07 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C081FC34D4BB1ACC/80 extra=8000000102044E2B sn=C21578B btn=2 cnt=2B07 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C081FC34D4BB1ACC/80 extra=8000000102044E2B sn=C21578B btn=2 cnt=2B07 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C081FC34D4BB1ACC/80 extra=8000000102044E2B sn=C21578B btn=2 cnt=2B07 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C081FC34D4BB1ACC/80 extra=8000000102044E2B sn=C21578B btn=2 cnt=2B07 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C081FC34D4BB1ACC/80 extra=8000000102044E2B sn=C21578B btn=2 cnt=2B07 crc=1 tx=1
+VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C081FC34D4BB1ACC/80 extra=8000000102044E2B sn=C21578B btn=2 cnt=2B07 crc=1 tx=1
+VOLVO/Volvo S40 1999 unlock.sub | 433920000 | (none)
+acura/22_acura_rdx_l_ul_t_p_l_ul.sub | 433657070 | (none)
+buick/15_buick_lacross_t2_rs2_p2_l2_u2.sub | 314980000 | (none)
+buick/24_buick_encore_ul2_t2_l2_rs2_p2.sub | 433920000 | (none)
+buick/24_buick_envista_ul2_l2_t2_rs2_p2.sub | 433889000 | (none)
+chevy/18_chevy_malibu_l2_u2_rs2_t2_p2.sub | 433920000 | (none)
+chevy/22_chevy_trail_blazer_l2_u2_rs_p_t.sub | 433920000 | (none)
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=20235C167DE9 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=20235C167DE9 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=20235C167DE9 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=20235C167DE9 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=201D4A386B5D sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=201D4A386B5D sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=201D4A386B5D sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2019F11FE069 sn=D737A2C3 btn=BB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2019F11FE069 sn=D737A2C3 btn=BB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2019F11FE069 sn=D737A2C3 btn=BB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2019F11FE069 sn=D737A2C3 btn=BB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2015AEB194A5 sn=D737A2C3 btn=BB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2015AEB194A5 sn=D737A2C3 btn=BB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2015AEB194A5 sn=D737A2C3 btn=BB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2015AEB194A5 sn=D737A2C3 btn=BB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=2012C634A3F5 sn=D737A2C3 btn=7B cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=2012C634A3F5 sn=D737A2C3 btn=7B cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=2012C634A3F5 sn=D737A2C3 btn=7B cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=200E9228DF41 sn=D737A2C3 btn=7B cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=200E9228DF41 sn=D737A2C3 btn=7B cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=200E9228DF41 sn=D737A2C3 btn=7B cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=200E9228DF41 sn=D737A2C3 btn=7B cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C357FB/112 extra=200A55E511ED sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C357FB/112 extra=200A55E511ED sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C357FB/112 extra=2004D2FB2015 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C357FB/112 extra=2004D2FB2015 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C357FB/112 extra=2004D2FB2015 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=200007F12CB9 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=200007F12CB9 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=200007F12CB9 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=1FFECE6064D1 sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=1FFECE6064D1 sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=1FFECE6064D1 sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=1FFECE6064D1 sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF921FDF3A9 sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF921FDF3A9 sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF921FDF3A9 sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF459CC198D sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF459CC198D sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF459CC198D sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF459CC198D sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FDB/112 extra=1FF0E6F77F51 sn=D737A2C3 btn=DB cnt=49C crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FDB/112 extra=1FF0E6F77F51 sn=D737A2C3 btn=DB cnt=49C crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=1FEEFA1842C9 sn=D737A2C3 btn=7B cnt=9C crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=1FEEFA1842C9 sn=D737A2C3 btn=7B cnt=9C crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=1FE8C064BA21 sn=D737A2C3 btn=7B cnt=9C crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=1FE8C064BA21 sn=D737A2C3 btn=7B cnt=9C crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 close.sub | 433889000 | Chrysler V0 | data=7A11E7D2462A57D/80 extra=2462 sn=A11E7D24 btn=1 cnt=20 crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 close.sub | 433889000 | Chrysler V0 | data=FB4725BFA44725BF/80 extra=7984 sn=4725BF79 btn=1 cnt=1F crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 close.sub | 433889000 | Chrysler V0 | data=7BC17E1D4402C51D/80 extra=4402 sn=A11E7D24 btn=1 cnt=1E crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 close.sub | 433889000 | Chrysler V0 | data=BB4123B9A24123B9/80 extra=7F82 sn=4725BF79 btn=1 cnt=1D crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 close.sub | 433889000 | Chrysler V0 | data=3B813E5D0442855D/80 extra=442 sn=A11E7D24 btn=1 cnt=1C crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 close.sub | 433889000 | Chrysler V0 | data=DB4321BBA04321BB/80 extra=7D80 sn=4725BF79 btn=1 cnt=1B crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 close.sub | 433889000 | Chrysler V0 | data=5BFE41227B3DFA22/80 extra=7B3D sn=A11E7D24 btn=1 cnt=1A crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 close.sub | 433889000 | Chrysler V0 | data=9BBDDF455EBDDF45/80 extra=837E sn=4725BF79 btn=1 cnt=19 crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 close.sub | 433889000 | Chrysler V0 | data=1BBE01623B7DBA62/80 extra=3B7D sn=A11E7D24 btn=1 cnt=18 crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 close.sub | 433889000 | Chrysler V0 | data=EBBFDD475CBFDD47/80 extra=817C sn=4725BF79 btn=1 cnt=17 crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 open.sub | 433889000 | Chrysler V0 | data=5BF14E2D7432F92D/80 extra=7432 sn=A11E7D24 btn=2 cnt=1A crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 open.sub | 433889000 | Chrysler V0 | data=9B4D2FB59E4D2FB5/80 extra=738E sn=4725BF79 btn=2 cnt=19 crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 open.sub | 433889000 | Chrysler V0 | data=1BB10E6D3472B96D/80 extra=3472 sn=A11E7D24 btn=2 cnt=18 crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 open.sub | 433889000 | Chrysler V0 | data=EB4F2DB79C4F2DB7/80 extra=718C sn=4725BF79 btn=2 cnt=17 crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 open.sub | 433889000 | Chrysler V0 | data=6BD16E0D5412D90D/80 extra=5412 sn=A11E7D24 btn=2 cnt=16 crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 open.sub | 433889000 | Chrysler V0 | data=AB492BB19A492BB1/80 extra=778A sn=4725BF79 btn=2 cnt=15 crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 open.sub | 433889000 | Chrysler V0 | data=2B912E4D1452994D/80 extra=1452 sn=A11E7D24 btn=2 cnt=14 crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 open.sub | 433889000 | Chrysler V0 | data=CB4B29B3984B29B3/80 extra=7588 sn=4725BF79 btn=2 cnt=13 crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 open.sub | 433889000 | Chrysler V0 | data=4BE15E3D6422E93D/80 extra=6422 sn=A11E7D24 btn=2 cnt=12 crc=1 tx=1
+chrysler/Chrysler PT Cruiser 2006 open.sub | 433889000 | Chrysler V0 | data=8B4527BD964527BD/80 extra=7B86 sn=4725BF79 btn=2 cnt=11 crc=1 tx=1
+genesis/19_genesis_g90_l2_u2_t2_p2.sub | 433920000 | (none)
+genesis/24_genesis_gv80_hatch.sub | 433920000 | (none)
+genesis/24_genesis_gv80_lock.sub | 433920000 | (none)
+genesis/24_genesis_gv80_remote_start.sub | 433920000 | (none)
+genesis/24_genesis_gv80_unlock.sub | 433920000 | (none)
+gmc/15_gmc_acadia_rs2_l2_u2_t2_p2.sub | 314980000 | (none)
+gmc/20_gmc_acadia_l2_u2_rs2_t2_p2.sub | 433920000 | (none)
+honda/17_honda_pilot_lllluuuuaaattt.sub | 434176948 | (none)
+honda/18_Honda_accord_l2_u2_rs2_t2_p2.sub | 433920000 | (none)
+honda/18_honda_civic_ll_uu_rs_t_rs_t_pp.sub | 433657070 | (none)
+honda/24_hoda_crv_l2_u2_rs_t_p.sub | ERR No RAW_Data in .sub file
+honda/24_honda_crv.sub | 434176948 | (none)
+honda/24_honda_crv_l2_u2_rs_t_p.sub | ERR No RAW_Data in .sub file
+honda/24_honda_hrv_l2_rs_t_p_ul2.sub | 434176948 | (none)
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B7823A8056FE21/64 sn=B7823A8 btn=1 cnt=FE21 crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B7823C8056BE7F/64 sn=B7823C8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B7823C8056BE7F/64 sn=B7823C8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Lock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
+honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
+honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137EFB/112 extra=F828439E1631 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137EFB/112 extra=F828439E1631 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137EFB/112 extra=F828439E1631 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137EFB/112 extra=F82760589BC9 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137EFB/112 extra=F82760589BC9 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F8229C688519 sn=D08BE613 btn=BB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F8229C688519 sn=D08BE613 btn=BB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F8229C688519 sn=D08BE613 btn=BB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F8229C688519 sn=D08BE613 btn=BB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F81C7B5F37B9 sn=D08BE613 btn=BB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F81C7B5F37B9 sn=D08BE613 btn=BB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F81C7B5F37B9 sn=D08BE613 btn=BB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F81C7B5F37B9 sn=D08BE613 btn=BB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81A85928FF1 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81A85928FF1 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81A85928FF1 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81A85928FF1 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81574F5EEA5 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81574F5EEA5 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81574F5EEA5 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81574F5EEA5 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F813F756E7E1 sn=D08BE613 btn=DB cnt=480 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F813F756E7E1 sn=D08BE613 btn=DB cnt=480 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F813F756E7E1 sn=D08BE613 btn=DB cnt=480 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F813F756E7E1 sn=D08BE613 btn=DB cnt=480 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F80FC6E93E9D sn=D08BE613 btn=DB cnt=480 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F80FC6E93E9D sn=D08BE613 btn=DB cnt=480 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F80FC6E93E9D sn=D08BE613 btn=DB cnt=480 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F80FC6E93E9D sn=D08BE613 btn=DB cnt=480 crc=1 tx=1
+mercedes/24_Merc_gle350_lulu.sub | 434075000 | (none)
+mercedes/24_merc_gle350_luluttlulu.sub | 314350000 | (none)
+mercedes/Mercedes W220 S430 1999 315.sub | 315000000 | (none)
+nissan/18_nissan_rogue_rs2_l2_u2_t2_p2.sub | 433920000 | (none)
+nissan/18_nisssan_rogue_rs3_l3_u3_t3_p3.sub | 433920000 | (none)
+nissan/21_nissan_versa_l2_u2_t2_p2.sub | 433657070 | (none)
+nissan/22_nissan_frontier_lock.sub | 433920000 | (none)
+nissan/22_nissan_frotier_unlock.sub | 433920000 | (none)
+nissan/Nissan_frontier_lock_2time.sub | 434176948 | (none)
+nissan/Nissan_frotier_unlock_4.sub | 434176948 | (none)
+nissan/Skyline_close_US.sub | 314980000 | (none)
+nissan/Skyline_open_US.sub | 314980000 | (none)

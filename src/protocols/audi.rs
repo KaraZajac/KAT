@@ -69,6 +69,23 @@ use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
 
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Audi",
+    decoder: "Audi",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Pwm,
+    rf: Rf::AM,
+    encryption: "Rolling Code",
+    make: "Audi",
+    category: Category::Vehicle,
+    buttons: None,
+    presets: &[&AM650],
+};
+
 const TE_SHORT: u32 = 550;
 const TE_LONG: u32 = 1100;
 const TE_DELTA: u32 = 137;

@@ -84,9 +84,47 @@
 //! pending Dynamic candidate, so such frames stay "Renault V1" (tested).
 //!
 //! Deviations from C: none in emitted frames (the C fires its callback inside the same feed call).
+//!
+//! ## Key files
+//! `subghz_protocol_decoder_renault_v1_serialize` (ARF): `Protocol: Renault V1` — ARF's name, which
+//! in KAT is ProtoPirate's HITAG2 decoder; the two key layouts differ (ARF: `Bit: 82` + a decimal
+//! `Key2`; ProtoPirate: `Bit: 88` + a hex `Key_2`), so loading needs the "Renault V1" entry to hand
+//! 82-bit keys to this decoder — then `Bit: 82`, `Key` = the 64 data bits, `Key2` (decimal),
+//! `Preamble`, `Serial`, `Btn`, `Cnt` and `Recovered: 00`. Not written: ARF's `Hop` / `Hitag2 Key`
+//! / `Hitag2 Epoch` / `Hitag2 IV` / `Hitag2 Slice` lines (its Fiat-V1-key search, not ported, see
+//! above) and `Seed` (only after its manual seed brute force). Loading follows ARF's deserialize:
+//! 82 bits, `Key2` required, `Preamble` kept when 12/16/18/20 (else the type's default), the frame
+//! re-classified — a frame that does not classify (e.g. Renault V0's 0x13 tag) still loads, as in
+//! ARF, with `crc_valid` and `encoder_capable` false. The file's Serial/Btn/Cnt are not read back.
 
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (see `info.rs`); display names carry the frame type, e.g. "Renault V1 (ARF) [0x0C]".
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Renault V1 (ARF)",
+    decoder: "Renault V1 (ARF)",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::Both,
+    encryption: "Rolling Code",
+    make: "Renault",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650, &FM476],
+};
+
+/// ARF renault_v1_get_button_name: the low nibble is the action, the high nibble the family.
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code & 0x0F {
+        0x4..=0x7 => "Lock",
+        0x8..=0xB => "Unlock",
+        _ => "Other",
+    })
+}
 
 /// RENAULT_V1_MIN_BITS: data (64) + key2 (18).
 const FRAME_BITS: usize = 0x52;
@@ -620,6 +658,58 @@ impl ProtocolDecoder for RenaultV1ArfDecoder {
             );
         }
         Some(signal)
+    }
+
+    /// `subghz_protocol_decoder_renault_v1_deserialize` (see the module doc, "Key files").
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != FRAME_BITS {
+            return None;
+        }
+        let data = key.key_u64()?;
+        let key2 = key.u32_field("Key2")? & KEY2_MASK;
+        let stored_preamble = key
+            .u32_field("Preamble")
+            .filter(|&p| Self::preamble_bits_valid(p as usize))
+            .unwrap_or(0) as u8;
+        match Self::classify_frame(data, key2) {
+            Some(mut attempt) => {
+                attempt.preamble_bits = if stored_preamble != 0 {
+                    stored_preamble
+                } else {
+                    Self::default_preamble_bits(attempt.frame_type)
+                };
+                Some(Self::decoded_signal(&attempt))
+            }
+            // ARF: type Unknown, both checks failed; it still loads (replay refuses it).
+            None => Some(DecodedSignal {
+                serial: Some((data >> 40) as u32),
+                button: Some((data >> 32) as u8),
+                counter: Some(((data >> 24) & 0xFF) as u16),
+                crc_valid: false,
+                data,
+                data_count_bit: FRAME_BITS,
+                encoder_capable: false,
+                extra: Some(key2 as u64 | (stored_preamble as u64) << EXTRA_PREAMBLE_SHIFT),
+                protocol_display_name: None,
+            }),
+        }
+    }
+
+    /// `subghz_protocol_decoder_renault_v1_serialize` (ARF; see the module doc, "Key files").
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        if decoded.data_count_bit != FRAME_BITS {
+            return None;
+        }
+        let extra = decoded.extra?;
+        let data = decoded.data;
+        let mut key = FlipperKey::for_protocol("Renault V1", FRAME_BITS, data);
+        key.push_u32("Key2", (extra as u32) & KEY2_MASK);
+        key.push_u32("Preamble", ((extra >> EXTRA_PREAMBLE_SHIFT) & 0xFF) as u32);
+        key.push_u32("Serial", (data >> 40) as u32);
+        key.push_u32("Btn", ((data >> 32) & 0xFF) as u32);
+        key.push_u32("Cnt", ((data >> 24) & 0xFF) as u32);
+        key.push_hex_bytes("Recovered", &[0]);
+        Some(key)
     }
 }
 
@@ -1220,5 +1310,78 @@ mod tests {
             crate::protocols::native_button_name("Renault V1 (ARF)", 0x4A),
             Some("Unlock")
         );
+    }
+
+    /// Key files: typed and Dynamic frames round-trip with ARF's lines, a missing Key2 or a wrong
+    /// bit count is refused, an unclassifiable frame loads (not transmittable), and TX from a
+    /// loaded key replays the frame.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = RenaultV1ArfDecoder::new();
+        for (data, key2, pre, tag, ..) in C_VECTORS {
+            let tx = dec.encode(&signal_for(data, key2, pre), 0x01).unwrap();
+            let decoded = decode_all(&mut RenaultV1ArfDecoder::new(), &tx).remove(0);
+            let text = assert_round_trip(&dec, &decoded);
+            let hex = data.to_be_bytes().iter().map(|b| format!("{b:02X}")).collect::<Vec<_>>().join(" ");
+            assert!(
+                text.ends_with(&format!(
+                    "Protocol: Renault V1\nBit: 82\nKey: {hex}\nKey2: {key2}\nPreamble: {pre}\n\
+                     Serial: {}\nBtn: {}\nCnt: {}\nRecovered: 00\n",
+                    data >> 40,
+                    (data >> 32) & 0xFF,
+                    (data >> 24) & 0xFF
+                )),
+                "{tag}: {text}"
+            );
+            // ARF writes "Renault V1", ProtoPirate's name: the registry hands Bit 82 keys here.
+            let reg = crate::protocols::ProtocolRegistry::new();
+            let name = decoded.protocol_display_name.clone().unwrap();
+            assert_eq!(reg.decode_key(&key(&text)), Some((name, decoded.clone())), "{tag}");
+            // TX from the reloaded decode replays the same frame.
+            let loaded = dec.from_flipper_key(&key(&text)).unwrap();
+            assert_eq!(pulses(&dec.encode(&loaded, 0x02).unwrap()), pulses(&tx), "{tag}");
+            // Without a Preamble line a typed frame takes its type's default (as ARF).
+            let mut k = key(&text);
+            k.fields.retain(|(n, _)| n != "Preamble");
+            let d = dec.from_flipper_key(&k).unwrap();
+            if !decoded.protocol_display_name.as_deref().unwrap_or("").contains("Dynamic") {
+                assert_eq!(d, decoded, "{tag}");
+            }
+            let mut k = key(&text);
+            k.fields.retain(|(n, _)| n != "Key2");
+            assert!(dec.from_flipper_key(&k).is_none(), "{tag}: Key2 is required");
+            let mut k = key(&text);
+            k.bits = 88;
+            assert!(dec.from_flipper_key(&k).is_none(), "{tag}: ProtocolPirate's 88-bit layout");
+        }
+        // A Renault V0 frame (tag 0x13) loads as ARF does (type Unknown) but is not transmittable.
+        let v0 = make(0x12_3456, 0x05, 0x10, 0x2_0000, 0x13, 0);
+        let k = key(&format!(
+            "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+             Preset: FuriHalSubGhzPresetOok650Async\nProtocol: Renault V1\nBit: 82\nKey: {}\n\
+             Key2: {}\nPreamble: 12\n",
+            v0.to_be_bytes().iter().map(|b| format!("{b:02X}")).collect::<Vec<_>>().join(" "),
+            0x2_0000
+        ));
+        let d = dec.from_flipper_key(&k).unwrap();
+        assert!(!d.crc_valid && !d.encoder_capable && d.protocol_display_name.is_none());
+        assert!(dec.encode(&d, 0x01).is_none());
+    }
+
+    /// Oracle vectors (`KAT_KEY_VECTORS=<dir> cargo test renault_v1_arf_key_vectors -- --ignored`).
+    #[test]
+    #[ignore]
+    fn renault_v1_arf_key_vectors() {
+        use super::super::bmw::{key_vector_dir, write_key_vector};
+        let dec = RenaultV1ArfDecoder::new();
+        for (n, i) in [(1, 0), (2, 5)] {
+            let (data, key2, pre, ..) = C_VECTORS[i];
+            let one = upload(data, key2, pre);
+            let tx = dec.encode(&signal_for(data, key2, pre), 0x01).unwrap();
+            let decoded = decode_all(&mut RenaultV1ArfDecoder::new(), &tx).remove(0);
+            let key = dec.to_flipper_key(&decoded).unwrap();
+            write_key_vector(&key_vector_dir(), &format!("renault_v1_arf_{n}"), 433_920_000, "FuriHalSubGhzPresetOok650Async", &one, &key);
+        }
     }
 }

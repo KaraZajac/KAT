@@ -14,7 +14,7 @@
 //! only their own level→event mapping, initial state and reset points, mirroring their C file.
 
 /// Decoded signal information
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodedSignal {
     /// Serial number / device ID
     pub serial: Option<u32>,

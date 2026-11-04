@@ -86,6 +86,23 @@ use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
 
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Mazda Infinity",
+    decoder: "Mazda Infinity",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::AM,
+    encryption: "Rolling Code",
+    make: "Mazda",
+    category: Category::Vehicle,
+    buttons: Some(super::mazda_siemens::native_buttons),
+    presets: &[&AM650],
+};
+
 const TE_SHORT: u32 = 250;
 const TE_LONG: u32 = 500;
 const TE_DELTA: u32 = 62;

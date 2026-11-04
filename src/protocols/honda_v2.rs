@@ -47,10 +47,46 @@
 //! Unlock signature 0xA285E3 satisfies this and round-trips cleanly; the Lock signature 0xC20363
 //! (whose bit 1 is 1) is emitted as 0x820363 by the reference encoder (all three references). We
 //! reproduce that behaviour.
+//!
+//! **Key files** (`subghz_protocol_decoder_honda_v2_serialize` / `_deserialize`; ProtoPirate's
+//! former "Land Rover V0", Flipper-ARF and doctor-firmware write the same lines): Protocol
+//! "Honda V2", Bit 81, Key = the 64-bit key, then Serial, Btn (0x02 Lock / 0x04 Unlock / 0),
+//! BtnSig, Cnt (9-bit), Check, Tail and ExtraBit, all decimal. Loading needs Bit 81 (the name
+//! "Land Rover V0" resolves here); the fields come from the Key, the tail from Tail (else the
+//! counter's), the extra bit from ExtraBit (else 1), and — like the C, which only flags them —
+//! a failed check / tail / extra bit still loads, with `crc_valid` false. KAT keeps the tail in
+//! `extra` but not the extra bit (its decoder only reports frames whose extra bit is 1), so it
+//! writes ExtraBit 0 exactly when `crc_valid` is false although check and tail are right.
 
-use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
 use crate::duration_diff;
+
+use super::info::prelude::*;
+
+/// Metadata (see `info.rs`); "Land Rover V0" is the name before ProtoPirate's rename.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Honda V2",
+    decoder: "Honda V2",
+    aliases: &["Land Rover V0"],
+    name_prefix: None,
+    encoding: Coding::DifferentialManchester,
+    rf: Rf::FM,
+    encryption: "Rolling Code",
+    make: "Honda/Acura",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&F4],
+};
+
+/// Honda V2 buttons.
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x02 => "Lock",
+        0x04 => "Unlock",
+        _ => "Other",
+    })
+}
 
 const TE_SHORT: u32 = 250;
 const TE_LONG: u32 = 500;
@@ -265,24 +301,30 @@ impl HondaV2Decoder {
             return None;
         }
 
+        // check + tail + reserved-bits validated above
+        Some(Self::signal(key, tail, true))
+    }
+
+    /// The decode of `key` + `tail` (`honda_v2_parse_key_fields`); `valid` = check and tail OK.
+    fn signal(key: u64, tail: u16, valid: bool) -> DecodedSignal {
         let b = key.to_be_bytes();
         let signature = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
         let serial = ((b[3] as u32) << 16) | ((b[4] as u32) << 8) | b[5] as u32;
         let count = Self::count_from_bytes(&b);
         let button = Self::button_from_signature(signature);
 
-        Some(DecodedSignal {
+        DecodedSignal {
             serial: Some(serial),
             button: Some(button),
             counter: Some(count as u16),
-            crc_valid: true, // check + tail + reserved-bits validated above
+            crc_valid: valid,
             data: key,
             data_count_bit: COUNT_BIT,
             encoder_capable: true,
             // Stash the 16-bit tail so the encoder can rebuild the full frame without recomputation.
             extra: Some(tail as u64),
             protocol_display_name: None,
-        })
+        }
     }
 
     /// `honda_v2_signature_from_button` (Honda V2 button code → command signature).
@@ -511,6 +553,42 @@ impl ProtocolDecoder for HondaV2Decoder {
 
         Some(signal)
     }
+
+    /// `subghz_protocol_decoder_honda_v2_deserialize` (see the module doc, Key files).
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != COUNT_BIT {
+            return None;
+        }
+        let data = key.key_u64()?;
+        let count = Self::count_from_bytes(&data.to_be_bytes());
+        let tail = key.u32_field("Tail").map_or_else(|| Self::calculate_tail(count), |t| t as u16);
+        let extra_bit = key.u32_field("ExtraBit").map_or(true, |e| e & 1 != 0);
+        let (check_ok, tail_ok) = Self::validate_frame(data, tail, extra_bit);
+        Some(Self::signal(data, tail, check_ok && tail_ok))
+    }
+
+    /// `subghz_protocol_decoder_honda_v2_serialize` (see the module doc, Key files).
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        if decoded.data_count_bit != COUNT_BIT {
+            return None;
+        }
+        let data = decoded.data;
+        let b = data.to_be_bytes();
+        let signature = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
+        let count = Self::count_from_bytes(&b);
+        let tail = decoded.extra.map_or_else(|| Self::calculate_tail(count), |t| t as u16);
+        let (check_ok, tail_ok) = Self::validate_frame(data, tail, true);
+        let extra_bit = decoded.crc_valid || !(check_ok && tail_ok);
+        let mut key = FlipperKey::for_protocol("Honda V2", COUNT_BIT, data);
+        key.push_u32("Serial", ((b[3] as u32) << 16) | ((b[4] as u32) << 8) | b[5] as u32);
+        key.push_u32("Btn", Self::button_from_signature(signature).into());
+        key.push_u32("BtnSig", signature);
+        key.push_u32("Cnt", count);
+        key.push_u32("Check", (b[7] & 0x07).into());
+        key.push_u32("Tail", tail.into());
+        key.push_u32("ExtraBit", extra_bit.into());
+        Some(key)
+    }
 }
 
 impl Default for HondaV2Decoder {
@@ -569,6 +647,73 @@ mod tests {
                 "check embedded in key byte 7 must equal calculate_check(count) for count={count}"
             );
             assert_eq!(b[7] & 0x78, 0, "reserved bits must be zero for count={count}");
+        }
+    }
+
+    /// Key files: ProtoPirate's lines round-trip; a legacy "Land Rover V0" file loads through the
+    /// registry; a frame with ExtraBit 0 / a bad check loads flagged (crc_valid false) and
+    /// round-trips; a loaded key transmits a frame that decodes back.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = HondaV2Decoder::new();
+        let src = HondaV2Decoder::new_signal_for_test(HondaV2Decoder::build_key(SIG_UNLOCK, 0x00AB_CDEF, 0x122));
+        let decoded = decode_upload(&dec.encode(&src, 0x02).unwrap()).expect("decodes");
+        let text = assert_round_trip(&dec, &decoded);
+        assert!(
+            text.ends_with(&format!(
+                "Protocol: Honda V2\nBit: 81\nKey: A2 85 E3 AB CD EF 91 {:02X}\nSerial: 11259375\n\
+                 Btn: 4\nBtnSig: 10651107\nCnt: 291\nCheck: {}\nTail: {}\nExtraBit: 1\n",
+                0x80 | HondaV2Decoder::calculate_check(0x123),
+                HondaV2Decoder::calculate_check(0x123),
+                HondaV2Decoder::calculate_tail(0x123),
+            )),
+            "{text}"
+        );
+
+        // ProtoPirate's pre-rename name, through the registry alias.
+        let mut legacy = key(&text);
+        legacy.protocol = "Land Rover V0".into();
+        let reg = crate::protocols::ProtocolRegistry::new();
+        assert_eq!(reg.decode_key(&legacy), Some(("Honda V2".to_string(), decoded.clone())));
+
+        // ExtraBit 0: loads flagged, and KAT writes it back.
+        let mut no_extra = key(&text);
+        for (n, v) in no_extra.fields.iter_mut() {
+            if n == "ExtraBit" {
+                *v = "0".into();
+            }
+        }
+        let flagged = dec.from_flipper_key(&no_extra).unwrap();
+        assert!(!flagged.crc_valid);
+        assert!(assert_round_trip(&dec, &flagged).ends_with("ExtraBit: 0\n"));
+        // A bad check: flagged, round-trips with ExtraBit 1.
+        let bad = HondaV2Decoder::signal(decoded.data ^ 0x01, decoded.extra.unwrap() as u16, false);
+        assert!(assert_round_trip(&dec, &bad).ends_with("ExtraBit: 1\n"));
+        let mut bits = key(&text);
+        bits.bits = 80;
+        assert!(dec.from_flipper_key(&bits).is_none());
+
+        let loaded = dec.from_flipper_key(&key(&text)).unwrap();
+        let again = decode_upload(&dec.encode(&loaded, 0x02).unwrap()).unwrap();
+        assert_eq!((again.serial, again.button, again.counter), (Some(0x00AB_CDEF), Some(HV2_BTN_UNLOCK), Some(0x124)));
+    }
+
+    /// Oracle vectors (see `fiat_v0::write_oracle_vector`): two Unlock frames (counters with
+    /// both tail values).
+    #[test]
+    #[ignore]
+    fn oracle_vectors() {
+        for (name, serial, count) in [("honda_v2_1", 0x00AB_CDEFu32, 0x122u32), ("honda_v2_2", 0x0012_3456, 0x0FF)] {
+            let src = HondaV2Decoder::new_signal_for_test(HondaV2Decoder::build_key(SIG_UNLOCK, serial, count));
+            let up = HondaV2Decoder::new().encode(&src, 0x02).unwrap();
+            crate::protocols::fiat_v0::write_oracle_vector(
+                name,
+                433_920_000,
+                "FuriHalSubGhzPreset2FSKDev476Async",
+                &up,
+                &mut HondaV2Decoder::new(),
+            );
         }
     }
 

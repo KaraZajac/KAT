@@ -10,7 +10,11 @@ use ratatui::{
 
 use crate::app::App;
 use crate::capture::CaptureStatus;
+use crate::saved_fobs::SavedFobMatch;
 use crate::vuln_db;
+
+/// Colour of the saved-fob marker (★ in the ID column, "Saved:" in the detail panel).
+const SAVED_COLOR: Color = Color::Magenta;
 
 /// Render the captures area: table + detail panel
 pub fn render_captures_list(frame: &mut Frame, area: Rect, app: &App) {
@@ -98,8 +102,18 @@ fn render_table(frame: &mut Frame, area: Rect, app: &App) {
             Style::default().fg(Color::DarkGray)
         };
 
+        // ★ = matches a saved .fob (protocol + serial/key + counter within ±50)
+        let id_cell = if app.saved_match(capture.id).is_some() {
+            Cell::from(Line::from(vec![
+                Span::raw(format!("{:02}", capture.id)),
+                Span::styled("★", Style::default().fg(SAVED_COLOR)),
+            ]))
+        } else {
+            Cell::from(format!("{:02}", capture.id))
+        };
+
         Row::new(vec![
-            Cell::from(format!("{:02}", capture.id)),
+            id_cell,
             Cell::from(capture.timestamp_short()),
             Cell::from(capture.protocol_name().to_string()),
             Cell::from(capture.frequency_mhz()),
@@ -160,12 +174,17 @@ fn render_detail_panel(frame: &mut Frame, area: Rect, app: &App) {
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
 
-    render_signal_detail(frame, halves[0], capture);
+    render_signal_detail(frame, halves[0], capture, app.saved_match(capture.id));
     render_vulnerability_panel(frame, halves[1], capture);
 }
 
-/// Left half: signal information
-fn render_signal_detail(frame: &mut Frame, area: Rect, capture: &crate::capture::Capture) {
+/// Left half: signal information (plus the saved .fob it matches, if any)
+fn render_signal_detail(
+    frame: &mut Frame,
+    area: Rect,
+    capture: &crate::capture::Capture,
+    saved: Option<&SavedFobMatch>,
+) {
     let label_style = Style::default()
         .fg(Color::DarkGray)
         .add_modifier(Modifier::BOLD);
@@ -174,7 +193,7 @@ fn render_signal_detail(frame: &mut Frame, area: Rect, capture: &crate::capture:
     let good_style = Style::default().fg(Color::Green);
     let bad_style = Style::default().fg(Color::Red);
 
-    let make = App::get_make_for_protocol(capture.protocol_name());
+    let make = capture.protocol_make();
 
     let mut left_lines = Vec::new();
 
@@ -252,6 +271,9 @@ fn render_signal_detail(frame: &mut Frame, area: Rect, capture: &crate::capture:
     // Row 7: Timestamp + Raw data info
     let raw_info = if capture.has_raw_data() {
         format!("✓ {} transitions", capture.raw_pair_count())
+    } else if capture.source_file.as_deref().is_some_and(|f| f.to_ascii_lowercase().ends_with(".sub")) {
+        // Loaded from a Flipper key file: TX re-encodes from the fields (no replay).
+        "None (key file)".to_string()
     } else {
         "None".to_string()
     };
@@ -287,6 +309,28 @@ fn render_signal_detail(frame: &mut Frame, area: Rect, capture: &crate::capture:
             },
         ),
     ]));
+
+    // Saved .fob this capture matches: file name, counter difference, saved vehicle info + notes
+    if let Some(m) = saved {
+        left_lines.push(Line::from(vec![
+            Span::styled(" Saved:     ", label_style),
+            Span::styled(format!("★ {}", m.name), Style::default().fg(SAVED_COLOR)),
+            Span::styled(format!("  ({})", m.counter_label()), value_style),
+        ]));
+        let mut info = m.vehicle_label();
+        if let Some(notes) = m.notes.as_deref() {
+            if !info.is_empty() {
+                info.push_str(" — ");
+            }
+            info.push_str(notes);
+        }
+        if !info.is_empty() {
+            left_lines.push(Line::from(vec![
+                Span::styled("            ", label_style),
+                Span::styled(info, Style::default().fg(Color::DarkGray)),
+            ]));
+        }
+    }
 
     // Build the title
     let title = format!(

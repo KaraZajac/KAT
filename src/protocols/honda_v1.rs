@@ -1,7 +1,7 @@
 //! Honda V1 protocol decoder/encoder
 //!
 //! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/honda_v1.c` and
-//! `honda_v1.h`. Honda/Acura fixed-code keyfobs, a DIFFERENT protocol from `honda_static`.
+//! `honda_v1.h`. Honda/Acura counter-based (rolling-code) keyfobs, a DIFFERENT protocol from `honda_static`.
 //! AM (OOK), 315 MHz + 433.92 MHz. The on-wire frame carries 68 bits: 64-bit data + a 4-bit
 //! CRC-fold nibble.
 //!
@@ -38,9 +38,46 @@
 //! button table (`honda_v1_build_key`); then `honda_v1_build_upload`: a 180-element short-pair
 //! preamble whose last element is a 5000µs LOW + 4 PWM frames (2 per checksum wire value). The
 //! Flipper TX loop sends the upload `repeat` = 1 time.
+//!
+//! **Key files** (`subghz_protocol_decoder_honda_v1_serialize` / `_deserialize`, the same in all
+//! three references): Protocol "Honda V1", Bit 68, Key = the 64 data bits, then Serial, Btn, Cnt,
+//! Crc and Key_2 (both the received CRC nibble, decimal) and `Disp: Honda V1 - <button>`. Loading
+//! needs Bit 68; the fields come from the Key (the C ignores Serial/Btn/Cnt here), the nibble from
+//! Key_2, else Crc, else the first wire-order checksum, and `crc_valid` is the C's check of it.
+//! KAT does not keep the received nibble, only whether it matched, so it writes the first
+//! wire-order checksum (the one the encoder sends first) for a CRC-valid frame and, for a frame
+//! that failed, the lowest nibble that fails the check — the reload reports the same status.
 
-use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Honda V1",
+    decoder: "Honda V1",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Pwm,
+    rf: Rf::AM,
+    encryption: "Rolling Code",
+    make: "Honda/Acura",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650],
+};
+
+/// Honda V1 buttons.
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x0 => "Unlock",
+        0x8 => "Lock",
+        0x9 => "Trunk",
+        0xA => "Panic",
+        _ => "Other",
+    })
+}
 
 const BIT_COUNT: usize = 68;
 const TE_SHORT: u32 = 1000;
@@ -290,20 +327,24 @@ impl HondaV1Decoder {
 
         let data = u64::from_be_bytes(aligned[0..8].try_into().unwrap());
         let k2 = aligned[8] >> 4;
-        let (serial, btn, counter) = Self::decode_fields(data);
-        let crc_valid = Self::crc_valid(data, k2);
+        Some(Self::signal(data, k2))
+    }
 
-        Some(DecodedSignal {
+    /// The decode of 64-bit key `data` with received CRC nibble `k2` (`honda_v1_decode_fields`
+    /// + `honda_v1_crc_valid`).
+    fn signal(data: u64, k2: u8) -> DecodedSignal {
+        let (serial, btn, counter) = Self::decode_fields(data);
+        DecodedSignal {
             serial: Some(serial),
             button: Some(btn),
             counter: Some(counter),
-            crc_valid,
+            crc_valid: Self::crc_valid(data, k2),
             data,
             data_count_bit: BIT_COUNT,
             encoder_capable: true,
             extra: None,
             protocol_display_name: None,
-        })
+        }
     }
 
     /// honda_v1_symbol: classify a (level, duration) pulse and drive the state machine.
@@ -530,6 +571,48 @@ impl ProtocolDecoder for HondaV1Decoder {
 
         Some(signal)
     }
+
+    /// `subghz_protocol_decoder_honda_v1_deserialize` (see the module doc, Key files).
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != BIT_COUNT {
+            return None;
+        }
+        let data = key.key_u64()?;
+        let k2 = match key.u32_field("Key_2").or_else(|| key.u32_field("Crc")) {
+            Some(crc) => crc as u8 & NIBBLE_MASK,
+            None => Self::checksum_wire_order(data).0,
+        };
+        Some(Self::signal(data, k2))
+    }
+
+    /// `subghz_protocol_decoder_honda_v1_serialize` (see the module doc, Key files).
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        if decoded.data_count_bit != BIT_COUNT {
+            return None;
+        }
+        let data = decoded.data;
+        let (serial, btn, counter) = Self::decode_fields(data);
+        let crc = if decoded.crc_valid {
+            Self::checksum_wire_order(data).0
+        } else {
+            (0..=NIBBLE_MASK).find(|&n| !Self::crc_valid(data, n))?
+        };
+        let mut key = FlipperKey::for_protocol("Honda V1", BIT_COUNT, data);
+        key.push_u32("Serial", serial);
+        key.push_u32("Btn", btn.into());
+        key.push_u32("Cnt", counter.into());
+        key.push_u32("Crc", crc.into());
+        key.push_u32("Key_2", crc.into());
+        let name = match btn {
+            BTN_CODE_UNLOCK => "Unlock",
+            BTN_CODE_LOCK => "Lock",
+            BTN_CODE_TRUNK => "Trunk",
+            BTN_CODE_PANIC => "Panic",
+            _ => "Unknown",
+        };
+        key.push("Disp", format!("Honda V1 - {name}"));
+        Some(key)
+    }
 }
 
 impl Default for HondaV1Decoder {
@@ -601,6 +684,71 @@ mod tests {
                 assert_eq!(f.counter, Some(0x0000), "0xFFFF + 1 wraps in 16 bits");
                 assert_eq!(f.data_count_bit, BIT_COUNT);
             }
+        }
+    }
+
+    /// Key files: ProtoPirate's lines round-trip for a CRC-valid and a CRC-failed frame; a
+    /// reference file loads (Key_2 first, then Crc, then the computed checksum); a loaded key
+    /// transmits a frame that decodes back.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = HondaV1Decoder::new();
+        let data = HondaV1Decoder::build_key(0x0123456, BTN_CODE_TRUNK, 0x1233);
+        let src = HondaV1Decoder::signal(data, HondaV1Decoder::checksum_wire_order(data).0);
+        let decoded = {
+            let tx = dec.encode(&src, 0x40).unwrap();
+            let mut rx = HondaV1Decoder::new();
+            tx.iter().find_map(|ld| rx.feed(ld.level, ld.duration_us)).expect("decodes")
+        };
+        assert!(decoded.crc_valid);
+        let text = assert_round_trip(&dec, &decoded);
+        let crc = HondaV1Decoder::checksum_wire_order(decoded.data).0;
+        let want = format!(
+            "Protocol: Honda V1\nBit: 68\nKey: {}\nSerial: 1193046\nBtn: 9\nCnt: 4660\n\
+             Crc: {crc}\nKey_2: {crc}\nDisp: Honda V1 - Trunk\n",
+            decoded.data.to_be_bytes().map(|b| format!("{b:02X}")).join(" ")
+        );
+        assert!(text.ends_with(&want), "{text}");
+        let failed = HondaV1Decoder::signal(decoded.data, (0..16).find(|&n| !HondaV1Decoder::crc_valid(decoded.data, n)).unwrap());
+        assert!(!failed.crc_valid);
+        assert_round_trip(&dec, &failed);
+
+        // A reference-written file: Key_2 wins over Crc; without either the checksum is computed.
+        let mut file = key(&format!(
+            "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+             Preset: FuriHalSubGhzPresetOok650Async\nProtocol: Honda V1\nBit: 68\nKey: {}\n\
+             Serial: 1\nBtn: 0\nCnt: 0\nCrc: {}\nKey_2: {crc}\n",
+            decoded.data.to_be_bytes().map(|b| format!("{b:02X}")).join(" "),
+            (crc + 1) & 0x0F
+        ));
+        assert_eq!(dec.from_flipper_key(&file), Some(decoded.clone()), "fields from the Key, nibble from Key_2");
+        file.fields.retain(|(n, _)| n != "Key_2" && n != "Crc");
+        assert_eq!(dec.from_flipper_key(&file), Some(decoded.clone()));
+        file.bits = 64;
+        assert!(dec.from_flipper_key(&file).is_none());
+
+        let tx = dec.encode(&decoded, 0x01).unwrap();
+        let mut rx = HondaV1Decoder::new();
+        let again = tx.iter().find_map(|ld| rx.feed(ld.level, ld.duration_us)).unwrap();
+        assert_eq!((again.serial, again.button, again.counter), (Some(0x0123456), Some(BTN_CODE_LOCK), Some(0x1235)));
+    }
+
+    /// Oracle vectors (see `fiat_v0::write_oracle_vector`): Trunk and Lock frames.
+    #[test]
+    #[ignore]
+    fn oracle_vectors() {
+        for (name, button, counter) in [("honda_v1_1", BTN_CODE_TRUNK, 0x1233u16), ("honda_v1_2", BTN_CODE_LOCK, 0x00FF)] {
+            let data = HondaV1Decoder::build_key(0x0123456, button, counter);
+            let src = HondaV1Decoder::signal(data, HondaV1Decoder::checksum_wire_order(data).0);
+            let up = HondaV1Decoder::new().encode(&src, 0x40).unwrap();
+            crate::protocols::fiat_v0::write_oracle_vector(
+                name,
+                433_920_000,
+                "FuriHalSubGhzPresetOok650Async",
+                &up,
+                &mut HondaV1Decoder::new(),
+            );
         }
     }
 

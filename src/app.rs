@@ -14,6 +14,8 @@ use crate::protocols::{
 use crate::radio::{HackRfController, LevelDuration, RtlSdrController};
 use crate::storage::Storage;
 
+mod rx;
+
 /// Active radio device: HackRF (full TX/RX) or RTL-SDR (receive-only).
 pub enum RadioDevice {
     HackRf(HackRfController),
@@ -77,9 +79,14 @@ impl RadioDevice {
         }
     }
 
-    pub fn transmit(&mut self, signal: &[LevelDuration], frequency: u32) -> anyhow::Result<()> {
+    pub fn transmit(
+        &mut self,
+        signal: &[LevelDuration],
+        frequency: u32,
+        settings: &crate::radio::tx::TxSettings,
+    ) -> anyhow::Result<()> {
         match self {
-            RadioDevice::HackRf(h) => h.transmit(signal, frequency),
+            RadioDevice::HackRf(h) => h.transmit(signal, frequency, settings),
             RadioDevice::RtlSdr(r) => r.transmit(signal, frequency),
         }
     }
@@ -101,6 +108,11 @@ impl RadioDevice {
     }
 }
 
+// v1.5 app features: saved session, saved-fob matching, timing analysis (impl App blocks).
+mod fob_matching;
+mod persistence;
+mod timing_view;
+
 /// Input mode for the application
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InputMode {
@@ -118,6 +130,12 @@ pub enum InputMode {
     HackRfNotDetected,
     /// Startup prompt: found .fob files, import? (y/n)
     StartupImport,
+    /// Startup prompt: restore the captures of the saved session? (y/n)
+    SessionRestore,
+    /// `:clear` confirmation: delete every capture and the saved session? (y/n)
+    ConfirmClear,
+    /// Timing analysis overlay (scrollable text)
+    TimingAnalysis,
     /// Export: editing filename (before format-specific steps)
     ExportFilename,
     /// Fob export metadata: editing year field
@@ -144,6 +162,12 @@ pub enum InputMode {
     Credits,
     /// :load file browser (import .fob/.sub from import dir)
     LoadFileBrowser,
+    /// `:new`: the "Add Manually" type picker (app/add_manually.rs)
+    NewRemote,
+    /// `:new`: editing a type's serial / button / counter / seed / key before creating it
+    NewRemoteEdit,
+    /// Signal menu "Send button…": a gate remote's native buttons
+    SendButton,
 }
 
 /// Export format being used
@@ -151,19 +175,34 @@ pub enum InputMode {
 pub enum ExportFormat {
     Fob,
     Flipper,
+    /// Flipper key file (`.sub` with Protocol/Bit/Key, no RAW_Data; app/key_files.rs).
+    FlipperKey,
 }
+
+mod tx;
+pub use tx::{tx_power_label, TX_POWER_STEPS};
+mod key_files;
+// `:new` ("Add Manually" remotes) and the signal menu's "Send button…".
+mod add_manually;
+pub use add_manually::{PickerRow, PICKER_VISIBLE_ROWS};
 
 /// Items available in the signal action menu
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SignalAction {
     Replay,
     SendNextCode,
+    /// Gate / garage remotes: pick one of the protocol's native buttons to send (app/add_manually.rs).
+    SendButton,
     Lock,
     Unlock,
     Trunk,
     Panic,
     ExportFob,
     ExportFlipper,
+    /// Flipper key file via the protocol's `to_flipper_key` (only when it writes one).
+    ExportFlipperKey,
+    /// Pulse timing vs the protocol definition (ProtoPirate's Timing Tuner), clusters for unknowns.
+    TimingAnalysis,
     Delete,
     /// PSA TEA frame: run ProtoPirate's key brute force on a background thread.
     RecoverKey,
@@ -173,7 +212,7 @@ pub enum SignalAction {
 
 impl SignalAction {
     /// All actions (car keyfob menu). Barrier/alarm menu is built separately to include SendNextCode only there.
-    pub const ALL: [SignalAction; 8] = [
+    pub const ALL: [SignalAction; 9] = [
         SignalAction::Replay,
         SignalAction::Lock,
         SignalAction::Unlock,
@@ -181,6 +220,7 @@ impl SignalAction {
         SignalAction::Panic,
         SignalAction::ExportFob,
         SignalAction::ExportFlipper,
+        SignalAction::TimingAnalysis,
         SignalAction::Delete,
     ];
 
@@ -188,12 +228,15 @@ impl SignalAction {
         match self {
             SignalAction::Replay => "Replay",
             SignalAction::SendNextCode => "Send next code",
+            SignalAction::SendButton => "Send button…",
             SignalAction::Lock => "TX Lock",
             SignalAction::Unlock => "TX Unlock",
             SignalAction::Trunk => "TX Trunk",
             SignalAction::Panic => "TX Panic",
             SignalAction::ExportFob => "Export .fob",
             SignalAction::ExportFlipper => "Export .sub (Flipper)",
+            SignalAction::ExportFlipperKey => "Export Flipper key (.sub)",
+            SignalAction::TimingAnalysis => "Timing analysis",
             SignalAction::Delete => "Delete Signal",
             SignalAction::RecoverKey => "Recover key (PSA brute force)",
             SignalAction::CancelKeyRecovery => "Cancel key recovery",
@@ -205,25 +248,33 @@ impl SignalAction {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SettingsField {
     Freq,
+    /// Frequency hopping on/off
+    Hop,
     Lna,
     Vga,
     Amp,
+    /// TX power (TX VGA gain + RF amp) used for every transmission.
+    TxPower,
 }
 
 impl SettingsField {
-    pub const ALL: [SettingsField; 4] = [
+    pub const ALL: &'static [SettingsField] = &[
         SettingsField::Freq,
+        SettingsField::Hop,
         SettingsField::Lna,
         SettingsField::Vga,
         SettingsField::Amp,
+        SettingsField::TxPower,
     ];
 
     pub fn label(&self) -> &'static str {
         match self {
             SettingsField::Freq => "Freq",
+            SettingsField::Hop => "Hop",
             SettingsField::Lna => "LNA",
             SettingsField::Vga => "VGA",
             SettingsField::Amp => "AMP",
+            SettingsField::TxPower => "TX",
         }
     }
 }
@@ -353,6 +404,8 @@ pub struct App {
     radio_event_tx: Sender<RadioEvent>,
     /// RSSI read from radio atomic (no channel traffic, avoids RX blocking)
     pub rssi_source: Option<Arc<AtomicU32>>,
+    /// IQ files, IQ recording and frequency hopping (src/app/rx.rs)
+    pub rx: rx::RxExtras,
     /// Set by :q / :quit so the main loop can exit cleanly (terminal cleanup)
     pub quit_requested: bool,
 
@@ -392,8 +445,13 @@ pub struct App {
     pub capture_meta_capture_id: Option<u32>,
 
     // -- Pending transmit (so UI can draw TX state before blocking) --
-    /// Queue of (signal, frequency) to transmit; main loop draws then runs one at a time.
-    pending_transmit_queue: Vec<(Vec<LevelDuration>, u32)>,
+    /// Queued transmissions (signal, frequency, modulation); the main loop draws, then runs them
+    /// one at a time, first in first out.
+    pending_transmit_queue: tx::TransmitQueue,
+    /// TX VGA gain in dB (0-47) for every transmission (config `tx_vga_gain`, `:txpower`).
+    pub tx_vga_gain: u32,
+    /// TX RF amplifier on/off (config `tx_amp`, `:txpower ... amp on|off`).
+    pub tx_amp: bool,
     /// State to restore when queue becomes empty (set when first item is queued).
     pending_transmit_restore: Option<RadioState>,
 
@@ -409,6 +467,16 @@ pub struct App {
     pub load_browser_scroll: usize,
     /// Entries: (display name, full path, is_dir)
     pub load_browser_entries: Vec<(String, PathBuf, bool)>,
+
+    // -- v1.5: saved session, saved-fob matching, timing analysis --
+    /// Session autosave/restore (app/persistence.rs)
+    session: persistence::SessionState,
+    /// Saved .fob index and per-capture matches (app/fob_matching.rs)
+    saved_fobs: fob_matching::SavedFobState,
+    /// Open timing-analysis overlay (app/timing_view.rs)
+    timing_view: Option<timing_view::TimingView>,
+    /// `:new` picker / field form and the "Send button…" list (app/add_manually.rs)
+    add_manually: add_manually::AddManuallyState,
 }
 
 impl App {
@@ -418,6 +486,8 @@ impl App {
 
         // ── Load protocol encryption keys from embedded keystore ─────────
         crate::protocols::keys::load_keystore_from_embedded();
+        // ── … plus the user's KeeLoq keys (Flipper `keeloq_mfcodes_user` format), if present ──
+        let user_keystore_msg = crate::keystore::load_user_keystore(storage.config_dir());
 
         let protocols = ProtocolRegistry::new();
         let (radio_event_tx, radio_event_rx) = mpsc::channel();
@@ -450,8 +520,8 @@ impl App {
             RadioState::Disconnected
         };
 
-        // Captures start empty — they are in-memory only and discarded on exit.
-        // The user is offered the chance to import .fob files from their exports folder.
+        // Captures start empty; the saved session (if any) is offered for restore, then the
+        // .fob/.sub files of the import folder (see app/persistence.rs).
         let captures: Vec<Capture> = Vec::new();
         let next_capture_id = 1u32;
 
@@ -460,6 +530,7 @@ impl App {
         let lna_gain = storage.config.default_lna_gain;
         let vga_gain = storage.config.default_vga_gain;
         let amp_enabled = storage.config.default_amp;
+        let (tx_vga_gain, tx_amp) = (storage.config.tx_vga_gain.min(tx::TX_VGA_MAX), storage.config.tx_amp);
 
         // Recursively scan import directory for .fob and .sub at startup (separate from export dir)
         let pending_fob_files =
@@ -478,7 +549,7 @@ impl App {
 
         let rssi_source = radio.as_ref().and_then(|r| r.rssi_source());
 
-        Ok(Self {
+        let mut app = Self {
             input_mode: initial_mode,
             command_input: String::new(),
             captures,
@@ -503,6 +574,7 @@ impl App {
             radio_event_rx,
             radio_event_tx,
             rssi_source,
+            rx: rx::RxExtras::new(),
             quit_requested: false,
             pending_fob_files,
             export_capture_id: None,
@@ -520,14 +592,27 @@ impl App {
             capture_meta_region: String::new(),
             capture_meta_command: String::new(),
             capture_meta_capture_id: None,
-            pending_transmit_queue: Vec::new(),
+            pending_transmit_queue: tx::TransmitQueue::new(),
+            tx_vga_gain,
+            tx_amp,
             pending_transmit_restore: None,
             psa_recover_job: None,
             load_browser_cwd: PathBuf::new(),
             load_browser_selected: 0,
             load_browser_scroll: 0,
             load_browser_entries: Vec::new(),
-        })
+            session: persistence::SessionState::default(),
+            saved_fobs: fob_matching::SavedFobState::default(),
+            timing_view: None,
+            add_manually: add_manually::AddManuallyState::default(),
+        };
+        // Saved-session restore prompt, session writer, saved-fob index (app/persistence.rs).
+        app.init_app_extensions();
+        if let Some(msg) = user_keystore_msg {
+            tracing::info!("{msg}");
+            app.status_message.get_or_insert(msg);
+        }
+        Ok(app)
     }
 
     /// Get the frequency in MHz
@@ -673,6 +758,9 @@ impl App {
                     }
                 }
             }
+            "iq" => self.cmd_iq(&parts[1..])?,
+            "record" | "rec" => self.cmd_record(&parts[1..])?,
+            "hop" => self.cmd_hop(&parts[1..])?,
             "unlock" => self.transmit_command(parts.get(1).map(|_| parts[1..].join(" ")), ButtonCommand::Unlock)?,
             "lock" => self.transmit_command(parts.get(1).map(|_| parts[1..].join(" ")), ButtonCommand::Lock)?,
             "trunk" => self.transmit_command(parts.get(1).map(|_| parts[1..].join(" ")), ButtonCommand::Trunk)?,
@@ -688,6 +776,7 @@ impl App {
             "load" => {
                 self.open_load_browser()?;
             }
+            "new" => self.new_remote_command(&parts[1..]),
             "delete" => {
                 if parts.len() < 2 {
                     self.last_error = Some("Usage: :delete <ID> or :delete all".to_string());
@@ -698,6 +787,12 @@ impl App {
                 } else {
                     self.delete_capture(parts[1])?;
                 }
+            }
+            "timing" => {
+                self.timing_command(parts.get(1).copied());
+            }
+            "clear" => {
+                self.request_clear();
             }
             "replay" => {
                 let id_spec = parts.get(1).map(|_| parts[1..].join(" "));
@@ -755,6 +850,7 @@ impl App {
                     }
                 }
             }
+            "txpower" => self.txpower_command(&parts[1..]),
             _ => {
                 self.last_error = Some(format!("Unknown command: {}", parts[0]));
             }
@@ -907,7 +1003,8 @@ impl App {
             return Ok(());
         }
 
-        // Create a DecodedSignal from the capture
+        // Create a DecodedSignal from the capture (with its display name: KeeLoq encodes with the
+        // manufacturer it names, as Flipper-ARF does with a key file's `Manufacture`)
         let decoded = DecodedSignal {
             serial: capture.serial,
             button: capture.button,
@@ -917,7 +1014,7 @@ impl App {
             data_count_bit: capture.data_count_bit,
             encoder_capable: true,
             extra: capture.data_extra,
-            protocol_display_name: None,
+            protocol_display_name: capture.protocol.clone(),
         };
 
         // Generate the signal with the new button
@@ -930,12 +1027,15 @@ impl App {
             }
         };
 
-        self.pending_transmit_queue.push((signal, capture.frequency));
-        if self.pending_transmit_restore.is_none() {
-            self.pending_transmit_restore = Some(self.radio_state);
-            self.radio_state = RadioState::Transmitting;
-        }
-        self.status_message = Some(format!("Transmitted {:?} for capture {}", command, id));
+        let (preset, modulation) = capture.tx_preset();
+        self.queue_transmit(signal, capture.frequency, modulation);
+        self.status_message = Some(format!(
+            "Transmitted {:?} for capture {} ({}, {})",
+            command,
+            id,
+            modulation,
+            preset.label()
+        ));
         Ok(())
     }
 
@@ -970,18 +1070,28 @@ impl App {
             .map(|p| LevelDuration::new(p.level, p.duration_us))
             .collect();
         let pair_count = signal.len();
+        let frequency = capture.frequency;
+        let (preset, modulation) = capture.tx_preset();
 
-        self.pending_transmit_queue.push((signal, capture.frequency));
-        if self.pending_transmit_restore.is_none() {
-            self.pending_transmit_restore = Some(self.radio_state);
-            self.radio_state = RadioState::Transmitting;
-        }
-        self.status_message = Some(format!("Replayed capture {} ({} pairs)", id, pair_count));
+        self.queue_transmit(signal, frequency, modulation);
+        self.status_message = Some(format!(
+            "Replayed capture {} ({} pairs, {}, {})",
+            id,
+            pair_count,
+            modulation,
+            preset.label()
+        ));
         Ok(())
     }
 
     /// Transmit the next KeeLoq rolling code for a barrier/alarm capture (same button, counter+1).
     pub fn transmit_next_code(&mut self, id: u32) -> Result<()> {
+        self.transmit_button(id, None)
+    }
+
+    /// Transmit the next code of a capture with one of its protocol's native buttons (`None`: the
+    /// captured button): the protocol's encoder with that button (counter + 1 for rolling codes).
+    pub fn transmit_button(&mut self, id: u32, native_button: Option<u8>) -> Result<()> {
         use crate::protocols::DecodedSignal;
 
         if let Some(ref radio) = self.radio {
@@ -1021,7 +1131,7 @@ impl App {
             return Ok(());
         }
 
-        let button = capture.button.unwrap_or(0);
+        let button = native_button.or(capture.button).unwrap_or(0);
         let decoded = DecodedSignal {
             serial: capture.serial,
             button: capture.button,
@@ -1031,7 +1141,7 @@ impl App {
             data_count_bit: capture.data_count_bit,
             encoder_capable: true,
             extra: capture.data_extra,
-            protocol_display_name: None,
+            protocol_display_name: capture.protocol.clone(),
         };
 
         let signal = match protocol.encode(&decoded, button) {
@@ -1042,34 +1152,18 @@ impl App {
             }
         };
 
-        self.pending_transmit_queue.push((signal, capture.frequency));
-        if self.pending_transmit_restore.is_none() {
-            self.pending_transmit_restore = Some(self.radio_state);
-            self.radio_state = RadioState::Transmitting;
-        }
-        self.status_message = Some(format!("Sent next code for capture {} (button {})", id, button));
-        Ok(())
-    }
-
-    /// True if there are queued transmits (UI should draw then call run_one_pending_transmit).
-    pub fn has_pending_transmit(&self) -> bool {
-        !self.pending_transmit_queue.is_empty()
-    }
-
-    /// Run one queued transmit; restores radio_state when queue is empty. Call after drawing.
-    pub fn run_one_pending_transmit(&mut self) -> Result<()> {
-        let (signal, frequency) = match self.pending_transmit_queue.pop() {
-            Some(p) => p,
-            None => return Ok(()),
-        };
-        if let Some(ref mut radio) = self.radio {
-            radio.transmit(&signal, frequency)?;
-        }
-        if self.pending_transmit_queue.is_empty() {
-            if let Some(prev) = self.pending_transmit_restore.take() {
-                self.radio_state = prev;
-            }
-        }
+        let (preset, modulation) = capture.tx_preset();
+        self.queue_transmit(signal, capture.frequency, modulation);
+        let what = if native_button.is_some() { "Sent" } else { "Sent next code," };
+        self.status_message = Some(format!(
+            "{} {} (0x{:02X}) for capture {} ({}, {})",
+            what,
+            crate::protocols::gate_buttons::button_label(protocol_name, button),
+            button,
+            id,
+            modulation,
+            preset.label()
+        ));
         Ok(())
     }
 
@@ -1082,7 +1176,7 @@ impl App {
         self.delete_capture(&id.to_string())
     }
 
-    /// Delete a capture by ID (in-memory only — captures are not persisted)
+    /// Delete a capture by ID (the saved session follows on the next autosave)
     fn delete_capture(&mut self, id_str: &str) -> Result<()> {
         let id: u32 = match id_str.parse() {
             Ok(i) => i,
@@ -1115,7 +1209,8 @@ impl App {
         Ok(())
     }
 
-    /// Delete all captures (in-memory only)
+    /// Delete all captures (the saved session follows on the next autosave; `:clear` also deletes
+    /// the session file and its backup)
     fn delete_all_captures(&mut self) -> Result<()> {
         let count = self.captures.len();
         
@@ -1162,8 +1257,11 @@ impl App {
                         .map(|p| crate::radio::LevelDuration::new(p.level, p.duration_us))
                         .collect();
 
-                    // Try to decode with registered protocols
-                    if let Some((protocol_name, decoded)) = self.protocols.process_signal(&pairs, capture.frequency) {
+                    // Try to decode with registered protocols (those flagged for the receive path's
+                    // AM/FM first, then all)
+                    if let Some((protocol_name, decoded)) =
+                        self.protocols.process_signal_path(&pairs, capture.frequency, capture.received_rf)
+                    {
                         capture.protocol = Some(protocol_name);
                         capture.serial = decoded.serial;
                         capture.button = decoded.button;
@@ -1189,8 +1287,7 @@ impl App {
                         } else {
                             capture.id = self.next_capture_id;
                             self.next_capture_id += 1;
-                            // Captures are in-memory only — no auto-save to disk.
-                            // Use Export (.fob / .sub) to persist a signal.
+                            // Autosaved to the session file on the next tick (app/persistence.rs).
                             self.captures.push(capture);
 
                             // Auto-select and scroll to new capture
@@ -1211,6 +1308,8 @@ impl App {
                 }
             }
         }
+        // Saved-fob matching of new captures + session autosave (app/persistence.rs).
+        self.poll_app_extensions();
         Ok(())
     }
 
@@ -1221,6 +1320,8 @@ impl App {
     /// and alarm protocols get Replay + export + delete only). Without TX (e.g. RTL-SDR): only export and delete.
     pub fn available_signal_actions(&self) -> Vec<SignalAction> {
         let mut actions = self.signal_actions_base();
+        self.adjust_signal_actions(&mut actions);
+        self.add_send_button_action(&mut actions);
         if let Some(action) = self.key_recovery_action() {
             actions.insert(0, action);
         }
@@ -1245,8 +1346,13 @@ impl App {
             .and_then(|idx| self.captures.get(idx));
         let encoder_capable = selected
             .map_or(false, |c| c.status == crate::capture::CaptureStatus::EncoderCapable);
-        let is_non_car_keeloq = selected
-            .map_or(false, |c| is_keeloq_non_car(c.protocol_name()));
+        // Gate/garage/barrier remotes (and KeeLoq barrier/alarm manufacturers) get the replay /
+        // next-code menu instead of the car commands.
+        let is_non_car_keeloq = selected.map_or(false, |c| {
+            is_keeloq_non_car(c.protocol_name())
+                || crate::protocols::protocol_info(c.protocol_name())
+                    .is_some_and(|i| i.category == crate::protocols::info::Category::Gate)
+        });
 
         if !has_tx {
             return SignalAction::ALL
@@ -1254,7 +1360,10 @@ impl App {
                 .filter(|a| {
                     matches!(
                         a,
-                        SignalAction::ExportFob | SignalAction::ExportFlipper | SignalAction::Delete
+                        SignalAction::ExportFob
+                            | SignalAction::ExportFlipper
+                            | SignalAction::TimingAnalysis
+                            | SignalAction::Delete
                     )
                 })
                 .copied()
@@ -1268,6 +1377,7 @@ impl App {
                 SignalAction::SendNextCode,
                 SignalAction::ExportFob,
                 SignalAction::ExportFlipper,
+                SignalAction::TimingAnalysis,
                 SignalAction::Delete,
             ];
         }
@@ -1314,6 +1424,9 @@ impl App {
             SignalAction::SendNextCode => {
                 self.transmit_next_code(capture_id)?;
             }
+            SignalAction::SendButton => {
+                self.open_send_button_menu(capture_id);
+            }
             SignalAction::Lock => {
                 self.transmit_command(Some(capture_id.to_string()), ButtonCommand::Lock)?;
             }
@@ -1331,6 +1444,12 @@ impl App {
             }
             SignalAction::ExportFlipper => {
                 self.export_flipper(capture_id)?;
+            }
+            SignalAction::ExportFlipperKey => {
+                self.export_flipper_key(capture_id)?;
+            }
+            SignalAction::TimingAnalysis => {
+                self.open_timing_analysis(capture_id);
             }
             SignalAction::Delete => {
                 let id_str = capture_id.to_string();
@@ -1441,9 +1560,7 @@ impl App {
                 if capture.protocol_name().eq_ignore_ascii_case("unknown") {
                     "Unknown".to_string()
                 } else {
-                    Self::get_make_for_protocol(capture.protocol_name())
-                        .trim()
-                        .replace(' ', "_")
+                    capture.protocol_make().trim().replace(' ', "_")
                 }
             });
         let model = capture
@@ -1468,7 +1585,8 @@ impl App {
         } else {
             cmd_str.replace(' ', "_")
         };
-        format!("{}_{}_{}_{}_{}", year, make, model, region, command)
+        // Makes such as "Kia/Hyundai" must not turn the name into a path (the export would fail).
+        format!("{}_{}_{}_{}_{}", year, make, model, region, command).replace(['/', '\\'], "-")
     }
 
     /// Start .fob export by entering filename input mode
@@ -1496,7 +1614,7 @@ impl App {
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| {
                 capture
-                    .map(|c| Self::get_make_for_protocol(c.protocol_name()).to_string())
+                    .map(|c| c.protocol_make().to_string())
                     .unwrap_or_default()
             });
         self.export_capture_id = Some(id);
@@ -1591,6 +1709,8 @@ impl App {
             self.storage.config.include_raw_pairs,
             Some(&metadata),
         )?;
+        // Saved-fob matching picks the new file up (app/fob_matching.rs).
+        self.saved_fobs_rescan();
 
         self.export_capture_id = None;
         self.export_format = None;
@@ -1699,7 +1819,7 @@ impl App {
                 dirs.push((name, path));
             } else if path.is_file() {
                 let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase());
-                if ext.as_deref() == Some("fob") || ext.as_deref() == Some("sub") {
+                if ext.as_deref() == Some("fob") || ext.as_deref() == Some("sub") || crate::radio::iq_file::is_iq_path(&path) {
                     files.push((name, path));
                 }
             }
@@ -1741,6 +1861,10 @@ impl App {
             self.load_browser_cwd = path;
             self.load_browser_selected = 0;
             self.refresh_load_browser_entries()?;
+        } else if crate::radio::iq_file::is_iq_path(&path) {
+            // Raw IQ recording: run it through the receive pipeline in the background.
+            self.input_mode = InputMode::Normal;
+            self.start_iq_file(path, None, None);
         } else {
             let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
             self.pending_fob_files = vec![path];
@@ -1768,14 +1892,21 @@ impl App {
             let is_sub = path.extension().map_or(false, |e| e == "sub");
 
             if is_sub {
-                match crate::export::flipper::import_sub_raw(path) {
-                    Ok((frequency, raw_pairs)) => {
+                // A key file (Protocol/Key, no RAW_Data): rebuilt by its protocol (app/key_files.rs).
+                if let Some(added) = self.import_key_file(path) {
+                    imported += added;
+                    continue;
+                }
+                match crate::export::flipper::import_sub(path) {
+                    Ok(crate::export::flipper::SubFile { frequency, preset: sub_preset, pairs: raw_pairs }) => {
                         let pairs: Vec<crate::radio::LevelDuration> = raw_pairs
                             .iter()
                             .map(|p| crate::radio::LevelDuration::new(p.level, p.duration_us))
                             .collect();
+                        // Gated by the file's preset modulation (AM/FM), as Flipper-ARF does.
+                        let sub_rf = sub_preset.as_ref().and_then(|p| p.rf());
                         let decoded_list =
-                            self.protocols.process_signal_stream(&pairs, frequency);
+                            self.protocols.process_signal_stream_rf(&pairs, frequency, sub_rf);
                         // Deduplicate: same signal can decode at multiple stream positions (e.g. Ford V0 across bursts)
                         let mut seen: std::collections::HashSet<(String, u64, Option<u32>, Option<u8>)> =
                             std::collections::HashSet::new();
@@ -1804,6 +1935,7 @@ impl App {
                                 raw,
                                 None,
                             );
+                            capture.rf_preset = sub_preset.clone();
                             capture.protocol = Some(protocol_name);
                             capture.serial = decoded.serial;
                             capture.button = decoded.button;
@@ -1835,6 +1967,7 @@ impl App {
                                 raw_pairs.clone(),
                                 None,
                             );
+                            capture.rf_preset = sub_preset.clone();
                             self.next_capture_id += 1;
                             capture.source_file = Some(Self::path_relative_to_import(path, self.storage.import_dir()));
                             self.captures.push(capture);
@@ -1859,9 +1992,16 @@ impl App {
                                 .iter()
                                 .map(|p| crate::radio::LevelDuration::new(p.level, p.duration_us))
                                 .collect();
-                            if let Some((protocol_name, decoded)) =
-                                self.protocols.process_signal(&pairs, capture.frequency)
-                            {
+                            // Received by KAT (path: preferred, then all) or imported (preset:
+                            // strict, as Flipper-ARF).
+                            let decoded = match capture.received_rf {
+                                Some(path) => self.protocols.process_signal_path(&pairs, capture.frequency, Some(path)),
+                                None => {
+                                    let rf = capture.rf_preset.as_ref().and_then(|p| p.rf());
+                                    self.protocols.process_signal_rf(&pairs, capture.frequency, rf)
+                                }
+                            };
+                            if let Some((protocol_name, decoded)) = decoded {
                                 capture.protocol = Some(protocol_name);
                                 capture.serial = decoded.serial;
                                 capture.button = decoded.button;
@@ -1877,6 +2017,7 @@ impl App {
                                 };
                             }
                         }
+                        self.check_encoder_capable(&mut capture);
                         if research_mode || capture.protocol.is_some() {
                             self.captures.push(capture);
                             imported += 1;
@@ -1961,6 +2102,9 @@ impl App {
             SettingsField::Freq => {
                 PRESET_FREQUENCIES.iter().position(|(f, _)| *f == self.frequency).unwrap_or(0)
             }
+            SettingsField::Hop => {
+                if self.rx.hop_enabled { 0 } else { 1 }
+            }
             SettingsField::Lna => {
                 LNA_STEPS.iter().position(|&g| g == self.lna_gain).unwrap_or(0)
             }
@@ -1970,6 +2114,7 @@ impl App {
             SettingsField::Amp => {
                 if self.amp_enabled { 0 } else { 1 }
             }
+            SettingsField::TxPower => self.tx_power_value_index(),
         }
     }
 
@@ -1978,9 +2123,11 @@ impl App {
         let field = SettingsField::ALL[self.settings_field_index];
         match field {
             SettingsField::Freq => PRESET_FREQUENCIES.len(),
+            SettingsField::Hop => 2, // ON / OFF
             SettingsField::Lna => LNA_STEPS.len(),
             SettingsField::Vga => VGA_STEPS.len(),
             SettingsField::Amp => 2, // ON / OFF
+            SettingsField::TxPower => TX_POWER_STEPS.len(),
         }
     }
 
@@ -1993,6 +2140,9 @@ impl App {
                     let (hz, _) = PRESET_FREQUENCIES[self.settings_value_index];
                     self.set_frequency(hz)?;
                 }
+            }
+            SettingsField::Hop => {
+                self.set_hopping(self.settings_value_index == 0);
             }
             SettingsField::Lna => {
                 if self.settings_value_index < LNA_STEPS.len() {
@@ -2007,54 +2157,9 @@ impl App {
             SettingsField::Amp => {
                 self.set_amp(self.settings_value_index == 0)?;
             }
+            SettingsField::TxPower => self.apply_tx_power_value(self.settings_value_index),
         }
         Ok(())
-    }
-
-    /// Get the make for a protocol name
-    pub fn get_make_for_protocol(protocol: &str) -> &'static str {
-        match protocol {
-            p if p.starts_with("Kia") => "Kia/Hyundai",
-            p if p.starts_with("Ford") => "Ford",
-            "Honda Static" => "Honda/Acura",
-            "Honda V1" => "Honda/Acura",
-            // Honda V2 was formerly called "Land Rover V0" (ProtoPirate renamed it); the legacy name
-            // must map to Honda before the generic "Land Rover" prefix arm below.
-            "Honda V2" | "Land Rover V0" => "Honda/Acura",
-            // Fiat V2 is the FCA format: the IMPORTS captures that decode as it are Chrysler/Jeep.
-            "Fiat V2" => "Fiat/Chrysler/Jeep",
-            p if p.starts_with("Fiat") => "Fiat",
-            "Subaru" => "Subaru",
-            // "Suzuki V0" / "Honda V0" are Kia V0 frame types (ProtoPirate); "Suzuki" is the retired name.
-            "Suzuki" | "Suzuki V0" => "Suzuki",
-            "Honda V0" => "Honda/Acura",
-            "Mitsubishi V0" => "Mitsubishi",
-            "VAG" | "VW" => "VW/Audi/Seat/Skoda",
-            p if p.starts_with("PSA") => "Peugeot/Citroen",
-            // Display names carry a manufacturer / variant suffix ("Star Line [SL_A2-A4]",
-            // "Scher-Khan [MAGIC CODE PRO1]").
-            p if p.starts_with("Star Line") => "Star Line",
-            p if p.starts_with("Scher-Khan") => "Scher-Khan",
-            // Registry KeeLoq decodes ("KeeLoq (DoorHan)") and the generic fallback ("Keeloq (…)").
-            p if p.to_ascii_lowercase().starts_with("keeloq (") => "KeeLoq",
-            "Chrysler V0" => "Chrysler/Dodge/Jeep",
-            p if p.starts_with("Land Rover") => "Land Rover",
-            "Toyota" => "Toyota/Lexus",
-            // Covers both "Mazda V0" and "Mazda Siemens".
-            p if p.starts_with("Mazda") => "Mazda",
-            "BMW CAS4" | "BMW" => "BMW",
-            "Mercedes V0" | "Mercedes V1" => "Mercedes-Benz",
-            "Opel V1" => "Opel",
-            p if p.starts_with("Renault") => "Renault",
-            "GM" => "Chevrolet/Buick/GMC/Cadillac",
-            "Datsun Lada" => "Datsun/Lada",
-            "Sheriff CFM" => "Sheriff",
-            "Audi" => "Audi",
-            "Hyundai" => "Hyundai",
-            // "Porsche Cayenne", plus legacy "Porsche Touareg [...]" names from older captures.
-            p if p.starts_with("Porsche") => "Porsche",
-            _ => "Unknown",
-        }
     }
 
     /// Add a demo capture (for testing without HackRF)
@@ -2075,6 +2180,7 @@ impl App {
             raw_pairs: vec![],
             status: crate::capture::CaptureStatus::EncoderCapable,
             received_rf: None,
+            rf_preset: None,
             year: None,
             make: None,
             model: None,

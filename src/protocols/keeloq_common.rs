@@ -230,8 +230,15 @@ pub struct MfKey {
 ///   `test_random_raw.sub`, counters 04BD..04C2; serial 47D94C1 in `test_random_raw.sub`, counters
 ///   0490/0491; serial 8A91ECC in `doorhan.sub`) all decrypt with the DoorHan key under SIMPLE
 ///   learning (1) and nothing else (see docs/keeloq.md).
-const LEARNING_TYPE_FIXES: &[(&str, u32, u32)] =
-    &[("DoorHan", learning_types::NORMAL, learning_types::SIMPLE)];
+/// - Kingates_Stylo4k: the blob says SIMPLE (1); the references' KingGates Stylo4k decoder looks for
+///   learning type 10 (`KEELOQ_LEARNING_SIMPLE_KINGGATES`), which the KeeLoq selector skips. The real
+///   remote in `kinggates_stylo4k_raw.sub` (serial 0x130F8127, button 0xE, counter 0x0B9D) passes
+///   the KingGates check with this key, and the reference C reproduces those fields only with the
+///   key typed 10 (see `kinggates_stylo_4k.rs`).
+const LEARNING_TYPE_FIXES: &[(&str, u32, u32)] = &[
+    ("DoorHan", learning_types::NORMAL, learning_types::SIMPLE),
+    ("Kingates_Stylo4k", learning_types::SIMPLE, learning_types::SIMPLE_KINGGATES),
+];
 
 /// The keystore as the C KeeLoq-family decoders iterate it (see the module doc): all embedded
 /// entries in blob order except ProtoPirate's KIA_KEY1..4 entries, with [`LEARNING_TYPE_FIXES`]

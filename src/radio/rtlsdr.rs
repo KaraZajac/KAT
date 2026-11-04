@@ -1,7 +1,9 @@
 //! RTL-SDR device control (receive-only).
 //!
-//! Provides an RX path compatible with the same IQ stream format and demodulators
-//! as the HackRF path. Transmit is not supported; use HackRF for TX.
+//! Uses the same receive pipeline as the HackRF path (src/radio/pipeline.rs, offset tuning: the LO
+//! sits fs/8 below the target). A reader thread owns the device: it reads, hands the raw buffers to
+//! the recorder and to a processing thread, and retunes between reads when the hopper asks, so every
+//! buffer is tagged with the exact frequency it was received on. Transmit is not supported.
 
 use anyhow::Result;
 use std::sync::mpsc::Sender;
@@ -12,13 +14,14 @@ use std::sync::{
 use std::thread::{self, JoinHandle};
 
 use crate::app::RadioEvent;
-use crate::capture::{Capture, RfModulation, StoredLevelDuration};
 
-use super::demodulator::Demodulator;
-use super::demodulator::FmDemodulator;
 use super::demodulator::LevelDuration;
+use super::dsp::IqFormat;
+use super::hopper::HopPlan;
+use super::recorder::{RecordingStatus, RecordingSummary};
+use super::rx::{lo_for, LiveRx, LiveShared};
 
-use rtl_sdr_rs::{DeviceId, RtlSdr, TunerGain, DEFAULT_BUF_LENGTH};
+use rtl_sdr_rs::{DeviceId, RtlSdr, TunerGain};
 
 /// Sample rate (2 MHz, same as HackRF path for keyfob signals)
 const SAMPLE_RATE: u32 = 2_000_000;
@@ -44,8 +47,8 @@ pub struct RtlSdrController {
     receiving: Arc<AtomicBool>,
     rx_thread: Option<JoinHandle<()>>,
     frequency: Arc<Mutex<u32>>,
-    demodulator_am: Arc<Mutex<Demodulator>>,
-    demodulator_fm: Arc<Mutex<FmDemodulator>>,
+    /// State shared with the receive threads: pipeline control, hopping, recording
+    live: Arc<LiveShared>,
     rtlsdr_available: bool,
     gain_settings: Arc<Mutex<TunerGainSetting>>,
     /// RSSI (f32 bits) written by RX thread, read by UI - never blocks
@@ -55,8 +58,9 @@ pub struct RtlSdrController {
 impl RtlSdrController {
     /// Create a new RTL-SDR controller (receive-only).
     pub fn new(event_tx: Sender<RadioEvent>) -> Result<Self> {
-        let demodulator_am = Demodulator::new(SAMPLE_RATE);
-        let demodulator_fm = FmDemodulator::new(SAMPLE_RATE);
+        let receiving = Arc::new(AtomicBool::new(false));
+        let rssi_value = Arc::new(AtomicU32::new(0));
+        let live = Arc::new(LiveShared::new(receiving.clone(), rssi_value.clone(), 433_920_000));
 
         let rtlsdr_available = check_rtlsdr_available();
 
@@ -68,14 +72,13 @@ impl RtlSdrController {
 
         Ok(Self {
             event_tx,
-            receiving: Arc::new(AtomicBool::new(false)),
+            receiving,
             rx_thread: None,
             frequency: Arc::new(Mutex::new(433_920_000)),
-            demodulator_am: Arc::new(Mutex::new(demodulator_am)),
-            demodulator_fm: Arc::new(Mutex::new(demodulator_fm)),
+            live,
             rtlsdr_available,
             gain_settings: Arc::new(Mutex::new(TunerGainSetting::default())),
-            rssi_value: Arc::new(AtomicU32::new(0)),
+            rssi_value,
         })
     }
 
@@ -101,28 +104,20 @@ impl RtlSdrController {
         }
 
         *self.frequency.lock().unwrap() = frequency;
+        self.live.home.store(frequency, Ordering::SeqCst);
         self.receiving.store(true, Ordering::SeqCst);
 
         let receiving = self.receiving.clone();
         let event_tx = self.event_tx.clone();
         let freq = self.frequency.clone();
-        let demodulator_am = self.demodulator_am.clone();
-        let demodulator_fm = self.demodulator_fm.clone();
+        let live = self.live.clone();
         let rtlsdr_available = self.rtlsdr_available;
         let gain_settings = self.gain_settings.clone();
-        let rssi_value = self.rssi_value.clone();
 
         self.rx_thread = Some(thread::spawn(move || {
             if rtlsdr_available {
-                if let Err(e) = run_receiver_rtlsdr(
-                    receiving.clone(),
-                    event_tx.clone(),
-                    freq,
-                    demodulator_am,
-                    demodulator_fm,
-                    gain_settings,
-                    rssi_value,
-                ) {
+                if let Err(e) = run_receiver_rtlsdr(live.clone(), event_tx.clone(), gain_settings) {
+                    live.receiving.store(false, Ordering::SeqCst);
                     let _ = event_tx.send(RadioEvent::Error(format!("RTL-SDR receiver error: {}", e)));
                 }
             } else {
@@ -141,6 +136,7 @@ impl RtlSdrController {
         if let Some(handle) = self.rx_thread.take() {
             let _ = handle.join();
         }
+        self.live.end_recording_with_rx();
 
         tracing::info!("Stopped RTL-SDR receiving");
         Ok(())
@@ -149,6 +145,8 @@ impl RtlSdrController {
     /// Set the receive frequency.
     pub fn set_frequency(&mut self, frequency: u32) -> Result<()> {
         *self.frequency.lock().unwrap() = frequency;
+        self.live.home.store(frequency, Ordering::SeqCst);
+        self.live.target.store(frequency, Ordering::SeqCst);
         tracing::info!("Set RTL-SDR frequency to {} Hz", frequency);
         Ok(())
     }
@@ -228,55 +226,18 @@ fn run_demo_receiver(
     tracing::info!("Demo receiver thread stopped");
 }
 
-fn pairs_to_stored(pairs: &[LevelDuration]) -> Vec<StoredLevelDuration> {
-    pairs
-        .iter()
-        .map(|p| StoredLevelDuration {
-            level: p.level,
-            duration_us: p.duration_us,
-        })
-        .collect()
-}
+/// Bytes per read: 64 KiB = 16 ms at 2 MS/s (fine-grained hop timing; the reader thread does nothing
+/// else, so short reads don't lose samples).
+const READ_LEN: usize = 65_536;
+/// Bytes read and discarded right after a retune (PLL settling, ~4 ms at 2 MS/s).
+const RETUNE_FLUSH_LEN: usize = 16_384;
 
-/// Convert RTL-SDR u8 IQ (0–255) to signed i8 (-128..127) for the demodulators.
-fn u8_iq_to_i8(buf: &[u8]) -> Vec<i8> {
-    buf.iter()
-        .map(|&b| (b as i16 - 128) as i8)
-        .collect()
-}
-
-/// Average magnitude of interleaved I/Q i8 samples (0..~1).
-fn compute_rssi_i8(samples: &[i8]) -> f32 {
-    if samples.len() < 2 {
-        return 0.0;
-    }
-    let mut sum = 0.0f32;
-    let mut count = 0usize;
-    for chunk in samples.chunks(2) {
-        if chunk.len() < 2 {
-            break;
-        }
-        let i = chunk[0] as f32 / 128.0;
-        let q = chunk[1] as f32 / 128.0;
-        sum += (i * i + q * q).sqrt();
-        count += 1;
-    }
-    if count == 0 {
-        0.0
-    } else {
-        sum / count as f32
-    }
-}
-
-/// Run the receiver loop with an RTL-SDR device.
+/// Run the receiver with an RTL-SDR device: this thread reads (and retunes between reads); a
+/// processing thread runs the pipeline on the tagged buffers.
 fn run_receiver_rtlsdr(
-    receiving: Arc<AtomicBool>,
+    live: Arc<LiveShared>,
     event_tx: Sender<RadioEvent>,
-    frequency: Arc<Mutex<u32>>,
-    demodulator_am: Arc<Mutex<Demodulator>>,
-    demodulator_fm: Arc<Mutex<FmDemodulator>>,
     gain_settings: Arc<Mutex<TunerGainSetting>>,
-    rssi_value: Arc<AtomicU32>,
 ) -> Result<()> {
     use anyhow::Context;
 
@@ -284,60 +245,87 @@ fn run_receiver_rtlsdr(
 
     let mut sdr = RtlSdr::open(DeviceId::Index(0)).context("Failed to open RTL-SDR device")?;
 
-    let freq = *frequency.lock().unwrap();
+    let freq = live.start_frequency();
+    live.target.store(freq, Ordering::SeqCst);
     let initial_gain = *gain_settings.lock().unwrap();
 
     sdr.reset_buffer().context("Failed to reset RTL-SDR buffer")?;
-    sdr.set_center_freq(freq).context("Failed to set RTL-SDR frequency")?;
+    sdr.set_center_freq(lo_for(freq, SAMPLE_RATE)).context("Failed to set RTL-SDR frequency")?;
     sdr.set_sample_rate(SAMPLE_RATE).context("Failed to set RTL-SDR sample rate")?;
     sdr.set_bias_tee(false).context("Failed to set bias-tee")?;
 
-    if let Some(tenths) = initial_gain.gain_tenths_db {
-        sdr.set_tuner_gain(TunerGain::Manual(tenths)).context("Failed to set RTL-SDR gain")?;
-    } else {
-        sdr.set_tuner_gain(TunerGain::Auto).context("Failed to set RTL-SDR gain")?;
-    }
+    let apply_gain = |sdr: &mut RtlSdr, g: TunerGainSetting| -> Result<()> {
+        match g.gain_tenths_db {
+            Some(tenths) => sdr.set_tuner_gain(TunerGain::Manual(tenths)).context("Failed to set RTL-SDR gain"),
+            None => sdr.set_tuner_gain(TunerGain::Auto).context("Failed to set RTL-SDR gain"),
+        }
+    };
+    apply_gain(&mut sdr, initial_gain)?;
+    let mut applied = initial_gain.gain_tenths_db;
 
     tracing::info!(
-        "RTL-SDR configured: freq={} Hz, sample_rate={} Hz",
-        freq, SAMPLE_RATE
+        "RTL-SDR configured: target={} Hz (LO {} Hz), sample_rate={} Hz",
+        freq, lo_for(freq, SAMPLE_RATE), SAMPLE_RATE
     );
 
-    let capture_id = std::sync::atomic::AtomicU32::new(0);
-    let mut buf = vec![0u8; DEFAULT_BUF_LENGTH];
+    // Processing thread: (raw buffer, frequency it was received on, samples to blank first).
+    let (buf_tx, buf_rx) = std::sync::mpsc::sync_channel::<(Vec<u8>, u32, u64)>(32);
+    let proc_live = live.clone();
+    let processor = thread::Builder::new().name("kat-rtl-rx".to_string()).spawn(move || {
+        let mut rx = LiveRx::new(SAMPLE_RATE, IqFormat::Cu8, freq, event_tx);
+        let mut current = freq;
+        for (buf, tag, blank) in buf_rx {
+            if tag != current {
+                rx.retuned(tag, blank, &proc_live);
+                current = tag;
+            }
+            rx.process(&buf, &proc_live);
+        }
+        rx.finish();
+    })?;
 
-    while receiving.load(Ordering::SeqCst) {
+    let mut tag = freq;
+    let mut blank = 0u64;
+    let mut gain_check = std::time::Instant::now();
+    while live.receiving.load(Ordering::SeqCst) {
+        let req = live.hop_request.swap(0, Ordering::SeqCst);
+        if req != 0 {
+            match sdr.set_center_freq(lo_for(req, SAMPLE_RATE)) {
+                Ok(()) => {
+                    // Samples already in the USB pipeline are from the old frequency: drop some.
+                    let mut flush = vec![0u8; RETUNE_FLUSH_LEN];
+                    let _ = sdr.read_sync(&mut flush);
+                    tag = req;
+                    blank = SAMPLE_RATE as u64 / 500; // and 2 ms more for the PLL
+                }
+                Err(e) => {
+                    tracing::warn!("RTL-SDR retune to {} Hz failed: {:?}", req, e);
+                    live.hop_failed.store(true, Ordering::SeqCst);
+                }
+            }
+        }
+        if gain_check.elapsed() >= std::time::Duration::from_millis(100) {
+            gain_check = std::time::Instant::now();
+            let g = *gain_settings.lock().unwrap();
+            if g.gain_tenths_db != applied {
+                match apply_gain(&mut sdr, g) {
+                    Ok(()) => {
+                        applied = g.gain_tenths_db;
+                        live.floor_reset.store(true, Ordering::SeqCst);
+                    }
+                    Err(e) => tracing::warn!("{e}"),
+                }
+            }
+        }
+        let mut buf = vec![0u8; READ_LEN];
         match sdr.read_sync(&mut buf) {
-            Ok(n) if n == buf.len() => {
-                let current_freq = *frequency.lock().unwrap();
-                let samples = u8_iq_to_i8(&buf[..n]);
-
-                rssi_value.store(compute_rssi_i8(&samples).to_bits(), Ordering::Relaxed);
-
-                if let Ok(mut demod) = demodulator_am.lock() {
-                    if let Some(pairs) = demod.process_samples(&samples) {
-                        let id = capture_id.fetch_add(1, Ordering::SeqCst);
-                        let capture = Capture::from_pairs_with_rf(
-                            id,
-                            current_freq,
-                            pairs_to_stored(&pairs),
-                            Some(RfModulation::AM),
-                        );
-                        let _ = event_tx.send(RadioEvent::SignalCaptured(capture));
-                    }
+            Ok(n) if n > 0 => {
+                buf.truncate(n);
+                live.record(&buf);
+                if buf_tx.send((buf, tag, blank)).is_err() {
+                    break;
                 }
-                if let Ok(mut demod) = demodulator_fm.lock() {
-                    if let Some(pairs) = demod.process_samples(&samples) {
-                        let id = capture_id.fetch_add(1, Ordering::SeqCst);
-                        let capture = Capture::from_pairs_with_rf(
-                            id,
-                            current_freq,
-                            pairs_to_stored(&pairs),
-                            Some(RfModulation::FM),
-                        );
-                        let _ = event_tx.send(RadioEvent::SignalCaptured(capture));
-                    }
-                }
+                blank = 0;
             }
             Ok(_) => {}
             Err(e) => {
@@ -346,7 +334,60 @@ fn run_receiver_rtlsdr(
         }
     }
 
+    drop(buf_tx);
+    let _ = processor.join();
     sdr.close().context("Failed to close RTL-SDR")?;
     tracing::info!("RTL-SDR receiver thread stopped");
     Ok(())
+}
+
+/// Receive-side controls (hopping, recording, retune info) used through `RadioDevice`.
+impl RtlSdrController {
+    /// IQ format of this device's raw samples (and of `:record` files).
+    pub fn iq_format(&self) -> IqFormat {
+        IqFormat::Cu8
+    }
+
+    /// Raw sample rate (S/s).
+    pub fn sample_rate(&self) -> u32 {
+        SAMPLE_RATE
+    }
+
+    /// Frequency being received right now (follows hops).
+    pub fn rx_frequency(&self) -> u32 {
+        self.live.target.load(Ordering::SeqCst)
+    }
+
+    /// Install (Some) or remove (None) a hop plan; applied live while receiving.
+    pub fn set_hopping(&mut self, plan: Option<HopPlan>) {
+        self.live.set_hop_plan(plan);
+    }
+
+    /// Current hop plan and the index being received.
+    pub fn hop_state(&self) -> Option<(HopPlan, usize)> {
+        self.live.hop_plan().map(|p| (p, self.live.hop_index.load(Ordering::SeqCst) as usize))
+    }
+
+    /// Hold the current hop frequency for `dwells` dwells (e.g. after a decode).
+    pub fn hop_pause(&mut self, dwells: u32) {
+        self.live.hop_pause_dwells.store(dwells, Ordering::SeqCst);
+    }
+
+    /// Start writing the raw IQ to `path`.
+    pub fn start_recording(&mut self, path: std::path::PathBuf) -> Result<()> {
+        self.live.start_recording(path)
+    }
+
+    pub fn stop_recording(&mut self) -> Option<RecordingSummary> {
+        self.live.stop_recording()
+    }
+
+    pub fn recording_status(&self) -> Option<RecordingStatus> {
+        self.live.recording_status()
+    }
+
+    /// A recording that ended because RX stopped (reported once).
+    pub fn take_ended_recording(&mut self) -> Option<RecordingSummary> {
+        self.live.ended_recording.lock().ok().and_then(|mut g| g.take())
+    }
 }

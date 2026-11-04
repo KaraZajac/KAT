@@ -3,6 +3,7 @@
 //! Import: use [scan_import_files_recursive] to find all .fob and .sub files under a
 //! directory (e.g. EXPORTS/FIAT, EXPORTS/KIA) so that manufacturer subfolders are included.
 
+pub mod binraw;
 pub mod fob;
 pub mod flipper;
 

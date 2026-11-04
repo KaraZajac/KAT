@@ -81,15 +81,61 @@
 //! can fire one callback per variant on the same pulse); the window is a ring buffer instead of a
 //! `memmove`, and the window read bails out once the 16-bit 0x0001 prefix mismatches (the C
 //! rejects the same windows in `fiat_v1_frame_valid`).
+//!
+//! ## Key files (`subghz_protocol_decoder_fiat_v1_serialize` / `_deserialize`)
+//! KAT writes ProtoPirate's lines: Protocol "Fiat V1", Bit 102 (the C's logical bits), Key =
+//! UID << 32 | hop, then Serial (UID), Btn, Cnt (control), Type (TE variant: 0 = A, 1 = B), Hop,
+//! XOR, Tail Bits (decimal), Raw (the 13 wire bytes), `Hitag2 Key` + `Hitag2 Epoch` when one of
+//! ProtoPirate's embedded keys verifies the hop (the C decoder's own check, epoch 0), and
+//! `Disp: Fiat V1 - Unlock|Lock|Trunk|Close|Unknown`. Loading needs Bit 102; with Raw (any
+//! reference's file) the frame is Raw and must pass `fiat_v1_frame_valid`; without Raw it is
+//! rebuilt from Key / Serial / Btn / Cnt / Hop / XOR / Tail Bits (default 2) and validated, as the
+//! C code intends — ProtoPirate's own decoder reads those lines after the failed Raw lookup
+//! without rewinding, so in practice it needs Raw; Flipper-ARF's encoder rebuilds from them.
+//! Type missing (Flipper-ARF's files) = variant B, ProtoPirate's default. A `Hitag2 Key` in the
+//! file is not kept: KAT has no key store (see above), so TX resolves the key from its own lists
+//! and otherwise replays the frame.
 
 use super::hitag2;
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Fiat V1",
+    decoder: "Fiat V1",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::AM,
+    encryption: "HITAG2",
+    make: "Fiat",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650],
+};
+
+/// Fiat V1 buttons.
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x4 => "Lock",
+        0x8 => "Unlock",
+        0x2 => "Trunk",
+        0x1 => "Close",
+        _ => "Other",
+    })
+}
 
 const WIRE_BITS: usize = 104;
 const WIRE_BYTES: usize = 13;
 const WIRE_CELLS: usize = WIRE_BITS * 2;
+/// `FIAT_V1_LOGICAL_BITS`: the key file's Bit (the 104 wire bits without the 2 tail bits).
+const LOGICAL_BITS: usize = 102;
+/// `FIAT_V1_DEFAULT_TAIL_BITS`: a key file without Raw / Tail Bits.
+const DEFAULT_TAIL_BITS: u8 = 2;
 const VARIANT_COUNT: usize = 2;
 /// LOW pulse at least this long closes a frame (pushes one LOW boundary cell).
 const BOUNDARY_MIN_US: u32 = 800;
@@ -687,6 +733,68 @@ impl ProtocolDecoder for FiatV1Decoder {
         }
         Some(signal)
     }
+
+    /// `subghz_protocol_decoder_fiat_v1_deserialize` (see the module doc, Key files).
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != LOGICAL_BITS {
+            return None;
+        }
+        let variant = if key.u32_field("Type") == Some(VARIANT_A.into()) {
+            VARIANT_A
+        } else {
+            VARIANT_B
+        };
+        let file_raw = key.hex_bytes_field("Raw").and_then(|b| <[u8; WIRE_BYTES]>::try_from(b).ok());
+        let raw = match file_raw {
+            Some(raw) => raw,
+            None => {
+                // fiat_v1_rebuild_raw from the Key and the field lines.
+                let data = key.key_u64()?;
+                let uid = key.u32_field("Serial").unwrap_or((data >> 32) as u32);
+                let hop = key.u32_field("Hop").unwrap_or(data as u32);
+                let button = key.u32_field("Btn").unwrap_or(0) as u8;
+                let control = (key.u32_field("Cnt").unwrap_or(0) & 0x03FF) as u16;
+                let tail = key.u32_field("Tail Bits").map_or(DEFAULT_TAIL_BITS, |t| (t & 0x03) as u8);
+                let mut raw = Self::build_raw(uid, button, control, hop, tail);
+                if let Some(xor) = key.u32_field("XOR").filter(|&x| x != 0) {
+                    raw[12] = xor as u8;
+                }
+                raw
+            }
+        };
+        Self::frame_valid(&raw).then(|| Self::decoded_signal(&raw, variant))
+    }
+
+    /// `subghz_protocol_decoder_fiat_v1_serialize` (see the module doc, Key files).
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        let (raw, variant) = Self::raw_from_signal(decoded)?;
+        if !Self::frame_valid(&raw) {
+            return None;
+        }
+        let f = Self::fields(&raw);
+        let mut key = FlipperKey::for_protocol("Fiat V1", LOGICAL_BITS, (u64::from(f.uid) << 32) | u64::from(f.hop));
+        key.push_u32("Serial", f.uid);
+        key.push_u32("Btn", f.button.into());
+        key.push_u32("Cnt", f.control.into());
+        key.push_u32("Type", variant.into());
+        key.push_u32("Hop", f.hop);
+        key.push_u32("XOR", raw[12].into());
+        key.push_u32("Tail Bits", f.tail.into());
+        key.push_hex_bytes("Raw", &raw);
+        if let Some(index) = Self::resolve_known_key(&f) {
+            key.push_hex_bytes("Hitag2 Key", &KNOWN_KEYS[index]);
+            key.push_u32("Hitag2 Epoch", 0);
+        }
+        let name = match f.button {
+            BUTTON_UNLOCK => "Unlock",
+            BUTTON_LOCK => "Lock",
+            BUTTON_TRUNK => "Trunk",
+            BUTTON_CLOSE => "Close",
+            _ => "Unknown",
+        };
+        key.push("Disp", format!("Fiat V1 - {name}"));
+        Some(key)
+    }
 }
 
 impl Default for FiatV1Decoder {
@@ -810,6 +918,86 @@ mod tests {
             hitag2::fiat_bcm_authenticator(0xEFB82D66, 0x2, 0x08E, &KNOWN_KEYS[3], 0)
         );
         assert_eq!(pulses(&upload(&raw_a, VARIANT_A)), C_UPLOAD_A.to_vec());
+    }
+
+    /// Key files: ProtoPirate's lines (Raw, the verifying embedded key) round-trip for both
+    /// variants; a Flipper-ARF file (no Type: variant B) and a file without Raw load; a loaded key
+    /// transmits a fresh frame that decodes back.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = FiatV1Decoder::new();
+        let raw_a = FiatV1Decoder::build_raw(0xEFB82D66, BUTTON_TRUNK, 0x08E, 0x4B1084C7, 2);
+        let mut stream = vec![LevelDuration::new(false, 20_000)];
+        stream.extend(upload(&raw_a, VARIANT_A));
+        let decoded = decode_all(&mut FiatV1Decoder::new(), &stream).remove(0);
+        let text = assert_round_trip(&dec, &decoded);
+        assert!(
+            text.ends_with(
+                "Protocol: Fiat V1\nBit: 102\nKey: EF B8 2D 66 4B 10 84 C7\nSerial: 4021824870\n\
+                 Btn: 2\nCnt: 142\nType: 0\nHop: 1259373767\nXOR: 100\nTail Bits: 2\n\
+                 Raw: 00 01 EF B8 2D 66 22 39 2C 42 13 1E 64\nHitag2 Key: 6D 6B F2 1D 3A 1A\n\
+                 Hitag2 Epoch: 0\nDisp: Fiat V1 - Trunk\n"
+            ),
+            "{text}"
+        );
+        // Variant B, a frame no embedded key verifies (no Hitag2 lines), another button.
+        let raw_b = FiatV1Decoder::build_raw(0x12345678, BUTTON_CLOSE, 0x3FF, 0xDEADBEEF, 1);
+        let b = FiatV1Decoder::decoded_signal(&raw_b, VARIANT_B);
+        let text = assert_round_trip(&dec, &b);
+        assert!(text.contains("\nType: 1\n") && !text.contains("Hitag2") && text.ends_with("Disp: Fiat V1 - Close\n"), "{text}");
+
+        // Flipper-ARF's serialize: Raw first, no Type / Disp → ProtoPirate's default variant B.
+        let arf = key(
+            "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+             Preset: FuriHalSubGhzPresetOok650Async\nProtocol: Fiat V1\nBit: 102\n\
+             Key: EF B8 2D 66 4B 10 84 C7\nRaw: 00 01 EF B8 2D 66 22 39 2C 42 13 1E 64\n\
+             Hop: 1259373767\nXOR: 100\nTail Bits: 2\nSerial: 4021824870\nBtn: 2\nCnt: 142\n\
+             Hitag2 Key: 6D 6B F2 1D 3A 1A\nHitag2 Epoch: 0\n",
+        );
+        assert_eq!(dec.from_flipper_key(&arf), Some(FiatV1Decoder::decoded_signal(&raw_a, VARIANT_B)));
+        // No Raw: rebuilt from the field lines.
+        let mut no_raw = dec.to_flipper_key(&decoded).unwrap();
+        no_raw.fields.retain(|(n, _)| n != "Raw");
+        assert_eq!(dec.from_flipper_key(&no_raw), Some(decoded.clone()));
+        // Bad frames and other Bit counts are rejected, as in the C.
+        let mut bad = dec.to_flipper_key(&decoded).unwrap();
+        bad.fields.retain(|(n, _)| n != "Raw");
+        bad.push("Raw", "00 01 EF B8 2D 66 22 39 2C 42 13 1E 65");
+        assert!(dec.from_flipper_key(&bad).is_none(), "XOR mismatch");
+        let mut bits = dec.to_flipper_key(&decoded).unwrap();
+        bits.bits = 104;
+        assert!(dec.from_flipper_key(&bits).is_none());
+
+        // TX from the loaded key: embedded key 3 signs a fresh Lock frame (control + 1).
+        let loaded = dec.from_flipper_key(&key(&text_of(&dec, &decoded))).unwrap();
+        let tx = decode_all(&mut FiatV1Decoder::new(), &dec.encode(&loaded, 0x01).unwrap()).remove(0);
+        assert_eq!((tx.serial, tx.button, tx.counter), (Some(0xEFB82D66), Some(BUTTON_LOCK), Some(0x08F)));
+    }
+
+    fn text_of(dec: &FiatV1Decoder, d: &DecodedSignal) -> String {
+        let mut k = dec.to_flipper_key(d).unwrap();
+        k.frequency = 433_920_000;
+        k.to_text()
+    }
+
+    /// Oracle vectors (see `fiat_v0::write_oracle_vector`): a variant-A frame signed with
+    /// embedded key 3, and a variant-B frame no key verifies (replayed).
+    #[test]
+    #[ignore]
+    fn oracle_vectors() {
+        let signed = FiatV1Decoder::build_raw(0xEFB82D66, BUTTON_TRUNK, 0x08E, 0x4B1084C7, 2);
+        let plain = FiatV1Decoder::build_raw(0x12345678, BUTTON_CLOSE, 0x3FF, 0xDEADBEEF, 1);
+        for (name, raw, variant) in [("fiat_v1_1", signed, VARIANT_A), ("fiat_v1_2", plain, VARIANT_B)] {
+            let up = upload(&raw, variant);
+            crate::protocols::fiat_v0::write_oracle_vector(
+                name,
+                433_920_000,
+                "FuriHalSubGhzPresetOok650Async",
+                &up,
+                &mut FiatV1Decoder::new(),
+            );
+        }
     }
 
     /// Synthetic frames of both variants decode with the right fields, variant and key status.

@@ -33,14 +33,53 @@
 //! (`plain_a[5] ^= 0x0C`, `plain_b[3] ^= 0x30`) when the requested button differs, then payload A
 //! (even counter) and B (counter − 1) each sent as 24 preamble pairs + short + 15.6ms gap + 80
 //! PWM bits + short + 15.6ms gap (424 entries; the Flipper sends the upload `repeat` = 2 times while
-//! held, KAT returns it once). Counter: Flipper-ARF advances the seed by 2 (one press = an A/B
-//! pair), which is what KAT sends; ProtoPirate's emulate scene adds 1 to `Cnt` (a re-send of the
-//! captured press when it was frame A). Buttons: KAT Lock → 1, Unlock → 2 (ProtoPirate emulate,
-//! ARF and doctor D-pads); Trunk/Panic keep the captured button.
+//! held, KAT returns it once). Buttons: KAT Lock → 1, Unlock → 2 (ProtoPirate emulate, ARF and
+//! doctor D-pads); Trunk/Panic keep the captured button.
+//!
+//! **Deviation (counter), from real captures:** KAT sends seed − 1, made even: A(N−2) + B(N−3)
+//! from a payload-A capture, A(N−1) + B(N−2) from payload B. The payload of the captured type is
+//! then the fob's next press of that type; the other one carries the captured plaintext, as in the
+//! C, which A and B frames don't share. The Chrysler PT Cruiser 2006 fob in `IMPORTS/chrysler`
+//! sends one payload per press, alternating A and B with the seed counting **down** by one (A(N),
+//! B(N−1), A(N−2)…), and re-encoding each of its presses reproduces its press two later bit for
+//! bit. The references count up: ProtoPirate's emulate scene and doctor-firmware's encoder add 1
+//! to `Cnt`, which re-sends the captured press; Flipper-ARF adds 2, which sends an earlier press.
+//! A fob counting down has already sent both.
+//!
+//! **Key files** (`subghz_protocol_decoder_chrysler_v0_serialize` / `_deserialize`; Flipper-ARF's
+//! "Chrysler" writes the same lines): `Protocol: Chrysler V0`, `Bit: 80`, `Key` =
+//! the first 64 frame bits, then `Key_2` (the last 16 bits, big-endian), `Plain_A` (frame A) or
+//! `Plain_B` (frame B) — the frame's 9 plaintext bytes — and `Serial` (SnA / SnB), `Btn`, `Cnt`
+//! (the 6-bit seed). Two reference quirks are not copied: the C writes Key_2/Plain_x after
+//! `flipper_format_rewind`, i.e. over the start of its own buffer (KAT writes them after Key, the
+//! order the C means and doctor-firmware's fixed copy writes), and its decoder instance keeps the
+//! plaintext of earlier frames — even ones that failed the check — so a reference file may also
+//! carry the other frame's Plain_x, with that frame's SnB as Serial (KAT writes what a fresh
+//! decoder writes; on load the frame decides). Loading (`_deserialize`) reads Key + Key_2 (required)
+//! with any Bit (the C forces 80) and decodes the frame as the decoder does; the C loads frames
+//! whose structure check fails too (shown as `Chk: ERR`), so KAT loads them with `crc_valid`
+//! false. The file's Serial/Btn/Cnt are not applied (the C's decoder derives them from the frame).
 
-use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
+use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal, FlipperKey};
 use crate::radio::demodulator::LevelDuration;
 use crate::duration_diff;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Chrysler V0",
+    decoder: "Chrysler V0",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Pwm,
+    rf: Rf::AM,
+    encryption: "Rolling Code",
+    make: "Chrysler/Dodge/Jeep",
+    category: Category::Vehicle,
+    buttons: None,
+    presets: &[&AM650],
+};
 
 const TE_SHORT: u32 = 0x12C; // 300
 const TE_DELTA: u32 = 0x96; // 150
@@ -204,23 +243,35 @@ impl ChryslerV0Decoder {
 
     /// Build a DecodedSignal from a committed frame, if the structural check passes.
     fn commit(&self) -> Option<DecodedSignal> {
-        let d = Self::decode_packet(self.decode_data, self.data_2);
-        if !d.check_ok {
-            return None;
-        }
-        Some(DecodedSignal {
+        let s = Self::frame_signal(self.decode_data, self.data_2);
+        s.crc_valid.then_some(s)
+    }
+
+    /// The decode of frame `data` + `data_2` (`crc_valid` = the C's `check_ok`).
+    fn frame_signal(data: u64, data_2: u16) -> DecodedSignal {
+        let d = Self::decode_packet(data, data_2);
+        DecodedSignal {
             serial: Some(d.serial),
             button: Some(d.button),
             counter: Some(d.seed as u16),
             crc_valid: d.check_ok,
             // 80-bit frame: report the most-significant 64 bits (payload bytes 0..7).
-            data: self.decode_data,
+            data,
             data_count_bit: DECODE_BIT_COUNT,
             encoder_capable: true,
             // Stash the low 16 bits (data_2 = payload bytes 8,9) for the encoder.
-            extra: Some(self.data_2 as u64),
+            extra: Some(data_2 as u64),
             protocol_display_name: None,
-        })
+        }
+    }
+
+    /// The frame's 9 plaintext bytes (`decoded` in `chrysler_v0_decode_packet`: Plain_A for an even
+    /// seed, Plain_B for an odd one).
+    fn plaintext(data: u64, data_2: u16) -> [u8; 9] {
+        let d = Self::decode_packet(data, data_2);
+        let key = data.to_be_bytes();
+        let encoded = [key[1], key[2], key[3], key[4], key[5], key[6], key[7], (data_2 >> 8) as u8, data_2 as u8];
+        Self::transform_block(&encoded, d.seed, d.button)
     }
 
     /// Map a KAT generic button to a Chrysler button code (1 = Lock, 2 = Unlock); the fob has no
@@ -468,11 +519,12 @@ impl ProtocolDecoder for ChryslerV0Decoder {
             plain_b[3] ^= 0x30;
         }
 
-        // Counter (encoder deserialize): the next press = seed + 2 (Flipper-ARF's
-        // `cnt + 2 * mult`); counter_a is that value made even, counter_b = counter_a - 1 (6-bit).
-        // The seed comes from the frame itself (the C's default `Cnt`; it equals
-        // `decoded.counter`, which older KAT .fob files filled with SnA instead).
-        let counter = ((seed as u32) + 2) & 0x3F;
+        // Counter: seed − 1 (6-bit), made even = counter_a; counter_b = counter_a − 1. The payload
+        // of the captured type is then the fob's next press of that type (real fobs count the seed
+        // down; see the module doc — the references count up). The seed comes from the frame
+        // itself (the C's default `Cnt`; it equals `decoded.counter`, which older KAT .fob files
+        // filled with SnA instead).
+        let counter = ((seed as u32) + 0x3F) & 0x3F;
         let mut counter_a = (counter & 0x3F) as u8;
         if (counter_a & 1) != 0 {
             counter_a = counter_a.wrapping_sub(1) & 0x3F;
@@ -501,6 +553,30 @@ impl ProtocolDecoder for ChryslerV0Decoder {
         Self::add_level(&mut signal, false, FRAME_GAP);
 
         Some(signal)
+    }
+
+    /// `subghz_protocol_decoder_chrysler_v0_deserialize` (see the module doc, "Key files").
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        let data = key.key_u64()?;
+        let key2: [u8; 2] = key.hex_bytes_field("Key_2")?.try_into().ok()?;
+        Some(Self::frame_signal(data, u16::from_be_bytes(key2)))
+    }
+
+    /// `subghz_protocol_decoder_chrysler_v0_serialize` (see the module doc, "Key files").
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        if decoded.data_count_bit != DECODE_BIT_COUNT {
+            return None;
+        }
+        let data_2 = u16::try_from(decoded.extra?).ok()?;
+        let d = Self::decode_packet(decoded.data, data_2);
+        let mut key = FlipperKey::for_protocol("Chrysler V0", DECODE_BIT_COUNT, decoded.data);
+        key.push_hex_bytes("Key_2", &data_2.to_be_bytes());
+        let plain = if d.seed & 1 != 0 { "Plain_B" } else { "Plain_A" };
+        key.push_hex_bytes(plain, &Self::plaintext(decoded.data, data_2));
+        key.push_u32("Serial", d.serial);
+        key.push_u32("Btn", d.button.into());
+        key.push_u32("Cnt", d.seed.into());
+        Some(key)
     }
 }
 
@@ -600,8 +676,9 @@ mod tests {
         assert_eq!((got.button, got.counter, got.crc_valid), (Some(1), Some(0x14), true));
     }
 
-    /// Transmitting from a payload-A capture sends the next press (seed + 2) with the same
-    /// plaintext; Lock/Unlock select the button, Trunk/Panic keep the captured one.
+    /// Transmitting from a payload-A capture of seed N sends A(N − 2), the fob's next payload-A
+    /// press, with the same plaintext; Lock/Unlock select the button, Trunk/Panic keep the captured
+    /// one.
     #[test]
     fn encode_sends_next_seed_and_requested_button() {
         for counter_a in (0..64u8).step_by(2) {
@@ -611,11 +688,132 @@ mod tests {
                     let burst = ChryslerV0Decoder::new().encode(&sig, cmd).expect("encodes");
                     assert_eq!(burst.len(), 424);
                     let got = decode_stream(&burst).expect("payload A decodes");
-                    assert_eq!(got.counter, Some(((counter_a + 2) & 0x3F) as u16));
+                    assert_eq!(got.counter, Some(((counter_a + 62) & 0x3F) as u16));
                     assert_eq!(got.button, Some(want));
                     assert_eq!(got.serial, sig.serial);
                 }
             }
+        }
+    }
+
+    /// Every decode of an upload, in order.
+    fn decode_all(pairs: &[LevelDuration]) -> Vec<DecodedSignal> {
+        let mut dec = ChryslerV0Decoder::new();
+        pairs.iter().filter_map(|p| dec.feed(p.level, p.duration_us)).collect()
+    }
+
+    /// Key files (ProtoPirate `subghz_protocol_decoder_chrysler_v0_serialize` / `_deserialize`):
+    /// frames A and B round-trip with the C's lines (Key_2 big-endian, the frame's Plain_x),
+    /// Flipper-ARF's "Chrysler" name loads, a frame failing the check loads flagged, Key_2 is
+    /// required, and TX from a loaded key decodes back.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = ChryslerV0Decoder::new();
+        let (sig, plain) = captured_a(0x14, 1);
+        let text = assert_round_trip(&dec, &sig);
+        let k = sig.data.to_be_bytes();
+        let p: Vec<String> = plain.iter().map(|b| format!("{b:02X}")).collect();
+        let x = sig.extra.unwrap() as u16;
+        let want = format!(
+            "Protocol: Chrysler V0\nBit: 80\nKey: {}\nKey_2: {:02X} {:02X}\nPlain_A: {}\nSerial: {}\nBtn: 1\nCnt: 20\n",
+            k.iter().map(|b| format!("{b:02X}")).collect::<Vec<_>>().join(" "),
+            x >> 8,
+            x & 0xFF,
+            p.join(" "),
+            sig.serial.unwrap()
+        );
+        assert!(text.ends_with(&want), "{text}\nwant tail:\n{want}");
+
+        // A payload-B frame (odd seed; B check: plain[4] == plain[0], plain[5] ^ plain[0] == 0x62,
+        // Unlock when plain[8] ^ plain[3] == 0x10) writes Plain_B and SnB.
+        for button in [1u8, 2] {
+            let mut plain = [0x5A, 0x11, 0x22, 0x33, 0x5A, 0x5A ^ 0x62, 0x66, 0x77, 0x00];
+            plain[8] = plain[3] ^ if button == 2 { 0x10 } else { 0x20 };
+            let payload = ChryslerV0Decoder::build_payload(&plain, 0x15, button, 0x02);
+            let data = u64::from_be_bytes(payload[..8].try_into().unwrap());
+            let b = ChryslerV0Decoder::frame_signal(data, u16::from_be_bytes([payload[8], payload[9]]));
+            assert!(b.crc_valid && b.button == Some(button) && b.counter == Some(0x15));
+            assert_eq!(b.serial, Some(0x5A11_2277), "SnB = plaintext bytes 0, 1, 2, 7");
+            let text = assert_round_trip(&dec, &b);
+            let p: Vec<String> = plain.iter().map(|x| format!("{x:02X}")).collect();
+            assert!(text.contains(&format!("\nPlain_B: {}\nSerial: 1511072375\n", p.join(" "))), "{text}");
+        }
+
+        // Flipper-ARF's name, through the registry.
+        let arf = key(&text.replace("Protocol: Chrysler V0", "Protocol: Chrysler"));
+        let (name, loaded) = crate::protocols::ProtocolRegistry::new().decode_key(&arf).unwrap();
+        assert_eq!((name.as_str(), &loaded), ("Chrysler V0", &sig));
+        // The C forces 80 bits whatever the Bit line says; Key_2 is required.
+        let mut any_bits = arf.clone();
+        any_bits.bits = 64;
+        assert_eq!(dec.from_flipper_key(&any_bits).as_ref(), Some(&sig));
+        let mut no_key2 = arf.clone();
+        no_key2.fields.retain(|(n, _)| n != "Key_2");
+        assert!(dec.from_flipper_key(&no_key2).is_none());
+        // A frame failing the structure check loads (the C shows Chk: ERR).
+        let mut bad = arf.clone();
+        bad.key ^= 0x00FF_0000_0000_0000;
+        bad.key_bytes = bad.key.to_be_bytes().to_vec();
+        assert!(!dec.from_flipper_key(&bad).unwrap().crc_valid);
+
+        // TX from the loaded key: the next payload-A press (seed − 2) decodes back.
+        let next = decode_all(&dec.encode(&loaded, 0x01).unwrap()).remove(0);
+        assert_eq!((next.serial, next.counter), (sig.serial, Some(0x12)));
+    }
+
+    /// The real PT Cruiser 2006 fob (`IMPORTS/chrysler`, ten presses per file, ~1.5 s apart): one
+    /// payload per press, A and B alternating, the seed counting down by one. Re-encoding each
+    /// press with its own button reproduces, in the payload of its type, the fob's press two later
+    /// bit for bit.
+    #[test]
+    fn reencode_reproduces_the_fobs_next_press() {
+        for rel in ["Chrysler PT Cruiser 2006 open.sub", "Chrysler PT Cruiser 2006 close.sub"] {
+            let path = std::path::Path::new("IMPORTS/chrysler").join(rel);
+            if !path.exists() {
+                eprintln!("Skip: {path:?} not found (run from crate root)");
+                return;
+            }
+            let (freq, raw) = crate::export::flipper::import_sub_raw(&path).unwrap();
+            let pairs: Vec<LevelDuration> =
+                raw.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
+            let presses: Vec<DecodedSignal> = crate::protocols::ProtocolRegistry::new()
+                .process_signal_stream(&pairs, freq)
+                .into_iter()
+                .map(|(name, d, _)| {
+                    assert_eq!(name, "Chrysler V0", "{rel}");
+                    d
+                })
+                .collect();
+            assert_eq!(presses.len(), 10, "{rel}");
+            for w in presses.windows(2) {
+                assert_eq!(w[1].counter, Some((w[0].counter.unwrap() + 63) & 0x3F), "{rel}: seed − 1 per press");
+            }
+            for (now, later) in presses.iter().zip(&presses[2..]) {
+                let button = now.button.unwrap(); // 1 Lock / 2 Unlock = KAT's codes 0x01 / 0x02
+                let sent = decode_all(&ChryslerV0Decoder::new().encode(now, button).unwrap());
+                let same_type = sent
+                    .iter()
+                    .find(|d| d.counter.unwrap() % 2 == now.counter.unwrap() % 2)
+                    .unwrap_or_else(|| panic!("{rel}: no payload of the captured type in {sent:?}"));
+                assert_eq!((same_type.data, same_type.extra), (later.data, later.extra), "{rel}");
+            }
+        }
+    }
+
+    /// Reference-oracle vectors: `KAT_KEY_VECTORS=<dir> cargo test oracle_vectors -- --ignored`.
+    #[test]
+    #[ignore]
+    fn oracle_vectors() {
+        let dec = ChryslerV0Decoder::new();
+        for (n, (seed, button)) in [(0x14u8, 1u8), (0x22, 2)].into_iter().enumerate() {
+            let (sig, _) = captured_a(seed, button);
+            let upload = dec.encode(&sig, 0x40).unwrap();
+            let sent = decode_all(&upload).remove(0);
+            let mut key = dec.to_flipper_key(&sent).unwrap();
+            key.frequency = 433_920_000;
+            key.set_preset(&crate::radio::preset::RfPreset::from_def(INFO.presets[0]));
+            super::super::ford_v0::write_oracle_vector(&format!("chrysler_v0_{}", n + 1), &upload, &key);
         }
     }
 }

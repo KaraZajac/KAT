@@ -138,6 +138,11 @@ pub fn draw_ui(frame: &mut Frame, app: &App) {
             Alignment::Center,
         );
     }
+
+    // Session restore prompt, :clear confirmation, timing analysis overlay
+    super::app_prompts::render_app_overlays(frame, app);
+    // :new picker / field form, "Send button…" list
+    super::add_manually::render(frame, app);
 }
 
 /// Render the RSSI bar on the right (vertical bar, bottom = strong). Shows " TX " in red when transmitting.
@@ -194,31 +199,44 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App) {
 
     let title = format!("Keyfob Analysis Toolkit v{}", VERSION);
 
-    // Build radio info string: device name (if any), state, freq, gains
+    // Build radio info string: device name (if any), state, freq (or hop state), gains
     let amp_str = if app.amp_enabled { "ON" } else { "OFF" };
     let device_str = app
         .radio_device_name()
         .unwrap_or("No device");
+    let rx = app.rx_header();
+    let freq_str = match rx.hop {
+        Some((f, i, n)) => format!("HOP {} MHz ({}/{})", crate::radio::hopper::format_mhz(f), i + 1, n),
+        None => format!("{:.2} MHz", app.frequency_mhz()),
+    };
     let radio_info = format!(
-        "{} {} | {} | {:.2} MHz | LNA:{} VGA:{} AMP:{}",
+        "{} {} | {} | {} | LNA:{} VGA:{} AMP:{}",
         status_symbol,
         app.radio_state,
         device_str,
-        app.frequency_mhz(),
+        freq_str,
         app.lna_gain,
         app.vga_gain,
         amp_str
     );
+    // Recording indicator (raw IQ being written to disk)
+    let rec_info = rx
+        .recording
+        .map(|r| {
+            let dropped = if r.dropped_buffers > 0 { format!(" ({} dropped)", r.dropped_buffers) } else { String::new() };
+            format!(" ● REC {:.1}MB{dropped}", r.bytes as f64 / (1u64 << 20) as f64)
+        })
+        .unwrap_or_default();
 
     // Calculate padding for right-alignment
-    let padding = area
-        .width
-        .saturating_sub(title.len() as u16 + radio_info.len() as u16 + 4);
+    let used = title.chars().count() + radio_info.chars().count() + rec_info.chars().count() + 4;
+    let padding = (area.width as usize).saturating_sub(used);
 
     let header_line = Line::from(vec![
         Span::styled(title, Style::default().add_modifier(Modifier::BOLD)),
-        Span::raw(" ".repeat(padding as usize)),
+        Span::raw(" ".repeat(padding)),
         Span::styled(radio_info, status_style),
+        Span::styled(rec_info, Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
     ]);
 
     let header = Paragraph::new(header_line).block(
@@ -242,10 +260,14 @@ fn render_help_bar(frame: &mut Frame, area: Rect, app: &App) {
         InputMode::SettingsEdit => "Up/Down: Change Value | Enter: Apply | Esc: Cancel",
         InputMode::HackRfNotDetected => "Press any key to continue",
         InputMode::StartupImport => "y: Import | n: Skip",
+        InputMode::SessionRestore | InputMode::ConfirmClear | InputMode::TimingAnalysis => {
+            super::app_prompts::help_text(app.input_mode)
+        }
         InputMode::ExportFilename => {
             match app.export_format {
                 Some(crate::app::ExportFormat::Fob) => "Enter: Next Field | Esc: Cancel Export",
                 Some(crate::app::ExportFormat::Flipper) => "Enter: Save & Export | Esc: Cancel Export",
+                Some(crate::app::ExportFormat::FlipperKey) => "Enter: Save & Export | Esc: Cancel Export",
                 None => "Enter: Confirm | Esc: Cancel",
             }
         }
@@ -262,6 +284,9 @@ fn render_help_bar(frame: &mut Frame, area: Rect, app: &App) {
         InputMode::CaptureMetaCommand => "Enter: Save | Esc: Cancel",
         InputMode::License | InputMode::Credits => "Esc/Enter: Close | Up/Down: Scroll",
         InputMode::LoadFileBrowser => "Up/Down: Navigate | Enter: Open/Import | Esc: Close",
+        InputMode::NewRemote | InputMode::NewRemoteEdit | InputMode::SendButton => {
+            super::add_manually::help_text(app.input_mode)
+        }
     };
 
     let help = Paragraph::new(Line::from(Span::styled(
@@ -339,7 +364,7 @@ fn render_load_file_browser(frame: &mut Frame, app: &App) {
     }
 
     let block = Block::default()
-        .title(" Load file (.fob / .sub) ")
+        .title(" Load file (.fob / .sub / .cs8 / .cu8) ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Cyan));
 
@@ -640,6 +665,8 @@ fn render_export_form(frame: &mut Frame, app: &App) {
 
     let title = if is_fob {
         " Export .fob — Filename & Vehicle Details "
+    } else if app.export_format == Some(ExportFormat::FlipperKey) {
+        " Export Flipper key file (.sub) "
     } else {
         " Export .sub (Flipper Zero) "
     };

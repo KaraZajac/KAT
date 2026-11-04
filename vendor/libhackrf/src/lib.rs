@@ -1,7 +1,7 @@
 use std::{
     any::Any,
     ffi::c_void,
-    mem, ptr, slice,
+    ptr, slice,
     sync::{
         atomic::{AtomicPtr, AtomicUsize, Ordering},
         Arc,
@@ -159,14 +159,11 @@ impl HackRf {
 
     /// Stops the current transmit operation.
     pub fn stop_tx(&self) -> Result<()> {
-        let user_data = &self.inner.user_data;
-        let callback = user_data.swap(ptr::null_mut(), Ordering::Relaxed);
-        if !callback.is_null() {
-            let callback = unsafe { Box::from_raw(callback as *mut fn(*mut ffi::HackrfTransfer)) };
-            drop(callback);
-        }
-
-        unsafe { HackrfError::from_id(ffi::hackrf_stop_tx(self.device())) }
+        // Stop first: libhackrf cancels the transfers and waits for them, so the callback can no
+        // longer run when the context is freed.
+        let result = unsafe { HackrfError::from_id(ffi::hackrf_stop_tx(self.device())) };
+        self.free_transfer_context::<TransmitCallback>();
+        result
     }
 
     /// Starts receiving samples from the device.
@@ -180,14 +177,19 @@ impl HackRf {
 
     /// Stops the current receive operation.
     pub fn stop_rx(&self) -> Result<()> {
-        let user_data = &self.inner.user_data;
-        let callback = user_data.swap(ptr::null_mut(), Ordering::Relaxed);
-        if !callback.is_null() {
-            let callback = unsafe { Box::from_raw(callback as *mut fn(*mut ffi::HackrfTransfer)) };
-            drop(callback);
-        }
+        // Stop first (see `stop_tx`), then free the callback context.
+        let result = unsafe { HackrfError::from_id(ffi::hackrf_stop_rx(self.device())) };
+        self.free_transfer_context::<ReceiveCallback>();
+        result
+    }
 
-        unsafe { HackrfError::from_id(ffi::hackrf_stop_rx(self.device())) }
+    /// Free the context `start_rx`/`start_tx` leaked for the transfer callbacks, as its real type
+    /// (which drops the user data). Only call once streaming has stopped.
+    fn free_transfer_context<Callback>(&self) {
+        let context = self.inner.user_data.swap(ptr::null_mut(), Ordering::AcqRel);
+        if !context.is_null() {
+            drop(unsafe { Box::from_raw(context as *mut TransferContext<Callback>) });
+        }
     }
 
     /// Returns true if the device is currently streaming samples (transmitting or receiving).

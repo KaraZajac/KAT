@@ -52,9 +52,48 @@
 //! **Deviations from C**: none on the wire. The C's per-frame `te_last` bookkeeping is unused and
 //! omitted; the Flipper custom-button/global-override plumbing is replaced by KAT's generic button
 //! mapping.
+//!
+//! **Key files**: `bmw.c`'s serialize is the generic one, and the two references' generic writers
+//! differ. Flipper-ARF writes only `Protocol: BMW`, `Bit: 128` and `Key` (the high 64 bits), so an
+//! ARF-saved key loses the counter and hop; doctor-firmware's writer adds the decoded fields and the
+//! second word. KAT writes doctor's lines — `Serial`, `Btn` (xx), `Cnt` (17-bit), `ValidationField`
+//! (the fixed 0x89), `TE` (62), `Key_2` (the low 64 bits) and `Key_3` (the 47-bit hop), each
+//! omitted when zero, as doctor does — so its files reload completely; ARF reads only Bit/Key from
+//! them. Loading follows `subghz_protocol_decoder_bmw_deserialize`: exactly 128 bits, `Key_2` (or
+//! doctor's `Key2`) as the low half (zero when absent, as ARF's own load leaves it), an
+//! inverted-sync payload flipped back (`bmw_normalize_stored_payload`), fields parsed from the
+//! payload (the file's Serial/Btn/Cnt are not read back, as in the C). The C loads any payload;
+//! `crc_valid` reports the decoder's structural gate on it.
 
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "BMW",
+    decoder: "BMW",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::AM,
+    encryption: "Rolling Code",
+    make: "BMW",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650],
+};
+
+/// BMW buttons.
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x1 => "Unlock",
+        0x2 => "Lock",
+        0x3 => "Trunk",
+        _ => "Other",
+    })
+}
 
 const TE_US: u32 = 62;
 const TE1_MIN_US: u32 = 40;
@@ -225,21 +264,27 @@ impl BmwDecoder {
             self.reset_soft();
             return None;
         }
-        let (serial, btn, cnt, _hop) = Self::parse_fields(hi, lo);
         self.reset_soft();
-        Some(DecodedSignal {
+        Some(Self::frame_signal(hi, lo))
+    }
+
+    /// The decode of a 128-bit payload (`bmw_parse_fields`), as the decoder reports it.
+    fn frame_signal(hi: u64, lo: u64) -> DecodedSignal {
+        let (serial, btn, cnt, _hop) = Self::parse_fields(hi, lo);
+        DecodedSignal {
             serial: Some(serial),
             button: Some(btn),
             // 17-bit counter: low 16 bits here; the full value is preserved in `extra`.
             counter: Some((cnt & 0xFFFF) as u16),
-            // No CRC: sync + fixed 0x89 + button template validated the frame.
-            crc_valid: true,
+            // No CRC: sync + fixed 0x89 + button template validate the frame (always true for a
+            // frame the decoder reports; a loaded key is not gated, as in the C).
+            crc_valid: Self::fields_valid(hi),
             data: hi,
             data_count_bit: PAYLOAD_BITS,
             encoder_capable: true,
             extra: Some(lo),
             protocol_display_name: None,
-        })
+        }
     }
 
     /// `bmw_seed_payload_sync`: restart the 128-bit register with the 16 sync bits.
@@ -518,6 +563,70 @@ impl ProtocolDecoder for BmwDecoder {
         }
         Some(signal)
     }
+
+    /// `subghz_protocol_decoder_bmw_deserialize` (see the module doc, "Key files").
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != PAYLOAD_BITS {
+            return None;
+        }
+        let mut hi = key.key_u64()?;
+        let mut lo = key.hex_field("Key_2").or_else(|| key.hex_field("Key2")).unwrap_or(0);
+        if (hi >> 48) as u16 == SYNC_INV {
+            hi = !hi;
+            lo = !lo;
+        }
+        Some(Self::frame_signal(hi, lo))
+    }
+
+    /// doctor-firmware's `subghz_block_generic_serialize` of a BMW decode (see "Key files").
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        if decoded.data_count_bit != PAYLOAD_BITS {
+            return None;
+        }
+        let (hi, lo) = (decoded.data, decoded.extra?);
+        let (serial, btn, cnt, hop) = Self::parse_fields(hi, lo);
+        let mut key = FlipperKey::for_protocol("BMW", PAYLOAD_BITS, hi);
+        if serial != 0 || btn != 0 || cnt != 0 {
+            key.push_u32("Serial", serial);
+            key.push_u32("Btn", btn.into());
+            key.push_u32("Cnt", cnt);
+        }
+        if hi & 0xFF != 0 {
+            key.push_u32("ValidationField", (hi & 0xFF) as u32);
+        }
+        key.push_u32("TE", TE_US);
+        if lo != 0 {
+            key.push_hex("Key_2", lo, 8);
+        }
+        if hop != 0 {
+            key.push_hex("Key_3", hop, 8);
+        }
+        Some(key)
+    }
+}
+
+/// Oracle test vectors for the key-file support of the Flipper-ARF / doctor-firmware ports:
+/// writes `<dir>/<name>.sub`, a Flipper RAW file of `upload` sent twice with a 20 ms LOW gap
+/// (HIGH positive, LOW negative, adjacent levels merged, ≤512 values per line), and
+/// `<dir>/<name>.kat.txt`, KAT's key file `key` with the same Frequency/Preset.
+#[cfg(test)]
+pub(super) fn write_key_vector(
+    dir: &std::path::Path,
+    name: &str,
+    frequency: u32,
+    preset: &str,
+    upload: &[LevelDuration],
+    key: &FlipperKey,
+) {
+    crate::protocols::flipper_key::testing::write_vector(dir, name, frequency, preset, upload, key);
+}
+
+/// Where [write_key_vector] writes (`KAT_KEY_VECTORS`, default `<tmp>/kat_key_vectors`).
+#[cfg(test)]
+pub(super) fn key_vector_dir() -> std::path::PathBuf {
+    std::env::var_os("KAT_KEY_VECTORS")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::env::temp_dir().join("kat_key_vectors"))
 }
 
 impl Default for BmwDecoder {
@@ -674,6 +783,69 @@ mod tests {
             let dur = if i % 3 == 0 { 1000 } else { 500 };
             assert!(dec.feed(i % 2 == 0, dur).is_none());
             assert_eq!(dec.step, DecoderStep::Reset);
+        }
+    }
+
+    /// Key files: doctor-firmware's lines round-trip every field, Flipper-ARF's (Key only) load
+    /// with a zero low half, an inverted-sync key is normalised, and TX from a loaded key decodes.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = BmwDecoder::new();
+        let wire = dec.encode(&captured(BTN_LOCK), KAT_BTN_LOCK).unwrap();
+        let decoded = decode_all(&wire, false).remove(0);
+        let text = assert_round_trip(&dec, &decoded);
+        let (hi, lo) = BmwDecoder::rebuild_payload(SERIAL, BTN_LOCK, COUNTER, HOP);
+        assert_eq!(hi, 0x599E_1234_5678_1189, "sync | serial | button byte 0x11 (Lock) | 0x89");
+        assert_eq!(decoded.extra, Some(lo));
+        assert!(
+            text.ends_with(&format!(
+                "Protocol: BMW\nBit: 128\nKey: 59 9E 12 34 56 78 11 89\nSerial: 305419896\nBtn: 2\n\
+                 Cnt: {COUNTER}\nValidationField: 137\nTE: 62\nKey_2: {}\nKey_3: {}\n",
+                hex8(lo),
+                hex8(HOP)
+            )),
+            "{text}"
+        );
+
+        // Flipper-ARF's file (its generic writer stops after Key): counter and hop are zero.
+        let arf = key("Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+                       Preset: FuriHalSubGhzPresetOok650Async\nProtocol: BMW\nBit: 128\n\
+                       Key: 59 9E 12 34 56 78 11 89\n");
+        let d = dec.from_flipper_key(&arf).unwrap();
+        assert_eq!((d.serial, d.button, d.counter, d.extra, d.crc_valid), (Some(SERIAL), Some(BTN_LOCK), Some(0), Some(0), true));
+        // A payload stored with the inverted sync is flipped back; a wrong bit count is refused.
+        let mut inverted = arf.clone();
+        inverted.key = !hi;
+        inverted.key_bytes = (!hi).to_be_bytes().to_vec();
+        inverted.push_hex("Key_2", !lo, 8);
+        let d = dec.from_flipper_key(&inverted).unwrap();
+        assert_eq!((d.data, d.extra), (hi, Some(lo)));
+        let mut short = arf.clone();
+        short.bits = 64;
+        assert!(dec.from_flipper_key(&short).is_none());
+
+        // TX from the reloaded decode.
+        let reloaded = dec.from_flipper_key(&key(&text)).unwrap();
+        let tx = decode_all(&dec.encode(&reloaded, KAT_BTN_UNLOCK).unwrap(), false);
+        assert_eq!((tx[0].serial, tx[0].button, tx[0].extra), (Some(SERIAL), Some(BTN_UNLOCK), Some(lo)));
+    }
+
+    fn hex8(v: u64) -> String {
+        v.to_be_bytes().iter().map(|b| format!("{b:02X}")).collect::<Vec<_>>().join(" ")
+    }
+
+    /// Oracle vectors (`KAT_KEY_VECTORS=<dir> cargo test bmw_key_vectors -- --ignored`).
+    #[test]
+    #[ignore]
+    fn bmw_key_vectors() {
+        let dec = BmwDecoder::new();
+        for (n, btn) in [(1, BTN_LOCK), (2, BTN_TRUNK)] {
+            let wire = dec.encode(&captured(btn), 0).unwrap();
+            let one = &wire[..wire.len() / REPEAT_DEFAULT];
+            let decoded = decode_all(one, false).remove(0);
+            let key = dec.to_flipper_key(&decoded).unwrap();
+            write_key_vector(&key_vector_dir(), &format!("bmw_{n}"), 433_920_000, "FuriHalSubGhzPresetOok650Async", one, &key);
         }
     }
 }

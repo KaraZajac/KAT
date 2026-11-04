@@ -1,5 +1,9 @@
 //! AM/OOK and FM/2FSK demodulators for extracting level+duration pairs from raw IQ samples.
 //!
+//! **KAT 1.4 demodulators.** Live RX and IQ files now use the shared receive pipeline
+//! (`src/radio/pipeline.rs`); these are kept as the "as-is" baseline rows of the synthetic-IQ
+//! sweeps in `src/radio/sim.rs`. `LevelDuration` (below) is the pair type every decoder uses.
+//!
 //! Two demodulators run in parallel on the same IQ stream:
 //! - **Demodulator** (AM): envelope detection → level/duration pairs for OOK/AM protocols.
 //! - **FmDemodulator** (FM): phase discriminator → instantaneous frequency → level/duration for 2FSK.
@@ -26,6 +30,7 @@ impl LevelDuration {
 }
 
 /// Demodulator for processing raw IQ samples into level+duration pairs
+#[allow(dead_code)]
 pub struct Demodulator {
     /// Sample rate in Hz
     #[allow(dead_code)]
@@ -82,6 +87,7 @@ pub struct Demodulator {
     samples_since_edge: u64,
 }
 
+#[allow(dead_code)]
 impl Demodulator {
     /// Create a new demodulator
     pub fn new(sample_rate: u32) -> Self {
@@ -358,6 +364,7 @@ impl Demodulator {
 
 /// FM/2FSK demodulator: instantaneous frequency from phase difference → level/duration pairs.
 /// Uses same debounce and gap-detection logic as AM so protocol decoders see a consistent stream.
+#[allow(dead_code)]
 pub struct FmDemodulator {
     sample_rate: u32,
     samples_per_us: f64,
@@ -386,6 +393,7 @@ pub struct FmDemodulator {
     samples_since_edge: u64,
 }
 
+#[allow(dead_code)]
 impl FmDemodulator {
     /// Create a new FM demodulator. Hysteresis in Hz (e.g. 300–1000 for keyfob 2FSK).
     pub fn new(sample_rate: u32) -> Self {

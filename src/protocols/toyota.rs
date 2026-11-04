@@ -36,9 +36,48 @@
 //! - The upload's framing-pulse branches (`framing` 1/2) and the non-carried phase reset are
 //!   unreachable from `toyota_encode_action` (it always passes framing 0 with `carry_phase`), so
 //!   they are not ported.
+//!
+//! Key files (`subghz_protocol_decoder_toyota_serialize` / `_deserialize`): `Protocol: Toyota`
+//! (doctor-firmware's "Toyota Lexus" loads too, through KAT's key-file name table), `Bit: 96`, `Key`
+//! = payload bytes 0..7, `Key_2` = `00 00 00 00` + bytes 8..11, then `Btn` and `ToyotaBtn` (the
+//! published button) and `Disp` ("Toyota - Estima|Cmd|Unknown"). The C's serialize writes `Key_2`
+//! only for a zero tail and relies on the generic writer for the rest — doctor's writes it, ARF's
+//! does not (the gap noted above) — so KAT always writes it, in the layout ARF's own encoder
+//! persists (`toyota_write_state`). Loading follows the decoder's deserialize: `Key_2` required with
+//! its high half zero, 96 bits, a key starting 0x00 with bit 55 set unless the file has the
+//! encoder's `Copy` line, and the `ToyotaBtn` / `Btn` checks (`toyota_read_button`); the decode is
+//! then the decoder's own for that payload (the `Btn` command never reaches the frame).
 
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (line coding, RF, encryption, make, native buttons, TX presets); see `info.rs`.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Toyota",
+    decoder: "Toyota",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::DifferentialManchester,
+    rf: Rf::AM,
+    encryption: "Rolling Code",
+    make: "Toyota/Lexus",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650],
+};
+
+/// toyota_button_name: the Estima button bytes, or the C's command 1-3 ("Cmd").
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0xD1 | 0xD4 | 0x99 | 0x9C => "Estima",
+        1 => "Cmd 1",
+        2 => "Cmd 2",
+        3 => "Cmd 3",
+        _ => "Unknown",
+    })
+}
 
 const PAYLOAD_BYTES: usize = 12;
 const FRAME_BYTES: usize = 15;
@@ -395,36 +434,41 @@ impl ToyotaDecoder {
     fn accept(&self) -> DecodedSignal {
         let mut wire = [0u8; PAYLOAD_BYTES];
         wire.copy_from_slice(&self.frame[..PAYLOAD_BYTES]);
-        match recover(&wire) {
-            Some((plain, counter, _)) => {
-                let (data, tail) = split_payload(&build_frame(&plain, counter, false));
-                DecodedSignal {
-                    serial: Some(fixed_id(&plain)),
-                    button: Some(plain[3]),
-                    counter: Some(counter as u16),
-                    crc_valid: true,
-                    data,
-                    data_count_bit: COUNT_BIT,
-                    encoder_capable: true,
-                    extra: Some(tail),
-                    protocol_display_name: None,
-                }
+        payload_signal(&wire)
+    }
+}
+
+/// The decode the C publishes for an aligned 96-bit payload (`toyota_accept`).
+fn payload_signal(wire: &Payload) -> DecodedSignal {
+    match recover(wire) {
+        Some((plain, counter, _)) => {
+            let (data, tail) = split_payload(&build_frame(&plain, counter, false));
+            DecodedSignal {
+                serial: Some(fixed_id(&plain)),
+                button: Some(plain[3]),
+                counter: Some(counter as u16),
+                crc_valid: true,
+                data,
+                data_count_bit: COUNT_BIT,
+                encoder_capable: true,
+                extra: Some(tail),
+                protocol_display_name: None,
             }
-            None => {
-                // The C publishes the raw window with serial/cnt 0 and displays the fixed id of the
-                // standard transform; KAT reports that displayed id and no counter.
-                let (data, tail) = split_payload(&wire);
-                DecodedSignal {
-                    serial: Some(fixed_id(&transform(&wire))),
-                    button: Some(button_from_payload(&wire)),
-                    counter: None,
-                    crc_valid: false,
-                    data,
-                    data_count_bit: COUNT_BIT,
-                    encoder_capable: false,
-                    extra: Some(tail),
-                    protocol_display_name: None,
-                }
+        }
+        None => {
+            // The C publishes the raw window with serial/cnt 0 and displays the fixed id of the
+            // standard transform; KAT reports that displayed id and no counter.
+            let (data, tail) = split_payload(wire);
+            DecodedSignal {
+                serial: Some(fixed_id(&transform(wire))),
+                button: Some(button_from_payload(wire)),
+                counter: None,
+                crc_valid: false,
+                data,
+                data_count_bit: COUNT_BIT,
+                encoder_capable: false,
+                extra: Some(tail),
+                protocol_display_name: None,
             }
         }
     }
@@ -501,6 +545,58 @@ impl ProtocolDecoder for ToyotaDecoder {
         }
         let key = join_payload(decoded.data, tail);
         encode_action(&key).map(|(upload, _)| upload)
+    }
+
+    /// `subghz_protocol_decoder_toyota_deserialize` (see the module doc, "Key files").
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        let have_copy = key.hex_bytes_field("Copy").is_some_and(|c| c.len() == PAYLOAD_BYTES);
+        let tail = key.hex_field("Key_2")?;
+        if tail >> 32 != 0 || key.bits != COUNT_BIT {
+            return None;
+        }
+        let data = key.key_u64()?;
+        if !have_copy && (data >> 56 != 0 || data & (1 << 55) == 0) {
+            return None;
+        }
+        let payload = join_payload(data, tail);
+        // toyota_read_button: the saved ToyotaBtn and the selected Btn must be consistent.
+        let mut previous = u32::from(button_from_payload(&payload));
+        if let Some(saved) = key.u32_field("ToyotaBtn") {
+            if saved > 255 || (saved > 3 && !button_is_estima(saved as u8)) || (!have_copy && saved != previous) {
+                return None;
+            }
+            previous = saved;
+        }
+        let selected = key.u32_field("Btn").unwrap_or(previous);
+        let previous = previous as u8;
+        let change_valid = selected <= 255
+            && ((1..=3).contains(&selected)
+                || (button_is_estima(previous) && (selected == u32::from(previous) || selected == u32::from(previous ^ ESTIMA_XOR)))
+                || (previous == 0 && selected == 0));
+        change_valid.then(|| payload_signal(&payload))
+    }
+
+    /// `subghz_protocol_decoder_toyota_serialize`: Key, Key_2, Btn, ToyotaBtn, Disp.
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        let tail = decoded.extra.unwrap_or(0);
+        if decoded.data_count_bit != COUNT_BIT || tail >> 32 != 0 {
+            return None;
+        }
+        let payload = join_payload(decoded.data, tail);
+        let button = decoded.button.unwrap_or_else(|| button_from_payload(&payload));
+        let name = if button_is_estima(button) {
+            "Estima"
+        } else if (1..=3).contains(&button) {
+            "Cmd"
+        } else {
+            "Unknown"
+        };
+        let mut key = FlipperKey::for_protocol("Toyota", COUNT_BIT, decoded.data);
+        key.push_hex("Key_2", tail, 8);
+        key.push_u32("Btn", button.into());
+        key.push_u32("ToyotaBtn", button.into());
+        key.push("Disp", format!("Toyota - {name}"));
+        Some(key)
     }
 }
 
@@ -850,6 +946,73 @@ mod tests {
             let names: Vec<String> =
                 reg.process_signal_stream(&up, f).into_iter().map(|(n, _, _)| n).collect();
             assert!(!names.is_empty() && names.iter().all(|n| n == "Toyota"), "{f}: {names:?}");
+        }
+    }
+
+    /// Key files: recovered and unrecovered frames round-trip with the C's lines (Key_2 always
+    /// written), doctor-firmware's "Toyota Lexus" name loads, the C's Key_2/start/button checks
+    /// refuse bad files, and TX from a loaded key matches TX from the decode.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = ToyotaDecoder::new();
+        let (data, tail) = split_payload(&payload(GOLDEN_0.0));
+        let up = dec.encode(&signal(data, tail), 0x01).unwrap();
+        let decoded = feed_all(&up).remove(0);
+        assert!(decoded.encoder_capable);
+        let text = assert_round_trip(&dec, &decoded);
+        let p = join_payload(decoded.data, decoded.extra.unwrap());
+        let bytes = |b: &[u8]| b.iter().map(|x| format!("{x:02X}")).collect::<Vec<_>>().join(" ");
+        assert!(
+            text.ends_with(&format!(
+                "Protocol: Toyota\nBit: 96\nKey: {}\nKey_2: 00 00 00 00 {}\nBtn: 209\nToyotaBtn: 209\n\
+                 Disp: Toyota - Estima\n",
+                bytes(&p[..8]),
+                bytes(&p[8..])
+            )),
+            "{text}"
+        );
+        // An unrecoverable window (the C's raw publish) round-trips too.
+        let mut raw = p;
+        raw[5] ^= 0x40;
+        let odd = payload_signal(&raw);
+        if !odd.crc_valid {
+            assert_round_trip(&dec, &odd);
+        }
+        // doctor-firmware's name and generic lines (Serial/Cnt/Type) load the same frame.
+        let reg = crate::protocols::ProtocolRegistry::new();
+        let doctor = text.replace("Protocol: Toyota\n", "Protocol: Toyota Lexus\n").replace(
+            "Key_2:",
+            "Serial: 1234\nCnt: 1\nType: 31\nKey_2:",
+        );
+        assert_eq!(reg.decode_key(&key(&doctor)), Some(("Toyota".to_string(), decoded.clone())));
+        // Refusals (toyota deserialize): Key_2 missing or with a non-zero high half, a key not
+        // starting 0x00/bit 55, an inconsistent ToyotaBtn, an invalid Btn change.
+        let mut k = key(&text);
+        k.fields.retain(|(n, _)| n != "Key_2");
+        assert!(dec.from_flipper_key(&k).is_none());
+        assert!(dec.from_flipper_key(&key(&text.replace("Key_2: 00 00 00 00", "Key_2: 00 00 00 01"))).is_none());
+        assert!(dec.from_flipper_key(&key(&text.replace("ToyotaBtn: 209", "ToyotaBtn: 212"))).is_none());
+        assert!(dec.from_flipper_key(&key(&text.replace("Btn: 209\nToyota", "Btn: 7\nToyota"))).is_none());
+        // Btn 2 (a command) is a valid selection; the payload decides the decode.
+        assert_eq!(dec.from_flipper_key(&key(&text.replace("Btn: 209\nToyota", "Btn: 2\nToyota"))), Some(decoded.clone()));
+
+        let loaded = dec.from_flipper_key(&key(&text)).unwrap();
+        assert_eq!(pairs(&dec.encode(&loaded, 0x01).unwrap()), pairs(&dec.encode(&decoded, 0x01).unwrap()));
+    }
+
+    /// Oracle vectors (`KAT_KEY_VECTORS=<dir> cargo test toyota_key_vectors -- --ignored`).
+    #[test]
+    #[ignore]
+    fn toyota_key_vectors() {
+        use super::super::bmw::{key_vector_dir, write_key_vector};
+        let dec = ToyotaDecoder::new();
+        for (n, g) in [(1, GOLDEN_0), (2, GOLDEN_2)] {
+            let (data, tail) = split_payload(&payload(g.0));
+            let up = dec.encode(&signal(data, tail), 0x01).unwrap();
+            let decoded = feed_all(&up).remove(0);
+            let key = dec.to_flipper_key(&decoded).unwrap();
+            write_key_vector(&key_vector_dir(), &format!("toyota_{n}"), 433_920_000, "FuriHalSubGhzPresetOok650Async", &up, &key);
         }
     }
 }

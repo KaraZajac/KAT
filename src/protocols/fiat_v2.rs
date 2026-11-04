@@ -54,13 +54,49 @@
 //!   is the one the real FCA captures above use (they all decode through the C's inverted path);
 //!   Flipper-ARF's upload uses the opposite polarity behind a 2033µs carrier lead copied from its
 //!   Fiat V1 encoder, so KAT keeps doctor-firmware's (deviation from ARF, from capture evidence).
+//!
+//! **Key files** (`subghz_protocol_decoder_fiat_v2_serialize` / `_deserialize`): KAT writes
+//! ProtoPirate's lines — Protocol "Fiat V2", Bit 112, Key = UID << 32 | hop, then Serial (UID),
+//! Btn (the raw button byte; the C writes `generic.btn` and then updates the same line with
+//! `button`, the same value), Cnt, Hop (decimal) and Raw (the 14 wire bytes). Loading follows all
+//! three references: Bit 112 and a Raw line passing `fiat_v2_frame_valid` are required (no Raw =
+//! no key, as in the C), and the decode is the Raw frame's. Flipper-ARF's / doctor-firmware's
+//! files (Raw first, ARF's optional Hitag2 lines) load the same way; KAT keeps no key from them
+//! (its encoder re-discovers ARF's known keys from the frame itself).
 
 use std::collections::VecDeque;
 
 use super::hitag2;
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (see `info.rs`); the IMPORTS captures that decode as Fiat V2 are Chrysler/Jeep.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Fiat V2",
+    decoder: "Fiat V2",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::AM,
+    encryption: "Rolling Code",
+    make: "Fiat/Chrysler/Jeep",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&AM650],
+};
+
+/// Button selector = top two bits of the raw button byte.
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code >> 6 {
+        2 => "Lock",
+        3 => "Unlock",
+        1 => "Trunk",
+        _ => "Other",
+    })
+}
 
 const TE_SHORT: u32 = 210;
 const TE_LONG: u32 = 420;
@@ -452,6 +488,31 @@ impl ProtocolDecoder for FiatV2Decoder {
         }
         Some(signal)
     }
+
+    /// `subghz_protocol_decoder_fiat_v2_deserialize`: Bit 112 and a valid Raw frame.
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != WIRE_BITS {
+            return None;
+        }
+        let raw = <[u8; WIRE_BYTES]>::try_from(key.hex_bytes_field("Raw")?).ok()?;
+        Self::frame_valid(&raw).then(|| Self::build_signal(&raw))
+    }
+
+    /// `subghz_protocol_decoder_fiat_v2_serialize` (see the module doc).
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        let raw = Self::raw_from_signal(decoded)?;
+        if !Self::frame_valid(&raw) {
+            return None;
+        }
+        let (uid, hop) = (Self::uid(&raw), Self::hop(&raw));
+        let mut key = FlipperKey::for_protocol("Fiat V2", WIRE_BITS, (u64::from(uid) << 32) | u64::from(hop));
+        key.push_u32("Serial", uid);
+        key.push_u32("Btn", raw[7].into());
+        key.push_u32("Cnt", Self::counter(&raw).into());
+        key.push_u32("Hop", hop);
+        key.push_hex_bytes("Raw", &raw);
+        Some(key)
+    }
 }
 
 impl Default for FiatV2Decoder {
@@ -588,6 +649,67 @@ mod tests {
             // Without a reset the C's dedup reports the repeated frame once.
             assert_eq!(decode(&signal).len(), 1);
         }
+    }
+
+    /// Oracle vectors (see `fiat_v0::write_oracle_vector`): the Pacifica frame (doctor-firmware
+    /// replay upload) and its FCA-layout variant.
+    #[test]
+    #[ignore]
+    fn oracle_vectors() {
+        let mut fca = RAW_PACIFICA;
+        fca[6] = 0xD2;
+        for (name, raw) in [("fiat_v2_1", RAW_PACIFICA), ("fiat_v2_2", fca)] {
+            let up = FiatV2Decoder::new().encode(&FiatV2Decoder::build_signal(&raw), 0x40).unwrap();
+            crate::protocols::fiat_v0::write_oracle_vector(
+                name,
+                433_920_000,
+                "FuriHalSubGhzPresetOok650Async",
+                &up,
+                &mut FiatV2Decoder::new(),
+            );
+        }
+    }
+
+    /// Key files: ProtoPirate's lines round-trip (both layouts), a Flipper-ARF file (Raw first)
+    /// loads, a key without Raw or with an invalid Raw does not (as in the C), and a loaded key
+    /// replays a frame that decodes back.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = FiatV2Decoder::new();
+        let decoded = decode(&gapped(&frame_cells(&RAW_PACIFICA))).remove(0);
+        let text = assert_round_trip(&dec, &decoded);
+        assert!(
+            text.ends_with(
+                "Protocol: Fiat V2\nBit: 112\nKey: D7 37 A2 C3 23 5C 16 7D\nSerial: 3610747587\n\
+                 Btn: 251\nCnt: 155\nHop: 593237629\nRaw: 00 01 D7 37 A2 C3 5E FB 20 23 5C 16 7D E9\n"
+            ),
+            "{text}"
+        );
+        let mut fca = RAW_PACIFICA;
+        fca[6] = 0xD2;
+        assert_round_trip(&dec, &FiatV2Decoder::build_signal(&fca));
+
+        let arf = key(
+            "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+             Preset: FuriHalSubGhzPresetOok650Async\nProtocol: Fiat V2\nBit: 112\n\
+             Key: D7 37 A2 C3 23 5C 16 7D\nRaw: 00 01 D7 37 A2 C3 5E FB 20 23 5C 16 7D E9\n\
+             Hop: 593237629\nBtn: 251\nSerial: 3610747587\nCnt: 155\n",
+        );
+        assert_eq!(dec.from_flipper_key(&arf), Some(decoded.clone()));
+        let mut no_raw = arf.clone();
+        no_raw.fields.retain(|(n, _)| n != "Raw");
+        assert!(dec.from_flipper_key(&no_raw).is_none());
+        let mut bad = no_raw.clone();
+        bad.push("Raw", "00 03 D7 37 A2 C3 5E FB 20 23 5C 16 7D E9");
+        assert!(dec.from_flipper_key(&bad).is_none(), "marker byte");
+        let mut bits = arf.clone();
+        bits.bits = 104;
+        assert!(dec.from_flipper_key(&bits).is_none());
+
+        let loaded = dec.from_flipper_key(&arf).unwrap();
+        let tx = decode(&dec.encode(&loaded, 0x01).unwrap());
+        assert_eq!(tx, vec![loaded], "unknown key: the frame is replayed");
     }
 
     /// Flipper-ARF hop recompute: a frame whose hop one of the known keys reproduces (any of the

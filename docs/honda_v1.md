@@ -9,7 +9,7 @@ layout: default
 
 ## Overview
 
-Honda/Acura fixed-code keyfobs — a DIFFERENT protocol from `honda_static`. The on-wire frame carries 68
+Honda/Acura counter-based (rolling-code) keyfobs — a DIFFERENT protocol from `honda_static`. The on-wire frame carries 68
 bits: 64-bit data + a 4-bit CRC-fold nibble. Encoding is short/long pulse PWM, glued together by a
 "pending bit" timing accumulator before classification: sub-`te_delta` runts are summed into `pending`;
 a HIGH level extends the running HIGH pulse; a LOW flushes the accumulated HIGH (if it reached

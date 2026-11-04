@@ -63,9 +63,48 @@
 //!   can never complete that frame. KAT completes the last bit when 111 bits are collected, the
 //!   pending chip is the bit's first half and the next pulse is a gap (≥1150µs) of the opposite
 //!   level. This only affects the final bit; the gate is unchanged.
+//!
+//! # Key files
+//! The C serialize is the generic one, and the references' generic writers differ: Flipper-ARF
+//! writes `Protocol: Mercedes V0`, `Bit: 112` and `Key` (the first 64 bits) only, losing the last
+//! 48; doctor-firmware's adds `Serial: 0` / `Btn` (command nibble) / `Cnt: 0` (when the command is
+//! non-zero), `TE: 500` and `Key_2` (the second word: bits 64..111 in its top 48 bits). KAT writes
+//! doctor's lines, so its files reload completely; ARF reads only Bit/Key from them. Loading
+//! follows `mercedes_v0_deserialize`: `Key` + `Key_2` (doctor's `Key2` too; zero when absent, as
+//! ARF's own load leaves it), refused unless 112 bits, `Key_2 & 0xFFFF == 0` and a whitelisted
+//! command nibble (`mercedes_v0_data_valid`). KAT's degenerate-payload gate is a receive-side
+//! filter and is not applied to a loaded key.
 
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (see `info.rs`): FM, transmitted with doctor-firmware's "mercedes" preset (FM20K).
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Mercedes V0",
+    decoder: "Mercedes V0",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Manchester,
+    rf: Rf::FM,
+    encryption: "Rolling Code",
+    make: "Mercedes-Benz",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&FM20K],
+};
+
+/// Mercedes V0 buttons.
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0xC => "Lock",
+        0x8 => "Unlock",
+        0xA => "Aux",
+        0x0 => "Follow-up",
+        _ => "Other",
+    })
+}
 
 const TE_US: u32 = 500;
 /// Frame length in bits (MERCEDES_V0_BITS).
@@ -188,17 +227,22 @@ impl MercedesV0Decoder {
         if !Self::prefix_valid(self.hi) || Self::payload_degenerate(self.hi, self.lo) {
             return None;
         }
-        Some(DecodedSignal {
+        Some(Self::frame_signal(self.hi, self.lo))
+    }
+
+    /// The decode of a 112-bit frame (`hi`, `lo` with the last 48 bits in its top 48).
+    fn frame_signal(hi: u64, lo: u64) -> DecodedSignal {
+        DecodedSignal {
             serial: None,
-            button: Some((self.hi >> 60) as u8),
+            button: Some((hi >> 60) as u8),
             counter: None,
             crc_valid: true,
-            data: self.hi,
+            data: hi,
             data_count_bit: BITS as usize,
             encoder_capable: true,
-            extra: Some(self.lo >> 16),
+            extra: Some(lo >> 16),
             protocol_display_name: None,
-        })
+        }
     }
 
     /// KAT deviation: complete the frame-final bit whose second half merged into the trailing gap.
@@ -369,6 +413,38 @@ impl ProtocolDecoder for MercedesV0Decoder {
             Self::enc_burst(&mut signal, tail, lo);
         }
         Some(signal)
+    }
+
+    /// `mercedes_v0_deserialize` (see the module doc, "Key files").
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        let hi = key.key_u64()?;
+        let lo = key.hex_field("Key_2").or_else(|| key.hex_field("Key2")).unwrap_or(0);
+        // mercedes_v0_data_valid
+        if key.bits != BITS as usize || lo & 0xFFFF != 0 || !Self::prefix_valid(hi) {
+            return None;
+        }
+        Some(Self::frame_signal(hi, lo))
+    }
+
+    /// doctor-firmware's `subghz_block_generic_serialize` of the decode (see "Key files").
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        if decoded.data_count_bit != BITS as usize {
+            return None;
+        }
+        let hi = decoded.data;
+        let lo = (decoded.extra? << 16) & LO_VALID_MASK;
+        let command = (hi >> 60) as u32;
+        let mut key = FlipperKey::for_protocol("Mercedes V0", BITS as usize, hi);
+        if command != 0 {
+            key.push_u32("Serial", 0);
+            key.push_u32("Btn", command);
+            key.push_u32("Cnt", 0);
+        }
+        key.push_u32("TE", TE_US);
+        if lo != 0 {
+            key.push_hex("Key_2", lo, 8);
+        }
+        Some(key)
     }
 }
 
@@ -596,5 +672,63 @@ mod tests {
         let names: Vec<&str> = results.iter().map(|(n, _, _)| n.as_str()).collect();
         assert_eq!(names, vec!["Mercedes V0"]);
         assert_eq!(results[0].1.data, HI_LOCK);
+    }
+
+    /// Key files: doctor-firmware's lines round-trip every field, Flipper-ARF's (no Key_2) load
+    /// with a zero tail, invalid keys are refused, and TX from a loaded key decodes.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = MercedesV0Decoder::new();
+        let decoded = decode_all(&build_wire(HI_LOCK, EXTRA, 55)).remove(0);
+        let text = assert_round_trip(&dec, &decoded);
+        assert!(
+            text.ends_with(
+                "Protocol: Mercedes V0\nBit: 112\nKey: C5 A3 19 E7 4B 2D 80 F6\nSerial: 0\n\
+                 Btn: 12\nCnt: 0\nTE: 500\nKey_2: 9D 41 7E 2C B3 08 00 00\n"
+            ),
+            "{text}"
+        );
+        // Command 0x0 (Follow-up): doctor writes no Serial/Btn/Cnt.
+        let follow = MercedesV0Decoder::frame_signal(HI_LOCK & HI_TAIL_MASK, EXTRA << 16);
+        assert!(assert_round_trip(&dec, &follow).ends_with("\nTE: 500\nKey_2: 9D 41 7E 2C B3 08 00 00\n"));
+
+        // Flipper-ARF's file: Key only, the 48-bit tail is lost (zero), as ARF's own load has it.
+        let arf = key("Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+                       Preset: FuriHalSubGhzPreset2FSKDev476Async\nProtocol: Mercedes V0\n\
+                       Bit: 112\nKey: C5 A3 19 E7 4B 2D 80 F6\n");
+        let d = dec.from_flipper_key(&arf).unwrap();
+        assert_eq!((d.button, d.data, d.extra), (Some(CMD_LOCK), HI_LOCK, Some(0)));
+        // mercedes_v0_data_valid: command whitelist, bit count, clean low 16 bits of Key_2.
+        let mut bad = arf.clone();
+        bad.key = 0x1000_0000_0000_0000;
+        bad.key_bytes = bad.key.to_be_bytes().to_vec();
+        assert!(dec.from_flipper_key(&bad).is_none());
+        let mut bad = arf.clone();
+        bad.bits = 64;
+        assert!(dec.from_flipper_key(&bad).is_none());
+        let mut bad = arf.clone();
+        bad.push("Key_2", "00 00 00 00 00 00 00 01");
+        assert!(dec.from_flipper_key(&bad).is_none());
+
+        // TX from the reloaded decode (Lock re-stamped, payload replayed).
+        let reloaded = dec.from_flipper_key(&key(&text)).unwrap();
+        let tx = decode_all(&dec.encode(&reloaded, BTN_LOCK).unwrap());
+        assert_eq!((tx[0].data, tx[0].extra), (HI_LOCK, Some(EXTRA)));
+    }
+
+    /// Oracle vectors (`KAT_KEY_VECTORS=<dir> cargo test mercedes_v0_key_vectors -- --ignored`).
+    #[test]
+    #[ignore]
+    fn mercedes_v0_key_vectors() {
+        use super::super::bmw::{key_vector_dir, write_key_vector};
+        let dec = MercedesV0Decoder::new();
+        let frames = [(1, HI_LOCK, EXTRA), (2, 0x8A51_7C30_1E2F_9D44u64, 0x31A7_F00D_5E21u64)];
+        for (n, hi, extra) in frames {
+            let wire = dec.encode(&signal_for(hi, extra), 0x08).unwrap();
+            let decoded = decode_all(&wire).remove(0);
+            let key = dec.to_flipper_key(&decoded).unwrap();
+            write_key_vector(&key_vector_dir(), &format!("mercedes_v0_{n}"), 433_920_000, "FuriHalSubGhzPreset2FSKDev476Async", &wire, &key);
+        }
     }
 }

@@ -52,9 +52,92 @@
 //! (`mitsubishi_v0.rs`), which owns that name.
 
 use super::common::crc8_kia;
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
+
+use super::info::prelude::*;
+
+/// Metadata (see `info.rs`). ProtoPirate flags Kia V0 FM (preset FM476), Flipper-ARF AM + FM.
+pub(super) const INFO: ProtocolInfo = ProtocolInfo {
+    name: "Kia V0",
+    decoder: "Kia V0",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Pwm,
+    rf: Rf::Both,
+    encryption: "Rolling Code",
+    make: "Kia/Hyundai",
+    category: Category::Vehicle,
+    buttons: Some(native_buttons),
+    presets: &[&FM476, &AM650],
+};
+
+/// Kia V0 type 2 (display name "Suzuki V0"; "Suzuki" is ProtoPirate's retired standalone).
+pub(super) const SUZUKI_V0_INFO: ProtocolInfo = ProtocolInfo {
+    name: "Suzuki V0",
+    decoder: "Kia V0",
+    aliases: &["Suzuki"],
+    name_prefix: None,
+    encoding: Coding::Pwm,
+    rf: Rf::Both,
+    encryption: "Rolling Code",
+    make: "Suzuki",
+    category: Category::Vehicle,
+    buttons: Some(suzuki_buttons),
+    presets: &[&FM476, &AM650],
+};
+
+/// Kia V0 type 3 (display name "Honda V0").
+pub(super) const HONDA_V0_INFO: ProtocolInfo = ProtocolInfo {
+    name: "Honda V0",
+    decoder: "Kia V0",
+    aliases: &[],
+    name_prefix: None,
+    encoding: Coding::Pwm,
+    rf: Rf::Both,
+    encryption: "Rolling Code",
+    make: "Honda/Acura",
+    category: Category::Vehicle,
+    buttons: Some(honda_buttons),
+    presets: &[&FM476, &AM650],
+};
+
+/// Kia V0 / Mitsubishi V0 buttons (ProtoPirate kia_v0_button_name; Panic = the emulate D-pad's Left code).
+pub(super) fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x1 => "Lock",
+        0x2 => "Unlock",
+        0x3 => "Trunk",
+        0x4 => "Panic",
+        _ => "Other",
+    })
+}
+
+/// Suzuki V0 buttons (kia_v0_button_name, Suzuki type).
+fn suzuki_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x3 => "Lock",
+        0x4 => "Unlock",
+        0x2 => "Trunk",
+        0x1 => "Panic",
+        _ => "Other",
+    })
+}
+
+/// Honda V0 buttons (kia_v0_button_name, Honda type).
+fn honda_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        1 => "Unlock",
+        2 => "Trunk",
+        3 => "Lock2",
+        4 => "Unlock2",
+        5 => "Trunk2",
+        6 => "Unlock3",
+        7 => "Trunk3",
+        _ => "Other",
+    })
+}
 
 const TE_SHORT: u32 = 250;
 const TE_LONG: u32 = 500;
@@ -325,6 +408,22 @@ fn parse_fields(data: u64, ty: KiaV0Type) -> Fields {
     }
 }
 
+/// The decode reported for frame `data` of type `ty` (`kia_v0_decoder_commit` → `kia_v0_parse_data`).
+fn signal(data: u64, ty: KiaV0Type) -> DecodedSignal {
+    let f = parse_fields(data, ty);
+    DecodedSignal {
+        serial: Some(f.serial),
+        button: Some(f.button),
+        counter: Some(f.counter),
+        crc_valid: f.crc_valid,
+        data,
+        data_count_bit: ty.bit_count(),
+        encoder_capable: true,
+        extra: None,
+        protocol_display_name: (ty != KiaV0Type::Kia).then(|| ty.display_name().to_string()),
+    }
+}
+
 /// Decoder states (`KiaV0DecoderStep`).
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
@@ -376,19 +475,8 @@ impl KiaV0Decoder {
 
     /// `kia_v0_decoder_commit`: report the frame and clear the state machine.
     fn commit(&mut self, data: u64, ty: KiaV0Type) -> DecodedSignal {
-        let f = parse_fields(data, ty);
         self.state_clear();
-        DecodedSignal {
-            serial: Some(f.serial),
-            button: Some(f.button),
-            counter: Some(f.counter),
-            crc_valid: f.crc_valid,
-            data,
-            data_count_bit: ty.bit_count(),
-            encoder_capable: true,
-            extra: None,
-            protocol_display_name: (ty != KiaV0Type::Kia).then(|| ty.display_name().to_string()),
-        }
+        signal(data, ty)
     }
 
     /// `kia_v0_decoder_finish_kia_or_honda_at_gap`.
@@ -554,6 +642,69 @@ impl ProtocolDecoder for KiaV0Decoder {
 
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
         encode_type(decoded, button, KiaV0Type::from_bits(decoded.data_count_bit)?)
+    }
+
+    /// `subghz_protocol_decoder_kia_deserialize`: Bit must be 61, 64 or 72; the type comes from
+    /// `Type` (1..=4), else from a legacy Protocol name ("Suzuki", "Honda V0", "Mitsu V0" …), else
+    /// from the bit count. When the file has Serial/Btn/Cnt the C rebuilds the key from them (CRC
+    /// recomputed); KAT does that only when they differ from the key's own fields, so a key it
+    /// wrote reloads bit for bit (the C's rebuild would also clear the sync bit the decoder leaves
+    /// in bit 60 of a Kia frame — same fields, same frame on air).
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        let by_bits = KiaV0Type::from_bits(key.bits)?;
+        let ty = match key.u32_field("Type") {
+            Some(1) => KiaV0Type::Kia,
+            Some(2) => KiaV0Type::Suzuki,
+            Some(3) => KiaV0Type::Honda,
+            Some(4) => KiaV0Type::Mitsubishi,
+            _ => type_from_protocol_name(&key.protocol).unwrap_or(by_bits),
+        };
+        let mut data = key.key_u64()?;
+        let f = parse_fields(data, ty);
+        let (serial, button, counter) = (key.u32_field("Serial"), key.u32_field("Btn"), key.u32_field("Cnt"));
+        if serial.is_some() || button.is_some() || counter.is_some() {
+            let serial = serial.unwrap_or(f.serial);
+            let button = button.map_or(f.button, |b| b as u8);
+            let counter = counter.map_or(f.counter, |c| c as u16);
+            let mask = if ty == KiaV0Type::Honda { 0x07 } else { 0x0F };
+            let edited = (serial, button & mask, counter) != (f.serial, f.button, f.counter);
+            if edited {
+                data = build_frame(ty, serial, button & mask, counter);
+            }
+        }
+        Some(signal(data, ty))
+    }
+
+    /// `subghz_protocol_decoder_kia_serialize`: Protocol "Kia V0" for every type (the C's
+    /// `generic.protocol_name`), Bit 61/64/72, Key = the frame, then `pp_serialize_fields`'
+    /// Serial, Btn, Cnt and Type (1 Kia, 2 Suzuki, 3 Honda, 4 Mitsubishi), decimal.
+    fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
+        let ty = match decoded.protocol_display_name.as_deref().map(super::info::strip_variant) {
+            Some("Suzuki V0") => KiaV0Type::Suzuki,
+            Some("Honda V0") => KiaV0Type::Honda,
+            Some("Mitsubishi V0") => KiaV0Type::Mitsubishi,
+            _ => KiaV0Type::from_bits(decoded.data_count_bit)?,
+        };
+        if ty.bit_count() != decoded.data_count_bit {
+            return None;
+        }
+        let f = parse_fields(decoded.data, ty);
+        let mut key = FlipperKey::for_protocol("Kia V0", ty.bit_count(), decoded.data);
+        key.push_u32("Serial", f.serial);
+        key.push_u32("Btn", f.button.into());
+        key.push_u32("Cnt", f.counter.into());
+        key.push_u32("Type", ty as u32);
+        Some(key)
+    }
+}
+
+/// `kia_v0_type_from_protocol_name`: the type a legacy / display Protocol name stands for.
+fn type_from_protocol_name(name: &str) -> Option<KiaV0Type> {
+    match name.trim() {
+        "Mitsu v0" | "Mitsu V0" | "Mitsubishi v0" | "Mitsubishi V0" => Some(KiaV0Type::Mitsubishi),
+        "Suzuki" | "Suzuki V0" => Some(KiaV0Type::Suzuki),
+        "Honda v0" | "Honda V0" => Some(KiaV0Type::Honda),
+        _ => None,
     }
 }
 
@@ -896,6 +1047,60 @@ mod tests {
         let mut dec = KiaV0Decoder::new();
         let at = wire.iter().position(|p| dec.feed(p.level, p.duration_us).is_some()).unwrap();
         assert_eq!(at, wire.len() - 2, "the last data LOW, before the closing HIGH 1000");
+    }
+
+    /// Key files (ProtoPirate `subghz_protocol_decoder_kia_serialize` / `_deserialize`): every
+    /// type's decode round-trips with the C's lines, a Flipper-ARF file loads, and an edited Cnt
+    /// rebuilds the key (CRC included) as the C does.
+    #[test]
+    fn flipper_key_files() {
+        use crate::protocols::flipper_key::testing::{assert_round_trip, key};
+        let dec = KiaV0Decoder::new();
+        for &(ty, _, _, _, frame, ..) in C_VECTORS {
+            let ty = ty_of(ty);
+            for d in feed_all(&mut KiaV0Decoder::new(), &build_upload(ty, frame)) {
+                let text = assert_round_trip(&dec, &d);
+                assert!(text.contains("\nProtocol: Kia V0\n"), "{text}");
+            }
+        }
+        let first = feed_all(&mut KiaV0Decoder::new(), &build_upload(KiaV0Type::Kia, C_VECTORS[0].4)).remove(0);
+        assert!(assert_round_trip(&dec, &first).ends_with(
+            "Protocol: Kia V0\nBit: 61\nKey: 1F 12 34 12 34 56 72 4E\nSerial: 19088743\nBtn: 2\nCnt: 4660\nType: 1\n"
+        ));
+        // Mitsubishi V0 is saved as Kia V0 type 4 and reloads under its display name.
+        let mitsu = DecodedSignal {
+            protocol_display_name: Some("Mitsubishi V0".into()),
+            ..signal_of(KiaV0Type::Mitsubishi, C_VECTORS[12].4)
+        };
+        let text = assert_round_trip(&dec, &mitsu);
+        assert!(text.ends_with("Type: 4\n"), "{text}");
+
+        // IMPORTS/HYUNDAI/HYU V0 N1.sub (Flipper-ARF "KIA/HYU V0", no Type line: 61 bits = Kia).
+        let arf = key(
+            "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+             Preset: FuriHalSubGhzPreset2FSKDev476Async\nProtocol: KIA/HYU V0\nBit: 61\n\
+             Key: 0F 73 91 67 BD 75 B2 BD\n",
+        );
+        let d = dec.from_flipper_key(&arf).unwrap();
+        assert_eq!(d.protocol_display_name, None);
+        assert_eq!((d.data, d.data_count_bit), (0x0F73_9167_BD75_B2BD, 61));
+        assert_eq!((d.serial, d.button, d.counter, d.crc_valid), (Some(0x67B_D75B), Some(0x2), Some(0x7391), true));
+
+        // An edited counter: the C rebuilds the key from Serial/Btn/Cnt.
+        let mut edited = dec.to_flipper_key(&d).unwrap();
+        edited.fields.retain(|(n, _)| n != "Cnt");
+        edited.push_u32("Cnt", 0x7392);
+        let e = dec.from_flipper_key(&edited).unwrap();
+        assert_eq!((e.serial, e.button, e.counter, e.crc_valid), (Some(0x67B_D75B), Some(0x2), Some(0x7392), true));
+        assert_eq!(e.data, build_frame(KiaV0Type::Kia, 0x67B_D75B, 0x2, 0x7392));
+        // The C rejects any other bit count.
+        let mut bad = edited.clone();
+        bad.bits = 60;
+        assert!(dec.from_flipper_key(&bad).is_none());
+    }
+
+    fn signal_of(ty: KiaV0Type, data: u64) -> DecodedSignal {
+        super::signal(data, ty)
     }
 
     /// Real fob data: the IMPORTS key files `HYUNDAI/HYU V0 N1.sub` and `HYU V0_great_konserva.sub`

@@ -48,6 +48,14 @@ pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
             "IMPORT",
             Style::default().fg(Color::Yellow),
         ),
+        InputMode::SessionRestore | InputMode::ConfirmClear | InputMode::TimingAnalysis => {
+            let (label, style) = super::app_prompts::mode_label(app.input_mode);
+            (String::new(), label, style)
+        }
+        InputMode::NewRemote | InputMode::NewRemoteEdit | InputMode::SendButton => {
+            let (label, style) = super::add_manually::mode_label(app.input_mode);
+            (String::new(), label, style)
+        }
         InputMode::ExportFilename
         | InputMode::FobMetaYear
         | InputMode::FobMetaMake

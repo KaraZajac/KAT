@@ -13,10 +13,12 @@ fn normalize(s: &str) -> String {
 }
 
 /// Barrier/gate/garage door manufacturers (normalized names).
-/// Covers Flipper/ProtoPirate-style names and common variants (e.g. NICE_MHOUSE, Guard_RF-311A).
+/// Covers Flipper/ProtoPirate-style names and common variants (e.g. NICE_MHOUSE, Guard_RF-311A),
+/// and every manufacturer of the "Add Manually" KeeLoq types (`add_manually.rs`).
 const BARRIER_NAMES: &[&str] = &[
     "airforce",
     "anmotors",
+    "ataptx4",
     "allmatic",
     "alutechat4n",
     "ansonic",
@@ -39,14 +41,19 @@ const BARRIER_NAMES: &[&str] = &[
     "deamio",
     "dickertmahs",
     "doitrand",
+    "doormatic",
     "doorhan",
     "dooya",
     "dtmneo",
     "ecostar",
     "elmespoland",
     "elplast",
+    "elvox",
     "erreka",
+    "etblue",
+    "etbluemix",
     "faacrctx",
+    "faacrcxt",
     "fadini",
     "faacslh",
     "faacslhspa",
@@ -61,6 +68,7 @@ const BARRIER_NAMES: &[&str] = &[
     "gangqi",
     "hay21",
     "hcs101",
+    "homegate",
     "hollarm",
     "holtek",
     "holtekht12x",
@@ -70,6 +78,7 @@ const BARRIER_NAMES: &[&str] = &[
     "hormannhsm",
     "ido",
     "intertechnov3",
+    "il100smart",
     "ironlogic",
     "jarolift",
     "jcmtech",
@@ -82,6 +91,7 @@ const BARRIER_NAMES: &[&str] = &[
     "magellan",
     "marantec",
     "marantec24",
+    "mcgarcia",
     "mastercode",
     "megacode",
     "merlin",
@@ -120,6 +130,7 @@ const BARRIER_NAMES: &[&str] = &[
     "steelmate",
     "stilmatic",
     "superrollo",
+    "verex",
     "wisniowski",
 ];
 

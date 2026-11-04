@@ -5,7 +5,7 @@
 #
 # Linux builds use Ubuntu 22.04 (glibc 2.35) so the binaries also run on older distributions such as
 # Debian 12 and Raspberry Pi OS. At runtime KAT needs the HackRF library (libhackrf.so.0 /
-# libhackrf.0.dylib), even when only an RTL-SDR is used; libusb is built in.
+# libhackrf.0.dylib) and libusb, even when only an RTL-SDR is used.
 name: Release binaries
 
 on:

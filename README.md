@@ -44,7 +44,7 @@ A terminal-based RF signal analysis tool for capturing, decoding, and retransmit
 Every release from v1.5.0 on carries ready-to-run binaries on its [GitHub release page](https://github.com/KaraZajac/KAT/releases):
 `kat-<version>-x86_64-linux.tar.gz`, `kat-<version>-aarch64-linux.tar.gz` (64-bit Raspberry Pi OS and other ARM64 Linux) and `kat-<version>-aarch64-macos.tar.gz` (Apple Silicon), each with a `.sha256` checksum. The Linux builds run on glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Raspberry Pi OS bookworm and later).
 
-KAT needs the HackRF library at runtime, even when you only use an RTL-SDR:
+KAT needs the HackRF library and libusb at runtime, even when you only use an RTL-SDR. Installing the HackRF library brings libusb along:
 
 ```bash
 sudo apt install libhackrf0     # Debian / Ubuntu / Raspberry Pi OS

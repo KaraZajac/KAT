@@ -29,9 +29,15 @@
 //! the C `commit`); `crc_valid` reflects whether the received CRC nibble matches either wire-order
 //! checksum (`honda_v1_crc_valid`). The strong button gate keeps Honda V1 from false-matching.
 //!
-//! **Encoder** (matches `honda_v1_build_upload` / `honda_v1_append_frame`, behind
-//! `ENABLE_EMULATE_FEATURE`): builds the 64-bit key from serial/button/counter via the button
-//! table, then emits a 180-element short-pair preamble + 4 PWM frames (2 per checksum wire value).
+//! **Encoder** (`subghz_protocol_encoder_honda_v1_deserialize` + ProtoPirate's emulate scene;
+//! Flipper-ARF's copy does the same with the counter bump inline): the Key's fields, overridden by
+//! the DecodedSignal's serial/button/counter; KAT's button 0x01 Lock → 8, 0x02 Unlock → 0,
+//! 0x04 Trunk → 9, 0x08 Panic → 10 (emulate Up/OK/Down/Left; any other code keeps the captured
+//! button, and an invalid button falls back to the Key's, then Unlock, as in the C); counter + 1
+//! (the emulate scene's `current_counter++`, masked to 16 bits); the 64-bit key rebuilt from the
+//! button table (`honda_v1_build_key`); then `honda_v1_build_upload`: a 180-element short-pair
+//! preamble whose last element is a 5000µs LOW + 4 PWM frames (2 per checksum wire value). The
+//! Flipper TX loop sends the upload `repeat` = 1 time.
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use crate::radio::demodulator::LevelDuration;
@@ -214,16 +220,22 @@ impl HondaV1Decoder {
         ((high as u64) << 32) | (low as u64)
     }
 
-    /// Map a KAT generic button command to a Honda V1 button code (nibble at data[31:28]).
-    fn map_button(button: u8) -> u8 {
-        match button {
+    /// The Btn value the emulate scene writes for KAT's generic command, then the encoder's
+    /// fallbacks: an invalid button takes the Key's, and if that is invalid too, Unlock.
+    fn map_button(button: u8, captured: u8, key_button: u8) -> u8 {
+        let b = match button {
             BTN_LOCK => BTN_CODE_LOCK,
             BTN_UNLOCK => BTN_CODE_UNLOCK,
             BTN_TRUNK => BTN_CODE_TRUNK,
             BTN_PANIC => BTN_CODE_PANIC,
-            // Already a valid Honda V1 code → pass through.
-            b if Self::button_valid(b) => b,
-            _ => BTN_CODE_UNLOCK,
+            _ => captured & NIBBLE_MASK,
+        };
+        if Self::button_valid(b) {
+            b
+        } else if Self::button_valid(key_button) {
+            key_button
+        } else {
+            BTN_CODE_UNLOCK
         }
     }
 
@@ -482,10 +494,16 @@ impl ProtocolDecoder for HondaV1Decoder {
     }
 
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
-        let serial = decoded.serial?;
-        let counter = decoded.counter.unwrap_or(0) & COUNTER_MASK;
-        let btn = Self::map_button(button);
-        let data = Self::build_key(serial & SERIAL_MASK, btn, counter);
+        // subghz_block_generic_deserialize_check_count_bit(.., 68) + honda_v1_decode_fields(Key),
+        // then the file's Serial/Btn/Cnt (Cnt = counter + 1 from the emulate scene).
+        if decoded.data_count_bit != BIT_COUNT {
+            return None;
+        }
+        let (key_serial, key_button, key_counter) = Self::decode_fields(decoded.data);
+        let serial = decoded.serial.unwrap_or(key_serial) & SERIAL_MASK;
+        let btn = Self::map_button(button, decoded.button.unwrap_or(key_button), key_button);
+        let counter = decoded.counter.unwrap_or(key_counter).wrapping_add(1) & COUNTER_MASK;
+        let data = Self::build_key(serial, btn, counter);
 
         let mut frame = [0u8; 9];
         frame[0..8].copy_from_slice(&data.to_be_bytes());
@@ -543,51 +561,47 @@ mod tests {
         );
     }
 
-    /// Full encode → decode round-trip: emit a frame for known fields, feed the pulses back through
-    /// the decoder (the pending-bit accumulator + symbol state machine), and confirm the fields and
-    /// checksum survive.
+    /// Full encode → decode round-trip as ProtoPirate transmits (encoder deserialize + emulate
+    /// scene): feed the pulses back through the decoder (pending-bit accumulator + symbol state
+    /// machine) and check the requested button, the counter + 1 and a valid checksum.
     #[test]
     fn honda_v1_encode_decode_roundtrip() {
         let serial = 0x0123456u32 & SERIAL_MASK;
-        let counter = 0x00ABu16;
+        let data = HondaV1Decoder::build_key(serial, BTN_CODE_TRUNK, 0xFFFF);
+        let (s, b, c) = HondaV1Decoder::decode_fields(data);
         let original = DecodedSignal {
-            serial: Some(serial),
-            button: Some(BTN_UNLOCK),
-            counter: Some(counter),
+            serial: Some(s),
+            button: Some(b),
+            counter: Some(c),
             crc_valid: true,
-            data: 0,
+            data,
             data_count_bit: BIT_COUNT,
             encoder_capable: true,
             extra: None,
             protocol_display_name: None,
         };
-
-        let decoder = HondaV1Decoder::new();
-        let signal = decoder.encode(&original, BTN_UNLOCK).expect("encode");
-
-        let mut dec = HondaV1Decoder::new();
-        let mut decoded = None;
-        for ld in &signal {
-            if let Some(d) = dec.feed(ld.level, ld.duration_us) {
-                decoded = Some(d);
-                break;
+        for (button, code) in [
+            (BTN_LOCK, BTN_CODE_LOCK),
+            (BTN_UNLOCK, BTN_CODE_UNLOCK),
+            (BTN_TRUNK, BTN_CODE_TRUNK),
+            (BTN_PANIC, BTN_CODE_PANIC),
+            (0x40, BTN_CODE_TRUNK),
+        ] {
+            let signal = HondaV1Decoder::new().encode(&original, button).expect("encode");
+            let mut dec = HondaV1Decoder::new();
+            let frames: Vec<_> = signal
+                .iter()
+                .filter_map(|ld| dec.feed(ld.level, ld.duration_us))
+                .collect();
+            assert_eq!(frames.len(), 4, "2 frames per checksum wire value");
+            for f in &frames {
+                assert!(f.crc_valid, "checksum should validate");
+                assert_eq!(f.serial, Some(serial));
+                assert_eq!(f.button, Some(code), "button {button:#04x}");
+                assert_eq!(f.counter, Some(0x0000), "0xFFFF + 1 wraps in 16 bits");
+                assert_eq!(f.data_count_bit, BIT_COUNT);
             }
         }
-        // Flush with a terminating end-gap if the inter-frame gaps didn't already commit.
-        if decoded.is_none() {
-            decoded = dec.feed(false, TE_END + 1000);
-        }
-
-        let decoded = decoded.expect("expected a decode from the round-tripped frame");
-        assert!(decoded.crc_valid, "checksum should validate");
-        assert_eq!(decoded.serial, Some(serial), "serial mismatch");
-        assert_eq!(
-            decoded.button,
-            Some(BTN_CODE_UNLOCK),
-            "button should map to Honda V1 Unlock=0"
-        );
-        assert_eq!(decoded.counter, Some(counter), "counter mismatch");
-        assert_eq!(decoded.data_count_bit, BIT_COUNT);
     }
 
     /// Button validity mask must match honda_v1_button_valid (0x701 → Unlock/Lock/Trunk/Panic).

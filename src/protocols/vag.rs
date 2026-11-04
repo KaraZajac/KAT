@@ -1,75 +1,133 @@
-//! VAG (VW/Audi/Seat/Skoda) protocol decoder/encoder
+//! VAG (VW/Audi/Seat/Skoda) protocol decoder/encoder.
 //!
-//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/vag.c` and `vag.h`.
-//! Decoder steps (VAGDecoderStepReset/Preamble1/Data1/Preamble2/Sync2A/B/C/Data2), Type 1/2/3/4
-//! parse (vag_parse_data, vag_aut64_decrypt, vag_tea_decrypt), dispatch (0x2A/0x1C/0x46 and
-//! 0x2B/0x1D/0x47), and encoder (vag_encoder_build_type1/2/3_4) match the reference.
+//! Port of ProtoPirate `protocols/vag.c` (HEAD; the primary reference) with the AUT64 cipher of
+//! `protocols/aut64.c` ([`super::aut64`]). Flipper-ARF `lib/subghz/protocols/vag.c` runs the same
+//! state machine; KAT additionally takes ARF's 315 MHz band and its Lock/Unlock/Trunk remap
+//! (`vag_custom_to_btn`). doctor-firmware `vag.c` is the same decoder with a wider type search.
 //!
-//! **Timing**: Reference uses VAG_TOL_300 (79) and VAG_TOL_500 (120). Reset/Preamble1 use 300±79/80;
-//! Preamble1→Data1 gap 600µs ±79; Data1 short 300±79/80, long 600±79/80; end-of-data gap 6000µs
-//! (accept diff < 4000). Preamble2 count 500±80; Sync2A 500/1000µs ±79; Sync2B 750µs ±79;
-//! Sync2C 750µs ±79; Data2 short 500±120 (380–620µs), long 1000±120 (880–1120µs).
+//! # Air format
 //!
-//! **Protocol**: Manchester, 80 bits (key1 64 + key2 16). Type 1/2: 300/600µs, prefix 0xAF3F/0xAF1C.
-//! Type 3/4: 500µs, 45 preamble pairs, sync 1000+500 then 3×750µs; key1/key2 not inverted.
-//! Button names match reference (vag_button_name): Unlock/Lock/Boot.
+//! Manchester, 80 bits = Key1 (64) + Key2 (16), in two families:
+//!
+//! * **Type 1/2** — 300/600µs half-bits. ≥151 preamble pairs of 300µs, a 600µs LOW, then a
+//!   16-bit prefix (`0xAF3F` = Type 1 / AUT64, `0xAF1C` = Type 2 / XTEA), Key1 and Key2 sent
+//!   **inverted**, and a ≥4ms LOW gap. The decoder sees the prefix's last 15 bits (`0x2F3F` /
+//!   `0x2F1C`); without a prefix match it keeps counting (vag_type 0, emitted undecrypted).
+//! * **Type 3/4** — 500/1000µs half-bits. ≥31 preamble pairs of 500µs, sync HIGH 1000 + LOW 500,
+//!   three 750µs HIGH/LOW pairs, then Key1/Key2 **not** inverted; the frame completes on the 80th
+//!   bit (the first bit is implied by the sync, as in the C).
+//!
+//! Timing windows are the C's: Type 1/2 short |d−300|<100, long d>400 && |d−600|<200, preamble gap
+//! |d−600|<200, end gap ≥4001µs; Type 3/4 short |d−500|<100, long |d−1000|<200, sync 750±150. As
+//! in the C, a pulse that is neither short nor long is ignored inside the data states (not a reset).
+//!
+//! Key1 byte 0 is the vehicle/type byte (0x00 "VW Passat", 0xC0 VW, 0xC1 Audi, 0xC2 Seat, 0xC3
+//! Skoda); Key1 bytes 1..7 + Key2's high byte are the 8-byte encrypted block; Key2's low byte is the
+//! dispatch byte (Type 1/2: 0x2A Lock, 0x1C Unlock, 0x46 Boot; Type 3/4: 0x2B/0x1D/0x47).
+//!
+//! # Decryption (`vag_parse_data`)
+//!
+//! * Type 1: dispatch must be a Type 1/2 value; AUT64 keys 1,2,3 (`key_idx` 0..2) are tried and the
+//!   first whose plaintext passes `vag_button_valid` wins. Serial = bytes 0..3 (BE), counter = bytes
+//!   4..6 (LE, 24 bit), button = the **whole** byte 7 (0x10/0x20/0x40; ARF keeps only the high
+//!   nibble — ProtoPirate's full byte is kept, the label uses the high nibble).
+//! * Type 2: XTEA (fixed key `0B46502D 5E253718 2BF93A19 622C1206`, 32 rounds; `vag_tea_*`); the
+//!   plaintext button nibble must match the dispatch byte (`vag_button_matches`). Button = high
+//!   nibble of byte 7.
+//! * Type 3 (every 500µs frame): AUT64 key 3 (→ reported as Type 4), then key 2, then key 1, each
+//!   accepted on `vag_button_valid`; Type 4: key 3 + `vag_button_matches`.
+//!
+//! Like ProtoPirate, every 80-bit frame is reported; frames that do not decrypt carry no fields
+//! (`crc_valid = false`, not encoder-capable). ARF/doctor report only decrypted frames.
+//!
+//! # DecodedSignal mapping
+//!
+//! `data` = Key1, `data_count_bit` = 80, `serial`/`button` as above, `counter` = low 16 bits of
+//! the 24-bit counter. `extra` (persisted in `.fob` as `data_extra`):
+//!
+//! ```text
+//! bits  0..15  Key2 (right-aligned rest of the 80-bit frame)
+//! bits 16..23  vag_type (0 = no prefix, 1..4)
+//! bits 24..31  key_idx (0..2 = AUT64 key 1..3, 0xFF = none / XTEA)
+//! bits 32..39  counter bits 16..23
+//! bit  63      layout flag (set)
+//! ```
+//!
+//! KAT ≤ v1.3.0 stored `vag_type | key_idx << 8` (flag clear, no Key2); [`VagDecoder::encode`]
+//! still accepts that layout.
+//!
+//! # Encoder (`subghz_protocol_encoder_vag_deserialize` + `vag_encoder_build_*`)
+//!
+//! Re-encrypts serial / counter + 1 (24-bit) / button with the stored type and key index (a
+//! missing key index is recovered by re-parsing Key1/Key2, as the C does) and builds the C upload:
+//! Type 1/2 = 220 × (HIGH 300, LOW 300), LOW 300, HIGH 300, prefix + ~Key1 + ~Key2 Manchester at
+//! 300µs (bit 1 = HIGH,LOW), LOW 6000 (635 entries); Type 3/4 = twice [45 × (HIGH 500, LOW 500),
+//! HIGH 1000, LOW 500, 3 × (HIGH 750, LOW 750), Key1 + Key2 Manchester at 500µs, LOW 10000] (518
+//! entries). KAT returns that upload with same-level runs merged (the C emits each half-bit
+//! separately; on air they are one pulse). The Flipper loops the upload while the button is held
+//! (PP `repeat` 10, ARF 1); KAT returns it once. KAT's generic button maps like ProtoPirate's
+//! emulate scene (ARF's D-pad gives the same codes): Lock → 0x20/2, Unlock → 0x10/1, Trunk →
+//! 0x40/4 (full-byte form for Type 1, nibble form otherwise), Panic → 8 (nibble form only, as in
+//! ProtoPirate — no reference decodes it back); anything else keeps the captured button.
+//!
+//! **Deviation:** both references turn a Type 1 frame whose type byte is 0x00 into a Type 2 (XTEA,
+//! prefix 0xAF1C) frame before transmitting ("Passat … key2 issue"). The real Type 1 captures
+//! `IMPORTS/VAG/Passat_2015.sub` and `Vw pasat B7.sub` both carry type byte 0x00 and decrypt as Type 1
+//! with AUT64 key 1 (consistent serial, consecutive counters), i.e. those fobs speak Type 1; KAT
+//! therefore keeps Type 1. (Using the full-byte button form for Type 1 avoids the nibble-button
+//! problem that conversion papered over.)
 
-use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use super::aut64;
+use super::common::{ManchesterEvent, ManchesterState};
 use super::keys;
+use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
-use tracing;
 
-// Type 3/4 timing (used as default for ProtocolTiming)
+// subghz_protocol_vag_const (reported via timing())
 const TE_SHORT: u32 = 500;
 const TE_LONG: u32 = 1000;
-#[allow(dead_code)]
-const TE_DELTA: u32 = 80; // ref vag.c (Type 3/4); exposed via timing()
-#[allow(dead_code)]
+const TE_DELTA: u32 = 80;
 const MIN_COUNT_BIT: usize = 80;
 
-// Type 1/2 timing
-const TE_SHORT_12: u32 = 300;
-const TE_LONG_12: u32 = 600;
-#[allow(dead_code)]
-const TE_DELTA_12: u32 = 80; // Preamble1/Data1 (ref vag.c 79/80); preamble now uses REF_PREAMBLE1_TOL
+const T12_TE_SHORT: u32 = 300;
+const T12_TE_LONG: u32 = 600;
+const T12_TE_DELTA: u32 = 100;
+const T12_GAP_DELTA: u32 = 200;
+const T12_PREAMBLE_MIN: u16 = 151;
 
-// Reference-aligned deltas (vag.c VAG_NEAR / VAG_TOL_300 79, VAG_TOL_500 120)
-const REF_RESET_DELTA: u32 = 79;       // Reset: 300±79, 500±79 for Preamble2
-const REF_PREAMBLE_SYNC: u32 = 80;     // Preamble2 counting: 500±80
-const REF_SYNC2_AB_DELTA: u32 = 79;    // Sync2A/Sync2B: 500/1000/750±79 (ref VAG_NEAR(..., 79))
-const REF_SYNC2C_DELTA: u32 = 79;      // Sync2C: 750±79
-const REF_GAP1_DELTA: u32 = 79;        // Preamble1→Data1 gap 600µs ±79 (ref check_gap1)
-// Real-world Type 1/2: preamble often ~280–380µs; ref uses 79/80
-const REF_PREAMBLE1_TOL: u32 = 100;    // 300±100 for Type 1/2 preamble lock/count
+const T34_TE_SHORT: u32 = 500;
+const T34_TE_LONG: u32 = 1000;
+const T34_TE_DELTA: u32 = 100;
+const T34_LONG_DELTA: u32 = 200;
+const T34_SYNC: u32 = 750;
+const T34_SYNC_DELTA: u32 = 150;
+const T34_PREAMBLE_MIN: u16 = 31;
+const T34_SYNC_PAIRS: u8 = 3;
 
-// TEA constants
-const TEA_DELTA: u32 = 0x9E3779B9;
+const DATA_GAP_MIN: u32 = 4001;
+const TOTAL_BITS: u8 = 80;
+const KEY1_BITS: u8 = 64;
+const PREFIX_BITS: u8 = 15;
+const BIT_LIMIT: u8 = 96;
+const FRAME_PREFIX_T1: u32 = 0x2F3F;
+const FRAME_PREFIX_T2: u32 = 0x2F1C;
+
+const TEA_DELTA: u32 = 0x9E37_79B9;
 const TEA_ROUNDS: usize = 32;
+/// vag_tea_key_schedule
+const TEA_KEY_SCHEDULE: [u32; 4] = [0x0B46_502D, 0x5E25_3718, 0x2BF9_3A19, 0x622C_1206];
 
-/// TEA key schedule for VAG (vag.c vag_tea_key_schedule; VAG_TEA_DELTA 0x9E3779B9, 32 rounds)
-static TEA_KEY_SCHEDULE: [u32; 4] = [0x0B46502D, 0x5E253718, 0x2BF93A19, 0x622C1206];
+/// `extra` layout flag (see the module doc); clear = KAT ≤ v1.3.0 `type | key_idx << 8`.
+const EXTRA_LAYOUT_FLAG: u64 = 1 << 63;
+/// `key_idx` value meaning "no AUT64 key" (XTEA, or not decrypted).
+const NO_KEY: u8 = 0xFF;
 
-/// Manchester states
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum ManchesterState {
-    Mid0,
-    Mid1,
-    Start0,
-    Start1,
+/// `DURATION_DIFF`
+fn diff(a: u32, b: u32) -> u32 {
+    a.abs_diff(b)
 }
 
-/// Manchester event types
-#[derive(Debug, Clone, Copy)]
-enum ManchesterEvent {
-    ShortHigh,
-    ShortLow,
-    LongHigh,
-    LongLow,
-    Reset,
-}
-
-/// Decoder states (matches protopirate's VAGDecoderStep)
+/// VAGDecoderStep
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
     Reset,
@@ -82,725 +140,497 @@ enum DecoderStep {
     Data2,
 }
 
-/// VAG sub-type
+/// Result of `vag_parse_data`.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum VagType {
-    Unknown = 0,
-    Type1 = 1,   // AUT64, 300µs
-    Type2 = 2,   // TEA, 300µs
-    Type3 = 3,   // AUT64, 500µs, auto-detect key
-    Type4 = 4,   // AUT64, 500µs, key 2
+struct Parsed {
+    /// Type after parsing (Type 3 becomes 4 when key 3 decrypts it).
+    vag_type: u8,
+    decrypted: bool,
+    serial: u32,
+    /// 24-bit counter.
+    cnt: u32,
+    btn: u8,
+    key_idx: u8,
+}
+
+/// Fields the encoder works from (`SubGhzProtocolEncoderVAG` after deserialize).
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct EncodeFields {
+    vag_type: u8,
+    key_idx: u8,
+    /// Key1 byte 0 (vehicle/type byte), transmitted unchanged.
+    type_byte: u8,
+    serial: u32,
+    cnt: u32,
+    btn: u8,
 }
 
 /// VAG protocol decoder
 pub struct VagDecoder {
     step: DecoderStep,
-    manchester_state: ManchesterState,
+    manchester: ManchesterState,
     data_low: u32,
     data_high: u32,
-    bit_count: usize,
+    bit_count: u8,
     key1_low: u32,
     key1_high: u32,
     key2_low: u32,
-    key2_high: u32,
     te_last: u32,
     header_count: u16,
     mid_count: u8,
-    vag_type: VagType,
-    // Decoded fields
-    serial: u32,
-    cnt: u32,
-    btn: u8,
-    check_byte: u8,
-    key_idx: u8,
-    decrypted: bool,
-    data_count_bit: usize,
+    vag_type: u8,
 }
 
 impl VagDecoder {
     pub fn new() -> Self {
         Self {
             step: DecoderStep::Reset,
-            manchester_state: ManchesterState::Mid1,
+            manchester: ManchesterState::Mid1,
             data_low: 0,
             data_high: 0,
             bit_count: 0,
             key1_low: 0,
             key1_high: 0,
             key2_low: 0,
-            key2_high: 0,
             te_last: 0,
             header_count: 0,
             mid_count: 0,
-            vag_type: VagType::Unknown,
-            serial: 0,
-            cnt: 0,
-            btn: 0,
-            check_byte: 0,
-            key_idx: 0xFF,
-            decrypted: false,
-            data_count_bit: 0,
+            vag_type: 0,
         }
     }
 
-    /// Manchester state machine advance
-    fn manchester_advance(&mut self, event: ManchesterEvent) -> Option<bool> {
-        match event {
-            ManchesterEvent::Reset => {
-                self.manchester_state = ManchesterState::Mid1;
-                None
-            }
-            ManchesterEvent::ShortHigh => {
-                let (new_state, output) = match self.manchester_state {
-                    ManchesterState::Mid0 | ManchesterState::Mid1 => (ManchesterState::Start1, None),
-                    ManchesterState::Start0 => (ManchesterState::Mid0, Some(false)),
-                    _ => (ManchesterState::Mid1, None),
-                };
-                self.manchester_state = new_state;
-                output
-            }
-            ManchesterEvent::ShortLow => {
-                let (new_state, output) = match self.manchester_state {
-                    ManchesterState::Mid0 | ManchesterState::Mid1 => (ManchesterState::Start0, None),
-                    ManchesterState::Start1 => (ManchesterState::Mid1, Some(true)),
-                    _ => (ManchesterState::Mid1, None),
-                };
-                self.manchester_state = new_state;
-                output
-            }
-            ManchesterEvent::LongHigh => {
-                let (new_state, output) = match self.manchester_state {
-                    ManchesterState::Start0 => (ManchesterState::Start1, Some(false)),
-                    _ => (ManchesterState::Mid1, None),
-                };
-                self.manchester_state = new_state;
-                output
-            }
-            ManchesterEvent::LongLow => {
-                let (new_state, output) = match self.manchester_state {
-                    ManchesterState::Start1 => (ManchesterState::Start0, Some(true)),
-                    _ => (ManchesterState::Mid1, None),
-                };
-                self.manchester_state = new_state;
-                output
-            }
-        }
-    }
+    // ---- crypto (vag_tea_*, vag_aut64_*) ----
 
-    /// Push a bit into the shift register
-    fn push_bit(&mut self, bit: bool) {
-        let carry = (self.data_low >> 31) & 1;
-        self.data_low = (self.data_low << 1) | (if bit { 1 } else { 0 });
-        self.data_high = (self.data_high << 1) | carry;
-        self.bit_count += 1;
-    }
-
-    /// TEA decrypt (matches vag.c vag_tea_decrypt)
-    fn tea_decrypt(v0: &mut u32, v1: &mut u32, key_schedule: &[u32; 4]) {
+    /// vag_tea_decrypt
+    fn tea_decrypt(v0: &mut u32, v1: &mut u32) {
+        let k = &TEA_KEY_SCHEDULE;
         let mut sum = TEA_DELTA.wrapping_mul(TEA_ROUNDS as u32);
         for _ in 0..TEA_ROUNDS {
             *v1 = v1.wrapping_sub(
                 ((*v0 << 4) ^ (*v0 >> 5)).wrapping_add(*v0)
-                    ^ sum.wrapping_add(key_schedule[((sum >> 11) & 3) as usize]),
+                    ^ sum.wrapping_add(k[((sum >> 11) & 3) as usize]),
             );
             sum = sum.wrapping_sub(TEA_DELTA);
             *v0 = v0.wrapping_sub(
                 ((*v1 << 4) ^ (*v1 >> 5)).wrapping_add(*v1)
-                    ^ sum.wrapping_add(key_schedule[(sum & 3) as usize]),
+                    ^ sum.wrapping_add(k[(sum & 3) as usize]),
             );
         }
     }
 
-    /// TEA encrypt (matches vag.c vag_tea_encrypt)
-    fn tea_encrypt(v0: &mut u32, v1: &mut u32, key_schedule: &[u32; 4]) {
+    /// vag_tea_encrypt
+    fn tea_encrypt(v0: &mut u32, v1: &mut u32) {
+        let k = &TEA_KEY_SCHEDULE;
         let mut sum: u32 = 0;
         for _ in 0..TEA_ROUNDS {
             *v0 = v0.wrapping_add(
                 ((*v1 << 4) ^ (*v1 >> 5)).wrapping_add(*v1)
-                    ^ sum.wrapping_add(key_schedule[(sum & 3) as usize]),
+                    ^ sum.wrapping_add(k[(sum & 3) as usize]),
             );
             sum = sum.wrapping_add(TEA_DELTA);
             *v1 = v1.wrapping_add(
                 ((*v0 << 4) ^ (*v0 >> 5)).wrapping_add(*v0)
-                    ^ sum.wrapping_add(key_schedule[((sum >> 11) & 3) as usize]),
+                    ^ sum.wrapping_add(k[((sum >> 11) & 3) as usize]),
             );
         }
     }
 
-    /// Type 1/2 dispatch check (vag.c vag_dispatch_type_1_2)
-    fn dispatch_type_1_2(dispatch: u8) -> bool {
-        dispatch == 0x2A || dispatch == 0x1C || dispatch == 0x46
-    }
-
-    /// Type 3/4 dispatch check (vag.c vag_dispatch_type_3_4)
-    fn dispatch_type_3_4(dispatch: u8) -> bool {
-        dispatch == 0x2B || dispatch == 0x1D || dispatch == 0x47
-    }
-
-    /// Validate decrypted block button (vag.c vag_button_valid)
-    fn button_valid(dec: &[u8]) -> bool {
-        let dec_byte = dec[7];
-        let dec_btn = (dec_byte >> 4) & 0xF;
-        if dec_btn == 1 || dec_btn == 2 || dec_btn == 4 {
-            return true;
-        }
-        if dec_byte == 0 {
-            return true;
-        }
-        false
-    }
-
-    /// Decrypted button vs dispatch (vag.c vag_button_matches)
-    fn button_matches(dec: &[u8], dispatch_byte: u8) -> bool {
-        let expected_btn = (dispatch_byte >> 4) & 0xF;
-        let dec_btn = (dec[7] >> 4) & 0xF;
-        if dec_btn == expected_btn {
-            return true;
-        }
-        if dec[7] == 0 && expected_btn == 2 {
-            return true;
-        }
-        false
-    }
-
-    /// Fill decoded fields from decrypted block (vag.c vag_fill_from_decrypted)
-    fn fill_from_decrypted(&mut self, dec: &[u8], dispatch_byte: u8) {
-        let serial_raw = (dec[0] as u32)
-            | ((dec[1] as u32) << 8)
-            | ((dec[2] as u32) << 16)
-            | ((dec[3] as u32) << 24);
-        self.serial = (serial_raw << 24)
-            | ((serial_raw & 0xFF00) << 8)
-            | ((serial_raw >> 8) & 0xFF00)
-            | (serial_raw >> 24);
-
-        self.cnt = (dec[4] as u32) | ((dec[5] as u32) << 8) | ((dec[6] as u32) << 16);
-        self.btn = (dec[7] >> 4) & 0xF;
-        self.check_byte = dispatch_byte;
-        self.decrypted = true;
-    }
-
-    /// Try AUT64 decryption with a specific key index
-    fn try_aut64_decrypt(block: &mut [u8], key_index: usize) -> bool {
-        let store = keys::get_keystore();
-        if let Some(key) = store.get_vag_key((key_index + 1) as u8) {
-            aut64::aut64_decrypt(key, block);
-            true
+    /// vag_tea_* (XTEA) over an 8-byte block (big-endian halves, as vag.c packs v0/v1).
+    fn tea_block(block: &mut [u8; 8], encrypt: bool) {
+        let mut v0 = u32::from_be_bytes([block[0], block[1], block[2], block[3]]);
+        let mut v1 = u32::from_be_bytes([block[4], block[5], block[6], block[7]]);
+        if encrypt {
+            Self::tea_encrypt(&mut v0, &mut v1);
         } else {
-            false
+            Self::tea_decrypt(&mut v0, &mut v1);
         }
+        block[..4].copy_from_slice(&v0.to_be_bytes());
+        block[4..].copy_from_slice(&v1.to_be_bytes());
     }
 
-    /// Parse key1/key2 and decrypt by type (vag.c vag_parse_data)
-    fn parse_data(&mut self) {
-        self.decrypted = false;
-        self.serial = 0;
-        self.cnt = 0;
-        self.btn = 0;
-
-        let dispatch_byte = (self.key2_low & 0xFF) as u8;
-        let key2_high_byte = ((self.key2_low >> 8) & 0xFF) as u8;
-
-        // Build key1 bytes from key1_high/key1_low
-        let mut key1_bytes = [0u8; 8];
-        key1_bytes[0] = (self.key1_high >> 24) as u8;
-        key1_bytes[1] = (self.key1_high >> 16) as u8;
-        key1_bytes[2] = (self.key1_high >> 8) as u8;
-        key1_bytes[3] = self.key1_high as u8;
-        key1_bytes[4] = (self.key1_low >> 24) as u8;
-        key1_bytes[5] = (self.key1_low >> 16) as u8;
-        key1_bytes[6] = (self.key1_low >> 8) as u8;
-        key1_bytes[7] = self.key1_low as u8;
-
-        let _type_byte = key1_bytes[0];
-
-        // Build encrypted block (bytes 1-7 of key1 + key2 high byte)
-        let mut block = [0u8; 8];
-        block[0] = key1_bytes[1];
-        block[1] = key1_bytes[2];
-        block[2] = key1_bytes[3];
-        block[3] = key1_bytes[4];
-        block[4] = key1_bytes[5];
-        block[5] = key1_bytes[6];
-        block[6] = key1_bytes[7];
-        block[7] = key2_high_byte;
-
-        match self.vag_type {
-            VagType::Type1 => {
-                if !Self::dispatch_type_1_2(dispatch_byte) {
-                    return;
-                }
-                // Try all 3 AUT64 keys
-                for key_idx in 0..3 {
-                    let mut block_copy = block;
-                    if !Self::try_aut64_decrypt(&mut block_copy, key_idx) {
-                        continue;
-                    }
-                    if Self::button_valid(&block_copy) {
-                        self.serial = ((block_copy[0] as u32) << 24)
-                            | ((block_copy[1] as u32) << 16)
-                            | ((block_copy[2] as u32) << 8)
-                            | (block_copy[3] as u32);
-                        self.cnt = (block_copy[4] as u32)
-                            | ((block_copy[5] as u32) << 8)
-                            | ((block_copy[6] as u32) << 16);
-                        self.btn = block_copy[7];
-                        self.check_byte = dispatch_byte;
-                        self.key_idx = key_idx as u8;
-                        self.decrypted = true;
-                        return;
-                    }
-                }
-            }
-
-            VagType::Type2 => {
-                if !Self::dispatch_type_1_2(dispatch_byte) {
-                    return;
-                }
-                let mut v0 = ((block[0] as u32) << 24)
-                    | ((block[1] as u32) << 16)
-                    | ((block[2] as u32) << 8)
-                    | (block[3] as u32);
-                let mut v1 = ((block[4] as u32) << 24)
-                    | ((block[5] as u32) << 16)
-                    | ((block[6] as u32) << 8)
-                    | (block[7] as u32);
-
-                Self::tea_decrypt(&mut v0, &mut v1, &TEA_KEY_SCHEDULE);
-
-                let tea_dec = [
-                    (v0 >> 24) as u8,
-                    (v0 >> 16) as u8,
-                    (v0 >> 8) as u8,
-                    v0 as u8,
-                    (v1 >> 24) as u8,
-                    (v1 >> 16) as u8,
-                    (v1 >> 8) as u8,
-                    v1 as u8,
-                ];
-
-                if !Self::button_matches(&tea_dec, dispatch_byte) {
-                    return;
-                }
-
-                self.fill_from_decrypted(&tea_dec, dispatch_byte);
-                self.key_idx = 0xFF;
-            }
-
-            VagType::Type3 => {
-                // Try key 2 first, then key 1, then key 0
-                let mut block_copy = block;
-                if Self::try_aut64_decrypt(&mut block_copy, 2) && Self::button_valid(&block_copy) {
-                    self.vag_type = VagType::Type4;
-                    self.key_idx = 2;
-                    self.fill_from_decrypted(&block_copy, dispatch_byte);
-                    return;
-                }
-
-                block_copy = block;
-                if Self::try_aut64_decrypt(&mut block_copy, 1) && Self::button_valid(&block_copy) {
-                    self.key_idx = 1;
-                    self.fill_from_decrypted(&block_copy, dispatch_byte);
-                    return;
-                }
-
-                block_copy = block;
-                if Self::try_aut64_decrypt(&mut block_copy, 0) && Self::button_valid(&block_copy) {
-                    self.key_idx = 0;
-                    self.fill_from_decrypted(&block_copy, dispatch_byte);
-                    return;
-                }
-            }
-
-            VagType::Type4 => {
-                if !Self::dispatch_type_3_4(dispatch_byte) {
-                    return;
-                }
-                let mut block_copy = block;
-                if !Self::try_aut64_decrypt(&mut block_copy, 2) {
-                    return;
-                }
-                if !Self::button_matches(&block_copy, dispatch_byte) {
-                    return;
-                }
-                self.key_idx = 2;
-                self.fill_from_decrypted(&block_copy, dispatch_byte);
-            }
-
-            VagType::Unknown => {}
-        }
-    }
-
-    /// Get vehicle name from type byte
-    #[allow(dead_code)]
-    fn get_vehicle_name(type_byte: u8) -> &'static str {
-        match type_byte {
-            0x00 => "VW Passat",
-            0xC0 => "VW",
-            0xC1 => "Audi",
-            0xC2 => "Seat",
-            0xC3 => "Skoda",
-            _ => "VAG",
-        }
-    }
-
-    /// Get button name (matches vag.c vag_button_name: Unlock/Lock/Boot)
-    #[allow(dead_code)]
-    fn get_button_name(btn: u8) -> &'static str {
-        match btn {
-            1 | 0x10 => "Unlock",
-            2 | 0x20 => "Lock",
-            4 | 0x40 => "Boot",
-            _ => "Unknown",
-        }
-    }
-
-    /// Build encoder output from decoded signal (uses decoded + extra; extra = vag_type | (key_idx<<8))
-    fn encode_signal(&self, decoded: &DecodedSignal) -> Option<Vec<LevelDuration>> {
-        let extra = match decoded.extra {
-            Some(e) => e,
-            None => return None,
+    /// vag_aut64_decrypt / vag_aut64_encrypt: AUT64 with keystore key `key_index + 1`; false when
+    /// that key is not loaded.
+    fn aut64_block(block: &mut [u8; 8], key_index: u8, encrypt: bool) -> bool {
+        let store = keys::get_keystore();
+        let Some(key) = store.get_vag_key(key_index.wrapping_add(1)) else {
+            return false;
         };
-        let vag_type_num = (extra & 0xFF) as u8;
-        let vag_type = match vag_type_num {
-            1 => VagType::Type1,
-            2 => VagType::Type2,
-            3 => VagType::Type3,
-            4 => VagType::Type4,
-            _ => return None,
+        if encrypt {
+            aut64::aut64_encrypt(key, block);
+        } else {
+            aut64::aut64_decrypt(key, block);
+        }
+        true
+    }
+
+    // ---- parse (vag_parse_data and helpers) ----
+
+    fn dispatch_type_1_2(dispatch: u8) -> bool {
+        matches!(dispatch, 0x2A | 0x1C | 0x46)
+    }
+
+    fn dispatch_type_3_4(dispatch: u8) -> bool {
+        matches!(dispatch, 0x2B | 0x1D | 0x47)
+    }
+
+    /// vag_button_valid
+    fn button_valid(dec: &[u8; 8]) -> bool {
+        matches!(dec[7] >> 4, 1 | 2 | 4) || dec[7] == 0
+    }
+
+    /// vag_button_matches
+    fn button_matches(dec: &[u8; 8], dispatch: u8) -> bool {
+        let expected = (dispatch >> 4) & 0xF;
+        (dec[7] >> 4) == expected || (dec[7] == 0 && expected == 2)
+    }
+
+    /// vag_fill_from_decrypted: serial BE bytes 0..3, counter LE bytes 4..6, button = byte 7 >> 4.
+    fn fill_from_decrypted(p: &mut Parsed, dec: &[u8; 8]) {
+        p.serial = u32::from_be_bytes([dec[0], dec[1], dec[2], dec[3]]);
+        p.cnt = dec[4] as u32 | (dec[5] as u32) << 8 | (dec[6] as u32) << 16;
+        p.btn = dec[7] >> 4;
+        p.decrypted = true;
+    }
+
+    /// vag_parse_data for `vag_type` over Key1 (64) + Key2 (16).
+    fn parse_data(vag_type: u8, key1: u64, key2: u16) -> Parsed {
+        let mut p = Parsed {
+            vag_type,
+            decrypted: false,
+            serial: 0,
+            cnt: 0,
+            btn: 0,
+            key_idx: NO_KEY,
         };
-        let key_idx = ((extra >> 8) & 0xFF) as u8;
+        let dispatch = key2 as u8;
+        let k = key1.to_be_bytes();
+        // Encrypted block: Key1 bytes 1..7 + Key2's high byte.
+        let block = [k[1], k[2], k[3], k[4], k[5], k[6], k[7], (key2 >> 8) as u8];
 
         match vag_type {
-            VagType::Type1 => Self::encode_type1(decoded, key_idx),
-            VagType::Type2 => Self::encode_type2(decoded),
-            VagType::Type3 | VagType::Type4 => Self::encode_type3_4(decoded, vag_type, key_idx),
-            _ => None,
-        }
-    }
-
-    /// Encode Type 1 (300µs, AUT64)
-    fn encode_type1(decoded: &DecodedSignal, key_idx: u8) -> Option<Vec<LevelDuration>> {
-        let mut upload = Vec::with_capacity(700);
-
-        let serial = decoded.serial.unwrap_or(0);
-        let btn = decoded.button.unwrap_or(0);
-        let cnt = decoded.counter.unwrap_or(0) as u32;
-        let type_byte = (decoded.data >> 56) as u8;
-        let btn_byte = btn;
-        let dispatch = Self::get_dispatch_byte(btn_byte, 1);
-
-        // Build plaintext block
-        let mut block = [0u8; 8];
-        block[0] = (serial >> 24) as u8;
-        block[1] = (serial >> 16) as u8;
-        block[2] = (serial >> 8) as u8;
-        block[3] = serial as u8;
-        block[4] = cnt as u8;
-        block[5] = (cnt >> 8) as u8;
-        block[6] = (cnt >> 16) as u8;
-        block[7] = btn_byte;
-
-        // Encrypt with AUT64
-        let key_idx = if key_idx != 0xFF { key_idx as usize } else { 0 };
-        let store = keys::get_keystore();
-        if let Some(key) = store.get_vag_key((key_idx + 1) as u8) {
-            aut64::aut64_encrypt(key, &mut block);
-        } else {
-            return None;
-        }
-        drop(store);
-
-        // Build key values
-        let key1_high = ((type_byte as u32) << 24)
-            | ((block[0] as u32) << 16)
-            | ((block[1] as u32) << 8)
-            | (block[2] as u32);
-        let key1_low = ((block[3] as u32) << 24)
-            | ((block[4] as u32) << 16)
-            | ((block[5] as u32) << 8)
-            | (block[6] as u32);
-        let key2 = (((block[7] as u16) << 8) | (dispatch as u16)) & 0xFFFF;
-
-        // Preamble: 220 cycles of 300µs HIGH/LOW
-        for _ in 0..220 {
-            upload.push(LevelDuration::new(true, 300));
-            upload.push(LevelDuration::new(false, 300));
-        }
-        upload.push(LevelDuration::new(false, 300));
-        upload.push(LevelDuration::new(true, 300));
-
-        // Prefix: 0xAF3F (16 bits, Manchester)
-        let prefix: u16 = 0xAF3F;
-        Self::encode_manchester_16(&mut upload, prefix, 300);
-
-        // Key1: 64 bits inverted, Manchester encoded
-        let key1 = ((key1_high as u64) << 32) | (key1_low as u64);
-        let key1_inv = !key1;
-        Self::encode_manchester_64(&mut upload, key1_inv, 300);
-
-        // Key2: 16 bits inverted, Manchester encoded
-        let key2_inv = !key2;
-        Self::encode_manchester_16(&mut upload, key2_inv, 300);
-
-        // Gap
-        upload.push(LevelDuration::new(false, 6000));
-
-        Some(upload)
-    }
-
-    /// Encode Type 2 (300µs, TEA)
-    fn encode_type2(decoded: &DecodedSignal) -> Option<Vec<LevelDuration>> {
-        let mut upload = Vec::with_capacity(700);
-
-        let serial = decoded.serial.unwrap_or(0);
-        let btn = decoded.button.unwrap_or(0);
-        let cnt = decoded.counter.unwrap_or(0) as u32;
-        let type_byte = (decoded.data >> 56) as u8;
-        let btn_byte = Self::btn_to_byte(btn, 2);
-        let dispatch = Self::get_dispatch_byte(btn_byte, 2);
-
-        // Build plaintext block
-        let mut block = [0u8; 8];
-        block[0] = (serial >> 24) as u8;
-        block[1] = (serial >> 16) as u8;
-        block[2] = (serial >> 8) as u8;
-        block[3] = serial as u8;
-        block[4] = cnt as u8;
-        block[5] = (cnt >> 8) as u8;
-        block[6] = (cnt >> 16) as u8;
-        block[7] = btn_byte;
-
-        // Encrypt with TEA
-        let mut v0 = ((block[0] as u32) << 24)
-            | ((block[1] as u32) << 16)
-            | ((block[2] as u32) << 8)
-            | (block[3] as u32);
-        let mut v1 = ((block[4] as u32) << 24)
-            | ((block[5] as u32) << 16)
-            | ((block[6] as u32) << 8)
-            | (block[7] as u32);
-
-        Self::tea_encrypt(&mut v0, &mut v1, &TEA_KEY_SCHEDULE);
-
-        let enc_block = [
-            (v0 >> 24) as u8, (v0 >> 16) as u8, (v0 >> 8) as u8, v0 as u8,
-            (v1 >> 24) as u8, (v1 >> 16) as u8, (v1 >> 8) as u8, v1 as u8,
-        ];
-
-        let key1_high = ((type_byte as u32) << 24)
-            | ((enc_block[0] as u32) << 16)
-            | ((enc_block[1] as u32) << 8)
-            | (enc_block[2] as u32);
-        let key1_low = ((enc_block[3] as u32) << 24)
-            | ((enc_block[4] as u32) << 16)
-            | ((enc_block[5] as u32) << 8)
-            | (enc_block[6] as u32);
-        let key2 = (((enc_block[7] as u16) << 8) | (dispatch as u16)) & 0xFFFF;
-
-        // Preamble
-        for _ in 0..220 {
-            upload.push(LevelDuration::new(true, 300));
-            upload.push(LevelDuration::new(false, 300));
-        }
-        upload.push(LevelDuration::new(false, 300));
-        upload.push(LevelDuration::new(true, 300));
-
-        // Prefix: 0xAF1C (16 bits, Manchester)
-        let prefix: u16 = 0xAF1C;
-        Self::encode_manchester_16(&mut upload, prefix, 300);
-
-        // Key1: 64 bits inverted
-        let key1 = ((key1_high as u64) << 32) | (key1_low as u64);
-        let key1_inv = !key1;
-        Self::encode_manchester_64(&mut upload, key1_inv, 300);
-
-        // Key2: 16 bits inverted
-        let key2_inv = !key2;
-        Self::encode_manchester_16(&mut upload, key2_inv, 300);
-
-        // Gap
-        upload.push(LevelDuration::new(false, 6000));
-
-        Some(upload)
-    }
-
-    /// Encode Type 3/4 (500µs, AUT64)
-    fn encode_type3_4(decoded: &DecodedSignal, vag_type: VagType, key_idx: u8) -> Option<Vec<LevelDuration>> {
-        let mut upload = Vec::with_capacity(600);
-        let vag_type_num = vag_type as u8;
-
-        let serial = decoded.serial.unwrap_or(0);
-        let btn = decoded.button.unwrap_or(0);
-        let cnt = decoded.counter.unwrap_or(0) as u32;
-        let type_byte = (decoded.data >> 56) as u8;
-        let btn_byte = Self::btn_to_byte(btn, vag_type_num);
-        let dispatch = Self::get_dispatch_byte(btn_byte, vag_type_num);
-
-        let mut block = [0u8; 8];
-        block[0] = (serial >> 24) as u8;
-        block[1] = (serial >> 16) as u8;
-        block[2] = (serial >> 8) as u8;
-        block[3] = serial as u8;
-        block[4] = cnt as u8;
-        block[5] = (cnt >> 8) as u8;
-        block[6] = (cnt >> 16) as u8;
-        block[7] = btn_byte;
-
-        let key_idx = if key_idx != 0xFF {
-            key_idx as usize
-        } else if vag_type == VagType::Type4 { 2 } else { 1 };
-
-        let store = keys::get_keystore();
-        if let Some(key) = store.get_vag_key((key_idx + 1) as u8) {
-            aut64::aut64_encrypt(key, &mut block);
-        } else {
-            return None;
-        }
-        drop(store);
-
-        let key1_high = ((type_byte as u32) << 24)
-            | ((block[0] as u32) << 16)
-            | ((block[1] as u32) << 8)
-            | (block[2] as u32);
-        let key1_low = ((block[3] as u32) << 24)
-            | ((block[4] as u32) << 16)
-            | ((block[5] as u32) << 8)
-            | (block[6] as u32);
-        let key2 = (((block[7] as u16) << 8) | (dispatch as u16)) & 0xFFFF;
-
-        let key1 = ((key1_high as u64) << 32) | (key1_low as u64);
-
-        // Two repeats
-        for _ in 0..2 {
-            // Preamble: 45 cycles of 500µs HIGH/LOW
-            for _ in 0..45 {
-                upload.push(LevelDuration::new(true, 500));
-                upload.push(LevelDuration::new(false, 500));
-            }
-
-            // Sync: 1000µs HIGH, 500µs LOW
-            upload.push(LevelDuration::new(true, 1000));
-            upload.push(LevelDuration::new(false, 500));
-
-            // Mid sync: 3 cycles of 750µs HIGH/LOW
-            for _ in 0..3 {
-                upload.push(LevelDuration::new(true, 750));
-                upload.push(LevelDuration::new(false, 750));
-            }
-
-            // Key1: 64 bits (NOT inverted for Type 3/4)
-            for i in (0..64).rev() {
-                let bit = (key1 >> i) & 1 == 1;
-                if bit {
-                    upload.push(LevelDuration::new(true, 500));
-                    upload.push(LevelDuration::new(false, 500));
-                } else {
-                    upload.push(LevelDuration::new(false, 500));
-                    upload.push(LevelDuration::new(true, 500));
+            1 if Self::dispatch_type_1_2(dispatch) => {
+                for key_idx in 0..3u8 {
+                    let mut dec = block;
+                    if !Self::aut64_block(&mut dec, key_idx, false) {
+                        continue;
+                    }
+                    if Self::button_valid(&dec) {
+                        p.serial = u32::from_be_bytes([dec[0], dec[1], dec[2], dec[3]]);
+                        p.cnt = dec[4] as u32 | (dec[5] as u32) << 8 | (dec[6] as u32) << 16;
+                        p.btn = dec[7];
+                        p.key_idx = key_idx;
+                        p.decrypted = true;
+                        return p;
+                    }
                 }
             }
-
-            // Key2: 16 bits
-            for i in (0..16).rev() {
-                let bit = (key2 >> i) & 1 == 1;
-                if bit {
-                    upload.push(LevelDuration::new(true, 500));
-                    upload.push(LevelDuration::new(false, 500));
-                } else {
-                    upload.push(LevelDuration::new(false, 500));
-                    upload.push(LevelDuration::new(true, 500));
+            2 if Self::dispatch_type_1_2(dispatch) => {
+                let mut dec = block;
+                Self::tea_block(&mut dec, false);
+                if Self::button_matches(&dec, dispatch) {
+                    Self::fill_from_decrypted(&mut p, &dec);
+                    p.key_idx = NO_KEY;
+                    return p;
                 }
             }
-
-            // Gap
-            upload.push(LevelDuration::new(false, 10000));
+            3 => {
+                for (key_idx, as_type) in [(2u8, 4u8), (1, 3), (0, 3)] {
+                    let mut dec = block;
+                    if Self::aut64_block(&mut dec, key_idx, false) && Self::button_valid(&dec) {
+                        p.vag_type = as_type;
+                        p.key_idx = key_idx;
+                        Self::fill_from_decrypted(&mut p, &dec);
+                        return p;
+                    }
+                }
+            }
+            4 if Self::dispatch_type_3_4(dispatch) => {
+                let mut dec = block;
+                if Self::aut64_block(&mut dec, 2, false) && Self::button_matches(&dec, dispatch) {
+                    p.key_idx = 2;
+                    Self::fill_from_decrypted(&mut p, &dec);
+                    return p;
+                }
+            }
+            _ => {}
         }
-
-        Some(upload)
-    }
-
-    /// Dispatch byte from button and type (vag.c vag_get_dispatch_byte)
-    fn get_dispatch_byte(btn: u8, vag_type: u8) -> u8 {
-        if vag_type == 1 || vag_type == 2 {
-            match btn {
-                0x20 | 2 => 0x2A,
-                0x40 | 4 => 0x46,
-                0x10 | 1 => 0x1C,
-                _ => 0x2A,
-            }
-        } else {
-            match btn {
-                0x20 | 2 => 0x2B,
-                0x40 | 4 => 0x47,
-                0x10 | 1 => 0x1D,
-                _ => 0x2B,
-            }
-        }
-    }
-
-    /// Convert button code to byte for encoding (matches vag.c vag_btn_to_byte)
-    fn btn_to_byte(btn: u8, vag_type: u8) -> u8 {
-        if vag_type == 1 {
-            btn
-        } else {
-            match btn {
-                1 => 0x10,
-                2 => 0x20,
-                4 => 0x40,
-                _ => btn, // ref default: return btn
-            }
+        Parsed {
+            vag_type: p.vag_type,
+            decrypted: false,
+            serial: 0,
+            cnt: 0,
+            btn: 0,
+            key_idx: NO_KEY,
         }
     }
 
-    /// Encode 16 bits in Manchester at given half-period
-    fn encode_manchester_16(upload: &mut Vec<LevelDuration>, data: u16, te: u32) {
-        for i in (0..16).rev() {
-            let bit = (data >> i) & 1 == 1;
-            if bit {
-                upload.push(LevelDuration::new(true, te));
-                upload.push(LevelDuration::new(false, te));
-            } else {
-                upload.push(LevelDuration::new(false, te));
-                upload.push(LevelDuration::new(true, te));
-            }
-        }
+    // ---- decoder ----
+
+    /// Manchester data step shared by Data1/Data2: shift one decoded bit into data_high:data_low.
+    fn push_bit(&mut self, bit: bool) {
+        let carry = self.data_low >> 31;
+        self.data_low = (self.data_low << 1) | bit as u32;
+        self.data_high = (self.data_high << 1) | carry;
+        self.bit_count = self.bit_count.wrapping_add(1);
     }
 
-    /// Encode 64 bits in Manchester at given half-period
-    fn encode_manchester_64(upload: &mut Vec<LevelDuration>, data: u64, te: u32) {
-        for i in (0..64).rev() {
-            let bit = (data >> i) & 1 == 1;
-            if bit {
-                upload.push(LevelDuration::new(true, te));
-                upload.push(LevelDuration::new(false, te));
-            } else {
-                upload.push(LevelDuration::new(false, te));
-                upload.push(LevelDuration::new(true, te));
-            }
-        }
+    /// A completed 80-bit frame (the C's callback point).
+    fn emit(&self) -> DecodedSignal {
+        let key1 = ((self.key1_high as u64) << 32) | self.key1_low as u64;
+        let key2 = (self.key2_low & 0xFFFF) as u16;
+        let p = Self::parse_data(self.vag_type, key1, key2);
+        Self::signal_from(key1, key2, &p)
     }
 
-    /// Build DecodedSignal from internal state (sets extra when decrypted for encode-from-capture)
-    fn build_decoded_signal(&self) -> DecodedSignal {
-        let key1 = ((self.key1_high as u64) << 32) | (self.key1_low as u64);
-        let extra = if self.decrypted {
-            Some((self.vag_type as u8 as u64) | ((self.key_idx as u64) << 8))
-        } else {
-            None
-        };
-
+    fn signal_from(key1: u64, key2: u16, p: &Parsed) -> DecodedSignal {
+        let cnt_hi = if p.decrypted { (p.cnt >> 16) & 0xFF } else { 0 };
+        let extra = EXTRA_LAYOUT_FLAG
+            | (cnt_hi as u64) << 32
+            | (p.key_idx as u64) << 24
+            | (p.vag_type as u64) << 16
+            | key2 as u64;
         DecodedSignal {
-            serial: if self.decrypted { Some(self.serial) } else { None },
-            button: if self.decrypted { Some(self.btn) } else { None },
-            counter: if self.decrypted { Some((self.cnt & 0xFFFF) as u16) } else { None },
-            crc_valid: self.decrypted,
+            serial: p.decrypted.then_some(p.serial),
+            button: p.decrypted.then_some(p.btn),
+            counter: p.decrypted.then_some((p.cnt & 0xFFFF) as u16),
+            crc_valid: p.decrypted,
             data: key1,
-            data_count_bit: self.data_count_bit,
-            encoder_capable: self.decrypted,
-            extra,
+            data_count_bit: TOTAL_BITS as usize,
+            encoder_capable: p.decrypted,
+            extra: Some(extra),
             protocol_display_name: None,
         }
+    }
+
+    /// Reset-step entry into Preamble1/Preamble2.
+    fn start_preamble(&mut self, step: DecoderStep, duration: u32) {
+        self.step = step;
+        self.data_low = 0;
+        self.data_high = 0;
+        self.header_count = 0;
+        self.mid_count = 0;
+        self.bit_count = 0;
+        self.vag_type = 0;
+        self.te_last = duration;
+        self.manchester = ManchesterState::Mid1;
+    }
+
+    // ---- encoder ----
+
+    /// Decode `extra`: (vag_type, key_idx, Key2 if known, counter bits 16..23).
+    fn parse_extra(extra: u64) -> (u8, u8, Option<u16>, u32) {
+        if extra & EXTRA_LAYOUT_FLAG != 0 {
+            (
+                (extra >> 16) as u8,
+                (extra >> 24) as u8,
+                Some(extra as u16),
+                ((extra >> 32) & 0xFF) as u32,
+            )
+        } else {
+            // KAT <= v1.3.0: vag_type | key_idx << 8.
+            (extra as u8, (extra >> 8) as u8, None, 0)
+        }
+    }
+
+    /// Resolve what the C encoder works from: stored fields (or a re-parse of Key1/Key2 when the
+    /// key index or the fields are missing, as `subghz_protocol_encoder_vag_deserialize` does).
+    fn encode_fields(decoded: &DecodedSignal) -> Option<EncodeFields> {
+        let (vag_type, mut key_idx, key2, cnt_hi) = Self::parse_extra(decoded.extra?);
+        let key1 = decoded.data;
+        let mut serial = decoded.serial;
+        let mut btn = decoded.button;
+        let mut cnt = decoded.counter.map(|c| cnt_hi << 16 | c as u32);
+        if key_idx == NO_KEY || serial.is_none() || cnt.is_none() {
+            if let Some(key2) = key2 {
+                let p = Self::parse_data(vag_type, key1, key2);
+                if p.decrypted {
+                    key_idx = p.key_idx;
+                    if serial.is_none() || cnt.is_none() {
+                        serial = Some(p.serial);
+                        cnt = Some(p.cnt);
+                        btn = Some(p.btn);
+                    }
+                }
+            }
+        }
+        Some(EncodeFields {
+            vag_type,
+            key_idx,
+            type_byte: (key1 >> 56) as u8,
+            serial: serial?,
+            cnt: cnt?,
+            btn: btn.unwrap_or(0),
+        })
+    }
+
+    /// KAT generic button → VAG button, following ProtoPirate's emulate mapping
+    /// (`emu_button_for_protocol`): full-byte codes for Type 1, nibble codes otherwise.
+    fn map_button(vag_type: u8, captured: u8, button: u8) -> u8 {
+        let full_byte = vag_type == 1;
+        match (button, full_byte) {
+            (0x01, true) => 0x20,
+            (0x02, true) => 0x10,
+            (0x04, true) => 0x40,
+            (0x01, false) => 0x2,
+            (0x02, false) => 0x1,
+            (0x04, false) => 0x4,
+            (0x08, false) => 0x8,
+            _ => captured,
+        }
+    }
+
+    /// vag_get_dispatch_byte
+    fn dispatch_byte(btn: u8, vag_type: u8) -> u8 {
+        let t12 = vag_type == 1 || vag_type == 2;
+        match (btn, t12) {
+            (0x20 | 2, true) => 0x2A,
+            (0x40 | 4, true) => 0x46,
+            (0x10 | 1, true) => 0x1C,
+            (_, true) => 0x2A,
+            (0x20 | 2, false) => 0x2B,
+            (0x40 | 4, false) => 0x47,
+            (0x10 | 1, false) => 0x1D,
+            (_, false) => 0x2B,
+        }
+    }
+
+    /// vag_btn_to_byte
+    fn btn_to_byte(btn: u8, vag_type: u8) -> u8 {
+        if vag_type == 1 {
+            return btn;
+        }
+        match btn {
+            0x1 => 0x10,
+            0x2 => 0x20,
+            0x4 => 0x40,
+            _ => btn,
+        }
+    }
+
+    /// Plaintext → encrypted Key1/Key2 (the common part of vag_encoder_build_type*).
+    fn build_keys(f: &EncodeFields) -> Option<(u64, u16)> {
+        let btn_byte = Self::btn_to_byte(f.btn, f.vag_type);
+        let dispatch = Self::dispatch_byte(btn_byte, f.vag_type);
+        let s = f.serial.to_be_bytes();
+        let mut block = [
+            s[0],
+            s[1],
+            s[2],
+            s[3],
+            f.cnt as u8,
+            (f.cnt >> 8) as u8,
+            (f.cnt >> 16) as u8,
+            btn_byte,
+        ];
+        match f.vag_type {
+            2 => Self::tea_block(&mut block, true),
+            1 => {
+                let key_idx = if f.key_idx != NO_KEY { f.key_idx } else { 0 };
+                if !Self::aut64_block(&mut block, key_idx, true) {
+                    return None;
+                }
+            }
+            _ => {
+                let key_idx = if f.key_idx != NO_KEY {
+                    f.key_idx
+                } else if f.vag_type == 4 {
+                    2
+                } else {
+                    1
+                };
+                if !Self::aut64_block(&mut block, key_idx, true) {
+                    return None;
+                }
+            }
+        }
+        let key1 = u64::from_be_bytes([
+            f.type_byte,
+            block[0],
+            block[1],
+            block[2],
+            block[3],
+            block[4],
+            block[5],
+            block[6],
+        ]);
+        let key2 = (block[7] as u16) << 8 | dispatch as u16;
+        Some((key1, key2))
+    }
+
+    /// pp_emit_manchester_bit over the low `bits` bits of `value`, MSB first (bit 1 = HIGH, LOW).
+    fn emit_manchester(upload: &mut Vec<LevelDuration>, value: u64, bits: u32, te: u32) {
+        for i in (0..bits).rev() {
+            let bit = (value >> i) & 1 == 1;
+            upload.push(LevelDuration::new(bit, te));
+            upload.push(LevelDuration::new(!bit, te));
+        }
+    }
+
+    /// pp_emit_short_pairs
+    fn emit_pairs(upload: &mut Vec<LevelDuration>, te: u32, pairs: usize) {
+        for _ in 0..pairs {
+            upload.push(LevelDuration::new(true, te));
+            upload.push(LevelDuration::new(false, te));
+        }
+    }
+
+    /// vag_encoder_build_type1 / _type2 upload (635 entries).
+    fn build_upload_type12(vag_type: u8, key1: u64, key2: u16) -> Vec<LevelDuration> {
+        let mut up = Vec::with_capacity(635);
+        Self::emit_pairs(&mut up, 300, 220);
+        up.push(LevelDuration::new(false, 300));
+        up.push(LevelDuration::new(true, 300));
+        let prefix: u16 = if vag_type == 2 { 0xAF1C } else { 0xAF3F };
+        Self::emit_manchester(&mut up, prefix as u64, 16, 300);
+        Self::emit_manchester(&mut up, !key1, 64, 300);
+        Self::emit_manchester(&mut up, !key2 as u64, 16, 300);
+        up.push(LevelDuration::new(false, 6000));
+        up
+    }
+
+    /// vag_encoder_build_type3_4 upload (518 entries: the frame twice).
+    fn build_upload_type34(key1: u64, key2: u16) -> Vec<LevelDuration> {
+        let mut up = Vec::with_capacity(518);
+        for _ in 0..2 {
+            Self::emit_pairs(&mut up, 500, 45);
+            up.push(LevelDuration::new(true, 1000));
+            up.push(LevelDuration::new(false, 500));
+            Self::emit_pairs(&mut up, 750, 3);
+            Self::emit_manchester(&mut up, key1, 64, 500);
+            Self::emit_manchester(&mut up, key2 as u64, 16, 500);
+            up.push(LevelDuration::new(false, 10000));
+        }
+        up
+    }
+
+    /// Merge adjacent same-level entries: the C upload emits each Manchester half-bit separately
+    /// (e.g. LOW 300 + LOW 300); on air that is one LOW 600, which is what KAT returns.
+    fn merge_levels(upload: Vec<LevelDuration>) -> Vec<LevelDuration> {
+        let mut out: Vec<LevelDuration> = Vec::with_capacity(upload.len());
+        for p in upload {
+            match out.last_mut() {
+                Some(last) if last.level == p.level => last.duration_us += p.duration_us,
+                _ => out.push(p),
+            }
+        }
+        out
+    }
+
+    /// The C encoder after deserialize: the type's builder. Returns the C upload (unmerged) and
+    /// the transmitted Key1/Key2.
+    fn build(f: &EncodeFields) -> Option<(Vec<LevelDuration>, u64, u16)> {
+        // Unknown type: the C defaults to Type 1.
+        let mut f = *f;
+        if !(1..=4).contains(&f.vag_type) {
+            f.vag_type = 1;
+        }
+        let (key1, key2) = Self::build_keys(&f)?;
+        let upload = if f.vag_type <= 2 {
+            Self::build_upload_type12(f.vag_type, key1, key2)
+        } else {
+            Self::build_upload_type34(key1, key2)
+        };
+        Some((upload, key1, key2))
     }
 }
 
@@ -819,25 +649,21 @@ impl ProtocolDecoder for VagDecoder {
     }
 
     fn supported_frequencies(&self) -> &[u32] {
-        &[433_920_000, 434_420_000]
+        // ProtoPirate flags 433 MHz; Flipper-ARF adds 315 MHz. (The registry matches ±2%, so
+        // 433.92 also covers the 434.42 MHz European fobs.)
+        &[315_000_000, 433_920_000, 434_420_000]
     }
 
     fn reset(&mut self) {
+        // subghz_protocol_decoder_vag_reset (key1/key2 are left as they were, like the C).
         self.step = DecoderStep::Reset;
-        self.manchester_state = ManchesterState::Mid1;
         self.data_low = 0;
         self.data_high = 0;
         self.bit_count = 0;
+        self.vag_type = 0;
         self.header_count = 0;
         self.mid_count = 0;
-        self.vag_type = VagType::Unknown;
-        self.te_last = 0;
-        self.decrypted = false;
-        self.serial = 0;
-        self.cnt = 0;
-        self.btn = 0;
-        self.check_byte = 0;
-        self.key_idx = 0xFF;
+        self.manchester = ManchesterState::Mid1;
     }
 
     fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
@@ -846,50 +672,10 @@ impl ProtocolDecoder for VagDecoder {
                 if !level {
                     return None;
                 }
-                // Matches vag.c: duration < 300 and (300-duration)<=tol -> Preamble1; else (duration-300)<=tol -> Preamble1; else 500±79 -> Preamble2. Use REF_PREAMBLE1_TOL for Type 1/2 lock.
-                if duration < TE_SHORT_12 {
-                    if (TE_SHORT_12 - duration) > REF_PREAMBLE1_TOL {
-                        return None;
-                    }
-                    // init_pattern1
-                    self.step = DecoderStep::Preamble1;
-                    self.data_low = 0;
-                    self.data_high = 0;
-                    self.header_count = 0;
-                    self.mid_count = 0;
-                    self.bit_count = 0;
-                    self.vag_type = VagType::Unknown;
-                    self.te_last = duration;
-                    self.manchester_advance(ManchesterEvent::Reset);
-                } else if duration.wrapping_sub(TE_SHORT_12) <= REF_PREAMBLE1_TOL {
-                    // Fall-through to init_pattern1 in ref (duration 300..300+tol)
-                    self.step = DecoderStep::Preamble1;
-                    self.data_low = 0;
-                    self.data_high = 0;
-                    self.header_count = 0;
-                    self.mid_count = 0;
-                    self.bit_count = 0;
-                    self.vag_type = VagType::Unknown;
-                    self.te_last = duration;
-                    self.manchester_advance(ManchesterEvent::Reset);
-                } else {
-                    // (duration - 300) > 79: check 500±79 for Preamble2
-                    let diff = if duration < TE_SHORT {
-                        TE_SHORT - duration
-                    } else {
-                        duration - TE_SHORT
-                    };
-                    if diff <= REF_RESET_DELTA {
-                        self.step = DecoderStep::Preamble2;
-                        self.data_low = 0;
-                        self.data_high = 0;
-                        self.header_count = 0;
-                        self.mid_count = 0;
-                        self.bit_count = 0;
-                        self.vag_type = VagType::Unknown;
-                        self.te_last = duration;
-                        self.manchester_advance(ManchesterEvent::Reset);
-                    }
+                if diff(duration, T12_TE_SHORT) < T12_TE_DELTA {
+                    self.start_preamble(DecoderStep::Preamble1, duration);
+                } else if diff(duration, T34_TE_SHORT) < T34_TE_DELTA {
+                    self.start_preamble(DecoderStep::Preamble2, duration);
                 }
             }
 
@@ -897,274 +683,151 @@ impl ProtocolDecoder for VagDecoder {
                 if level {
                     return None;
                 }
-
-                let te_diff = if duration > TE_SHORT_12 {
-                    duration - TE_SHORT_12
-                } else {
-                    TE_SHORT_12 - duration
-                };
-
-                // Reference: (300-duration) or (duration-300) within tol -> count pair. Use REF_PREAMBLE1_TOL for real-world jitter.
-                if te_diff <= REF_PREAMBLE1_TOL {
-                    let prev_diff = if self.te_last > TE_SHORT_12 {
-                        self.te_last - TE_SHORT_12
-                    } else {
-                        TE_SHORT_12 - self.te_last
-                    };
-                    if prev_diff <= REF_PREAMBLE1_TOL {
+                if diff(duration, T12_TE_SHORT) < T12_TE_DELTA {
+                    if diff(self.te_last, T12_TE_SHORT) < T12_TE_DELTA {
                         self.te_last = duration;
                         self.header_count += 1;
-                        return None;
+                    } else {
+                        self.step = DecoderStep::Reset;
                     }
-                    self.step = DecoderStep::Reset;
                     return None;
                 }
-
-                // Duration not near 300: ref checks for 600µs gap (Preamble1->Data1), then reset
-                // ref: set step=Reset; if header_count>=201 then duration=|duration-600|; if duration<=79 and te_last 300±79 -> Data1
-                if self.header_count >= 201 {
-                    let gap_diff = if duration < TE_LONG_12 {
-                        TE_LONG_12 - duration
-                    } else {
-                        duration - TE_LONG_12
-                    };
-                    if gap_diff <= REF_GAP1_DELTA {
-                        let prev_diff = if self.te_last > TE_SHORT_12 {
-                            self.te_last - TE_SHORT_12
-                        } else {
-                            TE_SHORT_12 - self.te_last
-                        };
-                        if prev_diff <= REF_PREAMBLE1_TOL {
-                            self.step = DecoderStep::Data1;
-                            return None;
-                        }
-                    }
-                }
-
                 self.step = DecoderStep::Reset;
+                if self.header_count >= T12_PREAMBLE_MIN
+                    && diff(duration, T12_TE_LONG) < T12_GAP_DELTA
+                    && diff(self.te_last, T12_TE_SHORT) < T12_TE_DELTA
+                {
+                    self.step = DecoderStep::Data1;
+                }
             }
 
             DecoderStep::Data1 => {
-                if self.bit_count < 96 {
-                    // Determine Manchester event
-                    let short_diff = if duration > TE_SHORT_12 {
-                        duration - TE_SHORT_12
-                    } else {
-                        TE_SHORT_12 - duration
-                    };
-                    let long_diff = if duration > TE_LONG_12 {
-                        duration - TE_LONG_12
-                    } else {
-                        TE_LONG_12 - duration
-                    };
-
-                    // Reference Data1: short 300±79 (221..380), long 600±79 (521..680)
-                    let event = if short_diff <= REF_RESET_DELTA {
-                        Some(if level { ManchesterEvent::ShortLow } else { ManchesterEvent::ShortHigh })
-                    } else if long_diff <= REF_RESET_DELTA {
-                        Some(if level { ManchesterEvent::LongLow } else { ManchesterEvent::LongHigh })
-                    } else {
-                        None
-                    };
-
-                    if let Some(evt) = event {
-                        if let Some(bit_value) = self.manchester_advance(evt) {
-                            self.push_bit(bit_value);
-
-                            // Check for type identifier at bit 15
-                            if self.bit_count == 15 {
-                                if self.data_low == 0x2F3F && self.data_high == 0 {
-                                    self.data_low = 0;
-                                    self.data_high = 0;
-                                    self.bit_count = 0;
-                                    self.vag_type = VagType::Type1;
-                                } else if self.data_low == 0x2F1C && self.data_high == 0 {
-                                    self.data_low = 0;
-                                    self.data_high = 0;
-                                    self.bit_count = 0;
-                                    self.vag_type = VagType::Type2;
-                                }
-                            } else if self.bit_count == 64 {
-                                self.key1_low = !self.data_low;
-                                self.key1_high = !self.data_high;
+                if self.bit_count >= BIT_LIMIT {
+                    self.step = DecoderStep::Reset;
+                    return None;
+                }
+                // ProtoPirate's mapping: level ? ShortLow : ShortHigh.
+                let long = if diff(duration, T12_TE_SHORT) < T12_TE_DELTA {
+                    Some(false)
+                } else if duration > T12_TE_SHORT + T12_TE_DELTA
+                    && diff(duration, T12_TE_LONG) < T12_GAP_DELTA
+                {
+                    Some(true)
+                } else {
+                    None
+                };
+                if let Some(long) = long {
+                    let event = ManchesterEvent::from_half_bit(!level, long);
+                    if let Some(bit) = self.manchester.advance(event) {
+                        self.push_bit(bit);
+                        if self.bit_count == PREFIX_BITS {
+                            let prefix = self.data_low;
+                            if self.data_high == 0
+                                && (prefix == FRAME_PREFIX_T1 || prefix == FRAME_PREFIX_T2)
+                            {
+                                self.vag_type = if prefix == FRAME_PREFIX_T1 { 1 } else { 2 };
                                 self.data_low = 0;
                                 self.data_high = 0;
+                                self.bit_count = 0;
                             }
+                        } else if self.bit_count == KEY1_BITS {
+                            self.key1_low = !self.data_low;
+                            self.key1_high = !self.data_high;
+                            self.data_low = 0;
+                            self.data_high = 0;
                         }
-                        return None;
                     }
+                    return None;
                 }
-
-                // End-of-data gap: 6000µs, accept within 4000µs (matches vag.c check_gap1_data)
-                if !level {
-                    let gap_diff = if duration > 6000 {
-                        duration - 6000
-                    } else {
-                        6000 - duration
-                    };
-
-                    if gap_diff < 4000 && self.bit_count == 80 {
-                        self.key2_low = (!self.data_low) & 0xFFFF;
-                        self.key2_high = 0;
-                        self.data_count_bit = 80;
-
-                        self.parse_data();
-                        tracing::debug!(
-                            "VAG Data1 decode: 80 bits, decrypted={} (report regardless of key)",
-                            self.decrypted
-                        );
-
-                        let result = self.build_decoded_signal();
-                        self.data_low = 0;
-                        self.data_high = 0;
-                        self.bit_count = 0;
-                        self.step = DecoderStep::Reset;
-                        return Some(result);
-                    }
+                if level || duration < DATA_GAP_MIN {
+                    return None;
                 }
-
+                let mut result = None;
+                if self.bit_count == TOTAL_BITS {
+                    self.key2_low = !self.data_low & 0xFFFF;
+                    result = Some(self.emit());
+                }
                 self.data_low = 0;
                 self.data_high = 0;
                 self.bit_count = 0;
                 self.step = DecoderStep::Reset;
+                return result;
             }
 
             DecoderStep::Preamble2 => {
-                // Matches vag.c: LOW 500±80 and te_last 500±80 to count; then header_count>=41, HIGH 1000±79 and te_last 500±79 -> Sync2A
                 if !level {
-                    let diff = if duration < TE_SHORT {
-                        TE_SHORT - duration
+                    if diff(duration, T34_TE_SHORT) < T34_TE_DELTA
+                        && diff(self.te_last, T34_TE_SHORT) < T34_TE_DELTA
+                    {
+                        self.te_last = duration;
+                        self.header_count += 1;
                     } else {
-                        duration - TE_SHORT
-                    };
-                    if diff < REF_PREAMBLE_SYNC {
-                        let prev_diff = if self.te_last < TE_SHORT {
-                            TE_SHORT - self.te_last
-                        } else {
-                            self.te_last - TE_SHORT
-                        };
-                        if prev_diff < REF_PREAMBLE_SYNC {
-                            self.te_last = duration;
-                            self.header_count += 1;
-                            return None;
-                        }
+                        self.step = DecoderStep::Reset;
                     }
-                    self.step = DecoderStep::Reset;
                     return None;
                 }
-
-                if self.header_count < 41 {
-                    return None;
+                if self.header_count >= T34_PREAMBLE_MIN
+                    && diff(duration, T34_TE_LONG) < T34_LONG_DELTA
+                    && diff(self.te_last, T34_TE_SHORT) < T34_TE_DELTA
+                {
+                    self.te_last = duration;
+                    self.step = DecoderStep::Sync2A;
                 }
-
-                let diff = if duration < TE_LONG {
-                    TE_LONG - duration
-                } else {
-                    duration - TE_LONG
-                };
-                if diff > REF_RESET_DELTA {
-                    return None;
-                }
-                let prev_diff = if self.te_last < TE_SHORT {
-                    TE_SHORT - self.te_last
-                } else {
-                    self.te_last - TE_SHORT
-                };
-                if prev_diff > REF_RESET_DELTA {
-                    return None;
-                }
-                self.te_last = duration;
-                self.step = DecoderStep::Sync2A;
             }
 
             DecoderStep::Sync2A => {
-                // Matches vag.c: LOW 500±79 and te_last 1000±79 -> Sync2B (VAG_NEAR(..., 79))
-                if !level {
-                    let diff = if duration < TE_SHORT {
-                        TE_SHORT - duration
-                    } else {
-                        duration - TE_SHORT
-                    };
-                    if diff <= REF_SYNC2_AB_DELTA {
-                        let prev_diff = if self.te_last < TE_LONG {
-                            TE_LONG - self.te_last
-                        } else {
-                            self.te_last - TE_LONG
-                        };
-                        if prev_diff <= REF_SYNC2_AB_DELTA {
-                            self.te_last = duration;
-                            self.step = DecoderStep::Sync2B;
-                            return None;
-                        }
-                    }
+                if !level
+                    && diff(duration, T34_TE_SHORT) < T34_TE_DELTA
+                    && diff(self.te_last, T34_TE_LONG) < T34_LONG_DELTA
+                {
+                    self.te_last = duration;
+                    self.step = DecoderStep::Sync2B;
+                } else {
+                    self.step = DecoderStep::Reset;
                 }
-                self.step = DecoderStep::Reset;
             }
 
             DecoderStep::Sync2B => {
-                // Matches vag.c: HIGH 750±79 -> Sync2C (VAG_NEAR(duration, 750, 79))
-                if level {
-                    let diff = if duration < 750 {
-                        750 - duration
-                    } else {
-                        duration - 750
-                    };
-                    if diff <= REF_SYNC2_AB_DELTA {
-                        self.te_last = duration;
-                        self.step = DecoderStep::Sync2C;
-                        return None;
-                    }
+                if level && diff(duration, T34_SYNC) < T34_SYNC_DELTA {
+                    self.te_last = duration;
+                    self.step = DecoderStep::Sync2C;
+                } else {
+                    self.step = DecoderStep::Reset;
                 }
-                self.step = DecoderStep::Reset;
             }
 
             DecoderStep::Sync2C => {
-                // Matches vag.c: LOW 750±79 and te_last 750±79 (diff<=79), mid_count++; at 3 -> Data2
-                if !level {
-                    let diff = if duration < 750 {
-                        750 - duration
-                    } else {
-                        duration - 750
-                    };
-                    if diff <= REF_SYNC2C_DELTA {
-                        let prev_diff = if self.te_last < 750 {
-                            750 - self.te_last
-                        } else {
-                            self.te_last - 750
-                        };
-                        if prev_diff <= REF_SYNC2C_DELTA {
-                            self.mid_count += 1;
-                            self.step = DecoderStep::Sync2B;
-
-                            if self.mid_count == 3 {
-                                self.data_low = 1;
-                                self.data_high = 0;
-                                self.bit_count = 1;
-                                self.manchester_advance(ManchesterEvent::Reset);
-                                self.step = DecoderStep::Data2;
-                            }
-                            return None;
-                        }
+                if !level
+                    && diff(duration, T34_SYNC) < T34_SYNC_DELTA
+                    && diff(self.te_last, T34_SYNC) < T34_SYNC_DELTA
+                {
+                    self.mid_count += 1;
+                    self.step = DecoderStep::Sync2B;
+                    if self.mid_count == T34_SYNC_PAIRS {
+                        self.data_low = 1;
+                        self.data_high = 0;
+                        self.bit_count = 1;
+                        self.manchester = ManchesterState::Mid1;
+                        self.step = DecoderStep::Data2;
                     }
+                } else {
+                    self.step = DecoderStep::Reset;
                 }
-                self.step = DecoderStep::Reset;
             }
 
             DecoderStep::Data2 => {
-                // Matches vag.c: short 380-620µs, long 880-1120µs
-                let event = if duration >= 380 && duration <= 620 {
-                    Some(if level { ManchesterEvent::ShortLow } else { ManchesterEvent::ShortHigh })
-                } else if duration >= 880 && duration <= 1120 {
-                    Some(if level { ManchesterEvent::LongLow } else { ManchesterEvent::LongHigh })
+                let long = if diff(duration, T34_TE_SHORT) < T34_TE_DELTA {
+                    Some(false)
+                } else if diff(duration, T34_TE_LONG) < T34_LONG_DELTA {
+                    Some(true)
                 } else {
                     None
                 };
-
-                if let Some(evt) = event {
-                    if let Some(bit_value) = self.manchester_advance(evt) {
-                        self.push_bit(bit_value);
-
-                        if self.bit_count == 64 {
+                if let Some(long) = long {
+                    let event = ManchesterEvent::from_half_bit(!level, long);
+                    if let Some(bit) = self.manchester.advance(event) {
+                        self.push_bit(bit);
+                        if self.bit_count == KEY1_BITS {
                             self.key1_low = self.data_low;
                             self.key1_high = self.data_high;
                             self.data_low = 0;
@@ -1172,26 +835,19 @@ impl ProtocolDecoder for VagDecoder {
                         }
                     }
                 }
-
-                // Check for completion at 80 bits
-                if self.bit_count == 80 {
-                    self.key2_low = self.data_low & 0xFFFF;
-                    self.key2_high = 0;
-                    self.data_count_bit = 80;
-                    self.vag_type = VagType::Type3;
-
-                    self.parse_data();
-
-                    let result = self.build_decoded_signal();
-                    self.data_low = 0;
-                    self.data_high = 0;
-                    self.bit_count = 0;
-                    self.step = DecoderStep::Reset;
-                    return Some(result);
+                if self.bit_count != TOTAL_BITS {
+                    return None;
                 }
+                self.key2_low = self.data_low & 0xFFFF;
+                self.vag_type = 3;
+                let result = self.emit();
+                self.data_low = 0;
+                self.data_high = 0;
+                self.bit_count = 0;
+                self.step = DecoderStep::Reset;
+                return Some(result);
             }
         }
-
         None
     }
 
@@ -1199,13 +855,369 @@ impl ProtocolDecoder for VagDecoder {
         true
     }
 
-    fn encode(&self, decoded: &DecodedSignal, _button: u8) -> Option<Vec<LevelDuration>> {
-        self.encode_signal(decoded)
+    fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
+        let mut f = Self::encode_fields(decoded)?;
+        f.cnt = f.cnt.wrapping_add(1) & 0xFF_FFFF;
+        f.btn = Self::map_button(f.vag_type, f.btn, button);
+        Self::build(&f).map(|(upload, _, _)| Self::merge_levels(upload))
     }
 }
 
 impl Default for VagDecoder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::export::flipper::import_sub_raw;
+    use std::path::Path;
+
+    fn load_keys() {
+        keys::load_keystore_from_embedded();
+    }
+
+    /// Merge adjacent same-level entries (what the RF looks like once transmitted).
+    fn merged(pairs: &[LevelDuration]) -> Vec<LevelDuration> {
+        let mut out: Vec<LevelDuration> = Vec::with_capacity(pairs.len());
+        for p in pairs {
+            match out.last_mut() {
+                Some(last) if last.level == p.level => last.duration_us += p.duration_us,
+                _ => out.push(LevelDuration::new(p.level, p.duration_us)),
+            }
+        }
+        out
+    }
+
+    fn decode_all(pairs: &[LevelDuration]) -> Vec<DecodedSignal> {
+        let mut dec = VagDecoder::new();
+        pairs
+            .iter()
+            .filter_map(|p| dec.feed(p.level, p.duration_us))
+            .collect()
+    }
+
+    fn sub_frames(rel: &str) -> Option<Vec<DecodedSignal>> {
+        let path = Path::new("IMPORTS").join(rel);
+        if !path.exists() {
+            eprintln!("Skip: {path:?} not found (run from crate root)");
+            return None;
+        }
+        let (_, raw) = import_sub_raw(&path).unwrap();
+        let pairs: Vec<LevelDuration> = raw
+            .iter()
+            .map(|p| LevelDuration::new(p.level, p.duration_us))
+            .collect();
+        Some(decode_all(&pairs))
+    }
+
+    fn fields(f: &DecodedSignal) -> (u32, u8, u32, u8, u8) {
+        let (vag_type, key_idx, _, cnt_hi) = VagDecoder::parse_extra(f.extra.unwrap());
+        (
+            f.serial.unwrap(),
+            f.button.unwrap(),
+            cnt_hi << 16 | f.counter.unwrap() as u32,
+            vag_type,
+            key_idx,
+        )
+    }
+
+    /// Real captures, cross-checked against the compiled ProtoPirate vag.c (host harness): frame
+    /// count, Key1/Key2, type, serial, counter, button and key index of every decoded frame.
+    #[test]
+    fn decodes_real_captures_like_protopirate() {
+        load_keys();
+        // (file, frames, decrypted frames, a known frame: key1, key2, type, serial, cnt, btn, kidx)
+        type Frame = (u64, u16, u8, u32, u32, u8, u8);
+        let cases: [(&str, usize, usize, Frame); 7] = [
+            ("VAG/Vw_passat_b5_3bg.sub", 27, 27, (0xC09E_BD07_92CA_7FC3, 0xA72B, 4, 0x0C21_578B, 0x012B06, 2, 2)),
+            ("VAG/Golf4.sub", 38, 36, (0xC0C2_7ADB_B703_4BD1, 0x292B, 4, 0x0A2F_9F3C, 0x005196, 2, 2)),
+            ("VAG/VW_Skoda_Seat_2008.sub", 31, 31, (0xC0E4_3A01_2D9E_B632, 0x2A1D, 4, 0x1530_2419, 0x000038, 1, 2)),
+            ("SKODA/Skoda_Fabia_2007 RAW.sub", 5, 5, (0xC0D6_1B7A_4201_7AFA, 0x7B2B, 4, 0x0768_7620, 0x00847A, 0, 2)),
+            ("VAG/Passat_2015.sub", 8, 8, (0x00D7_11F8_6F28_58A1, 0x662A, 1, 0xFD77_9294, 0x009392, 0x20, 0)),
+            ("VAG/Vw pasat B7.sub", 12, 12, (0x009E_E4BD_B292_62F3, 0x832A, 1, 0x3C07_EAA9, 0x018299, 0x20, 0)),
+            ("VAG/VAG_2.sub", 8, 8, (0x0072_44E6_232F_D8DC, 0xFE1C, 2, 0x0DED_2BA3, 0x002FEF, 1, NO_KEY)),
+        ];
+        for (rel, n, n_dec, (k1, k2, ty, ser, cnt, btn, kidx)) in cases {
+            let Some(frames) = sub_frames(rel) else { continue };
+            assert_eq!(frames.len(), n, "{rel}: frame count");
+            assert_eq!(frames.iter().filter(|f| f.crc_valid).count(), n_dec, "{rel}: decrypted");
+            let f = frames
+                .iter()
+                .find(|f| f.data == k1 && f.extra.map(|e| e as u16) == Some(k2))
+                .unwrap_or_else(|| panic!("{rel}: frame {k1:016X}/{k2:04X} missing"));
+            assert!(f.crc_valid && f.encoder_capable, "{rel}");
+            assert_eq!(fields(f), (ser, btn, cnt, ty, kidx), "{rel}");
+        }
+        // The decoded key file IMPORTS/VAG/Passat_b5_3bg.sub (Key C0 9E BD 07 92 CA 7F C3, Key_2
+        // …A7 2B, Type 3) is one of Vw_passat_b5_3bg.sub's frames (checked above): Type 3 → 4.
+        let p = VagDecoder::parse_data(3, 0xC09E_BD07_92CA_7FC3, 0xA72B);
+        assert_eq!((p.decrypted, p.vag_type, p.serial, p.cnt, p.btn, p.key_idx), (true, 4, 0x0C21_578B, 0x012B06, 2, 2));
+    }
+
+    #[test]
+    fn test55_type2_capture() {
+        load_keys();
+        let Some(frames) = sub_frames("VAG/Test_55_unlock_and_55_lock_suran.sub") else { return };
+        assert_eq!(frames.len(), 69);
+        assert!(frames.iter().all(|f| f.crc_valid && f.serial == Some(0x10C7_0EF7)));
+        assert!(frames.iter().all(|f| VagDecoder::parse_extra(f.extra.unwrap()).0 == 2));
+    }
+
+    /// Undecryptable frames are still reported (ProtoPirate shows them as "corrupted"), carry
+    /// Key1/Key2/type in `data`/`extra`, but no fields and no encoder.
+    #[test]
+    fn undecrypted_frame_is_reported_without_fields() {
+        load_keys();
+        let key1 = 0xC012_3456_789A_BCDEu64;
+        let key2 = 0x5A00u16; // dispatch 0x00: no type accepts it
+        let wire = merged(&VagDecoder::build_upload_type34(key1, key2));
+        let frames = decode_all(&wire);
+        assert_eq!(frames.len(), 2);
+        for f in &frames {
+            assert_eq!(f.data, key1);
+            assert!(!f.crc_valid && !f.encoder_capable && f.serial.is_none());
+            let (ty, kidx, k2, _) = VagDecoder::parse_extra(f.extra.unwrap());
+            assert_eq!((ty, kidx, k2), (3, NO_KEY, Some(key2)));
+            assert!(VagDecoder::new().encode(f, 0x01).is_none());
+        }
+    }
+
+    fn captured(f: &EncodeFields, key1: u64, key2: u16) -> DecodedSignal {
+        let p = Parsed {
+            vag_type: f.vag_type,
+            decrypted: true,
+            serial: f.serial,
+            cnt: f.cnt,
+            btn: f.btn,
+            key_idx: f.key_idx,
+        };
+        VagDecoder::signal_from(key1, key2, &p)
+    }
+
+    /// Encoder → decoder round trip: the transmitted frame decodes to the same serial, counter + 1
+    /// (24-bit, carried through `extra`) and the requested button. Covered: the key layouts the C
+    /// decoder always reads back — Type 1 with AUT64 key 1 (Passat captures), Type 2 (XTEA) and
+    /// Type 3/4 with key 3 (every 500µs capture). Frames under the other keys are tried after a
+    /// first key whose weak button check passes ~19% of random plaintexts, so the C itself
+    /// misreads some of them (KAT matches the compiled C there too; checked offline).
+    #[test]
+    fn encode_decode_round_trip_all_types() {
+        load_keys();
+        let mut x: u64 = 0x2545_F491_4F6C_DD1D;
+        let mut next = || {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            x
+        };
+        for i in 0..400 {
+            let r = next();
+            let (vag_type, key_idx, decoded_type) =
+                [(1u8, 0u8, 1u8), (2, NO_KEY, 2), (3, 2, 4), (4, 2, 4)][i % 4];
+            // Type 3/4 imply Key1's first bit (1) from the sync, so their type byte is 0xC0..0xC3.
+            let type_byte = [0xC0u8, 0xC1, 0xC2, 0xC3, 0x00][(r >> 8) as usize % if vag_type <= 2 { 5 } else { 4 }];
+            let btn = if vag_type == 1 { 0x20 } else { 2 };
+            let f = EncodeFields {
+                vag_type,
+                key_idx,
+                type_byte,
+                serial: (r >> 16) as u32,
+                cnt: ((r >> 40) as u32) & 0xFF_FFFF,
+                btn,
+            };
+            let (_, k1, k2) = VagDecoder::build(&f).expect("captured frame builds");
+            let cap = captured(&f, k1, k2);
+            for (cmd, want_nibble) in [(0x01u8, 2u8), (0x02, 1), (0x04, 4)] {
+                let up = VagDecoder::new().encode(&cap, cmd).expect("encodes");
+                let (_, k1n, k2n) = VagDecoder::build(&EncodeFields {
+                    cnt: (f.cnt + 1) & 0xFF_FFFF,
+                    btn: VagDecoder::map_button(vag_type, f.btn, cmd),
+                    ..f
+                })
+                .unwrap();
+                let c_upload = if vag_type <= 2 {
+                    VagDecoder::build_upload_type12(vag_type, k1n, k2n)
+                } else {
+                    VagDecoder::build_upload_type34(k1n, k2n)
+                };
+                assert_eq!(c_upload.len(), if vag_type <= 2 { 635 } else { 518 });
+                let pulses = |v: &[LevelDuration]| v.iter().map(|p| (p.level, p.duration_us)).collect::<Vec<_>>();
+                assert_eq!(pulses(&up), pulses(&merged(&c_upload)), "the C upload, same-level runs merged");
+                let frames = decode_all(&up);
+                assert_eq!(frames.len(), if vag_type <= 2 { 1 } else { 2 }, "type {vag_type}");
+                for d in &frames {
+                    let want_btn = if vag_type == 1 { want_nibble << 4 } else { want_nibble };
+                    assert_eq!(
+                        fields(d),
+                        (f.serial, want_btn, (f.cnt + 1) & 0xFF_FFFF, decoded_type, key_idx),
+                        "type {vag_type} cmd {cmd}"
+                    );
+                    assert_eq!(d.data >> 56, type_byte as u64);
+                }
+            }
+        }
+    }
+
+    /// A Type 1 capture with type byte 0x00 (Passat_2015.sub) is re-sent as Type 1 (prefix 0xAF3F,
+    /// AUT64), not converted to Type 2 like the references do (module doc).
+    #[test]
+    fn passat_type1_stays_type1() {
+        load_keys();
+        let Some(frames) = sub_frames("VAG/Passat_2015.sub") else { return };
+        let f = &frames[0];
+        let up = VagDecoder::new().encode(f, 0x02).unwrap();
+        let back = decode_all(&up);
+        assert_eq!(back.len(), 1);
+        let (ser, btn, cnt, ty, kidx) = fields(&back[0]);
+        let (ser0, _, cnt0, _, _) = fields(f);
+        assert_eq!((ser, btn, cnt, ty, kidx), (ser0, 0x10, cnt0 + 1, 1, 0));
+    }
+
+    /// `.fob` files from KAT <= v1.3.0 stored `extra = vag_type | key_idx << 8` (no Key2).
+    #[test]
+    fn legacy_extra_layout_still_encodes() {
+        load_keys();
+        let f = EncodeFields { vag_type: 2, key_idx: NO_KEY, type_byte: 0, serial: 0x1234_5678, cnt: 0x1234, btn: 1 };
+        let (_, k1, _) = VagDecoder::build(&f).unwrap();
+        let legacy = DecodedSignal {
+            serial: Some(f.serial),
+            button: Some(1),
+            counter: Some(0x1234),
+            crc_valid: true,
+            data: k1,
+            data_count_bit: 80,
+            encoder_capable: true,
+            extra: Some(0x0002 | (NO_KEY as u64) << 8),
+            protocol_display_name: None,
+        };
+        let back = decode_all(&VagDecoder::new().encode(&legacy, 0x01).unwrap());
+        assert_eq!(back.len(), 1);
+        assert_eq!(fields(&back[0]), (0x1234_5678, 2, 0x1235, 2, NO_KEY));
+        assert_eq!(VagDecoder::parse_extra(0x0104), (4, 1, None, 0));
+    }
+    /// Cross-protocol guard for VAG, Subaru and Chrysler V0: no other registry protocol's encoder
+    /// output, at each of its frequencies, decodes as one of them (VAG reports undecrypted 80-bit
+    /// frames like ProtoPirate, so its framing alone must keep it off foreign waveforms); and their
+    /// own encoder output is reported by the full registry as themselves.
+    #[test]
+    fn registry_guard_vag_subaru_chrysler() {
+        use crate::protocols::ProtocolRegistry;
+        use std::panic::{catch_unwind, AssertUnwindSafe};
+        load_keys();
+        const MINE: [&str; 3] = ["VAG", "Subaru", "Chrysler V0"];
+        let reg0 = ProtocolRegistry::new();
+        for name in reg0.list_protocols() {
+            if MINE.contains(&name) {
+                continue;
+            }
+            let dec = reg0.get(name).unwrap();
+            if !dec.supports_encoding() {
+                continue;
+            }
+            for extra in [0x1234_5678_9ABCu64, (1 << 40) | (0x5A << 32) | 0x1234] {
+                let src = DecodedSignal {
+                    serial: Some(0x0012_3456),
+                    button: Some(0x01),
+                    counter: Some(5),
+                    crc_valid: true,
+                    data: 0xA5C3_1E7B_92D4_6F08,
+                    data_count_bit: dec.timing().min_count_bit,
+                    encoder_capable: true,
+                    extra: Some(extra),
+                    protocol_display_name: None,
+                };
+                for btn in [0x01u8, 0x02, 0x04] {
+                    let Ok(Some(wire)) = catch_unwind(AssertUnwindSafe(|| dec.encode(&src, btn))) else {
+                        continue;
+                    };
+                    for &f in dec.supported_frequencies() {
+                        let mut reg = ProtocolRegistry::new();
+                        for (got, _, _) in reg.process_signal_stream(&wire, f) {
+                            assert!(!MINE.contains(&got.as_str()), "{name} (btn {btn}) at {f} Hz decoded as {got}");
+                        }
+                    }
+                }
+            }
+        }
+
+        // Own output → reported as ourselves by the whole registry.
+        let check = |name: &str, wire: &[LevelDuration], want: usize| {
+            for f in reg0.get(name).unwrap().supported_frequencies() {
+                let names: Vec<String> = ProtocolRegistry::new()
+                    .process_signal_stream(wire, *f)
+                    .into_iter()
+                    .map(|(n, _, _)| n)
+                    .collect();
+                assert_eq!(names, vec![name.to_string(); want], "{name} at {f} Hz");
+            }
+        };
+        let vag = reg0.get("VAG").unwrap();
+        for (vag_type, key_idx, type_byte, btn, frames) in
+            [(1u8, 0u8, 0x00u8, 0x20u8, 1usize), (2, NO_KEY, 0x00, 2, 1), (4, 2, 0xC0, 2, 2)]
+        {
+            let f = EncodeFields { vag_type, key_idx, type_byte, serial: 0x0A2F_9F3C, cnt: 0x5196, btn };
+            let (_, k1, k2) = VagDecoder::build(&f).unwrap();
+            for cmd in [0x01u8, 0x02, 0x04] {
+                check("VAG", &vag.encode(&captured(&f, k1, k2), cmd).unwrap(), frames);
+            }
+        }
+        let subaru = reg0.get("Subaru").unwrap();
+        let mut x: u64 = 0x1234_5678_9ABC_DEF1;
+        for _ in 0..50 {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            let cap = DecodedSignal {
+                serial: None,
+                button: None,
+                counter: None,
+                crc_valid: true,
+                data: x,
+                data_count_bit: 64,
+                encoder_capable: true,
+                extra: None,
+                protocol_display_name: None,
+            };
+            for cmd in [0x01u8, 0x02, 0x04, 0x08] {
+                check("Subaru", &subaru.encode(&cap, cmd).unwrap(), 1);
+            }
+        }
+        // Chrysler V0: a payload-A capture (plaintext 5A 11 22 33 99 5E 66 77 88, Lock, seed 0x14).
+        // The encoder's payload B reuses A's plaintext, which B's check rejects (as in the C), so
+        // one frame per upload.
+        let chrysler = reg0.get("Chrysler V0").unwrap();
+        let cap = DecodedSignal {
+            serial: Some(0x5A11_2233),
+            button: Some(1),
+            counter: Some(0x14),
+            crc_valid: true,
+            data: 0x2A65_2E1D_0CA6_6159,
+            data_count_bit: 80,
+            encoder_capable: true,
+            extra: Some(0x48B7),
+            protocol_display_name: None,
+        };
+        for cmd in [0x01u8, 0x02, 0x04] {
+            check("Chrysler V0", &chrysler.encode(&cap, cmd).unwrap(), 1);
+        }
+    }
+
+    /// Upload layout matches vag_encoder_build_type1/2/3_4 entry for entry.
+    #[test]
+    fn upload_layout_matches_c() {
+        let up = VagDecoder::build_upload_type12(1, 0x0123_4567_89AB_CDEF, 0x2A55);
+        assert_eq!(up.len(), 635);
+        assert!(up[..440].chunks(2).all(|p| p[0].level && !p[1].level && p[0].duration_us == 300));
+        assert_eq!((up[440].level, up[441].level), (false, true));
+        assert_eq!((up[634].level, up[634].duration_us), (false, 6000));
+        // prefix 0xAF3F: first bit 1 → HIGH,LOW
+        assert!(up[442].level && !up[443].level);
+        let up = VagDecoder::build_upload_type34(0, 0);
+        assert_eq!(up.len(), 518);
+        assert_eq!((up[90].level, up[90].duration_us, up[91].duration_us), (true, 1000, 500));
+        assert_eq!((up[258].level, up[258].duration_us), (false, 10000));
     }
 }

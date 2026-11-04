@@ -1,7 +1,17 @@
-//! Land Rover V0 protocol decoder/encoder
+//! Honda V2 protocol decoder/encoder (formerly "Land Rover V0")
 //!
-//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/land_rover_v0.c` and
-//! `land_rover_v0.h`. **Differential** Manchester (NOT the Flipper transition table): te_short 250,
+//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/honda_v2.c` and
+//! `honda_v2.h` (HEAD dc3446b). ProtoPirate originally shipped this protocol as `land_rover_v0.c`
+//! ("Land Rover V0") and later re-identified and renamed it to Honda V2 (commit 62b31bf) with no
+//! change to the decode/encode logic; Flipper-ARF and doctor-firmware also call it Honda V2 (ARF
+//! still carries an unregistered `land_rover_v0.c`). KAT followed the rename: `name()` is now
+//! "Honda V2", and the registry still resolves the legacy name "Land Rover V0" (e.g. from older
+//! .fob exports) to this decoder. ARF's and doctor-firmware's `honda_v2.c` decode identically
+//! (verified with the compiled C on randomized frames); their encoders add the counter bump inline
+//! and a D-pad map onto the same two buttons, i.e. the same upload ProtoPirate's encoder builds
+//! from its emulate scene's Btn/Cnt.
+//!
+//! **Differential** Manchester (NOT the Flipper transition table): te_short 250,
 //! te_long 500, te_delta 100, with a ~750µs sync pulse and a ≥64-pair short preamble. FM.
 //!
 //! Frame: 81 bits = an 80-bit body (`raw[0..10]`) plus one trailing `extra_bit`. The 64-bit key
@@ -15,17 +25,28 @@
 //! The check is a proprietary 3-bit polynomial over the counter (`calculate_check`); the tail is
 //! 0xFFFF or 0x7FFF depending on a 1-bit parity of the counter (`calculate_tail`). Emission is gated
 //! on the reserved bits being zero, the check matching, the tail matching, and `extra_bit` set —
-//! so Land Rover V0 is strongly validated and will not false-match. Encoder supported.
+//! so Honda V2 is strongly validated and will not false-match. Encoder supported.
 //!
 //! Decode steps: Reset → PreambleLow/PreambleHigh (count short pairs, ≥64) → SyncLow → Data.
 //! The Data step ports the C `process_transition`/`add_decoded_bit` differential machine directly:
 //! it tracks `previous_bit`, skips the initial boundary short-high pad (`boundary_pad_skipped`),
 //! and completes short half-bits via `pending_short`. Bit 0 (= 1) is seeded on entry to Data.
 //!
+//! Encoder (`subghz_protocol_encoder_honda_v2_deserialize` + ProtoPirate's emulate scene): the
+//! Key's signature/serial/counter, overridden by the DecodedSignal's serial and button; KAT's
+//! 0x01 Lock → button 0x02 (signature 0xC20363), 0x02 Unlock → 0x04 (0xA285E3); any other command
+//! keeps the captured button, and a button without a signature keeps the Key's signature (sent as
+//! is, unknown or not; only a zero signature is refused, as in the C). The counter is bumped by
+//! one (emulate `current_counter++`; ARF `count + mult`) and masked to 9 bits, then the key is
+//! rebuilt (`honda_v2_build_key`: check from the counter) and `honda_v2_build_upload` emits 319
+//! short pairs, HIGH 750, LOW 750, HIGH 250, the body, the counter-derived tail, the extra bit
+//! and a LOW 50 000µs gap. The Flipper TX loop repeats it `repeat` = 10 times; KAT returns one.
+//!
 //! Note on the C encoder (faithfully ported): `build_upload` forces frame bit 1 = 0 regardless of
 //! the key, so combined with the seeded bit 0 = 1 the top two frame bits are always `10`. The
 //! Unlock signature 0xA285E3 satisfies this and round-trips cleanly; the Lock signature 0xC20363
-//! (whose bit 1 is 1) is emitted as 0x820363 by the reference encoder. We reproduce that behaviour.
+//! (whose bit 1 is 1) is emitted as 0x820363 by the reference encoder (all three references). We
+//! reproduce that behaviour.
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use crate::radio::demodulator::LevelDuration;
@@ -40,17 +61,17 @@ const MIN_PREAMBLE_PAIRS: u16 = 64;
 const COUNT_BIT: usize = 81;
 const GAP_US: u32 = 50_000;
 
-/// TX preamble pair count (matches LAND_ROVER_V0_PREAMBLE_PAIRS).
+/// TX preamble pair count (matches HONDA_V2_PREAMBLE_PAIRS).
 const TX_PREAMBLE_PAIRS: usize = 319;
 
-// Button signatures (LAND_ROVER_V0_SIG_*).
+// Button signatures (HONDA_V2_SIG_*).
 const SIG_UNLOCK: u32 = 0x00A2_85E3;
 const SIG_LOCK: u32 = 0x00C2_0363;
 
-// Land Rover button codes (LAND_ROVER_V0_BTN_*).
-const LR_BTN_UNKNOWN: u8 = 0x00;
-const LR_BTN_LOCK: u8 = 0x02;
-const LR_BTN_UNLOCK: u8 = 0x04;
+// Honda V2 button codes (HONDA_V2_BTN_*).
+const HV2_BTN_UNKNOWN: u8 = 0x00;
+const HV2_BTN_LOCK: u8 = 0x02;
+const HV2_BTN_UNLOCK: u8 = 0x04;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
@@ -61,7 +82,7 @@ enum DecoderStep {
     Data,
 }
 
-pub struct LandRoverV0Decoder {
+pub struct HondaV2Decoder {
     step: DecoderStep,
     preamble_count: u16,
     raw: [u8; 10],
@@ -72,7 +93,7 @@ pub struct LandRoverV0Decoder {
     pending_short: bool,
 }
 
-impl LandRoverV0Decoder {
+impl HondaV2Decoder {
     pub fn new() -> Self {
         Self {
             step: DecoderStep::Reset,
@@ -106,7 +127,7 @@ impl LandRoverV0Decoder {
         self.pending_short = false;
     }
 
-    /// Append one decoded bit (matches `land_rover_v0_add_decoded_bit`).
+    /// Append one decoded bit (matches `honda_v2_add_decoded_bit`).
     /// Bits 0..80 pack MSB-first into `raw`; bit 80 is the trailing `extra_bit`.
     fn add_decoded_bit(&mut self, bit: bool) -> bool {
         if self.bit_count < 80 {
@@ -124,7 +145,7 @@ impl LandRoverV0Decoder {
         true
     }
 
-    /// Differential-Manchester transition handler (direct port of `land_rover_v0_process_transition`).
+    /// Differential-Manchester transition handler (direct port of `honda_v2_process_transition`).
     fn process_transition(&mut self, level: bool, duration: u32) -> bool {
         if !self.boundary_pad_skipped {
             if level && Self::is_short(duration) {
@@ -167,7 +188,7 @@ impl LandRoverV0Decoder {
         false
     }
 
-    /// 3-bit check polynomial over the 9-bit counter (matches `land_rover_v0_calculate_check`).
+    /// 3-bit check polynomial over the 9-bit counter (matches `honda_v2_calculate_check`).
     fn calculate_check(count: u32) -> u8 {
         let c0 = ((count >> 1) ^ (count >> 2) ^ (count >> 3) ^ (count >> 4) ^ (count >> 6)) & 1;
         let c1 = ((count >> 0)
@@ -182,12 +203,12 @@ impl LandRoverV0Decoder {
         (c0 | (c1 << 1) | (c2 << 2)) as u8
     }
 
-    /// MSB selector for the 16-bit tail (matches `land_rover_v0_calculate_tail_msb`).
+    /// MSB selector for the 16-bit tail (matches `honda_v2_calculate_tail_msb`).
     fn calculate_tail_msb(count: u32) -> bool {
         (((count >> 0) ^ (count >> 2) ^ (count >> 4) ^ (count >> 5)) & 1) != 0
     }
 
-    /// 16-bit tail value (matches `land_rover_v0_calculate_tail`).
+    /// 16-bit tail value (matches `honda_v2_calculate_tail`).
     fn calculate_tail(count: u32) -> u16 {
         if Self::calculate_tail_msb(count) {
             0xFFFF
@@ -196,13 +217,13 @@ impl LandRoverV0Decoder {
         }
     }
 
-    /// Map a 24-bit command signature to a Land Rover button (matches
-    /// `land_rover_v0_button_from_signature`).
+    /// Map a 24-bit command signature to a Honda V2 button (matches
+    /// `honda_v2_button_from_signature`).
     fn button_from_signature(signature: u32) -> u8 {
         match signature {
-            SIG_UNLOCK => LR_BTN_UNLOCK,
-            SIG_LOCK => LR_BTN_LOCK,
-            _ => LR_BTN_UNKNOWN,
+            SIG_UNLOCK => HV2_BTN_UNLOCK,
+            SIG_LOCK => HV2_BTN_LOCK,
+            _ => HV2_BTN_UNKNOWN,
         }
     }
 
@@ -211,7 +232,7 @@ impl LandRoverV0Decoder {
         ((b[6] as u32) << 1) | ((b[7] >> 7) & 1) as u32
     }
 
-    /// Validate a frame (matches `land_rover_v0_validate_frame`).
+    /// Validate a frame (matches `honda_v2_validate_frame`).
     /// Returns (check_ok, tail_ok).
     fn validate_frame(key: u64, tail: u16, extra_bit: bool) -> (bool, bool) {
         let b = key.to_be_bytes();
@@ -225,7 +246,7 @@ impl LandRoverV0Decoder {
     }
 
     /// Finish a frame: validate, then build the decoded signal (matches
-    /// `land_rover_v0_finish_frame` + `parse_key_fields`). Returns None when invalid (gated).
+    /// `honda_v2_finish_frame` + `parse_key_fields`). Returns None when invalid (gated).
     fn finish_frame(&self) -> Option<DecodedSignal> {
         let key = u64::from_be_bytes([
             self.raw[0],
@@ -264,18 +285,27 @@ impl LandRoverV0Decoder {
         })
     }
 
-    /// Map KAT's generic button command to a Land Rover signature (Lock/Unlock).
-    /// KAT: Lock=0x01, Unlock=0x02, Trunk=0x04, Panic=0x08. Land Rover V0 only defines Lock/Unlock,
-    /// so Trunk/Panic have no signature and fall back to the decoded frame's signature in `encode`.
+    /// `honda_v2_signature_from_button` (Honda V2 button code → command signature).
     fn signature_from_button(button: u8) -> u32 {
         match button {
-            0x01 => SIG_LOCK,   // KAT Lock
-            0x02 => SIG_UNLOCK, // KAT Unlock
+            HV2_BTN_LOCK => SIG_LOCK,
+            HV2_BTN_UNLOCK => SIG_UNLOCK,
             _ => 0,
         }
     }
 
-    /// Build the 64-bit key from fields (matches `land_rover_v0_build_key`).
+    /// The Btn value ProtoPirate's emulate scene writes for KAT's generic command (Up = Lock
+    /// 0x02, OK = Unlock 0x04; ARF: Up/Down). Honda V2 has no Trunk/Panic; any other command keeps
+    /// the captured button.
+    fn map_button(button: u8, captured: u8) -> u8 {
+        match button {
+            0x01 => HV2_BTN_LOCK,
+            0x02 => HV2_BTN_UNLOCK,
+            _ => captured,
+        }
+    }
+
+    /// Build the 64-bit key from fields (matches `honda_v2_build_key`).
     fn build_key(signature: u32, serial: u32, count: u32) -> u64 {
         let mut b = [0u8; 8];
         b[0] = (signature >> 16) as u8;
@@ -301,7 +331,7 @@ impl LandRoverV0Decoder {
         signal.push(LevelDuration::new(level, duration));
     }
 
-    /// Emit one differential-Manchester bit (matches `land_rover_v0_encoder_add_bit`).
+    /// Emit one differential-Manchester bit (matches `honda_v2_encoder_add_bit`).
     /// Returns the new `previous_bit`.
     fn enc_add_bit(signal: &mut Vec<LevelDuration>, previous_bit: bool, bit: bool) -> bool {
         match (previous_bit, bit) {
@@ -324,9 +354,9 @@ impl LandRoverV0Decoder {
     }
 }
 
-impl ProtocolDecoder for LandRoverV0Decoder {
+impl ProtocolDecoder for HondaV2Decoder {
     fn name(&self) -> &'static str {
-        "Land Rover V0"
+        "Honda V2"
     }
 
     fn timing(&self) -> ProtocolTiming {
@@ -415,19 +445,26 @@ impl ProtocolDecoder for LandRoverV0Decoder {
     }
 
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
-        // Derive fields from the decoded signal, preferring the requested button's signature.
-        let serial = decoded.serial? & 0x00FF_FFFF;
-        let count = (decoded.counter.unwrap_or(0) as u32) & 0x1FF;
-
-        // Pick the command signature: requested button first, else the decoded frame's signature.
-        let mut signature = Self::signature_from_button(button);
+        // subghz_protocol_encoder_honda_v2_deserialize: Bit must be 81; the Key's fields, then
+        // the file's Serial / Cnt (the emulate scene writes counter + 1) / Btn. A Btn with a
+        // known signature replaces the Key's command signature; otherwise the Key's is kept
+        // (any non-zero signature is sent, as in the C).
+        if decoded.data_count_bit != COUNT_BIT {
+            return None;
+        }
+        let b = decoded.data.to_be_bytes();
+        let key_signature = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
+        let key_serial = ((b[3] as u32) << 16) | ((b[4] as u32) << 8) | b[5] as u32;
+        let key_count = Self::count_from_bytes(&b);
+        let serial = decoded.serial.unwrap_or(key_serial) & 0x00FF_FFFF;
+        let count = (decoded.counter.map(u32::from).unwrap_or(key_count) + 1) & 0x1FF;
+        let captured = decoded.button.unwrap_or_else(|| Self::button_from_signature(key_signature));
+        let signature = match Self::signature_from_button(Self::map_button(button, captured)) {
+            0 => key_signature,
+            sig => sig,
+        };
         if signature == 0 {
-            let b = decoded.data.to_be_bytes();
-            signature = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
-            // If still not a known Land Rover signature, refuse (matches C: command_signature==0 → error).
-            if Self::button_from_signature(signature) == LR_BTN_UNKNOWN {
-                return None;
-            }
+            return None;
         }
 
         let key = Self::build_key(signature, serial, count);
@@ -476,7 +513,7 @@ impl ProtocolDecoder for LandRoverV0Decoder {
     }
 }
 
-impl Default for LandRoverV0Decoder {
+impl Default for HondaV2Decoder {
     fn default() -> Self {
         Self::new()
     }
@@ -486,9 +523,29 @@ impl Default for LandRoverV0Decoder {
 mod tests {
     use super::*;
 
+    impl HondaV2Decoder {
+        /// A DecodedSignal as the decoder reports `key`.
+        fn new_signal_for_test(key: u64) -> DecodedSignal {
+            let b = key.to_be_bytes();
+            let signature = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
+            let count = HondaV2Decoder::count_from_bytes(&b);
+            DecodedSignal {
+                serial: Some(((b[3] as u32) << 16) | ((b[4] as u32) << 8) | b[5] as u32),
+                button: Some(HondaV2Decoder::button_from_signature(signature)),
+                counter: Some(count as u16),
+                crc_valid: true,
+                data: key,
+                data_count_bit: COUNT_BIT,
+                encoder_capable: true,
+                extra: Some(HondaV2Decoder::calculate_tail(count) as u64),
+                protocol_display_name: None,
+            }
+        }
+    }
+
     /// Drive a full encoded upload through the decoder and return the first decode.
     fn decode_upload(upload: &[LevelDuration]) -> Option<DecodedSignal> {
-        let mut dec = LandRoverV0Decoder::new();
+        let mut dec = HondaV2Decoder::new();
         for ld in upload {
             if let Some(sig) = dec.feed(ld.level, ld.duration_us) {
                 return Some(sig);
@@ -501,14 +558,14 @@ mod tests {
     #[test]
     fn check_polynomial_matches_reference() {
         // count = 0: c0=0, c1=(0^1)&1=1, c2=0 → 0b010 = 2
-        assert_eq!(LandRoverV0Decoder::calculate_check(0), 0b010);
+        assert_eq!(HondaV2Decoder::calculate_check(0), 0b010);
         // Spot-check internal consistency: build_key embeds calculate_check in byte 7.
         for count in 0..0x200u32 {
-            let key = LandRoverV0Decoder::build_key(SIG_UNLOCK, 0x123456, count);
+            let key = HondaV2Decoder::build_key(SIG_UNLOCK, 0x123456, count);
             let b = key.to_be_bytes();
             assert_eq!(
                 b[7] & 0x07,
-                LandRoverV0Decoder::calculate_check(count),
+                HondaV2Decoder::calculate_check(count),
                 "check embedded in key byte 7 must equal calculate_check(count) for count={count}"
             );
             assert_eq!(b[7] & 0x78, 0, "reserved bits must be zero for count={count}");
@@ -519,10 +576,10 @@ mod tests {
     #[test]
     fn tail_matches_reference() {
         for count in 0..0x200u32 {
-            let tail = LandRoverV0Decoder::calculate_tail(count);
+            let tail = HondaV2Decoder::calculate_tail(count);
             assert!(tail == 0xFFFF || tail == 0x7FFF);
             let msb_set = (tail >> 15) & 1 == 1;
-            assert_eq!(msb_set, LandRoverV0Decoder::calculate_tail_msb(count));
+            assert_eq!(msb_set, HondaV2Decoder::calculate_tail_msb(count));
         }
     }
 
@@ -533,36 +590,38 @@ mod tests {
     fn unlock_round_trip_preserves_fields() {
         let serial = 0x00AB_CDEF & 0x00FF_FFFF;
         let counter = 0x123u16; // 9-bit counter
-        let key = LandRoverV0Decoder::build_key(SIG_UNLOCK, serial, counter as u32);
+        let key = HondaV2Decoder::build_key(SIG_UNLOCK, serial, counter as u32);
 
         let decoded_in = DecodedSignal {
             serial: Some(serial),
-            button: Some(LR_BTN_UNLOCK),
+            button: Some(HV2_BTN_UNLOCK),
             counter: Some(counter),
             crc_valid: true,
             data: key,
             data_count_bit: COUNT_BIT,
             encoder_capable: true,
-            extra: Some(LandRoverV0Decoder::calculate_tail(counter as u32) as u64),
+            extra: Some(HondaV2Decoder::calculate_tail(counter as u32) as u64),
             protocol_display_name: None,
         };
 
-        let dec = LandRoverV0Decoder::new();
+        let dec = HondaV2Decoder::new();
         // KAT Unlock command = 0x02.
         let upload = dec.encode(&decoded_in, 0x02).expect("encode Unlock");
         let out = decode_upload(&upload).expect("decode the encoded Unlock frame");
 
+        // The press advances the counter by one (key check and tail follow it).
+        let next = counter as u32 + 1;
         assert!(out.crc_valid, "decoded frame must pass check+tail gating");
-        assert_eq!(out.data, key, "64-bit key must survive the round trip");
+        assert_eq!(out.data, HondaV2Decoder::build_key(SIG_UNLOCK, serial, next));
         assert_eq!(out.serial, Some(serial), "serial must survive");
-        assert_eq!(out.counter, Some(counter), "counter must survive");
-        assert_eq!(out.button, Some(LR_BTN_UNLOCK), "Unlock button must survive");
+        assert_eq!(out.counter, Some(next as u16), "counter advances by one per press");
+        assert_eq!(out.button, Some(HV2_BTN_UNLOCK), "Unlock button must survive");
         assert_eq!(out.data_count_bit, COUNT_BIT);
         // The stashed tail must match the counter-derived tail.
-        assert_eq!(out.extra, Some(LandRoverV0Decoder::calculate_tail(counter as u32) as u64));
+        assert_eq!(out.extra, Some(HondaV2Decoder::calculate_tail(next) as u64));
         // The embedded 3-bit check must match the recomputed value.
         let b = out.data.to_be_bytes();
-        assert_eq!(b[7] & 0x07, LandRoverV0Decoder::calculate_check(counter as u32));
+        assert_eq!(b[7] & 0x07, HondaV2Decoder::calculate_check(next));
         assert_eq!(b[7] & 0x78, 0, "reserved bits zero");
     }
 
@@ -581,61 +640,76 @@ mod tests {
         for _ in 0..256 {
             let serial = next() & 0x00FF_FFFF;
             let counter = (next() & 0x1FF) as u16;
-            let key = LandRoverV0Decoder::build_key(SIG_UNLOCK, serial, counter as u32);
+            let key = HondaV2Decoder::build_key(SIG_UNLOCK, serial, counter as u32);
             let decoded_in = DecodedSignal {
                 serial: Some(serial),
-                button: Some(LR_BTN_UNLOCK),
+                button: Some(HV2_BTN_UNLOCK),
                 counter: Some(counter),
                 crc_valid: true,
                 data: key,
                 data_count_bit: COUNT_BIT,
                 encoder_capable: true,
-                extra: Some(LandRoverV0Decoder::calculate_tail(counter as u32) as u64),
+                extra: Some(HondaV2Decoder::calculate_tail(counter as u32) as u64),
                 protocol_display_name: None,
             };
-            let dec = LandRoverV0Decoder::new();
+            let dec = HondaV2Decoder::new();
             let upload = dec.encode(&decoded_in, 0x02).expect("encode");
             let out = decode_upload(&upload)
                 .unwrap_or_else(|| panic!("decode failed for serial={serial:06X} counter={counter:03X}"));
-            assert_eq!(out.data, key);
+            let next = (counter as u32 + 1) & 0x1FF;
+            assert_eq!(out.data, HondaV2Decoder::build_key(SIG_UNLOCK, serial, next));
             assert_eq!(out.serial, Some(serial));
-            assert_eq!(out.counter, Some(counter));
-            assert_eq!(out.button, Some(LR_BTN_UNLOCK));
+            assert_eq!(out.counter, Some(next as u16));
+            assert_eq!(out.button, Some(HV2_BTN_UNLOCK));
             assert!(out.crc_valid);
+            let _ = key;
         }
     }
 
     /// Faithful-port note: the reference encoder forces frame bit 1 = 0. The Lock signature
     /// 0xC20363 has bit 1 = 1, so the emitted frame's signature becomes 0x820363, which maps to
-    /// LR_BTN_UNKNOWN. We assert this exact reference behaviour rather than a "fixed" version.
+    /// HV2_BTN_UNKNOWN. We assert this exact reference behaviour rather than a "fixed" version.
     #[test]
     fn lock_signature_forced_bit_matches_reference_quirk() {
         let serial = 0x0012_3456;
         let counter = 100u16;
-        let key = LandRoverV0Decoder::build_key(SIG_LOCK, serial, counter as u32);
+        let key = HondaV2Decoder::build_key(SIG_LOCK, serial, counter as u32);
         let decoded_in = DecodedSignal {
             serial: Some(serial),
-            button: Some(LR_BTN_LOCK),
+            button: Some(HV2_BTN_LOCK),
             counter: Some(counter),
             crc_valid: true,
             data: key,
             data_count_bit: COUNT_BIT,
             encoder_capable: true,
-            extra: Some(LandRoverV0Decoder::calculate_tail(counter as u32) as u64),
+            extra: Some(HondaV2Decoder::calculate_tail(counter as u32) as u64),
             protocol_display_name: None,
         };
-        let dec = LandRoverV0Decoder::new();
+        let dec = HondaV2Decoder::new();
         // KAT Lock command = 0x01.
         let upload = dec.encode(&decoded_in, 0x01).expect("encode Lock");
         let out = decode_upload(&upload).expect("frame still decodes (check/tail valid)");
         // Top byte 0xC2 -> 0x82 because bit 1 is forced to 0 by the encoder.
         let b = out.data.to_be_bytes();
         assert_eq!(b[0], 0x82, "encoder forces frame bit 1 = 0, turning 0xC2 into 0x82");
-        assert_eq!(out.button, Some(LR_BTN_UNKNOWN), "0x820363 is not a known signature");
-        // Serial / counter / check are still intact.
+        assert_eq!(out.button, Some(HV2_BTN_UNKNOWN), "0x820363 is not a known signature");
+        // Serial / counter (advanced by one) / check are still intact.
         assert_eq!(out.serial, Some(serial));
-        assert_eq!(out.counter, Some(counter));
+        assert_eq!(out.counter, Some(counter + 1));
         assert!(out.crc_valid);
+    }
+
+    /// A captured frame with a signature that maps to no button is replayed with that signature
+    /// for a non-Lock/Unlock command (the C only refuses a zero signature).
+    #[test]
+    fn unknown_signature_is_replayed() {
+        let key = HondaV2Decoder::build_key(0x0082_0363, 0x0012_3456, 7);
+        let mut decoded_in = HondaV2Decoder::new_signal_for_test(key);
+        let out = decode_upload(&HondaV2Decoder::new().encode(&decoded_in, 0x04).unwrap()).unwrap();
+        assert_eq!(out.data, HondaV2Decoder::build_key(0x0082_0363, 0x0012_3456, 8));
+        assert_eq!(out.button, Some(HV2_BTN_UNKNOWN));
+        decoded_in.data &= 0x0000_00FF_FFFF_FFFF;
+        assert!(HondaV2Decoder::new().encode(&decoded_in, 0x04).is_none(), "zero signature");
     }
 
     /// A frame with a deliberately wrong check must NOT decode (gating prevents false matches).
@@ -643,12 +717,12 @@ mod tests {
     fn bad_check_is_rejected() {
         let serial = 0x00AB_CDEF;
         let counter = 0x055u16;
-        let mut key = LandRoverV0Decoder::build_key(SIG_UNLOCK, serial, counter as u32);
+        let mut key = HondaV2Decoder::build_key(SIG_UNLOCK, serial, counter as u32);
         // Corrupt the 3-bit check in byte 7 (XOR a bit so it no longer matches).
         key ^= 0x01;
         let decoded_in = DecodedSignal {
             serial: Some(serial),
-            button: Some(LR_BTN_UNLOCK),
+            button: Some(HV2_BTN_UNLOCK),
             counter: Some(counter),
             crc_valid: false,
             data: key,
@@ -660,29 +734,29 @@ mod tests {
         // Hand-build an upload that transmits this corrupted key verbatim (no re-derivation):
         // reuse the encoder's level helpers but bypass build_key by injecting the raw key.
         let key_bytes = key.to_be_bytes();
-        let tail = LandRoverV0Decoder::calculate_tail(counter as u32);
+        let tail = HondaV2Decoder::calculate_tail(counter as u32);
         let mut signal: Vec<LevelDuration> = Vec::new();
         for _ in 0..TX_PREAMBLE_PAIRS {
-            LandRoverV0Decoder::enc_add_level(&mut signal, true, TE_SHORT);
-            LandRoverV0Decoder::enc_add_level(&mut signal, false, TE_SHORT);
+            HondaV2Decoder::enc_add_level(&mut signal, true, TE_SHORT);
+            HondaV2Decoder::enc_add_level(&mut signal, false, TE_SHORT);
         }
-        LandRoverV0Decoder::enc_add_level(&mut signal, true, SYNC_US);
-        LandRoverV0Decoder::enc_add_level(&mut signal, false, SYNC_US);
-        LandRoverV0Decoder::enc_add_level(&mut signal, true, TE_SHORT);
+        HondaV2Decoder::enc_add_level(&mut signal, true, SYNC_US);
+        HondaV2Decoder::enc_add_level(&mut signal, false, SYNC_US);
+        HondaV2Decoder::enc_add_level(&mut signal, true, TE_SHORT);
         let mut prev = true;
-        prev = LandRoverV0Decoder::enc_add_bit(&mut signal, prev, false);
+        prev = HondaV2Decoder::enc_add_bit(&mut signal, prev, false);
         for bit_index in 2..64u8 {
             let bi = (bit_index / 8) as usize;
             let bib = 7 - (bit_index % 8);
             let bit = (key_bytes[bi] >> bib) & 1 != 0;
-            prev = LandRoverV0Decoder::enc_add_bit(&mut signal, prev, bit);
+            prev = HondaV2Decoder::enc_add_bit(&mut signal, prev, bit);
         }
         for bit_index in 0..16u8 {
             let bit = (tail >> (15 - bit_index)) & 1 != 0;
-            prev = LandRoverV0Decoder::enc_add_bit(&mut signal, prev, bit);
+            prev = HondaV2Decoder::enc_add_bit(&mut signal, prev, bit);
         }
-        let _ = LandRoverV0Decoder::enc_add_bit(&mut signal, prev, true);
-        LandRoverV0Decoder::enc_add_level(&mut signal, false, GAP_US);
+        let _ = HondaV2Decoder::enc_add_bit(&mut signal, prev, true);
+        HondaV2Decoder::enc_add_level(&mut signal, false, GAP_US);
 
         // The decoded count comes from the (corrupted) byte 7, so the embedded check now mismatches
         // calculate_check(count) → rejected. Note: corrupting bit 0 of the check does not change

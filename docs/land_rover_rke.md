@@ -5,9 +5,12 @@ layout: default
 # Land Rover RKE Protocol
 
 **Rust module:** `src/protocols/land_rover_rke.rs`
-**Reference:** `Flipper-ARF lib/subghz/protocols/landrover_rke.c`
+**Reference:** `Flipper-ARF lib/subghz/protocols/landrover_rke.c` (unchanged since May 2026; a standalone
+`lr_encode`/`lr_decode` library — ARF registers no Flipper protocol for it)
 
 ## Overview
+
+> **Not registered.** Flipper-ARF keeps `landrover_rke.c` (a Pandora DXL 5000 reverse-engineering port) as a helper and never registers it as a SubGhz protocol; KAT mirrors that. The decoder/encoder below is ported and tested; to enable it, add `Box::new(land_rover_rke::LandRoverRkeDecoder::new())` to `ProtocolRegistry::new()`.
 
 Ported from the Flipper-ARF firmware (D4C1-Labs), itself derived from Pandora DXL 5000 firmware. Land
 Rover shares the Ford/Jaguar baseband (firmware protocol ID `0x0E`) but uses a distinct 66-bit frame.
@@ -66,6 +69,18 @@ button, and emits 4 repetitions of preamble + sync + 66 MSB-first PWM bits, sepa
 
 ## Validation
 
-Verified by encode→decode round-trips / synthetic-frame checks (no local capture available). Unit tests
-cover pack/unpack round trips, encode→decode across multiple serials/hops/buttons, and rejection of
-truncated frames and wrong sync gaps.
+C oracle (the unmodified `landrover_rke.c` compiled on the host): for 3000 random frames, KAT's decoder
+reports exactly the fields `lr_decode` reports from `lr_encode`'s output. Known differences, all in the C:
+
+- `lr_encode` writes each field LSB-first on air (`bits[65 - i] = field >> i`) while `lr_decode` and the
+  header's own layout read MSB-first, so the C does not round-trip (every field except the status comes
+  back bit-reversed). KAT keeps the documented MSB-first layout for both directions; its upload equals
+  `lr_encode` of the same frame with hop, serial, button and function bits bit-reversed.
+- `LandRoverRawBuf` holds 512 pulses, but 4 repetitions need 699, so `lr_encode` silently stops inside
+  the third repetition. KAT sends all 4.
+- The C finds a sync anywhere in a buffer; KAT also requires ≥16 preamble pairs before it.
+
+Limitation shared with the C: the last bit's LOW must be a separate 300/700 µs pulse. On air it merges
+with the following 12 ms gap or the trailing silence, and then neither decoder accepts the frame (checked
+by merging KAT's own upload). No IMPORTS capture contains this format. Unit tests cover pack/unpack round
+trips, encode→decode across serials/hops/buttons, and rejection of truncated frames and wrong sync gaps.

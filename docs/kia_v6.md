@@ -5,11 +5,14 @@ layout: default
 # Kia V6 Protocol
 
 **Rust module:** `src/protocols/kia_v6.rs`  
-**Reference:** `REFERENCES/ProtoPirate/protocols/kia_v6.c`
+**Reference:** `REFERENCES/ProtoPirate/protocols/kia_v6.c` (Flipper-ARF / doctor-firmware: same frame;
+ARF names the buttons)
 
 ## Overview
 
-Kia V6 uses Manchester encoding at 200/400 µs (level convention inverted vs Flipper). 144 bits in three parts: part1 (64) + part2 (64) + part3 (16); each part stored inverted. Long preamble of 601 pairs; sync bits 1,1,0,1 then data. AES-128 decryption with key derived from KIA V6 A and B keystores (types 11 and 12) and XOR masks.
+Kia Manchester keyfob at 200/400 µs carrying an AES-128 block. 144 bits in three parts (64 + 64 + 16), each
+stored inverted. Part 1's top byte pair carries the Fx field; the rest is the AES block (key = KIA V6
+keystores A and B, types 11/12, XORed with fixed masks).
 
 ## Timing
 
@@ -17,35 +20,48 @@ Kia V6 uses Manchester encoding at 200/400 µs (level convention inverted vs Fli
 |-----------|--------|---------|
 | Short     | 200 µs | ±100 µs |
 | Long      | 400 µs | ±100 µs |
-| Preamble  | 601 pairs |    |
+| Preamble  | ≥ 601 short LOWs | then long LOW + long HIGH = bits 1101 |
 | Min bits  | 144    |         |
 
-## Encoding
+## Frame Layout (decrypted block)
 
-Manchester (event mapping 0/2/4/6 for level convention). Three 64/64/16-bit segments, each inverted when stored.
+byte 0 Fx, 4–6 serial (24 bits), 7 button, 8–11 counter (32 bits), 12 = AES S-box[counter LSB],
+15 = CRC-8 (poly 0x07, init 0xFF) of bytes 0–14 (the C accepts a 1-bit mismatch). The C reports every
+144-bit frame; `crc_valid` carries its CRC check.
 
-## Frame Layout (144 bits)
+`data` = part 1 (the C's saved Key); `counter` = the counter's low 16 bits; `extra` = encoder state: Fx
+(bits 0–7) and the counter's high 16 bits (bits 8–23). Buttons (ARF): 1 Lock, 2 Unlock, 3 Trunk, 4 Panic.
 
-- Part1: 64 bits (inverted)  
-- Part2: 64 bits (inverted)  
-- Part3: 16 bits (inverted)  
+## RF
 
-AES-128 decrypt with key = f(keystore_a, keystore_b, XOR_MASK_LOW, XOR_MASK_HIGH). Serial/button/counter, CRC, and fx_field extracted after decryption. The fx_field is derived from the top 2 bytes of stored_part1_high and stored in `DecodedSignal.extra`.
+- **Encoding:** Manchester, common.rs port with the C's sense `level ? ShortHigh : ShortLow`
+- **RF modulation:** FM
+- **Frequencies:** 315 MHz, 433.92 MHz
 
-## Decoder Steps
+## Decoder Steps (`kia_protocol_decoder_v6_feed`)
 
-1. **Reset** — Wait for preamble.
-2. **CheckPreamble** — Count 601 pairs; detect sync pattern 1,1,0,1.
-3. **Data** — Manchester decode 144 bits; invert segments; AES-128 decrypt; validate CRC8; return fields.
+1. **Reset** — a short HIGH starts the preamble; Manchester state Mid1.
+2. **WaitFirstHigh** — count short LOWs (HIGHs ignored); a long LOW after ≥ 601 → WaitLongHigh.
+3. **WaitLongHigh** — a long HIGH completes the sync, adds `1101`.
+4. **Data** — Manchester-decode, storing parts 1/2 inverted at bits 64/128; at 144 bits part 3, AES-decrypt,
+   report. Any out-of-tolerance pulse restarts.
+
+KAT's earlier port used a hand-written Manchester table and kept only 16 counter bits; it reproduced none of
+the C's frames.
 
 ## Encoder
 
-Supported. Ported from ProtoPirate (`ENABLE_EMULATE_FEATURE`). Builds plaintext (fx_field, serial, button, counter, S-box CRC, CRC8), AES-128 encrypts, packs into 3 parts, then Manchester encodes with two-pass preamble (640 pairs + data, gap, 38 pairs + data). Requires fx_field from decoded signal's `extra` field.
+Supported (`kia_protocol_encoder_v6_build_upload`): AES-encrypt the fields (Fx from `extra`, counter + 1
+over all 32 bits), then the message twice — 640- and 38-pair preambles, each LOW 200, HIGH 400, LOW 200, the
+141 inverted bits as Manchester (1 → LOW, HIGH; 0 → HIGH, LOW) and LOW 400; adjacent equal levels merged.
+KAT's generic button maps to Lock 1, Unlock 2, Trunk 3, Panic 4; anything else keeps the captured button.
 
-## Frequencies
+## Validation
 
-433.92 MHz.
+C oracle: 500 random frames (random Fx and 16/32-bit counters) — uploads identical pulse for pulse; the
+decoder reports the C's 500 frames (key, serial, button, 32-bit counter, Fx). The second (38-pair) message
+is below the decoder's 601-pair preamble gate in both. No IMPORTS RAW capture contains Kia V6.
 
 ## Keystore
 
-Requires KIA V6 A and B keys (keystore types 11 and 12: `kia_v6_a_key`, `kia_v6_b_key`). XOR masks applied to derive AES key.
+KIA V6 A and B keys (keystore types 11 and 12).

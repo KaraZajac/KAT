@@ -5,7 +5,7 @@ layout: default
 # Ford V2 Protocol
 
 **Rust module:** `src/protocols/ford_v2.rs`
-**Reference:** `REFERENCES/ProtoPirate/protocols/ford_v2.c`
+**Reference:** `REFERENCES/ProtoPirate/protocols/ford_v2.c` (decoder, HEAD dc3446b); encoder from Flipper-ARF `lib/subghz/protocols/ford_v2.c`
 
 ## Overview
 
@@ -15,8 +15,10 @@ Ford V2 uses Manchester encoding at 200/400 µs. 104 bits total (13 bytes). The 
 before packing (`data_bit = !bit`). There is no CRC — structure is validated by the two sync bytes plus
 a known button code, so Ford V2 will not false-match.
 
-The Manchester decoder uses Flipper's transition table (same table as Ford V0), with Ford V2 polarity
-`level ? High : Low`.
+Manchester is decoded with the shared port of Flipper's `manchester_decoder.c` (`common.rs`), with Ford V2
+polarity `level ? ShortHigh : ShortLow` / `level ? LongHigh : LongLow`. Entering Sync resets the state to
+Mid1 and forces Mid0 for the triggering long LOW (a Low event), as `ford_v2.c` does. The encoder's on-air
+1 = HIGH,LOW decodes as 0 under this mapping, hence the bit inversion and the inverted sync match.
 
 ## Timing
 
@@ -53,10 +55,19 @@ The exported `data` (Key) word is the top 8 bytes; bytes 8–12 (40 bits) are ca
 
 ## Encoder
 
-Supported (matches `subghz_protocol_encoder_ford_v2`). Rebuilds the 13-byte frame, applies the requested
-button, refreshes byte-7 parity, then emits 6 bursts of a 70-pair preamble + sync + 104 Manchester bits
-(encoder short 240 µs), separated by ~16 ms inter-burst gaps.
+Decoder as ProtoPirate. The encoder follows Flipper-ARF (`ford_v2_encoder_deserialize_validate_and_pack`),
+a superset of ProtoPirate's plain replay: rebuild the 13-byte frame from `data` (bytes 0–7) and `extra`
+(bytes 8–12, `TailRaw`), apply the serial, re-pack the counter + 1 (16 bits across bytes 7–9; ProtoPirate
+ignores Btn/Cnt), set the button (KAT Lock/Unlock/Trunk/Panic → 0x10/0x11/0x13/0x14, ARF's D-pad map;
+other commands keep the captured button), refresh the byte-7 parity bit, refuse an invalid button, then
+emit 6 bursts of a 70-pair preamble + sync + 103 Manchester bits (encoder short 240 µs), separated by
+HIGH 16 ms gaps. The Flipper repeats the upload 10 times; KAT returns one.
 
 ## Validation
 
-Verified by an encode→decode round-trip / synthetic-frame check (no local capture available).
+No local capture is available (`IMPORTS/FORD/22_ford_escape_u2_l2_t2_p2.sub` has 240 µs-based bursts but
+not this frame structure). Differential tests against the compiled C: 1500 randomized bursts (valid and
+invalid buttons, broken sync, jitter, short preambles) decode identically to ProtoPirate's decoder
+(1809 frames); 2500 uploads equal Flipper-ARF's encoder pulse for pulse. Unit tests: encode→decode through
+the full 6-burst waveform for each button and counter carry (0x01FF, 0xFFFF); a captured Remote start is
+kept for other commands; a wrong sync byte or an unknown button code is rejected.

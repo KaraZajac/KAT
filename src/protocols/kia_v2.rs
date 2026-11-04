@@ -1,33 +1,42 @@
-//! Kia V2 protocol decoder/encoder
+//! Kia V2 decoder + encoder.
 //!
-//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/kia_v2.c`.
-//! Decode/encode logic (Manchester, CRC4, preamble, byte-swapped counter) matches reference.
+//! Port of ProtoPirate `protocols/kia_v2.c` (HEAD 2026-10; unchanged in behaviour since KAT's
+//! v1.3.0 port — only `pp_emit` refactoring). Flipper-ARF's `kia_v2.c` decodes identically (C
+//! oracle: same frames on random C-encoded streams and on IMPORTS) and builds the same upload.
 //!
-//! Protocol characteristics:
-//! - Manchester encoding: 500/1000µs timing
-//! - 53 bits total (32 serial + 4 button + 12 counter + 4 CRC, plus start bit)
-//! - Long preamble of 252 long pairs
-//! - CRC4 checksum (XOR nibbles + offset 1)
+//! Air format (315 / 433.92 MHz, AM): Manchester, te_short 500µs / te_long 1000µs (te_delta 150,
+//! strict `<`). Preamble: ≥100 long pulses, then the first short HIGH is the sync and the first
+//! data bit (`1`). 53-bit frame: `1 << 52 | serial32 << 20 | button4 << 16 | raw_cnt12 << 4 |
+//! crc4`, where `raw_cnt = cnt_lo8 << 4 | cnt_hi4` (counter 12 bits) and the CRC-4 is the XOR of
+//! every nibble of bits 4..51 plus 1 (displayed only; the C emits regardless).
+//!
+//! Decoder (`kia_protocol_decoder_v2_feed`): Flipper's Manchester machine (common.rs) with
+//! ProtoPirate's `pp_manchester_event` mapping (`level ? ShortLow : ShortHigh`), reset to Mid1 on
+//! entering the preamble; any out-of-tolerance pulse in the data phase restarts the decoder. The
+//! frame is reported on the pulse completing bit 53. (KAT's earlier port used a hand-written
+//! Manchester table with the opposite event sense; the C oracle and this port agree on 600 random
+//! C-encoded frames × 2 bursts.)
+//!
+//! Encoder (`kia_protocol_encoder_v2_deserialize` + `get_upload`): frame rebuilt from the fields,
+//! CRC recomputed; 2 bursts, each 252 × (LOW 1000, HIGH 1000), LOW 500, then bits 51..0 as
+//! Manchester (1 → HIGH 500 + LOW 500, 0 → LOW 500 + HIGH 500); adjacent equal levels merged.
+//! One upload per call. Like the emulate scene, each press sends counter + 1 (12 bits); KAT's
+//! generic button maps to ProtoPirate's / ARF's D-pad codes: Lock → 1, Unlock → 2, Trunk → 3,
+//! Panic → 4; anything else keeps the captured button.
 
-use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
-use crate::radio::demodulator::LevelDuration;
+use super::common::{ManchesterEvent, ManchesterState};
+use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
+use crate::radio::demodulator::LevelDuration;
 
 const TE_SHORT: u32 = 500;
 const TE_LONG: u32 = 1000;
 const TE_DELTA: u32 = 150;
 const MIN_COUNT_BIT: usize = 53;
+const HEADER_PAIRS: usize = 252;
+const TOTAL_BURSTS: usize = 2;
 
-/// Manchester decoder states (matches protopirate kia_v2 Manchester state machine)
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum ManchesterState {
-    Mid0,
-    Mid1,
-    Start0,
-    Start1,
-}
-
-/// Decoder states (matches protopirate's KiaV2DecoderStep)
+/// Decoder states (`KiaV2DecoderStep`).
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
     Reset,
@@ -35,14 +44,60 @@ enum DecoderStep {
     CollectRawBits,
 }
 
-/// Kia V2 protocol decoder
+/// Kia V2 decoder.
 pub struct KiaV2Decoder {
     step: DecoderStep,
     te_last: u32,
     header_count: u16,
     decode_data: u64,
-    decode_count_bit: usize,
-    manchester_state: ManchesterState,
+    /// `SubGhzBlockDecoder.decode_count_bit` is a `uint8_t`.
+    decode_count_bit: u8,
+    manchester: ManchesterState,
+}
+
+#[inline]
+fn is_short(d: u32) -> bool {
+    duration_diff!(d, TE_SHORT) < TE_DELTA
+}
+
+#[inline]
+fn is_long(d: u32) -> bool {
+    duration_diff!(d, TE_LONG) < TE_DELTA
+}
+
+/// `kia_v2_calculate_crc`: XOR of both nibbles of the 6 bytes above the CRC nibble, plus 1.
+fn calculate_crc(data: u64) -> u8 {
+    let d = data >> 4;
+    let crc = (0..6).fold(0u8, |acc, i| {
+        let b = (d >> (8 * i)) as u8;
+        acc ^ (b & 0x0F) ^ (b >> 4)
+    });
+    crc.wrapping_add(1) & 0x0F
+}
+
+/// The 53-bit frame for the fields, CRC included (encoder deserialize + get_upload).
+fn build_frame(serial: u32, button: u8, counter: u16) -> u64 {
+    let counter = counter as u32;
+    let mut data = 1u64 << 52;
+    data |= ((serial as u64) << 20) & 0x00FF_FFFF_FFF0_0000;
+    data |= (((counter & 0xFF) << 8) | (((button & 0x0F) as u32) << 16) | ((counter >> 4) & 0xF0)) as u64;
+    (data & !0x0F) | calculate_crc(data) as u64
+}
+
+/// Fields of a frame (the decoder's emission): serial, button, byte-swapped 12-bit counter.
+fn parse_frame(data: u64) -> DecodedSignal {
+    let raw_count = ((data >> 4) & 0xFFF) as u16;
+    DecodedSignal {
+        serial: Some((data >> 20) as u32),
+        button: Some(((data >> 16) & 0x0F) as u8),
+        counter: Some(((raw_count >> 4) | (raw_count << 8)) & 0xFFF),
+        crc_valid: (data & 0x0F) as u8 == calculate_crc(data),
+        data,
+        data_count_bit: MIN_COUNT_BIT,
+        encoder_capable: true,
+        extra: None,
+        protocol_display_name: None,
+    }
 }
 
 impl KiaV2Decoder {
@@ -53,82 +108,7 @@ impl KiaV2Decoder {
             header_count: 0,
             decode_data: 0,
             decode_count_bit: 0,
-            manchester_state: ManchesterState::Mid1,
-        }
-    }
-
-    /// CRC4 for Kia V2 (matches kia_v2.c: strip CRC nibble, XOR all remaining nibbles, + offset 1)
-    fn calculate_crc(data: u64) -> u8 {
-        // C code: data_without_crc = data >> 4; then read 6 sequential bytes (bits 4..51)
-        let data_without_crc = data >> 4;
-        let mut bytes = [0u8; 6];
-        bytes[0] = (data_without_crc & 0xFF) as u8;
-        bytes[1] = ((data_without_crc >> 8) & 0xFF) as u8;
-        bytes[2] = ((data_without_crc >> 16) & 0xFF) as u8;
-        bytes[3] = ((data_without_crc >> 24) & 0xFF) as u8;
-        bytes[4] = ((data_without_crc >> 32) & 0xFF) as u8;
-        bytes[5] = ((data_without_crc >> 40) & 0xFF) as u8;
-
-        let mut crc: u8 = 0;
-        for &byte in &bytes {
-            crc ^= (byte & 0x0F) ^ (byte >> 4);
-        }
-
-        (crc.wrapping_add(1)) & 0x0F
-    }
-
-    /// Manchester state machine
-    fn manchester_advance(&mut self, is_short: bool, is_high: bool) -> Option<bool> {
-        let event = match (is_short, is_high) {
-            (true, false) => 0,  // Short Low
-            (true, true) => 1,   // Short High
-            (false, false) => 2, // Long Low
-            (false, true) => 3,  // Long High
-        };
-
-        let (new_state, output) = match (self.manchester_state, event) {
-            (ManchesterState::Mid0, 0) | (ManchesterState::Mid1, 0) => 
-                (ManchesterState::Start0, None),
-            (ManchesterState::Mid0, 1) | (ManchesterState::Mid1, 1) => 
-                (ManchesterState::Start1, None),
-            
-            (ManchesterState::Start1, 0) => (ManchesterState::Mid1, Some(true)),
-            (ManchesterState::Start1, 2) => (ManchesterState::Start0, Some(true)),
-            
-            (ManchesterState::Start0, 1) => (ManchesterState::Mid0, Some(false)),
-            (ManchesterState::Start0, 3) => (ManchesterState::Start1, Some(false)),
-            
-            _ => (ManchesterState::Mid1, None),
-        };
-
-        self.manchester_state = new_state;
-        output
-    }
-
-    /// Parse decoded data (field layout matches kia_v2.c)
-    fn parse_data(&self) -> DecodedSignal {
-        let data = self.decode_data;
-        // serial(32) | button(4) | counter_swapped(12) | crc(4); counter byte-swapped in stream
-        let serial = ((data >> 20) & 0xFFFFFFFF) as u32;
-        let button = ((data >> 16) & 0x0F) as u8;
-        
-        // Counter has byte-swapped format
-        let raw_count = ((data >> 4) & 0xFFF) as u16;
-        let counter = ((raw_count >> 4) | (raw_count << 8)) & 0xFFF;
-        
-        let received_crc = (data & 0x0F) as u8;
-        let calculated_crc = Self::calculate_crc(data);
-
-        DecodedSignal {
-            serial: Some(serial),
-            button: Some(button),
-            counter: Some(counter),
-            crc_valid: received_crc == calculated_crc,
-            data,
-            data_count_bit: MIN_COUNT_BIT,
-            encoder_capable: true,
-            extra: None,
-            protocol_display_name: None,
+            manchester: ManchesterState::Mid1,
         }
     }
 }
@@ -153,77 +133,63 @@ impl ProtocolDecoder for KiaV2Decoder {
 
     fn reset(&mut self) {
         self.step = DecoderStep::Reset;
-        self.te_last = 0;
         self.header_count = 0;
+        self.manchester = ManchesterState::Mid1;
         self.decode_data = 0;
         self.decode_count_bit = 0;
-        self.manchester_state = ManchesterState::Mid1;
     }
 
     fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
-        let is_short = duration_diff!(duration, TE_SHORT) < TE_DELTA;
-        let is_long = duration_diff!(duration, TE_LONG) < TE_DELTA;
-
         match self.step {
             DecoderStep::Reset => {
-                if level && is_long {
+                if level && is_long(duration) {
                     self.step = DecoderStep::CheckPreamble;
                     self.te_last = duration;
                     self.header_count = 0;
-                    self.manchester_state = ManchesterState::Mid1;
+                    self.manchester = ManchesterState::Mid1;
                 }
             }
-
             DecoderStep::CheckPreamble => {
-                if level {
-                    if is_long {
-                        self.te_last = duration;
-                        self.header_count += 1;
-                    } else if is_short && self.header_count >= 100 {
-                        // C code: decode_count_bit=1, then add_bit(1) which shifts and increments to 2
+                if is_long(duration) {
+                    self.te_last = duration;
+                    self.header_count = self.header_count.wrapping_add(1);
+                } else if is_short(duration) {
+                    if level && self.header_count >= 100 {
                         self.header_count = 0;
-                        self.decode_data = 1; // First bit
+                        self.decode_data = 1;
                         self.decode_count_bit = 2;
                         self.step = DecoderStep::CollectRawBits;
                     } else {
-                        self.te_last = duration; // C stays in CheckPreamble, updates te_last
+                        self.te_last = duration;
                     }
                 } else {
-                    if is_long {
-                        self.header_count += 1;
-                        self.te_last = duration;
-                    } else if is_short {
-                        self.te_last = duration; // C stays in CheckPreamble for short LOW
-                    } else {
-                        self.step = DecoderStep::Reset;
-                    }
+                    self.step = DecoderStep::Reset;
                 }
             }
-
             DecoderStep::CollectRawBits => {
-                if is_short {
-                    if let Some(bit) = self.manchester_advance(true, level) {
-                        self.decode_data = (self.decode_data << 1) | (bit as u64);
-                        self.decode_count_bit += 1;
-                    }
-                } else if is_long {
-                    if let Some(bit) = self.manchester_advance(false, level) {
-                        self.decode_data = (self.decode_data << 1) | (bit as u64);
-                        self.decode_count_bit += 1;
-                    }
+                // pp_manchester_event: level ? Short/LongLow : Short/LongHigh, else restart.
+                let event = if is_short(duration) {
+                    ManchesterEvent::from_half_bit(!level, false)
+                } else if is_long(duration) {
+                    ManchesterEvent::from_half_bit(!level, true)
                 } else {
                     self.step = DecoderStep::Reset;
                     return None;
-                }
-
-                if self.decode_count_bit >= MIN_COUNT_BIT {
-                    let result = self.parse_data();
-                    self.step = DecoderStep::Reset;
-                    return Some(result);
+                };
+                if let Some(bit) = self.manchester.advance(event) {
+                    self.decode_data = (self.decode_data << 1) | bit as u64;
+                    self.decode_count_bit = self.decode_count_bit.wrapping_add(1);
+                    if self.decode_count_bit as usize == MIN_COUNT_BIT {
+                        let frame = parse_frame(self.decode_data);
+                        self.decode_data = 0;
+                        self.decode_count_bit = 0;
+                        self.header_count = 0;
+                        self.step = DecoderStep::Reset;
+                        return Some(frame);
+                    }
                 }
             }
         }
-
         None
     }
 
@@ -232,54 +198,106 @@ impl ProtocolDecoder for KiaV2Decoder {
     }
 
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
-        let serial = decoded.serial?;
-        let counter = decoded.counter.unwrap_or(0);
-
-        // Reconstruct data in V2 format
-        let u_var6 = ((counter & 0xFF) as u32) << 8 |
-                     ((button & 0x0F) as u32) << 16 |
-                     (((counter >> 4) & 0xF0) as u32);
-
-        let mut new_data: u64 = 1u64 << 52; // Start bit
-        new_data |= ((serial as u64) << 20) & 0xFFFFFFFFF00000;
-        new_data |= u_var6 as u64;
-
-        // Calculate and apply CRC
-        let crc = Self::calculate_crc(new_data);
-        new_data = (new_data & !0x0F) | (crc as u64);
-
-        let mut signal = Vec::with_capacity(700);
-
-        // Generate 2 bursts (matches protopirate kia_v2 encode)
-        for _burst in 0..2 {
-            // Preamble: 252 long pairs
-            for _ in 0..252 {
-                signal.push(LevelDuration::new(false, TE_LONG));
-                signal.push(LevelDuration::new(true, TE_LONG));
-            }
-
-            // Short gap before data
-            signal.push(LevelDuration::new(false, TE_SHORT));
-
-            // Data: 53 bits Manchester encoded, MSB first
-            for bit_num in (1..MIN_COUNT_BIT).rev() {
-                let bit = ((new_data >> (bit_num - 1)) & 1) == 1;
-                if bit {
-                    signal.push(LevelDuration::new(true, TE_SHORT));
-                    signal.push(LevelDuration::new(false, TE_SHORT));
-                } else {
-                    signal.push(LevelDuration::new(false, TE_SHORT));
-                    signal.push(LevelDuration::new(true, TE_SHORT));
-                }
-            }
-        }
-
-        Some(signal)
+        let parsed = parse_frame(decoded.data);
+        let serial = decoded.serial.or(parsed.serial)?;
+        let captured = decoded.button.or(parsed.button).unwrap_or(0);
+        let counter = decoded.counter.or(parsed.counter).unwrap_or(0).wrapping_add(1) & 0x0FFF;
+        let button = match button {
+            0x01 => 0x1,
+            0x02 => 0x2,
+            0x04 => 0x3,
+            0x08 => 0x4,
+            _ => captured,
+        };
+        Some(build_upload(build_frame(serial, button, counter)))
     }
 }
 
 impl Default for KiaV2Decoder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Append one level, merging with the previous entry when the level repeats (identical on air).
+fn push(out: &mut Vec<LevelDuration>, level: bool, duration: u32) {
+    match out.last_mut() {
+        Some(last) if last.level == level => last.duration_us += duration,
+        _ => out.push(LevelDuration::new(level, duration)),
+    }
+}
+
+/// `kia_protocol_encoder_v2_get_upload` for a frame.
+fn build_upload(frame: u64) -> Vec<LevelDuration> {
+    let mut out = Vec::with_capacity(TOTAL_BURSTS * (HEADER_PAIRS * 2 + 1 + 2 * (MIN_COUNT_BIT - 1)));
+    for _ in 0..TOTAL_BURSTS {
+        for _ in 0..HEADER_PAIRS {
+            push(&mut out, false, TE_LONG);
+            push(&mut out, true, TE_LONG);
+        }
+        push(&mut out, false, TE_SHORT);
+        for bit in (0..MIN_COUNT_BIT - 1).rev() {
+            let one = (frame >> bit) & 1 != 0;
+            push(&mut out, one, TE_SHORT);
+            push(&mut out, !one, TE_SHORT);
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn feed_all(wire: &[LevelDuration]) -> Vec<DecodedSignal> {
+        let mut dec = KiaV2Decoder::new();
+        wire.iter().filter_map(|p| dec.feed(p.level, p.duration_us)).collect()
+    }
+
+    /// Golden frames from the C (`kia_v2.c` on the host): Serial/Btn/Cnt in, `generic.data` out;
+    /// its decoder reports each burst with the untransmitted start bit (bit 52) clear.
+    #[rustfmt::skip]
+    const C_VECTORS: &[(u32, u8, u16, u64)] = &[
+        (0xF2A4D27B, 0xD, 0x0E7, 0x001F2A4D27BDE705),
+        (0xAB73738F, 0xD, 0x4EE, 0x001AB73738FDEE40),
+        (0xCDBD47D3, 0xB, 0xDC3, 0x001CDBD47D3BC3D4),
+        (0xF30B94FA, 0x5, 0x8B4, 0x001F30B94FA5B48E),
+        (0x80877B6F, 0x4, 0xE6B, 0x00180877B6F46BE6),
+    ];
+
+    #[test]
+    fn c_vectors() {
+        for &(serial, button, counter, key) in C_VECTORS {
+            assert_eq!(build_frame(serial, button, counter), key);
+            let got = feed_all(&build_upload(key));
+            assert_eq!(got.len(), TOTAL_BURSTS);
+            assert!(got.iter().all(|d| d.data == key & !(1 << 52) && d.crc_valid));
+            assert_eq!((got[0].serial, got[0].button, got[0].counter), (Some(serial), Some(button & 0x0F), Some(counter)));
+        }
+    }
+
+    /// encode(): counter + 1 (12 bits) and KAT's generic button mapped to the D-pad codes.
+    #[test]
+    fn encode_bumps_counter_and_maps_buttons() {
+        for (generic, want) in [(0x01u8, 0x1u8), (0x02, 0x2), (0x04, 0x3), (0x08, 0x4), (0x40, 0x9)] {
+            let src = parse_frame(build_frame(0x8123_4567, 0x9, 0xFFF));
+            let got = feed_all(&KiaV2Decoder::new().encode(&src, generic).unwrap());
+            let d = &got[0];
+            assert_eq!((d.serial, d.button, d.counter), (Some(0x8123_4567), Some(want), Some(0)));
+            assert!(d.crc_valid);
+        }
+    }
+
+    /// Real fob data: the IMPORTS key files `HYUNDAI/HYU V2 N1.sub` and `HYU V2_random_habar.sub`
+    /// (Flipper-ARF "KIA/HYU V2", decoder form without the start bit): CRC valid, and the encoder
+    /// rebuilds each frame from its fields.
+    #[test]
+    fn real_key_files_rebuild() {
+        for key in [0x000E_18CC_1429_A2CEu64, 0x000E_18CC_1422_E6B2] {
+            let d = parse_frame(key);
+            assert!(d.crc_valid);
+            let rebuilt = build_frame(d.serial.unwrap(), d.button.unwrap(), d.counter.unwrap());
+            assert_eq!(rebuilt & !(1 << 52), key);
+        }
     }
 }

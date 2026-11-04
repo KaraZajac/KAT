@@ -1,35 +1,47 @@
-//! Kia V5 protocol decoder (decode-only)
+//! Kia V5 decoder + encoder.
 //!
-//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/kia_v5.c` and `kia_v5.h`.
-//! Decode logic matches reference: constants, steps, Manchester event mapping, mixer_decode, YEK.
-//! Encoder exists in reference under ENABLE_EMULATE_FEATURE; KAT keeps decode-only.
+//! Port of ProtoPirate `protocols/kia_v5.c` (HEAD 2026-10; the encoder dates from 2026-05-19 "Fix
+//! KIA V5 encoder", which KAT had not ported). Flipper-ARF's `kia_v5.c` builds the same upload and
+//! names the buttons (used below); its decoder only reports exactly-67-bit frames, a subset of
+//! ProtoPirate's ≥64 (C oracle on IMPORTS: 117 vs 119 frames), so KAT follows ProtoPirate.
 //!
-//! Protocol characteristics:
-//! - Manchester encoding: 400/800µs; V5 polarity: level ? ShortHigh : ShortLow (opposite to V1/V2)
-//! - 64 data bits + 3-bit CRC (67 bits on air)
-//! - Preamble: 40+ short/long pairs; then LONG HIGH (sync), SHORT LOW (alignment), then Manchester data
-//! - YEK = bit_reverse_64(key); serial/button/counter from YEK; mixer decryption for counter
+//! Air format (315 / 433.92 MHz, FM): Manchester, te_short 400µs / te_long 800µs (te_delta 150).
+//! Preamble of short pairs (>40 counted), a long HIGH sync, then the frame: 64 data bits and a 3-bit
+//! CRC field (`0`, then the 2-bit CRC). The key is sent bit-reversed: `yek` = the 64-bit reverse of
+//! the received key = `button4 << 60 | serial28 << 32 | hop32`, and the counter is the hop run
+//! through the "mixer" cipher keyed by the KIA V5 key (keystore type 13).
+//!
+//! Decoder (`kia_protocol_decoder_v5_feed`): Flipper's Manchester machine (common.rs) with the
+//! C's own event sense `level ? ShortHigh : ShortLow`, reset to Mid1 when the preamble starts; bits
+//! after the 64th go to the CRC field (at most 67 bits). The first out-of-tolerance pulse ends the
+//! frame, which is reported if ≥64 bits arrived: `data` = the 64 key bits, `data_count_bit` =
+//! min(bits, 67), `extra` = the CRC field bits (right-aligned). The C only displays the CRC; KAT
+//! sets `crc_valid` when the received CRC bits match `kia_v5_calculate_crc` of the key (all 117
+//! complete frames in IMPORTS do). (KAT's earlier port used a hand-written Manchester table and
+//! decoded garbage: serials changing between presses of the same fob.)
+//!
+//! Encoder (`kia_protocol_encoder_v5_deserialize` + `get_upload`): hop = `mixer_encode(serial,
+//! counter, button)`, key = reverse(yek), CRC recomputed; 200 × (HIGH 400, LOW 400), LOW 400,
+//! HIGH 800, LOW 400, HIGH 400, the 64 key bits + `0` + 2 CRC bits as Manchester (1 → LOW, HIGH;
+//! 0 → HIGH, LOW, 400µs halves), closing LOW 400 + HIGH 400; adjacent equal levels merged. One
+//! upload per call (the C TX loop repeats it 6 times). Each press sends counter + 1, as both
+//! references do; KAT's generic button maps to ARF's Kia V5 codes: Lock → 0x2, Unlock → 0x1,
+//! Trunk → 0x4, Panic → 0x8 ("Horn"); anything else keeps the captured button.
 
-use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
+use super::common::{ManchesterEvent, ManchesterState};
 use super::keys;
-use crate::radio::demodulator::LevelDuration;
+use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
+use crate::radio::demodulator::LevelDuration;
 
 const TE_SHORT: u32 = 400;
 const TE_LONG: u32 = 800;
 const TE_DELTA: u32 = 150;
 const MIN_COUNT_BIT: usize = 64;
+const MAX_BITS: u8 = 67;
+const PREAMBLE_PAIRS: usize = 200;
 
-/// Manchester decoder states (V5 uses opposite polarity to V1/V2; see manchester_advance)
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum ManchesterState {
-    Mid0,
-    Mid1,
-    Start0,
-    Start1,
-}
-
-/// Decoder states (matches protopirate's KiaV5DecoderStep)
+/// Decoder states (`KiaV5DecoderStep`).
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
     Reset,
@@ -37,7 +49,7 @@ enum DecoderStep {
     Data,
 }
 
-/// Kia V5 protocol decoder
+/// Kia V5 decoder.
 pub struct KiaV5Decoder {
     step: DecoderStep,
     te_last: u32,
@@ -45,7 +57,122 @@ pub struct KiaV5Decoder {
     bit_count: u8,
     decoded_data: u64,
     saved_key: u64,
-    manchester_state: ManchesterState,
+    manchester: ManchesterState,
+}
+
+#[inline]
+fn is_short(d: u32) -> bool {
+    duration_diff!(d, TE_SHORT) < TE_DELTA
+}
+
+#[inline]
+fn is_long(d: u32) -> bool {
+    duration_diff!(d, TE_LONG) < TE_DELTA
+}
+
+/// `build_keystore_from_mfkey`: the KIA V5 key (keystore type 13), big-endian bytes.
+fn keystore_bytes() -> [u8; 8] {
+    keys::get_keystore().get_kia_v5_key().to_be_bytes()
+}
+
+/// `mixer_decode`: the 16-bit counter from the 32-bit hop.
+fn mixer_decode(encrypted: u32) -> u16 {
+    let [mut s0, mut s1, mut s2, mut s3] = encrypted.to_le_bytes();
+    let ks = keystore_bytes();
+    let mut round_index = 1usize;
+    for _ in 0..18 {
+        let mut r = ks[round_index];
+        for _ in 0..8 {
+            let mut base: u8 = match (s3 & 0x40 != 0, s3 & 0x02 != 0) {
+                (false, false) => 0x74,
+                (false, true) => 0x2E,
+                (true, false) => 0x3A,
+                (true, true) => 0x5C,
+            };
+            if s2 & 0x08 != 0 {
+                base = base.rotate_left(4);
+            }
+            if s1 & 0x01 != 0 {
+                base = (base & 0x3F) << 2;
+            }
+            if s0 & 0x01 != 0 {
+                base <<= 1;
+            }
+            let temp = s3 ^ s1;
+            s3 = (s3 << 1) | (s2 >> 7);
+            s2 = (s2 << 1) | (s1 >> 7);
+            s1 = (s1 << 1) | (s0 >> 7);
+            s0 <<= 1;
+            if (base ^ r ^ temp) & 0x80 != 0 {
+                s0 |= 0x01;
+            }
+            r <<= 1;
+        }
+        round_index = round_index.wrapping_sub(1) & 0x7;
+    }
+    u16::from_le_bytes([s0, s1])
+}
+
+/// `mixer_encode`: the 32-bit hop for serial / counter / button.
+fn mixer_encode(serial: u32, counter: u16, button: u8) -> u32 {
+    let ks = keystore_bytes();
+    let mut a = (((serial >> 8) & 0x0F) as u8) | ((button & 0x0F) << 4);
+    let mut b = (counter >> 8) as u8;
+    let mut c = serial as u8;
+    let mut d = counter as u8;
+    for round in 0..18 {
+        let mut r = ks[round & 0x07];
+        let mut running_d = d;
+        for _ in 0..8 {
+            let mut base: u8 = match (a & 0x80 != 0, a & 0x04 != 0) {
+                (false, false) => 0x74,
+                (false, true) => 0x2E,
+                (true, false) => 0x3A,
+                (true, true) => 0x5C,
+            };
+            if c & 0x10 != 0 {
+                base = base.rotate_left(4);
+            }
+            if b & 0x02 != 0 {
+                base = (base & 0x3F) << 2;
+            }
+            let base_final = if running_d & 0x02 != 0 { (base & 0x7F) << 1 } else { base };
+            let (carry_b, carry_c, carry_a) = (b & 1 != 0, c & 1 != 0, a & 1 != 0);
+            let mut new_d = running_d >> 1;
+            if carry_b {
+                new_d |= 0x80;
+            }
+            running_d ^= c;
+            b = (b >> 1) | if carry_c { 0x80 } else { 0 };
+            c = (c >> 1) | if carry_a { 0x80 } else { 0 };
+            let feedback = ((running_d ^ r) << 7) ^ base_final;
+            a = (a >> 1) | (feedback & 0x80);
+            r >>= 1;
+            running_d = new_d;
+        }
+        d = running_d;
+    }
+    u32::from_be_bytes([a, c, b, d])
+}
+
+/// `kia_v5_calculate_crc`: 2-bit CRC of the 64-bit key.
+fn calculate_crc(data: u64) -> u8 {
+    let mut crc = 0u8;
+    for i in (0..64).rev() {
+        let bit = ((data >> i) & 1) as u8;
+        let shifted_out = (crc >> 1) & 1;
+        crc = ((crc & 1) << 1) | bit;
+        if shifted_out != 0 {
+            crc ^= 3;
+        }
+    }
+    crc & 3
+}
+
+/// Serial, button and counter of a received key (`yek` = the key bit-reversed).
+fn parse_key(key: u64) -> (u32, u8, u16) {
+    let yek = key.reverse_bits();
+    (((yek >> 32) & 0x0FFF_FFFF) as u32, (yek >> 60) as u8, mixer_decode(yek as u32))
 }
 
 impl KiaV5Decoder {
@@ -57,150 +184,30 @@ impl KiaV5Decoder {
             bit_count: 0,
             decoded_data: 0,
             saved_key: 0,
-            manchester_state: ManchesterState::Mid1,
+            manchester: ManchesterState::Mid1,
         }
     }
 
-    /// KIA V5 manufacturer key from keystore (type 13)
-    fn get_v5_key() -> u64 {
-        keys::get_keystore().get_kia_v5_key()
-    }
-
-    /// Mixer decryption (matches kia_v5.c custom cipher)
-    fn mixer_decode(encrypted: u32) -> u16 {
-        let mut s0 = (encrypted & 0xFF) as u8;
-        let mut s1 = ((encrypted >> 8) & 0xFF) as u8;
-        let mut s2 = ((encrypted >> 16) & 0xFF) as u8;
-        let mut s3 = ((encrypted >> 24) & 0xFF) as u8;
-
-        let key = Self::get_v5_key();
-        let mut keystore_bytes = [0u8; 8];
-        for i in 0..8 {
-            keystore_bytes[i] = ((key >> ((7 - i) * 8)) & 0xFF) as u8;
-        }
-
-        let mut round_index: usize = 1;
-        for _ in 0..18 {
-            let mut r = keystore_bytes[round_index];
-            let mut steps = 8;
-            while steps > 0 {
-                let base = if (s3 & 0x40) == 0 {
-                    if (s3 & 0x02) == 0 { 0x74 } else { 0x2E }
-                } else {
-                    if (s3 & 0x02) == 0 { 0x3A } else { 0x5C }
-                };
-
-                let mut base = base;
-                if s2 & 0x08 != 0 {
-                    base = ((base >> 4) & 0x0F) | ((base & 0x0F) << 4);
-                }
-                if s1 & 0x01 != 0 {
-                    base = (base & 0x3F) << 2;
-                }
-                if s0 & 0x01 != 0 {
-                    base = base << 1;
-                }
-
-                let temp = (s3 ^ s1) & 0xFF;
-                s3 = (s3 & 0x7F) << 1;
-                if s2 & 0x80 != 0 {
-                    s3 |= 0x01;
-                }
-                s2 = (s2 & 0x7F) << 1;
-                if s1 & 0x80 != 0 {
-                    s2 |= 0x01;
-                }
-                s1 = (s1 & 0x7F) << 1;
-                if s0 & 0x80 != 0 {
-                    s1 |= 0x01;
-                }
-                s0 = (s0 & 0x7F) << 1;
-
-                let chk = (base ^ (r ^ temp)) & 0xFF;
-                if chk & 0x80 != 0 {
-                    s0 |= 0x01;
-                }
-                r = (r & 0x7F) << 1;
-                steps -= 1;
-            }
-            round_index = (round_index.wrapping_sub(1)) & 0x7;
-        }
-        
-        ((s0 as u16) + ((s1 as u16) << 8)) & 0xFFFF
-    }
-
-    /// YEK: reverse bit order per byte (matches kia_v5.c for key derivation)
-    fn compute_yek(key: u64) -> u64 {
-        let mut yek: u64 = 0;
-        for i in 0..8 {
-            let byte = ((key >> (i * 8)) & 0xFF) as u8;
-            let mut reversed: u8 = 0;
-            for b in 0..8 {
-                if byte & (1 << b) != 0 {
-                    reversed |= 1 << (7 - b);
-                }
-            }
-            yek |= (reversed as u64) << ((7 - i) * 8);
-        }
-        yek
-    }
-
-    /// Manchester state machine (matches kia_v5.c feed: level ? ManchesterEventShortHigh : ManchesterEventShortLow).
-    /// Event encoding: 0=ShortLow, 1=ShortHigh, 2=LongLow, 3=LongHigh (Flipper manchester_decoder).
-    fn manchester_advance(&mut self, is_short: bool, level: bool) -> Option<bool> {
-        let event = match (is_short, level) {
-            (true, false) => 0,  // ShortLow
-            (true, true) => 1,   // ShortHigh
-            (false, false) => 2, // LongLow
-            (false, true) => 3,  // LongHigh
-        };
-
-        let (new_state, output) = match (self.manchester_state, event) {
-            (ManchesterState::Mid0, 0) | (ManchesterState::Mid1, 0) => 
-                (ManchesterState::Start0, None),
-            (ManchesterState::Mid0, 1) | (ManchesterState::Mid1, 1) => 
-                (ManchesterState::Start1, None),
-            
-            (ManchesterState::Start1, 0) => (ManchesterState::Mid1, Some(true)),
-            (ManchesterState::Start1, 2) => (ManchesterState::Start0, Some(true)),
-            
-            (ManchesterState::Start0, 1) => (ManchesterState::Mid0, Some(false)),
-            (ManchesterState::Start0, 3) => (ManchesterState::Start1, Some(false)),
-            
-            _ => (ManchesterState::Mid1, None),
-        };
-
-        self.manchester_state = new_state;
-        output
-    }
-
-    /// Parse 64-bit key: YEK then serial/button from high bits, mixer_decode for counter (matches kia_v5.c)
-    fn parse_data(&self) -> Option<DecodedSignal> {
-        if self.bit_count < MIN_COUNT_BIT as u8 {
-            return None;
-        }
-
+    /// The C's emission (with KAT's CRC flag, see the module docs).
+    fn report(&self) -> DecodedSignal {
         let key = self.saved_key;
-        let yek = Self::compute_yek(key);
-        // serial(28) + button(4) in high 32 bits; low 32 bits encrypted counter
-        let serial = ((yek >> 32) & 0x0FFFFFFF) as u32;
-        let button = ((yek >> 60) & 0x0F) as u8;
-        let encrypted = (yek & 0xFFFFFFFF) as u32;
-        let counter = Self::mixer_decode(encrypted);
-        
-        let _crc = (self.decoded_data & 0x07) as u8;
-
-        Some(DecodedSignal {
+        let bits = self.bit_count.min(MAX_BITS);
+        let tail_bits = bits - MIN_COUNT_BIT as u8;
+        let received = self.decoded_data & 0x07;
+        // Sent as `0, crc1, crc0`: compare the bits that arrived with that prefix.
+        let expected = (calculate_crc(key) as u64) >> (3 - tail_bits);
+        let (serial, button, counter) = parse_key(key);
+        DecodedSignal {
             serial: Some(serial),
             button: Some(button),
             counter: Some(counter),
-            crc_valid: true, // V5 doesn't have a standard CRC validation
+            crc_valid: received == expected,
             data: key,
-            data_count_bit: MIN_COUNT_BIT,
-            encoder_capable: false, // V5 is decode-only
-            extra: None,
+            data_count_bit: bits as usize,
+            encoder_capable: true,
+            extra: (tail_bits > 0).then_some(received),
             protocol_display_name: None,
-        })
+        }
     }
 }
 
@@ -219,38 +226,33 @@ impl ProtocolDecoder for KiaV5Decoder {
     }
 
     fn supported_frequencies(&self) -> &[u32] {
-        &[433_920_000]
+        &[315_000_000, 433_920_000]
     }
 
     fn reset(&mut self) {
         self.step = DecoderStep::Reset;
-        self.te_last = 0;
         self.header_count = 0;
         self.bit_count = 0;
         self.decoded_data = 0;
         self.saved_key = 0;
-        self.manchester_state = ManchesterState::Mid1;
+        self.manchester = ManchesterState::Mid1;
     }
 
     fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
-        let is_short = duration_diff!(duration, TE_SHORT) < TE_DELTA;
-        let is_long = duration_diff!(duration, TE_LONG) < TE_DELTA;
-
         match self.step {
             DecoderStep::Reset => {
-                if level && is_short {
+                if level && is_short(duration) {
                     self.step = DecoderStep::CheckPreamble;
                     self.te_last = duration;
                     self.header_count = 1;
                     self.bit_count = 0;
                     self.decoded_data = 0;
-                    self.manchester_state = ManchesterState::Mid1;
+                    self.manchester = ManchesterState::Mid1;
                 }
             }
-
             DecoderStep::CheckPreamble => {
                 if level {
-                    if is_long {
+                    if is_long(duration) {
                         if self.header_count > 40 {
                             self.step = DecoderStep::Data;
                             self.bit_count = 0;
@@ -260,41 +262,38 @@ impl ProtocolDecoder for KiaV5Decoder {
                         } else {
                             self.te_last = duration;
                         }
-                    } else if is_short {
+                    } else if is_short(duration) {
                         self.te_last = duration;
                     } else {
                         self.step = DecoderStep::Reset;
                     }
                 } else {
-                    if (is_short && duration_diff!(self.te_last, TE_SHORT) < TE_DELTA) ||
-                       (is_long && duration_diff!(self.te_last, TE_SHORT) < TE_DELTA) ||
-                       (duration_diff!(self.te_last, TE_LONG) < TE_DELTA) {
-                        self.header_count += 1;
+                    if (is_short(duration) && is_short(self.te_last))
+                        || (is_long(duration) && is_short(self.te_last))
+                        || is_long(self.te_last)
+                    {
+                        self.header_count = self.header_count.wrapping_add(1);
                     } else {
                         self.step = DecoderStep::Reset;
                     }
                     self.te_last = duration;
                 }
             }
-
             DecoderStep::Data => {
-                if !is_short && !is_long {
-                    // End of data - try to parse
-                    if self.bit_count >= MIN_COUNT_BIT as u8 {
-                        let result = self.parse_data();
-                        self.step = DecoderStep::Reset;
-                        return result;
-                    }
+                // The C's event sense: level ? Short/LongHigh : Short/LongLow.
+                let event = if is_short(duration) {
+                    ManchesterEvent::from_half_bit(level, false)
+                } else if is_long(duration) {
+                    ManchesterEvent::from_half_bit(level, true)
+                } else {
                     self.step = DecoderStep::Reset;
-                    return None;
-                }
-
+                    return (self.bit_count as usize >= MIN_COUNT_BIT).then(|| self.report());
+                };
                 if self.bit_count <= 66 {
-                    if let Some(bit) = self.manchester_advance(is_short, level) {
-                        self.decoded_data = (self.decoded_data << 1) | (bit as u64);
+                    if let Some(bit) = self.manchester.advance(event) {
+                        self.decoded_data = (self.decoded_data << 1) | bit as u64;
                         self.bit_count += 1;
-
-                        if self.bit_count == 64 {
+                        if self.bit_count as usize == MIN_COUNT_BIT {
                             self.saved_key = self.decoded_data;
                             self.decoded_data = 0;
                         }
@@ -303,21 +302,149 @@ impl ProtocolDecoder for KiaV5Decoder {
                 self.te_last = duration;
             }
         }
-
         None
     }
 
     fn supports_encoding(&self) -> bool {
-        false // V5 is decode-only in protopirate
+        true
     }
 
-    fn encode(&self, _decoded: &DecodedSignal, _button: u8) -> Option<Vec<LevelDuration>> {
-        None // V5 decode-only in protopirate
+    fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
+        let (p_serial, p_button, p_counter) = parse_key(decoded.data);
+        let serial = decoded.serial.unwrap_or(p_serial) & 0x0FFF_FFFF;
+        let captured = decoded.button.unwrap_or(p_button) & 0x0F;
+        let counter = decoded.counter.unwrap_or(p_counter).wrapping_add(1);
+        let button = match button {
+            0x01 => 0x2,
+            0x02 => 0x1,
+            0x04 => 0x4,
+            0x08 => 0x8,
+            _ => captured,
+        };
+        Some(build_upload(build_key(serial, button, counter)))
     }
 }
 
 impl Default for KiaV5Decoder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// The key the encoder sends: reverse(`button << 60 | serial << 32 | mixer_encode(..)`).
+fn build_key(serial: u32, button: u8, counter: u16) -> u64 {
+    let serial = serial & 0x0FFF_FFFF;
+    let button = button & 0x0F;
+    let yek = ((button as u64) << 60) | ((serial as u64) << 32) | mixer_encode(serial, counter, button) as u64;
+    yek.reverse_bits()
+}
+
+/// Append one level, merging with the previous entry when the level repeats (identical on air).
+fn push(out: &mut Vec<LevelDuration>, level: bool, duration: u32) {
+    match out.last_mut() {
+        Some(last) if last.level == level => last.duration_us += duration,
+        _ => out.push(LevelDuration::new(level, duration)),
+    }
+}
+
+/// `kia_v5_emit_manchester_bit`: 1 → LOW, HIGH; 0 → HIGH, LOW.
+fn push_bit(out: &mut Vec<LevelDuration>, bit: bool) {
+    push(out, !bit, TE_SHORT);
+    push(out, bit, TE_SHORT);
+}
+
+/// `kia_protocol_encoder_v5_get_upload` for a key.
+fn build_upload(key: u64) -> Vec<LevelDuration> {
+    let crc = calculate_crc(key);
+    let mut out = Vec::with_capacity(PREAMBLE_PAIRS * 2 + 4 + 2 * 67 + 2);
+    for _ in 0..PREAMBLE_PAIRS {
+        push(&mut out, true, TE_SHORT);
+        push(&mut out, false, TE_SHORT);
+    }
+    push(&mut out, false, TE_SHORT);
+    push(&mut out, true, TE_LONG);
+    push(&mut out, false, TE_SHORT);
+    push(&mut out, true, TE_SHORT);
+    for b in (0..64).rev() {
+        push_bit(&mut out, (key >> b) & 1 != 0);
+    }
+    push_bit(&mut out, false);
+    push_bit(&mut out, crc & 2 != 0);
+    push_bit(&mut out, crc & 1 != 0);
+    push(&mut out, false, TE_SHORT);
+    push(&mut out, true, TE_SHORT);
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn feed_all(wire: &[LevelDuration]) -> Vec<DecodedSignal> {
+        let mut dec = KiaV5Decoder::new();
+        wire.iter()
+            .chain(std::iter::once(&LevelDuration::new(false, 20_000)))
+            .filter_map(|p| dec.feed(p.level, p.duration_us))
+            .collect()
+    }
+
+    /// Real `IMPORTS/KIA/KIA V5 N1 RAW.sub` / `KIA V5 N2 RAW.sub` frames as the C (`kia_v5.c` on the
+    /// host, KIA V5 key) decodes them: key, serial, button, counter, CRC field.
+    const C_CAPTURE: &[(u64, u32, u8, u16, u64)] = &[
+        (0x9CAF_491D_6803_0228, 0x0440_C016, 0x1, 0x5360, 1),
+        (0x561D_6DAA_6803_0228, 0x0440_C016, 0x1, 0x5361, 2),
+        (0xB8BE_DC92_70A4_EE88, 0x0177_250E, 0x1, 0x2DE4, 2),
+        (0xA07F_45FC_70A4_EE88, 0x0177_250E, 0x1, 0x2DE5, 3),
+    ];
+
+    #[test]
+    fn capture_frames_and_cipher() {
+        keys::load_keystore_from_embedded();
+        for &(key, serial, button, counter, crc) in C_CAPTURE {
+            assert_eq!(parse_key(key), (serial, button, counter));
+            assert_eq!(calculate_crc(key) as u64, crc);
+            // The encoder's mixer is the inverse of the decoder's: same key for the same fields.
+            assert_eq!(build_key(serial, button, counter), key);
+            let got = feed_all(&build_upload(key));
+            assert_eq!(got.len(), 1);
+            let d = &got[0];
+            assert_eq!((d.data, d.data_count_bit, d.extra, d.crc_valid), (key, 67, Some(crc), true));
+        }
+    }
+
+    /// encode(): counter + 1 and KAT's generic button mapped to ARF's Kia V5 codes.
+    #[test]
+    fn encode_bumps_counter_and_maps_buttons() {
+        keys::load_keystore_from_embedded();
+        let (key, serial, _, counter, _) = C_CAPTURE[0];
+        for (generic, want) in [(0x01u8, 0x2u8), (0x02, 0x1), (0x04, 0x4), (0x08, 0x8), (0x40, 0x1)] {
+            let src = DecodedSignal {
+                serial: Some(serial),
+                button: Some(0x1),
+                counter: Some(counter),
+                crc_valid: true,
+                data: key,
+                data_count_bit: 67,
+                encoder_capable: true,
+                extra: Some(1),
+                protocol_display_name: None,
+            };
+            let got = feed_all(&KiaV5Decoder::new().encode(&src, generic).unwrap());
+            let d = &got[0];
+            assert_eq!((d.serial, d.button, d.counter), (Some(serial), Some(want), Some(counter + 1)));
+            assert!(d.crc_valid);
+        }
+    }
+
+    /// Real fob data: the IMPORTS key files `KIA/KIA V5 N3.sub` and `HYUNDAI/test_new_kia_hyu.sub`
+    /// (Flipper-ARF "KIA/HYU V5"): the encoder rebuilds each key exactly from its fields. (Their
+    /// saved "CRC: 3" matches neither key's CRC; the RAW captures' CRC fields all match.)
+    #[test]
+    fn real_key_files_rebuild() {
+        keys::load_keystore_from_embedded();
+        for key in [0x4CD2_BB72_AF95_1B84u64, 0x7AA3_1142_AF95_1B84] {
+            let (serial, button, counter) = parse_key(key);
+            assert_eq!(build_key(serial, button, counter), key);
+        }
     }
 }

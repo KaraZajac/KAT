@@ -51,6 +51,11 @@ pub struct FobSignalInfo {
     pub counter: Option<u16>,
     pub crc_valid: bool,
     pub encoder_capable: bool,
+    /// Protocol-specific encoder state (`Capture::data_extra`) as hex, e.g. VAG type/key index or the
+    /// bits beyond 64 of a long frame. Optional: without it, decoded imports could not re-encode
+    /// protocols whose encoder needs it.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub data_extra: Option<String>,
 }
 
 /// Vehicle metadata (user-provided + auto-detected)
@@ -170,6 +175,7 @@ pub fn export_fob(
             counter: capture.counter,
             crc_valid: capture.crc_valid,
             encoder_capable: capture.status == CaptureStatus::EncoderCapable,
+            data_extra: capture.data_extra.map(|e| format!("{:016X}", e)),
         },
         vehicle: FobVehicleInfo {
             year,
@@ -256,6 +262,12 @@ fn import_fob_v2(fob: &FobFile, next_id: u32) -> Result<Capture> {
     let sig = &fob.signal;
     let cap = &fob.capture;
 
+    // Encoder state (optional; absent in files written before it was exported)
+    let data_extra = sig
+        .data_extra
+        .as_deref()
+        .and_then(|s| u64::from_str_radix(s.trim_start_matches("0x"), 16).ok());
+
     // Parse serial from hex string
     let serial = u32::from_str_radix(sig.serial.trim_start_matches("0x"), 16).ok();
 
@@ -313,7 +325,7 @@ fn import_fob_v2(fob: &FobFile, next_id: u32) -> Result<Capture> {
         crc_valid: sig.crc_valid,
         data,
         data_count_bit: sig.data_bits,
-        data_extra: None,
+        data_extra,
         raw_pairs,
         status,
         received_rf: None,
@@ -416,4 +428,63 @@ pub fn scan_fob_files(dir: &Path) -> Vec<std::path::PathBuf> {
     }
     files.sort();
     files
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `data_extra` (encoder state, e.g. VAG type/key index or bits beyond 64 of a long frame) must
+    /// survive a .fob export → import round trip, so decoded imports can still re-encode.
+    #[test]
+    fn fob_roundtrip_preserves_data_extra() {
+        let pairs = vec![
+            StoredLevelDuration { level: true, duration_us: 500 },
+            StoredLevelDuration { level: false, duration_us: 1000 },
+        ];
+        let mut capture = Capture::from_pairs_with_rf(7, 433_920_000, pairs, None);
+        capture.protocol = Some("VAG".to_string());
+        capture.serial = Some(0x00AB_CDEF);
+        capture.button = Some(0x02);
+        capture.counter = Some(0x1234);
+        capture.crc_valid = true;
+        capture.data = 0x0123_4567_89AB_CDEF;
+        capture.data_count_bit = 80;
+        capture.data_extra = Some(0xFEDC_BA98_7654_3210);
+        capture.status = CaptureStatus::EncoderCapable;
+
+        let path = std::env::temp_dir().join(format!(
+            "kat_fob_extra_roundtrip_{}.fob",
+            std::process::id()
+        ));
+        export_fob(&capture, &path, true, None).expect("export");
+        let imported = import_fob(&path, 99);
+        let _ = std::fs::remove_file(&path);
+        let imported = imported.expect("import");
+
+        assert_eq!(imported.protocol.as_deref(), Some("VAG"));
+        assert_eq!(imported.data, capture.data);
+        assert_eq!(imported.data_count_bit, 80);
+        assert_eq!(imported.data_extra, Some(0xFEDC_BA98_7654_3210));
+        assert_eq!(imported.status, CaptureStatus::EncoderCapable);
+    }
+
+    /// Files written before `data_extra` existed must still import (field absent → None).
+    #[test]
+    fn fob_import_without_data_extra_field() {
+        let mut capture = Capture::from_pairs_with_rf(1, 433_920_000, Vec::new(), None);
+        capture.protocol = Some("Kia V7".to_string());
+        capture.data = 0x4C00_0000_0000_0000;
+        capture.data_count_bit = 64;
+        let path = std::env::temp_dir().join(format!(
+            "kat_fob_no_extra_{}.fob",
+            std::process::id()
+        ));
+        export_fob(&capture, &path, false, None).expect("export");
+        let json = std::fs::read_to_string(&path).expect("read");
+        let _ = std::fs::remove_file(&path);
+        assert!(!json.contains("data_extra"), "None must not be serialized");
+        let fob: FobFile = serde_json::from_str(&json).expect("parse");
+        assert!(fob.signal.data_extra.is_none());
+    }
 }

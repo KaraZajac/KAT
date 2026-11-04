@@ -5,7 +5,7 @@ layout: default
 # Honda Static Protocol
 
 **Rust module:** `src/protocols/honda_static.rs`
-**Reference:** `REFERENCES/ProtoPirate/protocols/honda_static.c`
+**Reference:** `REFERENCES/ProtoPirate/protocols/honda_static.c` (HEAD dc3446b; Flipper-ARF identical apart from UI glue)
 
 ## Overview
 
@@ -56,10 +56,20 @@ decoded packet bytes. The KAT counter field is the low 16 bits of the 24-bit cou
 
 ## Encoder
 
-Supported (matches `honda_static_build_upload`). Emits a 700 µs HIGH sync, a 160-element alternating
-preamble at 63 µs, 64 data bits (each as `!value`/`value` at 63 µs), and a trailing 700 µs sync.
+`subghz_protocol_encoder_honda_static_deserialize` + ProtoPirate's emulate scene: unpack the Key, override
+it with the serial, the button (KAT Lock/Unlock/Trunk/Panic → 1/2/4/8; other commands keep the captured
+button; invalid codes 2..5 are remapped and others fall back to the Key's, as in the C) and the 24-bit
+counter + 1 (top byte from the Key). Emits a 700 µs HIGH sync, a 160-element alternating preamble at
+63 µs, 64 data bits (each as `!value`/`value` at 63 µs), and a trailing 700 µs sync. The Flipper repeats
+the upload 3 times; KAT returns one. Flipper-ARF's copy is the same encoder with a D-pad map onto the same
+codes. As in the C, frames whose first bit is 1 (buttons 8/9) are sent but the decoder cannot find their
+preamble/data boundary.
 
 ## Validation
 
-Decodes REAL IMPORTS captures (IMPORTS/honda Lock and Unlock). Also covered by encode→decode round-trip
-and packet-validate unit tests.
+Decodes the IMPORTS/honda Lock and Unlock captures exactly as ProtoPirate and Flipper-ARF do (41 frames).
+Note: all of them come through the C's unchecked reverse-packet path (`crc_valid` = false; the Unlock
+capture decodes as Lock), so they are probably not genuine Honda Static frames. doctor-firmware's older
+copy decodes neither. Differential tests against the compiled C: 1500 randomized bursts decode identically;
+1990 uploads equal ProtoPirate's (encoder + emulate scene) pulse for pulse. Unit tests cover the round trip
+(button, 24-bit counter carry), the compact Key layout and packet validation.

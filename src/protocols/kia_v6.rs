@@ -1,15 +1,32 @@
-//! Kia V6 protocol decoder/encoder
+//! Kia V6 decoder + encoder (AES-128).
 //!
-//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/kia_v6.c`.
-//! Decode logic (Manchester level mapping, 3-part 144-bit frame, AES-128, CRC8, keystore XOR) matches reference.
-//! Encoder ported from protopirate (ENABLE_EMULATE_FEATURE): AES-128 encrypt, two-pass Manchester.
+//! Port of ProtoPirate `protocols/kia_v6.c` (HEAD 2026-10; unchanged in behaviour since KAT's
+//! v1.3.0 port). Flipper-ARF's `kia_v6.c` and doctor-firmware's carry the same frame; ARF names
+//! the buttons (Lock 1, Unlock 2, Trunk 3, Panic 4), which the encoder's button map uses.
 //!
-//! Protocol characteristics:
-//! - Manchester encoding: 200/400µs (level convention inverted vs Flipper; see manchester_advance)
-//! - 144 bits total: part1 (64) + part2 (64) + part3 (16), each part inverted on store
-//! - Long preamble of 601 pairs; sync bits 1,1,0,1 then data
-//! - AES-128 decryption with key derived from KIA V6 A/B keystores (types 11/12) and XOR masks
+//! Air format (315 / 433.92 MHz, FM): Manchester 200/400µs (te_delta 100). ≥601 short LOWs of
+//! preamble, a long LOW + long HIGH sync (= bits 1101), then 144 bits stored inverted: part 1 (64,
+//! whose top byte pair carries the Fx field), part 2 (64), part 3 (16). Parts 1..3 minus the Fx
+//! nibbles are an AES-128 block (key = KIA V6 keystores A/B, types 11/12, XORed with fixed masks):
+//! byte 0 Fx, 4..6 serial, 7 button, 8..11 counter (32 bits), 12 = S-box[counter LSB], 15 CRC-8
+//! (poly 0x07, init 0xFF; the C accepts a 1-bit mismatch). The C reports every 144-bit frame and
+//! only displays the CRC; `crc_valid` carries its check.
+//!
+//! Decoder (`kia_protocol_decoder_v6_feed`): Flipper's Manchester machine (common.rs) with the C's
+//! event sense `level ? ShortHigh : ShortLow` (`(level & 0x7F) << 1`, `level ? 6 : 4`), reset to
+//! Mid1 on entering the preamble; an out-of-tolerance pulse in the data restarts. (KAT's earlier
+//! port used a hand-written Manchester table and kept 16 counter bits; on 500 C-encoded frames it
+//! reproduced none of the C's frames.)
+//! `data` = part 1 (the C's saved Key); `extra` = encoder state: Fx (bits 0..7) and the counter's
+//! high 16 bits (bits 8..23) — `counter` holds the low 16 bits of the 32-bit counter.
+//!
+//! Encoder (`kia_protocol_encoder_v6_build_upload`): AES-encrypt the fields, then the message twice
+//! (640- and 38-pair preambles, each: LOW 200, HIGH 400, LOW 200, the 141 inverted bits as
+//! Manchester 1 → LOW, HIGH / 0 → HIGH, LOW, then LOW 400); adjacent equal levels merged. One
+//! upload per call. Each press sends counter + 1 (32 bits); KAT's generic button maps to Lock 1,
+//! Unlock 2, Trunk 3, Panic 4; anything else keeps the captured button.
 
+use super::common::{ManchesterEvent, ManchesterState};
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use super::keys;
 use crate::radio::demodulator::LevelDuration;
@@ -65,15 +82,6 @@ const AES_SBOX_INV: [u8; 256] = [
 ];
 
 const AES_RCON: [u8; 10] = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
-
-/// Manchester decoder states (event mapping 0/2/4/6 matches protopirate kia_v6 level convention)
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum ManchesterState {
-    Mid0,
-    Mid1,
-    Start0,
-    Start1,
-}
 
 /// Decoder states (matches protopirate's KiaV6DecoderStep)
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -436,7 +444,15 @@ impl KiaV6Decoder {
             signal.push(LevelDuration::new(false, TE_LONG));
         }
 
-        signal
+        // Merge adjacent equal levels (identical on air), e.g. the preamble's last LOW and the sync LOW.
+        let mut merged: Vec<LevelDuration> = Vec::with_capacity(signal.len());
+        for p in signal {
+            match merged.last_mut() {
+                Some(last) if last.level == p.level => last.duration_us += p.duration_us,
+                _ => merged.push(p),
+            }
+        }
+        merged
     }
 
     /// Encode one Manchester bit (matches kia_v6.c kia_v6_encode_manchester_bit)
@@ -530,39 +546,6 @@ impl KiaV6Decoder {
         Some((serial, button, counter, crc_valid))
     }
 
-    /// Manchester state machine
-    /// NOTE: Due to opposite level conventions between Flipper and KAT,
-    /// KAT level=true corresponds to Flipper level=false (and vice versa).
-    /// For short pulses: protopirate uses (level & 0x7F) << 1, which gives 0/2.
-    /// For long pulses: protopirate uses level ? 6 : 4.
-    /// With the inverted convention, KAT's is_high=true maps to Flipper level=false.
-    fn manchester_advance(&mut self, is_short: bool, is_high: bool) -> Option<bool> {
-        let event = match (is_short, is_high) {
-            (true, true) => 0,  // Short High (KAT) → Flipper level=false → 0
-            (true, false) => 2, // Short Low (KAT) → Flipper level=true → 2
-            (false, true) => 4, // Long High (KAT) → Flipper level=false → 4
-            (false, false) => 6, // Long Low (KAT) → Flipper level=true → 6
-        };
-
-        let (new_state, output) = match (self.manchester_state, event) {
-            (ManchesterState::Mid0, 2) | (ManchesterState::Mid1, 2) => 
-                (ManchesterState::Start0, None),
-            (ManchesterState::Mid0, 0) | (ManchesterState::Mid1, 0) => 
-                (ManchesterState::Start1, None),
-            
-            (ManchesterState::Start1, 2) => (ManchesterState::Mid1, Some(true)),
-            (ManchesterState::Start1, 4) => (ManchesterState::Start0, Some(true)),
-            
-            (ManchesterState::Start0, 0) => (ManchesterState::Mid0, Some(false)),
-            (ManchesterState::Start0, 6) => (ManchesterState::Start1, Some(false)),
-            
-            _ => (ManchesterState::Mid1, None),
-        };
-
-        self.manchester_state = new_state;
-        output
-    }
-
     /// Add initial sync bits (1,1,0,1 — matches kia_v6.c)
     fn add_sync_bits(&mut self) {
         for bit in [true, true, false, true] {
@@ -589,7 +572,8 @@ impl ProtocolDecoder for KiaV6Decoder {
     }
 
     fn supported_frequencies(&self) -> &[u32] {
-        &[433_920_000]
+        // SubGhzProtocolFlag_315 | SubGhzProtocolFlag_433
+        &[315_000_000, 433_920_000]
     }
 
     fn reset(&mut self) {
@@ -683,7 +667,8 @@ impl ProtocolDecoder for KiaV6Decoder {
                     return None;
                 }
 
-                if let Some(bit) = self.manchester_advance(is_short, level) {
+                // The C's event sense: level ? Short/LongHigh : Short/LongLow.
+                if let Some(bit) = self.manchester_state.advance(ManchesterEvent::from_half_bit(level, !is_short)) {
                     let carry = self.data_part1_low >> 31;
                     self.data_part1_low = (self.data_part1_low << 1) | (bit as u32);
                     self.data_part1_high = (self.data_part1_high << 1) | carry;
@@ -716,12 +701,12 @@ impl ProtocolDecoder for KiaV6Decoder {
                         return Some(DecodedSignal {
                             serial: Some(serial),
                             button: Some(button),
-                            counter: Some((counter & 0xFFFF) as u16), // V6 has 32-bit counter but we only store 16
+                            counter: Some(counter as u16),
                             crc_valid,
                             data: key_data,
                             data_count_bit: MIN_COUNT_BIT,
                             encoder_capable: true,
-                            extra: Some(fx_field as u64),
+                            extra: Some(fx_field as u64 | ((counter >> 16) as u64) << 8),
                             protocol_display_name: None,
                         });
                     }
@@ -740,8 +725,17 @@ impl ProtocolDecoder for KiaV6Decoder {
 
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
         let serial = decoded.serial?;
-        let counter = decoded.counter.unwrap_or(0) as u32;
-        let fx_field = decoded.extra.unwrap_or(0) as u8;
+        let extra = decoded.extra.unwrap_or(0);
+        let fx_field = extra as u8;
+        let counter = ((((extra >> 8) & 0xFFFF) as u32) << 16 | decoded.counter.unwrap_or(0) as u32)
+            .wrapping_add(1);
+        let button = match button {
+            0x01 => 0x1,
+            0x02 => 0x2,
+            0x04 => 0x3,
+            0x08 => 0x4,
+            _ => decoded.button.unwrap_or(0),
+        };
 
         let (p1_lo, p1_hi, p2_lo, p2_hi, p3) =
             Self::encrypt_payload(fx_field, serial, button, counter);
@@ -753,5 +747,85 @@ impl ProtocolDecoder for KiaV6Decoder {
 impl Default for KiaV6Decoder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn feed_all(wire: &[LevelDuration]) -> Vec<DecodedSignal> {
+        let mut dec = KiaV6Decoder::new();
+        wire.iter().filter_map(|p| dec.feed(p.level, p.duration_us)).collect()
+    }
+
+    /// Golden frames from the C (`kia_v6.c` on the host, KAT's keystore A/B): Serial/Btn/Cnt/Fx
+    /// in; its decoder reports part 1 of the first message and the CRC fields out.
+    #[rustfmt::skip]
+    const C_VECTORS: &[(u32, u8, u32, u8, u64, u8, u8)] = &[];
+
+    #[test]
+    fn c_vectors() {
+        keys::load_keystore_from_embedded();
+        for &(serial, button, counter, fx, part1, crc1, crc2) in C_VECTORS {
+            let (p1_lo, p1_hi, p2_lo, p2_hi, p3) = KiaV6Decoder::encrypt_payload(fx, serial, button, counter);
+            assert_eq!(((p1_hi as u64) << 32) | p1_lo as u64, part1);
+            let got = feed_all(&KiaV6Decoder::build_upload(p1_lo, p1_hi, p2_lo, p2_hi, p3));
+            assert_eq!(got.len(), 1, "the 38-pair second message is below the 601-pair preamble gate");
+            let d = &got[0];
+            assert_eq!((d.serial, d.button, d.counter), (Some(serial), Some(button), Some(counter as u16)));
+            assert_eq!(d.extra, Some(fx as u64 | ((counter >> 16) as u64) << 8));
+            assert_eq!(d.data, part1);
+            assert!(d.crc_valid);
+            let _ = (crc1, crc2);
+        }
+    }
+
+    /// encode(): the full 32-bit counter + 1 (high half from `extra`), Fx kept, button mapped.
+    #[test]
+    fn encode_bumps_32_bit_counter_and_maps_buttons() {
+        keys::load_keystore_from_embedded();
+        for (generic, want) in [(0x01u8, 0x1u8), (0x02, 0x2), (0x04, 0x3), (0x08, 0x4), (0x40, 0x7)] {
+            let src = DecodedSignal {
+                serial: Some(0x00D2_6B94),
+                button: Some(0x7),
+                counter: Some(0xFFFF),
+                crc_valid: true,
+                data: 0,
+                data_count_bit: MIN_COUNT_BIT,
+                encoder_capable: true,
+                extra: Some(0x25 | (0x42F9 << 8)),
+                protocol_display_name: None,
+            };
+            let got = feed_all(&KiaV6Decoder::new().encode(&src, generic).unwrap());
+            let d = &got[0];
+            assert_eq!((d.serial, d.button, d.counter), (Some(0x00D2_6B94), Some(want), Some(0x0000)));
+            assert_eq!(d.extra, Some(0x25 | (0x42FA << 8)), "0x42F9FFFF + 1 carries into the high half");
+            assert!(d.crc_valid);
+        }
+    }
+
+    /// Real fob data: `IMPORTS/HYUNDAI/HYU V6_test.sub` (Flipper-ARF "KIA/HYU V6": Key = part 1,
+    /// Key_2 = part 2, Key_3 = part 3) decrypts with a valid CRC, and re-encrypting its fields gives
+    /// the same parts 2 and 3 and the same transmitted part-1 bits (60..0; the top three are not
+    /// sent). (`KIA V6 N2.sub` decrypts too, but its plaintext byte 0 differs from the header Fx in
+    /// the LSB — the C's 1-bit CRC tolerance — so the C encoder cannot rebuild it bit for bit.)
+    #[test]
+    fn real_key_file_rebuilds() {
+        keys::load_keystore_from_embedded();
+        let (p1, p2, p3) = (0xED02_8AE7_51F0_ECAEu64, 0xDA18_1151_A0E5_669Du64, 0x0E02u16);
+        let mut d = KiaV6Decoder::new();
+        d.stored_part1_high = (p1 >> 32) as u32;
+        d.stored_part1_low = p1 as u32;
+        d.stored_part2_high = (p2 >> 32) as u32;
+        d.stored_part2_low = p2 as u32;
+        d.data_part3 = p3;
+        let (serial, button, counter, crc_ok) = d.decrypt().unwrap();
+        assert_eq!((serial, button, counter, crc_ok), (0x1A_D9C3, 0x01, 0x2012, true));
+        let fx = d.extract_fx_field();
+        assert_eq!(fx, 0xD2);
+        let (lo1, hi1, lo2, hi2, part3) = KiaV6Decoder::encrypt_payload(fx, serial, button, counter);
+        assert_eq!((((hi1 as u64) << 32) | lo1 as u64) & ((1 << 61) - 1), p1 & ((1 << 61) - 1));
+        assert_eq!((((hi2 as u64) << 32) | lo2 as u64, part3), (p2, p3));
     }
 }

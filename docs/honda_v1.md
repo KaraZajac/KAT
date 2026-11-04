@@ -5,7 +5,7 @@ layout: default
 # Honda V1 Protocol
 
 **Rust module:** `src/protocols/honda_v1.rs`
-**Reference:** `REFERENCES/ProtoPirate/protocols/honda_v1.c`
+**Reference:** `REFERENCES/ProtoPirate/protocols/honda_v1.c` (HEAD dc3446b; Flipper-ARF and doctor-firmware decode identically)
 
 ## Overview
 
@@ -54,10 +54,17 @@ the trailing 68-bit frame. `data` = first 8 bytes (64 bits); the CRC nibble = by
 
 ## Encoder
 
-Supported (ENABLE_EMULATE_FEATURE). Builds the 64-bit key from serial/button/counter via the button code
-table, then emits a 180-element short-pair preamble + 4 PWM frames (2 per checksum wire value).
+`subghz_protocol_encoder_honda_v1_deserialize` + ProtoPirate's emulate scene (Flipper-ARF does the same,
+bumping the counter inside its encoder): the Key's fields overridden by the serial, the button (KAT
+Lock/Unlock/Trunk/Panic → 8/0/9/10; other commands keep the captured button; an invalid button falls back
+to the Key's, then Unlock) and the counter + 1 (16 bits). The 64-bit key is rebuilt from the button code
+table, then a 180-element short-pair preamble (last element LOW 5000 µs) + 4 PWM frames (2 per checksum
+wire value) are emitted.
 
 ## Validation
 
-Verified by an encode→decode round-trip / synthetic-frame check (no local capture available). Unit tests
-cover the key/field round trip, full encode→decode, and the button-validity mask.
+No local capture is available. Differential tests against the compiled C: 1200 randomized bursts (jitter,
+runt pulses for the pending-bit accumulator, inverted) decode identically to ProtoPirate, Flipper-ARF and
+doctor-firmware (1493 frames); 1870 uploads equal ProtoPirate's (encoder + emulate scene) and
+Flipper-ARF's pulse for pulse. Unit tests cover the key/field round trip, encode→decode for every button
+with the 16-bit counter wrap, and the button-validity mask.

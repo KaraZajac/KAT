@@ -1,14 +1,46 @@
 //! Ford V2 protocol decoder/encoder
 //!
-//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/ford_v2.c` and `ford_v2.h`.
-//! Manchester 200/400µs (te_delta 260 → threshold ~460µs between short/long), 104 bits (13 bytes), FM.
-//! Frame begins with a 16-bit Manchester sync that equals ~0x7FA7 (the decoder matches the *inverted*
-//! shift register against 0x8058); the two sync bytes 0x7F 0xA7 head the 13-byte buffer. Data bits are
-//! inverted before packing (`data_bit = !data_bit`). Structure is validated by the two sync bytes plus a
-//! known button code. Encoder supported (matches subghz_protocol_encoder_ford_v2).
+//! Decoder: port of ProtoPirate `REFERENCES/ProtoPirate/protocols/ford_v2.c` as of ProtoPirate
+//! HEAD (dc3446b; the decode logic is unchanged since KAT's 4c95c85 port — later commits only
+//! touched allocation/repeat plumbing). Flipper-ARF's `lib/subghz/protocols/ford_v2.c` has the
+//! same decoder. Encoder: Flipper-ARF's, a superset of ProtoPirate's (see Encoder).
+//!
+//! Manchester 200/400µs (te_delta 260 → threshold ~460µs between short/long), 104 bits (13
+//! bytes), FM, 315 + 433.92 MHz. Frame begins with a 16-bit Manchester sync that equals ~0x7FA7
+//! (the decoder matches the *inverted* shift register against 0x8058); the two sync bytes 0x7F
+//! 0xA7 head the 13-byte buffer. Data bits are inverted before packing (`data_bit = !data_bit`).
+//! Fields: serial = raw[2..6], button = raw[6] (0x10 Lock, 0x11 Unlock, 0x13 Trunk, 0x14 Panic,
+//! 0x15 Remote start), raw[7] bit 7 = parity of the button byte, counter (16 bits) =
+//! raw[7] bits 6..0 ‖ raw[8] ‖ raw[9] bit 7, tail = the remaining 31 bits. The frame is plaintext.
+//! The C's structure check (`ford_v2_decoder_extract_from_raw`) is the two sync bytes plus a known
+//! button (its counter re-checks are tautologies), so that is the emission gate.
 //!
 //! Decoder steps: Reset → Preamble (≥64 shorts) → Sync (find 0x7FA7) → Data (11 bytes).
+//!
+//! **Manchester**: the shared Flipper `manchester_advance` port in `common.rs`. Event mapping is
+//! `level ? ShortHigh : ShortLow` / `level ? LongHigh : LongLow`. Entering Sync from the preamble
+//! resets the state to Mid1 and forces Mid0 when the triggering (long LOW) event is a Low event,
+//! then feeds that event; `reset_state` resets to Mid1. The encoder's 1 = HIGH,LOW decodes as 0
+//! under this mapping, which is why the decoder inverts data bits and matches the sync against
+//! `!0x7FA7`.
+//!
+//! **DecodedSignal**: `data` = raw[0..8] (the C's `Key`), `extra` = raw[8..13] (`TailRaw`, 40
+//! bits), `serial`/`button`/`counter` as above, `data_count_bit` = 104.
+//!
+//! **Encoder**: ProtoPirate's is a plain replay (it rebuilds the frame from Key + TailRaw, re-patches
+//! the button parity bit and ignores the emulate scene's Btn/Cnt). Flipper-ARF's
+//! (`ford_v2_encoder_deserialize_validate_and_pack`) also applies the file's Serial, re-packs
+//! Cnt + 1 (16 bits; `cnt + rolling_counter_mult`) and maps the D-pad to a button with the parity
+//! re-patched, so KAT follows ARF: serial ← `DecodedSignal.serial`, counter ← counter + 1, button
+//! ← KAT's 0x01 Lock → 0x10, 0x02 Unlock → 0x11, 0x04 Trunk → 0x13, 0x08 Panic → 0x14 (ARF's
+//! Up/Down/Left map; any other code keeps the captured button, as ARF's OK). An invalid
+//! resulting button is refused, as in the C. Upload (`ford_v2_encoder_build_upload`): 6 bursts of
+//! 70 × (LOW 240, HIGH 240), LOW 476, HIGH 240, then frame bits 1..103 as (bit, 240µs)(!bit,
+//! 240µs), bursts separated by HIGH 16 000µs (merged into the adjacent HIGH half-bits, as the C's
+//! `ford_v2_encoder_add_level` merges every same-level element). The Flipper TX loop repeats the
+//! upload `repeat` = 10 times; KAT's `encode()` returns the single upload.
 
+use super::common::{ManchesterEvent, ManchesterState};
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use crate::radio::demodulator::LevelDuration;
 use crate::duration_diff;
@@ -34,14 +66,6 @@ const TAIL_RAW_BYTES: usize = 5;
 
 /// Inverted 16-bit sync the decoder matches against (= !0x7FA7).
 const SYNC_SHIFT16_INV: u16 = !(((SYNC_0 as u16) << 8) | SYNC_1 as u16);
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum ManchesterState {
-    Mid0 = 0,
-    Mid1 = 1,
-    Start0 = 2,
-    Start1 = 3,
-}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
@@ -80,7 +104,7 @@ impl FordV2Decoder {
 
     fn reset_state(&mut self) {
         self.step = DecoderStep::Reset;
-        self.manchester_state = ManchesterState::Mid1;
+        self.manchester_state.advance(ManchesterEvent::Reset);
         self.preamble_count = 0;
         self.raw_bytes = [0; DATA_BYTES];
         self.byte_count = 0;
@@ -98,42 +122,12 @@ impl FordV2Decoder {
         duration_diff!(d, TE_LONG) < TE_DELTA
     }
 
-    /// Flipper Manchester transition table (same as Ford V0). Event 0=ShortLow,1=ShortHigh,
-    /// 2=LongLow,3=LongHigh. Returns Some(bit) when a bit emits.
-    fn manchester_advance(&mut self, event: u8) -> Option<bool> {
-        let (new_state, emit) = match (self.manchester_state, event) {
-            (ManchesterState::Mid0, 0) => (ManchesterState::Mid0, false),
-            (ManchesterState::Mid0, 1) => (ManchesterState::Start1, true),
-            (ManchesterState::Mid0, 2) => (ManchesterState::Mid0, false),
-            (ManchesterState::Mid0, 3) => (ManchesterState::Mid1, true),
-
-            (ManchesterState::Mid1, 0) => (ManchesterState::Start0, true),
-            (ManchesterState::Mid1, 1) => (ManchesterState::Mid1, false),
-            (ManchesterState::Mid1, 2) => (ManchesterState::Mid0, true),
-            (ManchesterState::Mid1, 3) => (ManchesterState::Mid1, false),
-
-            (ManchesterState::Start0, 0) => (ManchesterState::Mid0, false),
-            (ManchesterState::Start0, 1) => (ManchesterState::Mid0, false),
-            (ManchesterState::Start0, 2) => (ManchesterState::Mid0, false),
-            (ManchesterState::Start0, 3) => (ManchesterState::Mid1, false),
-
-            (ManchesterState::Start1, 0) => (ManchesterState::Mid0, false),
-            (ManchesterState::Start1, 1) => (ManchesterState::Mid1, false),
-            (ManchesterState::Start1, 2) => (ManchesterState::Mid0, false),
-            (ManchesterState::Start1, 3) => (ManchesterState::Mid1, false),
-
-            _ => (ManchesterState::Mid1, false),
-        };
-        self.manchester_state = new_state;
-        if emit { Some((event & 1) == 1) } else { None }
-    }
-
     /// Map (level, duration) → Manchester event. Ford V2 polarity: level ? High : Low.
-    fn pulse_event(level: bool, duration: u32) -> Option<u8> {
+    fn pulse_event(level: bool, duration: u32) -> Option<ManchesterEvent> {
         if Self::is_short(duration) {
-            Some(if level { 1 } else { 0 })
+            Some(ManchesterEvent::from_half_bit(level, false))
         } else if Self::is_long(duration) {
-            Some(if level { 3 } else { 2 })
+            Some(ManchesterEvent::from_half_bit(level, true))
         } else {
             None
         }
@@ -152,11 +146,11 @@ impl FordV2Decoder {
         self.sync_shift = 0;
         self.sync_bit_count = 0;
         self.raw_bytes = [0; DATA_BYTES];
-        self.manchester_state = ManchesterState::Mid1;
+        self.manchester_state.advance(ManchesterEvent::Reset);
 
         if let Some(event) = Self::pulse_event(level, duration) {
-            // Low event (0/2) seeds Mid0 (matches the C `if(ev==ShortLow||ev==LongLow) state=Mid0`).
-            if event == 0 || event == 2 {
+            // A Low event seeds Mid0 (the C `if(ev == ShortLow || ev == LongLow) state = Mid0`).
+            if matches!(event, ManchesterEvent::ShortLow | ManchesterEvent::LongLow) {
                 self.manchester_state = ManchesterState::Mid0;
             }
             self.feed_event(event);
@@ -166,9 +160,9 @@ impl FordV2Decoder {
     }
 
     /// Process one Manchester event in Sync or Data step. Returns Some when a frame commits.
-    fn feed_event(&mut self, event: u8) -> Option<DecodedSignal> {
+    fn feed_event(&mut self, event: ManchesterEvent) -> Option<DecodedSignal> {
         if self.step == DecoderStep::Sync {
-            if let Some(bit) = self.manchester_advance(event) {
+            if let Some(bit) = self.manchester_state.advance(event) {
                 self.sync_shift = (self.sync_shift << 1) | (bit as u16);
                 if self.sync_bit_count < SYNC_BITS {
                     self.sync_bit_count += 1;
@@ -188,7 +182,7 @@ impl FordV2Decoder {
         }
 
         // Data step
-        if let Some(bit) = self.manchester_advance(event) {
+        if let Some(bit) = self.manchester_state.advance(event) {
             let data_bit = !bit; // Ford V2 inverts decoded bits
             self.decode_data = (self.decode_data << 1) | (data_bit as u16);
             self.decode_count_bit += 1;
@@ -251,15 +245,15 @@ impl FordV2Decoder {
         })
     }
 
-    /// Map KAT's generic button command to a Ford V2 button code.
-    fn map_button(button: u8) -> u8 {
+    /// Map KAT's generic button command to a Ford V2 button code (ARF's D-pad map; any other
+    /// code keeps the captured button, like ARF's OK).
+    fn map_button(button: u8, captured: u8) -> u8 {
         match button {
             0x01 => 0x10, // Lock
             0x02 => 0x11, // Unlock
             0x04 => 0x13, // Trunk
             0x08 => 0x14, // Panic
-            b if Self::button_is_valid(b) => b, // already a Ford V2 code
-            _ => 0x11,
+            _ => captured,
         }
     }
 
@@ -360,26 +354,28 @@ impl ProtocolDecoder for FordV2Decoder {
     }
 
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
-        // Rebuild the 13-byte frame: bytes 0..8 from data, tail bytes 8..13 from extra.
+        // ford_v2_encoder_rebuild_raw_from_payload: bytes 0..8 from Key, 8..13 from TailRaw.
         let mut raw = [0u8; DATA_BYTES];
-        for (i, b) in raw.iter_mut().take(8).enumerate() {
-            *b = (decoded.data >> (56 - i * 8)) as u8;
-        }
+        raw[..8].copy_from_slice(&decoded.data.to_be_bytes());
         let extra = decoded.extra.unwrap_or(0);
-        for (i, b) in raw.iter_mut().skip(8).take(TAIL_RAW_BYTES).enumerate() {
-            *b = (extra >> (32 - i * 8)) as u8;
-        }
+        raw[8..].copy_from_slice(&extra.to_be_bytes()[3..]);
 
-        // Apply the requested button and refresh the byte-7 parity MSB.
-        raw[6] = Self::map_button(button);
+        // ARF overrides: Serial, then Cnt + 1 re-packed (raw[7] bit 7 and raw[9] bits 6..0 kept).
+        if let Some(serial) = decoded.serial {
+            raw[2..6].copy_from_slice(&serial.to_be_bytes());
+        }
+        if let Some(cnt) = decoded.counter {
+            let cnt = cnt.wrapping_add(1);
+            raw[7] = (raw[7] & 0x80) | ((cnt >> 9) & 0x7F) as u8;
+            raw[8] = (cnt >> 1) as u8;
+            raw[9] = (raw[9] & 0x7F) | (((cnt & 1) as u8) << 7);
+        }
+        // Button (captured = the Btn field, else the packed byte) with the parity bit re-patched.
+        raw[6] = Self::map_button(button, decoded.button.unwrap_or(raw[6]));
+        raw[7] = (raw[7] & 0x7F) | (Self::parity8(raw[6]) << 7);
         if !Self::button_is_valid(raw[6]) {
             return None;
         }
-        let parity_msb = Self::parity8(raw[6]) << 7;
-        raw[7] = (raw[7] & 0x7F) | parity_msb;
-        // Ensure sync header is present.
-        raw[0] = SYNC_0;
-        raw[1] = SYNC_1;
 
         let mut signal = Vec::with_capacity(ENC_BURST_COUNT * (ENC_PREAMBLE_PAIRS * 2 + DATA_BITS * 2 + 4));
         for burst in 0..ENC_BURST_COUNT {
@@ -409,5 +405,112 @@ impl ProtocolDecoder for FordV2Decoder {
 impl Default for FordV2Decoder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A 13-byte frame: sync, serial, button, counter (bytes 7..9) and a tail.
+    fn frame_bytes(button: u8, counter: u16) -> [u8; DATA_BYTES] {
+        let mut raw = [
+            SYNC_0, SYNC_1, 0x12, 0x34, 0x56, 0x78, button, 0x00, 0x00, 0x00, 0x9A, 0xBC, 0xDE,
+        ];
+        raw[7] = ((counter >> 9) & 0x7F) as u8 | (FordV2Decoder::parity8(button) << 7);
+        raw[8] = (counter >> 1) as u8;
+        raw[9] = (((counter & 1) as u8) << 7) | 0x35;
+        raw
+    }
+
+    fn signal_for(raw: &[u8; DATA_BYTES]) -> DecodedSignal {
+        let mut data = 0u64;
+        for &b in raw.iter().take(8) {
+            data = (data << 8) | b as u64;
+        }
+        let mut extra = 0u64;
+        for &b in raw.iter().skip(8) {
+            extra = (extra << 8) | b as u64;
+        }
+        let counter = (((raw[7] & 0x7F) as u16) << 9) | ((raw[8] as u16) << 1) | ((raw[9] >> 7) as u16);
+        DecodedSignal {
+            serial: Some(0x1234_5678),
+            button: Some(raw[6]),
+            counter: Some(counter),
+            crc_valid: true,
+            data,
+            data_count_bit: DATA_BITS,
+            encoder_capable: true,
+            extra: Some(extra),
+            protocol_display_name: None,
+        }
+    }
+
+    /// One encoder burst (70-pair preamble, 476µs sync LOW, short HIGH, bits 1..103 as
+    /// (bit, !bit) at 240µs) for an arbitrary frame, followed by a long HIGH gap.
+    fn burst_wave(raw: &[u8; DATA_BYTES]) -> Vec<LevelDuration> {
+        let mut wave = Vec::new();
+        for _ in 0..ENC_PREAMBLE_PAIRS {
+            FordV2Decoder::enc_add_level(&mut wave, false, ENC_TE_SHORT);
+            FordV2Decoder::enc_add_level(&mut wave, true, ENC_TE_SHORT);
+        }
+        FordV2Decoder::enc_add_level(&mut wave, false, ENC_SYNC_LO_US);
+        FordV2Decoder::enc_add_level(&mut wave, true, ENC_TE_SHORT);
+        for bit_pos in 1..DATA_BITS {
+            let bit = (raw[bit_pos / 8] >> (7 - bit_pos % 8)) & 1 != 0;
+            FordV2Decoder::enc_manchester_bit(&mut wave, bit);
+        }
+        FordV2Decoder::enc_add_level(&mut wave, true, ENC_INTER_BURST_GAP_US);
+        wave
+    }
+
+    fn feed_all(wave: &[LevelDuration]) -> Vec<DecodedSignal> {
+        let mut dec = FordV2Decoder::new();
+        wave.iter().filter_map(|p| dec.feed(p.level, p.duration_us)).collect()
+    }
+
+    /// Encoder → decoder through the full 6-burst waveform (ARF encoder): every burst decodes to
+    /// the requested button (parity re-patched) with the counter advanced by one (16 bits, carry
+    /// across the raw[7]/raw[8]/raw[9] split) and the serial and tail bits kept.
+    #[test]
+    fn encode_decode_roundtrip() {
+        for counter in [0x2468u16, 0x01FF, 0xFFFF] {
+            let original = signal_for(&frame_bytes(0x11, counter));
+            for (button, code) in [(0x01u8, 0x10u8), (0x02, 0x11), (0x04, 0x13), (0x08, 0x14), (0x40, 0x11)] {
+                let upload = FordV2Decoder::new().encode(&original, button).unwrap();
+                let frames = feed_all(&upload);
+                assert_eq!(frames.len(), ENC_BURST_COUNT, "button {button:#04x}");
+                let expected = signal_for(&frame_bytes(code, counter.wrapping_add(1)));
+                for f in &frames {
+                    assert_eq!(f.serial, Some(0x1234_5678));
+                    assert_eq!(f.button, Some(code));
+                    assert_eq!(f.counter, Some(counter.wrapping_add(1)));
+                    assert_eq!(f.data, expected.data, "bytes 0..8 (incl. refreshed parity)");
+                    assert_eq!(f.extra, expected.extra, "tail bytes 8..13");
+                }
+            }
+        }
+        // A captured Remote start (0x15) is kept for a non-generic command; an invalid captured
+        // button is refused, as in the C.
+        let rs = signal_for(&frame_bytes(0x15, 7));
+        let frames = feed_all(&FordV2Decoder::new().encode(&rs, 0x40).unwrap());
+        assert_eq!(frames[0].button, Some(0x15));
+        let mut bad = signal_for(&frame_bytes(0x11, 7));
+        bad.button = Some(0x12);
+        assert!(FordV2Decoder::new().encode(&bad, 0x40).is_none());
+    }
+
+    /// Structure gate: a valid burst decodes; a wrong sync byte or an unknown button does not.
+    #[test]
+    fn rejects_bad_sync_or_button() {
+        let good = frame_bytes(0x10, 0x2468);
+        assert_eq!(feed_all(&burst_wave(&good)).len(), 1, "control burst decodes");
+
+        let mut bad_sync = good;
+        bad_sync[1] = 0xA6;
+        assert!(feed_all(&burst_wave(&bad_sync)).is_empty(), "sync 0x7FA6");
+
+        let bad_button = frame_bytes(0x12, 0x2468);
+        assert!(feed_all(&burst_wave(&bad_button)).is_empty(), "button 0x12");
     }
 }

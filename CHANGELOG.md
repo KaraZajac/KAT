@@ -2,6 +2,85 @@
 
 All notable changes to KAT are documented here.
 
+## [1.4.0] - 2026-11-03
+
+Capability parity with the references in `REFERENCES/` — [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate) (primary), [Flipper-ARF](https://github.com/D4C1-Labs/Flipper-ARF) and [doctor-firmware](https://github.com/thedoctorz/doctor-firmware): KAT decodes and transmits what they do, mirrors their retirements, and every protocol was checked against the reference C compiled on a PC (decoders field-for-field, encoders pulse-for-pulse) and against the `IMPORTS/` captures. 40 protocol decoders are registered.
+
+### Added
+
+- **New protocols:**
+  - **From ProtoPirate:** **Renault V0** (type-13 frames; encoder with counter + 1); **Renault V1** (HITAG2; the 2^18 serial-derived seed search runs automatically, ~10 ms, so KAT transmits fresh frames; replay otherwise); **Fiat V2** (FCA). Fiat V2 decodes the real **2019 Chrysler Pacifica** and **2022 Jeep Renegade** captures; it forward-encodes when one of ARF's HITAG2 keys verifies, else replays.
+  - **From Flipper-ARF / doctor-firmware:**
+    - **BMW** (62 µs Manchester, 128-bit; ARF's replacement for BMW CAS4).
+    - **Mazda V2** (table-driven next code).
+    - **Mercedes V0** and **Mercedes V1**.
+    - **Opel V1** (XTEA, decode-only like ARF).
+    - **GM** (Chevrolet/Buick/GMC/Cadillac, rtl_433 format; replay).
+    - **Datsun Lada**.
+    - **Sheriff CFM** (ZX-750/930 alarm, KeeLoq).
+    - **Renault V1 (ARF)** (ARF's 82-bit type-table frames 0x04/0x0C/0x1A/0x3B/0x3F + Dynamic; replay).
+- **Transmit where KAT could only receive:** Kia V5, Mitsubishi V0 (ARF 96-bit; replay), Scher-Khan (ARF Magic Code PRO1/PRO2), Toyota, Renault V1, Fiat V1 (ProtoPirate's 9 keys plus ARF's key dictionary and heuristics; replay otherwise) and Porsche Cayenne.
+- **Counter + 1 on every re-encode** where the references bump it before sending (ProtoPirate's emulate scene; ARF/doctor encoders): Ford V0/V1/V2, Honda Static/V1/V2, Kia V0–V7, VAG (24-bit), Subaru, Chrysler V0 (seed + 2), Mazda V0/V2, Renault V0/V1, PSA, Star Line, KeeLoq. Re-encoding a real Ford V0 press reproduces the fob's real next press bit for bit (7 pairs).
+- **Kia V0** decodes ProtoPirate's four frame types: Kia V0, **Suzuki V0**, **Honda V0** and **Mitsubishi V0**, with their display names and encoders.
+- **PSA "Recover key" action**: ProtoPirate's TEA key brute force, offered as an on-demand signal-menu action like the references do. It runs on a background thread (two 2^24 ranges, multithreaded, ≈0.5 s worst case on a 16-core PC) with progress in the status line and a cancel action. The Groupe PSA captures hold two fobs: serial 0x99EB25 (XOR, decoded directly) and 0x014590 (TEA, via Recover key).
+- **Star Line** searches the whole keystore like the C ("Star Line [manufacturer]").
+- **KeeLoq** (gates/garage doors/alarms):
+  - Flipper-ARF's per-key learning types, AN-Motors, HCS101, Superrollo and the special manufacturers.
+  - The full ARF encoder.
+  - DoorHan's learning type is corrected from three real remotes.
+- **Real-capture decodes** that were previously empty: 2022 Ford Escape (Ford V3 US), Fiat Bravo (Fiat V0), VW Passat 2015 and Passat B7 (VAG Type 1), VAG_2 and the Suran capture (VAG Type 2), Chrysler Pacifica and Jeep Renegade (Fiat V2).
+- **Shared HITAG2 module** (`hitag2.rs`) for Fiat V1, Fiat V2 and Renault V1.
+- **Native button names** for protocols that report their own button codes.
+- **`.fob` keeps encoder state** (`signal.data_extra`). Imported `.fob` captures with raw pairs are re-decoded with the current decoders, so old exports pick up renames and new encoders.
+- **Tests and diagnostics:**
+  - A keystore regression test pins the reference keystore dump (Kia V3–V6, Star Line / alarm KeeLoq keys, Sheriff ZX, VAG AUT64).
+  - The `detail_decodes` diagnostic prints decoded fields per capture.
+  - Cross-protocol guard tests check that every encoder's output is claimed only by its own decoder.
+
+### Changed
+
+- **Re-synced with the current references** (most older ports predated later reference fixes):
+  - **Kia V1, V2, V5 and V6** previously decoded garbage and now match the C.
+  - **Kia V3/V4** now requires the KIA KeeLoq check, as both references do, and reports "Kia V3" / "Kia V4".
+  - **VAG** is an exact port of ProtoPirate's state machine (all four types decode and transmit; ARF's 315 MHz). Its Type 1 frames stay Type 1 because the real Passat captures prove it.
+  - **Subaru:** ProtoPirate's reader with ARF's as a fallback. The encoder's counter rule is taken from the real Impreza capture (9/9 frames reproduced).
+  - **Chrysler V0:** counter = seed.
+  - **Ford V1:** `try_last_byte_variants`; the encoder sends burst 0 like the C.
+  - **Ford V2:** ARF's encoder.
+  - **Ford V3** gains ProtoPirate's US variant. KAT relaxes its flag/button gate because the real 2022 Escape carries flag 0x08 and Trunk/Panic codes 0x07/0x06.
+  - **Fiat V1:** ProtoPirate's HITAG2 re-port.
+  - **Mazda V0:** ProtoPirate's current Manchester decoder, plus an encoder.
+  - **Mazda Siemens:** completes at 79 bits (ARF's C never completes its own 80-bit frames); the encoder's button-byte bug is fixed.
+  - **Renault V0:** ARF's alternate frame reading.
+  - **Toyota:** ARF's current Toyota/Lexus protocol, with its encoder.
+  - **Porsche Cayenne:** synced with ARF (every frame transmittable, 315 MHz).
+- **Mirrored retirements, renames and disables** (legacy names still resolve, so old captures and `.fob` files keep working):
+  - **Land Rover V0 → Honda V2** (ProtoPirate rename).
+  - **BMW CAS4** retired; ARF replaced it with **BMW**.
+  - **Porsche Touareg** retired; ProtoPirate removed it, and it was the same frame as Porsche Cayenne.
+  - **Suzuki** retired; ProtoPirate folded it into Kia V0.
+  - **PSA2** retired; ARF never registers it, and PSA now decodes those captures with the same fields.
+  - The **KeeLoq Toyota** was retired; ARF replaced it with the current Toyota.
+  - **Audi**, **Mazda Infinity** and **Hyundai** (ARF's Pandora reverse-engineering, shipped disabled) and **Land Rover RKE** (an ARF helper that ARF never registers) are kept as code and docs but not registered, as in ARF.
+- **Registry order:** Sheriff CFM sits before the KeeLoq decoder; Renault V1 (ARF) sits right after Renault V0.
+
+### Fixed
+
+- **Manchester decoding.** Several modules carried a hand-written table that is not Flipper's `manchester_decoder.c` and decoded nothing. Ford V0 previously "decoded" the real Ford captures with failing CRCs and changing serials. `common.rs` now holds one exact port.
+  - All 7 real Ford V0 captures decode with valid CRCs (7-bit, as the C), one serial per fob, buttons matching the file names and counters rising per press.
+- **Bogus decodes removed:**
+  - Isuzu and Prius 2006 frames were claimed by Kia V3/V4 without its KeeLoq check.
+  - A VAG capture decoded as Fiat V1.
+  - A Camry noise burst decoded as the old Toyota.
+- **Scher-Khan 51-bit encoder** (documented deviation from Flipper-ARF): ARF masks the key with `0x7FFFFFFF0000`, which drops serial bits 47–50 (its own sample frame `0E8C1619E830C` would go out as `068C…`, a different remote). KAT keeps bits 16–50 and updates the inverted-button nibble together with the button.
+- **Mercedes V1 vs BMW:** Mercedes V1 now requires an exact 122-bit frame, so it no longer cuts BMW's 128-bit frames.
+- **Panics in debug builds:** Fiat V0 on a 799 µs gap, and Subaru's rotation count.
+- **TX lookup** of display names with a variant suffix (e.g. "Porsche Cayenne [First]", "Star Line [Cenmax]").
+- **Labels:**
+  - Ford V0/V1/V2, Fiat V0, Kia V0–V2/V5/V7 and Toyota are rolling codes, not fixed codes.
+  - Ford V0 and Fiat V0 are AM.
+  - PSA is TEA/XOR, AM/FM.
+
 ## [1.3.0] - 2026-06-23
 
 ### Added

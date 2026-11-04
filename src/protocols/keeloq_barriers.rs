@@ -16,6 +16,7 @@ fn normalize(s: &str) -> String {
 /// Covers Flipper/ProtoPirate-style names and common variants (e.g. NICE_MHOUSE, Guard_RF-311A).
 const BARRIER_NAMES: &[&str] = &[
     "airforce",
+    "anmotors",
     "allmatic",
     "alutechat4n",
     "ansonic",
@@ -29,8 +30,11 @@ const BARRIER_NAMES: &[&str] = &[
     "camespace",
     "camestatic",
     "cameweetwin",
+    "cardins449",
+    "centurion",
     "chamberlaincode",
     "clemsa",
+    "clemsamutancode",
     "comunello",
     "deamio",
     "dickertmahs",
@@ -41,7 +45,9 @@ const BARRIER_NAMES: &[&str] = &[
     "ecostar",
     "elmespoland",
     "elplast",
+    "erreka",
     "faacrctx",
+    "fadini",
     "faacslh",
     "faacslhspa",
     "feron",
@@ -54,6 +60,7 @@ const BARRIER_NAMES: &[&str] = &[
     "guardrf311a",
     "gangqi",
     "hay21",
+    "hcs101",
     "hollarm",
     "holtek",
     "holtekht12x",
@@ -64,8 +71,10 @@ const BARRIER_NAMES: &[&str] = &[
     "ido",
     "intertechnov3",
     "ironlogic",
+    "jarolift",
     "jcmtech",
     "jollymotors",
+    "key",
     "kingatesstylo4k",
     "legrand",
     "linear",
@@ -86,24 +95,32 @@ const BARRIER_NAMES: &[&str] = &[
     "niceflorsone",
     "nicemhouse",
     "nicesmilo",
+    "normstahl",
     "novoferm",
+    "pecinin",
     "pecninin",
     "pecnin",
     "phoenixv2",
     "powersmart",
     "prastel",
     "princeton",
+    "pujol",
+    "pujolvario",
     "reversrb2",
     "roger",
     "rosh",
     "rossi",
     "sea",
+    "seav",
     "secplusv1v2",
     "smc5326",
     "somfykeytis",
     "somfytelis",
+    "sommer",
     "steelmate",
     "stilmatic",
+    "superrollo",
+    "wisniowski",
 ];
 
 /// Alarm (car alarm / aftermarket) manufacturers (normalized names).
@@ -218,6 +235,14 @@ mod tests {
         assert!(is_keeloq_barrier("KeeLoq (Guard_RF-311A)"));
         assert!(is_keeloq_barrier("KeeLoq (Stilmatic)"));
         assert!(is_keeloq_barrier("KeeLoq (Motorline)"));
+        // Manufacturers Flipper-ARF's keeloq.c identifies or encodes by name.
+        assert!(is_keeloq_barrier("KeeLoq (AN-Motors)"));
+        assert!(is_keeloq_barrier("KeeLoq (HCS101)"));
+        assert!(is_keeloq_barrier("KeeLoq (Pecinin)"));
+        assert!(is_keeloq_barrier("KeeLoq (Centurion)"));
+        assert!(is_keeloq_barrier("KeeLoq (Cardin_S449)"));
+        assert!(is_keeloq_barrier("KeeLoq (Sommer)"));
+        assert!(is_keeloq_barrier("KeeLoq (Normstahl)"));
         assert!(!is_keeloq_barrier("KeeLoq (Star Line)"));
         assert!(!is_keeloq_barrier("Unknown"));
     }

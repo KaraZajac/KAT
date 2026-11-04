@@ -196,6 +196,11 @@ impl Capture {
 
     /// Get button name
     pub fn button_name(&self) -> &str {
+        if let Some(code) = self.button {
+            if let Some(name) = crate::protocols::native_button_name(self.protocol_name(), code) {
+                return name;
+            }
+        }
         match self.button {
             Some(0x01) => "Lock",
             Some(0x02) => "Unlock",
@@ -229,28 +234,46 @@ impl Capture {
             p if p.starts_with("Ford") => ModulationType::Manchester,
             "Honda Static" => ModulationType::Manchester,
             "Mazda Siemens" => ModulationType::Manchester,
+            "Mazda V0" => ModulationType::Manchester,
             "BMW CAS4" => ModulationType::Manchester,
             "Fiat V0" => ModulationType::Manchester,
-            "PSA" => ModulationType::Manchester,
-            "PSA2" => ModulationType::Manchester,
+            // "PSA2" is the retired name (PSA now decodes those frames); kept for old captures.
+            "PSA" | "PSA2" => ModulationType::Manchester,
             "VAG" => ModulationType::Manchester,
             // Differential Manchester
-            "Land Rover V0" => ModulationType::DifferentialManchester,
+            // Honda V2 (legacy name "Land Rover V0" kept for older .fob imports).
+            "Honda V2" | "Land Rover V0" => ModulationType::DifferentialManchester,
             // PWM-encoded protocols
             p if p.starts_with("Kia V0") => ModulationType::Pwm,
+            // Kia V0 frame types (ProtoPirate display names) and ARF's 96-bit Mitsubishi V0.
+            "Suzuki V0" | "Honda V0" | "Mitsubishi V0" => ModulationType::Pwm,
             p if p.starts_with("Kia V3") => ModulationType::Pwm,
             p if p.starts_with("Kia V4") => ModulationType::Pwm,
             "Honda V1" => ModulationType::Pwm,
             "Subaru" => ModulationType::Pwm,
             "Suzuki" => ModulationType::Pwm,
-            "Star Line" => ModulationType::Pwm,
-            p if p.starts_with("Keeloq (") => ModulationType::Pwm,
-            "Scher-Khan" => ModulationType::Pwm,
+            p if p.starts_with("Star Line") => ModulationType::Pwm,
+            // "Keeloq (<keystore name>)" (generic fallback) and "KeeLoq (<manufacturer>)" (registry).
+            p if p.to_ascii_lowercase().starts_with("keeloq (") => ModulationType::Pwm,
+            p if p.starts_with("Scher-Khan") => ModulationType::Pwm,
             "Chrysler V0" => ModulationType::Pwm,
             "Land Rover RKE" => ModulationType::Pwm,
-            "Toyota" => ModulationType::Pwm,
-            // Display name is "Porsche Cayenne [First/Cont/Final]"; match the prefix.
-            p if p.starts_with("Porsche Cayenne") => ModulationType::Pwm,
+            // Toyota (ARF/doctor "Toyota Lexus"): bi-phase, two shorts = 0, one long = 1.
+            "Toyota" => ModulationType::DifferentialManchester,
+            // "Porsche Cayenne", plus legacy "Porsche Touareg [...]" captures (same protocol).
+            p if p.starts_with("Porsche") => ModulationType::Pwm,
+            // v1.4.0 additions (ProtoPirate / Flipper-ARF / doctor-firmware ports)
+            "Fiat V1" | "Fiat V2" => ModulationType::Manchester,
+            "Renault V0" | "Renault V1" => ModulationType::Manchester,
+            // Display names carry the frame type, e.g. "Renault V1 (ARF) [0x0C]".
+            p if p.starts_with("Renault V1 (ARF)") => ModulationType::Manchester,
+            "Mercedes V0" | "Mercedes V1" => ModulationType::Manchester,
+            "Opel V1" | "BMW" | "Datsun Lada" => ModulationType::Manchester,
+            "Mazda Infinity" | "Hyundai" => ModulationType::Manchester,
+            // Bi-phase with a transition at every bit boundary (the bit is the second half's level).
+            "Mazda V2" => ModulationType::DifferentialManchester,
+            // GM is pulse-position (gap width) — closest label is PWM.
+            "GM" | "Sheriff CFM" | "Audi" => ModulationType::Pwm,
             // Unknown
             _ => ModulationType::Unknown,
         }
@@ -261,34 +284,50 @@ impl Capture {
     pub fn rf_modulation(&self) -> RfModulation {
         match self.protocol_name() {
             // FM only (ProtoPirate SubGhzProtocolFlag_FM)
-            p if p.starts_with("Kia V0") => RfModulation::FM,
-            p if p.starts_with("Kia V2") => RfModulation::FM,
+            // Kia V0 family: ProtoPirate flags FM, Flipper-ARF AM + FM.
+            p if p.starts_with("Kia V0") => RfModulation::Both,
+            "Suzuki" | "Suzuki V0" | "Honda V0" => RfModulation::Both,
+            "Mitsubishi V0" => RfModulation::FM,
+            // Kia V2: ProtoPirate flags AM.
+            p if p.starts_with("Kia V2") => RfModulation::AM,
             p if p.starts_with("Kia V5") => RfModulation::FM,
             p if p.starts_with("Kia V6") => RfModulation::FM,
             p if p.starts_with("Kia V7") => RfModulation::FM,
-            "Scher-Khan" => RfModulation::FM,
-            "PSA" => RfModulation::FM,
-            "PSA2" => RfModulation::AM,
-            "Fiat V0" => RfModulation::FM,
+            // ProtoPirate flags Scher-Khan FM; Flipper-ARF (Magic Code PRO1/PRO2) FM + AM.
+            p if p.starts_with("Scher-Khan") => RfModulation::Both,
+            // PSA: ProtoPirate routes by preset (AM and FM); the IMPORTS captures are OOK.
+            "PSA" | "PSA2" => RfModulation::Both,
+            // Fiat V0 / Ford V0: ProtoPirate flags AM (the IMPORTS captures are AM650).
+            "Fiat V0" => RfModulation::AM,
+            "Ford V0" => RfModulation::AM,
+            // Ford V3 is flagged AM | FM in ProtoPirate (EU + US variants).
+            "Ford V3" => RfModulation::Both,
             p if p.starts_with("Ford") => RfModulation::FM,
             "Honda Static" => RfModulation::FM,
             "Mazda Siemens" => RfModulation::FM,
-            "Land Rover V0" => RfModulation::FM,
+            // Mazda V0 (ProtoPirate) is flagged AM | FM.
+            "Mazda V0" => RfModulation::Both,
+            "Honda V2" | "Land Rover V0" => RfModulation::FM,
             // AM only (SubGhzProtocolFlag_AM)
             p if p.starts_with("Kia V1") => RfModulation::AM,
             "Honda V1" => RfModulation::AM,
             "VAG" => RfModulation::AM,
             "Subaru" => RfModulation::AM,
-            "Suzuki" => RfModulation::AM,
-            "Star Line" => RfModulation::AM,
+            p if p.starts_with("Star Line") => RfModulation::AM,
             "Chrysler V0" => RfModulation::AM,
             "Land Rover RKE" => RfModulation::AM,
             "Toyota" => RfModulation::AM,
             "BMW CAS4" => RfModulation::AM,
-            p if p.starts_with("Porsche Cayenne") => RfModulation::AM,
-            p if p.starts_with("Keeloq (") => RfModulation::AM,
-            // Both AM and FM (Kia V3/V4)
-            p if p.starts_with("Kia V3") || p.starts_with("Kia V4") => RfModulation::Both,
+            p if p.starts_with("Porsche") => RfModulation::AM,
+            p if p.to_ascii_lowercase().starts_with("keeloq (") => RfModulation::AM,
+            // Kia V3/V4: ProtoPirate routes it to the FM registry.
+            p if p.starts_with("Kia V3") || p.starts_with("Kia V4") => RfModulation::FM,
+            // v1.4.0 additions
+            "Mercedes V0" | "Mercedes V1" | "Datsun Lada" => RfModulation::FM,
+            "Fiat V1" | "Fiat V2" | "Renault V0" | "Opel V1" | "BMW" | "GM" => RfModulation::AM,
+            "Sheriff CFM" | "Audi" | "Mazda Infinity" | "Hyundai" => RfModulation::AM,
+            "Renault V1" | "Mazda V2" => RfModulation::Both,
+            p if p.starts_with("Renault V1 (ARF)") => RfModulation::Both,
             _ => RfModulation::Unknown,
         }
     }
@@ -297,30 +336,42 @@ impl Capture {
     pub fn encryption_type(&self) -> &'static str {
         match self.protocol_name() {
             p if p.starts_with("Kia V3") || p.starts_with("Kia V4") => "KeeLoq",
-            "Star Line" => "KeeLoq",
-            p if p.starts_with("Keeloq (") => "KeeLoq",
-            "PSA" => "XTEA/XOR",
-            "PSA2" => "TEA",
+            p if p.starts_with("Star Line") => "KeeLoq",
+            p if p.to_ascii_lowercase().starts_with("keeloq (") => "KeeLoq",
+            "PSA" | "PSA2" => "TEA/XOR",
             "VAG" => "AUT64/XTEA",
-            "Scher-Khan" => "Magic Code",
-            "Subaru" | "Suzuki" => "Rolling Code",
+            p if p.starts_with("Scher-Khan") => "Magic Code",
+            "Subaru" | "Suzuki" | "Suzuki V0" | "Honda V0" | "Mitsubishi V0" => "Rolling Code",
             "Chrysler V0" => "Rolling Code",
-            "Land Rover V0" => "Rolling Code",
+            "Honda V2" | "Land Rover V0" => "Rolling Code",
             "Land Rover RKE" => "KeeLoq",
-            "Toyota" => "KeeLoq",
+            "Toyota" => "Rolling Code",
             "Mazda Siemens" => "Siemens XOR",
+            "Mazda V0" => "XOR whitening",
             "BMW CAS4" => "CAS4 (rolling)",
-            p if p.starts_with("Porsche Cayenne") => "VAG rolling",
-            // Ford V1 is rolling code; must precede the generic Ford "Fixed Code" arm below.
-            "Ford V1" => "Rolling Code",
+            p if p.starts_with("Porsche") => "VAG rolling",
+            // Ford V0/V1/V2 are rolling codes; must precede the generic Ford "Fixed Code" arm below.
+            "Ford V0" | "Ford V1" | "Ford V2" => "Rolling Code",
+            // Ford V3 carries a counter + hop in both variants.
+            "Ford V3" => "Rolling Code",
             p if p.starts_with("Ford") => "Fixed Code",
             "Honda Static" => "Fixed Code",
             "Honda V1" => "Fixed Code",
+            // Fiat V1 (ProtoPirate re-port) verifies the hop against embedded HITAG2 keys.
+            "Fiat V1" => "HITAG2",
+            "Fiat V0" | "Fiat V2" => "Rolling Code",
             p if p.starts_with("Fiat") => "Fixed Code",
-            p if p.starts_with("Kia V0") => "Fixed Code",
-            p if p.starts_with("Kia V1") || p.starts_with("Kia V2") => "Fixed Code",
-            p if p.starts_with("Kia V5") || p.starts_with("Kia V6") => "Fixed Code",
-            p if p.starts_with("Kia V7") => "Fixed Code",
+            p if p.starts_with("Kia V6") => "AES-128",
+            p if p.starts_with("Kia V0") || p.starts_with("Kia V1") || p.starts_with("Kia V2") => "Rolling Code",
+            p if p.starts_with("Kia V5") || p.starts_with("Kia V7") => "Rolling Code",
+            // v1.4.0 additions
+            "Renault V1" | "Datsun Lada" => "HITAG2",
+            // ARF's type-table frames: rolling, replay-only (no key path is validated upstream).
+            p if p.starts_with("Renault V1 (ARF)") => "Rolling Code",
+            "Opel V1" => "XTEA",
+            "Sheriff CFM" => "KeeLoq",
+            "Renault V0" | "Mercedes V0" | "Mercedes V1" | "BMW" | "GM" => "Rolling Code",
+            "Mazda V2" | "Mazda Infinity" | "Audi" | "Hyundai" => "Rolling Code",
             _ => "Unknown",
         }
     }

@@ -1,20 +1,60 @@
 //! Ford V1 protocol decoder/encoder
 //!
-//! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/ford_v1.c` and `ford_v1.h`.
-//! Manchester 65/130µs (te_delta 39), FM. 136 bits / 17 bytes: key1 (bytes 0..7, 56 bits) +
-//! key2 (bytes 7..15, 64 bits) + CRC16 (bytes 15..16). Preamble ≥50 long pulses, then a short-pulse
-//! sync window (`sync_event_count > 2`) replays buffered Manchester events and enters the 17-byte
-//! data collection. This is a ROLLING-code protocol.
+//! Port of ProtoPirate `REFERENCES/ProtoPirate/protocols/ford_v1.c` as of ProtoPirate HEAD
+//! (dc3446b; the decode/encode logic is unchanged since 62b31bf). Flipper-ARF's
+//! `lib/subghz/protocols/ford_v1.c` is the same decoder and the same upload; its encoder adds the
+//! counter bump inline (`cnt + rolling_counter_mult`) and a D-pad button map onto the same codes.
+//! doctor-firmware's copy decodes a strict subset (drops frames whose fields fail a
+//! button/serial plausibility check) and builds the same upload, so it adds nothing.
 //!
-//! Crypto: a proprietary parity-based descrambling cipher (`ford_v1_decode_with_flag`) operating on
-//! the 9-byte air block `raw[6..15]`, plus CRC16/CCITT (poly 0x1021, init 0x0000) over `raw[3..15]`.
-//! Emission is gated on CRC16 validity (with a 17-byte bit-inverted fallback) so it never
-//! false-matches. Encryption/rolling detection mirrors the C: a strict branch
-//! (`decoded[3]==raw[5] && decoded[4]==raw[6]`) yields plaintext serial/button/counter; otherwise an
-//! encode round-trip check classifies it as encrypted/rolling. Encoder supported (6 bursts).
+//! **RF**: Manchester te_short 65µs / te_long 130µs, FM, 315 + 433.92 MHz. 136 bits = 17 bytes
+//! `raw[0..17]`: key1 = raw[0..7] (56 bits), key2 = raw[7..15] (64 bits), CRC16 = raw[15..17].
 //!
-//! Manchester transition table is the Flipper differential-Manchester table (same as Ford V0/V2).
+//! **Decoder** (`subghz_protocol_decoder_ford_v1_feed`): Reset → a LOW long pulse (|d-130| < 40)
+//! starts the preamble; ≥50 long pulses then a short pulse enter Sync, which buffers up to 8
+//! Manchester events and, once more than two of them are short, resets the Manchester state (Mid1;
+//! Mid0 if the first buffered event was ShortLow), replays the buffered events and enters Data.
+//! Events are `level ? ShortHigh : ShortLow` / `level ? LongHigh : LongLow` (|d-te| < 39), using
+//! the shared Flipper `manchester_advance` port in `common.rs`. Bits are packed MSB-first into
+//! bytes; the 17th byte runs `process_data`. Any other pulse (the inter-burst gap, a glitch) runs
+//! `ford_v1_try_last_byte_variants`: with 16 bytes and 6 or 7 bits of the last byte collected (the
+//! frame's last half-bit(s) merged into the trailing gap), it tries every completion of the
+//! missing 1-2 bits through `process_data` and reports the first that passes. Either way it resets.
+//!
+//! **process_data**: CRC16/CCITT (poly 0x1021, init 0) over raw[3..15] must equal raw[15..17]; if
+//! not, all 17 bytes are bit-inverted and checked again (the air bit polarity is the inverse of
+//! the decoder's Manchester bit). The 9-byte air block raw[6..15] is descrambled
+//! (`ford_v1_decode_with_flag`, flag 0/1); "strict" when `plain[3] == raw[5] && plain[4] ==
+//! raw[6]`, which yields serial = plain[1..4]‖plain[0], button = plain[5] >> 4, counter = 20 bits
+//! (plain[5] & 0x0F, plain[6], plain[7]). Otherwise (encrypted/rolling via the encode round trip,
+//! or unresolved) the C reports serial = raw[3..7], button 0, counter 0. The C emits every
+//! CRC-valid frame and so does KAT.
+//!
+//! **DecodedSignal**: exactly the C's saved fields — `data` = key1 (`Key`, 56 bits), `extra` =
+//! key2 (`Key_2`, 64 bits); the CRC (`Key_3`) is recomputed from them. `serial`/`button` as above,
+//! `counter` = the LOW 16 bits of the 20-bit counter (KAT's counter is u16; the top nibble is
+//! recovered from the frame), `data_count_bit` = 136. `encoder_capable` is the C encoder's
+//! precondition (`ford_v1_extract_plain_from_raw`: strict or round-trip plaintext recovered).
+//! Exports from KAT before this port carried a different `extra` (crc16 << 48 | strict << 40 |
+//! plain[4] << 32); such an `extra` is recognised and key2 is rebuilt from the decoded fields by
+//! matching the stored CRC16 (see `legacy_key2`).
+//!
+//! **Encoder** (`subghz_protocol_encoder_ford_v1_deserialize` + ProtoPirate's emulate scene):
+//! rebuild the frame from key1/key2, recover the 9-byte plaintext (refuse if it cannot be, as the
+//! C does), map KAT's button (0x01 Lock, 0x02 Unlock, 0x04 Trunk, 0x08 Panic — the emulate scene's
+//! Up/OK/Down/Left; anything else keeps the captured button), bump the 20-bit counter by one (the
+//! emulate scene's `current_counter++`; ARF's `cnt + mult`), `ford_v1_plain_apply_fields`, re-scramble
+//! the air block, refresh the CRC, then build burst 0 (`ford_v1_encoder_build_burst(.., 0)`):
+//! pkt[4] = 0x08 and the CRC recomputed, 400 × (HIGH 130, LOW 130), HIGH 130, LOW 65, the 17
+//! bytes MSB-first as (bit, 65µs)(!bit, 65µs), LOW 50 000µs. The C never advances `burst_idx`, so
+//! every transmission is burst 0; the Flipper TX loop repeats the upload `repeat` = 10 times and
+//! KAT's `encode()` returns the single upload, like other KAT encoders. Adjacent same-level
+//! half-bits are merged into single pulses (identical on air).
+//!
+//! As in the C, a frame whose first air bit is 0 cannot be decoded (the sync LOW merges with the
+//! first half-bit, so the decoder stays in the preamble) — see the tests.
 
+use super::common::{ManchesterEvent, ManchesterState};
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal};
 use crate::radio::demodulator::LevelDuration;
 use crate::duration_diff;
@@ -25,34 +65,18 @@ const TE_DELTA: u32 = 39;
 const DATA_BITS: usize = 136;
 const DATA_BYTES: usize = 17;
 const PREAMBLE_MIN: u16 = 50;
-/// C uses FORD_V1_DELTA_LONG (40) only for the preamble long-pulse match; data/sync use te_delta (39).
+/// FORD_V1_DELTA_LONG (40): only the preamble long-pulse match; data/sync use te_delta (39).
 const DELTA_LONG: u32 = 40;
-const SILENCE_LONG_MULT: u32 = 3;
-
-// Manchester event encoding (matches Flipper ManchesterEvent ordinals used in the C buffer):
-// 0 = ShortLow, 1 = ShortHigh, 2 = LongLow, 3 = LongHigh.
-const EV_SHORT_LOW: u8 = 0;
-const EV_SHORT_HIGH: u8 = 1;
-const EV_LONG_LOW: u8 = 2;
-const EV_LONG_HIGH: u8 = 3;
+const COUNTER_MASK: u32 = 0xF_FFFF;
 
 // Encoder constants (subghz_protocol_encoder_ford_v1).
-const ENC_BURST_COUNT: usize = 6;
 const ENC_PREAMBLE_PAIRS: usize = 400;
 const ENC_SYNC_SHORT_US: u32 = 65;
 const ENC_SYNC_LONG_US: u32 = 130;
-const ENC_GAP_REPEAT_US: u32 = 50000;
-const ENC_GAP_LAST_US: u32 = 260;
-/// Per-burst override of pkt[4] (matches ford_v1_encoder_burst_pkt4_vals).
-const ENC_BURST_PKT4: [u8; 6] = [0x08, 0x00, 0x10, 0x08, 0x00, 0x10];
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum ManchesterState {
-    Mid0 = 0,
-    Mid1 = 1,
-    Start0 = 2,
-    Start1 = 3,
-}
+/// `FORD_V1_ENC_GAP_REPEAT_US`: the gap ending every burst except burst index 5, i.e. burst 0.
+const ENC_GAP_REPEAT_US: u32 = 50_000;
+/// `ford_v1_encoder_burst_pkt4_vals[0]`: pkt[4] of burst 0, the only burst the C sends.
+const ENC_BURST0_PKT4: u8 = 0x08;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum DecoderStep {
@@ -72,7 +96,7 @@ pub struct FordV1Decoder {
     raw_bytes: [u8; DATA_BYTES + 1],
     sync_event_idx: u8,
     sync_event_count: u8,
-    sync_events: [u8; 8],
+    sync_events: [ManchesterEvent; 8],
 }
 
 impl FordV1Decoder {
@@ -87,13 +111,13 @@ impl FordV1Decoder {
             raw_bytes: [0; DATA_BYTES + 1],
             sync_event_idx: 0,
             sync_event_count: 0,
-            sync_events: [0; 8],
+            sync_events: [ManchesterEvent::ShortLow; 8],
         }
     }
 
     fn reset_state(&mut self) {
         self.step = DecoderStep::Reset;
-        self.manchester_state = ManchesterState::Mid1;
+        self.manchester_state.advance(ManchesterEvent::Reset);
         self.preamble_count = 0;
         self.decode_data = 0;
         self.decode_count_bit = 0;
@@ -101,10 +125,9 @@ impl FordV1Decoder {
         self.raw_bytes = [0; DATA_BYTES + 1];
         self.sync_event_idx = 0;
         self.sync_event_count = 0;
-        self.sync_events = [0; 8];
+        self.sync_events = [ManchesterEvent::ShortLow; 8];
     }
 
-    /// Short/long matchers. Data and sync use te_delta (39); preamble-long uses DELTA_LONG (40).
     fn is_short(d: u32) -> bool {
         duration_diff!(d, TE_SHORT) < TE_DELTA
     }
@@ -115,37 +138,7 @@ impl FordV1Decoder {
         duration_diff!(d, TE_LONG) < DELTA_LONG
     }
 
-    /// Flipper differential-Manchester transition table (same as Ford V0/V2/Kia V7).
-    /// Event: 0=ShortLow,1=ShortHigh,2=LongLow,3=LongHigh. Returns Some(bit) when a bit emits.
-    fn manchester_advance(&mut self, event: u8) -> Option<bool> {
-        let (new_state, emit) = match (self.manchester_state, event) {
-            (ManchesterState::Mid0, 0) => (ManchesterState::Mid0, false),
-            (ManchesterState::Mid0, 1) => (ManchesterState::Start1, true),
-            (ManchesterState::Mid0, 2) => (ManchesterState::Mid0, false),
-            (ManchesterState::Mid0, 3) => (ManchesterState::Mid1, true),
-
-            (ManchesterState::Mid1, 0) => (ManchesterState::Start0, true),
-            (ManchesterState::Mid1, 1) => (ManchesterState::Mid1, false),
-            (ManchesterState::Mid1, 2) => (ManchesterState::Mid0, true),
-            (ManchesterState::Mid1, 3) => (ManchesterState::Mid1, false),
-
-            (ManchesterState::Start0, 0) => (ManchesterState::Mid0, false),
-            (ManchesterState::Start0, 1) => (ManchesterState::Mid0, false),
-            (ManchesterState::Start0, 2) => (ManchesterState::Mid0, false),
-            (ManchesterState::Start0, 3) => (ManchesterState::Mid1, false),
-
-            (ManchesterState::Start1, 0) => (ManchesterState::Mid0, false),
-            (ManchesterState::Start1, 1) => (ManchesterState::Mid1, false),
-            (ManchesterState::Start1, 2) => (ManchesterState::Mid0, false),
-            (ManchesterState::Start1, 3) => (ManchesterState::Mid1, false),
-
-            _ => (ManchesterState::Mid1, false),
-        };
-        self.manchester_state = new_state;
-        if emit { Some((event & 1) == 1) } else { None }
-    }
-
-    /// Push a decoded Manchester bit into the byte buffer (matches C feed/data byte assembly).
+    /// One decoded Manchester bit into the byte buffer (the C's Sync replay / Data byte assembly).
     fn push_bit(&mut self, data_bit: bool) {
         self.decode_data = (self.decode_data << 1) | (data_bit as u64);
         self.decode_count_bit += 1;
@@ -159,10 +152,7 @@ impl FordV1Decoder {
         }
     }
 
-    // =========================================================================
-    // CRC16/CCITT (poly 0x1021, init 0x0000) — module-local, matches
-    // subghz_protocol_blocks_crc16(data, len, 0x1021, 0x0000).
-    // =========================================================================
+    /// `subghz_protocol_blocks_crc16(data, len, 0x1021, 0x0000)`.
     fn crc16(data: &[u8]) -> u16 {
         let mut crc: u16 = 0x0000;
         for &byte in data {
@@ -178,62 +168,39 @@ impl FordV1Decoder {
         crc
     }
 
-    // =========================================================================
-    // Descrambling cipher (ford_v1_decode_with_flag) — operates on the 9-byte
-    // air block in place. Matches the C exactly.
-    // =========================================================================
+    /// `ford_v1_decode_with_flag` on a 9-byte air block, in place.
     fn decode_with_flag(raw: &mut [u8; 9], flag_byte: u8) {
         if flag_byte != 0 {
             let xor_byte = raw[7];
-            for i in 1..7 {
-                raw[i] ^= xor_byte;
+            for b in raw.iter_mut().take(7).skip(1) {
+                *b ^= xor_byte;
             }
         } else {
             let xor_byte = raw[6];
-            for i in 1..6 {
-                raw[i] ^= xor_byte;
+            for b in raw.iter_mut().take(6).skip(1) {
+                *b ^= xor_byte;
             }
             raw[7] ^= xor_byte;
         }
-
         let b6 = raw[6];
         let b7 = raw[7];
         raw[6] = (b6 & 0xAA) | (b7 & 0x55);
         raw[7] = (b7 & 0xAA) | (b6 & 0x55);
     }
 
-    /// Parity-driven descramble used when neither strict branch matches (ford_v1_decode).
-    fn decode_air(raw: &mut [u8; 9]) {
-        let endbyte = raw[8];
-        let parity_any = endbyte != 0;
-        let mut parity = 0u8;
-        let mut tmp = endbyte;
-        while tmp != 0 {
-            parity ^= tmp & 1;
-            tmp >>= 1;
-        }
-        let flag_byte = if parity_any { parity } else { 0 };
-        Self::decode_with_flag(raw, flag_byte);
-    }
-
-    // =========================================================================
-    // Inverse cipher (encoder side) — ford_v1_encode_inverse_block. Takes a
-    // 9-byte plaintext block and produces the air (scrambled) block in place.
-    // =========================================================================
+    /// `ford_v1_encode_inverse_block`: plaintext block → air block, in place.
     fn encode_inverse_block(block: &mut [u8; 9]) {
         let mut sum: u8 = 0;
-        for i in 1..=7 {
-            sum = sum.wrapping_add(block[i]);
+        for &b in block.iter().take(8).skip(1) {
+            sum = sum.wrapping_add(b);
         }
-
         let p6 = block[6];
         let p7 = block[7];
         let post6 = (p6 & 0xAA) | (p7 & 0x55);
         let post7 = (p7 & 0xAA) | (p6 & 0x55);
         let xorv = post6 ^ post7;
-
         let xor_byte;
-        if (sum.count_ones() & 1) != 0 {
+        if sum.count_ones() & 1 != 0 {
             block[6] = xorv;
             block[7] = post7;
             xor_byte = post7;
@@ -242,9 +209,8 @@ impl FordV1Decoder {
             block[7] = xorv;
             xor_byte = post6;
         }
-
-        for i in 1..=5 {
-            block[i] ^= xor_byte;
+        for b in block.iter_mut().take(6).skip(1) {
+            *b ^= xor_byte;
         }
     }
 
@@ -254,21 +220,47 @@ impl FordV1Decoder {
         block
     }
 
-    /// Recover plaintext from an air block by trying both descramble flags and verifying
-    /// the result re-encodes to the same air bytes (ford_v1_plain_from_air).
+    /// `ford_v1_plain_from_air`: a flag whose descramble re-encodes to the same air block.
     fn plain_from_air(air9: &[u8; 9]) -> Option<[u8; 9]> {
-        for flag in 0u8..2 {
+        (0u8..2).find_map(|flag| {
             let mut cand = *air9;
             Self::decode_with_flag(&mut cand, flag);
-            let reair = Self::encode_air_9bytes(&cand);
-            if reair == *air9 {
-                return Some(cand);
-            }
-        }
-        None
+            (Self::encode_air_9bytes(&cand) == *air9).then_some(cand)
+        })
     }
 
-    /// Extract serial/button/counter from a plaintext 9-byte block (ford_v1_fields_from_plain).
+    /// The strict branch (`decoded[3] == raw[5] && decoded[4] == raw[6]`), flag 0 then 1.
+    fn strict_plain(raw: &[u8; DATA_BYTES]) -> Option<[u8; 9]> {
+        let air9: [u8; 9] = raw[6..15].try_into().unwrap();
+        (0u8..2).find_map(|flag| {
+            let mut cand = air9;
+            Self::decode_with_flag(&mut cand, flag);
+            (cand[3] == raw[5] && cand[4] == raw[6]).then_some(cand)
+        })
+    }
+
+    /// CRC16 check with the C's 17-byte inversion fallback; returns the canonical frame.
+    fn canonical_crc_ok(raw17: &[u8; DATA_BYTES]) -> Option<[u8; DATA_BYTES]> {
+        let ok = |r: &[u8; DATA_BYTES]| Self::crc16(&r[3..15]) == u16::from_be_bytes([r[15], r[16]]);
+        if ok(raw17) {
+            return Some(*raw17);
+        }
+        let inv = raw17.map(|b| !b);
+        ok(&inv).then_some(inv)
+    }
+
+    /// `ford_v1_extract_plain_from_raw` (CRC-checked frame → plaintext, strict or round trip).
+    /// Returns (canonical frame, plaintext, strict).
+    fn extract_plain(raw17: &[u8; DATA_BYTES]) -> Option<([u8; DATA_BYTES], [u8; 9], bool)> {
+        let raw = Self::canonical_crc_ok(raw17)?;
+        if let Some(p) = Self::strict_plain(&raw) {
+            return Some((raw, p, true));
+        }
+        let air9: [u8; 9] = raw[6..15].try_into().unwrap();
+        Self::plain_from_air(&air9).map(|p| (raw, p, false))
+    }
+
+    /// `ford_v1_fields_from_plain` → (serial, button, 20-bit counter).
     fn fields_from_plain(plain9: &[u8; 9]) -> (u32, u8, u32) {
         let serial = ((plain9[1] as u32) << 24)
             | ((plain9[2] as u32) << 16)
@@ -279,86 +271,16 @@ impl FordV1Decoder {
         (serial, btn, cnt)
     }
 
-    // =========================================================================
-    // process_data (ford_v1_process_data): CRC16 gate (+ 17-byte inverted
-    // fallback), descramble, field extraction, dual-branch classification.
-    // Returns Some(DecodedSignal) when CRC passes.
-    // =========================================================================
-    fn process_data(&self) -> Option<DecodedSignal> {
-        let mut raw = [0u8; DATA_BYTES];
-        raw.copy_from_slice(&self.raw_bytes[..DATA_BYTES]);
-
-        let mut calc_crc = Self::crc16(&raw[3..15]);
-        let mut recv_crc = ((raw[15] as u16) << 8) | raw[16] as u16;
-
-        // Fallback: bit-invert all 17 bytes and retry the CRC (matches C).
-        if recv_crc != calc_crc {
-            for (i, b) in raw.iter_mut().enumerate() {
-                *b = !self.raw_bytes[i];
-            }
-            calc_crc = Self::crc16(&raw[3..15]);
-            recv_crc = ((raw[15] as u16) << 8) | raw[16] as u16;
-        }
-
-        if recv_crc != calc_crc {
-            return None;
-        }
-
-        // Air block = raw[6..15] (9 bytes). Try both descramble branches "strictly".
-        let mut air9 = [0u8; 9];
-        air9.copy_from_slice(&raw[6..15]);
-
-        let mut decoded_b0 = air9;
-        Self::decode_with_flag(&mut decoded_b0, 0);
-        let mut decoded_b1 = air9;
-        Self::decode_with_flag(&mut decoded_b1, 1);
-
-        let (decoded, strict_ok): ([u8; 9], bool) =
-            if decoded_b0[3] == raw[5] && decoded_b0[4] == raw[6] {
-                (decoded_b0, true)
-            } else if decoded_b1[3] == raw[5] && decoded_b1[4] == raw[6] {
-                (decoded_b1, true)
-            } else if let Some(p) = Self::plain_from_air(&air9) {
-                // Encrypted/rolling: round-trip recovered but not a strict cleartext match.
-                (p, false)
-            } else {
-                let mut p = air9;
-                Self::decode_air(&mut p);
-                (p, false)
-            };
-
-        let recalc_crc = Self::crc16(&raw[3..15]);
-
-        // key1 = raw[0..7] (56 bits, big-endian) → DecodedSignal.data.
-        let mut key1: u64 = 0;
-        for &b in raw.iter().take(7) {
-            key1 = (key1 << 8) | b as u64;
-        }
-
-        let (serial, button, counter) = if strict_ok {
-            let (s, b, c) = Self::fields_from_plain(&decoded);
-            (s, b, c)
-        } else {
-            // Header-only: device id from raw[3..7], no button/counter (matches C).
-            let device_id = ((raw[3] as u32) << 24)
-                | ((raw[4] as u32) << 16)
-                | ((raw[5] as u32) << 8)
-                | (raw[6] as u32);
-            (device_id, 0u8, 0u32)
+    /// `ford_v1_process_data`: CRC gate (+ inversion fallback), descramble, fields. Every
+    /// CRC-valid frame is reported (strict → plaintext fields, otherwise header-only).
+    fn process_data(raw_bytes: &[u8; DATA_BYTES]) -> Option<DecodedSignal> {
+        let raw = Self::canonical_crc_ok(raw_bytes)?;
+        let (serial, button, counter) = match Self::strict_plain(&raw) {
+            Some(plain) => Self::fields_from_plain(&plain),
+            None => (u32::from_be_bytes([raw[3], raw[4], raw[5], raw[6]]), 0, 0),
         };
-
-        // Stash everything the encoder needs to rebuild the full 17-byte frame from fields.
-        // `data` already carries key1 = raw[0..7] (56 bits). The air block raw[6..15] and the
-        // CRC bytes are regenerated by re-encoding the plaintext, which is fully determined by
-        // serial/button/counter EXCEPT plain[4] (the byte the strict branch constrains, equal to
-        // air9[0]) and the derived checksum plain[8]. So we stash plain[4] plus the strict flag.
-        // Layout (u64, MSB first):
-        //   [63:48]=crc16  [47:40]=strict_ok  [39:32]=plain[4]  [31:0]=0 (reserved).
-        let plain4 = decoded[4];
-        let extra = ((recalc_crc as u64) << 48)
-            | ((strict_ok as u64) << 40)
-            | ((plain4 as u64) << 32);
-
+        let key1 = raw[..7].iter().fold(0u64, |k, &b| (k << 8) | b as u64);
+        let key2 = raw[7..15].iter().fold(0u64, |k, &b| (k << 8) | b as u64);
         Some(DecodedSignal {
             serial: Some(serial),
             button: Some(button),
@@ -366,51 +288,101 @@ impl FordV1Decoder {
             crc_valid: true,
             data: key1,
             data_count_bit: DATA_BITS,
-            encoder_capable: true,
-            extra: Some(extra),
+            encoder_capable: Self::extract_plain(&raw).is_some(),
+            extra: Some(key2),
             protocol_display_name: None,
         })
     }
 
-    /// Map KAT's generic button command to a Ford V1 4-bit button code
-    /// (Sync=0, Lock=1, Unlock=2, Trunk=4, Panic=8 — matches ford_v1_get_button_name).
-    fn map_button(button: u8) -> u8 {
+    /// `ford_v1_try_last_byte_variants`: 16 bytes + 6 or 7 bits of the last byte collected when
+    /// the run ended; try each completion of the missing 1-2 low bits, first CRC pass wins.
+    fn try_last_byte_variants(&self) -> Option<DecodedSignal> {
+        if self.byte_count != 16 || !matches!(self.decode_count_bit, 134 | 135) {
+            return None;
+        }
+        let shift = DATA_BITS - self.decode_count_bit;
+        let partial = self.decode_data as u8;
+        let mut raw = [0u8; DATA_BYTES];
+        raw[..16].copy_from_slice(&self.raw_bytes[..16]);
+        (0u8..(1 << shift)).find_map(|variant| {
+            raw[16] = (partial << shift) | variant;
+            Self::process_data(&raw)
+        })
+    }
+
+    /// Map KAT's generic button to a Ford V1 code (emulate scene: Up=Lock 1, OK=Unlock 2,
+    /// Down=Trunk 4, Left=Panic 8; any other key keeps the captured button).
+    fn map_button(button: u8, captured: u8) -> u8 {
         match button {
-            0x01 => 0x01, // Lock
-            0x02 => 0x02, // Unlock
-            0x04 => 0x04, // Trunk
-            0x08 => 0x08, // Panic
-            b => b & 0x0F,
+            0x01 | 0x02 | 0x04 | 0x08 => button,
+            _ => captured & 0x0F,
         }
     }
 
-    /// Apply serial/button/counter onto a plaintext 9-byte block (ford_v1_plain_apply_fields).
+    /// `ford_v1_plain_apply_fields`: write serial/button/counter, keeping plain[4] and the
+    /// plain[8] − (plain[5] + plain[6] + plain[7]) relationship.
     fn plain_apply_fields(plain9: &mut [u8; 9], serial: u32, btn: u8, cnt: u32) {
         let chk = plain9[8]
             .wrapping_sub(plain9[6])
             .wrapping_sub(plain9[7])
             .wrapping_sub(plain9[5]);
-        plain9[0] = (serial & 0xFF) as u8;
-        plain9[1] = ((serial >> 24) & 0xFF) as u8;
-        plain9[2] = ((serial >> 16) & 0xFF) as u8;
-        plain9[3] = ((serial >> 8) & 0xFF) as u8;
-        plain9[5] = (((btn & 0x0F) << 4) | (((cnt >> 16) & 0x0F) as u8)) as u8;
-        plain9[6] = ((cnt >> 8) & 0xFF) as u8;
-        plain9[7] = (cnt & 0xFF) as u8;
+        plain9[0] = serial as u8;
+        plain9[1] = (serial >> 24) as u8;
+        plain9[2] = (serial >> 16) as u8;
+        plain9[3] = (serial >> 8) as u8;
+        plain9[5] = ((btn & 0x0F) << 4) | ((cnt >> 16) & 0x0F) as u8;
+        plain9[6] = (cnt >> 8) as u8;
+        plain9[7] = cnt as u8;
         plain9[8] = chk
             .wrapping_add(plain9[7])
             .wrapping_add(plain9[6])
             .wrapping_add(plain9[5]);
     }
 
-    /// Rebuild the air block (raw[6..15]) and CRC16 (raw[15..17]) from a plaintext block
-    /// (ford_v1_encoder_rebuild_raw_from_plain).
+    /// `ford_v1_encoder_rebuild_raw_from_plain`: air block raw[6..15] + CRC raw[15..17].
     fn rebuild_raw_from_plain(raw17: &mut [u8; DATA_BYTES], plain9: &[u8; 9]) {
-        let air9 = Self::encode_air_9bytes(plain9);
-        raw17[6..15].copy_from_slice(&air9);
+        raw17[6..15].copy_from_slice(&Self::encode_air_9bytes(plain9));
         let c = Self::crc16(&raw17[3..15]);
-        raw17[15] = (c >> 8) as u8;
-        raw17[16] = (c & 0xFF) as u8;
+        raw17[15..17].copy_from_slice(&c.to_be_bytes());
+    }
+
+    /// Frame from the stored keys: raw[0..7] = key1, raw[7..15] = key2, CRC recomputed.
+    fn frame_from_keys(key1: u64, key2: u64) -> [u8; DATA_BYTES] {
+        let mut raw = [0u8; DATA_BYTES];
+        raw[..7].copy_from_slice(&key1.to_be_bytes()[1..]);
+        raw[7..15].copy_from_slice(&key2.to_be_bytes());
+        let c = Self::crc16(&raw[3..15]);
+        raw[15..17].copy_from_slice(&c.to_be_bytes());
+        raw
+    }
+
+    /// KAT exports made before this port stored `extra = crc16 << 48 | strict << 40 |
+    /// plain[4] << 32` (strict frames only) instead of key2. key2 is the scrambled plaintext
+    /// whose only unknowns given serial/button/counter are the counter's top nibble and plain[8]:
+    /// try all 4096 and keep the first whose frame reproduces the stored CRC16.
+    fn legacy_key2(decoded: &DecodedSignal, extra: u64) -> Option<u64> {
+        let legacy = extra & 0xFFFF_FFFF == 0 && (extra >> 40) & 0xFF == 1 && decoded.data >> 56 == 0;
+        if !legacy {
+            return None;
+        }
+        let crc = (extra >> 48) as u16;
+        let plain4 = (extra >> 32) as u8;
+        let serial = decoded.serial?;
+        let btn = decoded.button? & 0x0F;
+        let cnt_low = decoded.counter? as u32;
+        let key1 = decoded.data;
+        for (top, p8) in (0..16u32).flat_map(|t| (0..=255u8).map(move |p| (t, p))) {
+            let mut plain = [0u8; 9];
+            Self::plain_apply_fields(&mut plain, serial, btn, (top << 16) | cnt_low);
+            plain[4] = plain4;
+            plain[8] = p8;
+            let mut raw = Self::frame_from_keys(key1, 0);
+            Self::rebuild_raw_from_plain(&mut raw, &plain);
+            if u16::from_be_bytes([raw[15], raw[16]]) == crc {
+                return Some(raw[7..15].iter().fold(0u64, |k, &b| (k << 8) | b as u64));
+            }
+        }
+        None
     }
 
     fn enc_add_level(signal: &mut Vec<LevelDuration>, level: bool, duration: u32) {
@@ -421,6 +393,31 @@ impl FordV1Decoder {
             }
         }
         signal.push(LevelDuration::new(level, duration));
+    }
+
+    /// `ford_v1_encoder_build_burst(instance, 0)`.
+    fn build_burst0(raw_tx: &[u8; DATA_BYTES]) -> Vec<LevelDuration> {
+        let mut pkt = *raw_tx;
+        pkt[4] = ENC_BURST0_PKT4;
+        let crc = Self::crc16(&pkt[3..15]);
+        pkt[15..17].copy_from_slice(&crc.to_be_bytes());
+
+        let mut signal = Vec::with_capacity(ENC_PREAMBLE_PAIRS * 2 + 2 + DATA_BYTES * 16 + 1);
+        for _ in 0..ENC_PREAMBLE_PAIRS {
+            Self::enc_add_level(&mut signal, true, ENC_SYNC_LONG_US);
+            Self::enc_add_level(&mut signal, false, ENC_SYNC_LONG_US);
+        }
+        Self::enc_add_level(&mut signal, true, ENC_SYNC_LONG_US);
+        Self::enc_add_level(&mut signal, false, ENC_SYNC_SHORT_US);
+        for &b in pkt.iter() {
+            for bit_i in (0..8).rev() {
+                let bit = (b >> bit_i) & 1 != 0;
+                Self::enc_add_level(&mut signal, bit, ENC_SYNC_SHORT_US);
+                Self::enc_add_level(&mut signal, !bit, ENC_SYNC_SHORT_US);
+            }
+        }
+        Self::enc_add_level(&mut signal, false, ENC_GAP_REPEAT_US);
+        signal
     }
 }
 
@@ -448,7 +445,6 @@ impl ProtocolDecoder for FordV1Decoder {
 
     fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
         match self.step {
-            // C: !level && long → Preamble; seed preamble_count = 1.
             DecoderStep::Reset => {
                 if !level && Self::is_preamble_long(duration) {
                     self.step = DecoderStep::Preamble;
@@ -458,13 +454,12 @@ impl ProtocolDecoder for FordV1Decoder {
 
             DecoderStep::Preamble => {
                 if Self::is_preamble_long(duration) {
-                    self.preamble_count = self.preamble_count.saturating_add(1);
+                    self.preamble_count = self.preamble_count.wrapping_add(1);
                 } else if Self::is_short(duration) {
                     if self.preamble_count >= PREAMBLE_MIN {
-                        // Enter Sync: buffer the first short event.
                         self.sync_event_idx = 0;
                         self.sync_event_count = 1;
-                        self.sync_events[0] = if level { EV_SHORT_HIGH } else { EV_SHORT_LOW };
+                        self.sync_events[0] = ManchesterEvent::from_half_bit(level, false);
                         self.step = DecoderStep::Sync;
                     } else {
                         self.step = DecoderStep::Reset;
@@ -472,14 +467,13 @@ impl ProtocolDecoder for FordV1Decoder {
                 } else if self.preamble_count < PREAMBLE_MIN {
                     self.step = DecoderStep::Reset;
                 }
-                // else: stay in Preamble (long preamble already satisfied, ignore stray pulse)
             }
 
             DecoderStep::Sync => {
                 let (ev, is_short) = if Self::is_short(duration) {
-                    (if level { EV_SHORT_HIGH } else { EV_SHORT_LOW }, true)
+                    (ManchesterEvent::from_half_bit(level, false), true)
                 } else if Self::is_long(duration) {
-                    (if level { EV_LONG_HIGH } else { EV_LONG_LOW }, false)
+                    (ManchesterEvent::from_half_bit(level, true), false)
                 } else {
                     self.step = DecoderStep::Preamble;
                     return None;
@@ -494,21 +488,18 @@ impl ProtocolDecoder for FordV1Decoder {
                 }
 
                 if self.sync_event_count > 2 {
-                    // Sync detected: reset the bit buffer and replay buffered events into Manchester.
                     self.decode_data = 0;
                     self.decode_count_bit = 0;
                     self.byte_count = 0;
                     self.raw_bytes = [0; DATA_BYTES + 1];
-                    self.manchester_state = ManchesterState::Mid1;
-                    if self.sync_events[0] == EV_SHORT_LOW {
+                    self.manchester_state.advance(ManchesterEvent::Reset);
+                    if self.sync_events[0] == ManchesterEvent::ShortLow {
                         self.manchester_state = ManchesterState::Mid0;
                     }
                     self.step = DecoderStep::Data;
-
-                    let last = self.sync_event_idx.min(7);
-                    for i in 0..=last {
+                    for i in 0..=self.sync_event_idx.min(7) {
                         let event = self.sync_events[i as usize];
-                        if let Some(data_bit) = self.manchester_advance(event) {
+                        if let Some(data_bit) = self.manchester_state.advance(event) {
                             self.push_bit(data_bit);
                         }
                     }
@@ -522,25 +513,22 @@ impl ProtocolDecoder for FordV1Decoder {
 
             DecoderStep::Data => {
                 let event = if Self::is_short(duration) {
-                    if level { EV_SHORT_HIGH } else { EV_SHORT_LOW }
+                    ManchesterEvent::from_half_bit(level, false)
                 } else if Self::is_long(duration) {
-                    if level { EV_LONG_HIGH } else { EV_LONG_LOW }
+                    ManchesterEvent::from_half_bit(level, true)
                 } else {
-                    // Idle gap / odd pulse. The C decoder attempts partial-last-byte variants only
-                    // when byte_count==16 and 1-2 bits short; we require all 17 bytes, so any
-                    // non-short/long pulse (including very long inter-burst gaps, dur >=
-                    // te_long*SILENCE_LONG_MULT) ends the attempt and resets so the next burst can
-                    // re-sync from Reset.
-                    let _ = duration >= TE_LONG * SILENCE_LONG_MULT;
+                    // Idle gap or odd pulse: the C tries the partial-last-byte completions, then
+                    // resets either way.
+                    let result = self.try_last_byte_variants();
                     self.reset_state();
-                    return None;
+                    return result;
                 };
 
-                if let Some(data_bit) = self.manchester_advance(event) {
+                if let Some(data_bit) = self.manchester_state.advance(event) {
                     self.push_bit(data_bit);
-
                     if self.byte_count > 16 {
-                        let result = self.process_data();
+                        let raw: [u8; DATA_BYTES] = self.raw_bytes[..DATA_BYTES].try_into().unwrap();
+                        let result = Self::process_data(&raw);
                         self.reset_state();
                         return result;
                     }
@@ -555,85 +543,36 @@ impl ProtocolDecoder for FordV1Decoder {
     }
 
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
-        let serial = decoded.serial?;
-        let counter = decoded.counter.unwrap_or(0) as u32 & 0xF_FFFF;
-        let btn = Self::map_button(button) & 0x0F;
-
-        // We can faithfully re-encode only when the original frame's plaintext was recovered at
-        // decode time (strict branch). `extra` carries: [63:48]=crc16, [47:40]=strict_ok,
-        // [39:32]=plain[4] (the byte the strict branch constrains).
-        let extra = decoded.extra?;
-        let strict_ok = ((extra >> 40) & 0x01) != 0;
-        if !strict_ok {
+        if decoded.data_count_bit != DATA_BITS {
             return None;
         }
-        let plain4 = ((extra >> 32) & 0xFF) as u8;
+        let extra = decoded.extra?;
+        let key2 = Self::legacy_key2(decoded, extra).unwrap_or(extra);
+        // ford_v1_keys_file_to_canonical_raw: the C refuses frames whose plaintext cannot be
+        // recovered (encryption_supported / plain_valid).
+        let (raw, plain, strict) = Self::extract_plain(&Self::frame_from_keys(decoded.data, key2))?;
 
-        // raw[0..7] = key1 (56 bits), taken from `data` (low 56 bits). The decoder packs key1 as
-        // raw[0]<<48 | … | raw[6], so the top 7 bytes of the 56-bit value are raw[0..7].
-        let mut raw17 = [0u8; DATA_BYTES];
-        for (i, b) in raw17.iter_mut().take(7).enumerate() {
-            *b = (decoded.data >> (48 - i * 8)) as u8;
-        }
+        // The file's Serial/Btn/Cnt as the C decoder saved them (strict: plaintext fields;
+        // otherwise header serial, button 0, counter 0), overridden by the DecodedSignal fields.
+        let (frame_serial, frame_btn, frame_cnt) = if strict {
+            Self::fields_from_plain(&plain)
+        } else {
+            (u32::from_be_bytes([raw[3], raw[4], raw[5], raw[6]]), 0, 0)
+        };
+        let serial = decoded.serial.unwrap_or(frame_serial);
+        let captured = decoded.button.unwrap_or(frame_btn);
+        let cnt = match decoded.counter {
+            Some(low) => (frame_cnt & 0xF_0000) | low as u32,
+            None => frame_cnt,
+        };
+        let btn = Self::map_button(button, captured);
+        let cnt = cnt.wrapping_add(1) & COUNTER_MASK;
 
-        // Reconstruct the plaintext block from the decoded fields plus the stashed plain[4].
-        // plain_apply_fields fills [0,1,2,3,5,6,7,8]; plain[4] is preserved from `extra`. The
-        // strict-branch invariant the C decoder verified is plain[4]==air9[0]==raw[6] and
-        // plain[3]==raw[5]; re-encoding plain reproduces the air block and hence those bytes.
-        let mut plain9 = [0u8; 9];
-        plain9[4] = plain4;
-        // Seed checksum-bearing fields with the *decoded* values so the running checksum delta in
-        // plain_apply_fields starts from the original plaintext's relationship, then apply the new
-        // button/counter (same counter; no increment, matching Ford V0's replay policy).
-        plain9[5] = (((decoded.button.unwrap_or(0) & 0x0F) << 4)
-            | (((counter >> 16) & 0x0F) as u8)) as u8;
-        plain9[6] = ((counter >> 8) & 0xFF) as u8;
-        plain9[7] = (counter & 0xFF) as u8;
-        plain9[8] = plain9[5].wrapping_add(plain9[6]).wrapping_add(plain9[7]);
-        Self::plain_apply_fields(&mut plain9, serial, btn, counter);
-
-        // Rebuild raw[5] = plain[3] (strict invariant) and the air block + CRC from plaintext.
-        raw17[5] = plain9[3];
-        Self::rebuild_raw_from_plain(&mut raw17, &plain9);
-
-        // Build the 6-burst upload.
-        let mut signal =
-            Vec::with_capacity(ENC_BURST_COUNT * (ENC_PREAMBLE_PAIRS * 2 + 2 + DATA_BYTES * 16 + 1));
-        for burst in 0..ENC_BURST_COUNT {
-            let mut pkt = raw17;
-            pkt[4] = ENC_BURST_PKT4[burst];
-            let crcw = Self::crc16(&pkt[3..15]);
-            pkt[15] = (crcw >> 8) as u8;
-            pkt[16] = (crcw & 0xFF) as u8;
-
-            // Preamble: 400 pairs of long high / long low.
-            for _ in 0..ENC_PREAMBLE_PAIRS {
-                Self::enc_add_level(&mut signal, true, ENC_SYNC_LONG_US);
-                Self::enc_add_level(&mut signal, false, ENC_SYNC_LONG_US);
-            }
-            // Sync: long high + short low.
-            Self::enc_add_level(&mut signal, true, ENC_SYNC_LONG_US);
-            Self::enc_add_level(&mut signal, false, ENC_SYNC_SHORT_US);
-
-            // Data: each bit → (bit, short) then (!bit, short) — Manchester, MSB first.
-            for &b in pkt.iter() {
-                for bit_i in (0..8).rev() {
-                    let bit = ((b >> bit_i) & 1) != 0;
-                    Self::enc_add_level(&mut signal, bit, ENC_SYNC_SHORT_US);
-                    Self::enc_add_level(&mut signal, !bit, ENC_SYNC_SHORT_US);
-                }
-            }
-
-            // Trailing gap (long for repeats, short for the final burst).
-            let gap = if burst + 1 == ENC_BURST_COUNT {
-                ENC_GAP_LAST_US
-            } else {
-                ENC_GAP_REPEAT_US
-            };
-            Self::enc_add_level(&mut signal, false, gap);
-        }
-
-        Some(signal)
+        let mut plain = plain;
+        Self::plain_apply_fields(&mut plain, serial, btn, cnt);
+        let mut raw_tx = raw;
+        Self::rebuild_raw_from_plain(&mut raw_tx, &plain);
+        Some(Self::build_burst0(&raw_tx))
     }
 }
 
@@ -647,132 +586,137 @@ impl Default for FordV1Decoder {
 mod tests {
     use super::*;
 
-    /// CRC16/CCITT known vector. "123456789" → 0x31C3 for poly 0x1021, init 0x0000
-    /// (the standard CRC-16/XMODEM check value).
+    /// CRC-16/XMODEM check value ("123456789" → 0x31C3, poly 0x1021, init 0).
     #[test]
     fn crc16_known_vector() {
-        let v = FordV1Decoder::crc16(b"123456789");
-        assert_eq!(v, 0x31C3, "CRC-16/XMODEM check value mismatch: got {:04X}", v);
+        assert_eq!(FordV1Decoder::crc16(b"123456789"), 0x31C3);
     }
 
-    /// The descramble cipher must be invertible: encode_inverse_block ∘ decode_with_flag(flag)
-    /// should round-trip for the flag the parity selects.
+    /// A strict (cleartext) frame: plain[4] == plain[0] and raw[5] == plain[3]; `head` fills
+    /// raw[0..5] (raw[0]'s MSB is the first air bit, which must be 1 to be decodable).
+    fn build_frame(head: [u8; 5], serial: u32, button: u8, counter: u32, plain8: u8) -> [u8; DATA_BYTES] {
+        let mut plain = [0u8; 9];
+        plain[4] = serial as u8;
+        FordV1Decoder::plain_apply_fields(&mut plain, serial, button, counter);
+        plain[8] = plain8;
+        let mut raw = [0u8; DATA_BYTES];
+        raw[..5].copy_from_slice(&head);
+        raw[5] = plain[3];
+        FordV1Decoder::rebuild_raw_from_plain(&mut raw, &plain);
+        raw
+    }
+
+    /// One burst of `pkt` (no CRC refresh), as the C emits it, merged.
+    fn burst_wave(pkt: &[u8; DATA_BYTES], gap: u32) -> Vec<LevelDuration> {
+        let mut wave = Vec::new();
+        for _ in 0..ENC_PREAMBLE_PAIRS {
+            FordV1Decoder::enc_add_level(&mut wave, true, ENC_SYNC_LONG_US);
+            FordV1Decoder::enc_add_level(&mut wave, false, ENC_SYNC_LONG_US);
+        }
+        FordV1Decoder::enc_add_level(&mut wave, true, ENC_SYNC_LONG_US);
+        FordV1Decoder::enc_add_level(&mut wave, false, ENC_SYNC_SHORT_US);
+        for &b in pkt {
+            for bit_i in (0..8).rev() {
+                let bit = (b >> bit_i) & 1 != 0;
+                FordV1Decoder::enc_add_level(&mut wave, bit, ENC_SYNC_SHORT_US);
+                FordV1Decoder::enc_add_level(&mut wave, !bit, ENC_SYNC_SHORT_US);
+            }
+        }
+        FordV1Decoder::enc_add_level(&mut wave, false, gap);
+        wave
+    }
+
+    fn feed_all(wave: &[LevelDuration]) -> Vec<DecodedSignal> {
+        let mut dec = FordV1Decoder::new();
+        wave.iter().filter_map(|p| dec.feed(p.level, p.duration_us)).collect()
+    }
+
     #[test]
     fn descramble_roundtrip() {
-        // A plaintext block; encode to air, then plain_from_air must recover it exactly.
         let plain: [u8; 9] = [0x11, 0x22, 0x33, 0x44, 0x55, 0x26, 0x77, 0x88, 0x99];
         let air = FordV1Decoder::encode_air_9bytes(&plain);
-        let recovered = FordV1Decoder::plain_from_air(&air).expect("round-trip recover");
-        assert_eq!(recovered, plain, "plain_from_air did not recover plaintext");
+        assert_eq!(FordV1Decoder::plain_from_air(&air), Some(plain));
     }
 
-    /// Build a canonical Ford V1 plaintext (the strict-branch invariant is plain[4]==plain[0],
-    /// since the cipher leaves byte 0 untouched, so air9[0]==plain[0]). Returns the 17-byte frame.
-    fn build_frame(serial: u32, button: u8, counter: u32) -> [u8; DATA_BYTES] {
-        let mut plain = [0u8; 9];
-        plain[4] = (serial & 0xFF) as u8; // strict: plain[4] == air9[0] == plain[0]
-        FordV1Decoder::plain_apply_fields(&mut plain, serial, button, counter);
-
-        let mut raw17 = [0u8; DATA_BYTES];
-        // key1 head: raw[0..5] arbitrary-ish, raw[5] must equal plain[3] (strict: decoded[3]==raw[5]).
-        raw17[0] = 0xC0;
-        raw17[1] = 0xFF;
-        raw17[2] = 0xEE;
-        raw17[3] = (serial >> 24) as u8;
-        raw17[4] = (serial >> 16) as u8;
-        raw17[5] = plain[3];
-        FordV1Decoder::rebuild_raw_from_plain(&mut raw17, &plain);
-        raw17
-    }
-
-    /// process_data must accept a canonical frame, take the strict branch, and recover fields.
+    /// Frames ending in either bit decode: a final LOW half-bit merges into the gap and the
+    /// partial-last-byte completion (`ford_v1_try_last_byte_variants`) recovers it.
     #[test]
-    fn process_data_strict_branch() {
-        let (serial, button, counter) = (0x1A2B3C4Du32, 0x02u8, 0x0123u32);
-        let raw17 = build_frame(serial, button, counter);
-
-        let mut dec = FordV1Decoder::new();
-        dec.raw_bytes[..DATA_BYTES].copy_from_slice(&raw17);
-        dec.byte_count = DATA_BYTES;
-        let d = dec.process_data().expect("process_data should accept the frame");
-        assert!(d.crc_valid, "CRC must be valid");
-        assert_eq!(d.serial, Some(serial), "serial mismatch");
-        assert_eq!(d.button, Some(button), "button mismatch");
-        assert_eq!(d.counter, Some(counter as u16), "counter mismatch");
-        assert_eq!(d.data_count_bit, DATA_BITS);
+    fn decodes_both_last_bit_values() {
+        let mut seen = [false; 2];
+        for counter in 0..64u32 {
+            let raw = build_frame([0xC0, 0xFF, 0xEE, 0x1A, 0x2B], 0x1A2B_3C4D, 0x2, 0x1_2300 + counter, 0x5A);
+            seen[(raw[16] & 1) as usize] = true;
+            let frames = feed_all(&burst_wave(&raw, ENC_GAP_REPEAT_US));
+            assert_eq!(frames.len(), 1, "counter {counter}");
+            let f = &frames[0];
+            assert_eq!(f.serial, Some(0x1A2B_3C4D));
+            assert_eq!(f.button, Some(0x2));
+            assert_eq!(f.counter, Some((0x2300 + counter) as u16));
+            assert!(f.encoder_capable);
+            let key2 = raw[7..15].iter().fold(0u64, |k, &b| (k << 8) | b as u64);
+            assert_eq!(f.extra, Some(key2));
+        }
+        assert!(seen[0] && seen[1]);
     }
 
-    /// Reconstruct the 17 on-air data bytes of the first burst from the encoder's Manchester
-    /// upload. The encoder emits, per data bit, (bit,short) then (!bit,short); add_level merges
-    /// adjacent same-level pulses, so a same-bit boundary becomes a long pulse. We re-pair the
-    /// stream by walking half-cells of `short` width (splitting merged long pulses into two halves)
-    /// and reading each bit as the level of its first half-cell.
-    fn first_burst_bytes(upload: &[LevelDuration]) -> [u8; DATA_BYTES] {
-        // Expand merged pulses into ENC_SYNC_SHORT_US half-cells (long = 2 halves).
-        let mut halves: Vec<bool> = Vec::new();
-        for ld in upload {
-            let n = ((ld.duration_us + ENC_SYNC_SHORT_US / 2) / ENC_SYNC_SHORT_US).max(1);
-            for _ in 0..n {
-                halves.push(ld.level);
-            }
-        }
-        // Skip the preamble (400 long pairs = 1600 halves) + sync (long high=2 + short low=1 = 3).
-        let data_start = ENC_PREAMBLE_PAIRS * 4 + 3;
-        let mut out = [0u8; DATA_BYTES];
-        for (byte_i, b) in out.iter_mut().enumerate() {
-            for bit_pos in 0..8 {
-                // Each bit = two half-cells; the bit value is the first half-cell's level.
-                let idx = data_start + (byte_i * 8 + bit_pos) * 2;
-                let bit = halves.get(idx).copied().unwrap_or(false);
-                *b = (*b << 1) | (bit as u8);
-            }
-        }
-        out
-    }
-
-    /// Full encode→decode round trip at the on-air-frame level. Decode a canonical frame, re-encode
-    /// it via `encode()`, recover the transmitted 17-byte frame from the first burst, and verify it
-    /// decodes (via process_data) back to the same serial/button/counter with a valid CRC.
+    /// Encoder → decoder through the pulse path: burst 0 only (pkt[4] = 0x08), the requested
+    /// button, the counter bumped by one (20 bits, including the top nibble) and plain[8]'s
+    /// relationship kept (so key2 matches a frame built with the shifted checksum byte).
     #[test]
-    fn encode_decode_roundtrip() {
-        let (serial, button, counter) = (0x1A2B3C4Du32, 0x02u8, 0x0123u32);
-        let raw17 = build_frame(serial, button, counter);
+    fn encode_decode_roundtrip_through_feed() {
+        let raw = build_frame([0xC0, 0xFF, 0xEE, 0x1A, 0x2B], 0x1A2B_3C4D, 0x2, 0x3_FFFF, 0x77);
+        let decoded = feed_all(&burst_wave(&raw, ENC_GAP_REPEAT_US)).pop().expect("decodes");
+        assert_eq!(decoded.counter, Some(0xFFFF));
+        for (button, code) in [(0x01u8, 0x1u8), (0x02, 0x2), (0x04, 0x4), (0x08, 0x8), (0x40, 0x2)] {
+            let upload = FordV1Decoder::new().encode(&decoded, button).unwrap();
+            let gap = upload.last().unwrap();
+            assert!(!gap.level && gap.duration_us >= ENC_GAP_REPEAT_US, "ends with the 50ms gap");
+            let frames = feed_all(&upload);
+            assert_eq!(frames.len(), 1, "button {button:#04x}");
+            let f = &frames[0];
+            assert_eq!(f.serial, Some(0x1A2B_3C4D));
+            assert_eq!(f.button, Some(code));
+            assert_eq!(f.counter, Some(0x0000), "0x3FFFF + 1 = 0x40000");
+            assert_eq!((f.data >> 16) as u8, ENC_BURST0_PKT4);
+            // plain[8] keeps plain[8] - (plain[5] + plain[6] + plain[7]); new plain[6..8] = 0.
+            let chk = 0x77u8.wrapping_sub(0x23).wrapping_sub(0xFF).wrapping_sub(0xFF);
+            let p8 = chk.wrapping_add((code << 4) | 0x4);
+            let expect = build_frame([0xC0, 0xFF, 0xEE, 0x1A, 0x08], 0x1A2B_3C4D, code, 0x4_0000, p8);
+            let key2 = expect[7..15].iter().fold(0u64, |k, &b| (k << 8) | b as u64);
+            assert_eq!(f.extra, Some(key2));
+        }
+    }
 
-        let mut dec = FordV1Decoder::new();
-        dec.raw_bytes[..DATA_BYTES].copy_from_slice(&raw17);
-        dec.byte_count = DATA_BYTES;
-        let decoded = dec.process_data().expect("decode canonical frame");
+    /// The CRC gate rejects a burst with a corrupted payload byte.
+    #[test]
+    fn rejects_corrupted_burst() {
+        let raw = build_frame([0xC0, 0xFF, 0xEE, 0x1A, 0x2B], 0x1A2B_3C4D, 0x1, 0x0456, 0x10);
+        assert_eq!(feed_all(&burst_wave(&raw, ENC_GAP_REPEAT_US)).len(), 1);
+        let mut bad = raw;
+        bad[9] ^= 0x10;
+        assert!(feed_all(&burst_wave(&bad, ENC_GAP_REPEAT_US)).is_empty());
+    }
 
-        // Re-encode (same button) → Manchester upload (6 bursts).
-        let upload = FordV1Decoder::new()
-            .encode(&decoded, button)
-            .expect("encoder should produce an upload");
-        assert!(!upload.is_empty(), "encoder upload must be non-empty");
+    /// As in the C: a frame whose first air bit is 0 is not decodable.
+    #[test]
+    fn first_bit_zero_is_not_decodable() {
+        let raw = build_frame([0x40, 0xFF, 0xEE, 0x1A, 0x2B], 0x1A2B_3C4D, 0x1, 0x0456, 0x10);
+        assert!(feed_all(&burst_wave(&raw, ENC_GAP_REPEAT_US)).is_empty());
+    }
 
-        // Recover the transmitted frame from burst 0 and decode it through process_data.
-        // Burst 0 overrides pkt[4] = 0x08 (ENC_BURST_PKT4[0]) and recomputes the CRC to match, so
-        // the recovered frame is self-consistent. The strict-branch serial comes from the plaintext
-        // (decoded[1..4],decoded[0]), independent of raw[4], so serial/button/counter still match.
-        let tx = first_burst_bytes(&upload);
-        let mut dec2 = FordV1Decoder::new();
-        dec2.raw_bytes[..DATA_BYTES].copy_from_slice(&tx);
-        dec2.byte_count = DATA_BYTES;
-        let got = dec2
-            .process_data()
-            .expect("re-encoded burst-0 frame must decode via process_data");
-        assert!(got.crc_valid, "round-tripped CRC must be valid");
-        assert_eq!(got.serial, Some(serial), "round-trip serial mismatch");
-        assert_eq!(got.button, Some(button), "round-trip button mismatch");
-        assert_eq!(got.counter, Some(counter as u16), "round-trip counter mismatch");
-
-        // Structural checks: 6 bursts worth of data, each preamble present.
-        let long_highs = upload
-            .iter()
-            .filter(|l| l.level && l.duration_us >= ENC_SYNC_LONG_US)
-            .count();
-        assert!(
-            long_highs >= ENC_BURST_COUNT,
-            "expected at least one long-high preamble pulse per burst"
-        );
+    /// A pre-port KAT export (extra = crc16 << 48 | strict << 40 | plain[4] << 32) still encodes:
+    /// key2 is recovered from the stored CRC.
+    #[test]
+    fn legacy_extra_layout_still_encodes() {
+        let raw = build_frame([0xC0, 0xFF, 0xEE, 0x1A, 0x2B], 0x1A2B_3C4D, 0x4, 0x5_1234, 0xA5);
+        let mut decoded = feed_all(&burst_wave(&raw, ENC_GAP_REPEAT_US)).pop().unwrap();
+        let pulses = |d: &DecodedSignal| -> Vec<(bool, u32)> {
+            let w = FordV1Decoder::new().encode(d, 0x01).expect("encodes");
+            w.iter().map(|l| (l.level, l.duration_us)).collect()
+        };
+        let fresh = pulses(&decoded);
+        let crc = u16::from_be_bytes([raw[15], raw[16]]) as u64;
+        decoded.extra = Some((crc << 48) | (1 << 40) | ((0x4Du64) << 32));
+        assert_eq!(pulses(&decoded), fresh);
     }
 }

@@ -7,7 +7,10 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Arc;
 
 use crate::capture::{ButtonCommand, Capture};
-use crate::protocols::{is_keeloq_non_car, ProtocolRegistry};
+use crate::protocols::{
+    is_keeloq_non_car, psa_recover_key, ProtocolRegistry, PsaBruteForceControl, PsaBruteForceOutcome,
+    PSA_BRUTE_FORCE_TOTAL,
+};
 use crate::radio::{HackRfController, LevelDuration, RtlSdrController};
 use crate::storage::Storage;
 
@@ -162,6 +165,10 @@ pub enum SignalAction {
     ExportFob,
     ExportFlipper,
     Delete,
+    /// PSA TEA frame: run ProtoPirate's key brute force on a background thread.
+    RecoverKey,
+    /// Stop a running "Recover key".
+    CancelKeyRecovery,
 }
 
 impl SignalAction {
@@ -188,6 +195,8 @@ impl SignalAction {
             SignalAction::ExportFob => "Export .fob",
             SignalAction::ExportFlipper => "Export .sub (Flipper)",
             SignalAction::Delete => "Delete Signal",
+            SignalAction::RecoverKey => "Recover key (PSA brute force)",
+            SignalAction::CancelKeyRecovery => "Cancel key recovery",
         }
     }
 }
@@ -277,6 +286,14 @@ pub enum RadioEvent {
 
 /// License text (embedded at compile time)
 pub const LICENSE_TEXT: &str = include_str!("../LICENSE");
+
+/// A running PSA "Recover key" brute force (ProtoPirate's `psa_brute_force_run`, on a thread so the
+/// UI stays responsive; ≈0.5 s worst case on a 16-core PC, longer on small machines).
+struct PsaRecoverJob {
+    capture_id: u32,
+    ctl: Arc<PsaBruteForceControl>,
+    handle: std::thread::JoinHandle<PsaBruteForceOutcome>,
+}
 
 /// Main application state
 pub struct App {
@@ -379,6 +396,9 @@ pub struct App {
     pending_transmit_queue: Vec<(Vec<LevelDuration>, u32)>,
     /// State to restore when queue becomes empty (set when first item is queued).
     pending_transmit_restore: Option<RadioState>,
+
+    /// PSA key recovery running in the background (at most one at a time).
+    psa_recover_job: Option<PsaRecoverJob>,
 
     // -- :load file browser --
     /// Current directory in the load file browser
@@ -502,6 +522,7 @@ impl App {
             capture_meta_capture_id: None,
             pending_transmit_queue: Vec::new(),
             pending_transmit_restore: None,
+            psa_recover_job: None,
             load_browser_cwd: PathBuf::new(),
             load_browser_selected: 0,
             load_browser_scroll: 0,
@@ -1128,6 +1149,7 @@ impl App {
 
     /// Process pending radio events
     pub fn process_radio_events(&mut self) -> Result<()> {
+        self.poll_psa_key_recovery();
         if let Some(ref rssi_arc) = self.rssi_source {
             self.rssi = f32::from_bits(rssi_arc.load(Ordering::Relaxed));
         }
@@ -1198,6 +1220,25 @@ impl App {
     /// the selected capture is encoder-capable and not a barrier/gate/garage or alarm (KeeLoq barrier
     /// and alarm protocols get Replay + export + delete only). Without TX (e.g. RTL-SDR): only export and delete.
     pub fn available_signal_actions(&self) -> Vec<SignalAction> {
+        let mut actions = self.signal_actions_base();
+        if let Some(action) = self.key_recovery_action() {
+            actions.insert(0, action);
+        }
+        actions
+    }
+
+    /// "Recover key" for an undecrypted PSA (TEA) capture, or "Cancel key recovery" while it runs.
+    fn key_recovery_action(&self) -> Option<SignalAction> {
+        let c = self.selected_capture.and_then(|idx| self.captures.get(idx))?;
+        if let Some(job) = &self.psa_recover_job {
+            return (job.capture_id == c.id).then_some(SignalAction::CancelKeyRecovery);
+        }
+        let undecrypted_psa =
+            c.protocol_name() == "PSA" && c.serial.is_none() && c.data_extra.is_some();
+        undecrypted_psa.then_some(SignalAction::RecoverKey)
+    }
+
+    fn signal_actions_base(&self) -> Vec<SignalAction> {
         let has_tx = self.radio.as_ref().map_or(false, |r| r.supports_tx());
         let selected = self
             .selected_capture
@@ -1295,8 +1336,83 @@ impl App {
                 let id_str = capture_id.to_string();
                 self.delete_capture(&id_str)?;
             }
+            SignalAction::RecoverKey => {
+                self.start_psa_key_recovery(capture_id);
+            }
+            SignalAction::CancelKeyRecovery => {
+                if let Some(job) = &self.psa_recover_job {
+                    job.ctl.cancel.store(true, Ordering::Relaxed);
+                    self.status_message = Some("Cancelling key recovery…".to_string());
+                }
+            }
         }
         Ok(())
+    }
+
+    /// Start ProtoPirate's PSA TEA key brute force for a capture on a background thread.
+    fn start_psa_key_recovery(&mut self, id: u32) {
+        if self.psa_recover_job.is_some() {
+            self.last_error = Some("A key recovery is already running".to_string());
+            return;
+        }
+        let Some(capture) = self.captures.iter().find(|c| c.id == id) else {
+            self.last_error = Some(format!("Capture {} not found", id));
+            return;
+        };
+        let Some(extra) = capture.data_extra else {
+            self.last_error =
+                Some("Capture has no key2; re-import it from its raw pairs".to_string());
+            return;
+        };
+        let data = capture.data;
+        let ctl = Arc::new(PsaBruteForceControl::default());
+        let worker = Arc::clone(&ctl);
+        let handle = std::thread::spawn(move || psa_recover_key(data, extra, &worker));
+        self.psa_recover_job = Some(PsaRecoverJob { capture_id: id, ctl, handle });
+        self.status_message = Some(format!("Recovering PSA key for capture {}… 0%", id));
+    }
+
+    /// Report progress of / collect the result of a running PSA key recovery.
+    fn poll_psa_key_recovery(&mut self) {
+        let Some(job) = &self.psa_recover_job else {
+            return;
+        };
+        if !job.handle.is_finished() {
+            let done = u64::from(job.ctl.progress.load(Ordering::Relaxed));
+            let pct = (done * 100 / u64::from(PSA_BRUTE_FORCE_TOTAL)).min(99);
+            self.status_message =
+                Some(format!("Recovering PSA key for capture {}… {}%", job.capture_id, pct));
+            return;
+        }
+        let Some(job) = self.psa_recover_job.take() else {
+            return;
+        };
+        let id = job.capture_id;
+        match job.handle.join() {
+            Ok(PsaBruteForceOutcome::Found(hit)) => {
+                if let Some(c) = self.captures.iter_mut().find(|c| c.id == id) {
+                    c.serial = Some(hit.fields.serial);
+                    c.button = Some(hit.fields.button);
+                    // PSA counters are up to 28 bits; the capture keeps the low 16 like the decoder.
+                    c.counter = Some(hit.fields.counter as u16);
+                    c.crc_valid = true;
+                    c.status = crate::capture::CaptureStatus::EncoderCapable;
+                    self.status_message = Some(format!(
+                        "PSA key recovered for capture {}: serial {:06X}, counter {:X}",
+                        id, hit.fields.serial, hit.fields.counter
+                    ));
+                }
+            }
+            Ok(PsaBruteForceOutcome::NotFound) => {
+                self.last_error = Some(format!("No PSA key found for capture {}", id));
+            }
+            Ok(PsaBruteForceOutcome::Cancelled) => {
+                self.status_message = Some(format!("Key recovery for capture {} cancelled", id));
+            }
+            Err(_) => {
+                self.last_error = Some("Key recovery thread failed".to_string());
+            }
+        }
     }
 
     /// Generate a default export filename (without extension) for a capture
@@ -1732,10 +1848,12 @@ impl App {
                     Ok(mut capture) => {
                         self.next_capture_id += 1;
                         capture.source_file = Some(Self::path_relative_to_import(path, self.storage.import_dir()));
-                        // Re-run decoder when Unknown and raw_pairs present (same as .sub)
-                        if capture.status == crate::capture::CaptureStatus::Unknown
-                            && !capture.raw_pairs.is_empty()
-                        {
+                        // Re-run the current decoders whenever raw pairs are present (same as .sub),
+                        // so captures exported by older KAT versions pick up today's decoders:
+                        // renamed/retired protocols (Land Rover V0 → Honda V2, Porsche Touareg →
+                        // Porsche Cayenne), new encoders (Renault V1, Fiat V1, VAG …) and their
+                        // `data_extra`. If nothing decodes, the stored fields are kept as-is.
+                        if !capture.raw_pairs.is_empty() {
                             let pairs: Vec<crate::radio::LevelDuration> = capture
                                 .raw_pairs
                                 .iter()
@@ -1900,20 +2018,40 @@ impl App {
             p if p.starts_with("Ford") => "Ford",
             "Honda Static" => "Honda/Acura",
             "Honda V1" => "Honda/Acura",
+            // Honda V2 was formerly called "Land Rover V0" (ProtoPirate renamed it); the legacy name
+            // must map to Honda before the generic "Land Rover" prefix arm below.
+            "Honda V2" | "Land Rover V0" => "Honda/Acura",
+            // Fiat V2 is the FCA format: the IMPORTS captures that decode as it are Chrysler/Jeep.
+            "Fiat V2" => "Fiat/Chrysler/Jeep",
             p if p.starts_with("Fiat") => "Fiat",
             "Subaru" => "Subaru",
-            "Suzuki" => "Suzuki",
+            // "Suzuki V0" / "Honda V0" are Kia V0 frame types (ProtoPirate); "Suzuki" is the retired name.
+            "Suzuki" | "Suzuki V0" => "Suzuki",
+            "Honda V0" => "Honda/Acura",
+            "Mitsubishi V0" => "Mitsubishi",
             "VAG" | "VW" => "VW/Audi/Seat/Skoda",
             p if p.starts_with("PSA") => "Peugeot/Citroen",
-            "Star Line" => "Star Line",
-            "Scher-Khan" => "Scher-Khan",
+            // Display names carry a manufacturer / variant suffix ("Star Line [SL_A2-A4]",
+            // "Scher-Khan [MAGIC CODE PRO1]").
+            p if p.starts_with("Star Line") => "Star Line",
+            p if p.starts_with("Scher-Khan") => "Scher-Khan",
+            // Registry KeeLoq decodes ("KeeLoq (DoorHan)") and the generic fallback ("Keeloq (…)").
+            p if p.to_ascii_lowercase().starts_with("keeloq (") => "KeeLoq",
             "Chrysler V0" => "Chrysler/Dodge/Jeep",
             p if p.starts_with("Land Rover") => "Land Rover",
             "Toyota" => "Toyota/Lexus",
             // Covers both "Mazda V0" and "Mazda Siemens".
             p if p.starts_with("Mazda") => "Mazda",
-            "BMW CAS4" => "BMW",
-            // Covers "Porsche Touareg" and "Porsche Cayenne [First/Cont/Final]".
+            "BMW CAS4" | "BMW" => "BMW",
+            "Mercedes V0" | "Mercedes V1" => "Mercedes-Benz",
+            "Opel V1" => "Opel",
+            p if p.starts_with("Renault") => "Renault",
+            "GM" => "Chevrolet/Buick/GMC/Cadillac",
+            "Datsun Lada" => "Datsun/Lada",
+            "Sheriff CFM" => "Sheriff",
+            "Audi" => "Audi",
+            "Hyundai" => "Hyundai",
+            // "Porsche Cayenne", plus legacy "Porsche Touareg [...]" names from older captures.
             p if p.starts_with("Porsche") => "Porsche",
             _ => "Unknown",
         }

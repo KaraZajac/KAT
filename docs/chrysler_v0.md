@@ -5,42 +5,49 @@ layout: default
 # Chrysler V0 Protocol
 
 **Rust module:** `src/protocols/chrysler_v0.rs`
-**Reference:** `REFERENCES/ProtoPirate/protocols/chrysler_v0.c`
+**Reference:** `REFERENCES/ProtoPirate/protocols/chrysler_v0.c` (primary); identical decoders in `REFERENCES/Flipper-ARF/lib/subghz/protocols/chrysler.c` ("Chrysler", FOBIK GQ43VT) and `REFERENCES/doctor-firmware/lib/subghz/protocols/chrysler_v0.c`
 
 ## Overview
 
-Chrysler/Dodge/Jeep keyfobs. PWM with a short HIGH pulse and two long-LOW symbols: a "1" payload bit is
-HIGH ≈600 µs + LOW ≈3400 µs; a "0" payload bit is HIGH ≈300 µs + LOW ≈3700 µs. ~24 preamble pairs
-(short HIGH + long_b LOW) precede each frame. 80-bit frame: the first 64 bits are `decode_data` (payload
-bytes 0–7), the last 16 bits are `data_2` (payload bytes 8,9). The 80-bit frame exceeds u64, so `data`
-reports the most-significant 64 bits and `data_count_bit = 80`.
+Older Chrysler/Dodge/Jeep FOBIK keyfobs. PWM with a short HIGH pulse and two long-LOW symbols: a "1"
+payload bit is HIGH ≈600 µs + LOW ≈3400 µs; a "0" payload bit is HIGH ≈300 µs + LOW ≈3700 µs. ~24
+preamble pairs (short HIGH + long LOW) precede each frame. 80-bit frame: the first 64 bits are
+`data` (payload bytes 0–7), the last 16 bits (`Key_2`, payload bytes 8–9) are kept right-aligned in
+`extra`; `data_count_bit = 80`.
 
-Crypto is a proprietary seed-XOR (ported exactly from the reference): `seed = reverse6(key[0] >> 2)` (a
-6-bit reversed counter); `transform_block` XORs all 9 transformed bytes with `xor_table[seed & 0x0F]`,
-with an extra nibble flip when the Lock button is set. Dual payload: A (seed even, carries serial +
-counter) / B (seed odd, carries serial). The frame is gated on a structural `check_ok`, so it does not
-false-match; `crc_valid` reflects that check.
+Crypto is a proprietary seed-XOR: `seed = reverse6(key[0] >> 2)` (a 6-bit reversed counter);
+`transform_block` XORs the 9 payload bytes with `xor_table[seed & 0x0F]`, with an extra nibble flip for
+Lock. Each press sends payload A (even seed, plaintext SnA) and payload B (odd seed = A − 1, plaintext
+SnB). A frame is reported only when its structural `check_ok` passes (as in the C); `crc_valid`
+reflects it.
+
+The newer FCA fobs in `IMPORTS/chrysler` (Pacifica) and `IMPORTS/jeep` (Renegade) are Fiat V2 frames:
+no reference's Chrysler V0 decodes them, in either polarity.
 
 ## Timing
 
 | Parameter   | Value   | Notes                  |
 |-------------|---------|------------------------|
 | Short HIGH  | 300 µs  | ±150 µs (te_delta)     |
-| One-short HIGH | 600 µs | "1" bit HIGH width    |
+| One-short HIGH | 600 µs | "1" bit HIGH width (HIGH > 750 µs ends a frame) |
 | Long LOW A  | 3400 µs | ±400 µs (long_delta)   |
 | Long LOW B  | 3700 µs | ±400 µs                |
 | Gap         | 8000 µs | te_gap                 |
 | Frame gap   | 15600 µs|                        |
 | Min bits    | 80      |                        |
-| Preamble    | 24 pairs|                        |
+| Preamble    | 24 pairs| >15 needed             |
 
 ## Frame Layout (80 bits / 10 payload bytes)
 
-- **byte 0:** `(reverse6(counter) << 2) | header_low2` — the seed/counter byte
-- **bytes 1–9:** transformed (XOR-masked) payload; after `transform_block`:
-  - Payload A (even seed): serial = decoded[0..3], rolling counter
-  - Payload B (odd seed): serial = decoded[0..2] + decoded[7]
-- Button: Lock=1, Unlock=2 (derived from structural relationships between key bytes)
+- **byte 0:** `(reverse6(seed) << 2) | header_low2`
+- **bytes 1–9:** XOR-masked plaintext
+  - Payload A (even seed, byte 0 MSB clear): check `p0 ^ 0xC3 == p4` and `p0 ^ p5` = 0x04 (Lock) / 0x08 (Unlock); serial = SnA = p0..p3
+  - Payload B (odd seed, MSB set): check `p0 == p4` and `p0 ^ p5 == 0x62`; button Unlock when `p8 ^ p3 == 0x10`; serial = SnB = p0, p1, p2, p7
+
+## KAT fields
+
+`serial` = SnA or SnB, `button` = 1 Lock / 2 Unlock (same as KAT's generic codes), `counter` = the 6-bit
+seed (the C's `Cnt`), `extra` = `Key_2`.
 
 ## RF
 
@@ -52,15 +59,24 @@ false-match; `crc_valid` reflects that check.
 ## Decoder Steps
 
 1. **Reset** — a short HIGH pulse begins the seek.
-2. **Seek** — count preamble pairs (short HIGH + long LOW); after >15 pairs, a non-short HIGH transitions to Data.
-3. **Data** — classify each HIGH/LOW pair into a payload bit (`bit ^ 1`); collect 64 bits into `decode_data` then 16 into `data_2`. At 80 bits (or on a terminating gap with >0x4F bits) run `decode_packet`, check `check_ok`, and emit.
+2. **Seek** — count preamble pairs (short HIGH + long LOW); after >15 pairs a non-short HIGH (or a gap) enters Data.
+3. **Data** — classify each HIGH/LOW pair into a payload bit (`bit ^ 1`); 64 bits into `data` then 16 into `Key_2`. At 80 bits (or on a terminating gap/invalid pulse with ≥80 bits) run `decode_packet` and emit when `check_ok`.
 
 ## Encoder
 
-Supported (ENABLE_EMULATE_FEATURE). Rebuilds the 10-byte payload, re-derives seed/plaintext, applies the
-requested button, then emits preamble + dual 80-bit PWM frames (A and B) separated by frame gaps.
+Supported. Recovers the plaintext from the captured frame, flips the button bits (`plain_a[5] ^= 0x0C`,
+`plain_b[3] ^= 0x30`) when the requested button differs, advances the seed to the next press (seed + 2,
+made even — Flipper-ARF's `cnt + 2 * mult`; ProtoPirate's emulate scene adds 1, which re-sends the
+captured press when it was payload A) and emits payload A (even counter) then B (counter − 1), each as
+24 preamble pairs + short + 15.6 ms gap + 80 PWM bits + short + 15.6 ms gap (424 entries; the Flipper
+repeats the upload twice while held, KAT sends it once). Buttons: Lock → 1, Unlock → 2; Trunk/Panic
+keep the captured button (no reference models other buttons).
 
 ## Validation
 
-Verified by an encode→decode round-trip / synthetic-frame check (no local capture available). Unit tests
-cover `reverse6` involution, `transform_block` invertibility, and a full payload-A round trip.
+Compared with the compiled ProtoPirate `chrysler_v0.c` and Flipper-ARF `chrysler.c` (host harness):
+decoder output identical on 3933 frames from 4500 C-encoded uploads (plain, ±140 µs jitter, glitched)
+and on every IMPORTS capture (none decodes, in KAT or the references); encoder upload identical
+pulse-for-pulse on 4500 random captured frames × buttons (ProtoPirate with `Btn`/`Cnt` = seed + 2 and ARF
+with its D-pad give the same uploads). Unit tests cover `reverse6`, `transform_block`, payload-A fields
+and the encode → decode of every seed and button.

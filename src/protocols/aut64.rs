@@ -327,3 +327,35 @@ pub fn aut64_unpack(src: &[u8]) -> Aut64Key {
 
     dest
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Golden vectors from the compiled ProtoPirate aut64.c (host harness) with the three VAG keys
+    /// of the embedded keystore: (key index, plaintext, encrypt(plaintext), decrypt(plaintext)).
+    #[test]
+    fn matches_protopirate_aut64() {
+        crate::protocols::keys::load_keystore_from_embedded();
+        let store = crate::protocols::keys::get_keystore();
+        let vectors: [(u8, u64, u64, u64); 6] = [
+            (3, 0x3E15_D5BC_216B_A347, 0x011D_70CA_EE3C_5511, 0x9419_E6ED_53EC_1A72),
+            (1, 0x0848_4C92_998B_7313, 0x16EE_160E_C53C_D631, 0x0B7A_EDDC_BFE4_E362),
+            (2, 0xCC1F_E76B_EB55_AF74, 0x7B70_A269_2B8B_A002, 0x54AF_3E79_FB80_00D1),
+            (3, 0x5117_25B4_54FF_597F, 0x36F3_D769_C6FF_487E, 0x149C_23C1_F1AD_0870),
+            (3, 0x19C4_8AF2_FB73_4F5C, 0xDD1F_47EA_170C_5CDE, 0x6A64_1772_7051_E238),
+            (2, 0xF94A_B8B2_5CFC_6D0F, 0x9C4C_C510_FF88_68A0, 0x3341_23B2_38E9_FD0A),
+        ];
+        for (index, plain, enc, dec) in vectors {
+            let key = store.get_vag_key(index).expect("VAG key loaded");
+            let mut block = plain.to_be_bytes();
+            aut64_encrypt(key, &mut block);
+            assert_eq!(u64::from_be_bytes(block), enc, "encrypt, key {index}");
+            aut64_decrypt(key, &mut block);
+            assert_eq!(u64::from_be_bytes(block), plain, "round trip, key {index}");
+            let mut block = plain.to_be_bytes();
+            aut64_decrypt(key, &mut block);
+            assert_eq!(u64::from_be_bytes(block), dec, "decrypt, key {index}");
+        }
+    }
+}

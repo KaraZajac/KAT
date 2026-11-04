@@ -321,20 +321,35 @@ impl HondaStaticDecoder {
         }
     }
 
-    /// Map a KAT generic button command to a Honda Static 4-bit button code.
-    /// Honda button codes: Lock=1, Unlock=2, Trunk=4, Remote Start=5, Panic=8, Lock x2=9
-    /// (see honda_static_button_names + honda_static_is_valid_button).
-    fn map_button(button: u8) -> u8 {
-        match button {
-            BTN_LOCK => 1,
-            BTN_UNLOCK => 2,
-            BTN_TRUNK => 4,
-            BTN_PANIC => 8,
-            // Already a valid Honda code → pass through.
-            b if Self::is_valid_button(b) => b,
-            // honda_static_encoder_remap_button for codes 2..=5.
-            b if (2..=5).contains(&b) => ENCODER_BUTTON_MAP[(b - 2) as usize],
-            _ => 1,
+    /// `honda_static_unpack_compact` (the checksum field is not needed by the encoder).
+    fn unpack_compact(key: u64) -> HondaStaticFields {
+        let c = key.to_be_bytes();
+        HondaStaticFields {
+            button: c[0] & 0x0F,
+            serial: ((c[1] as u32) << 20) | ((c[2] as u32) << 12) | ((c[3] as u32) << 4) | ((c[4] as u32) >> 4),
+            counter: ((c[5] as u32) << 16) | ((c[6] as u32) << 8) | c[7] as u32,
+            checksum: 0,
+        }
+    }
+
+    /// The Btn value ProtoPirate's emulate scene writes for KAT's generic command (Up=Lock 0x1,
+    /// OK=Unlock 0x2, Down=Trunk 0x4, Left=Panic 0x8; Right=Remote start 0x5 has no KAT code),
+    /// then the encoder's acceptance (`honda_static_encoder_deserialize`): a valid code is used,
+    /// 2..=5 is remapped (`honda_static_encoder_remap_button`), anything else keeps the key's.
+    fn map_button(button: u8, captured: u8, key_button: u8) -> u8 {
+        let b = match button {
+            BTN_LOCK => 0x1,
+            BTN_UNLOCK => 0x2,
+            BTN_TRUNK => 0x4,
+            BTN_PANIC => 0x8,
+            _ => captured,
+        };
+        if Self::is_valid_button(b) {
+            b
+        } else if (2..=5).contains(&b) {
+            ENCODER_BUTTON_MAP[(b - 2) as usize]
+        } else {
+            key_button
         }
     }
 
@@ -416,15 +431,18 @@ impl ProtocolDecoder for HondaStaticDecoder {
     }
 
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
-        let serial = decoded.serial?;
-        if !Self::is_valid_serial(serial) {
-            return None;
-        }
-
+        // honda_static_encoder_deserialize: unpack the Key, then the file's Serial/Btn/Cnt
+        // override it. KAT's counter is the low 16 bits of the 24-bit counter; the top byte
+        // comes from the Key. The emulate scene writes Cnt = counter + 1 (masked to 24 bits).
+        let key = Self::unpack_compact(decoded.data);
+        let counter = match decoded.counter {
+            Some(low) => (key.counter & 0xFF_0000) | low as u32,
+            None => key.counter,
+        };
         let fields = HondaStaticFields {
-            button: Self::map_button(button),
-            serial,
-            counter: decoded.counter.unwrap_or(0) as u32 & 0x00FF_FFFF,
+            button: Self::map_button(button, decoded.button.unwrap_or(key.button), key.button),
+            serial: decoded.serial.unwrap_or(key.serial),
+            counter: counter.wrapping_add(1) & 0x00FF_FFFF,
             checksum: 0,
         };
         let packet = Self::build_packet_bytes(&fields);
@@ -467,51 +485,36 @@ impl Default for HondaStaticDecoder {
 mod tests {
     use super::*;
 
-    /// Round-trip: encode a known frame, feed it back through the decoder, and confirm the fields
-    /// survive. The encoder emits the inverted-Manchester interpretation, which the decoder tries
-    /// first.
+    fn decode_wave(signal: &[LevelDuration]) -> Option<DecodedSignal> {
+        let mut dec = HondaStaticDecoder::new();
+        signal
+            .iter()
+            .find_map(|ld| dec.feed(ld.level, ld.duration_us))
+            .or_else(|| dec.feed(false, 5000))
+    }
+
+    /// Round-trip as ProtoPirate transmits (encoder deserialize + emulate scene): the requested
+    /// button, the counter + 1 across the full 24 bits (top byte from the Key), the serial kept.
+    /// The encoder emits the inverted-Manchester interpretation, which the decoder tries first.
     #[test]
     fn honda_static_encode_decode_roundtrip() {
-        let serial = 0x0123456u32 & 0x0FFF_FFFF;
-        let counter = 0x00AB12u32;
-        let original = DecodedSignal {
-            serial: Some(serial),
-            button: Some(BTN_UNLOCK),
-            counter: Some(counter as u16),
-            crc_valid: true,
-            data: 0,
-            data_count_bit: BIT_COUNT,
-            encoder_capable: true,
-            extra: None,
-            protocol_display_name: None,
-        };
-
-        let decoder = HondaStaticDecoder::new();
-        let signal = decoder.encode(&original, BTN_UNLOCK).expect("encode");
-
-        // Feed the encoded pulses, plus a terminating gap to flush the symbol buffer.
-        let mut dec = HondaStaticDecoder::new();
-        let mut decoded = None;
-        for ld in &signal {
-            if let Some(d) = dec.feed(ld.level, ld.duration_us) {
-                decoded = Some(d);
-                break;
-            }
+        let fields = HondaStaticFields { button: 0x4, serial: 0x0123456, counter: 0x12FFFF, checksum: 0 };
+        let original = HondaStaticDecoder::build_signal(&fields, true);
+        assert_eq!(original.counter, Some(0xFFFF));
+        for (button, code) in [(BTN_LOCK, 1u8), (BTN_UNLOCK, 2), (BTN_TRUNK, 4), (0x40, 4)] {
+            let signal = HondaStaticDecoder::new().encode(&original, button).expect("encode");
+            let decoded = decode_wave(&signal).expect("round-tripped frame decodes");
+            assert!(decoded.crc_valid, "checksum should validate");
+            assert_eq!(decoded.serial, Some(0x0123456));
+            assert_eq!(decoded.button, Some(code), "button {button:#04x}");
+            assert_eq!(decoded.counter, Some(0x0000));
+            assert_eq!(decoded.data & 0xFF_FFFF, 0x13_0000, "24-bit counter carried into the top byte");
         }
-        if decoded.is_none() {
-            // Terminating out-of-range pulse to flush.
-            decoded = dec.feed(false, 5000);
-        }
-
-        let decoded = decoded.expect("expected a decode from the round-tripped frame");
-        assert!(decoded.crc_valid, "checksum should validate");
-        assert_eq!(decoded.serial, Some(serial), "serial mismatch");
-        assert_eq!(decoded.button, Some(2), "button should map to Honda Unlock=2");
-        assert_eq!(
-            decoded.counter,
-            Some(counter as u16),
-            "counter (low 16 bits) mismatch"
-        );
+        // Panic (0x8) is sent, but like every frame whose first bit is 1 (buttons 8/9) the C
+        // decoder cannot find the preamble/data boundary in it (the first data half-bits continue
+        // the alternating preamble) — reproduced here, exactly as the reference behaves.
+        let signal = HondaStaticDecoder::new().encode(&original, BTN_PANIC).unwrap();
+        assert!(decode_wave(&signal).is_none());
     }
 
     /// The packed Key word must reproduce the C compact layout for a known field set.

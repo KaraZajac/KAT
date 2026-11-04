@@ -1,0 +1,8 @@
+# Text files use LF, in the repository and in the working tree.
+* text=auto eol=lf
+
+# Captures are test data and must stay byte-for-byte as recorded.
+*.sub -text
+*.fob -text
+*.cs8 binary
+*.cu8 binary

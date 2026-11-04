@@ -170,6 +170,21 @@ frequency; `rx<target>Hz` tells `:iq` which channel to decode:
 kat_433670000Hz_2000000sps_rx433920000Hz_20261104-153000.cs8
 ```
 
+A recording never replaces a file: a name in use gets `_2`, `_3`, … before the extension. The
+extension always names the device's format, because `:iq` and other tools read the samples by it: a
+wrong IQ extension is replaced (`:record x.cu8` on a HackRF writes `x.cs8`) and any other one is kept
+with the format's added (`:record fob_433.92` writes `fob_433.92.cs8`); a folder (`:record runs/`) gets
+the default name. While a recording runs, transmitting is refused ("Recording in progress — :record stop
+first"): TX stops RX, which would end the recording.
+
+**When the receiver stops by itself** — the device cannot be opened (busy, unplugged), a setting is
+refused, or it goes away while streaming (an unplugged HackRF stops streaming, which KAT checks every
+100 ms; a failed RTL-SDR read ends RX, as in `rtl_sdr`) — the status line says "Receiver stopped:
+<reason> (r restarts)", the header goes back to idle with the level at zero, a running recording ends
+with it, and one `r` starts RX again. If no radio is found at startup, the warning names the reason for
+each device (not found, no USB permission, busy: another program or the RTL-SDR's DVB-T driver has it),
+and `kat.log` has the libraries' errors.
+
 ## Frequency hopping
 
 `:hop on` / `:hop off` / `:hop` (toggle), `:hop 433.92 434.42 868.35` (set the list and start),

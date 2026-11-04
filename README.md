@@ -81,9 +81,9 @@ brew install hackrf             # macOS
 Then check, unpack and run (with your version and platform):
 
 ```bash
-sha256sum -c kat-v1.6.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
-tar xzf kat-v1.6.0-x86_64-linux.tar.gz
-./kat-v1.6.0-x86_64-linux/kat
+sha256sum -c kat-v1.7.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.7.0-x86_64-linux.tar.gz
+./kat-v1.7.0-x86_64-linux/kat
 ```
 
 The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. Intel Macs and other platforms build from source.
@@ -112,7 +112,9 @@ The binary is `target/release/kat`. Use a release build for live receive and IQ 
 - **HackRF One** (or compatible) — receive and transmit.
 - **RTL-SDR** dongle — receive only.
 
-KAT uses a HackRF if one is connected, otherwise the first RTL-SDR. With neither, it warns at startup and then runs without a radio: you can still open, decode, analyse and export captures. The header shows the radio in use: **HackRF**, **RTL-SDR (RX only)** or **No device** (status DISCONNECTED, in red).
+KAT uses a HackRF if one is connected, otherwise the first RTL-SDR. With neither, it warns at startup and then runs without a radio: you can still open, decode, analyse and export captures. The warning names the reason for each device — not found, no USB permission (install the udev rules your HackRF or rtl-sdr package provides), or in use by another program — and `~/.config/KAT/kat.log` has the details. The header shows the radio in use: **HackRF**, **RTL-SDR (RX only)** or **No device** (status DISCONNECTED, in red).
+
+If the receiver stops by itself (the device is busy, refuses a setting or is unplugged), the status line says "Receiver stopped: … (r restarts)" and `r` starts it again.
 
 On Linux, the kernel's DVB-T driver can claim an RTL-SDR before KAT does; unload it with `sudo rmmod dvb_usb_rtl28xxu` or blacklist it (see [rtl-sdr-rs](https://crates.io/crates/rtl-sdr-rs)).
 
@@ -137,7 +139,9 @@ kat --help                                  # all options; --version prints the 
 
 `--decode` prints `file | frequency | source | protocol | xcount | data=…/bits sn= btn= cnt= crc= tx=` per distinct decode (`source` is `raw`, `key`, or the IQ path `am`/`fm`); `--all` prints every decode in stream order, `--verbose` also dumps each IQ burst (time, length, SNR, carrier offset, FSK deviation, pulses) to stderr. Files whose name carries no rate (e.g. rtl_433 `gfile001.cu8`) need `--rate`.
 
-`--freq` and `--rate` default to values in the recording's file name (e.g. `kat_433670000Hz_2000000sps_….cs8`), else the configured frequency and 2 MS/s.
+`--freq` and `--rate` default to values in the recording's file name (e.g. `kat_433670000Hz_2000000sps_….cs8`), else the configured frequency and 2 MS/s. `--rate` takes 200 kS/s to 40 MS/s; `--iq` takes IQ recordings (`.cs8`, `.cu8`, `.cf32`) — `.sub` files go to `--decode`, or open in the app with `:load`. `-d` and `-v` are short for `--decode` and `--verbose`.
+
+Exit status: `0` on success; `1` when `--decode` could not read a file or found nothing to decode (an empty folder, or only `.fob` files), or `--keeloq-bf` found no key; `2` for a bad argument or a missing `--iq` / `--keeloq-bf` file. `--keeloq-bf` shows its progress line only on a terminal.
 
 ## Using the TUI
 
@@ -146,57 +150,65 @@ kat --help                                  # all options; --version prints the 
 | Key | Action |
 |---|---|
 | `j` / `k` or `↓` / `↑` | Move through the captures |
-| `Enter` | Open the selected capture's action menu |
-| `i` | Edit the capture's metadata: year, make, model, region and command (used by the CVE match and `.fob` export) |
+| `PgUp` / `PgDn`, `Home` / `End` (or `g` / `G`) | Move a page, or to the first / last capture |
+| `Enter` | Open the selected capture's action menu (it stays on that capture while new ones arrive) |
+| `i` | Edit the capture's metadata: year, make, model, region and command (used by the CVE match and `.fob` export). `Tab` / `↓` and `Shift-Tab` / `↑` move between the fields, `Enter` goes to the next one and saves on the last (the export form works the same) |
 | `d` | Delete the selected capture |
+| `u` | Undo the last delete (`d`, `:delete`, `:delete all`) |
 | `r` | Start or stop receiving |
-| `Tab` | Radio settings: choose a setting with `←` / `→` (or `Tab`), `Enter` to change it, `↑` / `↓` to pick a value, `Enter` to apply |
+| `Tab` | Radio settings: choose a setting with `←` / `→` (or `Tab`), `Enter` to change it, `↑` / `↓` to pick a value, `Enter` to apply. A value set by command that is not in the list (`:freq 433.42`) shows as the first row, "(current)" |
 | `:` | Command line |
-| `Esc` | Close a menu, form or overlay |
-| `q` | Quit (also `:q`) |
+| `?` or `F1` | Help (also `:help`) |
+| `Esc` | Close a menu, form or overlay; in the list, clear the message and cancel the transmissions still queued |
+| `q` or `Ctrl-C` | Quit (also `:q`); asks first while a key search, an IQ file, a recording or a transmission is running. In menus, forms and prompts `Ctrl-C` works as `Esc` |
+
+A new capture is selected only when the selection is on the last row (or nothing is selected) and no menu or form is open, so it never moves the selection you are working with.
 
 ### Signal actions
 
-`Enter` on a capture opens its actions. Without a HackRF (RTL-SDR or no radio), the transmit actions are not offered.
+`Enter` on a capture opens its actions. Without a HackRF (RTL-SDR or no radio), the transmit actions are not offered; while `:record` runs, transmitting is refused (it would stop the receiver and end the recording).
+
+After an encoder transmission (Send next code, Send button…, TX Lock … Panic) a rolling code's capture keeps the code it sent — counter, frame and button — so the next press sends the one after and the session autosave remembers it, as Flipper-ARF, doctor-firmware and ProtoPirate keep the last code they sent ([docs/transmit.md](docs/transmit.md#after-a-transmission)). Exports never replace a file (a name in use gets `_2`, `_3`, …), end with "Exported to <full path>", and a failed one is reported in the status line.
 
 | Action | Description |
 |---|---|
 | Recover key (KeeLoq magic serial) | KeeLoq frame no key decrypts: search the remote's magic-serial manufacturer key using all of its captures (two or more presses), on every core (Flipper-ARF's KeeLoq Decrypt). The key is saved as `BF_<serial>` and the remote's captures decode ([docs/keeloq.md](docs/keeloq.md)) |
 | Recover key (PSA brute force) | PSA TEA frame without a key: run ProtoPirate's key brute force in the background. On success the capture gets its serial, button and counter, and transmit actions |
-| Cancel key recovery | Stop a running key recovery (progress shows in the status line) |
-| Replay | Re-transmit the capture as recorded |
-| Send next code | Gate, garage and barrier remotes (instead of TX Lock … Panic): transmit the code after the stored one |
-| Send button… | Gate and garage remotes: pick one of the remote's native buttons, or type a hex code, and send the next code with it (the list stays open) |
-| TX Lock / TX Unlock / TX Trunk / TX Panic | Car remotes KAT can encode: transmit the next code with that button |
+| Cancel key recovery | Stop a running key recovery (its progress shows in the status bar's title) |
+| Replay | Re-transmit the capture as recorded (the capture does not change) |
+| Send next code | Gate, garage and barrier remotes (instead of TX Lock … Panic): transmit the code after the stored one, which the capture then keeps, so each press sends a new code |
+| Send button… | Gate and garage remotes: pick one of the remote's native buttons, or type a hex code, and send the next code with it (the capture keeps it; the list stays open) |
+| TX Lock / TX Unlock / TX Trunk / TX Panic | Car remotes KAT can encode: transmit the next code with that button (the capture keeps it) |
 | Export .fob | Save the capture with vehicle metadata ([below](#capture-metadata-and-fob-export)) |
 | Export .sub (Flipper) | Save the raw capture as a Flipper Zero RAW `.sub`, with the capture's preset |
-| Export Flipper key (.sub) | Save the decode as a Flipper key file, as ProtoPirate and Flipper-ARF save it |
+| Export Flipper key (.sub) | Save the decode as a Flipper key file (`<name>_key.sub`), as ProtoPirate and Flipper-ARF save it |
 | Timing analysis | Compare the capture's pulse timing with its protocol's definition (ProtoPirate's Timing Tuner); for unknown signals: pulse clusters, a TE estimate and a line-coding guess |
 | Delete Signal | Remove the capture from the list |
 
 ### Commands
 
-Press `:` and type a command. `<ID>` is a capture ID, a comma list or a range: `1`, `1,3,5`, `1-5`. Transmit commands need a HackRF.
+Press `:` and type a command (`:help` lists them). `<ID>` is one or more capture IDs or ranges, separated by commas or spaces: `1`, `#4`, `1,3,5`, `1 3 5`, `1-5`, `5-1` (backwards). A command given several ends with a summary such as `Replayed 3 of 5 (#04, #05 not found)`. Transmit commands need a HackRF; while several transmissions run, the status bar counts them and `Esc` cancels the rest.
 
 | Command | Description |
 |---|---|
-| `:freq <MHz>` | Set the receive frequency (e.g. `:freq 433.92`) |
+| `:freq <MHz>` | Set the receive frequency (e.g. `:freq 433.92`; `433.92M`, `433.92 MHz`, `433920000` and `433920000Hz` work too, as in `:hop` and `:iq`) |
 | `:hop on` / `:hop off` | Frequency hopping over the hop list; KAT stays on a frequency while a signal is on air |
 | `:hop <MHz> <MHz> …` | Set the hop list (`:hop default` restores Flipper's list; `:hop dwell <ms>` sets the time per quiet frequency) |
 | `:lna <0-40>` / `:vga <0-62>` / `:amp [on\|off]` | Receive gains and the RF amplifier (`:amp` alone toggles it) |
 | `:txpower <0-47> [amp on/off]` | TX VGA gain and RF amp for every transmission; no argument shows the setting |
 | `:iq <file> [MHz] [rate]` | Decode a `.cs8` / `.cu8` / `.cf32` IQ recording in the background (no radio needed); `:iq stop` cancels |
 | `:record [file]` / `:record stop` | Record the raw IQ as received to the export folder (`.cs8` for HackRF, `.cu8` for RTL-SDR) |
-| `:load [file\|dir]` | Import a `.fob` or `.sub` file, or decode an IQ recording; a directory, or no argument, opens the file browser there |
+| `:load [file\|dir]` | Import a `.fob` or `.sub` file, or decode an IQ recording; a directory, or no argument, opens the file browser there. A path is looked up as given, then in the import and export folders; quotes and `~` work (`:load "My Fob.sub"`). In the browser `←` / `Backspace` go to the parent folder and `→` opens a folder |
 | `:lock <ID>` / `:unlock <ID>` / `:trunk <ID>` / `:panic <ID>` | Transmit that button's next code |
 | `:replay <ID>` | Replay the raw capture(s) in order |
 | `:new [type…]` | Create a new gate/garage remote ("Add Manually"): opens the type picker, or creates the one type the words name (e.g. `:new princeton 433`) |
 | `:klbf [ID] [auto\|6\|7\|8]` | Recover the magic-serial KeeLoq key of a remote (default: the selected capture, Auto = types 6 and 7); `:klbf stop` cancels |
 | `:timing [ID]` | Timing analysis of a capture (default: the selected one) |
-| `:delete <ID>` / `:delete all` | Delete captures |
-| `:clear` | Clear all captures and the saved session (asks first) |
+| `:delete <ID>` / `:delete all` | Delete captures (`:delete all` asks first); `u` in the list brings back the last deleted |
+| `:clear` | Clear all captures and delete the saved session and its backup (`session.json`, `session.json.bak`); asks first, cannot be undone |
+| `:help` | Keys and commands (also `?` or `F1`) |
 | `:license` / `:credits` | Show the license or the credits |
-| `:q` or `:quit` | Quit |
+| `:q` or `:quit` | Quit (asks first while work is running) |
 
 ### Capture metadata and .fob export
 
@@ -297,7 +309,11 @@ include_raw_pairs = true
 session_autosave = true
 ```
 
+Switches take `true`/`false`, `yes`/`no`, `on`/`off` or `1`/`0`. A value KAT cannot use, an unknown key (a typo such as `default_frequncy`) or an export/import folder that cannot be created (an unplugged SD card) is reported at startup in the status line and in `kat.log`, and the default is used instead.
+
 - **import_directory** — directory scanned at startup for .fob and .sub files to import (default `~/.config/KAT/import`). Exports are still saved to **export_directory**.
+- **default_frequency** — MHz (`433.92`) or Hz (`433920000`), 300–928 MHz.
+- **default_lna_gain / default_vga_gain** — fitted to what the radio takes: LNA 0–40 dB in 8 dB steps, VGA 0–62 dB in 2 dB steps (rounded down).
 - **research_mode** — when `true` (default), unknown (unidentified) signals are shown in addition to decoded ones; when `false`, only successfully decoded signals appear.
 - **include_raw_pairs** — when `true`, .fob exports include raw level/duration pairs for replay.
 - **hop_frequencies / hop_dwell_ms** — the `:hop` list (MHz) and the time spent on a quiet frequency.
@@ -443,7 +459,9 @@ src/
 ├── app.rs               # Application state, radio events, signal actions
 ├── app/                 # rx.rs (:iq, :record, :hop), tx.rs (transmit queue, :txpower), persistence.rs (session),
 │                        # fob_matching.rs (saved-fob ★), timing_view.rs (timing overlay), key_files.rs (Flipper key
-│                        # files), add_manually.rs (:new, Send button…), keeloq_bf.rs (KeeLoq key recovery)
+│                        # files), add_manually.rs (:new, Send button…), keeloq_bf.rs (KeeLoq key recovery),
+│                        # input.rs (keys, ID lists, delete/undo, quit prompt, menus), files.rs (export names,
+│                        # import results)
 ├── headless.rs          # kat --decode / --keeloq-bf: decode files, recover KeeLoq keys without the TUI
 ├── analysis/timing.rs   # Timing analysis (ProtoPirate Timing Tuner, pulse clusters, line-coding guess)
 ├── session.rs           # session.json format and atomic writer
@@ -498,9 +516,11 @@ src/
     ├── captures_list.rs # Captures table + detail (protocol, mod, RF, enc)
     ├── signal_menu.rs   # Signal action menu
     ├── settings_menu.rs # Radio settings (Freq, Hop, LNA, VGA, AMP, TX)
-    ├── app_prompts.rs   # Session restore / clear prompts
+    ├── app_prompts.rs   # Session restore, clear, delete-all and quit prompts
     ├── command.rs       # VIM-style command line
-    ├── text_overlay.rs  # License, credits and timing-analysis overlays
+    ├── text_overlay.rs  # License, credits, help and timing-analysis overlays
+    ├── text.rs          # Display-width text helpers: wrapping, cutting with …
+    ├── theme.rs         # Shared styles (selection highlight, dim text)
     ├── add_manually.rs  # :new type picker and field editor, Send button… list
     └── status_bar.rs    # Status bar
 ```

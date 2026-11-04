@@ -10,7 +10,7 @@
 //! frequency; when the target differs, `rx<target>Hz` records it so `:iq` decodes the right channel:
 //! `kat_433670000Hz_2000000sps_rx433920000Hz_20261104-153000.cs8`.
 
-use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -51,13 +51,14 @@ pub struct Recorder {
 
 impl Recorder {
     /// Create `path` (and its directory) now, so errors surface immediately, and start the writer.
+    /// An existing file is never truncated (the caller picks a free name, [resolve_record_path]).
     pub fn start(path: PathBuf) -> std::io::Result<Self> {
         if let Some(dir) = path.parent() {
             if !dir.as_os_str().is_empty() {
                 std::fs::create_dir_all(dir)?;
             }
         }
-        let file = File::create(&path)?;
+        let file = OpenOptions::new().write(true).create_new(true).open(&path)?;
         let (tx, rx) = sync_channel::<Vec<u8>>(QUEUE_BUFFERS);
         let bytes = Arc::new(AtomicU64::new(0));
         let written = bytes.clone();
@@ -127,17 +128,33 @@ pub fn recording_file_name(centre_hz: u32, rate: u32, target_hz: u32, format: Iq
     format!("kat_{centre_hz}Hz_{rate}sps{target}_{ts}.{}", format.extension())
 }
 
-/// Resolve a user-supplied `:record` path: relative paths go into `dir`, and a missing extension
-/// gets the device's format extension.
-pub fn resolve_record_path(dir: &Path, user: &str, format: IqFormat) -> PathBuf {
+/// Resolve a user-supplied `:record` path: relative paths go into `dir`, a folder gets
+/// `default_name` in it, and the extension always names the device's format, because `:iq` and
+/// other tools read the samples by it: a wrong IQ extension is replaced (`x.cu8` on a HackRF holds
+/// cs8 samples, which decode as garbage as cu8) and any other one is kept with the format's added
+/// (`fob_433.92` → `fob_433.92.cs8`, not a `.92` file KAT cannot load). The caller still picks a
+/// free name ([crate::export::unique_path]).
+pub fn resolve_record_path(dir: &Path, user: &str, format: IqFormat, default_name: &str) -> PathBuf {
     let expanded = if let Some(rest) = user.strip_prefix("~/") {
         dirs::home_dir().map(|h| h.join(rest)).unwrap_or_else(|| PathBuf::from(user))
     } else {
         PathBuf::from(user)
     };
     let mut path = if expanded.is_absolute() { expanded } else { dir.join(expanded) };
-    if path.extension().is_none() {
-        path.set_extension(format.extension());
+    if path.is_dir() || user.ends_with('/') {
+        return path.join(default_name);
+    }
+    match IqFormat::from_path(&path) {
+        Some(f) if f == format => {}
+        Some(_) => {
+            path.set_extension(format.extension());
+        }
+        None => {
+            let mut name = path.file_name().unwrap_or_default().to_os_string();
+            name.push(".");
+            name.push(format.extension());
+            path.set_file_name(name);
+        }
     }
     path
 }
@@ -176,9 +193,32 @@ mod tests {
         assert!(n.starts_with("kat_433670000Hz_2000000sps_rx433920000Hz_") && n.ends_with(".cs8"), "{n}");
         let n = recording_file_name(433_920_000, 2_048_000, 433_920_000, IqFormat::Cu8);
         assert!(n.starts_with("kat_433920000Hz_2048000sps_2") && n.ends_with(".cu8"), "{n}");
-        let p = resolve_record_path(Path::new("/x/exports"), "mine", IqFormat::Cu8);
+        let p = resolve_record_path(Path::new("/x/exports"), "mine", IqFormat::Cu8, "d.cu8");
         assert_eq!(p, PathBuf::from("/x/exports/mine.cu8"));
-        let p = resolve_record_path(Path::new("/x/exports"), "/tmp/a.cs8", IqFormat::Cu8);
-        assert_eq!(p, PathBuf::from("/tmp/a.cs8"));
+        // A wrong IQ extension is replaced by the device's format; the right one (any case) kept.
+        let p = resolve_record_path(Path::new("/x/exports"), "/tmp/a.cs8", IqFormat::Cu8, "d.cu8");
+        assert_eq!(p, PathBuf::from("/tmp/a.cu8"));
+        let p = resolve_record_path(Path::new("/x/exports"), "x.cu8", IqFormat::Cs8, "d.cs8");
+        assert_eq!(p, PathBuf::from("/x/exports/x.cs8"));
+        let p = resolve_record_path(Path::new("/x/exports"), "Fob.CS8", IqFormat::Cs8, "d.cs8");
+        assert_eq!(p, PathBuf::from("/x/exports/Fob.CS8"));
+        // Any other extension stays and the format's is added.
+        let p = resolve_record_path(Path::new("/x/exports"), "fob_433.92", IqFormat::Cs8, "d.cs8");
+        assert_eq!(p, PathBuf::from("/x/exports/fob_433.92.cs8"));
+        // A folder gets the default name.
+        let p = resolve_record_path(Path::new("/x/exports"), "runs/", IqFormat::Cs8, "kat_1Hz.cs8");
+        assert_eq!(p, PathBuf::from("/x/exports/runs/kat_1Hz.cs8"));
+    }
+
+    /// A recording never truncates an existing file.
+    #[test]
+    fn never_overwrites_a_file() {
+        let dir = scratch("exists");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("x.cs8");
+        std::fs::write(&path, b"keep").unwrap();
+        assert_eq!(Recorder::start(path.clone()).err().map(|e| e.kind()), Some(std::io::ErrorKind::AlreadyExists));
+        assert_eq!(std::fs::read(&path).unwrap(), b"keep");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

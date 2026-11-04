@@ -50,6 +50,8 @@ pub struct RtlSdrController {
     /// State shared with the receive threads: pipeline control, hopping, recording
     live: Arc<LiveShared>,
     rtlsdr_available: bool,
+    /// Why no RTL-SDR could be opened at startup (for the no-device popup)
+    open_error: Option<String>,
     gain_settings: Arc<Mutex<TunerGainSetting>>,
     /// RSSI (f32 bits) written by RX thread, read by UI - never blocks
     rssi_value: Arc<AtomicU32>,
@@ -62,7 +64,8 @@ impl RtlSdrController {
         let rssi_value = Arc::new(AtomicU32::new(0));
         let live = Arc::new(LiveShared::new(receiving.clone(), rssi_value.clone(), 433_920_000));
 
-        let rtlsdr_available = check_rtlsdr_available();
+        let probe = check_rtlsdr_available();
+        let rtlsdr_available = probe.is_ok();
 
         if rtlsdr_available {
             tracing::info!("RTL-SDR device detected (receive-only)");
@@ -77,9 +80,15 @@ impl RtlSdrController {
             frequency: Arc::new(Mutex::new(433_920_000)),
             live,
             rtlsdr_available,
+            open_error: probe.err(),
             gain_settings: Arc::new(Mutex::new(TunerGainSetting::default())),
             rssi_value,
         })
+    }
+
+    /// Why no RTL-SDR could be opened at startup, in words (None when one was found).
+    pub fn open_error(&self) -> Option<&str> {
+        self.open_error.as_deref()
     }
 
     /// Shared atomic for RSSI (f32::to_bits); UI reads so RX thread never blocks on channel.
@@ -117,8 +126,13 @@ impl RtlSdrController {
         self.rx_thread = Some(thread::spawn(move || {
             if rtlsdr_available {
                 if let Err(e) = run_receiver_rtlsdr(live.clone(), event_tx.clone(), gain_settings) {
+                    // RX ended on its own (open failure, unplug): its recording ends and the meter
+                    // drops; the app goes back to idle.
                     live.receiving.store(false, Ordering::SeqCst);
-                    let _ = event_tx.send(RadioEvent::Error(format!("RTL-SDR receiver error: {}", e)));
+                    live.end_recording_with_rx();
+                    live.rssi.store(0, Ordering::Relaxed);
+                    tracing::warn!("RTL-SDR receiver stopped: {e:#}");
+                    let _ = event_tx.send(RadioEvent::Error(format!("{e:#}")));
                 }
             } else {
                 run_demo_receiver(receiving, event_tx, freq);
@@ -136,6 +150,8 @@ impl RtlSdrController {
         if let Some(handle) = self.rx_thread.take() {
             let _ = handle.join();
         }
+        // Nothing is received any more: the meter must not freeze at the last level (f32 0.0).
+        self.rssi_value.store(0, Ordering::Relaxed);
         self.live.end_recording_with_rx();
 
         tracing::info!("Stopped RTL-SDR receiving");
@@ -197,18 +213,35 @@ impl Drop for RtlSdrController {
     }
 }
 
-fn check_rtlsdr_available() -> bool {
+/// Err(why not, in words) when no RTL-SDR can be opened.
+fn check_rtlsdr_available() -> Result<(), String> {
     match RtlSdr::open(DeviceId::Index(0)) {
         Ok(mut dev) => {
             if let Err(e) = dev.close() {
                 tracing::debug!("RTL-SDR close after probe: {:?}", e);
             }
-            true
+            Ok(())
         }
         Err(e) => {
-            tracing::debug!("RTL-SDR not available: {:?}", e);
-            false
+            // Logged at warn (the default `kat=info` filter drops debug), so kat.log tells a
+            // permission problem or the DVB-T driver from a missing dongle.
+            tracing::warn!("RTL-SDR not available: {:?}", e);
+            Err(describe_open_error(&e.to_string()))
         }
+    }
+}
+
+/// rtl-sdr-rs's open error in words: "No device found at index 0", "Error: Access" (libusb may
+/// not open it) or "Resource busy" (claiming it failed: the kernel's DVB-T driver has it).
+fn describe_open_error(e: &str) -> String {
+    if e.starts_with("No device found") {
+        "not found".to_string()
+    } else if e.contains("Access") {
+        "found but not accessible: check its USB permissions / udev rules".to_string()
+    } else if e.contains("busy") || e.contains("Busy") {
+        "found but busy: the DVB-T driver (sudo rmmod dvb_usb_rtl28xxu) or another program has it".to_string()
+    } else {
+        format!("cannot be opened ({e})")
     }
 }
 
@@ -287,6 +320,9 @@ fn run_receiver_rtlsdr(
     let mut tag = freq;
     let mut blank = 0u64;
     let mut gain_check = std::time::Instant::now();
+    // A failed read ends RX, as in rtl_sdr's sync loop ("sync read failed", break): an unplugged
+    // dongle fails every read at once, which used to spin here and flood kat.log.
+    let mut failed = None;
     while live.receiving.load(Ordering::SeqCst) {
         let req = live.hop_request.swap(0, Ordering::SeqCst);
         if req != 0 {
@@ -329,13 +365,18 @@ fn run_receiver_rtlsdr(
             }
             Ok(_) => {}
             Err(e) => {
-                tracing::warn!("RTL-SDR read error: {:?}", e);
+                failed = Some(e);
+                break;
             }
         }
     }
 
     drop(buf_tx);
     let _ = processor.join();
+    if let Some(e) = failed {
+        let _ = sdr.close();
+        anyhow::bail!("RTL-SDR read failed ({e}): unplugged, or a USB error");
+    }
     sdr.close().context("Failed to close RTL-SDR")?;
     tracing::info!("RTL-SDR receiver thread stopped");
     Ok(())
@@ -389,5 +430,20 @@ impl RtlSdrController {
     /// A recording that ended because RX stopped (reported once).
     pub fn take_ended_recording(&mut self) -> Option<RecordingSummary> {
         self.live.ended_recording.lock().ok().and_then(|mut g| g.take())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The no-device popup tells a missing dongle from a permission problem or the DVB-T driver
+    /// (rtl-sdr-rs's open errors, as its `Display` writes them).
+    #[test]
+    fn open_errors_in_words() {
+        assert_eq!(describe_open_error("No device found at index 0"), "not found");
+        assert!(describe_open_error("Error: Access").contains("udev rules"));
+        assert!(describe_open_error("Resource busy").contains("dvb_usb_rtl28xxu"));
+        assert_eq!(describe_open_error("Pipe error"), "cannot be opened (Pipe error)");
     }
 }

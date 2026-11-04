@@ -223,18 +223,23 @@ pub fn export_fob(
 }
 
 /// Import a .fob file and return a Capture (supports v1 and v2 formats)
+#[allow(dead_code)] // tests and tools; the app reads the text itself and calls [parse_fob]
 pub fn import_fob(path: &Path, next_id: u32) -> Result<Capture> {
     let content =
         std::fs::read_to_string(path).with_context(|| format!("Failed to read {:?}", path))?;
+    parse_fob(&content, next_id).with_context(|| format!("Failed to parse {:?}", path))
+}
 
+/// Parse the text of a .fob file (v2, else v1) into a Capture; the error names what is wrong
+/// with the text, not the file (the import summary adds the file name).
+pub fn parse_fob(content: &str, next_id: u32) -> Result<Capture> {
     // Try v2 format first
-    if let Ok(fob) = serde_json::from_str::<FobFile>(&content) {
+    if let Ok(fob) = serde_json::from_str::<FobFile>(content) {
         return import_fob_v2(&fob, next_id);
     }
 
     // Fall back to v1 format
-    let fob: FobFileV1 =
-        serde_json::from_str(&content).with_context(|| format!("Failed to parse {:?}", path))?;
+    let fob: FobFileV1 = serde_json::from_str(content)?;
     import_fob_v1(&fob, next_id)
 }
 
@@ -330,7 +335,7 @@ fn import_fob_v2(fob: &FobFile, next_id: u32) -> Result<Capture> {
 
     // Without raw pairs (a capture loaded from a Flipper key file, or exported without pairs) the
     // stored fields are all TX needs; the app keeps EncoderCapable only when its encoder produces a
-    // frame from them (`App::check_encoder_capable`).
+    // frame from them (`app::key_files::fit_encoder_status`).
     let status = if sig.encoder_capable {
         CaptureStatus::EncoderCapable
     } else if protocol.is_some() {
@@ -461,7 +466,7 @@ pub fn scan_fob_files(dir: &Path) -> Vec<std::path::PathBuf> {
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.is_file() && path.extension().map_or(false, |e| e == "fob") {
+            if path.is_file() && super::has_extension(&path, "fob") {
                 files.push(path);
             }
         }

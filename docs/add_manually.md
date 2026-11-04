@@ -27,8 +27,12 @@ The new remote is the type's Flipper key file loaded like any key file (`Protoco
 → a capture without raw pairs, at the type's frequency and preset). Its **File** line says
 `Add Manually: <type>`. Its signal menu offers **Send next code**, **Send button…** (the remote's
 native buttons, below), **Export .fob** and **Export Flipper key**, so the same remote can also be
-loaded on a Flipper. Send next code transmits the counter after the stored one (the stored key is not
-advanced by a transmission).
+loaded on a Flipper. Send next code transmits the code after the stored one, and once it went out the
+capture keeps it (counter, key, button), so every press sends a new code and the remote stays in step
+with the receiver it was paired to — as Flipper-ARF, doctor-firmware and ProtoPirate keep the last code
+they sent ([transmit.md](transmit.md#after-a-transmission)). The session autosave keeps the counter
+across restarts; export the key file again after using the remote in KAT if a Flipper is to go on from
+there.
 
 ## How a key is made
 
@@ -98,6 +102,9 @@ advanced by a transmission).
   receiver's few µs of slack, Revers RB2 through the reference decoders, which decode exactly the
   same transmissions as KAT.
   Every listed button of every created remote is sent and decoded with that button.
+- `src/app/tx.rs` `rolling_codes_advance_on_every_press`: every available rolling-code type sends a
+  new counter on each of three presses once the frame sent is kept (FAAC SLH keeping its seed); fixed
+  codes keep their capture.
 - Reference gen oracle (Flipper-ARF's and doctor-firmware's `subghz_gen_info.c` and
   `subghz_txrx_create_protocol_key.c` compiled unmodified, `rand()` scripted, KAT's keystore): for
   three `rand()` sequences, 231 of 234 generated key files are byte-identical to the reference's
@@ -117,7 +124,8 @@ For gate / garage remotes (and KeeLoq barrier / alarm manufacturers) the signal 
 button…** next to Send next code: the protocol's native buttons — its labels where the references
 name them (Somfy My/Up/Down/Prog, Jarolift Learn/Down/Stop/Up, Alutech buttons 1–5, …), else the codes
 its encoder accepts as "Btn 0xN" (`src/protocols/gate_buttons.rs`) — or a typed hex code. Enter sends
-the next code with that button; the list stays open. The button column shows "Btn 0xN" for gate
+the next code with that button, which the capture then keeps along with the counter (as the references
+save the last code sent); the list stays open. The button column shows "Btn 0xN" for gate
 protocols without button names (KAT's car labels Lock/Unlock/Trunk/Panic are for car remotes only).
 
 ## Types

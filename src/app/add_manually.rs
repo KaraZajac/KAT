@@ -141,6 +141,8 @@ impl App {
     /// Create a remote of [TYPES]`[index]` from `gen` (None: freshly drawn parameters) and add it
     /// to the captures (selected).
     fn create_remote(&mut self, index: usize, gen: Option<Gen>) -> bool {
+        // Creating is a new action: an older error must not hide its result.
+        self.clear_messages();
         let ty = &TYPES[index];
         let mut rng = Rng::from_entropy();
         let gen = gen.unwrap_or_else(|| add_manually::fill(ty, &mut rng));
@@ -266,6 +268,9 @@ impl App {
             return;
         };
         let n = f.fields.len();
+        // An error is about the key before this one: it goes with the next key (it stayed after
+        // the field had been fixed).
+        f.error = None;
         match code {
             KeyCode::Esc => {
                 self.add_manually.form = None;
@@ -313,7 +318,7 @@ impl App {
     /// "Send button…" right after "Send next code" (the gate / garage / KeeLoq barrier and alarm
     /// menu with a transmitter) when the remote's encoder switches buttons.
     pub(super) fn add_send_button_action(&self, actions: &mut Vec<SignalAction>) {
-        let Some(c) = self.selected_capture.and_then(|i| self.captures.get(i)) else { return };
+        let Some(c) = self.signal_menu_capture() else { return };
         let Some(at) = actions.iter().position(|a| *a == SignalAction::SendNextCode) else { return };
         if !gate_buttons::tx_buttons(c.protocol_name(), &c.decoded_signal()).is_empty() {
             actions.insert(at + 1, SignalAction::SendButton);
@@ -338,7 +343,7 @@ impl App {
                     format!("{name} ({hex})")
                 };
                 if Some(b) == c.button {
-                    label.push_str("  ← captured");
+                    label.push_str("  ← last sent");
                 }
                 (b, label)
             })

@@ -114,24 +114,30 @@ impl App {
         true
     }
 
-    /// Progress of a running search, or its result once it has finished (every tick).
+    /// Progress of a running search, for [App::job_status] (the status bar title). It used to
+    /// rewrite the status line every tick, wiping every other message for the whole search.
+    pub(super) fn keeloq_key_recovery_progress(&self) -> Option<String> {
+        let job = self.keeloq_bf_job.as_ref().filter(|j| !j.handle.is_finished())?;
+        let tested = job.ctl.tested.load(Ordering::Relaxed);
+        let total = job.ctl.total.load(Ordering::Relaxed).max(1);
+        let rate = tested as f64 / job.started.elapsed().as_secs_f64().max(0.001);
+        let left = if rate > 0.0 { duration_label(total.saturating_sub(tested) as f64 / rate) } else { "?".to_string() };
+        Some(format!(
+            "Recovering the KeeLoq key of remote {:07X} (type {})… {}%, {:.0} M keys/s, {} left",
+            job.serial,
+            types_label(&job.learnings),
+            (tested * 100 / total).min(99),
+            rate / 1e6,
+            left
+        ))
+    }
+
+    /// The result of the search once it has finished (every tick).
     pub(super) fn poll_keeloq_key_recovery(&mut self) {
         let Some(job) = &self.keeloq_bf_job else {
             return;
         };
         if !job.handle.is_finished() {
-            let tested = job.ctl.tested.load(Ordering::Relaxed);
-            let total = job.ctl.total.load(Ordering::Relaxed).max(1);
-            let rate = tested as f64 / job.started.elapsed().as_secs_f64().max(0.001);
-            let left = if rate > 0.0 { duration_label(total.saturating_sub(tested) as f64 / rate) } else { "?".to_string() };
-            self.status_message = Some(format!(
-                "Recovering the KeeLoq key of remote {:07X} (type {})… {}%, {:.0} M keys/s, {} left",
-                job.serial,
-                types_label(&job.learnings),
-                (tested * 100 / total).min(99),
-                rate / 1e6,
-                left
-            ));
             return;
         }
         let Some(job) = self.keeloq_bf_job.take() else {

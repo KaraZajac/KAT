@@ -228,6 +228,13 @@ pub trait ProtocolDecoder: Send + Sync {
     /// Encode a signal with the given button command
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>>;
 
+    /// The decode of the frame `encode(decoded, button)` sends, for an encoder whose upload its
+    /// own decoder cannot always read back. After a transmission the app keeps the frame sent on
+    /// the capture (`app/tx.rs`); None: the app decodes the upload instead.
+    fn sent_signal(&self, _decoded: &DecodedSignal, _button: u8) -> Option<DecodedSignal> {
+        None
+    }
+
     /// Rebuild a decode from a Flipper key file (`Protocol`/`Bit`/`Key` plus the protocol's own
     /// lines), as the reference's `deserialize` does. None when KAT cannot load this protocol's
     /// key files or the key does not validate.
@@ -870,7 +877,7 @@ impl ProtocolRegistry {
     }
 
     /// Feed `pairs` to the decoder `name` resolves to, alone (reset first): every frame it reports.
-    #[cfg(test)]
+    /// The app reads what it just transmitted this way (`app/tx.rs`).
     pub(crate) fn decode_with(&mut self, name: &str, pairs: &[LevelDuration]) -> Vec<DecodedSignal> {
         let Some(lookup) = self.get(name).map(|d| d.name()) else { return Vec::new() };
         let Some(dec) = self.decoders.iter_mut().find(|d| d.name() == lookup) else { return Vec::new() };

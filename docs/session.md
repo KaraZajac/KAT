@@ -40,8 +40,9 @@ worst-case session (100 captures × 4096 pairs, 14 MB) loads in about 80 ms and 
 ### When it is saved
 
 - **Autosave:** about ten times a second KAT compares a fingerprint of the capture list with the last
-  saved state. When something changed (new capture, import, delete, metadata, PSA key recovery …)
-  it writes a snapshot, at most once per second.
+  saved state. When something changed (new capture, import, delete, metadata, PSA key recovery, a
+  rolling code transmitted — the capture keeps the code sent, see
+  [transmit.md](transmit.md#after-a-transmission) …) it writes a snapshot, at most once per second.
 - **On exit:** KAT saves once more on every exit path (`q`, `:q`, an error, a panic that unwinds) and
   waits for the write to finish.
 - Writes run on a background thread, so the UI never waits for the disk. A write that fails shows
@@ -66,6 +67,8 @@ saved 2026-11-04 10:31 UTC
   (see below) without a status message.
 - **n** starts an empty session and keeps the old file as `session.json.bak` (one generation; the
   next decline replaces it). Rename it back to `session.json` to get it offered again.
+- Other keys, **Esc** included, leave the prompt open: declining moves the file aside, so it takes
+  the deliberate **n** (Esc used to count as "no").
 
 Order of the startup prompts: the "no HackRF or RTL-SDR" warning first, then the restore prompt,
 then the import prompt for files in the import folder. Restored captures keep their ids and imports

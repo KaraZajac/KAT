@@ -102,7 +102,9 @@ CPU core:
   least two. `:klbf [ID] [auto|6|7|8]` does the same from the command line, and `:klbf stop` cancels.
 - **Headless:** `kat --keeloq-bf <files|folders> [--type auto|6|7|8] [--save]` reads `.sub` files
   (RAW or key) and IQ recordings, picks the remote with the most captures and prints the keys that fit.
-  `--save` adds the best one to the user keystore.
+  `--save` adds the best one to the user keystore. A path that does not exist stops it before the
+  search (exit status 2); the exit status is 0 when a key was found, else 1. The progress line
+  (percent, keys/s, ETA) is shown only when stderr is a terminal.
 
 For these types the device key is the remote's `fix` combined with part of the manufacturer key, so
 only that part is unknown:

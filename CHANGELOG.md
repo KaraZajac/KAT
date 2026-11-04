@@ -2,6 +2,42 @@
 
 All notable changes to KAT are documented here.
 
+## [1.7.0] - 2026-11-04
+
+A sweep through the interface for bugs and usability: KAT now fits an 80×24 terminal, no longer ends on a failed export or a radio error, never overwrites a file, and has help built in.
+
+### Added
+
+- **Help** (`?`, `F1` or `:help`): the keys and commands, in the app; an unknown command points to it.
+- **Undo** (`u`) for the last delete (`d`, `:delete`, `:delete all`). `:delete` takes ID lists, and `:delete all` asks first.
+- **ID lists** in every command: commas or spaces, `#4`, ranges either way (`1-5`, `5-1`). A command given several ends with a summary ("Replayed 3 of 5 (#04, #05 not found)").
+- **Moving around**: PgUp/PgDn, Home/End and g/G in the captures list; Tab/Shift-Tab and ↑/↓ between form fields; ←/Backspace to the parent folder in the `:load` browser, which now always offers `..` (an empty import folder used to be a dead end).
+- **Ctrl-C** quits (in menus and forms it works as Esc). **Quitting asks first** while a key search, an IQ file, a recording or a transmission is running.
+- **Progress without hiding messages**: queued transmissions count up ("Transmitting 3/20…", Esc cancels the rest), and key searches and IQ files show their progress in the status bar's title. Before, `:replay 1-20` froze the screen, and a key search rewrote the status line every 100 ms.
+- The no-device warning says why each radio couldn't be opened (permissions, busy, the DVB-T driver).
+
+### Changed
+
+- **The layout fits 80×24.** The header, status line, command line and key hints always keep their rows; under about 33 rows they used to disappear, so `:` commands were typed blind. The captures table drops low-priority columns when narrow instead of cutting every column, so protocol names and button codes stay whole; the detail panel shrinks or hides; below 60×16 KAT says the terminal is too small.
+- **Sending a rolling code advances it.** After Send next code, Send button… or TX Lock … Panic, the capture keeps the code it sent, so the next press sends the one after, as Flipper-ARF, doctor-firmware and ProtoPirate do ([docs/transmit.md](docs/transmit.md#after-a-transmission)). Before, every press repeated the same code, so a remote made with `:new` worked only once after pairing.
+- **Messages**: each action clears the last message, so an old error no longer hides later results; long messages keep both ends; the status bar always shows the selected capture's position ("#07 · 3/15").
+- **Frequencies** are read the same way everywhere (`433.92`, `433.92M`, `433.92 MHz`, `433920000`): `:freq`, `:hop`, `:iq`, `--freq` and config.ini; they're shown in full (303.875 MHz, not 303.88).
+- **config.ini**: switches accept yes/no/on/off/1/0, `default_frequency` takes MHz or Hz, gains are fitted to the radio's steps, and typos or bad values are reported at startup instead of being ignored silently.
+- **Exports never overwrite** (`_2`, `_3`, … are added); Flipper key files default to `<name>_key.sub`; names are safe for a Flipper's SD card; the message gives the full path. `:record` never overwrites either and always uses the device's file extension, and transmitting while recording is refused instead of ending the recording.
+- **Imports say what they did** ("Imported 15 captures from Kia3.sub", "Nothing imported from x.fob: …"); `.SUB` and `.FOB` files load; re-importing a file no longer adds an "Unknown" copy of it; the first imported capture is selected.
+- Light terminal themes: normal text uses the terminal's own colour, and every list uses the same selection style.
+- Command line: `kat rec.cu8` and `--iq x.sub` suggest the right option, `--decode` on a folder with nothing to decode says so, `--rate` is checked up front, and `--help` lists the exit codes.
+
+### Fixed
+
+- **Crashes**: a failed export (unplugged SD card, full or read-only disk) ended KAT, and so did a radio that failed to start or retune; two panics in the `:load` browser (non-ASCII folder names, an unreadable folder); a huge ID range (`:replay 1-4000000000`) aborted; a startup error left the terminal in raw mode.
+- **The action menu could act on the wrong capture**: a capture received while the menu was open became the selection, so Enter replayed, exported or deleted it — "Delete Signal" when its menu was shorter. The menu now stays on its capture, and a new capture is selected only when the selection is on the last row.
+- **The settings dropdown changed the value it showed**: when the current value wasn't a preset (after `:freq 433.42`, `:vga 30`, `:txpower 35`), the first entry was highlighted and Enter applied it — 300 MHz, 0 dB, or full TX power. The current value is now listed first.
+- `:license` and `:credits` couldn't scroll to the end; the no-device warning hid "Press any key"; the `i` form said "Step 5/4"; the export file name hid its end and the cursor; the recording indicator was the first thing cut from a narrow header; the RSSI bar froze after receiving stopped, and the header kept "● RX" after the receiver failed.
+- `kat --iq FILE` without a radio skipped the session-restore prompt and turned autosave off for the whole run.
+- The session-restore prompt took Esc as "No", which moves the session to `session.json.bak`; only `n` declines now.
+- The vulnerability panel lists each CVE once and says "+N more" when they don't fit.
+
 ## [1.6.0] - 2026-11-04
 
 KeeLoq key recovery for "magic serial" remotes, prebuilt binaries for every release, the plain BSD 3-Clause license and a reorganised README.

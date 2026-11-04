@@ -10,6 +10,8 @@ use ratatui::{
 
 use crate::app::{App, InputMode};
 
+use super::{text, theme};
+
 /// Render the command input line
 pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
     let (input_text, mode_text, mode_style) = match app.input_mode {
@@ -49,6 +51,10 @@ pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
             Style::default().fg(Color::Yellow),
         ),
         InputMode::SessionRestore | InputMode::ConfirmClear | InputMode::TimingAnalysis => {
+            let (label, style) = super::app_prompts::mode_label(app.input_mode);
+            (String::new(), label, style)
+        }
+        InputMode::Help | InputMode::ConfirmQuit | InputMode::ConfirmDeleteAll => {
             let (label, style) = super::app_prompts::mode_label(app.input_mode);
             (String::new(), label, style)
         }
@@ -93,27 +99,23 @@ pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
         ),
     };
 
+    // A long command shows its end (where the typing happens) behind a leading "…", so the
+    // cursor never leaves the line.
+    let label = format!(" {} ", mode_text);
+    let cursor = if app.input_mode == InputMode::Command { theme::CURSOR } else { "" };
+    let room = (area.width.saturating_sub(2) as usize)
+        .saturating_sub(text::width(&label) + 1 + text::width(cursor));
     let input_line = Line::from(vec![
-        Span::styled(
-            format!(" {} ", mode_text),
-            mode_style.add_modifier(Modifier::BOLD),
-        ),
+        Span::styled(label, mode_style.add_modifier(Modifier::BOLD)),
         Span::raw(" "),
-        Span::raw(input_text),
-        Span::styled(
-            if app.input_mode == InputMode::Command {
-                "█"
-            } else {
-                ""
-            },
-            Style::default(),
-        ),
+        Span::raw(text::truncate_start(&input_text, room)),
+        Span::styled(cursor, theme::TEXT),
     ]);
 
     let input = Paragraph::new(input_line).block(
         Block::default()
             .borders(Borders::ALL)
-            .title("input"),
+            .title("Command"),
     );
 
     frame.render_widget(input, area);

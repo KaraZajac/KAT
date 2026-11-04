@@ -78,9 +78,11 @@ impl App {
     /// Keys of the v1.5 modes (main loop dispatches them here).
     pub fn handle_app_mode_key(&mut self, code: KeyCode) -> Result<()> {
         match self.input_mode {
+            // Only an explicit n declines: declining moves session.json to session.json.bak
+            // (replacing an older backup), too much for a reflexive Esc, which does nothing here.
             InputMode::SessionRestore => match code {
                 KeyCode::Char('y') | KeyCode::Char('Y') => self.restore_session(),
-                KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => self.decline_session_restore(),
+                KeyCode::Char('n') | KeyCode::Char('N') => self.decline_session_restore(),
                 _ => {}
             },
             InputMode::ConfirmClear => match code {

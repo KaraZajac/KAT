@@ -129,6 +129,40 @@ with its own FSK preset (an imported `.sub`) still transmits FSK.
 
 `src/protocols/info.rs` checks that this table lists every FM and AM/FM protocol with the presets the code uses.
 
+## After a transmission
+
+What the references do once they have transmitted a decoded signal (rather than a raw recording):
+
+- **Flipper-ARF and doctor-firmware** (`applications/main/subghz/helpers/subghz_txrx.c`): the encoder's
+  `deserialize` builds the upload from the signal's data and, for a rolling code, advances the counter and
+  writes the new `Key` (and fields such as `Cnt`) back into that data, so the next transmission of the same
+  signal sends the code after. When TX stops, a `SubGhzProtocolTypeDynamic` protocol's data is saved back to
+  the file it was loaded from (`subghz_txrx_tx_stop`: "if protocol dynamic then we save the last upload";
+  doctor-firmware only when it sent its own data, `tx_from_internal_fff`). Static (fixed-code) protocols are
+  not saved back.
+- **ProtoPirate** (`scenes/plugins/protopirate_emulate_plugin.c`, car remotes): emulation runs on a saved
+  file, which it opens for writing; every button press increments the counter (Renault V0: 8 bits) and writes
+  `Cnt` and the pressed `Btn` into the file before transmitting (`emulate_update_data`).
+
+KAT does the same for every encoder transmission — Send next code, Send button…, TX Lock / Unlock / Trunk /
+Panic and `:lock` … `:panic` (`src/app/tx.rs`): once the transmission went out (a failed one changes
+nothing), the capture holds the frame sent — counter, frame (`data`, `data_extra`), button and check flag, as
+a receiver decodes it — while its recorded pulses, name, frequency, preset and metadata stay. The session
+autosave keeps it, so the next press, or the next session, sends the code after; exports made afterwards
+(`.fob`, Flipper key file) carry the advanced state. Up to v1.6.0 every press sent the same frame, and a
+remote made with `:new` worked once after pairing.
+
+- Only rolling codes change (the counter moved). Fixed codes keep their capture, also after Send button…; so
+  do encoders that replay the captured frame because no key verifies it (Fiat V0, and Fiat V1 / V2 and
+  Renault V1 without a verified key send it byte for byte, as the references do).
+- **Replay** sends the recorded pulses and changes nothing.
+- KAT learns the frame sent by reading the upload with the protocol's own decoder (`sent_frame`). Encoder
+  state the air does not carry stays the capture's: FAAC SLH's seed, with which the protocol re-reads the
+  frame through its key file to get the counter. PSA reports the frame it built
+  (`ProtocolDecoder::sent_signal`): an upload whose last key2 bit is 0 does not decode again (in the
+  references either), and a TEA frame only decrypts under the serial "Recover key" found.
+- Transmitting is refused while `:record` runs: TX stops the receiver, which would end the recording.
+
 ## Files
 
 - **`.sub` import** reads `Preset:` (stock names, doctor-firmware's `FM20K` / `FM14K` / `AM101`, short names
@@ -154,6 +188,10 @@ Synthetic only — no hardware in the loop:
   (F4) are re-encoded, transmitted as 2-FSK on the offset, shifted back to the carrier and fed through KAT's
   receive-side `FmDemodulator` (no noise) and the registry: every one decodes with the original serial.
 - The TX stream's buffer/zero filling and completion rule are unit-tested with simulated libhackrf callbacks.
+- After a transmission (`src/app/tx.rs` tests): every rolling-code remote `:new` creates, and the IMPORTS car
+  key files (Kia V0 / V2 / V5 / V6, VAG), send a new counter on each of three presses once the frame sent is
+  kept; fixed codes keep their capture. PSA's reported frame equals the decode of its upload where that
+  decodes, and two presses from the TEA fob's first frame give the fob's own later frame.
 
 Not verified: the HackRF's actual RF output (spectrum, LO leakage level, power at each TX setting), libhackrf's
 callback timing on real hardware, and reception by a car.

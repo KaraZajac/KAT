@@ -231,9 +231,22 @@ pub fn decode_file(
 ) -> Result<FileResult, String> {
     if IqFormat::from_path(path).is_some() {
         decode_iq(reg, path, freq, rate, verbose)
+    } else if crate::export::has_extension(path, "fob") {
+        Err(NO_FOB.to_string())
     } else {
         decode_sub(reg, path)
     }
+}
+
+/// Why `--decode` skips `.fob` files (they hold KAT's own decode, which the app re-runs on load).
+const NO_FOB: &str = ".fob files are not decoded here; open them in the app with :load";
+
+/// What `--decode` says about a folder without a file it reads.
+fn nothing_to_decode(path: &Path) -> String {
+    format!(
+        "kat: {}: nothing to decode (--decode reads Flipper .sub files and .cs8 / .cu8 / .cf32 recordings; {NO_FOB})",
+        path.display()
+    )
 }
 
 /// Lines `--decode` prints for one file.
@@ -267,7 +280,7 @@ pub fn format_result(r: &Result<FileResult, String>, path: &Path, all: bool) -> 
 }
 
 /// `kat --decode`: print the decodes of every file; returns the process exit code (0 when every
-/// file was read, 1 when any failed).
+/// file was read, 1 when any failed or a folder held nothing to decode).
 pub fn run(opts: &DecodeOptions) -> i32 {
     load_keystores();
     let mut reg = ProtocolRegistry::new();
@@ -278,7 +291,13 @@ pub fn run(opts: &DecodeOptions) -> i32 {
             failed = true;
             continue;
         }
-        for path in collect_files(root) {
+        let files = collect_files(root);
+        if files.is_empty() {
+            // An empty folder (or one of .fob files) used to print nothing and exit 0.
+            eprintln!("{}", nothing_to_decode(root));
+            failed = true;
+        }
+        for path in files {
             let r = decode_file(&mut reg, &path, opts.freq, opts.rate, opts.verbose);
             failed |= r.is_err();
             for line in format_result(&r, &path, opts.all) {
@@ -374,15 +393,23 @@ pub fn keeloq_bf(opts: &KeeloqBfOptions) -> i32 {
     let job = std::thread::spawn(move || bf::search(&group, &types, &worker));
     let start = std::time::Instant::now();
     eprintln!("Searching type(s) {:?} on {} threads…", opts.types, std::thread::available_parallelism().map_or(1, |n| n.get()));
+    // The `\r` progress line only on a terminal: in a log file or a pipe it piles up as one
+    // endless line.
+    let progress = std::io::IsTerminal::is_terminal(&std::io::stderr());
     while !job.is_finished() {
         std::thread::sleep(std::time::Duration::from_millis(500));
+        if !progress {
+            continue;
+        }
         let (tested, total) = (ctl.tested.load(Ordering::Relaxed), ctl.total.load(Ordering::Relaxed).max(1));
         let secs = start.elapsed().as_secs_f64().max(0.001);
         let rate = tested as f64 / secs;
         let eta = if rate > 0.0 { (total - tested.min(total)) as f64 / rate } else { 0.0 };
         eprint!("\r  {:5.1}%  {:6.0} M keys/s  ETA {:>5.0} s ", tested as f64 * 100.0 / total as f64, rate / 1e6, eta);
     }
-    eprintln!();
+    if progress {
+        eprintln!();
+    }
     match job.join() {
         Ok(Outcome::Found(found)) => {
             for (i, c) in found.iter().enumerate() {
@@ -412,7 +439,20 @@ pub fn keeloq_bf(opts: &KeeloqBfOptions) -> i32 {
             println!("No key found ({} keys tried in {:.0} s)", ctl.tested.load(Ordering::Relaxed), start.elapsed().as_secs_f64());
             1
         }
-        Ok(Outcome::Cancelled) | Err(_) => 1,
+        Ok(Outcome::Cancelled) => {
+            eprintln!("Search cancelled");
+            1
+        }
+        Err(panic) => {
+            // A worker panic used to end with exit status 1 and no word.
+            let why = panic
+                .downcast_ref::<&str>()
+                .map(|s| s.to_string())
+                .or_else(|| panic.downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "no message".to_string());
+            eprintln!("kat: the key search failed ({why}); please report this with the captures used");
+            1
+        }
     }
 }
 
@@ -465,6 +505,21 @@ mod tests {
         assert!(e.contains("\"Nope\"") && e.contains("not supported"), "{e}");
         let e = decode_file(&mut reg, &empty_raw, None, None, false).unwrap_err();
         assert!(e.contains("No RAW_Data"), "{e}");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A folder without a file `--decode` reads, and a `.fob`, are reported instead of passing
+    /// silently with exit status 0.
+    #[test]
+    fn nothing_to_decode_is_reported() {
+        let dir = std::env::temp_dir().join(format!("kat_headless_empty_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("notes.fob"), "{}").unwrap();
+        let opts = DecodeOptions { paths: vec![dir.clone()], ..Default::default() };
+        assert_eq!(run(&opts), 1);
+        assert!(nothing_to_decode(&dir).contains("nothing to decode") && nothing_to_decode(&dir).contains(":load"));
+        let mut reg = ProtocolRegistry::new();
+        assert_eq!(decode_file(&mut reg, &dir.join("notes.fob"), None, None, false).unwrap_err(), NO_FOB);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

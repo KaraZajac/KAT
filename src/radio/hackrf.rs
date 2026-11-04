@@ -55,6 +55,8 @@ pub struct HackRfController {
     live: Arc<LiveShared>,
     /// Whether HackRF is available
     hackrf_available: bool,
+    /// Why no HackRF could be opened at startup (for the no-device popup)
+    open_error: Option<String>,
     /// Shared gain settings (read by receiver thread)
     gain_settings: Arc<Mutex<GainSettings>>,
     /// RSSI (f32 bits) written by RX callback, read by UI - never blocks
@@ -69,7 +71,8 @@ impl HackRfController {
         let live = Arc::new(LiveShared::new(receiving.clone(), rssi_value.clone(), 433_920_000));
 
         // Check if HackRF is available
-        let hackrf_available = check_hackrf_available();
+        let probe = check_hackrf_available();
+        let hackrf_available = probe.is_ok();
 
         if hackrf_available {
             tracing::info!("HackRF device detected");
@@ -84,9 +87,15 @@ impl HackRfController {
             frequency: Arc::new(Mutex::new(433_920_000)),
             live,
             hackrf_available,
+            open_error: probe.err(),
             gain_settings: Arc::new(Mutex::new(GainSettings::default())),
             rssi_value,
         })
+    }
+
+    /// Why no HackRF could be opened at startup, in words (None when one was found).
+    pub fn open_error(&self) -> Option<&str> {
+        self.open_error.as_deref()
     }
 
     /// Shared atomic for RSSI (f32::to_bits); UI reads so callback never blocks on channel.
@@ -125,8 +134,13 @@ impl HackRfController {
         self.rx_thread = Some(thread::spawn(move || {
             if hackrf_available {
                 if let Err(e) = run_receiver_hackrf(live.clone(), event_tx.clone(), gain_settings) {
+                    // RX ended on its own (open/configure failure, unplug): nothing streams any
+                    // more, so its recording ends and the meter drops; the app goes back to idle.
                     live.receiving.store(false, Ordering::SeqCst);
-                    let _ = event_tx.send(RadioEvent::Error(format!("Receiver error: {}", e)));
+                    live.end_recording_with_rx();
+                    live.rssi.store(0, Ordering::Relaxed);
+                    tracing::warn!("HackRF receiver stopped: {e:#}");
+                    let _ = event_tx.send(RadioEvent::Error(format!("{e:#}")));
                 }
             } else {
                 run_demo_receiver(receiving, event_tx, freq);
@@ -144,6 +158,8 @@ impl HackRfController {
         if let Some(handle) = self.rx_thread.take() {
             let _ = handle.join();
         }
+        // Nothing is received any more: the meter must not freeze at the last level (f32 0.0).
+        self.rssi_value.store(0, Ordering::Relaxed);
         // A recording belongs to one RX session (its file has one centre frequency).
         self.live.end_recording_with_rx();
 
@@ -235,26 +251,39 @@ impl Drop for HackRfController {
     }
 }
 
-/// Check if HackRF is available
-fn check_hackrf_available() -> bool {
+/// Check if HackRF is available: Err(why not, in words) when it cannot be opened.
+fn check_hackrf_available() -> Result<(), String> {
     // Try to open a HackRF device
     match libhackrf::HackRf::open() {
         Ok(_) => {
             tracing::debug!("HackRF opened successfully");
-            true
+            Ok(())
         }
         Err(e) => {
-            tracing::debug!("HackRF not available: {:?}", e);
+            // Logged at warn (the default `kat=info` filter drops debug), so kat.log tells a
+            // permission problem or a busy device from a missing one.
+            tracing::warn!("HackRF not available: {:?}", e);
             // Fallback: check via hackrf_info command
             match std::process::Command::new("hackrf_info")
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null())
                 .status()
             {
-                Ok(status) => status.success(),
-                Err(_) => false,
+                Ok(status) if status.success() => Ok(()),
+                _ => Err(describe_open_error(&e)),
             }
         }
+    }
+}
+
+/// libhackrf's open error in words. `hackrf_open` reports a device it may not open (missing
+/// USB permissions) as not found, and one another program has claimed as a libusb error.
+fn describe_open_error(e: &libhackrf::error::HackrfError) -> String {
+    use libhackrf::error::HackrfError as E;
+    match e {
+        E::NotFound => "not found (if one is plugged in: check its USB permissions / udev rules)".to_string(),
+        E::Libusb | E::Busy => "found but cannot be opened (another program, e.g. hackrf_transfer or GQRX, may be using it)".to_string(),
+        other => format!("cannot be opened ({other:?})"),
     }
 }
 
@@ -460,6 +489,8 @@ fn run_receiver_hackrf(
     // Track applied settings so we can detect changes
     let mut applied = initial_gains;
     let mut last_gain_check = std::time::Instant::now();
+    // Why streaming stopped without being asked to (the device went away).
+    let mut lost = None;
 
     // Until receiving is stopped: retune for hops (every 5 ms), apply gain changes (every 100 ms).
     while live.receiving.load(Ordering::SeqCst) {
@@ -487,6 +518,12 @@ fn run_receiver_hackrf(
             continue;
         }
         last_gain_check = std::time::Instant::now();
+        // libhackrf stops streaming by itself after a USB error (an unplugged HackRF); without
+        // this check the header kept "RX" with a frozen level (hackrf_transfer polls it too).
+        if let Err(e) = hackrf.streaming_status() {
+            lost = Some(e);
+            break;
+        }
         let mut changed = false;
 
         // Check for gain/amp setting changes and apply them live
@@ -529,6 +566,9 @@ fn run_receiver_hackrf(
     // emits a burst that was still open and ends.
     let stopped = hackrf.stop_rx();
     let _ = processor.join();
+    if let Some(e) = lost {
+        anyhow::bail!("the HackRF stopped streaming ({e:?}): unplugged, or a USB error");
+    }
     stopped.context("Failed to stop RX")?;
 
     tracing::info!("HackRF receiver thread stopped");
@@ -691,6 +731,15 @@ fn transmit_signal_hackrf(
 #[cfg(test)]
 mod rx_tests {
     use super::*;
+
+    /// The no-device popup tells a missing HackRF from one another program holds.
+    #[test]
+    fn open_errors_in_words() {
+        use libhackrf::error::HackrfError as E;
+        assert!(describe_open_error(&E::NotFound).starts_with("not found"));
+        assert!(describe_open_error(&E::Libusb).contains("another program"));
+        assert_eq!(describe_open_error(&E::NoMem), "cannot be opened (NoMem)");
+    }
 
     #[test]
     fn retune_split_points() {

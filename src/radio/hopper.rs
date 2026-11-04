@@ -12,6 +12,8 @@
 //! decode. The state machine counts samples, not wall time, so it is exact and testable; the receive
 //! threads feed it and perform the retune it asks for.
 
+use super::iq_file::parse_frequency_arg;
+
 /// Flipper-ARF's default hopper list (Hz).
 pub const DEFAULT_HOP_FREQUENCIES: [u32; 7] =
     [315_000_000, 390_000_000, 430_500_000, 433_920_000, 434_250_000, 434_420_000, 868_350_000];
@@ -63,16 +65,25 @@ pub fn format_mhz(hz: u32) -> String {
     }
 }
 
-/// Parse a list like "315, 433.92 868.35" (MHz, or Hz for values ≥ 10 000) into Hz.
+/// Parse a list like "315, 433.92M 868350000" into Hz: each entry as `:freq` reads it
+/// ([parse_frequency_arg]: MHz, or Hz for values ≥ 10 000, any unit and case), a unit typed apart
+/// ("433.92 MHz") belonging to the number before it.
 pub fn parse_frequency_list(text: &str) -> Result<Vec<u32>, String> {
-    let mut out = Vec::new();
+    let is_unit = |t: &str| ["hz", "khz", "mhz", "ghz", "k", "m", "g"].contains(&t.to_ascii_lowercase().as_str());
+    let mut tokens: Vec<String> = Vec::new();
     for tok in text.split(|c: char| c == ',' || c.is_whitespace()).filter(|t| !t.is_empty()) {
-        let v: f64 = tok.trim_end_matches("MHz").parse().map_err(|_| format!("Invalid frequency: {tok}"))?;
-        let hz = if v < 10_000.0 { v * 1e6 } else { v };
-        if !(24e6..=1.8e9).contains(&hz) {
-            return Err(format!("Frequency out of range: {tok}"));
+        match tokens.last_mut() {
+            Some(prev) if is_unit(tok) => prev.push_str(tok),
+            _ => tokens.push(tok.to_string()),
         }
-        out.push(hz.round() as u32);
+    }
+    let mut out = Vec::new();
+    for tok in tokens {
+        let hz = parse_frequency_arg(&tok).ok_or_else(|| format!("Invalid frequency: {tok} (e.g. 433.92)"))?;
+        if hz > 1_800_000_000 {
+            return Err(format!("Frequency out of range: {tok} (24–1800 MHz)"));
+        }
+        out.push(hz);
     }
     if out.is_empty() {
         return Err("No frequencies given".to_string());
@@ -217,8 +228,15 @@ mod tests {
     #[test]
     fn parse_and_format_lists() {
         assert_eq!(parse_frequency_list("315, 433.92 868350000").unwrap(), vec![315_000_000, 433_920_000, 868_350_000]);
+        // Units as :freq takes them, also typed apart from the number.
+        assert_eq!(
+            parse_frequency_list("315M, 433.92 MHz 868.35mhz 434420000 Hz").unwrap(),
+            vec![315_000_000, 433_920_000, 868_350_000, 434_420_000]
+        );
         assert!(parse_frequency_list("abc").is_err());
         assert!(parse_frequency_list("5").is_err());
+        assert!(parse_frequency_list("MHz 315").is_err(), "a unit with no number before it");
+        assert!(parse_frequency_list("315 2400").unwrap_err().contains("out of range"));
         assert_eq!(format_mhz(430_500_000), "430.50");
         assert_eq!(format_mhz(433_920_000), "433.92");
         assert_eq!(format_mhz(433_875_000), "433.875");

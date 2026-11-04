@@ -11,8 +11,11 @@ use ratatui::{
 
 use crate::app::{App, InputMode, PickerRow};
 use crate::protocols::add_manually::{self, Field, Source, TYPES};
+use crate::radio::hopper::format_mhz;
 
-/// Rows the picker list shows (as the app scrolls it).
+use super::{text, theme};
+
+/// Rows the picker list shows at most (as the app scrolls it); fewer on a short terminal.
 const VISIBLE: usize = crate::app::PICKER_VISIBLE_ROWS;
 
 /// Draw the overlay of the current mode, if it is one of these.
@@ -37,7 +40,8 @@ pub fn mode_label(mode: InputMode) -> (&'static str, Style) {
 /// Help-bar text.
 pub fn help_text(mode: InputMode) -> &'static str {
     match mode {
-        InputMode::NewRemote => "Type: filter | Up/Down/PgUp/PgDn: select | Enter: create | Tab: edit fields first | Esc: close",
+        // Under 80 columns (PgUp/PgDn also move the selection).
+        InputMode::NewRemote => "Type: filter | Up/Down: select | Enter: create | Tab: edit fields | Esc: close",
         InputMode::NewRemoteEdit => "0-9 A-F: edit | Tab/Up/Down: field | Enter: create | Esc: back",
         InputMode::SendButton => "Up/Down: button | 0-9 A-F: other code | Enter: send | Esc: back",
         _ => "",
@@ -51,7 +55,7 @@ fn centered(width: u16, height: u16, area: Rect) -> Rect {
 }
 
 fn mhz(hz: u32) -> String {
-    format!("{:.2} MHz", f64::from(hz) / 1e6)
+    format!("{} MHz", format_mhz(hz))
 }
 
 fn field_text(field: Field, value: Option<u64>) -> String {
@@ -63,20 +67,33 @@ fn field_text(field: Field, value: Option<u64>) -> String {
 
 fn render_picker(frame: &mut Frame, app: &App) {
     let Some(p) = app.new_remote_picker() else { return };
-    let area = centered(92, VISIBLE as u16 + 10, frame.area());
+    // Filter, blank, the list, blank, three lines on the selected type, borders: 8 rows besides
+    // the list, which gets what a short terminal leaves (the help bar stays visible).
+    let height = (VISIBLE as u16 + 8).min(frame.area().height.saturating_sub(2));
+    let visible = (height as usize).saturating_sub(8).max(1);
+    let area = centered(92, height, frame.area());
     frame.render_widget(Clear, area);
+    let inner = area.width.saturating_sub(2) as usize;
     let dim = Style::default().fg(Color::DarkGray);
     let mut lines = vec![
         Line::from(vec![
             Span::styled(" Filter: ", dim),
-            Span::styled(format!("{}█", p.filter), Style::default().fg(Color::Yellow)),
+            Span::styled(p.filter.clone(), Style::default().fg(Color::Yellow)),
+            Span::styled(theme::CURSOR, theme::TEXT),
             Span::styled(format!("   {} of {} types", p.visible().len(), TYPES.len()), dim),
         ]),
         Line::from(""),
     ];
     let rows = p.rows();
     let selected = p.selected_type();
-    for row in rows.iter().skip(p.scroll).take(VISIBLE) {
+    // The app scrolls for the full list height; a shorter list still keeps the selection in view.
+    let selected_row = rows.iter().position(|r| selected.is_some_and(|i| *r == PickerRow::Type(i))).unwrap_or(0);
+    let start = text::keep_in_view(p.scroll, selected_row, visible, rows.len());
+    // Name and protocol columns share what the fixed ones (marker, frequency, preset, note) leave.
+    let room = inner.saturating_sub(29);
+    let name_width = room.saturating_sub(8).min(26);
+    let protocol_width = (room - name_width).min(28);
+    for row in rows.iter().skip(start).take(visible) {
         match *row {
             PickerRow::Heading(g) => lines.push(Line::from(Span::styled(
                 format!(" ── {} ", g.label()),
@@ -86,11 +103,11 @@ fn render_picker(frame: &mut Frame, app: &App) {
                 let ty = &TYPES[i];
                 let available = p.availability.get(i).is_none_or(|a| a.is_ok());
                 let s = add_manually::summary(ty);
-                let text = format!(
-                    "{} {:<26} {:<28} {:>10} {:<6}{}",
+                let row_text = format!(
+                    "{} {} {} {:>10} {:<6}{}",
                     if Some(i) == selected { ">" } else { " " },
-                    ty.name,
-                    s.protocol,
+                    text::fit(ty.name, name_width),
+                    text::fit(&s.protocol, protocol_width),
                     mhz(s.frequency),
                     s.preset,
                     match (ty.source, available) {
@@ -100,17 +117,17 @@ fn render_picker(frame: &mut Frame, app: &App) {
                     }
                 );
                 let style = if Some(i) == selected {
-                    Style::default().fg(Color::Black).bg(Color::Cyan).add_modifier(Modifier::BOLD)
+                    theme::HIGHLIGHT
                 } else if available {
-                    Style::default().fg(Color::White)
+                    theme::TEXT
                 } else {
                     dim
                 };
-                lines.push(Line::from(Span::styled(text, style)));
+                lines.push(Line::from(Span::styled(row_text, style)));
             }
         }
     }
-    while lines.len() < VISIBLE + 2 {
+    while lines.len() < visible + 2 {
         lines.push(Line::from(""));
     }
     lines.push(Line::from(""));
@@ -123,23 +140,30 @@ fn render_picker(frame: &mut Frame, app: &App) {
                 Source::Both => "Flipper-ARF + doctor-firmware",
                 Source::Doctor => "doctor-firmware",
             };
-            lines.push(Line::from(vec![
-                Span::styled(" ", dim),
-                Span::styled(format!("{} · {} · {} · {}", s.protocol, mhz(s.frequency), s.preset, from), Style::default().fg(Color::Cyan)),
-            ]));
+            let about = format!(" {} · {} · {} · {}", s.protocol, mhz(s.frequency), s.preset, from);
+            lines.push(Line::styled(text::truncate_end(&about, inner), Style::default().fg(Color::Cyan)));
             let detail = if fields.is_empty() { "Fixed code drawn at random (Security+ 1.0 rule)".to_string() } else { fields.join(" · ") };
-            lines.push(Line::from(Span::styled(format!(" {detail}"), Style::default().fg(Color::White))));
+            lines.push(Line::styled(text::truncate_end(&format!(" {detail}"), inner), theme::TEXT));
             match p.availability.get(i) {
-                Some(Err(e)) => lines.push(Line::from(Span::styled(format!(" Unavailable: {e}"), Style::default().fg(Color::Red)))),
-                _ => lines.push(Line::from(Span::styled(" Enter: create with these defaults · Tab: edit the fields first", dim))),
+                Some(Err(e)) => lines.push(Line::styled(
+                    text::truncate_end(&format!(" Unavailable: {e}"), inner),
+                    Style::default().fg(Color::Red),
+                )),
+                _ => lines.push(Line::styled(
+                    text::truncate_end(" Enter: create with these defaults · Tab: edit the fields first", inner),
+                    dim,
+                )),
             }
         }
         None => lines.push(Line::from(Span::styled(" No type matches the filter", Style::default().fg(Color::Red)))),
     }
-    let block = Block::default()
+    let mut block = Block::default()
         .title(" New remote (Add Manually) ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Magenta));
+    if let Some(hint) = text::more_hint(start, visible, rows.len()) {
+        block = block.title_bottom(Line::from(hint).right_aligned());
+    }
     frame.render_widget(Paragraph::new(lines).block(block), area);
 }
 
@@ -156,16 +180,16 @@ fn render_form(frame: &mut Frame, app: &App) {
         Line::from(""),
     ];
     if f.fields.is_empty() {
-        lines.push(Line::from(Span::styled(" No fields: the fixed code is drawn at random.", Style::default().fg(Color::White))));
+        lines.push(Line::from(Span::styled(" No fields: the fixed code is drawn at random.", theme::TEXT)));
     }
     for (i, (field, text, width)) in f.fields.iter().enumerate() {
         let focused = i == f.focus;
-        let value = format!("{text}{}", if focused { "█" } else { "" });
+        let value = format!("{text}{}", if focused { theme::CURSOR } else { "" });
         lines.push(Line::from(vec![
-            Span::styled(format!(" {} {:<8}", if focused { ">" } else { " " }, field.label()), Style::default().fg(Color::White)),
+            Span::styled(format!(" {} {:<8}", if focused { ">" } else { " " }, field.label()), theme::TEXT),
             Span::styled(
                 format!(" 0x{value:<w$} ", w = width * 2 + 1),
-                if focused { Style::default().fg(Color::Black).bg(Color::Yellow) } else { Style::default().fg(Color::Yellow) },
+                if focused { theme::HIGHLIGHT } else { Style::default().fg(Color::Yellow) },
             ),
             Span::styled(format!(" {} hex digits", width * 2), dim),
         ]));
@@ -189,33 +213,37 @@ fn render_send_button(frame: &mut Frame, app: &App) {
         .iter()
         .find(|c| c.id == m.capture_id)
         .map_or_else(String::new, |c| format!(" Send button — #{:02} {} ", c.id, c.protocol_name()));
-    let height = m.buttons.len().min(20) as u16 + 6;
+    // Up to 20 buttons, fewer on a short terminal; the list scrolls to keep the selection in view.
+    let height = (m.buttons.len().min(20) as u16 + 6).min(frame.area().height.saturating_sub(2));
+    // Borders, the blank line, "Other code" and the hint: 5 rows; the buttons get the rest.
+    let visible = (height as usize).saturating_sub(5).max(1);
     let area = centered(52, height, frame.area());
     frame.render_widget(Clear, area);
-    let first = m.selected.saturating_sub(19);
+    let first = text::centered_start(m.selected, visible, m.buttons.len());
     let mut lines: Vec<Line> = m
         .buttons
         .iter()
         .enumerate()
         .skip(first)
-        .take(20)
+        .take(visible)
         .map(|(i, (_, label))| {
             if i == m.selected && m.custom.is_empty() {
-                Line::from(Span::styled(
-                    format!(" > {label}"),
-                    Style::default().fg(Color::Black).bg(Color::Cyan).add_modifier(Modifier::BOLD),
-                ))
+                Line::from(Span::styled(format!(" > {label}"), theme::HIGHLIGHT))
             } else {
-                Line::from(Span::styled(format!("   {label}"), Style::default().fg(Color::White)))
+                Line::from(Span::styled(format!("   {label}"), theme::TEXT))
             }
         })
         .collect();
     lines.push(Line::from(""));
     lines.push(Line::from(vec![
         Span::styled(" Other code: 0x", Style::default().fg(Color::DarkGray)),
-        Span::styled(format!("{}█", m.custom), Style::default().fg(Color::Yellow)),
+        Span::styled(m.custom.clone(), Style::default().fg(Color::Yellow)),
+        Span::styled(theme::CURSOR, theme::TEXT),
     ]));
     lines.push(Line::from(Span::styled(" Enter: send the next code with it · Esc: back", Style::default().fg(Color::DarkGray))));
-    let block = Block::default().title(title).borders(Borders::ALL).border_style(Style::default().fg(Color::Cyan));
+    let mut block = Block::default().title(title).borders(Borders::ALL).border_style(Style::default().fg(Color::Cyan));
+    if let Some(hint) = text::more_hint(first, visible, m.buttons.len()) {
+        block = block.title_bottom(Line::from(hint).right_aligned());
+    }
     frame.render_widget(Paragraph::new(lines).block(block), area);
 }

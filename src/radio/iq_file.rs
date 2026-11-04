@@ -24,6 +24,8 @@ use super::rx::burst_captures;
 
 /// Default sample rate when neither the command nor the file name gives one.
 pub const DEFAULT_FILE_RATE: u32 = 2_000_000;
+/// Lowest sample rate the pipeline decodes (`kat --rate` checks it up front).
+pub const MIN_FILE_RATE: u32 = 200_000;
 
 /// Frequency / rate hints found in a file name.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -117,12 +119,20 @@ pub fn parse_name_hints(name: &str) -> NameHints {
     h
 }
 
-/// Parse a frequency argument: MHz below 10 000, else Hz ("433.92", "433920000", "433.92M").
+/// Parse a frequency argument, the one parser of `--freq`, `:freq`, `:iq` and `:hop`: a number
+/// with an optional unit in any case, spaces allowed ("433.92", "433.92M", "433.92MHz",
+/// "433.92 mhz", "433920k", "433920000", "433920000Hz"). A bare number is MHz below 10 000, else
+/// Hz. None outside 24 MHz–4.29 GHz (what a u32 in Hz holds).
 pub fn parse_frequency_arg(s: &str) -> Option<u32> {
-    let t = s.trim().trim_end_matches(['M', 'm']).trim_end_matches("Hz").trim_end_matches(['M', 'm']);
-    let v: f64 = t.parse().ok()?;
-    let hz = if v < 10_000.0 { v * 1e6 } else { v };
-    (24e6..=7.25e9).contains(&hz).then(|| hz.round() as u32)
+    let t: String = s.chars().filter(|c| !c.is_whitespace()).collect::<String>().to_ascii_lowercase();
+    let units = [("ghz", 1e9), ("mhz", 1e6), ("khz", 1e3), ("hz", 1.0), ("g", 1e9), ("m", 1e6), ("k", 1e3)];
+    let (num, scale) = units
+        .iter()
+        .find_map(|&(unit, scale)| t.strip_suffix(unit).map(|n| (n, Some(scale))))
+        .unwrap_or((t.as_str(), None));
+    let v: f64 = num.parse().ok()?;
+    let hz = v * scale.unwrap_or(if v < 10_000.0 { 1e6 } else { 1.0 });
+    (24e6..=7.25e9).contains(&hz).then(|| hz.round()).filter(|&hz| hz <= f64::from(u32::MAX)).map(|hz| hz as u32)
 }
 
 /// Parse a sample-rate argument: "2M", "2.4M", "2048k", "2000000", "2.048" (MS/s below 100).
@@ -170,7 +180,7 @@ impl IqFileSpec {
             _ => centre,
         };
         let sample_rate = rate.or(hints.rate).unwrap_or(DEFAULT_FILE_RATE);
-        if sample_rate < 200_000 {
+        if sample_rate < MIN_FILE_RATE {
             return Err(format!("Sample rate {sample_rate} S/s is too low (need ≥ 200 kS/s)"));
         }
         Ok(Self { path, format, centre_hz: centre, target_hz: target, sample_rate })
@@ -374,6 +384,22 @@ mod tests {
         assert_eq!(parse_name_hints("capture.cs8"), NameHints::default());
         let h = parse_name_hints("hcs362-pwm-button2-868.3M_1000k.cu8");
         assert_eq!((h.centre, h.rate), (Some(868_300_000), Some(1_000_000)));
+    }
+
+    #[test]
+    fn frequency_arguments_take_any_unit() {
+        // Any unit case, spaces, Hz / kHz / GHz; a bare number is MHz below 10 000.
+        for s in ["433.92MHz", "433.92mhz", "433.92 MHz", " 433.92 mhz ", "433.92m", "433920000Hz", "433920 kHz", "433920K", "0.43392GHz"] {
+            assert_eq!(parse_frequency_arg(s), Some(433_920_000), "{s}");
+        }
+        assert_eq!(parse_frequency_arg("315"), Some(315_000_000));
+        assert_eq!(parse_frequency_arg("868350000"), Some(868_350_000));
+        assert_eq!(parse_frequency_arg("4.29GHz"), Some(4_290_000_000));
+        // Units mean what they say ("433.92Hz" is 433.92 Hz); out of range (9999 MHz, 4.3 GHz no
+        // longer fits a u32 in Hz) or junk is None.
+        for s in ["433.92Hz", "5", "5M", "9999", "4.3GHz", "", "MHz", "433.92 MHz MHz", "-433.92", "NaN", "inf", "433,92"] {
+            assert_eq!(parse_frequency_arg(s), None, "{s}");
+        }
     }
 
     #[test]

@@ -32,6 +32,7 @@ pub enum SubContent {
 
 /// Read a `.sub` file: RAW (`RAW_Data` lines, or `Protocol: RAW`), BinRAW (`Data_RAW` bit blocks,
 /// turned into pulses) or a key file.
+#[allow(dead_code)] // tests and tools; the app reads the text itself and calls [parse_sub_content]
 pub fn read_sub(path: &Path) -> Result<SubContent> {
     let s = std::fs::read_to_string(path).with_context(|| format!("Read .sub file: {:?}", path))?;
     parse_sub_content(&s)
@@ -150,7 +151,7 @@ pub fn scan_sub_files(dir: &Path) -> Vec<std::path::PathBuf> {
     };
     for e in entries.flatten() {
         let p = e.path();
-        if p.extension().map_or(false, |e| e == "sub") {
+        if super::has_extension(&p, "sub") {
             out.push(p);
         }
     }

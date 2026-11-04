@@ -1231,37 +1231,35 @@ impl ProtocolDecoder for PsaDecoder {
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
         let key1 = decoded.data;
         let key2_low = decoded.extra.unwrap_or(0) as u32;
-        // The plaintext fields the references read from the saved file (Serial/Btn/Cnt/Type/CRC):
-        // a TEA decrypt under the recovered serial's key (a 2^-32 check), else PP's fast path.
-        let decrypted = decoded.extra.and_then(|_| {
-            decoded
-                .serial
-                .and_then(|serial| tea_decrypt_with_serial(key1, key2_low, serial).map(|(f, _)| f))
-                .or_else(|| fast_decrypt(key1, key2_low))
-        });
-        let fields = decrypted
-            .or_else(|| {
-                // No key material to decrypt (a capture saved without key2, e.g. by the retired
-                // PSA2 decoder): mode 0x23 from the decoded fields, CRC byte 0.
-                decoded.serial.map(|serial| PsaFields {
-                    mode: MODE_XOR,
-                    serial,
-                    button: decoded.button.unwrap_or(0),
-                    counter: decoded.counter.unwrap_or(0) as u32,
-                    crc: 0,
-                })
-            })?;
-        let fields = PsaFields {
-            button: map_button(button, fields.button),
-            counter: fields.counter.wrapping_add(1),
-            ..fields
-        };
+        let fields = next_fields(decoded, button)?;
         let upload = build_upload(key1, key2_low, &fields);
         let mut signal = Vec::with_capacity(ENC_REPEAT * upload.len());
         for _ in 0..ENC_REPEAT {
             signal.extend_from_slice(&upload);
         }
         Some(signal)
+    }
+
+    /// The frame `encode` sends, as the decoder reports it (Flipper-ARF writes the same `Key` /
+    /// `Key_2` back after building the upload). Needed because an upload whose last key2 bit is 0
+    /// does not decode again (`uploads_ending_in_a_zero_bit_are_not_redecoded`) and a TEA frame
+    /// only decrypts under the capture's recovered serial: its fields are the ones encoded.
+    fn sent_signal(&self, decoded: &DecodedSignal, button: u8) -> Option<DecodedSignal> {
+        let fields = next_fields(decoded, button)?;
+        let (key1, validation) = frame_words(decoded.data, decoded.extra.unwrap_or(0) as u32, &fields);
+        let d = self.emit(RawFrame { key1, key2_high: 0, key2_low: u32::from(validation), am: false })?;
+        Some(if d.serial.is_some() {
+            d
+        } else {
+            DecodedSignal {
+                serial: Some(fields.serial),
+                button: Some(fields.button),
+                counter: Some(fields.counter as u16),
+                crc_valid: true,
+                encoder_capable: true,
+                ..d
+            }
+        })
     }
 
     /// Key files: ProtoPirate `subghz_protocol_decoder_psa_deserialize` (Key + Key_2, then
@@ -1402,7 +1400,35 @@ fn build_buffer_mode36(fields: &PsaFields) -> [u8; 16] {
 }
 
 /// One upload copy of `psa_encoder_build_upload` (325 entries; the C yields it `repeat` times).
-fn build_upload(key1: u64, key2_low: u32, fields: &PsaFields) -> Vec<LevelDuration> {
+/// The fields `encode` sends for a capture: the plaintext the references read from the saved
+/// file (Serial/Btn/Cnt/Type/CRC) — a TEA decrypt under the recovered serial's key (a 2^-32
+/// check), else ProtoPirate's fast path — with the requested button and counter + 1.
+fn next_fields(decoded: &DecodedSignal, button: u8) -> Option<PsaFields> {
+    let key1 = decoded.data;
+    let key2_low = decoded.extra.unwrap_or(0) as u32;
+    let decrypted = decoded.extra.and_then(|_| {
+        decoded
+            .serial
+            .and_then(|serial| tea_decrypt_with_serial(key1, key2_low, serial).map(|(f, _)| f))
+            .or_else(|| fast_decrypt(key1, key2_low))
+    });
+    let fields = decrypted.or_else(|| {
+        // No key material to decrypt (a capture saved without key2, e.g. by the retired
+        // PSA2 decoder): mode 0x23 from the decoded fields, CRC byte 0.
+        decoded.serial.map(|serial| PsaFields {
+            mode: MODE_XOR,
+            serial,
+            button: decoded.button.unwrap_or(0),
+            counter: decoded.counter.unwrap_or(0) as u32,
+            crc: 0,
+        })
+    })?;
+    Some(PsaFields { button: map_button(button, fields.button), counter: fields.counter.wrapping_add(1), ..fields })
+}
+
+/// Key1 and the 16-bit validation word of the frame for `fields` (`psa_encoder_build_upload`'s
+/// buffer).
+fn frame_words(key1: u64, key2_low: u32, fields: &PsaFields) -> (u64, u16) {
     let mut buf = if fields.mode == MODE_TEA { build_buffer_mode36(fields) } else { build_buffer_mode23(fields, key2_low) };
     if key1 != 0 {
         // buffer[0..1] preserved from the captured key1 (they carry the 0xA sync).
@@ -1413,7 +1439,11 @@ fn build_upload(key1: u64, key2_low: u32, fields: &PsaFields) -> Vec<LevelDurati
         buf[1] = buf[3] ^ buf[7];
     }
     let new_key1 = u64::from_be_bytes([buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]]);
-    let validation = u16::from_be_bytes([buf[8], buf[9]]);
+    (new_key1, u16::from_be_bytes([buf[8], buf[9]]))
+}
+
+fn build_upload(key1: u64, key2_low: u32, fields: &PsaFields) -> Vec<LevelDuration> {
+    let (new_key1, validation) = frame_words(key1, key2_low, fields);
 
     let mut up = Vec::with_capacity(ENC_UPLOAD_LEN);
     for _ in 0..ENC_PREAMBLE_PAIRS {
@@ -1662,6 +1692,31 @@ mod tests {
         let wire = dec.encode(&xor, 0x02).unwrap();
         assert!(!wire[321].level && wire[322].level, "last key2 bit is 0: (LOW, HIGH)");
         assert!(decode_all(&merged(&wire)).is_empty());
+    }
+
+    /// `sent_signal` is the decoder's report of the frame `encode` sends (what the app keeps on a
+    /// capture after transmitting it), also where the upload does not decode again (a last key2
+    /// bit of 0) and for TEA frames (the encoded fields, as the recovered serial decrypts them).
+    #[test]
+    fn sent_signal_is_the_frame_encoded() {
+        let dec = PsaDecoder::new();
+        // A decodable upload: the same as its decode.
+        let xor = psa_from(0x6EDA_E3B4_785F_7BC6, 0x70F7, Some(0x99EB25));
+        let sent = dec.sent_signal(&xor, 0x02).unwrap();
+        assert_eq!(Some(&sent), decode_all(&merged(&dec.encode(&xor, 0x02).unwrap())).first());
+        // Ending in a 0 bit (no decode): Unlock → button 1, counter + 1, and the next press goes on.
+        let xor0 = psa_from(0x6EDA_E3B4_785F_7BC6, 0x70F6, Some(0x99EB25));
+        let sent = dec.sent_signal(&xor0, 0x02).unwrap();
+        assert_eq!((sent.serial, sent.button, sent.counter, sent.crc_valid), (Some(0x99EB25), Some(1), Some(0x039C), true));
+        assert_eq!(dec.sent_signal(&sent, 0x02).unwrap().counter, Some(0x039D));
+        // TEA (serial from the brute force): the C's upload with the encoded fields; a second
+        // press from it is the fob's own later frame (PSA_536_523, counter 0x9158E55).
+        let tea = psa_from(0xF47A_2EA1_1A4C_7CAF, 0x2927, Some(0x014590));
+        let sent = dec.sent_signal(&tea, 0x01).unwrap();
+        assert_eq!((sent.data, sent.extra), (0xF47A_38D3_2DE3_24CE, Some(0xFC13)));
+        assert_eq!((sent.serial, sent.button, sent.counter, sent.encoder_capable), (Some(0x014590), Some(0), Some(0x8E54), true));
+        let next = dec.sent_signal(&sent, 0x01).unwrap();
+        assert_eq!((next.data, next.extra, next.counter), (0xF47A_25DE_C980_F0DE, Some(0x1621), Some(0x8E55)));
     }
 
     #[test]

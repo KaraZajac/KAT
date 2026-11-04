@@ -57,7 +57,9 @@ still produces a frame from the stored fields.
 ## Saving
 
 **Export Flipper key (.sub)** in the signal menu (shown only when the capture's protocol writes key
-files) saves `<name>.sub` in the export directory, as the reference's `serialize` would:
+files) saves `<name>.sub` in the export directory (the suggested name is the RAW export's with `_key`
+added, so a capture's two exports do not share a file; a name in use gets `_2`, `_3`, …, an existing
+file is never replaced), as the reference's `serialize` would:
 
 - header, `Frequency`, `Preset` (a custom preset adds `Custom_preset_module` /
   `Custom_preset_data` right after it), then `Protocol`, `Bit`, `Key` (8 bytes, the reference's

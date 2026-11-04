@@ -15,6 +15,7 @@ use crate::radio::{HackRfController, LevelDuration, RtlSdrController};
 use crate::storage::Storage;
 
 mod rx;
+mod files;
 
 /// Active radio device: HackRF (full TX/RX) or RTL-SDR (receive-only).
 pub enum RadioDevice {
@@ -168,6 +169,13 @@ pub enum InputMode {
     NewRemoteEdit,
     /// Signal menu "Send button…": a gate remote's native buttons
     SendButton,
+    /// Help overlay (`?`, F1, `:help`), scrolled like the License overlay
+    Help,
+    /// "Quit? … is still running" (y/n): `q` while a key search, IQ file, recording or transmit
+    /// queue runs (app/input.rs)
+    ConfirmQuit,
+    /// `:delete all` confirmation (y/n); `u` undoes it afterwards
+    ConfirmDeleteAll,
 }
 
 /// Export format being used
@@ -185,6 +193,7 @@ mod key_files;
 // `:new` ("Add Manually" remotes) and the signal menu's "Send button…".
 mod add_manually;
 mod keeloq_bf;
+mod input;
 pub use add_manually::{PickerRow, PICKER_VISIBLE_ROWS};
 
 /// Items available in the signal action menu
@@ -362,6 +371,9 @@ pub struct App {
     pub selected_capture: Option<usize>,
     /// Scroll offset for captures list
     pub scroll_offset: usize,
+    /// First row the captures table shows: kept by the renderer between frames (ratatui scrolls it
+    /// just enough to keep the selection in view for the table's real height).
+    pub captures_table_offset: std::cell::Cell<usize>,
     /// Current frequency in Hz
     pub frequency: u32,
     /// LNA gain (0-40 dB, 8 dB steps)
@@ -386,6 +398,13 @@ pub struct App {
     // -- License/Credits overlay --
     /// Scroll offset for license/credits overlay (lines)
     pub overlay_scroll: usize,
+    /// Largest useful `overlay_scroll` of the License / Credits / help overlay as the renderer
+    /// last drew it (set every frame), so scrolling stops at the last line.
+    pub overlay_scroll_max: std::cell::Cell<usize>,
+    /// Rows of the captures list the last frame showed (set by the renderer): PgUp / PgDn step.
+    pub list_page_rows: std::cell::Cell<usize>,
+    /// Signal-menu target, delete undo, transmit progress (app/input.rs)
+    input: input::InputState,
 
     // -- Settings menu state --
     /// Currently selected settings field
@@ -412,6 +431,9 @@ pub struct App {
     pub rx: rx::RxExtras,
     /// Set by :q / :quit so the main loop can exit cleanly (terminal cleanup)
     pub quit_requested: bool,
+    /// Why no radio could be opened at startup, per device ("HackRF: not found · RTL-SDR: found
+    /// but busy …"), for the no-device popup; None when a radio is in use.
+    pub radio_open_error: Option<String>,
 
     // -- Startup import state --
     /// .fob files found on startup in export_dir
@@ -498,7 +520,8 @@ impl App {
         let protocols = ProtocolRegistry::new();
         let (radio_event_tx, radio_event_rx) = mpsc::channel();
 
-        // Try HackRF first, then RTL-SDR
+        // Try HackRF first, then RTL-SDR; keep why each could not be opened (no-device popup).
+        let mut open_errors: Vec<String> = Vec::new();
         let radio: Option<RadioDevice> = match HackRfController::new(radio_event_tx.clone()) {
             Ok(mut h) if h.is_available() => {
                 tracing::info!("HackRF initialized successfully");
@@ -507,16 +530,23 @@ impl App {
                 let _ = h.set_amp_enable(storage.config.default_amp);
                 Some(RadioDevice::HackRf(h))
             }
-            _ => match RtlSdrController::new(radio_event_tx.clone()) {
-                Ok(mut r) if r.is_available() => {
-                    tracing::info!("RTL-SDR initialized (receive-only)");
-                    let _ = r.set_lna_gain(storage.config.default_lna_gain);
-                    let _ = r.set_vga_gain(storage.config.default_vga_gain);
-                    Some(RadioDevice::RtlSdr(r))
+            hackrf => {
+                open_errors.extend(hackrf.ok().and_then(|h| h.open_error().map(|e| format!("HackRF: {e}"))));
+                match RtlSdrController::new(radio_event_tx.clone()) {
+                    Ok(mut r) if r.is_available() => {
+                        tracing::info!("RTL-SDR initialized (receive-only)");
+                        let _ = r.set_lna_gain(storage.config.default_lna_gain);
+                        let _ = r.set_vga_gain(storage.config.default_vga_gain);
+                        Some(RadioDevice::RtlSdr(r))
+                    }
+                    rtl => {
+                        open_errors.extend(rtl.ok().and_then(|r| r.open_error().map(|e| format!("RTL-SDR: {e}"))));
+                        None
+                    }
                 }
-                _ => None
             }
         };
+        let radio_open_error = (radio.is_none() && !open_errors.is_empty()).then(|| open_errors.join(" · "));
 
         let device_detected = radio.as_ref().map_or(false, |r| r.is_available());
 
@@ -561,6 +591,7 @@ impl App {
             captures,
             selected_capture: None,
             scroll_offset: 0,
+            captures_table_offset: std::cell::Cell::new(0),
             frequency,
             lna_gain,
             vga_gain,
@@ -571,6 +602,9 @@ impl App {
             rssi: 0.0,
             signal_menu_index: 0,
             overlay_scroll: 0,
+            overlay_scroll_max: std::cell::Cell::new(0),
+            list_page_rows: std::cell::Cell::new(10),
+            input: input::InputState::default(),
             settings_field_index: 0,
             settings_value_index: 0,
             next_capture_id,
@@ -611,20 +645,26 @@ impl App {
             session: persistence::SessionState::default(),
             saved_fobs: fob_matching::SavedFobState::default(),
             timing_view: None,
+            radio_open_error,
             add_manually: add_manually::AddManuallyState::default(),
         };
+        if let Some(why) = &app.radio_open_error {
+            tracing::warn!("No radio: {why}");
+        }
         // Saved-session restore prompt, session writer, saved-fob index (app/persistence.rs).
         app.init_app_extensions();
         if let Some(msg) = user_keystore_msg {
             tracing::info!("{msg}");
             app.status_message.get_or_insert(msg);
         }
+        // config.ini problems (logged by Storage, all kept in `storage.warnings`): the first one
+        // in the status line, so a typo does not go unnoticed.
+        if let Some(first) = app.storage.warnings.first() {
+            let more = app.storage.warnings.len() - 1;
+            let msg = if more == 0 { first.clone() } else { format!("{first} (+{more} more in kat.log)") };
+            app.last_error.get_or_insert(msg);
+        }
         Ok(app)
-    }
-
-    /// Get the frequency in MHz
-    pub fn frequency_mhz(&self) -> f64 {
-        self.frequency as f64 / 1_000_000.0
     }
 
     /// Display name of the active radio device, if any (e.g. "HackRF", "RTL-SDR (RX only)").
@@ -691,7 +731,7 @@ impl App {
                 if let Some(ref mut radio) = self.radio {
                     radio.start_receiving(self.frequency)?;
                     self.radio_state = RadioState::Receiving;
-                    self.status_message = Some(format!("Receiving on {:.2} MHz", self.frequency_mhz()));
+                    self.status_message = Some(format!("Receiving on {} MHz", crate::radio::hopper::format_mhz(self.frequency)));
                 }
             }
             RadioState::Receiving => {
@@ -708,34 +748,6 @@ impl App {
         Ok(())
     }
 
-    /// Parse an ID spec into a list of capture IDs in order.
-    /// Supports: single "1", comma-separated "1, 3, 5", range "1-5", and mixed "1, 3-5, 7".
-    fn parse_id_spec(s: &str) -> Result<Vec<u32>, String> {
-        let mut ids = Vec::new();
-        for part in s.split(',') {
-            let part = part.trim();
-            if part.is_empty() {
-                continue;
-            }
-            if let Some((low, high)) = part.split_once('-') {
-                let low = low.trim().parse::<u32>().map_err(|_| "Invalid ID in range".to_string())?;
-                let high = high.trim().parse::<u32>().map_err(|_| "Invalid ID in range".to_string())?;
-                if low <= high {
-                    ids.extend(low..=high);
-                } else {
-                    ids.extend((high..=low).rev());
-                }
-            } else {
-                let id = part.parse::<u32>().map_err(|_| "Invalid capture ID".to_string())?;
-                ids.push(id);
-            }
-        }
-        if ids.is_empty() {
-            return Err("No valid IDs".to_string());
-        }
-        Ok(ids)
-    }
-
     /// Execute a command
     pub fn execute_command(&mut self, command: &str) -> Result<()> {
         let parts: Vec<&str> = command.trim().split_whitespace().collect();
@@ -748,20 +760,15 @@ impl App {
 
         match parts[0] {
             "q" | "quit" => {
-                self.quit_requested = true;
+                // Asks first while a key search, IQ file, recording or transmit queue runs.
+                self.quit_requested = self.request_quit();
             }
             "freq" => {
-                if parts.len() < 2 {
-                    self.last_error = Some("Usage: :freq <MHz>".to_string());
-                    return Ok(());
-                }
-                match parts[1].parse::<f64>() {
-                    Ok(mhz) => {
-                        let hz = (mhz * 1_000_000.0) as u32;
-                        self.set_frequency(hz)?;
-                    }
-                    Err(_) => {
-                        self.last_error = Some("Invalid frequency".to_string());
+                // "433.92", "433.92M", "433.92 MHz", "433920000", "433920000Hz" (any case)
+                match crate::radio::iq_file::parse_frequency_arg(&parts[1..].join(" ")) {
+                    Some(hz) => self.set_frequency(hz)?,
+                    None => {
+                        self.last_error = Some("Usage: :freq <MHz> (e.g. 433.92; 300–928 MHz)".to_string());
                     }
                 }
             }
@@ -780,6 +787,7 @@ impl App {
                 self.input_mode = InputMode::Credits;
                 self.overlay_scroll = 0;
             }
+            "help" | "h" => self.open_help(),
             "load" => {
                 // The rest of the line, so file names with spaces work.
                 let arg = command.trim()[parts[0].len()..].trim();
@@ -791,14 +799,14 @@ impl App {
             }
             "new" => self.new_remote_command(&parts[1..]),
             "delete" => {
-                if parts.len() < 2 {
-                    self.last_error = Some("Usage: :delete <ID> or :delete all".to_string());
-                    return Ok(());
-                }
-                if parts[1].eq_ignore_ascii_case("all") {
-                    self.delete_all_captures()?;
+                // An ID list like :replay's ("2", "1-3, 7", "4 5"); `all` asks first (app/input.rs).
+                let spec = parts[1..].join(" ");
+                if spec.is_empty() {
+                    self.last_error = Some("Usage: :delete <ID> (e.g. 4, 1-3, 1,5) or :delete all".to_string());
+                } else if spec.eq_ignore_ascii_case("all") {
+                    self.request_delete_all();
                 } else {
-                    self.delete_capture(parts[1])?;
+                    self.delete_capture(&spec)?;
                 }
             }
             "timing" => {
@@ -819,14 +827,7 @@ impl App {
                         return Ok(());
                     }
                 };
-                match Self::parse_id_spec(id_spec) {
-                    Ok(ids) => {
-                        for id in ids {
-                            self.replay_capture(id)?;
-                        }
-                    }
-                    Err(e) => self.last_error = Some(e),
-                }
+                self.transmit_id_list(id_spec, None)?;
             }
             "lna" => {
                 if parts.len() < 2 {
@@ -868,7 +869,7 @@ impl App {
             }
             "txpower" => self.txpower_command(&parts[1..]),
             _ => {
-                self.last_error = Some(format!("Unknown command: {}", parts[0]));
+                self.last_error = Some(format!("Unknown command: {} (:help lists commands)", parts[0]));
             }
         }
 
@@ -879,7 +880,10 @@ impl App {
     fn set_frequency(&mut self, hz: u32) -> Result<()> {
         // Validate frequency range (common keyfob frequencies)
         if hz < 300_000_000 || hz > 928_000_000 {
-            self.last_error = Some("Frequency must be between 300-928 MHz".to_string());
+            self.last_error = Some(format!(
+                "{} MHz is out of range: KAT receives 300–928 MHz (e.g. :freq 433.92)",
+                crate::radio::hopper::format_mhz(hz)
+            ));
             return Ok(());
         }
 
@@ -895,7 +899,7 @@ impl App {
             }
         }
 
-        self.status_message = Some(format!("Frequency set to {:.2} MHz", hz as f64 / 1_000_000.0));
+        self.status_message = Some(format!("Frequency set to {} MHz", crate::radio::hopper::format_mhz(hz)));
         Ok(())
     }
 
@@ -956,39 +960,25 @@ impl App {
         Ok(())
     }
 
-    /// Transmit a command for one or more captures. ID spec: "1", "1, 3, 5", "1-5", or mixed.
+    /// Transmit a command for one or more captures. ID spec: "1", "1, 3, 5", "1-5", or mixed
+    /// (app/input.rs).
     fn transmit_command(&mut self, id_spec: Option<String>, command: ButtonCommand) -> Result<()> {
         let id_spec = match id_spec.as_deref() {
             Some(s) if !s.is_empty() => s,
             _ => {
-                self.last_error = Some(format!("Usage: :{:?} <ID> (e.g. 1, 1,3,5, 1-5)", command).to_lowercase());
+                let name = format!("{:?}", command).to_lowercase();
+                self.last_error = Some(format!("Usage: :{} <ID> (e.g. 1, 1,3,5, 1-5)", name));
                 return Ok(());
             }
         };
-        let ids = match Self::parse_id_spec(id_spec) {
-            Ok(ids) => ids,
-            Err(e) => {
-                self.last_error = Some(e);
-                return Ok(());
-            }
-        };
-        for id in ids {
-            self.transmit_one_command(id, command)?;
-        }
-        Ok(())
+        self.transmit_id_list(id_spec, Some(command))
     }
 
     /// Transmit a command for a single capture by ID.
     fn transmit_one_command(&mut self, id: u32, command: ButtonCommand) -> Result<()> {
         use crate::protocols::DecodedSignal;
 
-        if let Some(ref radio) = self.radio {
-            if !radio.supports_tx() {
-                self.last_error = Some("Transmit not available – RTL-SDR is receive-only".to_string());
-                return Ok(());
-            }
-        } else {
-            self.last_error = Some("No radio device connected".to_string());
+        if !self.transmit_allowed() {
             return Ok(());
         }
 
@@ -1044,7 +1034,9 @@ impl App {
         };
 
         let (preset, modulation) = capture.tx_preset();
-        self.queue_transmit(signal, capture.frequency, modulation);
+        // A rolling code's capture advances to the frame sent once it went out (app/tx.rs).
+        let advance = self.tx_advance(id, protocol_name, &decoded, button_code, &signal);
+        self.queue_transmit_advancing(signal, capture.frequency, modulation, advance);
         self.status_message = Some(format!(
             "Transmitted {:?} for capture {} ({}, {})",
             command,
@@ -1057,13 +1049,7 @@ impl App {
 
     /// Replay a capture by re-transmitting its raw level/duration pairs (no re-encoding).
     pub fn replay_capture(&mut self, id: u32) -> Result<()> {
-        if let Some(ref radio) = self.radio {
-            if !radio.supports_tx() {
-                self.last_error = Some("Transmit not available – RTL-SDR is receive-only".to_string());
-                return Ok(());
-            }
-        } else {
-            self.last_error = Some("No radio device connected".to_string());
+        if !self.transmit_allowed() {
             return Ok(());
         }
 
@@ -1106,17 +1092,12 @@ impl App {
     }
 
     /// Transmit the next code of a capture with one of its protocol's native buttons (`None`: the
-    /// captured button): the protocol's encoder with that button (counter + 1 for rolling codes).
+    /// captured button): the protocol's encoder with that button (counter + 1 for rolling codes,
+    /// kept on the capture once sent, so the next press sends the code after).
     pub fn transmit_button(&mut self, id: u32, native_button: Option<u8>) -> Result<()> {
         use crate::protocols::DecodedSignal;
 
-        if let Some(ref radio) = self.radio {
-            if !radio.supports_tx() {
-                self.last_error = Some("Transmit not available – RTL-SDR is receive-only".to_string());
-                return Ok(());
-            }
-        } else {
-            self.last_error = Some("No radio device connected".to_string());
+        if !self.transmit_allowed() {
             return Ok(());
         }
 
@@ -1169,7 +1150,8 @@ impl App {
         };
 
         let (preset, modulation) = capture.tx_preset();
-        self.queue_transmit(signal, capture.frequency, modulation);
+        let advance = self.tx_advance(id, protocol_name, &decoded, button, &signal);
+        self.queue_transmit_advancing(signal, capture.frequency, modulation, advance);
         let what = if native_button.is_some() { "Sent" } else { "Sent next code," };
         self.status_message = Some(format!(
             "{} {} (0x{:02X}) for capture {} ({}, {})",
@@ -1192,70 +1174,10 @@ impl App {
         self.delete_capture(&id.to_string())
     }
 
-    /// Delete a capture by ID (the saved session follows on the next autosave)
-    fn delete_capture(&mut self, id_str: &str) -> Result<()> {
-        let id: u32 = match id_str.parse() {
-            Ok(i) => i,
-            Err(_) => {
-                self.last_error = Some("Invalid capture ID".to_string());
-                return Ok(());
-            }
-        };
-
-        let idx = match self.captures.iter().position(|c| c.id == id) {
-            Some(i) => i,
-            None => {
-                self.last_error = Some(format!("Capture {} not found", id));
-                return Ok(());
-            }
-        };
-
-        self.captures.remove(idx);
-
-        // Adjust selection
-        if let Some(sel) = self.selected_capture {
-            if sel >= self.captures.len() && !self.captures.is_empty() {
-                self.selected_capture = Some(self.captures.len() - 1);
-            } else if self.captures.is_empty() {
-                self.selected_capture = None;
-            }
-        }
-
-        self.status_message = Some(format!("Deleted capture {}", id));
-        Ok(())
-    }
-
-    /// Delete all captures (the saved session follows on the next autosave; `:clear` also deletes
-    /// the session file and its backup)
-    fn delete_all_captures(&mut self) -> Result<()> {
-        let count = self.captures.len();
-        
-        if count == 0 {
-            self.status_message = Some("No captures to delete".to_string());
-            return Ok(());
-        }
-
-        // Clear the list
-        self.captures.clear();
-        self.selected_capture = None;
-        self.scroll_offset = 0;
-
-        self.status_message = Some(format!("Deleted all {} captures", count));
-        Ok(())
-    }
-
     /// True if a capture with the same protocol, data, serial, and button already exists.
     /// Unknown signals (no protocol) are never treated as duplicates so they can be kept for research.
     fn capture_duplicate_of_existing(&self, capture: &Capture) -> bool {
-        if capture.protocol.is_none() {
-            return false;
-        }
-        self.captures.iter().any(|c| {
-            c.protocol == capture.protocol
-                && c.data == capture.data
-                && c.serial == capture.serial
-                && c.button == capture.button
-        })
+        files::is_duplicate(&self.captures, capture)
     }
 
     /// Process pending radio events
@@ -1307,10 +1229,8 @@ impl App {
                             // Autosaved to the session file on the next tick (app/persistence.rs).
                             self.captures.push(capture);
 
-                            // Auto-select and scroll to new capture
-                            let new_idx = self.captures.len() - 1;
-                            self.selected_capture = Some(new_idx);
-                            self.ensure_selection_visible();
+                            // Selected only when that takes nothing from the user (app/input.rs).
+                            self.follow_new_capture();
 
                             self.status_message = Some("New signal captured".to_string());
                         }
@@ -1318,7 +1238,18 @@ impl App {
                     // When research_mode is off and decode failed, the signal is dropped (not shown).
                 }
                 RadioEvent::Error(e) => {
-                    self.last_error = Some(e);
+                    // Only a receive thread sends this, when RX ended on its own (open/configure
+                    // failure, unplug); it already stopped streaming, ended any recording and zeroed
+                    // the level. Back to idle, so one `r` restarts it (the header kept "RX" before).
+                    match self.radio_state {
+                        RadioState::Receiving => self.radio_state = RadioState::Idle,
+                        RadioState::Transmitting if self.pending_transmit_restore == Some(RadioState::Receiving) => {
+                            self.pending_transmit_restore = Some(RadioState::Idle);
+                        }
+                        _ => {}
+                    }
+                    self.rssi = 0.0;
+                    self.last_error = Some(format!("Receiver stopped: {e} (r restarts)"));
                 }
                 RadioEvent::StateChanged(state) => {
                     self.radio_state = state;
@@ -1336,6 +1267,10 @@ impl App {
     /// the selected capture is encoder-capable and not a barrier/gate/garage or alarm (KeeLoq barrier
     /// and alarm protocols get Replay + export + delete only). Without TX (e.g. RTL-SDR): only export and delete.
     pub fn available_signal_actions(&self) -> Vec<SignalAction> {
+        // No capture to act on (the menu's capture was deleted): nothing to offer.
+        if self.signal_menu_capture().is_none() {
+            return Vec::new();
+        }
         let mut actions = self.signal_actions_base();
         self.adjust_signal_actions(&mut actions);
         self.add_send_button_action(&mut actions);
@@ -1348,7 +1283,7 @@ impl App {
     /// "Recover key" for an undecrypted PSA (TEA) capture or a KeeLoq frame no key decrypts, or
     /// "Cancel key recovery" while one runs.
     fn key_recovery_action(&self) -> Option<SignalAction> {
-        let c = self.selected_capture.and_then(|idx| self.captures.get(idx))?;
+        let c = self.signal_menu_capture()?;
         if let Some(job) = &self.psa_recover_job {
             return (job.capture_id == c.id).then_some(SignalAction::CancelKeyRecovery);
         }
@@ -1365,9 +1300,7 @@ impl App {
 
     fn signal_actions_base(&self) -> Vec<SignalAction> {
         let has_tx = self.radio.as_ref().map_or(false, |r| r.supports_tx());
-        let selected = self
-            .selected_capture
-            .and_then(|idx| self.captures.get(idx));
+        let selected = self.signal_menu_capture();
         let encoder_capable = selected
             .map_or(false, |c| c.status == crate::capture::CaptureStatus::EncoderCapable);
         // Gate/garage/barrier remotes (and KeeLoq barrier/alarm manufacturers) get the replay /
@@ -1426,16 +1359,18 @@ impl App {
         }
     }
 
-    /// Execute the currently selected signal action
+    /// Execute the highlighted signal action on the menu's capture
     pub fn execute_signal_action(&mut self) -> Result<()> {
-        let actions = self.available_signal_actions();
-        let idx = self
-            .signal_menu_index
-            .min(actions.len().saturating_sub(1));
-        let action = actions[idx];
-        let capture_id = match self.selected_capture {
-            Some(idx) if idx < self.captures.len() => self.captures[idx].id,
-            _ => {
+        // A new action: the previous message goes.
+        self.clear_messages();
+        // The row on screen, which follows its action when the list changes (sync_signal_menu);
+        // never clamped onto another row (that landed on "Delete Signal").
+        let Some(action) = self.available_signal_actions().get(self.signal_menu_index).copied() else {
+            return Ok(());
+        };
+        let capture_id = match self.signal_menu_capture() {
+            Some(c) => c.id,
+            None => {
                 self.last_error = Some("No capture selected".to_string());
                 return Ok(());
             }
@@ -1517,19 +1452,25 @@ impl App {
         let worker = Arc::clone(&ctl);
         let handle = std::thread::spawn(move || psa_recover_key(data, extra, &worker));
         self.psa_recover_job = Some(PsaRecoverJob { capture_id: id, ctl, handle });
-        self.status_message = Some(format!("Recovering PSA key for capture {}… 0%", id));
+        // Its progress is job_status() (status bar title), not this line: rewriting the message
+        // every tick wiped every other message.
+        self.status_message = Some(format!("Recovering PSA key for capture {}…", id));
     }
 
-    /// Report progress of / collect the result of a running PSA key recovery.
+    /// Progress of a running PSA key recovery, for [App::job_status].
+    fn psa_key_recovery_progress(&self) -> Option<String> {
+        let job = self.psa_recover_job.as_ref().filter(|j| !j.handle.is_finished())?;
+        let done = u64::from(job.ctl.progress.load(Ordering::Relaxed));
+        let pct = (done * 100 / u64::from(PSA_BRUTE_FORCE_TOTAL)).min(99);
+        Some(format!("Recovering PSA key for capture {}… {}%", job.capture_id, pct))
+    }
+
+    /// Collect the result of a running PSA key recovery (progress: [App::job_status]).
     fn poll_psa_key_recovery(&mut self) {
         let Some(job) = &self.psa_recover_job else {
             return;
         };
         if !job.handle.is_finished() {
-            let done = u64::from(job.ctl.progress.load(Ordering::Relaxed));
-            let pct = (done * 100 / u64::from(PSA_BRUTE_FORCE_TOTAL)).min(99);
-            self.status_message =
-                Some(format!("Recovering PSA key for capture {}… {}%", job.capture_id, pct));
             return;
         }
         let Some(job) = self.psa_recover_job.take() else {
@@ -1614,8 +1555,9 @@ impl App {
         } else {
             cmd_str.replace(' ', "_")
         };
-        // Makes such as "Kia/Hyundai" must not turn the name into a path (the export would fail).
-        format!("{}_{}_{}_{}_{}", year, make, model, region, command).replace(['/', '\\'], "-")
+        // Makes such as "Kia/Hyundai" must not turn the name into a path, and metadata typed with
+        // `i` may hold characters a Flipper's FAT card refuses (the export would fail).
+        files::safe_stem(&format!("{}_{}_{}_{}_{}", year, make, model, region, command))
     }
 
     /// Start .fob export by entering filename input mode
@@ -1694,11 +1636,6 @@ impl App {
             }
         };
 
-        let export_dir = self.storage.export_dir().clone();
-        if !export_dir.exists() {
-            std::fs::create_dir_all(&export_dir)?;
-        }
-
         let metadata = crate::export::fob::FobMetadata {
             year: self.fob_meta_year.parse::<u32>().ok(),
             make: self.fob_meta_make.clone(),
@@ -1714,8 +1651,8 @@ impl App {
             && self.export_filename[self.export_filename.len() - 8..]
                 .chars()
                 .all(|c| c.is_ascii_hexdigit());
-        let filename = if already_has_8hex {
-            format!("{}.fob", self.export_filename.trim())
+        let stem = if already_has_8hex {
+            self.export_filename.trim().to_string()
         } else {
             let base = self.export_filename.trim();
             let suffix_nanos = std::time::SystemTime::now()
@@ -1725,25 +1662,32 @@ impl App {
             let suffix = (suffix_nanos.wrapping_add(id as u64 * 2654435761) % 0x100_000_000) as u32;
             let hex_suffix = format!("{:08X}", suffix);
             if base.is_empty() {
-                format!("unknown_{}_{}.fob", id, hex_suffix)
+                format!("unknown_{}_{}", id, hex_suffix)
             } else {
-                format!("{}_{}.fob", base, hex_suffix)
+                format!("{}_{}", base, hex_suffix)
             }
         };
-        let path = export_dir.join(&filename);
 
-        crate::export::fob::export_fob(
+        self.export_capture_id = None;
+        self.export_format = None;
+        // Never over an existing file; a failure is reported and KAT keeps running (app/files.rs).
+        let path = match self.export_path(&stem, "fob") {
+            Ok(path) => path,
+            Err(e) => {
+                self.last_error = Some(e);
+                return Ok(());
+            }
+        };
+        let result = crate::export::fob::export_fob(
             &capture,
             &path,
             self.storage.config.include_raw_pairs,
             Some(&metadata),
-        )?;
-        // Saved-fob matching picks the new file up (app/fob_matching.rs).
-        self.saved_fobs_rescan();
-
-        self.export_capture_id = None;
-        self.export_format = None;
-        self.status_message = Some(format!("Exported to {}", filename));
+        );
+        if self.report_export(&path, result) {
+            // Saved-fob matching picks the new file up (app/fob_matching.rs).
+            self.saved_fobs_rescan();
+        }
         Ok(())
     }
 
@@ -1796,6 +1740,11 @@ impl App {
             capture.model = Some(self.capture_meta_model.clone()).filter(|s| !s.is_empty());
             capture.region = Some(self.capture_meta_region.clone()).filter(|s| !s.is_empty());
             capture.command = Some(self.capture_meta_command.clone()).filter(|s| !s.is_empty());
+            // A form submit is a new action: its own message replaces the last one.
+            self.last_error = None;
+            self.status_message = Some(format!("Saved metadata for #{:02}", id));
+        } else {
+            self.last_error = Some(format!("Capture {} is no longer in the list; metadata not saved", id));
         }
         self.input_mode = InputMode::Normal;
         self.capture_meta_capture_id = None;
@@ -1818,20 +1767,32 @@ impl App {
 
     /// Refresh the file list for the current load-browser directory.
     pub fn refresh_load_browser_entries(&mut self) -> Result<()> {
-        let import_dir = self.storage.import_dir().clone();
+        // Absolute, so ".." always leads somewhere (`:load .` then ".." used to reach "", which
+        // cannot be read).
+        if let Ok(dir) = std::fs::canonicalize(&self.load_browser_cwd) {
+            self.load_browser_cwd = dir;
+        }
         let mut entries: Vec<(String, PathBuf, bool)> = Vec::new();
 
-        if self.load_browser_cwd != import_dir {
-            if let Some(parent) = self.load_browser_cwd.parent() {
-                entries.push(("..".to_string(), parent.to_path_buf(), true));
-            }
+        // ".." in every folder that has a parent, the import folder too: an empty import folder
+        // (the default on a fresh install) was a dead end.
+        if let Some(parent) = self.load_browser_cwd.parent() {
+            entries.push(("..".to_string(), parent.to_path_buf(), true));
         }
 
         let dir_entries = match std::fs::read_dir(&self.load_browser_cwd) {
             Ok(d) => d,
             Err(e) => {
-                self.last_error = Some(format!("Cannot read directory: {}", e));
+                // The folder's name, not its path: the reason must fit in the status line (the
+                // browser shows the path).
+                let name = self.load_browser_cwd.file_name().map(|n| n.to_string_lossy().to_string());
+                let name = name.unwrap_or_else(|| self.load_browser_cwd.display().to_string());
+                self.last_error = Some(format!("Cannot open folder {}: {} (Backspace: back)", name, e));
                 self.load_browser_entries = entries;
+                // Reset the selection and scroll too: kept from the old listing, they made the
+                // renderer slice past the end of this one (a panic).
+                self.load_browser_selected = 0;
+                self.load_browser_scroll = 0;
                 return Ok(());
             }
         };
@@ -1880,10 +1841,14 @@ impl App {
 
     /// Handle Enter in the load file browser: open dir or import file.
     pub fn load_browser_enter(&mut self) -> Result<()> {
-        let Some((_name, path, is_dir)) = self.load_browser_entries.get(self.load_browser_selected)
+        let Some((name, path, is_dir)) = self.load_browser_entries.get(self.load_browser_selected)
         else {
             return Ok(());
         };
+        if name == ".." {
+            // Up, with the folder just left selected (app/input.rs).
+            return self.load_browser_up();
+        }
         let path = path.clone();
         let is_dir = *is_dir;
         if is_dir {
@@ -1895,38 +1860,35 @@ impl App {
             self.input_mode = InputMode::Normal;
             self.start_iq_file(path, None, None);
         } else {
-            let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            // import_fob_files reports what it imported.
             self.pending_fob_files = vec![path];
             self.import_fob_files()?;
             self.input_mode = InputMode::Normal;
-            self.status_message = Some(format!("Imported {}", name));
         }
         Ok(())
     }
 
     /// `:load <file|dir>`: import a `.sub` / `.fob` file, decode an IQ recording, or open the file
-    /// browser in a directory (`~/` = home).
+    /// browser in a directory. Found like `:iq` finds its file (as given, else in the import and
+    /// export folders), with quotes removed and `~` expanded (app/input.rs).
     pub fn load_path(&mut self, arg: &str) -> Result<()> {
-        let path = match arg.strip_prefix("~/") {
-            Some(rest) => dirs::home_dir().map_or_else(|| PathBuf::from(arg), |home| home.join(rest)),
-            None => PathBuf::from(arg),
-        };
+        let path = self.resolve_load_arg(arg);
         if path.is_dir() {
             self.load_browser_cwd = path;
             self.load_browser_selected = 0;
             self.refresh_load_browser_entries()?;
             self.input_mode = InputMode::LoadFileBrowser;
         } else if !path.exists() {
-            self.last_error = Some(format!("No such file: {}", path.display()));
+            self.last_error = Some(format!(
+                "No such file or folder: {} (looked here, in the import folder and in the export folder)",
+                path.display()
+            ));
         } else if crate::radio::iq_file::is_iq_path(&path) {
             self.start_iq_file(path, None, None);
         } else {
-            let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            // import_fob_files reports what it imported.
             self.pending_fob_files = vec![path];
             self.import_fob_files()?;
-            if self.last_error.is_none() {
-                self.status_message = Some(format!("Imported {}", name));
-            }
         }
         Ok(())
     }
@@ -1939,156 +1901,31 @@ impl App {
     /// Import pending .fob and .sub files into captures list.
     /// .sub files are decoded with registered protocols after load (no metadata in file).
     /// When research_mode is off, only decoded captures are added (same as live capture).
+    /// The status line says what each file gave (app/files.rs); the first new capture is selected.
     pub fn import_fob_files(&mut self) -> Result<()> {
-        let files = std::mem::take(&mut self.pending_fob_files);
-        let mut imported = 0;
-        let research_mode = self.storage.config.research_mode;
+        let paths = std::mem::take(&mut self.pending_fob_files);
+        let first_new = self.captures.len();
+        let import_dir = self.storage.import_dir().clone();
+        let mut importer = files::Importer {
+            protocols: &mut self.protocols,
+            captures: &mut self.captures,
+            next_id: &mut self.next_capture_id,
+            research_mode: self.storage.config.research_mode,
+            import_dir: &import_dir,
+        };
+        let results: Vec<(String, files::FileImport)> = paths.iter().map(|path| importer.import(path)).collect();
 
-        for path in &files {
-            let is_sub = path.extension().map_or(false, |e| e == "sub");
-
-            if is_sub {
-                // A key file (Protocol/Key, no RAW_Data): rebuilt by its protocol (app/key_files.rs).
-                if let Some(added) = self.import_key_file(path) {
-                    imported += added;
-                    continue;
-                }
-                match crate::export::flipper::import_sub(path) {
-                    Ok(crate::export::flipper::SubFile { frequency, preset: sub_preset, pairs: raw_pairs }) => {
-                        let pairs: Vec<crate::radio::LevelDuration> = raw_pairs
-                            .iter()
-                            .map(|p| crate::radio::LevelDuration::new(p.level, p.duration_us))
-                            .collect();
-                        // Gated by the file's preset modulation (AM/FM), as Flipper-ARF does.
-                        let sub_rf = sub_preset.as_ref().and_then(|p| p.rf());
-                        let decoded_list =
-                            self.protocols.process_signal_stream_rf(&pairs, frequency, sub_rf);
-                        // Deduplicate: same signal can decode at multiple stream positions (e.g. Ford V0 across bursts)
-                        let mut seen: std::collections::HashSet<(String, u64, Option<u32>, Option<u8>)> =
-                            std::collections::HashSet::new();
-                        let mut any_decoded_added = false;
-                        for (protocol_name, decoded, segment_pairs) in decoded_list {
-                            let key = (
-                                protocol_name.clone(),
-                                decoded.data,
-                                decoded.serial,
-                                decoded.button,
-                            );
-                            if seen.contains(&key) {
-                                continue;
-                            }
-                            seen.insert(key);
-                            let raw: Vec<crate::capture::StoredLevelDuration> = segment_pairs
-                                .iter()
-                                .map(|p| crate::capture::StoredLevelDuration {
-                                    level: p.level,
-                                    duration_us: p.duration_us,
-                                })
-                                .collect();
-                            let mut capture = crate::capture::Capture::from_pairs_with_rf(
-                                self.next_capture_id,
-                                frequency,
-                                raw,
-                                None,
-                            );
-                            capture.rf_preset = sub_preset.clone();
-                            capture.protocol = Some(protocol_name);
-                            capture.serial = decoded.serial;
-                            capture.button = decoded.button;
-                            capture.counter = decoded.counter;
-                            capture.crc_valid = decoded.crc_valid;
-                            capture.data = decoded.data;
-                            capture.data_count_bit = decoded.data_count_bit;
-                            capture.data_extra = decoded.extra;
-                            capture.status = if decoded.encoder_capable {
-                                crate::capture::CaptureStatus::EncoderCapable
-                            } else {
-                                crate::capture::CaptureStatus::Decoded
-                            };
-                            if research_mode || capture.protocol.is_some() {
-                                if !self.capture_duplicate_of_existing(&capture) {
-                                    self.next_capture_id += 1;
-                                    capture.source_file = Some(Self::path_relative_to_import(path, self.storage.import_dir()));
-                                    self.captures.push(capture);
-                                    imported += 1;
-                                    any_decoded_added = true;
-                                }
-                            }
-                        }
-                        // When no protocol decoded the stream, add a single Unknown capture if research_mode (same as live capture).
-                        if !any_decoded_added && research_mode && !raw_pairs.is_empty() {
-                            let mut capture = crate::capture::Capture::from_pairs_with_rf(
-                                self.next_capture_id,
-                                frequency,
-                                raw_pairs.clone(),
-                                None,
-                            );
-                            capture.rf_preset = sub_preset.clone();
-                            self.next_capture_id += 1;
-                            capture.source_file = Some(Self::path_relative_to_import(path, self.storage.import_dir()));
-                            self.captures.push(capture);
-                            imported += 1;
-                        }
-                    }
-                    Err(e) => tracing::warn!("Failed to import {:?}: {}", path, e),
-                }
-            } else {
-                match crate::export::fob::import_fob(path, self.next_capture_id) {
-                    Ok(mut capture) => {
-                        self.next_capture_id += 1;
-                        capture.source_file = Some(Self::path_relative_to_import(path, self.storage.import_dir()));
-                        // Re-run the current decoders whenever raw pairs are present (same as .sub),
-                        // so captures exported by older KAT versions pick up today's decoders:
-                        // renamed/retired protocols (Land Rover V0 → Honda V2, Porsche Touareg →
-                        // Porsche Cayenne), new encoders (Renault V1, Fiat V1, VAG …) and their
-                        // `data_extra`. If nothing decodes, the stored fields are kept as-is.
-                        if !capture.raw_pairs.is_empty() {
-                            let pairs: Vec<crate::radio::LevelDuration> = capture
-                                .raw_pairs
-                                .iter()
-                                .map(|p| crate::radio::LevelDuration::new(p.level, p.duration_us))
-                                .collect();
-                            // Received by KAT (path: preferred, then all) or imported (preset:
-                            // strict, as Flipper-ARF).
-                            let decoded = match capture.received_rf {
-                                Some(path) => self.protocols.process_signal_path(&pairs, capture.frequency, Some(path)),
-                                None => {
-                                    let rf = capture.rf_preset.as_ref().and_then(|p| p.rf());
-                                    self.protocols.process_signal_rf(&pairs, capture.frequency, rf)
-                                }
-                            };
-                            if let Some((protocol_name, decoded)) = decoded {
-                                capture.protocol = Some(protocol_name);
-                                capture.serial = decoded.serial;
-                                capture.button = decoded.button;
-                                capture.counter = decoded.counter;
-                                capture.crc_valid = decoded.crc_valid;
-                                capture.data = decoded.data;
-                                capture.data_count_bit = decoded.data_count_bit;
-                                capture.data_extra = decoded.extra;
-                                capture.status = if decoded.encoder_capable {
-                                    crate::capture::CaptureStatus::EncoderCapable
-                                } else {
-                                    crate::capture::CaptureStatus::Decoded
-                                };
-                            }
-                        }
-                        self.check_encoder_capable(&mut capture);
-                        if research_mode || capture.protocol.is_some() {
-                            self.captures.push(capture);
-                            imported += 1;
-                        }
-                    }
-                    Err(e) => tracing::warn!("Failed to import {:?}: {}", path, e),
-                }
-            }
+        if self.captures.len() > first_new {
+            self.selected_capture = Some(first_new);
+            self.ensure_selection_visible();
         }
-
-        if imported > 0 {
-            self.selected_capture = Some(0);
-            self.status_message = Some(format!("Imported {} file(s)", imported));
+        let (status, error) = files::import_summary(&results);
+        if status.is_some() {
+            self.status_message = status;
         }
-
+        if error.is_some() {
+            self.last_error = error;
+        }
         Ok(())
     }
 
@@ -2134,86 +1971,47 @@ impl App {
             }
         };
 
-        let export_dir = self.storage.export_dir().clone();
-        if !export_dir.exists() {
-            std::fs::create_dir_all(&export_dir)?;
-        }
-
-        let filename = format!("{}.sub", self.export_filename);
-        let path = export_dir.join(&filename);
-
-        crate::export::flipper::export_flipper_sub(&capture, &path)?;
         self.export_capture_id = None;
         self.export_format = None;
-        self.status_message = Some(format!("Exported to {}", filename));
+        // Never over an existing file; a failure is reported and KAT keeps running (app/files.rs).
+        match self.export_path(&self.export_filename, "sub") {
+            Ok(path) => {
+                let result = crate::export::flipper::export_flipper_sub(&capture, &path);
+                self.report_export(&path, result);
+            }
+            Err(e) => self.last_error = Some(e),
+        }
         Ok(())
     }
 
     // -- Settings Menu helpers --
 
-    /// Get the current value index for the active settings field
+    /// Get the current value index for the active settings field: its row in
+    /// [App::settings_value_rows] (a value that is no preset has a row of its own, so Enter on
+    /// the highlighted row keeps it instead of applying the first preset)
     pub fn current_settings_value_index(&self) -> usize {
-        let field = SettingsField::ALL[self.settings_field_index];
-        match field {
-            SettingsField::Freq => {
-                PRESET_FREQUENCIES.iter().position(|(f, _)| *f == self.frequency).unwrap_or(0)
-            }
-            SettingsField::Hop => {
-                if self.rx.hop_enabled { 0 } else { 1 }
-            }
-            SettingsField::Lna => {
-                LNA_STEPS.iter().position(|&g| g == self.lna_gain).unwrap_or(0)
-            }
-            SettingsField::Vga => {
-                VGA_STEPS.iter().position(|&g| g == self.vga_gain).unwrap_or(0)
-            }
-            SettingsField::Amp => {
-                if self.amp_enabled { 0 } else { 1 }
-            }
-            SettingsField::TxPower => self.tx_power_value_index(),
-        }
+        self.settings_choices().1
     }
 
     /// Get the number of values for the active settings field
     pub fn settings_value_count(&self) -> usize {
-        let field = SettingsField::ALL[self.settings_field_index];
-        match field {
-            SettingsField::Freq => PRESET_FREQUENCIES.len(),
-            SettingsField::Hop => 2, // ON / OFF
-            SettingsField::Lna => LNA_STEPS.len(),
-            SettingsField::Vga => VGA_STEPS.len(),
-            SettingsField::Amp => 2, // ON / OFF
-            SettingsField::TxPower => TX_POWER_STEPS.len(),
-        }
+        self.settings_value_rows().len()
     }
 
     /// Apply the selected settings value
     pub fn apply_settings_value(&mut self) -> Result<()> {
-        let field = SettingsField::ALL[self.settings_field_index];
-        match field {
-            SettingsField::Freq => {
-                if self.settings_value_index < PRESET_FREQUENCIES.len() {
-                    let (hz, _) = PRESET_FREQUENCIES[self.settings_value_index];
-                    self.set_frequency(hz)?;
-                }
-            }
-            SettingsField::Hop => {
-                self.set_hopping(self.settings_value_index == 0);
-            }
-            SettingsField::Lna => {
-                if self.settings_value_index < LNA_STEPS.len() {
-                    self.set_lna_gain(LNA_STEPS[self.settings_value_index])?;
-                }
-            }
-            SettingsField::Vga => {
-                if self.settings_value_index < VGA_STEPS.len() {
-                    self.set_vga_gain(VGA_STEPS[self.settings_value_index])?;
-                }
-            }
-            SettingsField::Amp => {
-                self.set_amp(self.settings_value_index == 0)?;
-            }
-            SettingsField::TxPower => self.apply_tx_power_value(self.settings_value_index),
+        use input::SettingChoice;
+        let Some(&(_, choice)) = self.settings_choices().0.get(self.settings_value_index) else {
+            return Ok(());
+        };
+        match choice {
+            SettingChoice::Freq(hz) => self.set_frequency(hz)?,
+            SettingChoice::Hop(on) => self.set_hopping(on),
+            SettingChoice::Lna(gain) => self.set_lna_gain(gain)?,
+            SettingChoice::Vga(gain) => self.set_vga_gain(gain)?,
+            SettingChoice::Amp(on) => self.set_amp(on)?,
+            SettingChoice::TxStep(index) => self.apply_tx_power_value(index),
+            SettingChoice::TxPower(gain, amp) => self.set_tx_power(gain, amp),
         }
         Ok(())
     }

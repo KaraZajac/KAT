@@ -1,7 +1,7 @@
 //! Flipper key files in the app (`docs/flipper_key_files.md`).
 //!
 //! - **Load**: a `.sub` without `RAW_Data` (`:load`, the load browser, the startup import) is a
-//!   decoded key. [`App::import_key_file`] rebuilds its decode with the protocol's
+//!   decoded key. The importer (`app/files.rs`) rebuilds its decode with the protocol's
 //!   `from_flipper_key` (`crate::export::flipper::capture_from_key`): a capture with the protocol
 //!   and fields, the file's frequency and preset, no raw pairs, and EncoderCapable when the encoder
 //!   can transmit it.
@@ -11,15 +11,14 @@
 //!   from the fields and work as for any capture. "Export Flipper key" appears for every capture
 //!   whose protocol writes key files.
 //! - **Export**: [`App::export_flipper_key`] / [`App::complete_flipper_key_export`] write
-//!   `<name>.sub` with the protocol's `to_flipper_key` (its reference's `serialize`).
-
-use std::path::Path;
+//!   `<name>_key.sub` (so it does not take the RAW export's name) with the protocol's
+//!   `to_flipper_key` (its reference's `serialize`), never over an existing file.
 
 use anyhow::Result;
 
 use super::{App, ExportFormat, InputMode, SignalAction};
 use crate::capture::{Capture, CaptureStatus};
-use crate::export::flipper::{self, SubContent};
+use crate::export::flipper;
 use crate::protocols::ProtocolRegistry;
 
 /// The signal menu for a capture: without raw pairs no Replay, no RAW `.sub` export and no timing
@@ -49,41 +48,15 @@ pub(super) fn encoder_works(registry: &ProtocolRegistry, capture: &Capture) -> b
         .is_some_and(|p| p.supports_encoding() && p.encode(&d, d.button.unwrap_or(0)).is_some())
 }
 
+/// A capture from a `.fob` saved without raw pairs keeps "EncoderCapable" only when its encoder
+/// produces a frame from the stored fields (TX needs nothing else); otherwise it is Decoded.
+pub(super) fn fit_encoder_status(registry: &ProtocolRegistry, capture: &mut Capture) {
+    if !capture.has_raw_data() && capture.status == CaptureStatus::EncoderCapable && !encoder_works(registry, capture) {
+        capture.status = CaptureStatus::Decoded;
+    }
+}
+
 impl App {
-    /// Import `path` when it is a Flipper key file: Some(captures added, 0 or 1), None for a RAW
-    /// `.sub` (or an unreadable one), which the RAW import path handles.
-    pub(super) fn import_key_file(&mut self, path: &Path) -> Option<usize> {
-        let key = match flipper::read_sub(path) {
-            Ok(SubContent::Key(key)) => key,
-            _ => return None,
-        };
-        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-        match flipper::capture_from_key(&key, &self.protocols, self.next_capture_id) {
-            Ok(mut capture) => {
-                if self.capture_duplicate_of_existing(&capture) {
-                    return Some(0);
-                }
-                capture.source_file = Some(Self::path_relative_to_import(path, self.storage.import_dir()));
-                self.next_capture_id += 1;
-                self.captures.push(capture);
-                Some(1)
-            }
-            Err(e) => {
-                tracing::warn!("Key file {:?}: {}", path, e);
-                self.last_error = Some(format!("{name}: {e}"));
-                Some(0)
-            }
-        }
-    }
-
-    /// A capture from a `.fob` saved without raw pairs keeps "EncoderCapable" only when its encoder
-    /// produces a frame from the stored fields (TX needs nothing else); otherwise it is Decoded.
-    pub(super) fn check_encoder_capable(&self, capture: &mut Capture) {
-        if !capture.has_raw_data() && capture.status == CaptureStatus::EncoderCapable && !encoder_works(&self.protocols, capture) {
-            capture.status = CaptureStatus::Decoded;
-        }
-    }
-
     /// Whether the capture's protocol writes it as a Flipper key file.
     pub fn can_export_flipper_key(&self, capture: &Capture) -> bool {
         flipper::capture_flipper_key(capture, &self.protocols).is_some()
@@ -98,7 +71,8 @@ impl App {
         }
     }
 
-    /// Start a Flipper key file export: ask for the file name (default as for the RAW export).
+    /// Start a Flipper key file export: ask for the file name (default: the RAW export's with
+    /// `_key`, so a capture's two exports do not share a name).
     pub fn export_flipper_key(&mut self, id: u32) -> Result<()> {
         let Some(capture) = self.captures.iter().find(|c| c.id == id) else {
             self.last_error = Some(format!("Capture {} not found", id));
@@ -108,14 +82,15 @@ impl App {
             self.last_error = Some(format!("{} captures cannot be saved as a Flipper key file", capture.protocol_name()));
             return Ok(());
         }
-        self.export_filename = Self::default_export_filename(capture);
+        self.export_filename = format!("{}_key", Self::default_export_filename(capture));
         self.export_capture_id = Some(id);
         self.export_format = Some(ExportFormat::FlipperKey);
         self.input_mode = InputMode::ExportFilename;
         Ok(())
     }
 
-    /// Write the Flipper key file (called after the file name is confirmed).
+    /// Write the Flipper key file (called after the file name is confirmed). Never over an
+    /// existing file; a failure is reported in the status line (app/files.rs).
     pub fn complete_flipper_key_export(&mut self) -> Result<()> {
         let Some(id) = self.export_capture_id else {
             self.last_error = Some("No capture selected for export".to_string());
@@ -125,18 +100,14 @@ impl App {
             self.last_error = Some(format!("Capture {} not found", id));
             return Ok(());
         };
-        let export_dir = self.storage.export_dir().clone();
-        if !export_dir.exists() {
-            std::fs::create_dir_all(&export_dir)?;
-        }
-        let filename = format!("{}.sub", self.export_filename);
-        let path = export_dir.join(&filename);
         self.export_capture_id = None;
         self.export_format = None;
-        // A failed write is reported, not fatal.
-        match flipper::export_flipper_key(&capture, &self.protocols, &path) {
-            Ok(()) => self.status_message = Some(format!("Exported Flipper key file {}", filename)),
-            Err(e) => self.last_error = Some(format!("Export {filename}: {e:#}")),
+        match self.export_path(&self.export_filename, "sub") {
+            Ok(path) => {
+                let result = flipper::export_flipper_key(&capture, &self.protocols, &path);
+                self.report_export(&path, result);
+            }
+            Err(e) => self.last_error = Some(e),
         }
         Ok(())
     }

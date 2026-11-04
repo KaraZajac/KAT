@@ -5,12 +5,27 @@
 //! protocol's preset) and sent with the TX power settings (`tx_vga_gain` / `tx_amp` in
 //! `config.ini`, `:txpower`, the TX settings tab). The queue runs first in, first out, so
 //! `:replay 1-5` goes out in the order given.
+//!
+//! **Rolling codes advance.** After a transmission the references keep what was sent:
+//! Flipper-ARF and doctor-firmware build the upload from the signal (the encoder's `deserialize`
+//! advances the counter and writes the new `Key` back into it) and, when TX stops, save it to its
+//! file for every `SubGhzProtocolTypeDynamic` protocol (`subghz_txrx_tx_stop`: "if protocol
+//! dynamic then we save the last upload"); ProtoPirate's emulate scene writes `Cnt` + 1 and the
+//! pressed `Btn` into the loaded file on every press. So the next press sends the code after.
+//! KAT does the same for its encoders ("Send next code", "Send button…", TX Lock … Panic and the
+//! `:lock` … `:panic` commands): it decodes the frame it is about to send with the protocol's own
+//! decoder ([sent_frame]) and, once the transmission went out, stores it on the capture (counter,
+//! frame, button, encoder state; [store_sent_frame]), which the session autosave keeps. Only
+//! rolling codes change (the counter moved); fixed codes keep their capture, as the references'
+//! static protocols do. Replay re-sends the recorded pulses and changes nothing.
 
 use std::collections::VecDeque;
 
 use anyhow::Result;
 
 use super::{App, RadioState};
+use crate::capture::Capture;
+use crate::protocols::{DecodedSignal, ProtocolRegistry};
 use crate::radio::preset::TxModulation;
 use crate::radio::tx::TxSettings;
 use crate::radio::LevelDuration;
@@ -36,6 +51,84 @@ pub(super) struct PendingTransmit {
     pub(super) signal: Vec<LevelDuration>,
     pub(super) frequency: u32,
     pub(super) modulation: TxModulation,
+    /// A rolling code from an encoder: the capture and the decode of the frame sent, stored on the
+    /// capture once the transmission went out ([store_sent_frame]).
+    pub(super) advance: Option<(u32, DecodedSignal)>,
+}
+
+/// `upload` on air, sent twice with a gap as the transmitter repeats it: adjacent pulses of the
+/// same level are one pulse to a receiver (`merge`), as the protocol tests decode TX.
+fn on_air(upload: &[LevelDuration], merge: bool) -> Vec<LevelDuration> {
+    let gap = [LevelDuration::new(false, 20_000)];
+    let mut stream: Vec<LevelDuration> = Vec::with_capacity(2 * upload.len() + 2);
+    for p in upload.iter().chain(&gap).chain(upload).chain(&gap) {
+        match stream.last_mut() {
+            Some(last) if merge && last.level == p.level => last.duration_us += p.duration_us,
+            _ => stream.push(LevelDuration::new(p.level, p.duration_us)),
+        }
+    }
+    stream
+}
+
+/// The frame `upload` carries, the encoder's output for a capture decoded as `from`, sent with
+/// `button`: what the encoder reports building ([crate::protocols::ProtocolDecoder::sent_signal],
+/// PSA), else the last frame `protocol`'s own decoder reads from it with the capture's serial (the
+/// pulses merged as on air, then as they are), completed with the encoder state the air does not
+/// carry ([with_context]). None when it does not decode (a fixed code such as Revers RB2 or
+/// Marantec24 whose decoder rejects its own upload, as in the references).
+pub(super) fn sent_frame(
+    registry: &mut ProtocolRegistry,
+    protocol: &str,
+    from: &DecodedSignal,
+    button: u8,
+    upload: &[LevelDuration],
+) -> Option<DecodedSignal> {
+    if let Some(sent) = registry.get(protocol).and_then(|p| p.sent_signal(from, button)) {
+        return Some(sent);
+    }
+    let sent = [true, false].into_iter().find_map(|merge| {
+        registry
+            .decode_with(protocol, &on_air(upload, merge))
+            .into_iter()
+            .rev()
+            .find(|d| from.serial.is_none() || d.serial == from.serial)
+    })?;
+    Some(with_context(registry, protocol, from, sent))
+}
+
+/// Encoder state a frame does not carry on air stays the capture's (FAAC SLH's seed, in
+/// `extra`); when the frame alone does not give the counter, the protocol reads it again with
+/// that state through its key file (its `Seed` decrypts the hop), as a reference reloading the
+/// saved file does.
+fn with_context(registry: &ProtocolRegistry, protocol: &str, from: &DecodedSignal, sent: DecodedSignal) -> DecodedSignal {
+    let sent = DecodedSignal { extra: sent.extra.or(from.extra), ..sent };
+    if sent.counter.is_some() || from.counter.is_none() {
+        return sent;
+    }
+    registry
+        .get(protocol)
+        .and_then(|p| p.to_flipper_key(&sent).and_then(|key| p.from_flipper_key(&key)))
+        .filter(|d| d.serial == sent.serial)
+        .unwrap_or(sent)
+}
+
+/// Whether the frame sent is a rolling code's next one: its counter moved. Fixed codes (whose
+/// "counter" is a DIP or channel field, if any) keep their capture, also after "Send button…".
+pub(super) fn advances(from: &DecodedSignal, sent: &DecodedSignal) -> bool {
+    sent.counter.is_some() && sent.counter != from.counter
+}
+
+/// Keep the frame sent on its capture, as the references save the last upload: counter, frame,
+/// button and encoder state. The recording (raw pairs, which Replay sends), the protocol name,
+/// frequency, preset and the user's metadata stay.
+pub(super) fn store_sent_frame(capture: &mut Capture, sent: &DecodedSignal) {
+    capture.serial = sent.serial.or(capture.serial);
+    capture.button = sent.button.or(capture.button);
+    capture.counter = sent.counter;
+    capture.crc_valid = sent.crc_valid;
+    capture.data = sent.data;
+    capture.data_count_bit = sent.data_count_bit;
+    capture.data_extra = sent.extra;
 }
 
 /// The transmit queue (first in, first out).
@@ -78,11 +171,56 @@ impl App {
         frequency: u32,
         modulation: TxModulation,
     ) {
-        self.pending_transmit_queue.push_back(PendingTransmit { signal, frequency, modulation });
+        self.queue_transmit_advancing(signal, frequency, modulation, None);
+    }
+
+    /// The update an encoder's transmission of `signal` for capture `id` (encoded from `from`
+    /// with `protocol` and `button`) brings once it went out: the frame sent, when it is the
+    /// rolling code's next one (see the module docs), so the next press sends the one after.
+    pub(super) fn tx_advance(
+        &mut self,
+        id: u32,
+        protocol: &str,
+        from: &DecodedSignal,
+        button: u8,
+        signal: &[LevelDuration],
+    ) -> Option<(u32, DecodedSignal)> {
+        match sent_frame(&mut self.protocols, protocol, from, button, signal) {
+            Some(sent) => advances(from, &sent).then_some((id, sent)),
+            None => {
+                tracing::warn!("{protocol}: the frame sent does not decode; capture {id} keeps its counter");
+                None
+            }
+        }
+    }
+
+    /// [Self::queue_transmit] with the capture update to apply once it went out ([Self::tx_advance]).
+    pub(super) fn queue_transmit_advancing(
+        &mut self,
+        signal: Vec<LevelDuration>,
+        frequency: u32,
+        modulation: TxModulation,
+        advance: Option<(u32, DecodedSignal)>,
+    ) {
+        self.pending_transmit_queue.push_back(PendingTransmit { signal, frequency, modulation, advance });
         if self.pending_transmit_restore.is_none() {
             self.pending_transmit_restore = Some(self.radio_state);
             self.radio_state = RadioState::Transmitting;
         }
+    }
+
+    /// Whether a transmission may be queued now; sets `last_error` when not: no radio, an
+    /// RTL-SDR (receive-only), or a recording running (transmitting stops RX, which used to end
+    /// the recording without the user stopping it).
+    pub(super) fn transmit_allowed(&mut self) -> bool {
+        let why = match &self.radio {
+            None => "No radio device connected",
+            Some(r) if !r.supports_tx() => "Transmit not available – RTL-SDR is receive-only",
+            Some(r) if r.recording_status().is_some() => "Recording in progress — :record stop first",
+            Some(_) => return true,
+        };
+        self.last_error = Some(why.to_string());
+        false
     }
 
     /// Settings for one transmission: its modulation at the current TX power.
@@ -111,8 +249,16 @@ impl App {
                 self.radio_state = prev;
             }
         }
-        if let Err(e) = result {
-            self.last_error = Some(format!("Transmit failed: {e:#}"));
+        match result {
+            // Sent: a rolling code's capture now holds the frame that went out.
+            Ok(()) => {
+                if let Some((id, sent)) = &tx.advance {
+                    if let Some(c) = self.captures.iter_mut().find(|c| c.id == *id) {
+                        store_sent_frame(c, sent);
+                    }
+                }
+            }
+            Err(e) => self.last_error = Some(format!("Transmit failed: {e:#}")),
         }
         Ok(())
     }
@@ -142,12 +288,13 @@ impl App {
         }
     }
 
-    /// Settings dropdown: index of the current TX power in [TX_POWER_STEPS] (0 if not listed).
-    pub(super) fn tx_power_value_index(&self) -> usize {
+    /// Settings dropdown: index of the current TX power in [TX_POWER_STEPS]; None when it is not
+    /// listed (`:txpower 35`): the dropdown then shows it as a row of its own. Falling back to 0
+    /// made Enter apply the first step, the maximum (47 dB + amp).
+    pub(super) fn tx_power_value_index(&self) -> Option<usize> {
         TX_POWER_STEPS
             .iter()
             .position(|&(g, a)| g == self.tx_vga_gain && a == self.tx_amp)
-            .unwrap_or(0)
     }
 
     /// Settings dropdown: apply [TX_POWER_STEPS]\[index\].
@@ -155,6 +302,56 @@ impl App {
         if let Some(&(gain, amp)) = TX_POWER_STEPS.get(index) {
             self.set_tx_power(gain, amp);
         }
+    }
+
+    /// Transmissions waiting in the queue.
+    pub(super) fn queued_transmits(&self) -> usize {
+        self.pending_transmit_queue.len()
+    }
+
+    /// Run the next queued transmission. The main loop calls this once per pass, after drawing,
+    /// so the UI shows the progress and reads keys between transmissions (Esc cancels the rest);
+    /// when the queue runs dry, the batch's summary ("Replayed 3 of 5 …") becomes the status.
+    pub fn step_transmit_queue(&mut self) -> Result<()> {
+        if !self.has_pending_transmit() {
+            return Ok(());
+        }
+        self.run_one_pending_transmit()?;
+        self.input.tx_done += 1;
+        if !self.has_pending_transmit() {
+            self.input.tx_done = 0;
+            if let Some(summary) = self.input.tx_summary.take() {
+                self.status_message = Some(summary);
+            }
+        }
+        Ok(())
+    }
+
+    /// Esc while transmissions are queued: drop the ones not sent yet. False when none were queued.
+    pub fn cancel_transmit_queue(&mut self) -> bool {
+        let left = self.queued_transmits();
+        if left == 0 {
+            return false;
+        }
+        let done = self.input.tx_done;
+        self.pending_transmit_queue.clear();
+        // As run_one_pending_transmit does when the queue empties.
+        if let Some(prev) = self.pending_transmit_restore.take() {
+            self.radio_state = prev;
+        }
+        self.input.tx_done = 0;
+        self.input.tx_summary = None;
+        self.status_message = Some(format!("Transmit cancelled after {} of {}", done, done + left));
+        true
+    }
+
+    /// "Transmitting 3/20… (Esc: cancel)" while two or more queued transmissions run, for
+    /// [App::job_status].
+    pub(super) fn tx_progress(&self) -> Option<String> {
+        let left = self.queued_transmits();
+        let total = self.input.tx_done + left;
+        (left > 0 && total > 1)
+            .then(|| format!("Transmitting {}/{}… (Esc: cancel)", self.input.tx_done + 1, total))
     }
 }
 
@@ -173,6 +370,112 @@ mod tests {
         for bad in [&["amp"][..], &["loud"], &["30", "amp"], &["30", "amp", "maybe"], &["30", "40"], &[]] {
             assert_eq!(parse_txpower(bad, 47, true), None, "{bad:?}");
         }
+    }
+
+    /// Press `button` `presses` times on `c` as the app does (encode from the capture, keep the
+    /// frame sent when it advanced); the counters sent, or None at the first press that did not
+    /// advance.
+    fn press(reg: &mut ProtocolRegistry, c: &mut Capture, button: Option<u8>, presses: usize) -> Option<Vec<u16>> {
+        let protocol = c.protocol.clone().unwrap();
+        let mut counters = Vec::new();
+        for _ in 0..presses {
+            let from = DecodedSignal { encoder_capable: true, ..c.decoded_signal() };
+            let button = button.or(from.button).unwrap_or(0);
+            let upload = reg.get(&protocol)?.encode(&from, button)?;
+            let sent = sent_frame(reg, &protocol, &from, button, &upload).filter(|s| advances(&from, s))?;
+            assert_eq!(sent.serial, from.serial, "{protocol}");
+            store_sent_frame(c, &sent);
+            counters.push(sent.counter?);
+        }
+        Some(counters)
+    }
+
+    /// "Send next code" / "Send button…": every remote type `:new` creates sends a new code on
+    /// every press (it used to send the same frame again, so a new remote worked once), FAAC SLH
+    /// keeping its seed; fixed codes keep their capture (Revers RB2 and Marantec24 do not decode
+    /// their own upload, as in the references).
+    #[test]
+    fn rolling_codes_advance_on_every_press() {
+        use crate::protocols::add_manually::{self, Rng, TYPES};
+        crate::protocols::keys::load_keystore_from_embedded();
+        let mut reg = ProtocolRegistry::new();
+        let mut rolling = 0;
+        for ty in TYPES.iter().filter(|ty| add_manually::availability(ty).is_ok()) {
+            let gen = add_manually::fill(ty, &mut Rng::seeded(1));
+            let key = add_manually::generate(&gen, &mut Rng::seeded(1)).unwrap();
+            let mut c = crate::export::flipper::capture_from_key(&key, &reg, 1).unwrap();
+            let before = c.clone();
+            let protocol = c.protocol.clone().unwrap();
+            let fixed = crate::protocols::protocol_info(&protocol).is_some_and(|i| i.encryption == "Fixed Code");
+            match press(&mut reg, &mut c, None, 3) {
+                Some(counters) => {
+                    assert!(!fixed, "{}: a fixed code advanced", ty.name);
+                    assert!(counters[0] != counters[1] && counters[1] != counters[2], "{}: {counters:X?}", ty.name);
+                    assert_eq!(c.data_extra.is_some(), before.data_extra.is_some(), "{}: encoder state kept", ty.name);
+                    rolling += 1;
+                }
+                None => {
+                    assert!(fixed, "{}: did not advance", ty.name);
+                    assert_eq!(c.decoded_signal(), before.decoded_signal(), "{}: a fixed code changed", ty.name);
+                    // "Send button…" with any of its buttons does not change a fixed code either.
+                    for b in crate::protocols::gate_buttons::tx_buttons(&protocol, &before.decoded_signal()) {
+                        assert_eq!(press(&mut reg, &mut before.clone(), Some(b), 1), None, "{} button {b:#x}", ty.name);
+                    }
+                }
+            }
+        }
+        assert!(rolling >= 20, "only {rolling} rolling types");
+    }
+
+    /// Car remotes (TX Lock … Panic, `:lock` …): IMPORTS key files advance on every press too.
+    #[test]
+    fn car_remotes_advance_on_every_press() {
+        use crate::capture::ButtonCommand;
+        crate::protocols::keys::load_keystore_from_embedded();
+        let mut reg = ProtocolRegistry::new();
+        for file in ["HYUNDAI/HYU V0 N1.sub", "HYUNDAI/HYU V2 N1.sub", "HYUNDAI/HYU V6_test.sub", "KIA/KIA V5 N3.sub", "VAG/Passat_b5_3bg.sub"] {
+            let path = std::path::Path::new("IMPORTS").join(file);
+            let Ok(crate::export::flipper::SubContent::Key(key)) = crate::export::flipper::read_sub(&path) else {
+                eprintln!("Skip: {path:?} not found (run from crate root)");
+                continue;
+            };
+            let mut c = crate::export::flipper::capture_from_key(&key, &reg, 1).unwrap();
+            let start = c.counter;
+            let lock = press(&mut reg, &mut c, Some(ButtonCommand::Lock.code()), 2).unwrap_or_else(|| panic!("{file}: Lock"));
+            let unlock = press(&mut reg, &mut c, Some(ButtonCommand::Unlock.code()), 1).unwrap_or_else(|| panic!("{file}: Unlock"));
+            let sent = [lock, unlock].concat();
+            assert!(sent.windows(2).all(|w| w[0] != w[1]) && Some(sent[0]) != start, "{file}: {start:X?} → {sent:X?}");
+        }
+    }
+
+    /// The capture keeps its recording (Replay), name, frequency and metadata; the fields become
+    /// the frame sent.
+    #[test]
+    fn storing_the_frame_sent_keeps_the_recording() {
+        use crate::capture::StoredLevelDuration;
+        let mut c = Capture::from_pairs(4, 433_920_000, vec![StoredLevelDuration { level: true, duration_us: 400 }]);
+        c.protocol = Some("KeeLoq (DoorHan)".into());
+        c.make = Some("DoorHan".into());
+        (c.serial, c.button, c.counter, c.data, c.data_extra) = (Some(0x123), Some(2), Some(7), 0xAA, Some(9));
+        let sent = DecodedSignal {
+            serial: Some(0x123),
+            button: Some(4),
+            counter: Some(8),
+            crc_valid: true,
+            data: 0xBB,
+            data_count_bit: 66,
+            encoder_capable: true,
+            extra: Some(10),
+            protocol_display_name: Some("KeeLoq".into()),
+        };
+        assert!(advances(&c.decoded_signal(), &sent));
+        store_sent_frame(&mut c, &sent);
+        assert_eq!((c.serial, c.button, c.counter, c.data, c.data_count_bit, c.data_extra), (Some(0x123), Some(4), Some(8), 0xBB, 66, Some(10)));
+        assert_eq!((c.id, c.frequency, c.raw_pairs.len()), (4, 433_920_000, 1));
+        assert_eq!((c.protocol.as_deref(), c.make.as_deref()), (Some("KeeLoq (DoorHan)"), Some("DoorHan")));
+        // A fixed code (no counter, or one that did not move) is not a new code.
+        assert!(!advances(&c.decoded_signal(), &DecodedSignal { counter: None, ..sent.clone() }));
+        assert!(!advances(&c.decoded_signal(), &sent));
     }
 
     #[test]

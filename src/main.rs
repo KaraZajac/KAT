@@ -28,25 +28,18 @@ use std::io::{self, IsTerminal, Write};
 use std::panic;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use app::{App, InputMode, SettingsField, ExportFormat};
+use app::{App, InputMode, SettingsField};
 use ui::draw_ui;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Restore the terminal to normal state (for panic handler)
-fn restore_terminal_panic() {
+/// Restore the terminal to normal state (panic hook, [TerminalGuard]); harmless when it is
+/// already restored.
+fn restore_terminal() {
     // Disable raw mode first
     let _ = disable_raw_mode();
-    
-    // Write escape sequences directly to stdout
     let mut stdout = io::stdout();
-    
-    // Leave alternate screen: ESC [ ? 1049 l
-    let _ = stdout.write_all(b"\x1b[?1049l");
-    
-    // Show cursor: ESC [ ? 25 h
-    let _ = stdout.write_all(b"\x1b[?25h");
-    
+    let _ = execute!(stdout, LeaveAlternateScreen, crossterm::cursor::Show);
     let _ = stdout.flush();
 }
 
@@ -78,22 +71,43 @@ const USAGE: &str = "Usage: kat [--iq <file> [--freq <MHz|Hz>] [--rate <S/s>]]
 
   --iq <file>     Decode an IQ recording at startup, with or without a radio attached:
                   .cs8 (hackrf_transfer), .cu8 (rtl_sdr / rtl_433), .cf32 (GNU Radio, URH)
-  --decode <p>... Decode files without the TUI and print one line per distinct decode:
+  -d, --decode <p>...
+                  Decode files without the TUI and print one line per distinct decode:
                   Flipper .sub (RAW or key files) and IQ recordings; directories are searched
-                  recursively. --all prints every decode in stream order; --verbose
-                  also prints each IQ burst and its pulses to stderr.
-  --keeloq-bf <p>... Recover the manufacturer key of a \"magic serial\" KeeLoq remote (Flipper-ARF's
+                  recursively (.fob files open in the app with :load). --all prints every
+                  decode in stream order; -v, --verbose also prints each IQ burst and its
+                  pulses to stderr.
+  --keeloq-bf <p>...
+                  Recover the manufacturer key of a \"magic serial\" KeeLoq remote (Flipper-ARF's
                   KeeLoq Decrypt) from two or more captures of it (.sub or IQ files).
                   --type: auto (6, then 7; the default), 6, 7 or 8 (8 searches 2^40 keys and
                   needs three captures); --save adds the key to keeloq_mfcodes_user as BF_<serial>.
   --freq <f>      Centre frequency of the recording, MHz (433.92) or Hz (433920000);
                   default: from the file name, else the configured frequency (433.92 MHz
                   for --decode)
-  --rate <r>      Sample rate (2M, 2.4M, 2048000); default: from the file name, else 2M
+  --rate <r>      Sample rate, 200k to 40M S/s (2M, 2.4M, 250k, 2048000); default: from the
+                  file name, else 2M
   -h, --help      Show this help
   -V, --version   Show the version
 
-In the app: :iq <file> [freq] [rate], :record [file] / :record stop, :hop on|off.";
+Exit status: 0 on success; 1 when --decode could not read a file or found nothing to decode,
+or --keeloq-bf found no key; 2 for a bad argument or a missing --iq / --keeloq-bf file.
+
+In the app: :iq <file> [freq] [rate], :load <file>, :record [file] / :record stop, :hop on|off.";
+
+/// Where a file KAT reads belongs on the command line (or in the app), by its extension.
+fn file_hint(path: &str) -> String {
+    let p = std::path::Path::new(path);
+    if radio::iq_file::is_iq_path(p) {
+        format!("kat --iq {path} decodes it in the app, kat --decode {path} prints its decodes")
+    } else if export::has_extension(p, "sub") {
+        format!("kat --decode {path} prints its decodes; in the app, :load {path} opens it")
+    } else if export::has_extension(p, "fob") {
+        format!("open it in the app with :load {path}")
+    } else {
+        "KAT reads .sub and .fob files and .cs8 / .cu8 / .cf32 recordings".to_string()
+    }
+}
 
 /// The value of `--flag value` or `--flag=value`.
 fn flag_value(inline: Option<String>, rest: &mut impl Iterator<Item = String>, flag: &str) -> Result<String, String> {
@@ -125,7 +139,14 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<CliAction, Strin
         match flag.as_str() {
             "-h" | "--help" => return Ok(CliAction::Help),
             "-V" | "--version" => return Ok(CliAction::Version),
-            "--iq" => opts.iq = Some(std::path::PathBuf::from(flag_value(inline, &mut it, "--iq")?)),
+            "--iq" => {
+                let v = flag_value(inline, &mut it, "--iq")?;
+                // A .sub or .fob would pass the existence check and then fail inside the TUI.
+                if !radio::iq_file::is_iq_path(std::path::Path::new(&v)) {
+                    return Err(format!("--iq {v}: not an IQ recording (.cs8, .cu8, .cf32); {}", file_hint(&v)));
+                }
+                opts.iq = Some(std::path::PathBuf::from(v));
+            }
             "-d" | "--decode" => {
                 let paths = decode.get_or_insert_with(Vec::new);
                 if let Some(v) = inline {
@@ -144,13 +165,23 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<CliAction, Strin
             "-v" | "--verbose" => verbose = true,
             "--freq" => {
                 let v = flag_value(inline, &mut it, "--freq")?;
-                opts.freq = Some(radio::iq_file::parse_frequency_arg(&v).ok_or(format!("invalid frequency: {v}"))?);
+                opts.freq = Some(
+                    radio::iq_file::parse_frequency_arg(&v)
+                        .ok_or(format!("invalid frequency: {v} (MHz like 433.92, or Hz like 433920000)"))?,
+                );
             }
             "--rate" => {
                 let v = flag_value(inline, &mut it, "--rate")?;
-                opts.rate = Some(radio::iq_file::parse_rate_arg(&v).ok_or(format!("invalid sample rate: {v}"))?);
+                // Checked here: a rate the decoder refuses (below 200 kS/s) used to fail only later.
+                let rate = radio::iq_file::parse_rate_arg(&v)
+                    .filter(|&r| r >= radio::iq_file::MIN_FILE_RATE)
+                    .ok_or(format!("invalid sample rate: {v} (200k to 40M S/s, e.g. 2M, 2.4M, 250k, 2048000)"))?;
+                opts.rate = Some(rate);
             }
-            other => return Err(format!("unknown argument: {other}")),
+            other if !other.starts_with('-') => {
+                return Err(format!("unexpected argument {other}: {}", file_hint(other)));
+            }
+            other => return Err(format!("unknown option: {other}")),
         }
     }
     if let Some(paths) = keeloq_bf {
@@ -184,11 +215,28 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<CliAction, Strin
     Ok(CliAction::Run(opts))
 }
 
+/// Restores the terminal when `main` leaves it, whichever way (an error from `?`, a TUI error,
+/// a panic unwinding); the panic hook restores it before the message is printed.
+struct TerminalGuard;
+
+impl Drop for TerminalGuard {
+    fn drop(&mut self) {
+        restore_terminal();
+    }
+}
+
 fn main() -> Result<()> {
     let cli = match parse_args(std::env::args().skip(1)) {
         Ok(CliAction::Run(opts)) => opts,
         Ok(CliAction::Decode(opts)) => std::process::exit(headless::run(&opts)),
-        Ok(CliAction::KeeloqBf(opts)) => std::process::exit(headless::keeloq_bf(&opts)),
+        Ok(CliAction::KeeloqBf(opts)) => {
+            // A mistyped path used to be skipped silently, and the search ran on fewer captures.
+            if let Some(path) = opts.paths.iter().find(|p| !p.exists()) {
+                eprintln!("kat: --keeloq-bf {}: no such file or directory", path.display());
+                std::process::exit(2);
+            }
+            std::process::exit(headless::keeloq_bf(&opts))
+        }
         Ok(CliAction::Help) => {
             println!("KAT v{VERSION} - Keyfob Analysis Toolkit\n\n{USAGE}");
             return Ok(());
@@ -198,7 +246,7 @@ fn main() -> Result<()> {
             return Ok(());
         }
         Err(e) => {
-            eprintln!("kat: {e}\n\n{USAGE}");
+            eprintln!("kat: {e}\nRun kat --help for the options.");
             std::process::exit(2);
         }
     };
@@ -219,7 +267,7 @@ fn main() -> Result<()> {
     // Set up panic hook to restore terminal on panic
     let default_panic = panic::take_hook();
     panic::set_hook(Box::new(move |panic_info| {
-        restore_terminal_panic();
+        restore_terminal();
         default_panic(panic_info);
     }));
 
@@ -251,50 +299,68 @@ fn main() -> Result<()> {
 
     tracing::info!("Starting KAT v{}", VERSION);
 
-    // Setup terminal
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-
-    // Create app and run
+    // Create the app (config, radio probe, saved session) before the terminal goes raw: an error
+    // here (e.g. the config folder cannot be created) prints normally and leaves the shell usable.
     let mut app = App::new()?;
     if let Some(path) = cli.iq {
-        // A file needs no radio: skip the "no device" warning.
+        // A file needs no radio: skip the "no device" warning, but not the restore and import
+        // prompts (skipping the restore prompt left autosave off for the whole run).
         if app.input_mode == InputMode::HackRfNotDetected {
-            app.input_mode = if app.pending_fob_files.is_empty() { InputMode::Normal } else { InputMode::StartupImport };
+            app.input_mode = app.next_startup_mode();
         }
         app.start_iq_file(path, cli.freq, cli.rate);
     }
-    let res = run_app(&mut terminal, &mut app);
 
-    // Restore terminal properly using the terminal's backend
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen
-    )?;
-    terminal.show_cursor()?;
+    // Setup terminal (restored by the guard on every way out, before an error is printed)
+    enable_raw_mode()?;
+    let _restore = TerminalGuard;
+    execute!(io::stdout(), EnterAlternateScreen)?;
+    let backend = CrosstermBackend::new(io::stdout());
+    let mut terminal = Terminal::new(backend)?;
 
-    if let Err(err) = res {
-        eprintln!("Error: {err:?}");
-        return Err(err);
-    }
+    // An error is printed once, by `main`'s return, after the guard restored the terminal and
+    // the app saved the session.
+    run_app(&mut terminal, &mut app)
+}
 
-    Ok(())
+/// Run an app action from the key loop; if it fails (a radio that won't start or retune, a file
+/// that can't be read or written…), say so in the status bar and keep going instead of ending KAT.
+macro_rules! report {
+    ($app:expr, $action:expr) => {
+        if let Err(e) = $action {
+            tracing::warn!("{e:#}");
+            $app.last_error = Some(format!("{e:#}"));
+        }
+    };
 }
 
 fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> {
     loop {
         terminal.draw(|f| draw_ui(f, app))?;
 
-        if event::poll(std::time::Duration::from_millis(100))? {
+        // Queued transmissions go out one per pass, each after a frame that shows it ("Transmitting
+        // 3/20…"), with the keys typed meanwhile read in between: Esc cancels the rest. (The whole
+        // queue used to run without reading keys, so they all ran afterwards: q quit KAT.)
+        let transmitting = app.has_pending_transmit();
+        let wait = std::time::Duration::from_millis(if transmitting { 0 } else { 100 });
+        let had_event = event::poll(wait)?;
+        if had_event {
             if let Event::Key(key) = event::read()? {
-                if key.kind == KeyEventKind::Press {
+                // Ctrl-C, Ctrl-H; other Ctrl / Alt characters are dropped (app/input.rs).
+                let code = app.key_code(&key).filter(|_| key.kind == KeyEventKind::Press);
+                if let Some(code) = code {
+                    // In the list every key is a new action: the last message or error goes.
+                    if app.input_mode == InputMode::Normal {
+                        app.clear_messages();
+                    }
                     match app.input_mode {
-                        InputMode::Normal => match key.code {
-                            KeyCode::Char('q') => return Ok(()),
+                        InputMode::Normal => match code {
+                            // Ctrl-C arrives as q; both ask first while work runs (app/input.rs).
+                            KeyCode::Char('q') => {
+                                if app.request_quit() {
+                                    return Ok(());
+                                }
+                            }
                             KeyCode::Char(':') => {
                                 app.input_mode = InputMode::Command;
                                 app.command_input.clear();
@@ -305,18 +371,20 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             KeyCode::Char('k') | KeyCode::Up => {
                                 app.previous_capture();
                             }
+                            KeyCode::PageDown => app.page_captures(1),
+                            KeyCode::PageUp => app.page_captures(-1),
+                            KeyCode::Home | KeyCode::Char('g') => app.select_capture_edge(false),
+                            KeyCode::End | KeyCode::Char('G') => app.select_capture_edge(true),
                             KeyCode::Char('r') => {
-                                app.toggle_receiving()?;
+                                report!(app, app.toggle_receiving());
                             }
                             KeyCode::Char('d') => {
                                 let _ = app.delete_selected_capture();
                             }
+                            KeyCode::Char('u') => app.undo_delete(),
                             KeyCode::Enter => {
-                                // Open signal action menu if a capture is selected
-                                if app.selected_capture.is_some() && !app.captures.is_empty() {
-                                    app.input_mode = InputMode::SignalMenu;
-                                    app.signal_menu_index = 0;
-                                }
+                                // Action menu of the selected capture (it stays on that capture)
+                                app.open_signal_menu();
                             }
                             KeyCode::Char('i') => {
                                 // Edit Year/Make/Model/Region for vuln lookup
@@ -331,23 +399,24 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                                 app.input_mode = InputMode::SettingsSelect;
                                 app.settings_field_index = 0;
                             }
+                            KeyCode::Char('?') | KeyCode::F(1) => app.open_help(),
+                            // Esc clears the message (above) and drops queued transmissions.
+                            KeyCode::Esc => {
+                                app.cancel_transmit_queue();
+                            }
                             _ => {}
                         },
 
-                        InputMode::Command => match key.code {
+                        InputMode::Command => match code {
                             KeyCode::Enter => {
                                 let command = app.command_input.clone();
-                                app.execute_command(&command)?;
+                                report!(app, app.execute_command(&command));
                                 if app.quit_requested {
                                     return Ok(());
                                 }
                                 app.command_input.clear();
                                 if app.input_mode == InputMode::Command {
                                     app.input_mode = InputMode::Normal;
-                                }
-                                while app.has_pending_transmit() {
-                                    terminal.draw(|f| draw_ui(f, app))?;
-                                    app.run_one_pending_transmit()?;
                                 }
                             }
                             KeyCode::Char(c) => {
@@ -363,28 +432,17 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             _ => {}
                         },
 
-                        InputMode::SignalMenu => match key.code {
-                            KeyCode::Up | KeyCode::Char('k') => {
-                                if app.signal_menu_index > 0 {
-                                    app.signal_menu_index -= 1;
-                                }
-                            }
-                            KeyCode::Down | KeyCode::Char('j') => {
-                                let len = app.available_signal_actions().len();
-                                if len > 0 && app.signal_menu_index < len - 1 {
-                                    app.signal_menu_index += 1;
-                                }
-                            }
+                        // The menu acts on the capture it was opened for, and its highlight stays on
+                        // the same action when the list changes (app/input.rs).
+                        InputMode::SignalMenu => match code {
+                            KeyCode::Up | KeyCode::Char('k') => app.signal_menu_move(false),
+                            KeyCode::Down | KeyCode::Char('j') => app.signal_menu_move(true),
                             KeyCode::Enter => {
-                                app.execute_signal_action()?;
+                                report!(app, app.execute_signal_action());
                                 // Only return to Normal if the action didn't change
                                 // input mode (e.g. ExportFob sets FobMetaYear)
                                 if app.input_mode == InputMode::SignalMenu {
                                     app.input_mode = InputMode::Normal;
-                                }
-                                while app.has_pending_transmit() {
-                                    terminal.draw(|f| draw_ui(f, app))?;
-                                    app.run_one_pending_transmit()?;
                                 }
                             }
                             KeyCode::Esc => {
@@ -393,7 +451,7 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             _ => {}
                         },
 
-                        InputMode::SettingsSelect => match key.code {
+                        InputMode::SettingsSelect => match code {
                             KeyCode::Left | KeyCode::Char('h') => {
                                 if app.settings_field_index > 0 {
                                     app.settings_field_index -= 1;
@@ -420,7 +478,7 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             _ => {}
                         },
 
-                        InputMode::SettingsEdit => match key.code {
+                        InputMode::SettingsEdit => match code {
                             KeyCode::Up | KeyCode::Char('k') => {
                                 if app.settings_value_index > 0 {
                                     app.settings_value_index -= 1;
@@ -428,12 +486,12 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             }
                             KeyCode::Down | KeyCode::Char('j') => {
                                 let max = app.settings_value_count();
-                                if app.settings_value_index < max - 1 {
+                                if app.settings_value_index + 1 < max {
                                     app.settings_value_index += 1;
                                 }
                             }
                             KeyCode::Enter => {
-                                app.apply_settings_value()?;
+                                report!(app, app.apply_settings_value());
                                 app.input_mode = InputMode::SettingsSelect;
                             }
                             KeyCode::Esc => {
@@ -449,9 +507,9 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                         }
 
                         // Startup: found .fob files, y/n to import
-                        InputMode::StartupImport => match key.code {
+                        InputMode::StartupImport => match code {
                             KeyCode::Char('y') | KeyCode::Char('Y') => {
-                                app.import_fob_files()?;
+                                report!(app, app.import_fob_files());
                                 app.input_mode = InputMode::Normal;
                             }
                             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
@@ -461,304 +519,72 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             _ => {}
                         },
 
+                        // `:clear` cannot be undone: its y also forgets the last delete (`u`).
+                        InputMode::ConfirmClear if matches!(code, KeyCode::Char('y' | 'Y')) => {
+                            app.forget_deleted();
+                            report!(app, app.handle_app_mode_key(code));
+                        }
+
                         // Session restore prompt, :clear confirmation, timing overlay (app/persistence.rs)
                         InputMode::SessionRestore
                         | InputMode::ConfirmClear
                         | InputMode::TimingAnalysis => {
-                            app.handle_app_mode_key(key.code)?;
+                            report!(app, app.handle_app_mode_key(code));
                         }
 
-                        // Export: filename input
-                        InputMode::ExportFilename => match key.code {
-                            KeyCode::Enter => {
-                                if app.export_filename.is_empty() {
-                                    app.last_error = Some("Filename cannot be empty".to_string());
-                                } else {
-                                    match app.export_format {
-                                        Some(ExportFormat::Fob) => {
-                                            app.input_mode = InputMode::FobMetaYear;
-                                        }
-                                        Some(ExportFormat::Flipper) => {
-                                            app.complete_flipper_export()?;
-                                            app.input_mode = InputMode::Normal;
-                                        }
-                                        Some(ExportFormat::FlipperKey) => {
-                                            app.complete_flipper_key_export()?;
-                                            app.input_mode = InputMode::Normal;
-                                        }
-                                        None => {
-                                            app.input_mode = InputMode::Normal;
-                                        }
-                                    }
-                                }
+                        // "Quit? … is still running", `:delete all` (y/n; app/input.rs)
+                        InputMode::ConfirmQuit | InputMode::ConfirmDeleteAll => {
+                            if app.confirm_prompt_key(code) {
+                                return Ok(());
                             }
-                            KeyCode::Char(c) => {
-                                // Allow filesystem-safe characters
-                                if c.is_alphanumeric() || c == '_' || c == '-' || c == '.' {
-                                    app.export_filename.push(c);
-                                }
-                            }
-                            KeyCode::Backspace => {
-                                app.export_filename.pop();
-                            }
-                            KeyCode::Esc => {
-                                app.export_capture_id = None;
-                                app.export_format = None;
-                                app.input_mode = InputMode::Normal;
-                            }
-                            _ => {}
-                        },
+                        }
 
-                        // .fob export metadata: Year
-                        InputMode::FobMetaYear => match key.code {
-                            KeyCode::Enter => {
-                                app.input_mode = InputMode::FobMetaMake;
-                            }
-                            KeyCode::Char(c) if c.is_ascii_digit() => {
-                                if app.fob_meta_year.len() < 4 {
-                                    app.fob_meta_year.push(c);
-                                }
-                            }
-                            KeyCode::Backspace => {
-                                app.fob_meta_year.pop();
-                            }
-                            KeyCode::Esc => {
-                                app.export_capture_id = None;
-                                app.input_mode = InputMode::Normal;
-                            }
-                            _ => {}
-                        },
-
-                        // .fob export metadata: Make
-                        InputMode::FobMetaMake => match key.code {
-                            KeyCode::Enter => {
-                                app.input_mode = InputMode::FobMetaModel;
-                            }
-                            KeyCode::Char(c) => {
-                                app.fob_meta_make.push(c);
-                            }
-                            KeyCode::Backspace => {
-                                app.fob_meta_make.pop();
-                            }
-                            KeyCode::Esc => {
-                                app.export_capture_id = None;
-                                app.input_mode = InputMode::Normal;
-                            }
-                            _ => {}
-                        },
-
-                        // .fob export metadata: Model -> Region
-                        InputMode::FobMetaModel => match key.code {
-                            KeyCode::Enter => {
-                                app.input_mode = InputMode::FobMetaRegion;
-                            }
-                            KeyCode::Char(c) => {
-                                app.fob_meta_model.push(c);
-                            }
-                            KeyCode::Backspace => {
-                                app.fob_meta_model.pop();
-                            }
-                            KeyCode::Esc => {
-                                app.export_capture_id = None;
-                                app.input_mode = InputMode::Normal;
-                            }
-                            _ => {}
-                        },
-
-                        // .fob export metadata: Region -> Command
-                        InputMode::FobMetaRegion => match key.code {
-                            KeyCode::Enter => {
-                                app.input_mode = InputMode::FobMetaCommand;
-                            }
-                            KeyCode::Char(c) => {
-                                app.fob_meta_region.push(c);
-                            }
-                            KeyCode::Backspace => {
-                                app.fob_meta_region.pop();
-                            }
-                            KeyCode::Esc => {
-                                app.export_capture_id = None;
-                                app.input_mode = InputMode::Normal;
-                            }
-                            _ => {}
-                        },
-
-                        // .fob export metadata: Command -> Notes
-                        InputMode::FobMetaCommand => match key.code {
-                            KeyCode::Enter => {
-                                app.input_mode = InputMode::FobMetaNotes;
-                            }
-                            KeyCode::Char(c) => {
-                                app.fob_meta_command.push(c);
-                            }
-                            KeyCode::Backspace => {
-                                app.fob_meta_command.pop();
-                            }
-                            KeyCode::Esc => {
-                                app.export_capture_id = None;
-                                app.input_mode = InputMode::Normal;
-                            }
-                            _ => {}
-                        },
-
-                        // .fob export metadata: Notes -> Export
-                        InputMode::FobMetaNotes => match key.code {
-                            KeyCode::Enter => {
-                                app.complete_fob_export()?;
-                                app.input_mode = InputMode::Normal;
-                            }
-                            KeyCode::Char(c) => {
-                                app.fob_meta_notes.push(c);
-                            }
-                            KeyCode::Backspace => {
-                                app.fob_meta_notes.pop();
-                            }
-                            KeyCode::Esc => {
-                                app.export_capture_id = None;
-                                app.input_mode = InputMode::Normal;
-                            }
-                            _ => {}
-                        },
-
-                        // Capture metadata (Year/Make/Model/Region/Command for vuln lookup)
-                        InputMode::CaptureMetaYear => match key.code {
-                            KeyCode::Enter => {
-                                app.input_mode = InputMode::CaptureMetaMake;
-                            }
-                            KeyCode::Char(c) if c.is_ascii_digit() => {
-                                if app.capture_meta_year.len() < 4 {
-                                    app.capture_meta_year.push(c);
-                                }
-                            }
-                            KeyCode::Backspace => {
-                                app.capture_meta_year.pop();
-                            }
-                            KeyCode::Esc => {
-                                app.cancel_capture_meta();
-                            }
-                            _ => {}
-                        },
-                        InputMode::CaptureMetaMake => match key.code {
-                            KeyCode::Enter => {
-                                app.input_mode = InputMode::CaptureMetaModel;
-                            }
-                            KeyCode::Char(c) => {
-                                app.capture_meta_make.push(c);
-                            }
-                            KeyCode::Backspace => {
-                                app.capture_meta_make.pop();
-                            }
-                            KeyCode::Esc => {
-                                app.cancel_capture_meta();
-                            }
-                            _ => {}
-                        },
-                        InputMode::CaptureMetaModel => match key.code {
-                            KeyCode::Enter => {
-                                app.input_mode = InputMode::CaptureMetaRegion;
-                            }
-                            KeyCode::Char(c) => {
-                                app.capture_meta_model.push(c);
-                            }
-                            KeyCode::Backspace => {
-                                app.capture_meta_model.pop();
-                            }
-                            KeyCode::Esc => {
-                                app.cancel_capture_meta();
-                            }
-                            _ => {}
-                        },
-                        InputMode::CaptureMetaRegion => match key.code {
-                            KeyCode::Enter => {
-                                app.input_mode = InputMode::CaptureMetaCommand;
-                            }
-                            KeyCode::Char(c) => {
-                                app.capture_meta_region.push(c);
-                            }
-                            KeyCode::Backspace => {
-                                app.capture_meta_region.pop();
-                            }
-                            KeyCode::Esc => {
-                                app.cancel_capture_meta();
-                            }
-                            _ => {}
-                        },
-                        InputMode::CaptureMetaCommand => match key.code {
-                            KeyCode::Enter => {
-                                app.save_capture_meta();
-                            }
-                            KeyCode::Char(c) => {
-                                app.capture_meta_command.push(c);
-                            }
-                            KeyCode::Backspace => {
-                                app.capture_meta_command.pop();
-                            }
-                            KeyCode::Esc => {
-                                app.cancel_capture_meta();
-                            }
-                            _ => {}
-                        },
+                        // Export form (file name, .fob vehicle details) and capture metadata (`i`):
+                        // Tab / Shift-Tab / Up / Down move between fields (app/input.rs)
+                        InputMode::ExportFilename
+                        | InputMode::FobMetaYear
+                        | InputMode::FobMetaMake
+                        | InputMode::FobMetaModel
+                        | InputMode::FobMetaRegion
+                        | InputMode::FobMetaCommand
+                        | InputMode::FobMetaNotes
+                        | InputMode::CaptureMetaYear
+                        | InputMode::CaptureMetaMake
+                        | InputMode::CaptureMetaModel
+                        | InputMode::CaptureMetaRegion
+                        | InputMode::CaptureMetaCommand => app.form_field_key(code),
 
                         // :new picker / field form, "Send button…" list (app/add_manually.rs)
                         InputMode::NewRemote | InputMode::NewRemoteEdit | InputMode::SendButton => {
-                            app.handle_add_manually_key(key.code);
-                            while app.has_pending_transmit() {
-                                terminal.draw(|f| draw_ui(f, app))?;
-                                app.run_one_pending_transmit()?;
+                            // In the list, Esc first drops a transmission not sent yet.
+                            let cancelled = code == KeyCode::Esc
+                                && app.input_mode == InputMode::SendButton
+                                && app.cancel_transmit_queue();
+                            if !cancelled {
+                                app.handle_add_manually_key(code);
                             }
                         }
 
-                        InputMode::LoadFileBrowser => {
-                        const VISIBLE: usize = 16;
-                        match key.code {
-                            KeyCode::Esc => {
-                                app.close_load_browser();
-                            }
-                            KeyCode::Enter => {
-                                let _ = app.load_browser_enter();
-                            }
-                            KeyCode::Up | KeyCode::Char('k') => {
-                                if app.load_browser_selected > 0 {
-                                    app.load_browser_selected -= 1;
-                                    if app.load_browser_selected < app.load_browser_scroll {
-                                        app.load_browser_scroll = app.load_browser_selected;
-                                    }
-                                }
-                            }
-                            KeyCode::Down | KeyCode::Char('j') => {
-                                let max = app.load_browser_entries.len().saturating_sub(1);
-                                if app.load_browser_selected < max {
-                                    app.load_browser_selected += 1;
-                                    if app.load_browser_selected >= app.load_browser_scroll + VISIBLE {
-                                        app.load_browser_scroll = app.load_browser_selected - VISIBLE + 1;
-                                    }
-                                }
-                            }
-                            _ => {}
-                        }
-                    },
+                        // Folders, parent (Left / Backspace), files (app/input.rs)
+                        InputMode::LoadFileBrowser => app.load_browser_key(code)?,
 
-                        InputMode::License | InputMode::Credits => match key.code {
-                            KeyCode::Esc | KeyCode::Enter => {
-                                app.input_mode = InputMode::Normal;
-                            }
-                            KeyCode::Up | KeyCode::Char('k') => {
-                                app.overlay_scroll = app.overlay_scroll.saturating_sub(1);
-                            }
-                            KeyCode::Down | KeyCode::Char('j') => {
-                                app.overlay_scroll = app.overlay_scroll.saturating_add(1);
-                            }
-                            _ => {}
-                        },
+                        // Scroll within the text, Esc / Enter / q close (app/input.rs)
+                        InputMode::License | InputMode::Credits | InputMode::Help => app.overlay_key(code),
                     }
                 }
             }
         }
+        // After a key, draw its result (a prompt, a menu) before the next transmission blocks.
+        if transmitting && !had_event {
+            report!(app, app.step_transmit_queue());
+        }
 
         // Process any pending radio events
-        app.process_radio_events()?;
+        report!(app, app.process_radio_events());
         // IQ file progress, recordings, hopping (src/app/rx.rs)
         app.poll_rx();
+        // The open signal menu follows its capture's actions (app/input.rs)
+        app.sync_signal_menu();
     }
 }
 
@@ -825,5 +651,35 @@ mod cli_tests {
         assert!(parse_args(args(&["--save"])).is_err());
         assert!(parse_args(args(&["--all"])).is_err());
         assert!(parse_args(args(&["--iq", "x.cs8", "--decode", "y.sub"])).is_err());
+    }
+
+    /// Mistakes get a message that says what to do instead.
+    #[test]
+    fn argument_errors_explain_the_fix() {
+        let err = |a: &[&str]| parse_args(args(a)).unwrap_err();
+        // A rate the decoder refuses is rejected up front, with the range.
+        let e = err(&["--decode", "x.cu8", "--rate", "150k"]);
+        assert!(e.contains("150k") && e.contains("200k to 40M"), "{e}");
+        assert!(parse_args(args(&["--decode", "x.cu8", "--rate", "200k"])).is_ok());
+        // A bare file: how to open it.
+        let e = err(&["rec.cu8"]);
+        assert!(e.contains("kat --iq rec.cu8") && e.contains("kat --decode rec.cu8"), "{e}");
+        let e = err(&["Garage.SUB"]);
+        assert!(e.contains("kat --decode Garage.SUB") && e.contains(":load"), "{e}");
+        // --iq only takes IQ recordings (a .sub used to fail inside the TUI).
+        let e = err(&["--iq", "foo.sub"]);
+        assert!(e.contains("not an IQ recording") && e.contains("kat --decode foo.sub"), "{e}");
+        assert!(err(&["--iq", "notes.fob"]).contains(":load notes.fob"));
+        assert_eq!(err(&["--bogus"]), "unknown option: --bogus");
+        assert!(err(&["--freq", "x"]).contains("433.92"));
+    }
+
+    /// The short aliases and the exit status are in --help.
+    #[test]
+    fn usage_lists_aliases_and_exit_status() {
+        for needle in ["-d, --decode", "-v, --verbose", "-h, --help", "-V, --version", "Exit status: 0", "200k to 40M"] {
+            assert!(USAGE.contains(needle), "{needle}");
+        }
+        assert_eq!(parse_args(args(&["-d", "a.sub", "-v"])).map(|a| matches!(a, CliAction::Decode(o) if o.verbose)), Ok(true));
     }
 }

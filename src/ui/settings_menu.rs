@@ -8,43 +8,88 @@ use ratatui::{
     Frame,
 };
 
-use crate::app::{App, InputMode, SettingsField, PRESET_FREQUENCIES, LNA_STEPS, VGA_STEPS};
-use crate::app::{tx_power_label, TX_POWER_STEPS};
+use crate::app::{App, InputMode, SettingsField};
+use crate::app::tx_power_label;
+use crate::radio::hopper::format_mhz;
+
+use super::{text, theme};
+
+/// Tab of the setting being edited (its value list is open under it).
+const EDITING: Style = Style::new().fg(Color::Black).bg(Color::Green).add_modifier(Modifier::BOLD);
+
+fn on_off(on: bool) -> String {
+    if on { "ON" } else { "OFF" }.to_string()
+}
+
+/// (label, current value) of every tab, in [SettingsField::ALL] order.
+fn tabs(app: &App) -> Vec<(&'static str, String)> {
+    SettingsField::ALL
+        .iter()
+        .map(|field| {
+            let value = match field {
+                SettingsField::Freq => format!("{} MHz", format_mhz(app.frequency)),
+                SettingsField::Hop => on_off(app.rx.hop_enabled),
+                SettingsField::Lna => format!("{} dB", app.lna_gain),
+                SettingsField::Vga => format!("{} dB", app.vga_gain),
+                SettingsField::Amp => on_off(app.amp_enabled),
+                SettingsField::TxPower => tx_power_label(app.tx_vga_gain, app.tx_amp),
+            };
+            (field.label(), value)
+        })
+        .collect()
+}
+
+/// Width of a tab: " Label value ".
+fn tab_width(label: &str, value: &str) -> usize {
+    text::width(label) + text::width(value) + 3
+}
+
+/// The first tab drawn, and the x offset (from the bar's inner left edge) and width of every tab
+/// from there on: the bar scrolls when the terminal is too narrow for all of them, so the
+/// selected tab is always in view.
+fn tab_positions(widths: &[usize], selected: usize, room: usize) -> (usize, Vec<(usize, usize)>) {
+    let selected = selected.min(widths.len().saturating_sub(1));
+    let mut first = 0;
+    while first < selected && widths[first..=selected].iter().sum::<usize>() > room {
+        first += 1;
+    }
+    let mut x = 0;
+    let positions = widths[first..]
+        .iter()
+        .map(|&w| {
+            let p = (x, w);
+            x += w;
+            p
+        })
+        .collect();
+    (first, positions)
+}
+
+/// The settings bar's area inside its border.
+fn bar_inner(bar: Rect) -> Rect {
+    Block::default().borders(Borders::ALL).inner(bar)
+}
 
 /// Render the settings selector tabs in the header area
 pub fn render_settings_tabs(frame: &mut Frame, area: Rect, app: &App) {
-    let mut spans = Vec::new();
-    spans.push(Span::styled(" Settings: ", Style::default().fg(Color::DarkGray)));
+    let tabs = tabs(app);
+    let widths: Vec<usize> = tabs.iter().map(|(l, v)| tab_width(l, v)).collect();
+    let (first, _) = tab_positions(&widths, app.settings_field_index, bar_inner(area).width as usize);
 
-    for (i, field) in SettingsField::ALL.iter().enumerate() {
+    let mut spans = Vec::new();
+    for (i, (label, value)) in tabs.iter().enumerate().skip(first) {
         let is_selected = app.input_mode == InputMode::SettingsSelect
             && i == app.settings_field_index;
         let is_editing = app.input_mode == InputMode::SettingsEdit
             && i == app.settings_field_index;
 
-        let style = if is_editing {
-            Style::default().fg(Color::Black).bg(Color::Green).add_modifier(Modifier::BOLD)
-        } else if is_selected {
-            Style::default().fg(Color::Black).bg(Color::Cyan).add_modifier(Modifier::BOLD)
+        if is_editing || is_selected {
+            let style = if is_editing { EDITING } else { theme::HIGHLIGHT };
+            spans.push(Span::styled(format!(" {} {} ", label, value), style));
         } else {
-            Style::default().fg(Color::White)
-        };
-
-        let value = match field {
-            SettingsField::Freq => format!("{:.2}MHz", app.frequency as f64 / 1_000_000.0),
-            SettingsField::Hop => if app.rx.hop_enabled { "ON".to_string() } else { "OFF".to_string() },
-            SettingsField::Lna => format!("{}dB", app.lna_gain),
-            SettingsField::Vga => format!("{}dB", app.vga_gain),
-            SettingsField::Amp => if app.amp_enabled { "ON".to_string() } else { "OFF".to_string() },
-            SettingsField::TxPower => {
-                format!("{}dB{}", app.tx_vga_gain, if app.tx_amp { "+AMP" } else { "" })
-            }
-        };
-
-        spans.push(Span::styled(
-            format!(" [{}:{}] ", field.label(), value),
-            style,
-        ));
+            spans.push(Span::styled(format!(" {} ", label), Style::default().fg(Color::DarkGray)));
+            spans.push(Span::styled(format!("{} ", value), theme::TEXT));
+        }
     }
 
     let line = Line::from(spans);
@@ -58,8 +103,9 @@ pub fn render_settings_tabs(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(widget, area);
 }
 
-/// Render the settings value dropdown when in SettingsEdit mode
-pub fn render_settings_dropdown(frame: &mut Frame, app: &App) {
+/// Render the settings value dropdown when in SettingsEdit mode: it opens under the settings bar
+/// (`bar`), lined up with the tab being edited.
+pub fn render_settings_dropdown(frame: &mut Frame, app: &App, bar: Rect) {
     if app.input_mode != InputMode::SettingsEdit {
         return;
     }
@@ -67,67 +113,85 @@ pub fn render_settings_dropdown(frame: &mut Frame, app: &App) {
     let area = frame.area();
     let field = SettingsField::ALL[app.settings_field_index];
 
-    let values: Vec<String> = match field {
-        SettingsField::Freq => PRESET_FREQUENCIES
-            .iter()
-            .map(|(_, label)| label.to_string())
-            .collect(),
-        SettingsField::Hop => vec!["ON".to_string(), "OFF".to_string()],
-        SettingsField::Lna => LNA_STEPS.iter().map(|g| format!("{} dB", g)).collect(),
-        SettingsField::Vga => VGA_STEPS.iter().map(|g| format!("{} dB", g)).collect(),
-        SettingsField::Amp => vec!["ON".to_string(), "OFF".to_string()],
-        SettingsField::TxPower => TX_POWER_STEPS.iter().map(|&(g, a)| tx_power_label(g, a)).collect(),
-    };
+    // The app's rows: the presets, plus the current value first when a command set one that isn't
+    // a preset ("433.42 MHz (current)"), so Enter keeps it.
+    let values: Vec<String> = app.settings_value_rows();
 
-    let menu_width = 22u16;
-    let menu_height = (values.len() as u16) + 2; // items + borders
+    // Line up with the tab: the same positions the bar was drawn with.
+    let tabs = tabs(app);
+    let widths: Vec<usize> = tabs.iter().map(|(l, v)| tab_width(l, v)).collect();
+    let inner = bar_inner(bar);
+    let (first, positions) = tab_positions(&widths, app.settings_field_index, inner.width as usize);
+    let (tab_x, tab_w) = positions
+        .get(app.settings_field_index.saturating_sub(first))
+        .copied()
+        .unwrap_or((0, 0));
 
-    // Position: below the header, near the field
-    let x_offset = 12 + (app.settings_field_index as u16) * 16;
-    let x = x_offset.min(area.width.saturating_sub(menu_width));
-    let y = 3u16; // Below header
-
-    let menu_area = Rect::new(
-        x,
-        y,
-        menu_width.min(area.width.saturating_sub(x)),
-        menu_height.min(area.height.saturating_sub(y)),
-    );
+    // Wide enough for the tab, its values ("> " + value) and the title, up to the terminal.
+    let longest = values.iter().map(|v| text::width(v)).max().unwrap_or(0);
+    let menu_width = (longest + 4)
+        .max(tab_w)
+        .max(text::width(field.label()) + 4)
+        .min(area.width as usize) as u16;
+    let x = (inner.x + tab_x as u16).min(area.width.saturating_sub(menu_width));
+    // Under the bar, so the tab being edited stays visible; as tall as the list, down to the
+    // help bar at most (then it scrolls to keep the highlighted value in view).
+    let y = bar.y + bar.height;
+    let menu_height = (values.len() as u16 + 2).min(area.height.saturating_sub(y + 1));
+    let visible = menu_height.saturating_sub(2) as usize;
+    let start = text::centered_start(app.settings_value_index, visible, values.len());
+    let menu_area = Rect::new(x, y, menu_width, menu_height);
 
     frame.render_widget(Clear, menu_area);
 
+    let inner_width = menu_width.saturating_sub(2) as usize;
     let items: Vec<ListItem> = values
         .iter()
         .enumerate()
+        .skip(start)
+        .take(visible)
         .map(|(i, val)| {
-            let style = if i == app.settings_value_index {
-                Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::Green)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(Color::White)
-            };
-
-            let prefix = if i == app.settings_value_index {
-                "> "
-            } else {
-                "  "
-            };
-
+            let selected = i == app.settings_value_index;
+            let style = if selected { theme::HIGHLIGHT } else { theme::TEXT };
+            let prefix = if selected { "> " } else { "  " };
+            // The highlight spans the whole row.
+            let pad = inner_width.saturating_sub(2 + text::width(val));
             ListItem::new(Line::from(Span::styled(
-                format!("{}{}", prefix, val),
+                format!("{}{}{}", prefix, val, " ".repeat(pad)),
                 style,
             )))
         })
         .collect();
 
-    let list = List::new(items).block(
-        Block::default()
-            .title(format!(" {} ", field.label()))
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Green)),
-    );
+    let mut block = Block::default()
+        .title(format!(" {} ", field.label()))
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Green));
+    if let Some(hint) = text::more_hint(start, visible, values.len()) {
+        block = block.title_bottom(Line::from(hint).right_aligned());
+    }
 
-    frame.render_widget(list, menu_area);
+    frame.render_widget(List::new(items).block(block), menu_area);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::tab_positions;
+
+    #[test]
+    fn tabs_scroll_to_keep_the_selection_in_view() {
+        // " Freq 433.92 MHz " " Hop OFF " " LNA 24 dB " " VGA 20 dB " " AMP OFF " " TX 47 dB + amp "
+        let widths = [17, 9, 11, 11, 9, 16];
+        // 80-column terminal: everything fits, positions add up.
+        let (first, pos) = tab_positions(&widths, 5, 78);
+        assert_eq!(first, 0);
+        assert_eq!(pos[5], (57, 16));
+        // 60 columns: the first tabs scroll away so the TX tab is in view.
+        let (first, pos) = tab_positions(&widths, 5, 58);
+        assert_eq!(first, 1);
+        assert_eq!(pos[4], (40, 16));
+        assert!(pos[4].0 + pos[4].1 <= 58);
+        let (first, _) = tab_positions(&widths, 0, 58);
+        assert_eq!(first, 0);
+    }
 }

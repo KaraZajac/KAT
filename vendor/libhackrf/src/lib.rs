@@ -193,8 +193,16 @@ impl HackRf {
     }
 
     /// Returns true if the device is currently streaming samples (transmitting or receiving).
+    /// libhackrf returns HACKRF_TRUE (1) while streaming and a negative error once the stream has
+    /// stopped (hackrf_transfer loops `while (hackrf_is_streaming(device) == HACKRF_TRUE)`).
     pub fn is_streaming(&self) -> bool {
-        unsafe { ffi::hackrf_is_streaming(self.device()) != 0 }
+        unsafe { ffi::hackrf_is_streaming(self.device()) == 1 }
+    }
+
+    /// Ok while streaming; the error libhackrf reports once the stream stopped on its own
+    /// (`StreamingStopped` / `StreamingExitCalled` after a USB error, e.g. the device was unplugged).
+    pub fn streaming_status(&self) -> Result<()> {
+        unsafe { HackrfError::from_id(ffi::hackrf_is_streaming(self.device())) }
     }
 }
 

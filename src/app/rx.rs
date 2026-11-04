@@ -281,10 +281,13 @@ impl App {
         let (format, rate) = (radio.iq_format(), radio.sample_rate());
         let target = self.frequency;
         let dir = self.storage.export_dir().clone();
+        let default_name = recording_file_name(lo_for(target, rate), rate, target, format);
         let path = match args.first() {
-            Some(_) => resolve_record_path(&dir, &args.join(" "), format),
-            None => dir.join(recording_file_name(lo_for(target, rate), rate, target, format)),
+            Some(_) => resolve_record_path(&dir, &args.join(" "), format, &default_name),
+            None => dir.join(default_name),
         };
+        // Never replace an earlier recording (`:record x` twice used to truncate the first).
+        let path = crate::export::unique_path(&path);
         match radio.start_recording(path.clone()) {
             Ok(()) => {
                 self.status_message = Some(format!(

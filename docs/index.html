@@ -75,7 +75,7 @@
       </div>
       <a href="img/kat-captures.webp">
         <img src="img/kat-captures.webp" width="2298" height="1708" loading="eager"
-          alt="KAT's main screen. The captures list holds 14 decoded signals: Kia V4, three presses of one Ford V0 fob whose counter steps 877F, 8780, 8781, Security+ 2.0, VAG, Subaru, KeeLoq (DoorHan), Kia V6, Fiat V1, Marantec, Kia V0, Kia V2 and Opel V1. Below it, the selected Ford V0 capture's details: serial 0x4306BE50, button Lock, counter 0x8781, CRC OK and its 64-bit key, beside the Vulnerability panel.">
+          alt="KAT's main screen. The captures list holds 14 decoded signals: Kia V4; three frames from one Ford V0 fob, its counter stepping 877F, 8780, 8781; Security+ 2.0, VAG, Subaru, KeeLoq (DoorHan), Kia V6, Fiat V1, Marantec, Kia V0, Kia V2 and Opel V1. Below it, the selected Ford V0 capture's details: serial 0x4306BE50, button Lock, counter 0x8781, CRC OK and its 64-bit key, beside the Vulnerability panel.">
       </a>
     </figure>
 
@@ -138,7 +138,7 @@
         <img src="img/kat-actions.webp" width="2298" height="1708" loading="lazy"
           alt="The same screen with the action menu open on the Ford V0 capture: Replay, TX Lock, TX Unlock, TX Trunk, TX Panic, three exports, Timing analysis and Delete.">
       </a>
-      <figcaption><strong>A capture's actions.</strong> Transmitting needs a HackRF, and the owner's permission.</figcaption>
+      <figcaption><strong>A capture's actions.</strong> Transmitting needs a HackRF, and the owner's written permission.</figcaption>
     </figure>
 
     <div class="explain-annotations">
@@ -177,9 +177,10 @@
         <span class="anno-num">4</span>
         <div>
           <strong>Act on it</strong>
-          <p>Replay the capture, transmit Lock, Unlock, Trunk or Panic, export
-          it, open its timing analysis, or recover its key where the protocol
-          allows.</p>
+          <p>Replay the capture, send its next code with a button you pick
+          (Lock, Unlock, Trunk or Panic on a car, the remote's own buttons on a
+          gate), export it, open its timing analysis, or recover its key where
+          the protocol allows.</p>
         </div>
       </div>
     </div>
@@ -250,10 +251,11 @@
         <div class="bento-icon">🔑</div>
         <h3>KeeLoq key recovery</h3>
         <p>
-          Flipper-ARF's KeeLoq Decrypt finds the manufacturer key of a remote
-          KAT has no key for, from two captures of it: about 5&nbsp;s per type
-          for types 6 and 7, about 20 minutes for type 8 on an 8-core laptop.
-          The key is saved, and the remote then decodes and transmits.
+          Flipper-ARF's KeeLoq Decrypt finds the manufacturer key of a
+          magic-serial KeeLoq remote KAT has no key for. From two captures,
+          types 6 and 7 take about 5&nbsp;s each; type 8 needs three captures
+          and about 20 minutes, on an 8-core laptop. The key is saved, and the
+          remote then decodes and transmits.
         </p>
       </article>
 
@@ -294,8 +296,8 @@
         <h3>PSA keys</h3>
         <p>
           <strong>Recover key</strong> runs ProtoPirate's TEA key brute force
-          for Peugeot and Citroën fobs in under a second; KAT then encodes the
-          next code.
+          for Peugeot and Citroën fobs in about half a second on a 16-core PC;
+          KAT then encodes the next code.
         </p>
       </article>
     </div>
@@ -389,7 +391,7 @@
         protocol, then Flipper-ARF and doctor-firmware, then Momentum and
         RogueMaster; remotes no Flipper firmware reads are decoded with
         receive-only ports of rtl_433. Each page covers the protocol's timing,
-        frame layout, decoder and encoder.
+        frame layout and decoder, and its encoder where KAT has one.
       </p>
     </div>
 
@@ -500,7 +502,7 @@
 
       <div class="proto-group wide">
         <h3>Garage &amp; gate: fixed codes</h3>
-        <p>Re-sent as captured or with another of the remote's buttons.</p>
+        <p>Re-sent as captured; most also with another of the remote's buttons.</p>
         <div class="pills">
           <a class="pill" href="came.html" title="12/18/24/25/42-bit">CAME</a>
           <a class="pill" href="came_twee.html">CAME TWEE</a>
@@ -676,13 +678,19 @@ tar xzf kat-v1.8.0-x86_64-linux.tar.gz
       <div class="step">
         <div>
           <h3>From source</h3>
-          <p>Rust 1.88 or newer, then:</p>
+          <p>Rust 1.88 or newer, and the HackRF library with its headers:</p>
+          <div class="code-wrap nocopy">
+<pre class="code">brew install hackrf                                          <span class="cmt"># macOS</span>
+sudo apt install libhackrf-dev pkg-config libusb-1.0-0-dev   <span class="cmt"># Debian / Ubuntu / Raspberry Pi OS</span>
+sudo dnf install hackrf-devel pkg-config libusb1-devel       <span class="cmt"># Fedora</span>
+sudo pacman -S hackrf libusb                                 <span class="cmt"># Arch Linux</span></pre>
+          </div>
           <div class="code-wrap">
-<pre class="code">git clone https://github.com/KaraZajac/KAT.git &amp;&amp; cd KAT
-sudo apt install libhackrf-dev pkg-config libusb-1.0-0-dev
+<pre class="code">git clone https://github.com/KaraZajac/KAT.git
+cd KAT
 cargo build --release</pre>
           </div>
-          <p>Use a release build for live receive: a debug build is about 20× slower.</p>
+          <p>The binary is <code>target/release/kat</code>. Use a release build for live receive: a debug build is about 20× slower.</p>
         </div>
       </div>
     </div>

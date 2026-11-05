@@ -1180,13 +1180,12 @@ figure.term-shot { margin-left: auto; margin-right: auto; }
 .keys dd { margin: 0; color: var(--text-soft); }
 .more-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.1rem;
   margin-top: 1.1rem;
   max-width: 900px;
 }
 .more-grid .step { grid-template-columns: minmax(0, 1fr); }
-@media (max-width: 760px) { .more-grid { grid-template-columns: 1fr; } }
 
 /* the legal notice */
 .callout.callout-legal {

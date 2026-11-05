@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="108" height="108" role="img" aria-label="KAT">
+  <defs>
+    <radialGradient id="kat-bg" cx="42%" cy="40%" r="78%">
+      <stop offset="0" stop-color="#103236"/>
+      <stop offset="1" stop-color="#0a0f12"/>
+    </radialGradient>
+    <linearGradient id="kat-wave" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10b981"/>
+      <stop offset="1" stop-color="#06b6d4"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="100" height="100" rx="26" fill="url(#kat-bg)" stroke="#1d3a3c"/>
+  <!-- key ring -->
+  <circle cx="40" cy="24" r="7.5" fill="none" stroke="#10b981" stroke-width="2.6" stroke-opacity="0.75"/>
+  <!-- fob body -->
+  <rect x="25" y="32" width="30" height="52" rx="14" fill="#10b981" fill-opacity="0.12" stroke="#10b981" stroke-width="3"/>
+  <!-- buttons: lock, unlock, trunk -->
+  <circle cx="40" cy="47" r="4.6" fill="#10b981"/>
+  <circle cx="40" cy="60" r="4.6" fill="none" stroke="#10b981" stroke-width="2.4"/>
+  <rect x="35.6" y="69.4" width="8.8" height="5.2" rx="2.6" fill="none" stroke="#10b981" stroke-width="2.2" stroke-opacity="0.8"/>
+  <!-- the signal -->
+  <path d="M63 47 A12 12 0 0 1 63 63" fill="none" stroke="url(#kat-wave)" stroke-width="3.4" stroke-linecap="round"/>
+  <path d="M70 40 A22 22 0 0 1 70 70" fill="none" stroke="url(#kat-wave)" stroke-width="3.2" stroke-linecap="round" stroke-opacity="0.8"/>
+  <path d="M77 33 A32 32 0 0 1 77 77" fill="none" stroke="url(#kat-wave)" stroke-width="3" stroke-linecap="round" stroke-opacity="0.55"/>
+</svg>

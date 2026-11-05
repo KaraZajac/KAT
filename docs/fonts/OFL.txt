@@ -1,0 +1,9 @@
+Inter, JetBrains Mono and Space Grotesk are licensed under the
+SIL Open Font License, Version 1.1, which permits redistribution
+and self-hosting.
+
+  Inter          https://github.com/rsms/inter  (OFL-1.1)
+  JetBrains Mono https://github.com/JetBrains/JetBrainsMono  (OFL-1.1)
+  Space Grotesk  https://github.com/floriankarsten/space-grotesk  (OFL-1.1)
+
+Full licence text: https://openfontlicense.org/

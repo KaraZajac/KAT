@@ -1,0 +1,15 @@
+{
+  "name": "kat-site",
+  "private": true,
+  "description": "Builds kat.karazajac.io from docs/: see build.mjs",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "marked": "18.1.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

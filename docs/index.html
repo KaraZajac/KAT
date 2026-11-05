@@ -1,348 +1,771 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KAT — Keyfob Analysis Toolkit</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KAT — Keyfob Analysis Toolkit</title>
+<meta name="description" content="KAT captures, decodes and retransmits car key fob and garage door, gate, barrier and shutter remote signals from a terminal, with a HackRF One or an RTL-SDR, and decodes IQ recordings and Flipper Zero .sub files with no radio attached. 107 protocol decoders. BSD-3-Clause.">
+<link rel="canonical" href="https://kat.karazajac.io/">
+<meta property="og:title" content="KAT — Keyfob Analysis Toolkit">
+<meta property="og:description" content="Capture, decode and retransmit car key fob and gate remote signals from a terminal, with a HackRF One or an RTL-SDR, or from recordings and Flipper .sub files. 107 protocol decoders.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://kat.karazajac.io/">
+<meta property="og:image" content="https://kat.karazajac.io/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="KAT, the Keyfob Analysis Toolkit: a terminal screen of decoded key fob captures.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://kat.karazajac.io/og.png">
+<meta name="theme-color" content="#07070d">
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header>
-        <div class="container">
-            <h1>KAT — Keyfob Analysis Toolkit</h1>
-            <p class="tagline">Terminal-based RF signal analysis for automotive keyfobs</p>
+
+<div class="bg-mesh" aria-hidden="true">
+  <div class="mesh-blob mesh-blob-1"></div>
+  <div class="mesh-blob mesh-blob-2"></div>
+  <div class="mesh-blob mesh-blob-3"></div>
+</div>
+
+<nav class="nav">
+  <div class="container nav-inner">
+    <a class="nav-brand" href="#">
+      <img class="nav-logo" src="logo.svg" width="30" height="30" alt="" aria-hidden="true">
+      KAT
+    </a>
+    <div class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#protocols">Protocols</a>
+      <a href="#docs">Docs</a>
+      <a href="#get">Get it</a>
+      <a class="nav-github" href="https://github.com/KaraZajac/KAT" aria-label="KAT on GitHub">
+        <svg height="18" viewBox="0 0 16 16" width="18" fill="currentColor" aria-hidden="true">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- ──────────────── HERO ──────────────── -->
+<header class="hero">
+  <div class="container hero-inner">
+    <div class="hero-eyebrow">
+      <span class="dot dot-pulse"></span>
+      v1.8.0 · Linux &amp; macOS · terminal
+    </div>
+    <h1 class="hero-title">
+      <span class="display-wordmark">KAT</span>
+      <span class="hero-sub">Keyfob Analysis Toolkit</span>
+    </h1>
+    <p class="hero-tag">
+      A terminal app that <strong>captures, decodes and retransmits</strong>
+      car key fob signals and garage door, gate, barrier and shutter remotes.
+      It works with a <strong>HackRF One</strong> (receive and transmit) or an
+      <strong>RTL-SDR</strong> (receive only), and decodes IQ recordings and
+      Flipper Zero <code>.sub</code> files with no radio attached.
+      <span class="hero-tag-pop">107 protocol decoders, each checked against the reference C code.</span>
+    </p>
+
+    <figure class="term-shot">
+      <div class="terminal-bar">
+        <span class="install-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="install-title">kat</span>
+      </div>
+      <a href="img/kat-captures.webp">
+        <img src="img/kat-captures.webp" width="2298" height="1708" loading="eager"
+          alt="KAT's main screen. The captures list holds 14 decoded signals: Kia V4, three presses of one Ford V0 fob whose counter steps 877F, 8780, 8781, Security+ 2.0, VAG, Subaru, KeeLoq (DoorHan), Kia V6, Fiat V1, Marantec, Kia V0, Kia V2 and Opel V1. Below it, the selected Ford V0 capture's details: serial 0x4306BE50, button Lock, counter 0x8781, CRC OK and its 64-bit key, beside the Vulnerability panel.">
+      </a>
+    </figure>
+
+    <div class="stats-row" id="stats-row">
+      <div class="stat-chip"><span class="num" data-target="107">107</span><span>protocol decoders</span></div>
+      <div class="stat-chip"><span class="num" data-target="53">53</span><span>car key fobs &amp; alarms</span></div>
+      <div class="stat-chip"><span class="num" data-target="54">54</span><span>garage, gate &amp; shutter remotes</span></div>
+      <div class="stat-chip stat-vfy"><span class="num" data-target="239">239</span><span>of 250 frames caught over the air</span></div>
+    </div>
+
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/KaraZajac/KAT/releases/latest">↓ Download v1.8.0</a>
+      <a class="btn" href="#protocols">Find your protocol</a>
+      <a class="btn btn-ghost" href="https://github.com/KaraZajac/KAT">
+        <svg height="16" viewBox="0 0 16 16" width="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        Source on GitHub
+      </a>
+    </div>
+
+    <p class="hero-warn">Use KAT only on systems and vehicles you own or have explicit, written permission to test. <a href="#legal">Read the full notice.</a></p>
+  </div>
+</header>
+
+<!-- ──────────────── TRUST STRIP ──────────────── -->
+<section class="trust-strip">
+  <div class="container">
+    <div class="trust-row">
+      <span class="trust-label">Decoders follow</span>
+      <ul class="trust-items">
+        <li>ProtoPirate</li>
+        <li>Flipper-ARF</li>
+        <li>doctor-firmware</li>
+        <li>Momentum</li>
+        <li>RogueMaster</li>
+        <li>rtl_433 (receive only)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ──────────────── HOW IT WORKS ──────────────── -->
+<section id="how" class="section section-feature reveal">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-tag">how it works</span>
+      <h2>Receive. Decode. Act.</h2>
+      <p class="lead">
+        Run <code>kat</code> and press <kbd>r</kbd>. Every frame on the air
+        lands in the captures list, decoded when KAT knows the protocol.
+        <kbd>Enter</kbd> on a capture opens what you can do with it.
+      </p>
+    </div>
+
+    <figure class="term-shot feature-shot">
+      <div class="terminal-bar">
+        <span class="install-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="install-title">kat</span>
+      </div>
+      <a href="img/kat-actions.webp">
+        <img src="img/kat-actions.webp" width="2298" height="1708" loading="lazy"
+          alt="The same screen with the action menu open on the Ford V0 capture: Replay, TX Lock, TX Unlock, TX Trunk, TX Panic, three exports, Timing analysis and Delete.">
+      </a>
+      <figcaption><strong>A capture's actions.</strong> Transmitting needs a HackRF, and the owner's permission.</figcaption>
+    </figure>
+
+    <div class="explain-annotations">
+      <div class="annotation">
+        <span class="anno-num">1</span>
+        <div>
+          <strong>Receive anywhere in the band</strong>
+          <p>One receive chain for a HackRF, an RTL-SDR or a recording, AM/OOK
+          and FM/2-FSK. A wide-band detector finds fobs anywhere in the received
+          band, two at once included, and decodes them up to ±325&nbsp;kHz off
+          frequency. <code>:hop</code> cycles Flipper's hopper list and holds
+          while a signal is on air.</p>
         </div>
-    </header>
-
-    <nav class="navbar">
-        <div class="container">
-            <ul>
-                <li><a href="#features">Features</a></li>
-                <li><a href="#supported-protocols">Protocols</a></li>
-                <li><a href="#requirements">Requirements</a></li>
-                <li><a href="#documentation">Docs</a></li>
-                <li><a href="https://github.com/KaraZajac/KAT" target="_blank">GitHub</a></li>
-            </ul>
+      </div>
+      <div class="annotation">
+        <span class="anno-num">2</span>
+        <div>
+          <strong>Decode</strong>
+          <p>Each burst goes to the decoders of its own modulation first, then
+          the rest. A signal no protocol claims is tried as KeeLoq with every
+          manufacturer key in the keystore, and research mode, on by default,
+          lists unidentified signals too, ready for timing analysis.</p>
         </div>
-    </nav>
-
-    <main>
-        <section class="hero">
-            <div class="container">
-                <h2>Capture, Decode & Analyze Keyfob and Gate Remote Signals</h2>
-                <p>A real-time terminal UI for RF signal analysis with support for HackRF One and RTL-SDR hardware.</p>
-                <div class="cta-buttons">
-                    <a href="https://github.com/KaraZajac/KAT#installation" class="btn btn-primary">Get Started</a>
-                    <a href="https://github.com/KaraZajac/KAT" class="btn btn-secondary">View on GitHub</a>
-                </div>
-            </div>
-        </section>
-
-        <section id="features" class="features">
-            <div class="container">
-                <h2>Key Features</h2>
-                <div class="feature-grid">
-                    <div class="feature-card">
-                        <h3>📡 Real-Time Capture</h3>
-                        <p>Receive AM/OOK and FM/2-FSK keyfob signals with HackRF or RTL-SDR: a wide-band detector finds fobs up to ±325 kHz off frequency (two at once too), with per-burst frequency correction and frequency hopping</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>🔓 Multi-Protocol Decoding</h3>
-                        <p>107 protocol decoders: 53 car keyfob and alarm protocols (Kia V0–V7, Ford V0–V3, GM, Chrysler/Fiat (FCA), Honda, Toyota, Mazda, Renault, BMW, Mercedes, VAG, PSA, Porsche …) and 54 garage door, gate, barrier and shutter remote protocols</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>🚧 Garage &amp; Gate Remotes</h3>
-                        <p>Security+ 1.0/2.0, Somfy, FAAC SLH, Nice, CAME, Hörmann, Marantec, KeeLoq brands, Princeton and more — decoded and re-sent with the next rolling code, checked against the reference C</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>🐬 Flipper Key Files</h3>
-                        <p>Load decoded keys saved by a Flipper, ProtoPirate or Flipper-ARF and save KAT decodes the same way; RAW and BinRAW <code>.sub</code> captures too</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>🖥️ Headless Decoding</h3>
-                        <p><code>kat --decode</code> runs whole folders of <code>.sub</code> captures and IQ recordings through every decoder from the command line</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>➕ Add Manually</h3>
-                        <p>Create a new gate or garage remote with <code>:new</code> (81 of Flipper-ARF's, doctor-firmware's and RogueMaster's 107 types), then send its next code or any native button</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>🔑 KeeLoq Keystore</h3>
-                        <p>Embedded manufacturer keys plus your own Flipper-format <code>keeloq_mfcodes_user</code>; unknown KeeLoq remotes are listed with serial and button, and "magic serial" keys are recovered from two captures</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>📤 Signal Retransmission</h3>
-                        <p>Transmit Lock, Unlock, Trunk, and Panic commands from decoded signals as OOK or 2-FSK at each protocol's deviation, with adjustable TX power (HackRF only)</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>💾 Multiple Export Formats</h3>
-                        <p>.fob (JSON) and .sub (Flipper Zero compatible) formats for signal storage and sharing: RAW captures and decoded Flipper / ProtoPirate key files, loaded and saved</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>🎙️ IQ Recordings</h3>
-                        <p>Decode .cs8 / .cu8 / .cf32 recordings without a radio, and record raw IQ while receiving</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>⏱️ Timing Analysis</h3>
-                        <p>ProtoPirate's Timing Tuner for any capture, with pulse clusters and a line-coding guess for unknown signals</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>🗂️ Sessions &amp; Saved Fobs</h3>
-                        <p>Captures autosave and restore across restarts; signals matching your saved .fob files are marked</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>🔧 Rich Signal Details</h3>
-                        <p>View encoding, RF modulation, encryption, serial, counter, key data, CRC, and raw timing data</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="supported-protocols" class="protocols">
-            <div class="container">
-                <h2>Supported Protocols</h2>
-                <div class="protocol-list">
-                    <div class="protocol-column">
-                        <h3>Kia / Hyundai</h3>
-                        <ul>
-                            <li>Kia V0</li>
-                            <li>Kia V1</li>
-                            <li>Kia V2</li>
-                            <li>Kia V3 / V4</li>
-                            <li>Kia V5</li>
-                            <li>Kia V6</li>
-                            <li>Kia V7</li>
-                        </ul>
-                    </div>
-                    <div class="protocol-column">
-                        <h3>American</h3>
-                        <ul>
-                            <li>Ford V0 / V1 / V2</li>
-                            <li>Ford V3 (EU + US)</li>
-                            <li>GM (Chevrolet/Buick/GMC/Cadillac)</li>
-                            <li>Chrysler V0 (Dodge/Jeep)</li>
-                            <li>Fiat V2 (FCA: Fiat/Chrysler/Jeep)</li>
-                        </ul>
-                    </div>
-                    <div class="protocol-column">
-                        <h3>Japanese</h3>
-                        <ul>
-                            <li>Honda Static / V1 / V2</li>
-                            <li>Toyota (Lexus)</li>
-                            <li>Mazda V0 / V2</li>
-                            <li>Mazda Siemens</li>
-                            <li>Mitsubishi V0</li>
-                            <li>Subaru</li>
-                            <li>Suzuki V0 / Honda V0 (Kia V0 types)</li>
-                            <li>Datsun Lada</li>
-                        </ul>
-                    </div>
-                    <div class="protocol-column">
-                        <h3>European</h3>
-                        <ul>
-                            <li>VAG (VW/Audi/Seat/Skoda)</li>
-                            <li>Porsche Cayenne</li>
-                            <li>BMW</li>
-                            <li>Mercedes V0 / V1</li>
-                            <li>Opel V1</li>
-                            <li>PSA (Peugeot/Citroën)</li>
-                            <li>Renault V0 / V1</li>
-                            <li>Fiat V0 / V1</li>
-                        </ul>
-                    </div>
-                    <div class="protocol-column">
-                        <h3>Alarms &amp; Generic</h3>
-                        <ul>
-                            <li>Scher-Khan</li>
-                            <li>Star Line</li>
-                            <li>Sheriff CFM</li>
-                            <li>KeeLoq (gates, garage doors, alarms)</li>
-                            <li>KeeLoq (Generic)</li>
-                        </ul>
-                    </div>
-                    <div class="protocol-column">
-                        <h3>Garage &amp; Gate (rolling)</h3>
-                        <ul>
-                            <li>Security+ 1.0 / 2.0</li>
-                            <li>Somfy Telis / Keytis</li>
-                            <li>FAAC SLH, KingGates, Jarolift</li>
-                            <li>Beninca ARC, Nice FloR-S</li>
-                            <li>CAME Atomo, Alutech AT-4N</li>
-                            <li>Ditec GOL4, Phoenix V2, Hay21, Prastel</li>
-                            <li>Hörmann BiSecur, Cardin S508</li>
-                        </ul>
-                    </div>
-                    <div class="protocol-column">
-                        <h3>Garage &amp; Gate (fixed)</h3>
-                        <ul>
-                            <li>Princeton, SMC5326, Holtek</li>
-                            <li>CAME, CAME TWEE, Nice FLO</li>
-                            <li>Linear, MegaCode, Chamberlain</li>
-                            <li>Hörmann HSM, Marantec</li>
-                            <li>BETT, Clemsa, Ansonic, Doitrand …</li>
-                            <li>GangQi, Hollarm (alarm remotes)</li>
-                        </ul>
-                    </div>
-                    <div class="protocol-column">
-                        <h3>rtl_433 (receive only)</h3>
-                        <ul>
-                            <li>Alps, Continental, Honda KR5V2X</li>
-                            <li>Siemens 5WY72XX, Chrysler 315 MHz</li>
-                            <li>Opel Mokka, MIC 6SC2</li>
-                            <li>Code Alarm, Compustar, Astrostart, Audiovox</li>
-                            <li>Microchip HCS361, HCS362 (KeeLoq)</li>
-                            <li>Elero, Somfy io-homecontrol, RojaFlex (shutters)</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="requirements" class="requirements">
-            <div class="container">
-                <h2>Requirements</h2>
-                <h3>Hardware</h3>
-                <ul>
-                    <li><strong>HackRF One</strong> (or compatible) — Full receive and transmit capabilities</li>
-                    <li><strong>RTL433 / RTL-SDR</strong> — Receive-only; no transmit supported</li>
-                </ul>
-
-                <h3>Software</h3>
-                <ul>
-                    <li>Rust 1.75+ (for building from source)</li>
-                    <li>libhackrf — HackRF C library and headers</li>
-                    <li>libusb — For RTL433/RTL-SDR support</li>
-                </ul>
-
-                <h3>Operating System</h3>
-                <p>macOS, Linux, and other Unix-like systems. Precompiled binaries and installation instructions available on GitHub.</p>
-            </div>
-        </section>
-
-        <section id="documentation" class="documentation">
-            <div class="container">
-                <h2>Documentation</h2>
-                <p>Receiver, transmitter and app features:</p>
-                <div class="doc-links">
-                    <a href="radio.html" class="doc-link">Receiver &amp; IQ files</a>
-                    <a href="transmit.html" class="doc-link">Transmit (OOK / FSK presets)</a>
-                    <a href="session.html" class="doc-link">Sessions &amp; saved fobs</a>
-                    <a href="timing_analysis.html" class="doc-link">Timing analysis</a>
-                    <a href="flipper_key_files.html" class="doc-link">Flipper key files</a>
-                </div>
-                <p>Detailed protocol specifications and decoder documentation:</p>
-                <div class="doc-links">
-                    <a href="kia_v0.html" class="doc-link">Kia V0</a>
-                    <a href="kia_v1.html" class="doc-link">Kia V1</a>
-                    <a href="kia_v2.html" class="doc-link">Kia V2</a>
-                    <a href="kia_v3_v4.html" class="doc-link">Kia V3/V4</a>
-                    <a href="kia_v5.html" class="doc-link">Kia V5</a>
-                    <a href="kia_v6.html" class="doc-link">Kia V6</a>
-                    <a href="kia_v7.html" class="doc-link">Kia V7</a>
-                    <a href="ford_v0.html" class="doc-link">Ford V0</a>
-                    <a href="ford_v1.html" class="doc-link">Ford V1</a>
-                    <a href="ford_v2.html" class="doc-link">Ford V2</a>
-                    <a href="ford_v3.html" class="doc-link">Ford V3</a>
-                    <a href="gm.html" class="doc-link">GM</a>
-                    <a href="chrysler_v0.html" class="doc-link">Chrysler V0</a>
-                    <a href="fiat_v0.html" class="doc-link">Fiat V0</a>
-                    <a href="fiat_v1.html" class="doc-link">Fiat V1</a>
-                    <a href="fiat_v2.html" class="doc-link">Fiat V2</a>
-                    <a href="honda_static.html" class="doc-link">Honda Static</a>
-                    <a href="honda_v1.html" class="doc-link">Honda V1</a>
-                    <a href="honda_v2.html" class="doc-link">Honda V2</a>
-                    <a href="toyota.html" class="doc-link">Toyota</a>
-                    <a href="mazda_v0.html" class="doc-link">Mazda V0</a>
-                    <a href="mazda_v2.html" class="doc-link">Mazda V2</a>
-                    <a href="mazda_siemens.html" class="doc-link">Mazda Siemens</a>
-                    <a href="mazda_infinity.html" class="doc-link">Mazda Infinity</a>
-                    <a href="mitsubishi_v0.html" class="doc-link">Mitsubishi V0</a>
-                    <a href="subaru.html" class="doc-link">Subaru</a>
-                    <a href="datsun_lada.html" class="doc-link">Datsun Lada</a>
-                    <a href="vag.html" class="doc-link">VAG</a>
-                    <a href="audi.html" class="doc-link">Audi</a>
-                    <a href="porsche_cayenne.html" class="doc-link">Porsche Cayenne</a>
-                    <a href="bmw.html" class="doc-link">BMW</a>
-                    <a href="mercedes_v0.html" class="doc-link">Mercedes V0</a>
-                    <a href="mercedes_v1.html" class="doc-link">Mercedes V1</a>
-                    <a href="opel_v1.html" class="doc-link">Opel V1</a>
-                    <a href="psa.html" class="doc-link">PSA</a>
-                    <a href="renault_v0.html" class="doc-link">Renault V0</a>
-                    <a href="renault_v1.html" class="doc-link">Renault V1</a>
-                    <a href="renault_v1_arf.html" class="doc-link">Renault V1 (ARF)</a>
-                    <a href="land_rover_rke.html" class="doc-link">Land Rover RKE</a>
-                    <a href="scher_khan.html" class="doc-link">Scher-Khan</a>
-                    <a href="star_line.html" class="doc-link">Star Line</a>
-                    <a href="sheriff_cfm.html" class="doc-link">Sheriff CFM</a>
-                    <a href="hyundai.html" class="doc-link">Hyundai (experimental)</a>
-                    <a href="keeloq.html" class="doc-link">KeeLoq</a>
-                    <a href="keeloq_generic.html" class="doc-link">KeeLoq (Generic)</a>
-                </div>
-                <p>Garage door, gate, barrier and shutter remotes:</p>
-                <div class="doc-links">
-                    <a href="secplus_v1.html" class="doc-link">Security+ 1.0</a>
-                    <a href="secplus_v2.html" class="doc-link">Security+ 2.0</a>
-                    <a href="somfy_telis.html" class="doc-link">Somfy Telis</a>
-                    <a href="somfy_keytis.html" class="doc-link">Somfy Keytis</a>
-                    <a href="faac_slh.html" class="doc-link">FAAC SLH</a>
-                    <a href="kinggates_stylo_4k.html" class="doc-link">KingGates Stylo4k</a>
-                    <a href="jarolift.html" class="doc-link">Jarolift</a>
-                    <a href="beninca_arc.html" class="doc-link">Beninca ARC</a>
-                    <a href="nice_flor_s.html" class="doc-link">Nice FloR-S</a>
-                    <a href="came_atomo.html" class="doc-link">CAME Atomo</a>
-                    <a href="alutech_at_4n.html" class="doc-link">Alutech AT-4N</a>
-                    <a href="ditec_gol4.html" class="doc-link">Ditec GOL4</a>
-                    <a href="phoenix_v2.html" class="doc-link">Phoenix V2</a>
-                    <a href="hay21.html" class="doc-link">Hay21</a>
-                    <a href="prastel.html" class="doc-link">Prastel</a>
-                    <a href="ido.html" class="doc-link">iDo 117/111</a>
-                    <a href="princeton.html" class="doc-link">Princeton</a>
-                    <a href="came.html" class="doc-link">CAME</a>
-                    <a href="came_twee.html" class="doc-link">CAME TWEE</a>
-                    <a href="nice_flo.html" class="doc-link">Nice FLO</a>
-                    <a href="gate_tx.html" class="doc-link">GateTX</a>
-                    <a href="linear.html" class="doc-link">Linear</a>
-                    <a href="linear_delta3.html" class="doc-link">Linear Delta3</a>
-                    <a href="megacode.html" class="doc-link">MegaCode</a>
-                    <a href="holtek.html" class="doc-link">Holtek</a>
-                    <a href="holtek_ht12x.html" class="doc-link">Holtek HT12X</a>
-                    <a href="chamberlain_code.html" class="doc-link">Chamberlain Code</a>
-                    <a href="smc5326.html" class="doc-link">SMC5326</a>
-                    <a href="marantec.html" class="doc-link">Marantec</a>
-                    <a href="marantec24.html" class="doc-link">Marantec24</a>
-                    <a href="hormann.html" class="doc-link">Hörmann HSM</a>
-                    <a href="bett.html" class="doc-link">BETT</a>
-                    <a href="doitrand.html" class="doc-link">Doitrand</a>
-                    <a href="clemsa.html" class="doc-link">Clemsa</a>
-                    <a href="ansonic.html" class="doc-link">Ansonic</a>
-                    <a href="mastercode.html" class="doc-link">Mastercode</a>
-                    <a href="dickert_mahs.html" class="doc-link">Dickert MAHS</a>
-                    <a href="nero_sketch.html" class="doc-link">Nero Sketch</a>
-                    <a href="nero_radio.html" class="doc-link">Nero Radio</a>
-                    <a href="elplast.html" class="doc-link">Elplast</a>
-                    <a href="roger.html" class="doc-link">Roger</a>
-                    <a href="revers_rb2.html" class="doc-link">Revers RB2</a>
-                    <a href="telcoma_edge.html" class="doc-link">Telcoma/Cardin EDGE</a>
-                    <a href="allstar_firefly.html" class="doc-link">Allstar Firefly</a>
-                    <a href="power_smart.html" class="doc-link">Power Smart</a>
-                    <a href="dooya.html" class="doc-link">Dooya</a>
-                    <a href="urmet.html" class="doc-link">Urmet</a>
-                </div>
-            </div>
-        </section>
-
-        <section class="security-notice">
-            <div class="container">
-                <h3>⚠️ Security and Legal Disclaimer</h3>
-                <p>Use KAT only on systems and vehicles you own or have explicit, written permission to test. Capturing, decoding, or transmitting keyfob and vehicle-access signals without authorization may be illegal in your jurisdiction. You are solely responsible for ensuring your use complies with applicable laws. KAT is intended for security research, authorized penetration testing, education, and legitimate testing on your own equipment.</p>
-            </div>
-        </section>
-    </main>
-
-    <footer>
-        <div class="container">
-            <p>&copy; 2026 .kara — KAT is released under the <a href="https://github.com/KaraZajac/KAT/blob/main/LICENSE" target="_blank">BSD 3-Clause License</a>. <a href="https://github.com/KaraZajac/KAT" target="_blank">View on GitHub</a></p>
+      </div>
+      <div class="annotation">
+        <span class="anno-num">3</span>
+        <div>
+          <strong>Read the fields</strong>
+          <p>Encoding, RF modulation, encryption, serial, button, counter, key
+          data, CRC and frequency, plus the raw level/duration pairs. Enter a
+          year, make, model and region, and KAT checks them against its
+          built-in CVE list.</p>
         </div>
-    </footer>
+      </div>
+      <div class="annotation">
+        <span class="anno-num">4</span>
+        <div>
+          <strong>Act on it</strong>
+          <p>Replay the capture, transmit Lock, Unlock, Trunk or Panic, export
+          it, open its timing analysis, or recover its key where the protocol
+          allows.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ──────────────── MEASURED ──────────────── -->
+<section id="measured" class="section section-tight reveal">
+  <div class="container ota-wrap">
+    <div>
+      <span class="section-tag">measured</span>
+      <h2 class="h2-inline">Tested over the air.</h2>
+      <p class="lead-sm">
+        A Flipper Zero replayed 67 <code>.sub</code> files to a HackRF, 250
+        frames in all, received live. KAT 1.8's receiver caught 239 of them;
+        KAT 1.7's caught 138.
+      </p>
+      <p class="ota-note"><a href="radio.html#over-the-air-a-flipper-zero-replaying-sub-files-received-live-by-a-hackrf">The method, and the rest of the receiver's measurements →</a></p>
+    </div>
+    <div class="ota" role="img" aria-label="Frames received out of 250: KAT 1.8, 239; KAT 1.7, 138.">
+      <div class="ota-row">
+        <div class="ota-label"><b>KAT 1.8</b><span>239 / 250</span></div>
+        <div class="ota-bar"><i style="width: 95.6%"></i></div>
+      </div>
+      <div class="ota-row was">
+        <div class="ota-label"><b>KAT 1.7</b><span>138 / 250</span></div>
+        <div class="ota-bar"><i style="width: 55.2%"></i></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ──────────────── FEATURES ──────────────── -->
+<section id="features" class="section section-bento reveal">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-tag">features</span>
+      <h2>From the air to a file, and back.</h2>
+    </div>
+
+    <div class="bento">
+      <article class="bento-card bento-lg">
+        <div class="bento-icon">📡</div>
+        <h3>Transmit with a HackRF</h3>
+        <p>
+          Lock, Unlock, Trunk and Panic from a decoded capture. Rolling-code
+          protocols re-encode the next code with the requested button wherever
+          the references do (VAG, Subaru, Chrysler V0, Kia, Ford, Mazda,
+          Renault V0 and Sheriff CFM among them); protocols without an available
+          key re-send the captured frame, as the references do. FM protocols go
+          out as continuous-phase 2-FSK at the references' deviation, OOK ones
+          as OOK, at a TX power you set.
+        </p>
+      </article>
+
+      <article class="bento-card">
+        <div class="bento-icon">🚧</div>
+        <h3>Gate and garage remotes</h3>
+        <p>
+          <strong>Send next code</strong>, or <strong>Send button…</strong>
+          with any of the remote's native buttons. <code>:new</code> makes a new
+          remote of any of 81 types, with a fresh serial and the manufacturer
+          key, to pair with a receiver.
+        </p>
+      </article>
+
+      <article class="bento-card">
+        <div class="bento-icon">🔑</div>
+        <h3>KeeLoq key recovery</h3>
+        <p>
+          Flipper-ARF's KeeLoq Decrypt finds the manufacturer key of a remote
+          KAT has no key for, from two captures of it: about 5&nbsp;s per type
+          for types 6 and 7, about 20 minutes for type 8 on an 8-core laptop.
+          The key is saved, and the remote then decodes and transmits.
+        </p>
+      </article>
+
+      <article class="bento-card">
+        <div class="bento-icon">🐬</div>
+        <h3>Flipper Zero files</h3>
+        <p>
+          RAW and BinRAW <code>.sub</code> captures, and the decoded key files
+          that ProtoPirate, Flipper-ARF and doctor-firmware save, so a Flipper
+          can send KAT's decodes and KAT can transmit a Flipper's.
+        </p>
+      </article>
+
+      <article class="bento-card">
+        <div class="bento-icon">⏱️</div>
+        <h3>Timing analysis</h3>
+        <p>
+          ProtoPirate's Timing Tuner for any capture. For unknown signals:
+          pulse clusters, a base-TE estimate and a line-coding guess.
+        </p>
+      </article>
+
+      <article class="bento-card bento-lg">
+        <div class="bento-icon">🗂️</div>
+        <h3>Sessions and saved fobs</h3>
+        <p>
+          Captures are saved as they arrive and offered for restore at the next
+          start. A capture that matches one of your <code>.fob</code> files
+          (ProtoPirate's rules: protocol, serial or key, counter within ±50)
+          gets a ★ and shows the saved vehicle. <code>.fob</code> is KAT's JSON
+          format: the signal's fields, the vehicle's details and, if you like,
+          the raw pulses.
+        </p>
+      </article>
+
+      <article class="bento-card">
+        <div class="bento-icon">🔓</div>
+        <h3>PSA keys</h3>
+        <p>
+          <strong>Recover key</strong> runs ProtoPirate's TEA key brute force
+          for Peugeot and Citroën fobs in under a second; KAT then encodes the
+          next code.
+        </p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ──────────────── COMMAND LINE ──────────────── -->
+<section id="decode" class="section section-feature reveal">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-tag">no radio needed</span>
+      <h2>Decode files from the command line.</h2>
+      <p class="lead">
+        <code>kat --decode</code> prints the decodes of files and whole folders
+        without the TUI, for scripts and for checking capture collections:
+        Flipper <code>.sub</code> captures and key files, and IQ recordings from
+        hackrf_transfer (<code>.cs8</code>), rtl_sdr and rtl_433
+        (<code>.cu8</code>), or as <code>.cf32</code>. In the TUI,
+        <code>:load</code> opens the same files, and <code>:record</code> saves
+        the raw IQ while receiving.
+      </p>
+    </div>
+
+    <figure class="term-shot feature-shot">
+      <div class="terminal-bar">
+        <span class="install-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="install-title">kat --decode</span>
+      </div>
+      <pre class="terminal-body decode-out" tabindex="0" aria-label="Output of kat --decode captures/ recordings/"><span class="t-prompt">$</span> kat --decode captures/ recordings/
+<span class="t-dim">captures/audi_a3.sub</span> | 434420000 | key | <span class="t-proto">VAG</span> | x1 | data=C129194B7ABCFEC2/80 extra=8000000101032F1D sn=3BF8E083 btn=1 cnt=9C61 crc=1 tx=1
+<span class="t-dim">captures/doorhan.sub</span> | 433920000 | key | <span class="t-proto">KeeLoq (DoorHan)</span> | x1 | data=4850F07233789514/64 sn=8A91ECC btn=2 cnt=4 crc=1 tx=1
+<span class="t-dim">captures/ford_focus_lock.sub</span> | 433920000 | raw | <span class="t-proto">Ford V0</span> | x3 | data=556C29917F3FF82F/64 extra=6DD2 sn=4306BE50 btn=1 cnt=877F crc=1 tx=1
+<span class="t-dim">captures/ford_focus_lock.sub</span> | 433920000 | raw | <span class="t-proto">Ford V0</span> | x4 | data=55C6833BD5950785/64 extra=6EF9 sn=4306BE50 btn=1 cnt=8780 crc=1 tx=1
+<span class="t-dim">captures/ford_focus_lock.sub</span> | 433920000 | raw | <span class="t-proto">Ford V0</span> | x4 | data=55C0853DD3938306/64 extra=6F90 sn=4306BE50 btn=1 cnt=8781 crc=1 tx=1
+<span class="t-dim">captures/hyundai_v4.sub</span> | 433920000 | key | <span class="t-proto">Kia V4</span> | x1 | data=C3B1790C8FC0C864/68 extra=0 sn=61303F1 btn=2 cnt=BDE9 crc=1 tx=1
+<span class="t-dim">captures/liftmaster.sub</span> | 433920000 | key | <span class="t-proto">Security+ 2.0</span> | x1 | data=3D290FB9BEEE/62 extra=3C016B19DD60 sn=4CB8D282 btn=68 cnt=1 crc=1 tx=1
+<span class="t-dim">captures/subaru_forester.sub</span> | 433920000 | raw | <span class="t-proto">Subaru</span> | x1 | data=E2324AFE5BE7500A/64 sn=324AFE btn=2 cnt=32 crc=1 tx=1
+<span class="t-dim">recordings/audiovox_unlock_303.3M_250k.cu8</span> | 303300000 | am | <span class="t-proto">Audiovox-PROOE3B</span> | x13 | data=1A2ACA2/25 sn=2EA9 btn=2 cnt=- crc=0 tx=0
+<span class="t-dim">recordings/elero_869.4M_2048k.cu8</span> | 869400000 | fm | <span class="t-proto">Elero</span> | x1 | data=1B6A451005011184/240 extra=74E332C89E2FDFEE sn=84D351 btn=20 cnt=6A crc=1 tx=0
+<span class="t-dim">recordings/hcs361_lock_315.1M_250k.cu8</span> | 315100000 | am | <span class="t-proto">Microchip-HCS361 [KeeLoq (Unknown)]</span> | x4 | data=51D1AB6BDA280502/67 extra=5 sn=A0145B btn=4 cnt=- crc=1 tx=0
+<span class="t-prompt">$</span></pre>
+      <figcaption>Six <code>.sub</code> files and three of rtl_433's test recordings. The last three lines are receive-only rtl_433 ports: Audiovox, Elero (FM, 869.4&nbsp;MHz) and Microchip HCS361.</figcaption>
+    </figure>
+
+    <div class="code-wrap code-wide">
+<pre class="code"><span class="prompt">$</span> kat --decode captures/ fob.sub              <span class="cmt"># .sub files and IQ recordings (.cs8/.cu8/.cf32), no TUI</span>
+<span class="prompt">$</span> kat --decode gfile001.cu8 --rate 250k       <span class="cmt"># a file whose name carries no sample rate needs --rate</span>
+<span class="prompt">$</span> kat --iq fob.cs8 --freq 433.92 --rate 2M    <span class="cmt"># start the TUI with an IQ recording decoded</span>
+<span class="prompt">$</span> kat --keeloq-bf captures/ --save            <span class="cmt"># recover a magic-serial KeeLoq key</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ──────────────── TIMING ──────────────── -->
+<section id="timing" class="section reveal">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-tag">timing analysis</span>
+      <h2>See why a signal fits, or doesn't.</h2>
+      <p class="lead">
+        Timing analysis is ProtoPirate's Timing Tuner, for any capture. It sets
+        the protocol's definition beside the pulses actually received, gives
+        the difference and the jitter, and says whether the fob's timing
+        matches. Its pulse clusters, in multiples of the base time element
+        (TE), are the place to start on a signal no decoder claims.
+        <a class="nowrap" href="timing_analysis.html">How it works →</a>
+      </p>
+    </div>
+    <figure class="term-shot">
+      <div class="terminal-bar">
+        <span class="install-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="install-title">kat · timing analysis</span>
+      </div>
+      <a href="img/kat-timing.webp">
+        <img src="img/kat-timing.webp" width="1814" height="1418" loading="lazy"
+          alt="Timing analysis of the Ford V0 capture: the protocol's 250 µs short and 500 µs long pulses against the received averages of 249 and 508 µs, the verdict Timing matches fob!, and the pulse clusters in multiples of TE.">
+      </a>
+    </figure>
+  </div>
+</section>
+
+<!-- ──────────────── PROTOCOLS ──────────────── -->
+<section id="protocols" class="section section-bento reveal">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-tag">protocols</span>
+      <h2>107 decoders. Every one has a page.</h2>
+      <p class="lead">
+        53 car key fob and alarm protocols and 54 garage door, gate, barrier
+        and shutter protocols. They follow ProtoPirate where it has the
+        protocol, then Flipper-ARF and doctor-firmware, then Momentum and
+        RogueMaster; remotes no Flipper firmware reads are decoded with
+        receive-only ports of rtl_433. Each page covers the protocol's timing,
+        frame layout, decoder and encoder.
+      </p>
+    </div>
+
+    <div class="proto-find" id="proto-find" hidden>
+      <input type="search" placeholder="Find a protocol: Kia, Somfy, KeeLoq…" aria-label="Find a protocol" autocomplete="off" spellcheck="false">
+      <output aria-live="polite"></output>
+    </div>
+    <p class="proto-empty" id="proto-empty" hidden>No protocol by that name. The notes below the list cover a few more.</p>
+
+    <div class="proto-groups">
+      <div class="proto-group">
+        <h3>Kia / Hyundai</h3>
+        <div class="pills">
+          <a class="pill" href="kia_v0.html" title="Kia V0 / Suzuki V0 / Honda V0 / Mitsubishi V0 (61-bit)">Kia V0</a>
+          <a class="pill" href="kia_v1.html">Kia V1</a>
+          <a class="pill" href="kia_v2.html">Kia V2</a>
+          <a class="pill" href="kia_v3_v4.html">Kia V3 / V4</a>
+          <a class="pill" href="kia_v5.html">Kia V5</a>
+          <a class="pill" href="kia_v6.html">Kia V6</a>
+          <a class="pill" href="kia_v7.html">Kia V7</a>
+        </div>
+      </div>
+
+      <div class="proto-group">
+        <h3>American</h3>
+        <div class="pills">
+          <a class="pill" href="ford_v0.html">Ford V0</a>
+          <a class="pill" href="ford_v1.html">Ford V1</a>
+          <a class="pill" href="ford_v2.html">Ford V2</a>
+          <a class="pill" href="ford_v3.html">Ford V3 (EU + US)</a>
+          <a class="pill" href="gm.html" title="Chevrolet, Buick, GMC, Cadillac">GM</a>
+          <a class="pill" href="chrysler_v0.html" title="Dodge, Jeep">Chrysler V0</a>
+          <a class="pill" href="fiat_v2.html" title="FCA: Fiat, Chrysler, Jeep">Fiat V2 (FCA)</a>
+        </div>
+      </div>
+
+      <div class="proto-group">
+        <h3>Japanese</h3>
+        <div class="pills">
+          <a class="pill" href="honda_static.html">Honda Static</a>
+          <a class="pill" href="honda_v1.html">Honda V1</a>
+          <a class="pill" href="honda_v2.html" title="formerly Land Rover V0">Honda V2</a>
+          <a class="pill" href="kia_v0.html" title="frame types of Kia V0">Suzuki V0 / Honda V0</a>
+          <a class="pill" href="toyota.html" title="Lexus">Toyota</a>
+          <a class="pill" href="mazda_v0.html">Mazda V0</a>
+          <a class="pill" href="mazda_v2.html">Mazda V2</a>
+          <a class="pill" href="mazda_siemens.html">Mazda Siemens</a>
+          <a class="pill" href="mitsubishi_v0.html">Mitsubishi V0</a>
+          <a class="pill" href="subaru.html">Subaru</a>
+          <a class="pill" href="datsun_lada.html">Datsun Lada</a>
+        </div>
+      </div>
+
+      <div class="proto-group">
+        <h3>European</h3>
+        <div class="pills">
+          <a class="pill" href="vag.html" title="Volkswagen, Audi, Seat, Skoda">VAG</a>
+          <a class="pill" href="porsche_cayenne.html">Porsche Cayenne</a>
+          <a class="pill" href="bmw.html">BMW</a>
+          <a class="pill" href="mercedes_v0.html">Mercedes V0</a>
+          <a class="pill" href="mercedes_v1.html">Mercedes V1</a>
+          <a class="pill" href="opel_v1.html">Opel V1</a>
+          <a class="pill" href="psa.html" title="Peugeot, Citroën">PSA</a>
+          <a class="pill" href="renault_v0.html">Renault V0</a>
+          <a class="pill" href="renault_v1.html">Renault V1</a>
+          <a class="pill" href="renault_v1_arf.html">Renault V1 (ARF)</a>
+          <a class="pill" href="fiat_v0.html">Fiat V0</a>
+          <a class="pill" href="fiat_v1.html" title="Magneti Marelli BSI">Fiat V1</a>
+        </div>
+      </div>
+
+      <div class="proto-group">
+        <h3>Alarms &amp; generic</h3>
+        <p>Car alarms, and KeeLoq for gates, garage doors and alarms on any band.</p>
+        <div class="pills">
+          <a class="pill" href="scher_khan.html" title="Magic Code, PRO1, PRO2">Scher-Khan</a>
+          <a class="pill" href="star_line.html">Star Line</a>
+          <a class="pill" href="sheriff_cfm.html" title="ZX-750 / ZX-930 alarms">Sheriff CFM</a>
+          <a class="pill" href="keeloq.html" title="gates, garage doors, alarms">KeeLoq</a>
+          <a class="pill" href="keeloq_generic.html" title="every keystore key, for signals no protocol claims">KeeLoq generic fallback</a>
+        </div>
+      </div>
+
+      <div class="proto-group">
+        <h3>Garage &amp; gate: rolling codes</h3>
+        <p>Most send the next code; each page says what KAT can transmit.</p>
+        <div class="pills">
+          <a class="pill" href="secplus_v1.html" title="Chamberlain, LiftMaster">Security+ 1.0</a>
+          <a class="pill" href="secplus_v2.html" title="Chamberlain, LiftMaster">Security+ 2.0</a>
+          <a class="pill" href="somfy_telis.html" title="RTS">Somfy Telis</a>
+          <a class="pill" href="somfy_keytis.html">Somfy Keytis</a>
+          <a class="pill" href="faac_slh.html">FAAC SLH</a>
+          <a class="pill" href="kinggates_stylo_4k.html">KingGates Stylo4k</a>
+          <a class="pill" href="jarolift.html" title="shutters">Jarolift</a>
+          <a class="pill" href="beninca_arc.html">Beninca ARC</a>
+          <a class="pill" href="nice_flor_s.html" title="Nice FloR-S / Nice One">Nice FloR-S</a>
+          <a class="pill" href="came_atomo.html">CAME Atomo</a>
+          <a class="pill" href="alutech_at_4n.html">Alutech AT-4N</a>
+          <a class="pill" href="ditec_gol4.html">Ditec GOL4</a>
+          <a class="pill" href="phoenix_v2.html">Phoenix V2</a>
+          <a class="pill" href="hay21.html">Hay21</a>
+          <a class="pill" href="prastel.html">Prastel</a>
+          <a class="pill" href="ido.html">iDo 117/111</a>
+          <a class="pill" href="hormann_bisecur.html" title="AES-128, 868 MHz">Hörmann BiSecur</a>
+          <a class="pill" href="cardin_s508.html" title="AES-128, 868 MHz">Cardin S508</a>
+        </div>
+      </div>
+
+      <div class="proto-group wide">
+        <h3>Garage &amp; gate: fixed codes</h3>
+        <p>Re-sent as captured or with another of the remote's buttons.</p>
+        <div class="pills">
+          <a class="pill" href="came.html" title="12/18/24/25/42-bit">CAME</a>
+          <a class="pill" href="came_twee.html">CAME TWEE</a>
+          <a class="pill" href="nice_flo.html">Nice FLO</a>
+          <a class="pill" href="princeton.html" title="PT2262 / EV1527">Princeton</a>
+          <a class="pill" href="smc5326.html">SMC5326</a>
+          <a class="pill" href="holtek.html">Holtek</a>
+          <a class="pill" href="holtek_ht12x.html">Holtek HT12X</a>
+          <a class="pill" href="linear.html">Linear</a>
+          <a class="pill" href="linear_delta3.html">Linear Delta3</a>
+          <a class="pill" href="megacode.html">MegaCode</a>
+          <a class="pill" href="chamberlain_code.html" title="Chamberlain DIP-switch">Chamberlain Code</a>
+          <a class="pill" href="hormann.html">Hörmann HSM</a>
+          <a class="pill" href="marantec.html">Marantec</a>
+          <a class="pill" href="marantec24.html">Marantec24</a>
+          <a class="pill" href="gate_tx.html">GateTX</a>
+          <a class="pill" href="bett.html">BETT</a>
+          <a class="pill" href="doitrand.html">Doitrand</a>
+          <a class="pill" href="clemsa.html">Clemsa</a>
+          <a class="pill" href="mastercode.html">Mastercode</a>
+          <a class="pill" href="ansonic.html">Ansonic</a>
+          <a class="pill" href="dickert_mahs.html">Dickert MAHS</a>
+          <a class="pill" href="elplast.html">Elplast</a>
+          <a class="pill" href="roger.html">Roger</a>
+          <a class="pill" href="nero_sketch.html">Nero Sketch</a>
+          <a class="pill" href="nero_radio.html">Nero Radio</a>
+          <a class="pill" href="revers_rb2.html">Revers RB2</a>
+          <a class="pill" href="telcoma_edge.html">Telcoma / Cardin EDGE</a>
+          <a class="pill" href="allstar_firefly.html">Allstar Firefly</a>
+          <a class="pill" href="power_smart.html" title="shutters, blinds">Power Smart</a>
+          <a class="pill" href="dooya.html" title="shutters, blinds">Dooya</a>
+          <a class="pill" href="gangqi.html" title="GSM alarm remotes, 433.92 MHz">GangQi</a>
+          <a class="pill" href="hollarm.html" title="GSM alarm remotes, 433.92 MHz">Hollarm</a>
+          <a class="pill" href="urmet.html">Urmet</a>
+        </div>
+      </div>
+
+      <div class="proto-group wide">
+        <h3>rtl_433: receive only</h3>
+        <p>Ported from rtl_433 for remotes no Flipper firmware reads. Receive only, as in rtl_433: KAT shows the fields, and the capture can be replayed as recorded and exported.</p>
+        <div class="pills">
+          <a class="pill" href="alps_fwb1u545.html" title="Honda OEM remote">Alps-FWB1U545</a>
+          <a class="pill" href="continental_kr5v2x.html" title="Honda OEM remote">Continental-KR5V2X</a>
+          <a class="pill" href="honda_kr5v2x1x.html">Honda-KR5V2X1X</a>
+          <a class="pill" href="siemens_5wy72xx.html" title="DaimlerChrysler">Siemens-5WY72XX</a>
+          <a class="pill" href="chrysler_car_remote.html" title="315 MHz fixed-code remotes, not Chrysler V0">Chrysler-CarRemote</a>
+          <a class="pill" href="opel_mokka.html">Opel-Mokka</a>
+          <a class="pill" href="mic6sc2.html">MIC6SC2-CarRemote</a>
+          <a class="pill" href="code_alarm_frdpc2002.html" title="alarm">CodeAlarm-FRDPC2002</a>
+          <a class="pill" href="compustar_1wg3r.html" title="alarm, remote start">Compustar-1WG3R</a>
+          <a class="pill" href="astrostart_2000.html" title="remote start, 2000/3000">Astrostart-2000</a>
+          <a class="pill" href="audiovox_pro_oe3b.html" title="alarm">Audiovox-PROOE3B</a>
+          <a class="pill" href="microchip_hcs361.html" title="KeeLoq encoder: Jeep / Chrysler, Marelli, Leer remotes">Microchip-HCS361</a>
+          <a class="pill" href="microchip_hcs362.html" title="KeeLoq encoder">Microchip-HCS362</a>
+          <a class="pill" href="elero.html" title="blind and awning motor remotes">Elero</a>
+          <a class="pill" href="somfy_iohc.html" title="io-homecontrol: Somfy, Velux">Somfy-IOHC</a>
+          <a class="pill" href="rojaflex.html" title="shutters, their remotes and bridge">RojaFlex-Remote</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="proto-notes">
+      <p><strong>Notes, not decoders:</strong> rtl_433's
+      <a href="ford_car_remote.html">Ford-CarRemote</a>,
+      <a href="nidec_oucg8d.html">Nidec-OUCG8D and Honda-CarRemote</a> and
+      <a href="akhan_100f14.html">Akhan-100F14</a> read the same frames as
+      KAT's Ford V0, Honda V0 and Princeton, so KAT doesn't duplicate them.
+      These pages map their fields.</p>
+      <p><strong>Ported, not enabled:</strong>
+      <a href="audi.html">Audi</a>, <a href="mazda_infinity.html">Mazda Infinity</a>,
+      <a href="hyundai.html">Hyundai</a> and <a href="land_rover_rke.html">Land Rover RKE</a>
+      stay out of KAT's registry, as they stay out of the references, and
+      <a href="markisol.html">Markisol</a> stays out because rtl_433 ships it
+      disabled.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ──────────────── DOCS ──────────────── -->
+<section id="docs" class="section reveal">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-tag">docs</span>
+      <h2>How it works, written down.</h2>
+      <p class="lead">The same pages are in the repository's <code>docs/</code> folder, next to the code they describe.</p>
+    </div>
+
+    <div class="guides">
+      <a class="guide" href="radio.html"><strong>Receive chain and IQ files</strong>The wide-band detector, per-burst filtering, frequency hopping, recordings, and how the receiver was measured.</a>
+      <a class="guide" href="transmit.html"><strong>Transmit</strong>The OOK and 2-FSK waveforms, the modulation each protocol uses, and the presets.</a>
+      <a class="guide" href="session.html"><strong>Sessions and saved fobs</strong>Autosave and restore, and how a capture is matched to your <code>.fob</code> files.</a>
+      <a class="guide" href="timing_analysis.html"><strong>Timing analysis</strong>The Timing Tuner, pulse clusters and line-coding guesses.</a>
+      <a class="guide" href="flipper_key_files.html"><strong>Flipper key files</strong>The decoded <code>.sub</code> files KAT reads and writes, field by field.</a>
+      <a class="guide" href="add_manually.html"><strong>Add Manually</strong>New gate and garage remotes with <code>:new</code>, to pair with a receiver.</a>
+      <a class="guide" href="unidentified_captures.html"><strong>Unidentified captures</strong>Captures that nothing decodes, KAT or the references, and what is known about them.</a>
+      <a class="guide" href="https://github.com/KaraZajac/KAT/blob/main/CHANGELOG.md"><strong>Changelog</strong>What changed in each release.</a>
+    </div>
+  </div>
+</section>
+
+<!-- ──────────────── GET IT ──────────────── -->
+<section id="get" class="section section-timeline reveal">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-tag">get it</span>
+      <h2>Download, check, run.</h2>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <span class="anno-num">1</span>
+        <div>
+          <h3>Install the HackRF library</h3>
+          <p>KAT needs it at runtime, even if you only use an RTL-SDR. Installing it brings libusb along.</p>
+          <div class="code-wrap nocopy">
+<pre class="code">sudo apt install libhackrf0     <span class="cmt"># Debian / Ubuntu / Raspberry Pi OS</span>
+sudo dnf install hackrf         <span class="cmt"># Fedora</span>
+sudo pacman -S hackrf           <span class="cmt"># Arch Linux</span>
+brew install hackrf             <span class="cmt"># macOS</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="anno-num">2</span>
+        <div>
+          <h3>Download, check and unpack</h3>
+          <p>Get the archive for your machine, and its <code>.sha256</code> file, from the <a href="https://github.com/KaraZajac/KAT/releases/latest">latest release</a>:</p>
+          <ul>
+            <li><code>kat-v1.8.0-x86_64-linux.tar.gz</code>: 64-bit Intel or AMD Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and later).</li>
+            <li><code>kat-v1.8.0-aarch64-linux.tar.gz</code>: 64-bit ARM Linux, such as 64-bit Raspberry Pi OS bookworm.</li>
+            <li><code>kat-v1.8.0-aarch64-macos.tar.gz</code>: Apple Silicon Macs. It isn't notarized; <code>xattr -d com.apple.quarantine kat</code> clears the block.</li>
+            <li>Intel Macs and other platforms: build from source, below.</li>
+          </ul>
+          <div class="code-wrap">
+<pre class="code">sha256sum -c kat-v1.8.0-x86_64-linux.tar.gz.sha256    <span class="cmt"># macOS: shasum -a 256 -c …</span>
+tar xzf kat-v1.8.0-x86_64-linux.tar.gz
+./kat-v1.8.0-x86_64-linux/kat</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="anno-num">3</span>
+        <div>
+          <h3>Run it</h3>
+          <p><code>kat</code> uses a HackRF if one is connected, else the first RTL-SDR, else it runs with files only.</p>
+          <dl class="keys">
+            <dt><kbd>r</kbd></dt><dd>Receive, on 433.92&nbsp;MHz to start with</dd>
+            <dt><code>:freq 315</code></dt><dd>Change the frequency</dd>
+            <dt><code>:hop on</code></dt><dd>Hop the common fob frequencies</dd>
+            <dt><kbd>Enter</kbd></dt><dd>A capture's actions: transmit, export, timing analysis, key recovery</dd>
+            <dt><kbd>Tab</kbd></dt><dd>Radio settings</dd>
+            <dt><code>:load</code></dt><dd>Open <code>.sub</code> files and IQ recordings</dd>
+            <dt><kbd>?</kbd> · <kbd>q</kbd></dt><dd>Help · quit</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="more-grid">
+      <div class="step">
+        <div>
+          <h3>Radios</h3>
+          <ul>
+            <li>A <strong>HackRF One</strong> (or compatible) receives and transmits; an <strong>RTL-SDR</strong> only receives.</li>
+            <li>USB permission: install the udev rules from the hackrf or rtl-sdr package.</li>
+            <li>On Linux, the DVB-T driver can claim an RTL-SDR first: <code>sudo rmmod dvb_usb_rtl28xxu</code>, or blacklist it.</li>
+            <li>The binaries link libhackrf, libusb-1.0 (and libudev through it) and glibc. No librtlsdr is needed: KAT drives the RTL-SDR itself.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="step">
+        <div>
+          <h3>From source</h3>
+          <p>Rust 1.88 or newer, then:</p>
+          <div class="code-wrap">
+<pre class="code">git clone https://github.com/KaraZajac/KAT.git &amp;&amp; cd KAT
+sudo apt install libhackrf-dev pkg-config libusb-1.0-0-dev
+cargo build --release</pre>
+          </div>
+          <p>Use a release build for live receive: a debug build is about 20× slower.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ──────────────── LEGAL ──────────────── -->
+<section id="legal" class="section section-callout reveal">
+  <div class="container">
+    <div class="callout callout-legal">
+      <div class="callout-mark" aria-hidden="true">!</div>
+      <div>
+        <h3>Security and legal notice</h3>
+        <p><strong>Use KAT only on systems and vehicles you own or have explicit,
+        written permission to test.</strong> Capturing, decoding, or transmitting
+        keyfob and vehicle-access signals without authorization may be illegal in
+        your jurisdiction (e.g. computer misuse, unauthorized access, or radio
+        regulations). You are solely responsible for ensuring your use complies
+        with all applicable laws.</p>
+        <p>KAT is intended for security research, authorized penetration testing,
+        education, and legitimate testing on your own equipment. The authors and
+        contributors assume no liability for misuse or damage arising from use of
+        this software.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ──────────────── FOOTER ──────────────── -->
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-col">
+      <div class="footer-brand">
+        <img class="nav-logo" src="logo.svg" width="26" height="26" alt="" aria-hidden="true">
+        KAT
+      </div>
+      <p class="footer-tag">
+        The Keyfob Analysis Toolkit. Captures, decodes and retransmits key fob
+        and gate remote signals from a terminal.
+      </p>
+    </div>
+    <div class="footer-col">
+      <h4>Project</h4>
+      <ul>
+        <li><a href="https://github.com/KaraZajac/KAT">Source</a></li>
+        <li><a href="https://github.com/KaraZajac/KAT/releases">Releases</a></li>
+        <li><a href="https://github.com/KaraZajac/KAT/blob/main/CHANGELOG.md">Changelog</a></li>
+        <li><a href="https://karazajac.io/blog/keyfob-analysis-toolkit-kat/">The write-up</a></li>
+        <li><a href="https://karazajac.io/projects/">karazajac.io</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Docs</h4>
+      <ul>
+        <li><a href="#protocols">Protocols</a></li>
+        <li><a href="radio.html">Receive chain</a></li>
+        <li><a href="transmit.html">Transmit</a></li>
+        <li><a href="flipper_key_files.html">Flipper key files</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Built on</h4>
+      <ul>
+        <li><a href="https://protopirate.net/ProtoPirate/ProtoPirate">ProtoPirate</a></li>
+        <li><a href="https://github.com/D4C1-Labs/Flipper-ARF">Flipper-ARF</a> · <a href="https://github.com/thedoctorz/doctor-firmware">doctor-firmware</a></li>
+        <li><a href="https://github.com/Next-Flip/Momentum-Firmware">Momentum</a> · <a href="https://github.com/RogueMaster/flipperzero-firmware-wPlugins">RogueMaster</a></li>
+        <li><a href="https://github.com/merbanan/rtl_433">rtl_433</a> · <a href="https://ratatui.rs">ratatui</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <p>Use KAT only on systems and vehicles you own or have explicit, written permission to test. <a href="#legal">The full notice.</a></p>
+    <p class="footer-meta">
+      v1.8.0 · <a href="https://github.com/KaraZajac/KAT">github.com/KaraZajac/KAT</a> · <a href="https://github.com/KaraZajac/KAT/blob/main/LICENSE">BSD-3-Clause</a>
+    </p>
+    <div class="onion-line">
+      <span class="onion-label">Also on Tor</span>
+      <a href="http://awpqadxngonuqfpdgzgg2e3wk5bcw7esta4tyi6tbqmi2tdo2y7xnuyd.onion">awpqadxngonuqfpdgzgg2e3wk5bcw7esta4tyi6tbqmi2tdo2y7xnuyd.onion</a>
+    </div>
+  </div>
+</footer>
+
+<script src="app.js" defer></script>
+
 </body>
 </html>

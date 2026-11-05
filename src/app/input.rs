@@ -414,14 +414,18 @@ impl App {
         self.status_message = None;
     }
 
-    /// One-line progress of the background work: a KeeLoq or PSA key search, a transmit queue of
-    /// two or more. For the status bar title; None when nothing runs.
+    /// One-line progress of the background work: a KeeLoq, HiTag2 or PSA key search, a transmit
+    /// queue of two or more. For the status bar title; None when nothing runs.
     pub fn job_status(&self) -> Option<String> {
-        let jobs: Vec<String> =
-            [self.keeloq_key_recovery_progress(), self.psa_key_recovery_progress(), self.tx_progress()]
-                .into_iter()
-                .flatten()
-                .collect();
+        let jobs: Vec<String> = [
+            self.keeloq_key_recovery_progress(),
+            self.hitag2_key_recovery_progress(),
+            self.psa_key_recovery_progress(),
+            self.tx_progress(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
         (!jobs.is_empty()).then(|| jobs.join(" · "))
     }
 
@@ -433,7 +437,11 @@ impl App {
         if self.keeloq_bf_job.is_some() {
             jobs.push("the KeeLoq key search".to_string());
         }
-        if self.psa_recover_job.is_some() {
+        if self.hitag2_bf_job.is_some() {
+            jobs.push("the HiTag2 key search".to_string());
+        }
+        // An autobf search (well under a second) is not worth a prompt.
+        if self.psa_recover_job.as_ref().is_some_and(|j| !j.auto) {
             jobs.push("the PSA key search".to_string());
         }
         if self.rx.iq_job.as_ref().is_some_and(|j| !j.is_finished()) {

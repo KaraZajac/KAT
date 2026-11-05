@@ -71,17 +71,21 @@
 //!    HIGH 1000, 0x0001, Key[27:18] (10 bits), LOW 21500]; bit 1 = (HIGH te, LOW te), 0 = (LOW te,
 //!    HIGH te), te = 125 µs, adjacent levels merged; C repeat 1. doctor-firmware builds the same
 //!    frame (its D-pad Up/Down/Left/Right = 1/2/4/8, counter + 1).
-//! 2. **No seed** — doctor-firmware's encoder (`subghz_protocol_encoder_hitag2_deserialize`) has no
-//!    failure path without a key or seed: it REPLAYS the captured Key/Key_2 byte-for-byte (the
+//! 2. **Saved key** (doctor-firmware's UID key database, `hitag2_keys.txt`, where "Recover key
+//!    (HiTag2)" saves the keys it finds; `hitag2_keys.rs`): with the epoch that reproduces the
+//!    captured hop (`hitag2_hell_find_epoch`: the record's epoch and the next seven), a FRESH
+//!    frame as `hitag2_encoder_hell_next_frame` builds it — the requested button (else the
+//!    captured one), counter `epoch << 10 | cnt10` + 1, hop
+//!    [`hitag2::renault_authenticator`], the captured tail bits — in the upload of 3. below.
+//!    ProtoPirate's and doctor-firmware's user-typed "Hitag2 Key" is not read: KAT has no key
+//!    entry.
+//! 3. **No seed, no key** — doctor-firmware's encoder (`subghz_protocol_encoder_hitag2_deserialize`)
+//!    has no failure path without a key or seed: it REPLAYS the captured Key/Key_2 byte-for-byte (the
 //!    requested button is ignored) with its own upload `subghz_protocol_encoder_hitag2_get_upload`
 //!    in the default "Kangoo" variant: 255 preamble pairs + one HIGH te, 3 long frames, 8 short
 //!    frames each closed by LOW 20000 (doctor's "Old" variant — 2 long frames + a 115.5 ms gap —
 //!    is chosen from a per-burst repeat count that KAT's per-frame registry cannot observe).
 //!    ProtoPirate refuses to transmit here.
-//! 3. ProtoPirate's user-typed "Hitag2 Key" path (and doctor-firmware's key + epoch / UID key
-//!    database) is not reachable: KAT has no key entry or key store.
-//!    [`hitag2::renault_authenticator`] is ported and C-tested as the hook for one (see
-//!    `docs/renault_v1.md`).
 //!
 //! ## Deviations from C
 //! - Emission is delayed by exactly one pulse: the C fires at the mid-bit of the 104th bit, KAT
@@ -102,11 +106,14 @@
 //! recovered IV as Seed + the 16-bit counter, or `Recovered: 02` (brute force missed) + Seed 0 +
 //! the 10-bit counter. Loading needs Bit 88 and a frame that passes the decoder's gates, and
 //! re-runs the (deterministic) seed search, so a PP file saved before its brute force loads with
-//! the recovered counter too. "Hitag2 Key" / "Hitag2 Epoch" (PP's user-typed key) are not used.
+//! the recovered counter too. Without a seed, KAT adds doctor-firmware's "Hitag2 Key" (standard
+//! byte order) + "Hitag2 Epoch" when the remote's saved key verifies; on loading, those lines
+//! (PP's user-typed key) are not read.
 //! Flipper-ARF names its type-table protocol "Renault V1" too (KAT's "Renault V1 (ARF)",
 //! `renault_v1_arf.rs`); its keys (`Bit: 82`, decimal `Key2`) are handed to that decoder.
 
 use super::hitag2;
+use super::hitag2_keys::{self, KeyOrder};
 use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
 
@@ -458,7 +465,8 @@ impl RenaultV1Decoder {
     }
 
     /// The 11-byte payload `encode()` transmits and the upload layout it uses: a fresh
-    /// seed-scheme frame (ProtoPirate) or the captured frame (doctor-firmware replay).
+    /// seed-scheme frame (ProtoPirate), a fresh frame from the remote's saved key
+    /// (doctor-firmware), or the captured frame (doctor-firmware replay).
     fn tx_payload(raw: &[u8; 11], button: u8) -> ([u8; 11], &'static UploadShape) {
         match hitag2::renault_seed_recover(raw) {
             Some(iv) => {
@@ -469,8 +477,54 @@ impl RenaultV1Decoder {
                 let (frame, _) = hitag2::renault_encrypt_frame(uid, cnt, btn, seed);
                 (frame, &PP_UPLOAD)
             }
-            None => (*raw, &DOCTOR_KANGOO_UPLOAD),
+            None => match Self::saved_key_payload(raw, button) {
+                Some(frame) => (frame, &DOCTOR_KANGOO_UPLOAD),
+                None => (*raw, &DOCTOR_KANGOO_UPLOAD),
+            },
         }
+    }
+
+    /// The key saved for the payload's remote (`hitag2_keys.txt`, e.g. by "Recover key
+    /// (HiTag2)") and the epoch with which it reproduces the captured hop: doctor-firmware's
+    /// `hitag2_hell_find_epoch` (the record's epoch and the next seven).
+    fn saved_key(raw: &[u8; 11]) -> Option<([u8; 6], u32)> {
+        let uid = u32::from_be_bytes([raw[0], raw[1], raw[2], raw[3]]);
+        let (btn, cnt10, hop) = (raw[4] >> 4, u32::from(Self::cnt10(raw)), Self::hop(raw));
+        hitag2_keys::keys_for(uid, KeyOrder::Standard).into_iter().find_map(|(key, start)| {
+            (0..8u32)
+                .map(|i| (start + i) & 0x3FFFF)
+                .find(|&epoch| hitag2::renault_authenticator(uid, btn, (epoch << 10) | cnt10, &key) == hop)
+                .map(|epoch| (key, epoch))
+        })
+    }
+
+    /// doctor-firmware's key path (`hitag2_encoder_hell_next_frame`): a FRESH frame from the saved
+    /// key — the requested button (else the captured one), the counter `epoch << 10 | cnt10` + 1
+    /// (carrying into the epoch), its hop, the captured tail bits (`hitag2_pack_hell_frame`).
+    fn saved_key_payload(raw: &[u8; 11], button: u8) -> Option<[u8; 11]> {
+        let (key, epoch) = Self::saved_key(raw)?;
+        let uid = u32::from_be_bytes([raw[0], raw[1], raw[2], raw[3]]);
+        let btn = Self::map_button(button).unwrap_or(raw[4] >> 4);
+        let full = ((epoch << 10) | u32::from(Self::cnt10(raw))) + 1;
+        let hop = hitag2::renault_authenticator(uid, btn, full, &key);
+        let cnt10 = full & 0x3FF;
+        let mut frame = [0u8; 11];
+        frame[..4].copy_from_slice(&uid.to_be_bytes());
+        frame[4] = ((btn & 0x0F) << 4) | (cnt10 >> 6) as u8;
+        frame[5] = (((cnt10 & 0x3F) << 2) as u8) | (hop >> 30) as u8;
+        frame[6] = (hop >> 22) as u8;
+        frame[7] = (hop >> 14) as u8;
+        frame[8] = (hop >> 6) as u8;
+        frame[9] = ((hop << 2) as u8) | (raw[9] & 0x03);
+        frame[10] = Self::payload_xor(&frame);
+        Some(frame)
+    }
+
+    /// Whether `encode()` sends fresh frames of this decode (seed recovered, or a saved key that
+    /// verifies) instead of replaying it: "Recover key (HiTag2)" has nothing left to find.
+    pub(super) fn has_key(decoded: &DecodedSignal) -> bool {
+        Self::payload_from_signal(decoded)
+            .is_some_and(|raw| hitag2::renault_seed_recover(&raw).is_some() || Self::saved_key(&raw).is_some())
     }
 
     /// One pass of the C state machine (`while(true) switch(parser_step)`).
@@ -608,7 +662,7 @@ impl ProtocolDecoder for RenaultV1Decoder {
     /// frame, which must pass the decoder's gates (XOR byte, sane UID; the C loads any key).
     /// The counter is the decoder's: the seed brute force runs as on air, so "Recovered" / "Seed"
     /// (which PP's brute force writes) and the Serial/Btn/Cnt/Hop display lines are not needed;
-    /// "Hitag2 Key" is ignored (KAT has no HITAG2 key path). A `Bit: 82` key is Flipper-ARF's
+    /// "Hitag2 Key" is not read (KAT uses the saved keys, `hitag2_keys.rs`). A `Bit: 82` key is Flipper-ARF's
     /// "Renault V1" (KAT's "Renault V1 (ARF)") and loads through that decoder.
     fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
         if key.bits == 82 {
@@ -630,7 +684,7 @@ impl ProtocolDecoder for RenaultV1Decoder {
     /// Bit 88, Key, then Key_2 (8 bytes), Recovered (1 byte: 01 = seed recovered, 02 = brute force
     /// missed — KAT always runs it), Seed (4 bytes: the recovered IV, else 0), Serial, Btn, Cnt
     /// (16-bit with a recovered seed, else 10-bit) and Hop (decimal), as PP's file reads after its
-    /// "Hitag2 BF".
+    /// "Hitag2 BF"; then doctor-firmware's Hitag2 Key + Hitag2 Epoch when a saved key verifies.
     fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
         let raw = Self::payload_from_signal(decoded)?;
         let k = u64::from_be_bytes(raw[..8].try_into().ok()?);
@@ -649,6 +703,13 @@ impl ProtocolDecoder for RenaultV1Decoder {
         key.push_u32("Btn", u32::from(raw[4] >> 4));
         key.push_u32("Cnt", counter.into());
         key.push_u32("Hop", Self::hop(&raw));
+        // doctor-firmware's lines for a key it verified (`HITAG2_HELL_KEY_FIELD`, standard order).
+        if iv.is_none() {
+            if let Some((hitag2_key, epoch)) = Self::saved_key(&raw) {
+                key.push_hex_bytes("Hitag2 Key", &hitag2_key);
+                key.push_u32("Hitag2 Epoch", epoch);
+            }
+        }
         Some(key)
     }
 }
@@ -1058,6 +1119,43 @@ mod tests {
             let d = signal_for(&tx);
             assert_eq!(d.counter, Some(0x1235));
             assert_eq!(d.serial, Some(0x12345678));
+        }
+    }
+
+    /// A key saved for the remote (`hitag2_keys.txt`, e.g. by "Recover key (HiTag2)") gives
+    /// doctor-firmware's fresh frame instead of the replay: the requested button, counter + 1, its
+    /// hop, the captured tail; the `.sub` carries doctor-firmware's Hitag2 Key / Epoch lines. A key
+    /// saved in Fiat V1's byte order (the same remote decoded as Fiat V1) serves too.
+    #[test]
+    fn saved_key_signs_fresh_frames() {
+        let key = [0x4B, 0x41, 0x54, 0x31, 0x2E, 0x38];
+        // UIDs no other test uses: the key database is global.
+        for (uid, stored) in [(0x5EED_0EA1u32, key), (0x5EED_0EA2, KeyOrder::FiatBcm.arrange(key))] {
+            let hop = hitag2::renault_authenticator(uid, 2, 0x123, &key);
+            let mut raw = [0u8; 11];
+            raw[..4].copy_from_slice(&uid.to_be_bytes());
+            raw[4] = (2 << 4) | (0x123u16 >> 6) as u8;
+            raw[5] = (((0x123u16 & 0x3F) << 2) as u8) | (hop >> 30) as u8;
+            raw[6] = (hop >> 22) as u8;
+            raw[7] = (hop >> 14) as u8;
+            raw[8] = (hop >> 6) as u8;
+            raw[9] = ((hop << 2) as u8) | 0x01;
+            raw[10] = RenaultV1Decoder::payload_xor(&raw);
+            assert_eq!(hitag2::renault_seed_recover(&raw), None, "not a seed-scheme frame");
+            let k = u64::from_be_bytes(raw[..8].try_into().unwrap());
+            let sig = RenaultV1Decoder::frame_signal(k, u32::from_be_bytes([0, raw[8], raw[9], raw[10]]), None);
+            assert_eq!(RenaultV1Decoder::payload_from_signal(&sig), Some(raw));
+            assert!(!RenaultV1Decoder::has_key(&sig));
+            assert_eq!(RenaultV1Decoder::tx_payload(&raw, 0x01).0, raw, "replay");
+            hitag2_keys::tests::remember_for_test(uid, stored);
+            assert!(RenaultV1Decoder::has_key(&sig));
+            assert_eq!(RenaultV1Decoder::saved_key(&raw), Some((key, 0)));
+            let (tx, _) = RenaultV1Decoder::tx_payload(&raw, 0x01);
+            assert_eq!((&tx[..4], tx[4] >> 4, RenaultV1Decoder::cnt10(&tx)), (&uid.to_be_bytes()[..], 1, 0x124));
+            assert_eq!(RenaultV1Decoder::hop(&tx), hitag2::renault_authenticator(uid, 1, 0x124, &key));
+            assert_eq!((tx[9] & 3, tx[10]), (1, RenaultV1Decoder::payload_xor(&tx)));
+            let text = RenaultV1Decoder::new().to_flipper_key(&sig).unwrap().to_text();
+            assert!(text.contains("\nHitag2 Key: 4B 41 54 31 2E 38\nHitag2 Epoch: 0\n"), "{text}");
         }
     }
 

@@ -187,6 +187,9 @@ impl App {
             let (total, skipped) = (s.captures.len(), s.skipped);
             let max = self.storage.config.max_captures;
             let added = session::restore_into(&mut self.captures, &mut self.next_capture_id, s, max);
+            // autobf: restored undecrypted PSA captures without a search result get one.
+            let ids: Vec<u32> = self.captures.iter().map(|c| c.id).collect();
+            self.auto_bf_listed(ids);
             // Import files whose captures are already in the restored session are not offered again.
             let import_dir = self.storage.import_dir().clone();
             drop_restored_imports(&mut self.pending_fob_files, &self.captures, &import_dir);

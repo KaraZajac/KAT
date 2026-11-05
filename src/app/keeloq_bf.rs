@@ -40,7 +40,7 @@ fn types_label(learnings: &[u32]) -> String {
 }
 
 /// "12 s", "4 min", "1 h 05 min".
-fn duration_label(secs: f64) -> String {
+pub(super) fn duration_label(secs: f64) -> String {
     let s = secs.max(0.0).round() as u64;
     match s {
         0..=99 => format!("{s} s"),
@@ -75,7 +75,8 @@ impl App {
 
     /// Start the search for the remote of capture `id` (`types`: learning types; Auto = 6, 7).
     pub(super) fn start_keeloq_key_recovery(&mut self, id: u32, types: Option<Vec<u32>>) {
-        if self.psa_recover_job.is_some() || self.keeloq_bf_job.is_some() {
+        // An autobf PSA search (well under a second) may finish beside it.
+        if self.long_key_search_runs() {
             self.last_error = Some("A key recovery is already running".to_string());
             return;
         }
@@ -208,6 +209,7 @@ impl App {
             c.counter = d.counter;
             c.crc_valid = true;
             c.status = if d.encoder_capable { CaptureStatus::EncoderCapable } else { CaptureStatus::Decoded };
+            c.key_recovery = Some(crate::capture::KeyRecovery::Recovered(format!("KeeLoq type {}", best.learning)));
             decoded += 1;
         }
         let also = if found.len() > 1 {

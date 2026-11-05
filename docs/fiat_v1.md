@@ -28,8 +28,8 @@ with firmware glue). What they add, and KAT therefore also does:
 | Embedded keys | 9 | 8 (PP's first 8) | 9 | 9 |
 | Typed-in "Hitag2 Key" (+ epoch) | yes | yes (from its BF scene) | yes | no key entry |
 | Key dictionary + heuristics (L2/L4) | — | on demand (BF scene) | — | automatic, every frame |
-| Hitag2Hell key recovery (L5) | — | on demand, needs 2 captures for a unique key | — | not ported (see Encoder) |
-| UID → key database | — | yes | yes | no key store |
+| Hitag2Hell key recovery (L5) | — | on demand, needs 2 captures for a unique key | — | on demand: **Recover key (HiTag2)**, 2 captures ([HiTag2 key recovery](hitag2_hell.md)) |
+| UID → key database | — | yes | yes | yes (`hitag2_keys.txt`, same format) |
 | TX with a key | fresh frame | fresh frame | fresh frame | fresh frame |
 | TX without a key | refuses | byte-identical replay | replay ("Hitag2 replay only") | byte-identical replay |
 
@@ -99,7 +99,9 @@ embedded keys use epoch 0). See `hitag2.rs` for the shared cipher core.
 ## Encoder
 
 **Key resolution** (`resolve_key`, run by `encode()`): (a) ProtoPirate: each of the 9 embedded keys
-(epoch 0), for the frame's button, then for buttons 1/2/4/8; (b) Flipper-ARF L2: its 95-entry flash
+(epoch 0), for the frame's button, then for buttons 1/2/4/8; then the key saved for the UID in
+`hitag2_keys.txt` (ARF's `hitag2_key_db_find` lookup after its L1; e.g. one **Recover key (HiTag2)**
+found), with its epoch, the frame's button or any of 1/2/4/8; (b) Flipper-ARF L2: its 95-entry flash
 dictionary (ASCII/default keys, mutations of the known keys; its L3 SD file `assets/hitag2` repeats
 L1+L2), epoch 0, the frame's button; (c) ARF L4: `(UID ^ mask) ‖ tail` for 12 masks × 20 tails, each of
 ARF's 8 known keys with its last byte ±1..±16, and those 8 keys with epoch 1..7. The first match is
@@ -124,20 +126,19 @@ doctor-firmware does (identical for variant-A captures such as the Panda).
 **Waveform** (all paths): lead HIGH (2033 µs A / 850 µs B), 104 Manchester bits at the variant's short TE,
 LOW gap (3252 µs A / 1230 µs B), adjacent levels merged — repeated 6 times (all three references).
 
-**Not ported:**
+**Hitag2Hell (ARF L5)** is the signal menu's **Recover key (HiTag2)**, ported from qDoctor's C
+([HiTag2 key recovery](hitag2_hell.md)): a guess-and-determine attack (Verstegen et al., 2018) that
+enumerates the internal states consistent with one 32-bit hop. One frame leaves about 2^16 equally
+valid keys, so KAT pairs the capture with a **second press of the same remote** (same UID, another
+hop) from the captures list; ARF scans the saved capture's folder for such siblings and, with one
+capture only, accepts the first consistent key (wrong with probability ≈ 1 − 2^-16), which KAT does
+not. The key is saved for the UID in `hitag2_keys.txt` in KAT's config folder, the file ARF and
+doctor-firmware keep in `subghz/assets/` (same format and byte order, so it can be copied either way),
+and the remote's captures then transmit fresh frames. The Panda capture contains a single frame, so
+its key cannot be recovered.
 
-- *Hitag2Hell (ARF L5).* A guess-and-determine attack (Verstegen et al., 2018) that enumerates the
-  internal states consistent with one 32-bit hop. One frame leaves about 2^16 equally valid keys, so it
-  needs a **second frame of the same remote** (different button/counter) to single out the key; ARF
-  scans the folder of the saved capture for siblings with the same UID and, with one capture only,
-  accepts the first consistent key (wrong with probability ≈ 1 − 2^-16). ARF quotes "several hours" on
-  x86 for a full sweep of its 32-lane C version (and offers offloading it to a phone); a 64-lane,
-  16-thread port would plausibly need tens of minutes on a desktop (estimate, not measured). It also
-  needs UI support KAT lacks (pick the captures of one remote, run a background job) and a place to
-  keep the recovered key for `encode()` (`DecodedSignal` has no field for a 48-bit key). The Panda
-  capture contains a single frame, so Hitag2Hell could not recover its key.
-- *Typed-in keys and the UID → key database* (ARF/doctor `hitag2_key_db.c`): KAT has no key entry or
-  key store; with one, the key would plug into `resolve_key`.
+**Not ported:** *typed-in keys* (doctor-firmware's "Hitag2 Key" entry, and the `Hitag2 Key` line of
+a loaded file): KAT has no key entry; a key can be added to `hitag2_keys.txt` by hand instead.
 
 ## Validation
 

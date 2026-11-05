@@ -163,7 +163,8 @@ remote made with `:new` worked once after pairing.
 
 - Only rolling codes change (the counter moved). Fixed codes keep their capture, also after Send button…; so
   do encoders that replay the captured frame because no key verifies it (Fiat V0, and Fiat V1 / V2 and
-  Renault V1 without a verified key send it byte for byte, as the references do).
+  Renault V1 without a verified key send it byte for byte, as the references do; a key saved in
+  `hitag2_keys.txt`, e.g. by [Recover key (HiTag2)](hitag2_hell.md), verifies theirs).
 - **Replay** sends the recorded pulses and changes nothing.
 - KAT learns the frame sent by reading the upload with the protocol's own decoder (`sent_frame`). Encoder
   state the air does not carry stays the capture's: FAAC SLH's seed, with which the protocol re-reads the

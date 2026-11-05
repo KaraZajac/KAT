@@ -380,6 +380,7 @@ fn import_fob_v2(fob: &FobFile, next_id: u32) -> Result<Capture> {
         command: vehicle.command.clone().filter(|s| !s.is_empty()),
         source_file: None,
         on_air: None,
+        key_recovery: None,
     })
 }
 
@@ -454,6 +455,7 @@ fn import_fob_v1(fob: &FobFileV1, next_id: u32) -> Result<Capture> {
         command: None,
         source_file: None,
         on_air: None,
+        key_recovery: None,
     })
 }
 

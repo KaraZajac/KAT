@@ -90,6 +90,18 @@ pub struct Capture {
     /// When the signal was on the air, for a capture received live or from an IQ file (not saved).
     #[serde(skip)]
     pub on_air: Option<OnAir>,
+    /// What a key search (a "Recover key" action, or `autobf`) found for this capture.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key_recovery: Option<KeyRecovery>,
+}
+
+/// The result of a key search for a capture.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum KeyRecovery {
+    /// The key was recovered, by the search named ("PSA BF1", "PSA BF2", "KeeLoq type 6" …).
+    Recovered(String),
+    /// The search named ran to its end and no key fits.
+    NotFound(String),
 }
 
 /// When a received capture's pulses were on the air: microseconds from the start of its receive
@@ -187,6 +199,7 @@ impl Capture {
             command: None,
             source_file: None,
             on_air: None,
+            key_recovery: None,
         }
     }
 

@@ -56,6 +56,8 @@ mod vag;
 mod fiat_v0;
 mod fiat_v1;
 mod hitag2;
+pub mod hitag2_hell;
+pub mod hitag2_keys;
 mod scher_khan;
 mod star_line;
 mod psa;
@@ -193,9 +195,24 @@ pub use info::{has_checksum, lookup as protocol_info, ProtocolInfo};
 /// PSA TEA key recovery for the signal menu's "Recover key" action (ProtoPirate's brute force,
 /// which the references also run on demand rather than while decoding).
 pub use psa::{
-    recover_key as psa_recover_key, BruteForceControl as PsaBruteForceControl,
+    auto_key_search as psa_auto_key_search, needs_key_search as psa_needs_key_search,
+    recover_key as psa_recover_key, search_label as psa_search_label, AutoKeySearch as PsaAutoKeySearch,
+    BruteForceControl as PsaBruteForceControl, BruteForceHit as PsaBruteForceHit,
     BruteForceOutcome as PsaBruteForceOutcome, BRUTE_FORCE_TOTAL as PSA_BRUTE_FORCE_TOTAL,
+    SEARCH_LABEL_ALL as PSA_SEARCH_LABEL_ALL, UNCHECKED_NAME as PSA_UNCHECKED_NAME,
 };
+
+/// Whether KAT already sends fresh frames of this HITAG2 capture (Fiat V1, Renault V1, Fiat V2: a
+/// known, saved or serial-derived key reproduces its hop), so "Recover key (HiTag2)" has nothing
+/// left to find. False for other protocols.
+pub fn hitag2_key_known(protocol: &str, signal: &DecodedSignal) -> bool {
+    match protocol {
+        "Fiat V1" => fiat_v1::FiatV1Decoder::has_key(signal),
+        "Renault V1" => renault_v1::RenaultV1Decoder::has_key(signal),
+        "Fiat V2" => fiat_v2::FiatV2Decoder::has_key(signal),
+        _ => false,
+    }
+}
 
 use crate::capture::Capture;
 use crate::radio::demodulator::LevelDuration;
@@ -283,6 +300,11 @@ pub trait ProtocolDecoder: Send + Sync {
     fn to_flipper_key(&self, _decoded: &DecodedSignal) -> Option<FlipperKey> {
         None
     }
+
+    /// Report the frames that only count once a key search decrypts them, under the protocol's
+    /// `<name> [unchecked]` display name, instead of dropping them ([ProtocolRegistry::
+    /// set_auto_key_search]). Only PSA has such frames (its adaptive AM path's TEA frames).
+    fn set_report_unchecked(&mut self, _on: bool) {}
 }
 
 /// Registry of all supported protocols
@@ -293,6 +315,8 @@ pub struct ProtocolRegistry {
     /// Whether each decoder is a gate/garage protocol (`Category::Gate`): those take part in the
     /// inverted-polarity pass only for FSK input (see [Self::process_signal_stream_opts]).
     gate: Vec<bool>,
+    /// Key searches run on their own (config `autobf`): [Self::set_auto_key_search].
+    auto_key_search: bool,
 }
 
 /// Whether a decoder flagged `decoder_rf` may see a capture received as `capture_rf` (Flipper-ARF's
@@ -700,7 +724,7 @@ impl ProtocolRegistry {
             .iter()
             .map(|d| info::lookup(d.name()).is_some_and(|i| i.category == info::Category::Gate))
             .collect();
-        Self { decoders, rf, gate }
+        Self { decoders, rf, gate, auto_key_search: false }
     }
 
     /// Process level+duration pairs from demodulator
@@ -977,6 +1001,22 @@ impl ProtocolRegistry {
         let Some(dec) = self.decoders.iter_mut().find(|d| d.name() == lookup) else { return Vec::new() };
         dec.reset();
         pairs.iter().filter_map(|p| dec.feed(p.level, p.duration_us)).collect()
+    }
+
+    /// `autobf`: a capture whose key a search can recover (an undecrypted PSA frame) gets that
+    /// search without being asked ([psa::auto_key_search]; the app runs it in the background, `kat
+    /// --decode` in line), and the decoders report the frames that only count once their key is
+    /// found ([ProtocolDecoder::set_report_unchecked]) instead of dropping them. Off by default.
+    pub fn set_auto_key_search(&mut self, on: bool) {
+        self.auto_key_search = on;
+        for d in &mut self.decoders {
+            d.set_report_unchecked(on);
+        }
+    }
+
+    /// Whether [Self::set_auto_key_search] is on.
+    pub fn auto_key_search(&self) -> bool {
+        self.auto_key_search
     }
 
     /// List all protocol names

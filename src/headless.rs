@@ -14,6 +14,10 @@
 //!
 //! `<source>` is `raw` for a RAW (or BinRAW) `.sub`, `key` for a Flipper key file (Protocol/Key, no
 //! RAW_Data), and `am`/`fm` for IQ recordings (which demodulated path decoded).
+//!
+//! With `autobf` (config, on by default) an undecrypted PSA frame gets its key search here, in line:
+//! the line ends ` key=BF1` / ` key=BF2` with the fields the key decrypts, or ` key=none` when no
+//! key fits; a `PSA [unchecked]` frame (PSA's adaptive AM path) is printed only if its key is found.
 
 use std::collections::BTreeMap;
 use std::io::Read;
@@ -110,8 +114,39 @@ fn push_stream(reg: &mut ProtocolRegistry, pairs: &[LevelDuration], freq: u32, s
         "fm" => Some(RfModulation::FM),
         _ => None,
     };
+    let auto = reg.auto_key_search();
     for (name, d, _) in reg.process_signal_stream_path(pairs, freq, path) {
-        out.push(DecodeLine { source, protocol: name, fields: fields(&d), data: d.data });
+        out.extend(line(auto, source, name, &d));
+    }
+}
+
+/// A decode as printed; with `autobf`, after its key search ([crate::protocols::psa_auto_key_search]):
+/// a recovered key gives the fields it decrypts and ` key=BF1`/` key=BF2`, a full miss ` key=none`,
+/// and an unchecked frame without a key is left out. A frame met again reuses its result.
+fn line(auto: bool, source: &'static str, name: String, d: &DecodedSignal) -> Option<DecodeLine> {
+    use crate::protocols::PsaAutoKeySearch as Search;
+    /// Searches already run, by (protocol, data, extra).
+    type Done = std::collections::HashMap<(String, u64, Option<u64>), Search>;
+    thread_local! {
+        static DONE: std::cell::RefCell<Done> = Default::default();
+    }
+    let plain = |name: String, d: &DecodedSignal, note: &str| DecodeLine { source, protocol: name, fields: fields(d) + note, data: d.data };
+    if !auto {
+        return Some(plain(name, d, ""));
+    }
+    let key = (name.clone(), d.data, d.extra);
+    let search = DONE.with(|done| done.borrow().get(&key).cloned()).unwrap_or_else(|| {
+        let s = crate::protocols::psa_auto_key_search(&name, d);
+        DONE.with(|done| done.borrow_mut().insert(key, s.clone()));
+        s
+    });
+    match search {
+        Search::NotNeeded => Some(plain(name, d, "")),
+        Search::Recovered(found, label) => {
+            Some(plain("PSA".to_string(), &found, &format!(" key={}", label.trim_start_matches("PSA "))))
+        }
+        Search::NotFound(_) => Some(plain(name, d, " key=none")),
+        Search::Dropped => None,
     }
 }
 
@@ -124,8 +159,9 @@ fn push_stream_rf(
     rf: Option<RfModulation>,
     out: &mut Vec<DecodeLine>,
 ) {
+    let auto = reg.auto_key_search();
     for (name, d, _) in reg.process_signal_stream_rf(pairs, freq, rf) {
-        out.push(DecodeLine { source, protocol: name, fields: fields(&d), data: d.data });
+        out.extend(line(auto, source, name, &d));
     }
 }
 
@@ -144,8 +180,9 @@ pub fn decode_sub(reg: &mut ProtocolRegistry, path: &Path) -> Result<FileResult,
         crate::export::flipper::SubContent::Key(key) => key,
     };
     let mut decodes = Vec::new();
+    let auto = reg.auto_key_search();
     match reg.decode_key(&key) {
-        Some((name, d)) => decodes.push(DecodeLine { source: "key", protocol: name, fields: fields(&d), data: d.data }),
+        Some((name, d)) => decodes.extend(line(auto, "key", name, &d)),
         None => {
             return Err(format!(
                 "key file for protocol {:?} ({} bits) is not supported",
@@ -284,6 +321,7 @@ pub fn format_result(r: &Result<FileResult, String>, path: &Path, all: bool) -> 
 pub fn run(opts: &DecodeOptions) -> i32 {
     load_keystores();
     let mut reg = ProtocolRegistry::new();
+    reg.set_auto_key_search(crate::storage::autobf_setting());
     let mut failed = false;
     for root in &opts.paths {
         if !root.exists() {
@@ -460,6 +498,27 @@ pub fn keeloq_bf(opts: &KeeloqBfOptions) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// With `autobf`, `--decode` runs the PSA key search in line: the TEA fob's frame gets its
+    /// serial and ` key=BF1`, the XOR fob's frame (decrypted already) is left as it was.
+    #[test]
+    fn autobf_recovers_psa_keys_in_line() {
+        let path = Path::new("IMPORTS/GROUPE PSA/PSA_523_536.sub");
+        if !path.exists() {
+            eprintln!("Skip: {path:?} not found (run from crate root)");
+            return;
+        }
+        crate::protocols::keys::load_keystore_from_embedded();
+        let mut reg = ProtocolRegistry::new();
+        reg.set_auto_key_search(true);
+        let lines = format_result(&decode_sub(&mut reg, path), path, false);
+        assert_eq!(lines.len(), 2, "{lines:#?}");
+        assert!(lines[0].ends_with("sn=99EB25 btn=0 cnt=39B crc=1 tx=1"), "{}", lines[0]);
+        assert!(lines[1].ends_with("extra=2927 sn=14590 btn=0 cnt=8E53 crc=1 tx=1 key=BF1"), "{}", lines[1]);
+        // Without it, the TEA frame stays undecrypted.
+        let lines = format_result(&decode_sub(&mut ProtocolRegistry::new(), path), path, false);
+        assert!(lines[1].ends_with("sn=- btn=- cnt=- crc=0 tx=0"), "{}", lines[1]);
+    }
 
     #[test]
     fn decodes_a_raw_sub_file() {

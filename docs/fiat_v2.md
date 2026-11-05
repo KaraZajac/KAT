@@ -76,7 +76,10 @@ Frame content from Flipper-ARF, waveform from doctor-firmware:
   reproduces the captured hop, the frame is forward-encoded: the requested selector (KAT Lock → 2,
   Unlock → 3, Trunk → 1; other commands keep the captured one), the counter + 1 (ARF's car-emulate scene
   writes Cnt + 1 per press), and the hop recomputed (`fiat_v1_compute_auth`) and patched in; markers, UID
-  and type nibble are kept.
+  and type nibble are kept. After ARF's keys KAT tries the key saved for the remote in `hitag2_keys.txt`
+  (Fiat V1's byte order) the same way, e.g. one [Recover key (HiTag2)](hitag2_hell.md) found from two
+  captures (its IV readings for Fiat V2 are Flipper-ARF's; no reference has confirmed them against a real
+  key, so a search may find nothing).
 - **Replay:** otherwise (every capture in IMPORTS — no known key matches them in ARF either) the 14
   captured bytes are replayed unchanged, as ARF and doctor-firmware do.
 - **Waveform (doctor-firmware):** each of 6 copies is LOW 2000 µs, then the 112 bits as (!b, b) half-bits of

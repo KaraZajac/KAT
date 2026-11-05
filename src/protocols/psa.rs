@@ -485,6 +485,66 @@ pub fn recover_key(data: u64, extra: u64, ctl: &BruteForceControl) -> BruteForce
     brute_force(data, extra as u32, ctl)
 }
 
+/// Display name of an adaptive-AM-path TEA frame the fast path cannot decrypt, reported only with
+/// `autobf` ([ProtocolRegistry::set_auto_key_search](super::ProtocolRegistry::set_auto_key_search)):
+/// it counts as PSA once the brute force finds its key, and is noise otherwise (see
+/// [PsaDecoder::emit]).
+pub const UNCHECKED_NAME: &str = "PSA [unchecked]";
+
+/// What the key search names in a capture's result.
+pub fn search_label(hit: &BruteForceHit) -> String {
+    format!("PSA BF{}", hit.range)
+}
+
+/// The search a [BruteForceOutcome::NotFound] ran.
+pub const SEARCH_LABEL_ALL: &str = "PSA BF1/BF2";
+
+/// Whether the key search applies to a decode: a PSA frame (listed, or [UNCHECKED_NAME]) with
+/// key2 and no serial, i.e. an undecrypted TEA frame.
+pub fn needs_key_search(name: &str, serial: Option<u32>, extra: Option<u64>) -> bool {
+    (name == "PSA" || name == UNCHECKED_NAME) && serial.is_none() && extra.is_some()
+}
+
+/// `d` with the fields a brute-force hit decrypted: plain PSA, encoder-capable.
+pub fn with_recovered_fields(d: &DecodedSignal, hit: &BruteForceHit) -> DecodedSignal {
+    DecodedSignal {
+        serial: Some(hit.fields.serial),
+        button: Some(hit.fields.button),
+        // PSA counters are up to 28 bits; captures keep the low 16, like the decoder.
+        counter: Some(hit.fields.counter as u16),
+        crc_valid: true,
+        encoder_capable: true,
+        protocol_display_name: None,
+        ..d.clone()
+    }
+}
+
+/// What `autobf` makes of one decode when the search runs in line (`kat --decode`; the app runs
+/// [recover_key] on a thread instead).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AutoKeySearch {
+    /// No key search applies (a decrypted frame, another protocol): report it as decoded.
+    NotNeeded,
+    /// The key was found: the decode with its fields (plain PSA), and the search that found it.
+    Recovered(DecodedSignal, String),
+    /// A PSA frame no key fits: reported undecrypted, with the search that ran.
+    NotFound(String),
+    /// An [UNCHECKED_NAME] frame no key fits: noise, not reported.
+    Dropped,
+}
+
+/// Run the PSA key search on `d` (decoded as `name`) in line, if it applies.
+pub fn auto_key_search(name: &str, d: &DecodedSignal) -> AutoKeySearch {
+    let (true, Some(extra)) = (needs_key_search(name, d.serial, d.extra), d.extra) else {
+        return AutoKeySearch::NotNeeded;
+    };
+    match recover_key(d.data, extra, &BruteForceControl::default()) {
+        BruteForceOutcome::Found(hit) => AutoKeySearch::Recovered(with_recovered_fields(d, &hit), search_label(&hit)),
+        _ if name == UNCHECKED_NAME => AutoKeySearch::Dropped,
+        _ => AutoKeySearch::NotFound(SEARCH_LABEL_ALL.to_string()),
+    }
+}
+
 /// Candidates per work unit of the parallel search.
 const BF_CHUNK: u32 = 1 << 15;
 
@@ -1153,11 +1213,19 @@ pub struct PsaDecoder {
     /// KAT's additions to the C decoders: the brute force on a fast-path miss and the AM-path
     /// decrypt gate. Always on; the C-oracle test driver turns them off to compare 1:1.
     kat_extensions: bool,
+    /// `autobf`: AM-path frames the fast path cannot decrypt are reported as [UNCHECKED_NAME] for
+    /// the key search to confirm, instead of being dropped.
+    report_unchecked: bool,
 }
 
 impl PsaDecoder {
     pub fn new() -> Self {
-        Self { pp: Machine::new(Flavor::ProtoPirate), arf: Machine::new(Flavor::Arf), kat_extensions: true }
+        Self {
+            pp: Machine::new(Flavor::ProtoPirate),
+            arf: Machine::new(Flavor::Arf),
+            kat_extensions: true,
+            report_unchecked: false,
+        }
     }
 
     /// `psa_handle_decoded_frame` (ProtoPirate): fast-path decrypt with PP's routing. A frame the
@@ -1165,14 +1233,17 @@ impl PsaDecoder {
     /// serial/button/counter, not encoder-capable) and the brute force is left to a manual action
     /// (the signal menu's "Recover key", [`recover_key`]).
     ///
-    /// AM-path frames are reported only when they decrypt: ARF's completion is weak (8 preamble
-    /// cells, then any 80/88-bit window with the 0xA nibble at one of up to 9 offsets) and the
-    /// registry's resets re-arm it; on IMPORTS/honda/Lock_honda.sub it accepts Honda Static chips
-    /// plus inter-frame noise (the unmodified ARF psa.c, replayed with the registry's reset
-    /// points, reports the same window), which decrypts neither by XOR nor by BF1/BF2.
+    /// AM-path frames count only when they decrypt: ARF's completion is weak (8 preamble cells,
+    /// then any 80/88-bit window with the 0xA nibble at one of up to 9 offsets) and the registry's
+    /// resets re-arm it; on IMPORTS/honda/Lock_honda.sub it accepts Honda Static chips plus
+    /// inter-frame noise (the unmodified ARF psa.c, replayed with the registry's reset points,
+    /// reports the same window), which decrypts neither by XOR nor by BF1/BF2. One the fast path
+    /// cannot decrypt is dropped, or with `autobf` reported as [UNCHECKED_NAME] for the brute force
+    /// to decide: a genuine TEA frame decrypts in a fraction of a second, that window never does.
     fn emit(&self, frame: RawFrame) -> Option<DecodedSignal> {
         let fields = fast_decrypt(frame.key1, frame.key2_low);
-        if frame.am && self.kat_extensions && fields.is_none() {
+        let unchecked = frame.am && self.kat_extensions && fields.is_none();
+        if unchecked && !self.report_unchecked {
             return None;
         }
         Some(DecodedSignal {
@@ -1184,7 +1255,7 @@ impl PsaDecoder {
             data_count_bit: MIN_COUNT_BIT,
             encoder_capable: fields.is_some(),
             extra: Some(((frame.key2_high as u64) << 32) | frame.key2_low as u64),
-            protocol_display_name: None,
+            protocol_display_name: unchecked.then(|| UNCHECKED_NAME.to_string()),
         })
     }
 }
@@ -1211,6 +1282,10 @@ impl ProtocolDecoder for PsaDecoder {
     fn reset(&mut self) {
         self.pp = Machine::new(Flavor::ProtoPirate);
         self.arf = Machine::new(Flavor::Arf);
+    }
+
+    fn set_report_unchecked(&mut self, on: bool) {
+        self.report_unchecked = on;
     }
 
     fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
@@ -1910,6 +1985,54 @@ mod tests {
             .find_map(|p| c_like.feed(p.level, p.duration_us))
             .expect("the C-equivalent AM path fires");
         assert_eq!((hit.data, hit.extra, hit.serial), (0x4CDA_57A6_0039_A20E, Some(0x4FF4), None));
+    }
+
+    /// The tester's case: a genuine TEA frame on ARF's adaptive AM path (the TEA fob's frame at
+    /// half-bit widths only that path takes). The fast path cannot decrypt it, so it is dropped as
+    /// before unless `autobf` asks for unchecked frames; then it is reported as `PSA [unchecked]`
+    /// and the key search turns it into the fob's frame (serial 0x014590, BF1).
+    #[test]
+    fn am_path_tea_frames_wait_for_their_key() {
+        for te in [70, 100, 160] {
+            let pulses = am_frame(te, 0xF47A_2EA1_1A4C_7CAF, 0x2927);
+            assert!(decode_all(&pulses).is_empty(), "te {te}: dropped without autobf");
+            let mut dec = PsaDecoder::new();
+            dec.set_report_unchecked(true);
+            let got: Vec<DecodedSignal> = pulses.iter().filter_map(|p| dec.feed(p.level, p.duration_us)).collect();
+            assert_eq!(got.len(), 1, "te {te}");
+            assert_eq!(got[0].protocol_display_name.as_deref(), Some(UNCHECKED_NAME));
+            assert_eq!((got[0].data, got[0].extra, got[0].serial), (0xF47A_2EA1_1A4C_7CAF, Some(0x2927), None));
+            let AutoKeySearch::Recovered(found, how) = auto_key_search(UNCHECKED_NAME, &got[0]) else {
+                panic!("te {te}: no key");
+            };
+            assert_eq!((found.serial, found.button, found.protocol_display_name, how.as_str()), (Some(0x014590), Some(0), None, "PSA BF1"));
+            assert!(found.encoder_capable && found.crc_valid);
+        }
+    }
+
+    /// With `autobf` the registry reports the Honda noise window as `PSA [unchecked]`, and the key
+    /// search drops it (it decrypts neither by XOR nor by BF1/BF2); the Honda frames stay as they are.
+    #[test]
+    fn unchecked_noise_is_dropped_by_the_key_search() {
+        let path = Path::new("IMPORTS/honda/Lock_honda.sub");
+        if !path.exists() {
+            eprintln!("Skip: {path:?} not found (run from crate root)");
+            return;
+        }
+        let (freq, raw) = import_sub_raw(path).unwrap();
+        let pairs: Vec<LevelDuration> = raw.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
+        let mut reg = ProtocolRegistry::new();
+        reg.set_auto_key_search(true);
+        let got = reg.process_signal_stream(&pairs, freq);
+        let unchecked: Vec<&DecodedSignal> = got.iter().filter(|(n, _, _)| n == UNCHECKED_NAME).map(|(_, d, _)| d).collect();
+        assert_eq!(unchecked.len(), 1);
+        assert_eq!((unchecked[0].data, unchecked[0].extra), (0x4CDA_57A6_0039_A20E, Some(0x4FF4)));
+        assert_eq!(auto_key_search(UNCHECKED_NAME, unchecked[0]), AutoKeySearch::Dropped);
+        assert_eq!(got.iter().filter(|(n, _, _)| n == "Honda Static").count(), 24);
+        // An undecrypted listed frame keeps its decode, marked as searched.
+        let tea = DecodedSignal { serial: None, ..unchecked[0].clone() };
+        assert_eq!(auto_key_search("PSA", &tea), AutoKeySearch::NotFound(SEARCH_LABEL_ALL.to_string()));
+        assert_eq!(auto_key_search("Kia V0", &tea), AutoKeySearch::NotNeeded);
     }
 
     #[test]

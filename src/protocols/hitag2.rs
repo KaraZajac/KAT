@@ -159,9 +159,8 @@ pub fn fiat_bcm_authenticator(
 /// Register = `uid ‖ key[0] key[1]`, injected key bits = `key[2..6]`, IV =
 /// `counter << 4 | (button & 0xF)` (ProtoPirate passes the 10-bit counter; doctor-firmware passes
 /// `epoch << 10 | cnt10`). Equivalent to [`fiat_bcm_authenticator`] with the key rotated by two
-/// bytes. KAT has no source for such a key (no key entry, no key database), so the Renault V1
-/// encoder never reaches this path; it is kept, C-tested, as the hook for one.
-#[cfg_attr(not(test), allow(dead_code))]
+/// bytes. The Renault V1 encoder uses it with a key saved for the remote (`hitag2_keys.rs`, e.g.
+/// one "Recover key (HiTag2)" found).
 pub fn renault_authenticator(uid: u32, button: u8, counter: u32, key: &[u8; 6]) -> u32 {
     let mut state = initial_state(uid, key[0], key[1]);
     let nonce = (counter << 4) | (button as u32 & 0x0F);

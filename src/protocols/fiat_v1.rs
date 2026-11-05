@@ -13,10 +13,13 @@
 //!   keys beyond the embedded list: L2 = its flash dictionary (`subghz_hitag2_bf_dict.c`; the L3
 //!   SD file it ships, `assets/hitag2`, holds the same keys) and L4 = UID/known-key heuristics.
 //!   ARF runs that cascade when the user asks; KAT runs L1-L4 on every transmit (≈1000
-//!   authenticators, well under a millisecond in release). ARF's L5 (Hitag2Hell, which needs a
-//!   second frame of the same remote and hours of CPU) is not ported (see `docs/fiat_v1.md`).
-//! - ARF/doctor-firmware keep a per-UID key database (`hitag2_key_db.c`) and doctor-firmware a
-//!   typed-in "Hitag2 Key"; KAT has no key store or key entry, so those sources are not ported.
+//!   authenticators, well under a millisecond in release). ARF's L5, the Hitag2Hell attack (two
+//!   frames of the same remote, minutes on all cores), is the signal menu's "Recover key (HiTag2)"
+//!   (`hitag2_hell.rs`, ported from qDoctor's C, and `app/hitag2_bf.rs`).
+//! - ARF/doctor-firmware keep a per-UID key database (`hitag2_key_db.c`, `hitag2_keys.txt`):
+//!   KAT keeps the same file in its config folder (`hitag2_keys.rs`), where "Recover key
+//!   (HiTag2)" saves the keys it finds. doctor-firmware's typed-in "Hitag2 Key" (and a key file's
+//!   `Hitag2 Key` line) is not read: KAT has no key entry.
 //!
 //! RF: 315 / 433.92 MHz, AM (OOK), Manchester. Two TE variants are decoded in parallel:
 //!   Variant A (e.g. Panda):        te 250/500 µs ±100 µs
@@ -49,9 +52,11 @@
 //! ## HITAG2 key resolution ([`FiatV1Decoder::resolve_key`], run by `encode()`)
 //! 1. ProtoPirate `fiat_v1_resolve_hitag2_key` (no file): the 9 embedded keys, epoch 0, for each
 //!    key the frame's button first, then any of 1/2/4/8 (ARF's L1 is the first 8 of these).
-//! 2. ARF L2: the 95-entry flash dictionary in order, epoch 0, the frame's own button/control
+//! 2. The key saved for the UID (ARF's `hitag2_key_db_find` lookup after L1, `hitag2_keys.rs`),
+//!    with its epoch, the frame's button or any of 1/2/4/8 (doctor-firmware's check).
+//! 3. ARF L2: the 95-entry flash dictionary in order, epoch 0, the frame's own button/control
 //!    (`subghz_hitag2_bf_verify_cap_v1`).
-//! 3. ARF L4 (`subghz_hitag2_bf_run_l4`): (a) key = (UID ^ mask) ‖ tail for 12 masks × 20 tails,
+//! 4. ARF L4 (`subghz_hitag2_bf_run_l4`): (a) key = (UID ^ mask) ‖ tail for 12 masks × 20 tails,
 //!    (b) last byte of each of ARF's 8 known keys ±1..±16, (c) those 8 keys with epoch 1..7.
 //!
 //! The first match is ProtoPirate's "KEY:OK" / ARF's "found"; a hop matches a wrong key by
@@ -86,17 +91,19 @@
 //! KAT writes ProtoPirate's lines: Protocol "Fiat V1", Bit 102 (the C's logical bits), Key =
 //! UID << 32 | hop, then Serial (UID), Btn, Cnt (control), Type (TE variant: 0 = A, 1 = B), Hop,
 //! XOR, Tail Bits (decimal), Raw (the 13 wire bytes), `Hitag2 Key` + `Hitag2 Epoch` when one of
-//! ProtoPirate's embedded keys verifies the hop (the C decoder's own check, epoch 0), and
+//! ProtoPirate's embedded keys verifies the hop (the C decoder's own check, epoch 0) or the key
+//! saved for the remote does (Flipper-ARF writes every key it verified; same byte order), and
 //! `Disp: Fiat V1 - Unlock|Lock|Trunk|Close|Unknown`. Loading needs Bit 102; with Raw (any
 //! reference's file) the frame is Raw and must pass `fiat_v1_frame_valid`; without Raw it is
 //! rebuilt from Key / Serial / Btn / Cnt / Hop / XOR / Tail Bits (default 2) and validated, as the
 //! C code intends — ProtoPirate's own decoder reads those lines after the failed Raw lookup
 //! without rewinding, so in practice it needs Raw; Flipper-ARF's encoder rebuilds from them.
 //! Type missing (Flipper-ARF's files) = variant B, ProtoPirate's default. A `Hitag2 Key` in the
-//! file is not kept: KAT has no key store (see above), so TX resolves the key from its own lists
-//! and otherwise replays the frame.
+//! file is not read: TX resolves the key from its own lists and the saved keys (see above) and
+//! otherwise replays the frame.
 
 use super::hitag2;
+use super::hitag2_keys::{self, KeyOrder};
 use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
@@ -497,11 +504,29 @@ impl FiatV1Decoder {
         uid_derived.chain(last_byte).chain(epochs)
     }
 
-    /// The HITAG2 key (and epoch) for a frame: ProtoPirate's embedded keys, then ARF's L2
-    /// dictionary and L4 heuristics (see module doc). `None` = the C's "KEY:??".
+    /// The key saved for this remote (`hitag2_keys.txt`, e.g. by "Recover key (HiTag2)"):
+    /// Flipper-ARF's `hitag2_key_db_find` lookup after the embedded keys, verified with the
+    /// record's epoch for the frame's button or, as doctor-firmware also accepts, any of 1/2/4/8.
+    fn resolve_saved_key(f: &Fields) -> Option<([u8; 6], u32)> {
+        hitag2_keys::keys_for(f.uid, KeyOrder::FiatBcm).into_iter().find(|(key, epoch)| {
+            let matches =
+                |button: u8| hitag2::fiat_bcm_authenticator(f.uid, button, f.control & 0x03FF, key, *epoch) == f.hop;
+            matches(f.button) || BUTTONS.iter().any(|&b| matches(b))
+        })
+    }
+
+    /// The key a `.sub` names on its `Hitag2 Key` / `Hitag2 Epoch` lines: an embedded one
+    /// (ProtoPirate) or the remote's saved one (Flipper-ARF writes every key it verified).
+    fn file_key(f: &Fields) -> Option<([u8; 6], u32)> {
+        Self::resolve_known_key(f).map(|index| (KNOWN_KEYS[index], 0)).or_else(|| Self::resolve_saved_key(f))
+    }
+
+    /// The HITAG2 key (and epoch) for a frame: ProtoPirate's embedded keys, the key saved for the
+    /// remote, then ARF's L2 dictionary and L4 heuristics (see module doc). `None` = the C's
+    /// "KEY:??".
     fn resolve_key(f: &Fields) -> Option<([u8; 6], u32)> {
-        if let Some(index) = Self::resolve_known_key(f) {
-            return Some((KNOWN_KEYS[index], 0));
+        if let Some(found) = Self::file_key(f) {
+            return Some(found);
         }
         // subghz_hitag2_bf_verify_cap_v1: the capture's own button and control.
         let verifies = |key: &[u8; 6], epoch: u32| {
@@ -512,6 +537,13 @@ impl FiatV1Decoder {
             .map(|key| (*key, 0))
             .chain(Self::arf_heuristic_candidates(f.uid))
             .find(|(key, epoch)| verifies(key, *epoch))
+    }
+
+    /// Whether `encode()` sends fresh frames of this decode (a key resolves) instead of replaying
+    /// it: "Recover key (HiTag2)" has nothing left to find.
+    pub(super) fn has_key(decoded: &DecodedSignal) -> bool {
+        Self::raw_from_signal(decoded)
+            .is_some_and(|(raw, _)| Self::frame_valid(&raw) && Self::resolve_key(&Self::fields(&raw)).is_some())
     }
 
     /// Build the DecodedSignal for a validated frame (`fiat_v1_decode_fields`).
@@ -781,9 +813,9 @@ impl ProtocolDecoder for FiatV1Decoder {
         key.push_u32("XOR", raw[12].into());
         key.push_u32("Tail Bits", f.tail.into());
         key.push_hex_bytes("Raw", &raw);
-        if let Some(index) = Self::resolve_known_key(&f) {
-            key.push_hex_bytes("Hitag2 Key", &KNOWN_KEYS[index]);
-            key.push_u32("Hitag2 Epoch", 0);
+        if let Some((hitag2_key, epoch)) = Self::file_key(&f) {
+            key.push_hex_bytes("Hitag2 Key", &hitag2_key);
+            key.push_u32("Hitag2 Epoch", epoch);
         }
         let name = match f.button {
             BUTTON_UNLOCK => "Unlock",
@@ -1112,6 +1144,34 @@ mod tests {
                     "variant {variant} btn {btn:#X}"
                 );
             }
+        }
+    }
+
+    /// A key saved for the remote (`hitag2_keys.txt`, e.g. by "Recover key (HiTag2)") is used
+    /// after the embedded keys: fresh frames instead of the replay, and the key on the `.sub`'s
+    /// Hitag2 lines. Saved in the standard order (a Renault V1 record of the remote), it serves
+    /// too.
+    #[test]
+    fn saved_key_signs_fresh_frames() {
+        let fiat_key = [0x54, 0x31, 0x2E, 0x38, 0x4B, 0x41];
+        // UIDs no other test uses: the key database is global.
+        for (uid, stored) in [(0x5EED_0F11u32, fiat_key), (0x5EED_0F12, KeyOrder::FiatBcm.standard(fiat_key))] {
+            let hop = hitag2::fiat_bcm_authenticator(uid, BUTTON_UNLOCK, 0x155, &fiat_key, 0);
+            let raw = FiatV1Decoder::build_raw(uid, BUTTON_UNLOCK, 0x155, hop, 2);
+            let sig = FiatV1Decoder::decoded_signal(&raw, VARIANT_A);
+            assert_eq!(FiatV1Decoder::resolve_key(&FiatV1Decoder::fields(&raw)), None);
+            assert!(!FiatV1Decoder::has_key(&sig));
+            hitag2_keys::tests::remember_for_test(uid, stored);
+            assert_eq!(FiatV1Decoder::resolve_key(&FiatV1Decoder::fields(&raw)), Some((fiat_key, 0)));
+            assert!(FiatV1Decoder::has_key(&sig));
+            let dec = FiatV1Decoder::new();
+            let tx = decode_all(&mut FiatV1Decoder::new(), &dec.encode(&sig, 0x01).unwrap()).remove(0);
+            assert_eq!((tx.serial, tx.button, tx.counter), (Some(uid), Some(BUTTON_LOCK), Some(0x156)));
+            let (tx_raw, _) = FiatV1Decoder::raw_from_signal(&tx).unwrap();
+            let fresh = hitag2::fiat_bcm_authenticator(uid, BUTTON_LOCK, 0x156, &fiat_key, 0);
+            assert_eq!(FiatV1Decoder::fields(&tx_raw).hop, fresh);
+            let text = text_of(&dec, &sig);
+            assert!(text.contains("\nHitag2 Key: 54 31 2E 38 4B 41\nHitag2 Epoch: 0\n"), "{text}");
         }
     }
 

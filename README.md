@@ -45,7 +45,8 @@ Its 107 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPira
 **Recover keys**
 
 - **KeeLoq magic serial** — Flipper-ARF's KeeLoq Decrypt: finds the manufacturer key of a KeeLoq remote KAT has no key for from two captures of it, on every core — about 5 s per type for types 6 and 7, about 20 minutes for type 8 on an 8-core laptop. The key is saved, and the remote then decodes and transmits ([docs/keeloq.md](docs/keeloq.md)).
-- **PSA (Peugeot/Citroën)** — ProtoPirate's TEA key brute force, in under a second.
+- **PSA (Peugeot/Citroën)** — ProtoPirate's TEA key brute force (BF1 and BF2), in under a second, and by default without being asked: every undecrypted PSA frame, received live, from an IQ recording or a file, gets the search in the background and, with its key, its serial, button and counter, export and transmit (`autobf`). The capture shows the key as recovered, or that no key fits.
+- **HiTag2 (Fiat V1, Renault V1, Fiat V2)** — the HiTag2 Hell attack, ported from qDoctor's C: finds the 48-bit key of a remote KAT has no key for from two captures of it (two presses), on every core — at most 20 minutes on a 16-thread CPU with AVX2, about half that on average. The key is saved per remote in `hitag2_keys.txt` (Flipper-ARF's and doctor-firmware's file), and the remote then transmits fresh codes instead of replays ([docs/hitag2_hell.md](docs/hitag2_hell.md)).
 
 **Files**
 
@@ -87,18 +88,18 @@ On Windows there is nothing to install here: the `.zip` carries the HackRF libra
 Then check, unpack and run (with your version and platform):
 
 ```bash
-sha256sum -c kat-v1.8.2-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
-tar xzf kat-v1.8.2-x86_64-linux.tar.gz
-./kat-v1.8.2-x86_64-linux/kat
+sha256sum -c kat-v1.8.3-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.8.3-x86_64-linux.tar.gz
+./kat-v1.8.3-x86_64-linux/kat
 ```
 
 On Windows, in PowerShell (Windows Terminal):
 
 ```powershell
-$want = (Get-Content kat-v1.8.2-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.8.2-x86_64-windows.zip).Hash -eq $want    # True
-Expand-Archive kat-v1.8.2-x86_64-windows.zip .
-.\kat-v1.8.2-x86_64-windows\kat.exe
+$want = (Get-Content kat-v1.8.3-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.8.3-x86_64-windows.zip).Hash -eq $want    # True
+Expand-Archive kat-v1.8.3-x86_64-windows.zip .
+.\kat-v1.8.3-x86_64-windows\kat.exe
 ```
 
 The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. The Windows build isn't signed, so SmartScreen may stop its first start ("More info", then "Run anyway"). Intel Macs and other platforms build from source.
@@ -156,7 +157,7 @@ kat --keeloq-bf captures/ --save            # recover a magic-serial KeeLoq key 
 kat --help                                  # all options; --version prints the version
 ```
 
-`--decode` prints `file | frequency | source | protocol | xcount | data=…/bits sn= btn= cnt= crc= tx=` per distinct decode (`source` is `raw`, `key`, or the IQ path `am`/`fm`); `--all` prints every decode in stream order, `--verbose` also dumps each IQ burst (time, length, SNR, carrier offset, FSK deviation, pulses) to stderr. Files whose name carries no rate (e.g. rtl_433 `gfile001.cu8`) need `--rate`.
+`--decode` prints `file | frequency | source | protocol | xcount | data=…/bits sn= btn= cnt= crc= tx=` per distinct decode (with `autobf`, an undecrypted PSA frame's line ends `key=BF1` / `key=BF2` with the fields its key decrypts, or `key=none`) (`source` is `raw`, `key`, or the IQ path `am`/`fm`); `--all` prints every decode in stream order, `--verbose` also dumps each IQ burst (time, length, SNR, carrier offset, FSK deviation, pulses) to stderr. Files whose name carries no rate (e.g. rtl_433 `gfile001.cu8`) need `--rate`.
 
 `--freq` and `--rate` default to values in the recording's file name (e.g. `kat_433670000Hz_2000000sps_….cs8`), else the configured frequency and 2 MS/s. `--rate` takes 200 kS/s to 40 MS/s; `--iq` takes IQ recordings (`.cs8`, `.cu8`, `.cf32`) — `.sub` files go to `--decode`, or open in the app with `:load`. `-d` and `-v` are short for `--decode` and `--verbose`.
 
@@ -192,7 +193,8 @@ After an encoder transmission (Send next code, Send button…, TX Lock … Panic
 | Action | Description |
 |---|---|
 | Recover key (KeeLoq magic serial) | KeeLoq frame no key decrypts: search the remote's magic-serial manufacturer key using all of its captures (two or more presses), on every core (Flipper-ARF's KeeLoq Decrypt). The key is saved as `BF_<serial>` and the remote's captures decode ([docs/keeloq.md](docs/keeloq.md)) |
-| Recover key (PSA brute force) | PSA TEA frame without a key: run ProtoPirate's key brute force in the background. On success the capture gets its serial, button and counter, and transmit actions |
+| Recover key (PSA brute force) | PSA TEA frame without a key: run ProtoPirate's key brute force in the background (with `autobf`, the default, it already ran on its own). On success the capture gets its serial, button and counter, and transmit actions; the detail panel says how the key was recovered, or that no key fits |
+| Recover key (HiTag2) | Fiat V1, Renault V1 or Fiat V2 frame KAT has no key for (it would be replayed): search the remote's key with HiTag2 Hell, paired with another capture of the same remote (same UID, another press), on every core, up to 20 minutes. The key is saved in `hitag2_keys.txt` and the remote's captures send fresh codes ([docs/hitag2_hell.md](docs/hitag2_hell.md)) |
 | Cancel key recovery | Stop a running key recovery (its progress shows in the status bar's title) |
 | Replay | Re-transmit the capture as recorded (the capture does not change) |
 | Send next code | Gate, garage and barrier remotes (instead of TX Lock … Panic): transmit the code after the stored one, which the capture then keeps, so each press sends a new code |
@@ -295,6 +297,7 @@ On first start KAT creates its folder and a commented `config.ini`:
 ├── config.ini            # Settings (written with comments on first start)
 ├── session.json          # Autosaved captures (owner-only; see docs/session.md)
 ├── keeloq_mfcodes_user   # Your KeeLoq manufacturer keys, Flipper format; recovered keys are added here
+├── hitag2_keys.txt       # HiTag2 keys per remote (Flipper-ARF / doctor-firmware format); recovered keys are added here
 ├── exports/              # .fob and .sub exports
 └── import/               # .fob and .sub files imported at startup
 ```
@@ -310,6 +313,7 @@ import_directory = ~/.config/KAT/import
 max_captures = 100
 show_unknown_signals = true
 ignore_duplicates = true
+autobf = true
 
 [radio]
 default_frequency = 433920000
@@ -335,6 +339,7 @@ Switches take `true`/`false`, `yes`/`no`, `on`/`off` or `1`/`0`. A value KAT can
 - **default_frequency** — MHz (`433.92`) or Hz (`433920000`), 300–928 MHz.
 - **default_lna_gain / default_vga_gain** — fitted to what the radio takes: LNA 0–40 dB in 8 dB steps, VGA 0–62 dB in 2 dB steps (rounded down).
 - **show_unknown_signals** — when `true` (default), unknown (unidentified) signals are listed with the decoded ones; when `false`, only signals a protocol decodes appear, live, from IQ files and from imports. Older versions called it `research_mode`, which is still read when `show_unknown_signals` is absent.
+- **autobf** — when `true` (default), KAT recovers the key of every capture a brute force can crack without being asked: each undecrypted PSA (TEA) frame gets ProtoPirate's BF1/BF2 search in the background, and the frames of PSA's adaptive AM path that only the search can confirm are listed once their key is found. `false`: only the **Recover key** action runs it.
 - **ignore_duplicates** — when `true` (default), a decoded signal already in the list (same protocol, data, serial and button) is not added again. When `false`, every press is listed, as a Flipper's receive history does: a signal is only merged with the same one on the air less than 500 ms before it (one press still going, the AM and FM paths both reporting it, or both sides of a long transmission's cut). Importing a file again then adds its captures again.
 - **include_raw_pairs** — when `true`, .fob exports include raw level/duration pairs for replay.
 - **hop_frequencies / hop_dwell_ms** — the `:hop` list (MHz) and the time spent on a quiet frequency.
@@ -366,10 +371,10 @@ Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference; pr
 | Toyota (Lexus) | Bi-phase (diff. Manchester) | AM | Rolling Code (7-bit counter masks; encoder) | 315 / 433.92 MHz |
 | Honda V2 (formerly "Land Rover V0") | Diff. Manchester | FM | Rolling Code (3-bit check) | 315 / 433.92 MHz |
 | Fiat V0 | Manchester | AM | Rolling Code (replay) | 433.92 MHz |
-| Fiat V1 (Magneti Marelli BSI) | Manchester | AM | HITAG2 (PP 9 keys + ARF dictionary/heuristics → fresh frame; replay otherwise) | 315 / 433.92 MHz |
-| Fiat V2 (FCA: Fiat/Chrysler/Jeep) | Manchester | AM | Rolling Code (HITAG2 forward-encode with a known key, else replay) | 315 / 433.92 MHz |
+| Fiat V1 (Magneti Marelli BSI) | Manchester | AM | HITAG2 (PP 9 keys + ARF dictionary/heuristics + saved/recovered keys → fresh frame; replay otherwise) | 315 / 433.92 MHz |
+| Fiat V2 (FCA: Fiat/Chrysler/Jeep) | Manchester | AM | Rolling Code (HITAG2 forward-encode with a known or saved/recovered key, else replay) | 315 / 433.92 MHz |
 | Renault V0 | Manchester | AM | Rolling Code | 315 / 433.92 / 868.35 MHz |
-| Renault V1 | Manchester | AM/FM | HITAG2 (serial-derived seed auto-recovered → fresh frame; replay otherwise) | 315 / 433.92 / 868.35 MHz |
+| Renault V1 | Manchester | AM/FM | HITAG2 (serial-derived seed auto-recovered, or a saved/recovered key → fresh frame; replay otherwise) | 315 / 433.92 / 868.35 MHz |
 | Renault V1 (ARF) — Flipper-ARF type table 0x04/0x0C/0x1A/0x3B/0x3F + Dynamic | Manchester | AM/FM | Rolling Code (replay only) | 315 / 433.92 / 868.35 MHz |
 | Mazda V0 | Manchester | AM/FM | XOR whitening (encoder) | 315 / 433.92 MHz |
 | Mazda Siemens | Manchester | FM | Siemens XOR/interleave | 315 / 433.92 MHz |
@@ -490,13 +495,13 @@ One receive pipeline serves the HackRF, the RTL-SDR and IQ recordings ([docs/rad
 - **AES-128** — full encrypt/decrypt for Kia V6 (key derived from keystore A/B with XOR masks)
 - **TEA / XOR** — PSA (Peugeot/Citroën): XOR fast path on decode; TEA frames are recovered on demand with ProtoPirate’s key brute force (two 2^24 ranges, multithreaded, ≈0.5 s worst case) from the signal menu’s **Recover key** action
 - **AUT64** — 12-round block cipher for VAG type 1/3/4 (aut64)
-- **HITAG2** — keystream/authenticator shared by Fiat V1 (hop verified against ProtoPirate’s 9 keys plus Flipper-ARF’s dictionary/heuristics → fresh frame) and Renault V1 (ProtoPirate’s 2^18 serial-derived seed search, ~10 ms, runs on every frame → fresh frame); without a key/seed both replay the captured frame, as the references do (hitag2)
+- **HITAG2** — keystream/authenticator shared by Fiat V1 (hop verified against ProtoPirate’s 9 keys plus Flipper-ARF’s dictionary/heuristics → fresh frame) and Renault V1 (ProtoPirate’s 2^18 serial-derived seed search, ~10 ms, runs on every frame → fresh frame); a key saved per remote in `hitag2_keys.txt` (Flipper-ARF’s / doctor-firmware’s key database) serves Fiat V1, Renault V1 and Fiat V2, and the signal menu’s **Recover key (HiTag2)** finds one from two captures of a remote with qDoctor’s HiTag2 Hell attack (hitag2_hell); without a key/seed they replay the captured frame, as the references do (hitag2)
 - **XTEA** — Opel V1 frames decrypted with the published Bosch key (opel_v1)
 - **Keystore** — manufacturer keys (Kia, VAG, etc.) built in; see `src/keystore/`
 
 ## Documentation
 
-Each protocol has its own page in [docs/](docs/README.md): how it works, the frame layout and what KAT does with it. Feature pages: [receive](docs/radio.md), [transmit](docs/transmit.md), [session autosave and saved-fob matching](docs/session.md), [timing analysis](docs/timing_analysis.md), [Add Manually](docs/add_manually.md), [Flipper key files](docs/flipper_key_files.md), [KeeLoq and key recovery](docs/keeloq.md) and [unidentified captures](docs/unidentified_captures.md).
+Each protocol has its own page in [docs/](docs/README.md): how it works, the frame layout and what KAT does with it. Feature pages: [receive](docs/radio.md), [transmit](docs/transmit.md), [session autosave and saved-fob matching](docs/session.md), [timing analysis](docs/timing_analysis.md), [Add Manually](docs/add_manually.md), [Flipper key files](docs/flipper_key_files.md), [KeeLoq and key recovery](docs/keeloq.md), [HiTag2 key recovery](docs/hitag2_hell.md) and [unidentified captures](docs/unidentified_captures.md).
 
 The `IMPORTS/` directory holds sample `.sub` captures by manufacturer; the test suite decodes all of them. If you see `desktop.ini` files in its subfolders (from Windows), you can delete them; git ignores them.
 
@@ -509,6 +514,7 @@ src/
 ├── app/                 # rx.rs (:iq, :record, :hop), tx.rs (transmit queue, :txpower), persistence.rs (session),
 │                        # fob_matching.rs (saved-fob ★), timing_view.rs (timing overlay), key_files.rs (Flipper key
 │                        # files), add_manually.rs (:new, Send button…), keeloq_bf.rs (KeeLoq key recovery),
+│                        # hitag2_bf.rs (HiTag2 key recovery), auto_bf.rs (autobf PSA searches),
 │                        # input.rs (keys, ID lists, delete/undo, quit prompt, menus), files.rs (export names,
 │                        # import results)
 ├── headless.rs          # kat --decode / --keeloq-bf: decode files, recover KeeLoq keys without the TUI
@@ -540,6 +546,7 @@ src/
 │   ├── vag.rs           # VAG decoder/encoder (4 sub-types; encode from capture via extra)
 │   ├── scher_khan.rs, star_line.rs, psa.rs
 │   ├── renault_v0.rs, renault_v1.rs, fiat_v2.rs, hitag2.rs   # HITAG2 shared by Fiat V1 / Renault V1
+│   ├── hitag2_hell.rs, hitag2_keys.rs   # HiTag2 Hell key recovery (qDoctor), per-remote HiTag2 key file
 │   ├── bmw.rs, mercedes_v0.rs, mercedes_v1.rs, opel_v1.rs, gm.rs, mazda_v2.rs, datsun_lada.rs
 │   ├── sheriff_cfm.rs, audi.rs, mazda_infinity.rs, hyundai.rs   # hyundai: not registered
 │   ├── princeton.rs, came.rs, secplus_v2.rs, somfy_telis.rs, faac_slh.rs, …   # 54 gate, garage and shutter protocols

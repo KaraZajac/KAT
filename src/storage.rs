@@ -44,6 +44,9 @@ pub struct Config {
     /// A decoded signal already in the list is not added again. Off: every press is listed, and only
     /// a repeat within 500 ms of the same signal (one press still on the air) is merged.
     pub ignore_duplicates: bool,
+    /// Brute-force the key of every capture a search can recover (undecrypted PSA frames) without
+    /// being asked, in the background (`autobf`).
+    pub autobf: bool,
 
     // [radio]
     /// Default frequency in Hz
@@ -83,6 +86,7 @@ impl Config {
             max_captures: 100,
             show_unknown_signals: true, // researchers need to see them
             ignore_duplicates: true,
+            autobf: true,
             default_frequency: 433_920_000,
             hop_frequencies: crate::radio::hopper::DEFAULT_HOP_FREQUENCIES.to_vec(),
             hop_dwell_ms: crate::radio::hopper::DEFAULT_DWELL_MS,
@@ -134,6 +138,7 @@ impl Config {
         let legacy_unknown = r.bool("general", "research_mode", defaults.show_unknown_signals);
         let show_unknown_signals = r.bool("general", "show_unknown_signals", legacy_unknown);
         let ignore_duplicates = r.bool("general", "ignore_duplicates", defaults.ignore_duplicates);
+        let autobf = r.bool("general", "autobf", defaults.autobf);
 
         let default_frequency = r.frequency("radio", "default_frequency", defaults.default_frequency);
         let hop_frequencies = r.hop_list("radio", "hop_frequencies", defaults.hop_frequencies);
@@ -170,6 +175,7 @@ impl Config {
             max_captures,
             show_unknown_signals,
             ignore_duplicates,
+            autobf,
             default_frequency,
             hop_frequencies,
             hop_dwell_ms,
@@ -225,6 +231,12 @@ show_unknown_signals = {show_unknown_signals}
 ; 500 ms (one press still on the air) is merged.
 ignore_duplicates = {ignore_duplicates}
 
+; Recover the key of every capture a brute force can crack, without being asked: PSA frames
+; encrypted with TEA get ProtoPirate's BF1/BF2 search in the background (well under a second
+; each) and, when it finds the key, their serial, button and counter, so they can be exported
+; and transmitted. false: only the signal menu's "Recover key" runs it.
+autobf = {autobf}
+
 [radio]
 ; Default receive frequency, in Hz or MHz ({freq_mhz:.2} MHz), 300-928 MHz.
 ; Common keyfob frequencies: 315000000, 433920000, 868350000 (or 315, 433.92, 868.35)
@@ -269,6 +281,7 @@ session_autosave = {session_autosave}
             max_captures = self.max_captures,
             show_unknown_signals = self.show_unknown_signals,
             ignore_duplicates = self.ignore_duplicates,
+            autobf = self.autobf,
             freq_mhz = freq_mhz,
             frequency = self.default_frequency,
             hop_list = self
@@ -306,6 +319,7 @@ const KNOWN_KEYS: &[(&str, &[&str])] = &[
             "show_unknown_signals",
             "research_mode",
             "ignore_duplicates",
+            "autobf",
             "session_autosave",
         ],
     ),
@@ -501,6 +515,18 @@ fn expand_tilde(s: &str) -> PathBuf {
 }
 
 /// Resolve the KAT config directory to `~/.config/KAT/` regardless of OS.
+/// The `autobf` setting of `config.ini`, read without creating anything (`kat --decode`); the
+/// default when there is no config file.
+pub fn autobf_setting() -> bool {
+    let Some(dir) = resolve_config_dir() else {
+        return Config::default_for(std::path::Path::new(".")).autobf;
+    };
+    match fs::read_to_string(dir.join("config.ini")) {
+        Ok(text) => Config::parse_ini(&text, &dir).0.autobf,
+        Err(_) => Config::default_for(&dir).autobf,
+    }
+}
+
 pub fn resolve_config_dir() -> Option<PathBuf> {
     dirs::home_dir().map(|home| home.join(".config").join("KAT"))
 }
@@ -729,6 +755,15 @@ mod config_warning_tests {
         assert!(!cfg.show_unknown_signals && warnings.is_empty(), "{warnings:?}");
         let (cfg, _) = parse("[general]\nresearch_mode = false\nshow_unknown_signals = true\n");
         assert!(cfg.show_unknown_signals, "the new key wins");
+    }
+
+    /// `autobf` is on unless the config says otherwise.
+    #[test]
+    fn autobf_switch() {
+        let (cfg, warnings) = parse("[general]\nmax_captures = 100\n");
+        assert!(cfg.autobf && warnings.is_empty(), "{warnings:?}");
+        let (cfg, warnings) = parse("[general]\nautobf = false\n");
+        assert!(!cfg.autobf && warnings.is_empty(), "{warnings:?}");
     }
 
     /// Switches take true/false, yes/no, on/off and 1/0 in any case; anything else keeps the

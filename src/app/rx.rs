@@ -121,24 +121,22 @@ impl App {
         let show_unknown = self.storage.config.show_unknown_signals;
         let keep_duplicates = !self.storage.config.ignore_duplicates;
         let (mut added, mut duplicates) = (0, 0);
-        for mut capture in received_captures(&mut self.protocols, burst, show_unknown, keep_duplicates) {
-            let skip = if keep_duplicates {
-                self.rx.repeat_of_recent(&capture)
-            } else {
-                self.capture_duplicate_of_existing(&capture)
-            };
-            if skip {
-                duplicates += 1;
+        let mut listed = Vec::new();
+        for capture in received_captures(&mut self.protocols, burst, show_unknown, keep_duplicates) {
+            // autobf: listed only if its key is found (app/auto_bf.rs).
+            if capture.protocol.as_deref() == Some(crate::protocols::PSA_UNCHECKED_NAME) {
+                self.auto_bf_unchecked(capture);
                 continue;
             }
-            capture.id = self.next_capture_id;
-            self.next_capture_id += 1;
-            // Autosaved to the session file on the next tick (app/persistence.rs).
-            self.captures.push(capture);
-            // Selected only when that takes nothing from the user (app/input.rs).
-            self.follow_new_capture();
-            added += 1;
+            match self.list_received(capture) {
+                Some(id) => {
+                    listed.push(id);
+                    added += 1;
+                }
+                None => duplicates += 1,
+            }
         }
+        self.auto_bf_listed(listed);
         match (added, duplicates) {
             (0, 0) => {}
             // Duplicates kept: the same press, still on the air.
@@ -147,6 +145,29 @@ impl App {
             (1, _) => self.status_message = Some("New signal captured".to_string()),
             (n, _) => self.status_message = Some(format!("{n} new signals captured")),
         }
+    }
+}
+
+impl App {
+    /// List one received capture unless the duplicate rules skip it (`ignore_duplicates`: equal to
+    /// one in the list; with duplicates kept, a repeat on the air within 500 ms); its id if listed.
+    pub(super) fn list_received(&mut self, mut capture: Capture) -> Option<u32> {
+        let skip = if self.storage.config.ignore_duplicates {
+            self.capture_duplicate_of_existing(&capture)
+        } else {
+            self.rx.repeat_of_recent(&capture)
+        };
+        if skip {
+            return None;
+        }
+        capture.id = self.next_capture_id;
+        self.next_capture_id += 1;
+        let id = capture.id;
+        // Autosaved to the session file on the next tick (app/persistence.rs).
+        self.captures.push(capture);
+        // Selected only when that takes nothing from the user (app/input.rs).
+        self.follow_new_capture();
+        Some(id)
     }
 }
 

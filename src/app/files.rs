@@ -121,6 +121,8 @@ pub(super) struct Importer<'a> {
     pub show_unknown: bool,
     /// A signal already in the list is not added again (config `ignore_duplicates`).
     pub ignore_duplicates: bool,
+    /// `PSA [unchecked]` frames the files held, for `autobf` to list only if their key is found.
+    pub unchecked: Vec<Capture>,
     /// For each capture's `source_file` (the path relative to it).
     pub import_dir: &'a Path,
 }
@@ -188,6 +190,11 @@ impl Importer<'_> {
             capture.rf_preset = sub.preset.clone();
             capture.protocol = Some(protocol_name);
             set_decode(&mut capture, &decoded);
+            if capture.protocol.as_deref() == Some(crate::protocols::PSA_UNCHECKED_NAME) {
+                capture.source_file = Some(App::path_relative_to_import(path, self.import_dir));
+                self.unchecked.push(capture);
+                continue;
+            }
             added += usize::from(self.add(capture, path));
         }
         // Nothing decoded: the whole file as one unknown capture in research mode, as for a live
@@ -347,6 +354,7 @@ mod tests {
             show_unknown: research,
             ignore_duplicates: true,
             import_dir: Path::new("IMPORTS"),
+            unchecked: Vec::new(),
         }
     }
 

@@ -46,8 +46,10 @@
 //!   0x02 Unlock → 3, 0x04 Trunk → 1 — ARF's Down/Up/Left; anything else keeps the captured
 //!   selector, ARF's OK), the counter + 1 (ARF's car-emulate scene writes Cnt = counter + 1 per
 //!   press), then the hop recomputed with `fiat_v1_compute_auth` (= `hitag2::fiat_bcm_authenticator`)
-//!   and patched in; markers, UID and type nibble are kept. Otherwise (no key matches — every
-//!   frame in IMPORTS) the 14 captured bytes are replayed unchanged, as ARF and doctor-firmware do.
+//!   and patched in; markers, UID and type nibble are kept. After ARF's keys KAT tries the key
+//!   saved for the remote (`hitag2_keys.txt`, Fiat V1's byte order, e.g. one "Recover key
+//!   (HiTag2)" found; `hitag2_keys.rs`) the same way. Otherwise (no key matches — every frame in
+//!   IMPORTS) the 14 captured bytes are replayed unchanged, as ARF and doctor-firmware do.
 //! - Waveform: doctor-firmware `fiat_v2_encoder_build_upload`. Per copy: LOW 2000µs, 112 bits
 //!   with bit b sent as (!b, b) half-bits of 210µs, a HIGH 210µs stop pulse if the last half-bit
 //!   was low, LOW 2000µs; same-level runs merged; 6 copies (doctor's default repeat). That polarity
@@ -67,6 +69,7 @@
 use std::collections::VecDeque;
 
 use super::hitag2;
+use super::hitag2_keys::{self, KeyOrder};
 use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
@@ -233,6 +236,25 @@ impl FiatV2Decoder {
                 .find(|&combo| Self::compute_hop(raw, key, combo) == hop)
                 .map(|combo| (key, combo))
         })
+    }
+
+    /// The key `encode()` uses: ARF's known keys ([`Self::find_known_key`]), then the key saved
+    /// for the remote (`hitag2_keys.txt`, e.g. by "Recover key (HiTag2)"; Fiat V1's byte order),
+    /// with the first IV combo that reproduces the captured hop.
+    fn find_key(raw: &[u8; WIRE_BYTES]) -> Option<([u8; 6], u8)> {
+        if let Some((key, combo)) = Self::find_known_key(raw) {
+            return Some((*key, combo));
+        }
+        let hop = Self::hop(raw);
+        hitag2_keys::keys_for(Self::uid(raw), KeyOrder::FiatBcm).into_iter().find_map(|(key, _)| {
+            (0..IV_COMBO_COUNT).find(|&combo| Self::compute_hop(raw, &key, combo) == hop).map(|combo| (key, combo))
+        })
+    }
+
+    /// Whether `encode()` sends fresh frames of this decode (a key verifies) instead of replaying
+    /// it: "Recover key (HiTag2)" has nothing left to find.
+    pub(super) fn has_key(decoded: &DecodedSignal) -> bool {
+        Self::raw_from_signal(decoded).is_some_and(|raw| Self::frame_valid(&raw) && Self::find_key(&raw).is_some())
     }
 
     /// fiat_v2_patch_button: selector into raw[7] bits 7:6.
@@ -467,9 +489,9 @@ impl ProtocolDecoder for FiatV2Decoder {
         if !Self::frame_valid(&raw) {
             return None;
         }
-        // Flipper-ARF hop recompute when a known key reproduces the captured hop; otherwise the
-        // captured frame is replayed unchanged.
-        if let Some((key, combo)) = Self::find_known_key(&raw) {
+        // Flipper-ARF hop recompute when a known or saved key reproduces the captured hop;
+        // otherwise the captured frame is replayed unchanged.
+        if let Some((key, combo)) = Self::find_key(&raw) {
             let selector = match button {
                 0x01 => SEL_LOCK,
                 0x02 => SEL_UNLOCK,
@@ -479,7 +501,7 @@ impl ProtocolDecoder for FiatV2Decoder {
             let counter = u32::from(decoded.counter.unwrap_or_else(|| Self::counter(&raw))) + 1;
             Self::patch_button(&mut raw, selector);
             Self::patch_counter(&mut raw, counter);
-            let hop = Self::compute_hop(&raw, key, combo);
+            let hop = Self::compute_hop(&raw, &key, combo);
             Self::patch_hop(&mut raw, hop);
         }
         let mut signal = Vec::with_capacity(ENC_REPEAT * (WIRE_BITS * 2 + 3));
@@ -738,6 +760,29 @@ mod tests {
                 assert_eq!(got[..7], raw[..7], "markers, UID and type kept");
             }
         }
+    }
+
+    /// A key saved for the remote (`hitag2_keys.txt`, Fiat V1's byte order, e.g. by "Recover key
+    /// (HiTag2)") is used like ARF's known keys: fresh frames instead of the replay.
+    #[test]
+    fn saved_key_frames_are_forward_encoded() {
+        // A UID no other test uses: the key database is global.
+        let uid = 0x5EED_0F2Au32;
+        let key = [0x54, 0x31, 0x2E, 0x38, 0x4B, 0x41];
+        let mut raw = RAW_PACIFICA;
+        raw[2..6].copy_from_slice(&uid.to_be_bytes());
+        let hop = FiatV2Decoder::compute_hop(&raw, &key, 1);
+        FiatV2Decoder::patch_hop(&mut raw, hop);
+        let original = FiatV2Decoder::build_signal(&raw);
+        assert_eq!(FiatV2Decoder::find_key(&raw), None);
+        assert!(!FiatV2Decoder::has_key(&original));
+        hitag2_keys::tests::remember_for_test(uid, key);
+        assert_eq!(FiatV2Decoder::find_key(&raw), Some((key, 1)));
+        assert!(FiatV2Decoder::has_key(&original));
+        let out = decode(&FiatV2Decoder::new().encode(&original, 0x02).unwrap());
+        let got = FiatV2Decoder::raw_from_signal(&out[0]).unwrap();
+        assert_eq!((got[7] >> 6, FiatV2Decoder::counter(&got)), (SEL_UNLOCK, original.counter.unwrap() + 1));
+        assert_eq!(FiatV2Decoder::hop(&got), FiatV2Decoder::compute_hop(&got, &key, 1));
     }
 
     #[test]

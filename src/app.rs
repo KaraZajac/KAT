@@ -193,6 +193,8 @@ mod key_files;
 // `:new` ("Add Manually" remotes) and the signal menu's "Send button…".
 mod add_manually;
 mod keeloq_bf;
+mod hitag2_bf;
+mod auto_bf;
 mod input;
 pub use add_manually::{PickerRow, PICKER_VISIBLE_ROWS};
 
@@ -218,6 +220,8 @@ pub enum SignalAction {
     RecoverKey,
     /// KeeLoq frame no key decrypts: Flipper-ARF's magic-serial key search (app/keeloq_bf.rs).
     RecoverKeeloqKey,
+    /// Fiat V1 / Renault V1 / Fiat V2 frame without a key: qDoctor's HiTag2 Hell (app/hitag2_bf.rs).
+    RecoverHitag2Key,
     /// Stop a running "Recover key".
     CancelKeyRecovery,
 }
@@ -252,6 +256,7 @@ impl SignalAction {
             SignalAction::Delete => "Delete Signal",
             SignalAction::RecoverKey => "Recover key (PSA brute force)",
             SignalAction::RecoverKeeloqKey => "Recover key (KeeLoq magic serial)",
+            SignalAction::RecoverHitag2Key => "Recover key (HiTag2)",
             SignalAction::CancelKeyRecovery => "Cancel key recovery",
         }
     }
@@ -352,10 +357,16 @@ pub enum RadioEvent {
 /// License text (embedded at compile time)
 pub const LICENSE_TEXT: &str = include_str!("../LICENSE");
 
-/// A running PSA "Recover key" brute force (ProtoPirate's `psa_brute_force_run`, on a thread so the
-/// UI stays responsive; ≈0.5 s worst case on a 16-core PC, longer on small machines).
+/// A running PSA key brute force (ProtoPirate's `psa_brute_force_run`, on a thread so the UI stays
+/// responsive; ≈0.5 s worst case on a 16-core PC, longer on small machines): the "Recover key"
+/// action, or `autobf` (app/auto_bf.rs).
 struct PsaRecoverJob {
-    capture_id: u32,
+    /// The listed capture whose key is searched; None for an unchecked frame.
+    capture_id: Option<u32>,
+    /// A `PSA [unchecked]` frame, listed only if its key is found.
+    unchecked: Option<Box<Capture>>,
+    /// Started by `autobf`: reports quietly, and quitting does not wait for it.
+    auto: bool,
     ctl: Arc<PsaBruteForceControl>,
     handle: std::thread::JoinHandle<PsaBruteForceOutcome>,
 }
@@ -484,8 +495,15 @@ pub struct App {
 
     /// PSA key recovery running in the background (at most one key recovery at a time).
     psa_recover_job: Option<PsaRecoverJob>,
+    /// Key searches waiting for the background job (`autobf`, app/auto_bf.rs).
+    auto_bf: auto_bf::AutoBf,
     /// KeeLoq magic-serial key search running in the background.
     keeloq_bf_job: Option<keeloq_bf::KeeloqBfJob>,
+    /// HiTag2 key search running in the background.
+    hitag2_bf_job: Option<hitag2_bf::Hitag2BfJob>,
+    /// Whether the signal menu offers "Recover key (HiTag2)" (app/hitag2_bf.rs): the menu asks on
+    /// every frame it draws.
+    hitag2_offer_memo: std::cell::Cell<Option<hitag2_bf::OfferMemo>>,
 
     // -- :load file browser --
     /// Current directory in the load file browser
@@ -517,8 +535,11 @@ impl App {
         crate::protocols::keys::load_keystore_from_embedded();
         // ── … plus the user's KeeLoq keys (Flipper `keeloq_mfcodes_user` format), if present ──
         let user_keystore_msg = crate::keystore::load_user_keystore(storage.config_dir());
+        // ── … and the HiTag2 keys saved per remote (Flipper-ARF's `hitag2_keys.txt`), if any ──
+        let hitag2_keys_msg = crate::protocols::hitag2_keys::load(storage.config_dir());
 
-        let protocols = ProtocolRegistry::new();
+        let mut protocols = ProtocolRegistry::new();
+        protocols.set_auto_key_search(storage.config.autobf);
         let (radio_event_tx, radio_event_rx) = mpsc::channel();
 
         // Try HackRF first, then RTL-SDR; keep why each could not be opened (no-device popup).
@@ -638,7 +659,10 @@ impl App {
             tx_amp,
             pending_transmit_restore: None,
             psa_recover_job: None,
+            auto_bf: auto_bf::AutoBf::default(),
             keeloq_bf_job: None,
+            hitag2_bf_job: None,
+            hitag2_offer_memo: std::cell::Cell::new(None),
             load_browser_cwd: PathBuf::new(),
             load_browser_selected: 0,
             load_browser_scroll: 0,
@@ -654,7 +678,7 @@ impl App {
         }
         // Saved-session restore prompt, session writer, saved-fob index (app/persistence.rs).
         app.init_app_extensions();
-        if let Some(msg) = user_keystore_msg {
+        for msg in [user_keystore_msg, hitag2_keys_msg].into_iter().flatten() {
             tracing::info!("{msg}");
             app.status_message.get_or_insert(msg);
         }
@@ -1185,6 +1209,8 @@ impl App {
     pub fn process_radio_events(&mut self) -> Result<()> {
         self.poll_psa_key_recovery();
         self.poll_keeloq_key_recovery();
+        self.poll_hitag2_key_recovery();
+        self.auto_bf_tick();
         if let Some(ref rssi_arc) = self.rssi_source {
             self.rssi = f32::from_bits(rssi_arc.load(Ordering::Relaxed));
         }
@@ -1234,22 +1260,32 @@ impl App {
         actions
     }
 
-    /// "Recover key" for an undecrypted PSA (TEA) capture or a KeeLoq frame no key decrypts, or
-    /// "Cancel key recovery" while one runs.
+    /// "Recover key" for an undecrypted PSA (TEA) capture, a KeeLoq frame no key decrypts or a
+    /// HiTag2 frame without a key, or "Cancel key recovery" while one runs for it.
     fn key_recovery_action(&self) -> Option<SignalAction> {
         let c = self.signal_menu_capture()?;
-        if let Some(job) = &self.psa_recover_job {
-            return (job.capture_id == c.id).then_some(SignalAction::CancelKeyRecovery);
+        if self.key_search_runs_for(c.id) {
+            return Some(SignalAction::CancelKeyRecovery);
         }
-        if let Some(job) = &self.keeloq_bf_job {
-            return (job.capture_id == c.id).then_some(SignalAction::CancelKeyRecovery);
-        }
-        let undecrypted_psa =
-            c.protocol_name() == "PSA" && c.serial.is_none() && c.data_extra.is_some();
-        if undecrypted_psa {
+        // A PSA search (well under a second) runs beside a long one, or waits for the PSA search
+        // that runs (app/auto_bf.rs).
+        if crate::protocols::psa_needs_key_search(c.protocol_name(), c.serial, c.data_extra) {
             return Some(SignalAction::RecoverKey);
         }
-        Self::keeloq_bf_offered(c).then_some(SignalAction::RecoverKeeloqKey)
+        if self.long_key_search_runs() {
+            return None;
+        }
+        if Self::keeloq_bf_offered(c) {
+            return Some(SignalAction::RecoverKeeloqKey);
+        }
+        self.hitag2_bf_offered(c).then_some(SignalAction::RecoverHitag2Key)
+    }
+
+    /// Whether a key search runs for capture `id` (the signal menu offers to cancel it).
+    fn key_search_runs_for(&self, id: u32) -> bool {
+        self.psa_recover_job.as_ref().is_some_and(|j| j.capture_id == Some(id))
+            || self.keeloq_bf_job.as_ref().is_some_and(|j| j.capture_id == id)
+            || self.hitag2_bf_job.as_ref().is_some_and(|j| j.capture_ids.contains(&id))
     }
 
     fn signal_actions_base(&self) -> Vec<SignalAction> {
@@ -1374,24 +1410,29 @@ impl App {
             SignalAction::RecoverKeeloqKey => {
                 self.start_keeloq_key_recovery(capture_id, None);
             }
+            SignalAction::RecoverHitag2Key => {
+                self.start_hitag2_key_recovery(capture_id);
+            }
             SignalAction::CancelKeyRecovery => {
-                if let Some(job) = &self.psa_recover_job {
+                // The search that runs for this capture (an autobf PSA search may run beside a
+                // long one).
+                if self.hitag2_bf_job.as_ref().is_some_and(|j| j.capture_ids.contains(&capture_id)) {
+                    self.cancel_hitag2_key_recovery();
+                } else if self.keeloq_bf_job.as_ref().is_some_and(|j| j.capture_id == capture_id) {
+                    self.cancel_keeloq_key_recovery();
+                } else if let Some(job) = &self.psa_recover_job {
                     job.ctl.cancel.store(true, Ordering::Relaxed);
                     self.status_message = Some("Cancelling key recovery…".to_string());
-                } else {
-                    self.cancel_keeloq_key_recovery();
                 }
             }
         }
         Ok(())
     }
 
-    /// Start ProtoPirate's PSA TEA key brute force for a capture on a background thread.
+    /// Start ProtoPirate's PSA TEA key brute force for a capture on a background thread (the
+    /// "Recover key" action); while another PSA search runs it waits, first in line. It runs
+    /// beside a long KeeLoq or HiTag2 search.
     fn start_psa_key_recovery(&mut self, id: u32) {
-        if self.psa_recover_job.is_some() {
-            self.last_error = Some("A key recovery is already running".to_string());
-            return;
-        }
         let Some(capture) = self.captures.iter().find(|c| c.id == id) else {
             self.last_error = Some(format!("Capture {} not found", id));
             return;
@@ -1401,14 +1442,25 @@ impl App {
                 Some("Capture has no key2; re-import it from its raw pairs".to_string());
             return;
         };
+        if self.psa_recover_job.is_some() {
+            self.queue_asked_key_search(id);
+            self.status_message = Some(format!("Key recovery for capture {id} queued"));
+            return;
+        }
         let data = capture.data;
-        let ctl = Arc::new(PsaBruteForceControl::default());
-        let worker = Arc::clone(&ctl);
-        let handle = std::thread::spawn(move || psa_recover_key(data, extra, &worker));
-        self.psa_recover_job = Some(PsaRecoverJob { capture_id: id, ctl, handle });
+        self.spawn_psa_job(data, extra, Some(id), None, false);
         // Its progress is job_status() (status bar title), not this line: rewriting the message
         // every tick wiped every other message.
         self.status_message = Some(format!("Recovering PSA key for capture {}…", id));
+    }
+
+    /// Run the PSA key search on (`data`, `extra`) on a background thread, for listed capture
+    /// `capture_id` or for an `unchecked` frame.
+    fn spawn_psa_job(&mut self, data: u64, extra: u64, capture_id: Option<u32>, unchecked: Option<Box<Capture>>, auto: bool) {
+        let ctl = Arc::new(PsaBruteForceControl::default());
+        let worker = Arc::clone(&ctl);
+        let handle = std::thread::spawn(move || psa_recover_key(data, extra, &worker));
+        self.psa_recover_job = Some(PsaRecoverJob { capture_id, unchecked, auto, ctl, handle });
     }
 
     /// Progress of a running PSA key recovery, for [App::job_status].
@@ -1416,7 +1468,11 @@ impl App {
         let job = self.psa_recover_job.as_ref().filter(|j| !j.handle.is_finished())?;
         let done = u64::from(job.ctl.progress.load(Ordering::Relaxed));
         let pct = (done * 100 / u64::from(PSA_BRUTE_FORCE_TOTAL)).min(99);
-        Some(format!("Recovering PSA key for capture {}… {}%", job.capture_id, pct))
+        Some(match (job.capture_id, job.auto) {
+            (Some(id), false) => format!("Recovering PSA key for capture {id}… {pct}%"),
+            (Some(id), true) => format!("Checking the PSA key of capture {id}… {pct}%"),
+            (None, _) => format!("Checking a PSA frame… {pct}%"),
+        })
     }
 
     /// Collect the result of a running PSA key recovery (progress: [App::job_status]).
@@ -1430,31 +1486,11 @@ impl App {
         let Some(job) = self.psa_recover_job.take() else {
             return;
         };
-        let id = job.capture_id;
-        match job.handle.join() {
-            Ok(PsaBruteForceOutcome::Found(hit)) => {
-                if let Some(c) = self.captures.iter_mut().find(|c| c.id == id) {
-                    c.serial = Some(hit.fields.serial);
-                    c.button = Some(hit.fields.button);
-                    // PSA counters are up to 28 bits; the capture keeps the low 16 like the decoder.
-                    c.counter = Some(hit.fields.counter as u16);
-                    c.crc_valid = true;
-                    c.status = crate::capture::CaptureStatus::EncoderCapable;
-                    self.status_message = Some(format!(
-                        "PSA key recovered for capture {}: serial {:06X}, counter {:X}",
-                        id, hit.fields.serial, hit.fields.counter
-                    ));
-                }
-            }
-            Ok(PsaBruteForceOutcome::NotFound) => {
-                self.last_error = Some(format!("No PSA key found for capture {}", id));
-            }
-            Ok(PsaBruteForceOutcome::Cancelled) => {
-                self.status_message = Some(format!("Key recovery for capture {} cancelled", id));
-            }
-            Err(_) => {
-                self.last_error = Some("Key recovery thread failed".to_string());
-            }
+        let outcome = job.handle.join();
+        match (job.capture_id, job.unchecked) {
+            (Some(id), _) => self.psa_search_done(id, job.auto, outcome),
+            (None, Some(frame)) => self.unchecked_search_done(*frame, outcome),
+            (None, None) => {}
         }
     }
 
@@ -1868,8 +1904,16 @@ impl App {
             show_unknown: self.storage.config.show_unknown_signals,
             ignore_duplicates: self.storage.config.ignore_duplicates,
             import_dir: &import_dir,
+            unchecked: Vec::new(),
         };
         let results: Vec<(String, files::FileImport)> = paths.iter().map(|path| importer.import(path)).collect();
+        let unchecked = std::mem::take(&mut importer.unchecked);
+        // autobf: the new undecrypted PSA captures, and the frames listed only if their key is found.
+        let new_ids: Vec<u32> = self.captures[first_new..].iter().map(|c| c.id).collect();
+        self.auto_bf_listed(new_ids);
+        for frame in unchecked {
+            self.auto_bf_unchecked(frame);
+        }
 
         if self.captures.len() > first_new {
             self.selected_capture = Some(first_new);
@@ -1998,6 +2042,7 @@ impl App {
             command: None,
             source_file: None,
             on_air: None,
+            key_recovery: None,
         };
         self.next_capture_id += 1;
         self.captures.push(capture);

@@ -25,6 +25,16 @@ menu's **Recover key (PSA brute force)** action runs the brute force on a backgr
 the status line, **Cancel key recovery** to stop it; ≤ ~0.5 s on a 16-core PC). On a hit the capture gets
 its serial, button and counter and the TX actions appear.
 
+**`autobf`** (`config.ini`, on by default) runs that search without being asked, as qDoctor does with
+its `doctor_subghz` library: every undecrypted PSA capture, received live, from an IQ recording, a
+`.sub` file or a restored session, gets it in the background, one search at a time (the **Recover key**
+action goes first). A hit fills in the fields as above; a full miss marks the capture "no key (PSA
+BF1/BF2 searched)". The detail panel's **Recovery** row and the vulnerability panel say which: a
+recovered key makes the capture encoder-capable, so it counts as vulnerable and can be exported and
+sent. `kat --decode` runs the same search in line and ends the frame's line with `key=BF1`, `key=BF2`
+or `key=none`. Ten doctor-firmware key files a tester sorted as crackable with qDoctor's library all
+give the serial qDoctor found, in 0.02–0.5 s each.
+
 `IMPORTS/GROUPE PSA` holds two genuine fobs: an XOR fob (serial 0x99EB25, counters 0x39B/0x39C)
 and a TEA fob (serial 0x014590 recovered by the BF1 brute force, counters 0x9158E53/0x9158E55).
 
@@ -98,8 +108,9 @@ same result as the C's sequential loop; `brute_force()` takes a cancel flag and 
 Cost on a 16-core machine: full miss ≈ 0.46 s release (up to ~1.3 s while other builds load the
 machine; 3.7 s in a debug build); BF1 hits ≤ 0.33 s (the cost grows with the serial: the genuine TEA
 fob, serial 0x014590, is found after 83 344 candidates); the C references take 4.6 s
-single-threaded for a full miss. The search runs only on demand ("Recover key"), off the UI thread;
-a frame it cannot decrypt stays undecrypted (no serial, not encoder-capable), as in the references.
+single-threaded for a full miss. The search runs off the UI thread, on demand ("Recover key") or with
+`autobf`; a frame it cannot decrypt stays undecrypted (no serial, not encoder-capable), as in the
+references.
 
 Once the serial is known, decryption is O(1) (`tea_decrypt_with_serial`), so `encode()` needs only
 `data`, `extra` and `serial`.
@@ -141,7 +152,12 @@ re-decode such uploads of its own encoder. Genuine fobs send a ~895 µs end HIGH
   80/88-bit window with the 0xA nibble at one of up to 9 offsets) and KAT's registry resets re-arm
   it: on `honda/Lock_honda.sub` it accepts Honda Static chips plus inter-frame noise as
   `4CDA57A60039A20E/4FF4` (the unmodified ARF psa.c, replayed with the registry's reset points,
-  reports the same window), which decrypts neither by XOR nor by BF1/BF2.
+  reports the same window), which decrypts neither by XOR nor by BF1/BF2. Without `autobf` an AM-path
+  frame the fast (XOR) path cannot decrypt is dropped, so a TEA fob whose half-bits only ARF's
+  adaptive path takes (60–200 µs) showed none of its frames. With `autobf` it is reported as `PSA
+  [unchecked]`, which KAT keeps out of the list while the brute force runs: listed with its fields if
+  the key is found (the TEA fob's frame at 70/100/160 µs half-bits: serial 0x014590, BF1), dropped if
+  not (the Honda window).
 - **Buttons from ARF.** ProtoPirate's emulate plugin maps Lock/Unlock/Trunk/Panic to 0x1/0x2/0x4/0x8
   (its generic template, shared verbatim with Ford V1; 0x8 cannot even be an XOR-mode button under
   PP's own key2 filter). All four genuine frames carry button 0, which PP's map lacks; ARF's codes

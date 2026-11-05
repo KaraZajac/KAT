@@ -2,6 +2,20 @@
 
 All notable changes to KAT are documented here.
 
+## [1.8.3] - 2026-11-05
+
+Key recovery for the testers: PSA keys are now found on their own (`autobf`), and Fiat V1, Renault V1 and Fiat V2 remotes get **Recover key (HiTag2)**, the HiTag2 Hell attack, with the recovered keys saved per remote.
+
+### Added
+
+- **`autobf`: PSA keys recovered without being asked** (`config.ini`, `[general]`, default `true`). Every undecrypted PSA (TEA) frame — received live, from an IQ recording, a `.sub` or key file, or a restored session — gets ProtoPirate's BF1/BF2 key search in the background, one at a time (well under a second each on a 16-core PC), also while a long KeeLoq or HiTag2 key search runs, as qDoctor's `doctor_subghz` library gives its users. A found key fills in the serial, button and counter and makes the capture encoder-capable, so it counts as vulnerable and can be exported (`.sub`, `.fob`, Flipper key) and sent; a full miss marks it "no key". The detail panel's new **Recovery** row and the vulnerability panel say which (KeeLoq keys found by **Recover key** are marked the same way), and the session keeps it. `kat --decode` runs the search in line and ends the frame's line with `key=BF1` / `key=BF2` / `key=none`. Ten doctor-firmware PSA key files a tester sorted as crackable with qDoctor's library all give the serial qDoctor found, in 0.02–0.5 s each. `false` leaves the search to the **Recover key** action.
+- **Recover key (HiTag2)** for Fiat V1, Renault V1 and Fiat V2 remotes KAT has no key for (until now it could only replay them): the HiTag2 Hell attack (Verstegen, Verdult and Bokslag, 2018), ported from qDoctor's `doctor_subghz` library and checked against its C on the same inputs. KAT pairs the capture with another press of the same remote from the list (same UID, another hop): one frame fits about 65,000 keys, the second singles out the remote's. On a 16-thread laptop CPU with AVX2 the search covers its 2^19 candidates in at most 20 minutes (qDoctor's C on the same CPU: 57) and stops at the key, about halfway on average; the status bar shows its progress and the time left, and the signal menu cancels it. It runs only when asked, never through `autobf`. qDoctor's own sample capture gives qDoctor's key in 17.5 minutes (its key is 91 % into the search), and the real Opel Vectra 2008 remote in `IMPORTS` gives, from its first two presses, the key that signs all six, in 17.3 minutes ([docs/hitag2_hell.md](docs/hitag2_hell.md)).
+- **HiTag2 keys per remote** (`hitag2_keys.txt` in KAT's config folder): Flipper-ARF's and doctor-firmware's key database, same format and byte order, so the file can be copied to and from a Flipper. **Recover key (HiTag2)** saves the keys it finds there, and KAT reads it at startup. A Fiat V1, Renault V1 or Fiat V2 remote whose key is in it transmits fresh codes with the requested button and counter + 1 instead of replaying the captured frame; its Flipper key files carry the key on the firmwares' `Hitag2 Key` / `Hitag2 Epoch` lines, and the detail panel's Recovery row says the key was recovered (or that none fits the two captures).
+
+### Fixed
+
+- **PSA fobs on the adaptive AM path showed no TEA frames.** A PSA frame that only Flipper-ARF's adaptive AM path reads (half-bits of 60–200 µs) was dropped unless it decrypted at once, so a TEA fob of that kind never appeared (that check keeps out a false PSA decode in a Honda capture). With `autobf` such a frame waits outside the list while the brute force runs, and is listed with its fields if the key is found; the Honda window never decrypts and stays out.
+
 ## [1.8.2] - 2026-11-05
 
 Two settings asked for by the first Windows tester: list every press of a remote, and hide the signals no protocol decodes.

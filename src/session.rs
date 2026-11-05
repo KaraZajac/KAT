@@ -407,6 +407,7 @@ pub fn fingerprint(captures: &[Capture], next_capture_id: u32) -> u64 {
         (c.data, c.data_count_bit, c.data_extra, c.raw_pairs.len()).hash(&mut h);
         (c.status as u8, c.received_rf.map(|r| r as u8)).hash(&mut h);
         (&c.year, &c.make, &c.model, &c.region, &c.command, &c.source_file).hash(&mut h);
+        c.key_recovery.hash(&mut h);
     }
     h.finish()
 }
@@ -803,8 +804,12 @@ mod tests {
         let fp2 = fingerprint(&captures, 3);
         assert_ne!(fp, fp2);
         captures[0].serial = None;
-        assert_ne!(fp2, fingerprint(&captures, 3));
+        let fp3 = fingerprint(&captures, 3);
+        assert_ne!(fp2, fp3);
         assert_ne!(fingerprint(&captures[..1], 3), fingerprint(&captures, 3));
+        // A key search that found nothing changes no other field, and must be saved too.
+        captures[0].key_recovery = Some(crate::capture::KeyRecovery::NotFound("PSA BF1/BF2".to_string()));
+        assert_ne!(fp3, fingerprint(&captures, 3));
     }
 
     #[test]

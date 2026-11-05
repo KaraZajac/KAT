@@ -9,7 +9,7 @@ use ratatui::{
 };
 
 use crate::app::{App, RadioState};
-use crate::capture::{Capture, CaptureStatus, ModulationType};
+use crate::capture::{Capture, CaptureStatus, KeyRecovery, ModulationType};
 use crate::radio::hopper::format_mhz;
 use crate::saved_fobs::SavedFobMatch;
 use crate::vuln_db;
@@ -303,7 +303,7 @@ fn render_detail_panel(frame: &mut Frame, area: Rect, app: &App) {
     let [left, right] =
         Layout::horizontal([Constraint::Length(signal_width), Constraint::Fill(1)]).areas(area);
 
-    render_signal_detail(frame, left, capture, app.saved_match(capture.id));
+    render_signal_detail(frame, left, capture, app.saved_match(capture.id), app.key_search_planned(capture.id));
     render_vulnerability_panel(frame, right, capture);
 }
 
@@ -384,7 +384,7 @@ fn button_label(capture: &Capture) -> String {
 }
 
 /// The rows of the signal detail for an area `max` columns wide.
-fn signal_detail_lines(capture: &Capture, saved: Option<&SavedFobMatch>, max: usize) -> Vec<Line<'static>> {
+fn signal_detail_lines(capture: &Capture, saved: Option<&SavedFobMatch>, searching: bool, max: usize) -> Vec<Line<'static>> {
     let accent_style = Style::default().fg(Color::Cyan);
     let dim = Style::default().fg(Color::DarkGray);
     let mut lines = Vec::new();
@@ -465,6 +465,17 @@ fn signal_detail_lines(capture: &Capture, saved: Option<&SavedFobMatch>, max: us
     };
     lines.extend(detail_row(vec![("Key/Data:", key)], max));
 
+    // A key search's result (a "Recover key" action, or autobf), or that one is under way.
+    let search = match &capture.key_recovery {
+        Some(KeyRecovery::Recovered(how)) => Some(Span::styled(format!("key recovered ({how})"), Style::default().fg(Color::Green))),
+        Some(KeyRecovery::NotFound(how)) => Some(Span::styled(format!("no key ({how} searched)"), Style::default().fg(Color::Yellow))),
+        None if searching => Some(Span::styled("searching…", label_style())),
+        None => None,
+    };
+    if let Some(span) = search {
+        lines.extend(detail_row(vec![("Recovery:", vec![span])], max));
+    }
+
     // Saved .fob this capture matches: file name, counter difference, saved vehicle info + notes
     if let Some(m) = saved {
         // A long file name is cut in the middle so the counter difference stays in view.
@@ -514,7 +525,7 @@ fn signal_detail_lines(capture: &Capture, saved: Option<&SavedFobMatch>, max: us
 }
 
 /// Left half: signal information (plus the saved .fob it matches, if any)
-fn render_signal_detail(frame: &mut Frame, area: Rect, capture: &Capture, saved: Option<&SavedFobMatch>) {
+fn render_signal_detail(frame: &mut Frame, area: Rect, capture: &Capture, saved: Option<&SavedFobMatch>, searching: bool) {
     let border_style = match capture.status {
         CaptureStatus::EncoderCapable => Style::default().fg(Color::Green),
         CaptureStatus::Decoded => Style::default().fg(Color::Yellow),
@@ -525,7 +536,7 @@ fn render_signal_detail(frame: &mut Frame, area: Rect, capture: &Capture, saved:
         .border_style(border_style)
         .title(format!(" Signal #{:02} — {} ", capture.id, capture.protocol_name()));
     let inner = block.inner(area);
-    let lines = signal_detail_lines(capture, saved, inner.width as usize);
+    let lines = signal_detail_lines(capture, saved, searching, inner.width as usize);
     // Rows the panel has no room for (a short terminal): say so instead of dropping them silently.
     let hidden = lines.len().saturating_sub(inner.height as usize);
     if hidden > 0 {
@@ -552,6 +563,22 @@ fn vulnerability_lines(capture: &Capture, max: usize, rows: usize) -> Vec<Line<'
 
     let wrap = |line: Line<'static>| text::wrap_line(line, max, 1);
     let mut lines = Vec::new();
+
+    // A key a brute force recovered, or one it could not find.
+    match &capture.key_recovery {
+        Some(KeyRecovery::Recovered(how)) => {
+            let style = Style::default().fg(Color::Green).add_modifier(Modifier::BOLD);
+            lines.extend(wrap(Line::styled(format!(" Key recovered by brute force ({how})"), style)));
+        }
+        Some(KeyRecovery::NotFound(how)) => {
+            lines.extend(wrap(Line::styled(
+                format!(" No key found: {how} searched every key it can try"),
+                Style::default().fg(Color::Yellow),
+            )));
+            lines.push(Line::default());
+        }
+        None => {}
+    }
 
     // When we can encode, the encryption is broken — complete emulation is available.
     if capture.status == CaptureStatus::EncoderCapable {

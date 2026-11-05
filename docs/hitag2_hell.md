@@ -113,7 +113,7 @@ Full recoveries on the same machine:
 ## Is a GPU worth it?
 
 qDoctor runs the same kernel on a GPU (Vulkan on Android and Windows, Metal on Apple), with its CPU path
-as the fallback. KAT stays on the CPU: a full search is at most 20 minutes on a 16-thread laptop CPU
+as the fallback. KAT stays on the CPU: a full search is about 20 minutes on a 16-thread laptop CPU
 with AVX2, a one-off per remote that saves its key for good, and a GPU path would add a graphics
 dependency and drivers to a terminal tool that otherwise needs only libhackrf.
 
@@ -167,6 +167,8 @@ harness that includes `hitag2hell_common.c` for its static helpers:
   key formula, the kernel's matches in the C's order for chosen candidates and every word width, and
   end-to-end recovery on the true candidate of known keys, also through the protocol mapping.
 - Long runs (release, `#[ignore]`): 7680 candidates of two hops give exactly the C's matches, in the
-  C's order; full recoveries of qDoctor's sample, of three known keys and of the Opel Vectra capture.
+  C's order; a full sweep over one hop finds 70,473 states, exactly the C's count; full recoveries of
+  qDoctor's sample (the C's key, state and UID), of a key generated from KAT's HITAG2 test vectors (the
+  C recovers all three such keys), and of the Opel Vectra capture.
 - The key file's lines are written and read as `hitag2_key_db.c` writes and reads them; saved keys make
   the three encoders send fresh frames signed with the key.

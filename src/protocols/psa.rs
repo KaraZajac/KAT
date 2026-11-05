@@ -24,7 +24,8 @@
 //!   realignment in `psa_am_complete`) is used, with PP's routing and a KAT decrypt gate.
 //! - **Encoder** — PP `psa_encoder_build_upload` (mode 0x23 XOR + mode 0x36 TEA, buffer[0..1] kept
 //!   from the captured key1, buffer[9] from the captured key2), 10 repeats (PP/ARF), counter + 1 (PP
-//!   emulate plugin `current_counter++`, ARF/doctor `+ mult`), ARF's PSA button codes.
+//!   emulate plugin `current_counter++`, ARF/doctor `+ mult`), ARF's PSA button codes, and the
+//!   genuine fobs' 900 µs end HIGH (see Deviations).
 //! - **Key recovery** — PP `psa_brute_force_run` (BF1 0x23xxxxxx with the scheduled TEA key
 //!   derivation, then BF2 0xF3xxxxxx), multithreaded ([`brute_force`]). The references emit a TEA
 //!   frame undecrypted and leave the brute force to a manual action ("Brute force" in PP's
@@ -55,6 +56,12 @@
 //!   `IMPORTS/honda/Lock_honda.sub` it then accepts Honda Static chips plus inter-frame noise (the
 //!   unmodified ARF psa.c replayed with the registry's reset points emits the same frame, which
 //!   decrypts neither by XOR nor by BF1/BF2). KAT emits AM-path frames only when they decrypt.
+//! - End marker: the references' encoder ends a frame with a 1000 µs HIGH, which after a final 0 bit
+//!   merges into 1250 µs, past their decoders' 801–1199 µs window, so no reference reads such a frame
+//!   from another Flipper (a saved file sent again) or from KAT ≤ 1.8.3. Genuine fobs end at ~900 µs
+//!   (both IMPORTS fobs; ~1140 µs after a final 0 bit). KAT's decoder also takes 1051–1449 µs
+//!   (`Machine::is_end_marker`) and its encoder sends 900 µs (`ENC_END_HIGH`); both checked
+//!   over the air, Flipper Zero ↔ HackRF (`docs/psa.md`).
 //! - BF2's CRC-16 comparison differs: PP/doctor compare with `dec_v1 & 0xFFFF`, ARF with
 //!   `(byte(dec_v1 >> 16) << 8) | byte(dec_v1)`. No genuine BF2 capture exists to settle it; KAT
 //!   accepts either (union), which cannot change a PP result except by a ~2^-40 coincidence.
@@ -153,8 +160,13 @@ const AM_PRE_MAX_GLITCH: u8 = 3;
 const AM_RESYNC_BITS: u8 = 8;
 const AM_BITS_CAP: usize = 96;
 
-// Encoder (psa_encoder_build_upload): 80 preamble pairs at 250 µs, 500 µs sync, 1000 µs end.
+// Encoder (psa_encoder_build_upload): 80 preamble pairs at 250 µs, 500 µs sync, end HIGH, 1000 µs LOW.
 const ENC_TE: u32 = TE_LONG_250;
+/// The end HIGH KAT sends: the genuine fobs' (`IMPORTS/GROUPE PSA`, both fobs: medians 893–909 µs
+/// after a final 1 bit, ~1140 µs merged with a final 0 bit's HIGH half). The references send
+/// 1000 µs, which a final 0 bit stretches to 1250 µs, past their own decoders' 801–1199 µs end
+/// window: no reference decodes such a frame, though a fob's same frame decodes.
+const ENC_END_HIGH: u32 = 900;
 const ENC_PREAMBLE_PAIRS: usize = 80;
 /// `instance->encoder.repeat = 10` (ProtoPirate and Flipper-ARF; doctor-firmware sends 3).
 const ENC_REPEAT: usize = 10;
@@ -853,11 +865,20 @@ impl Machine {
         self.finish(DecoderState::Reset, duration)
     }
 
+    /// The end HIGH after the 80th bit: the references' 1000 ± 199 µs (genuine fobs: ~900 µs, ~1140 µs
+    /// after a final 0 bit) and, KAT only, 1250 ± 199 µs: the references' own encoder upload (a
+    /// Flipper sending a saved file, KAT ≤ 1.8.3) after a final 0 bit, whose 250 µs HIGH half and
+    /// 1000 µs end HIGH merge on the air. The references decode neither their own transmission of
+    /// such a frame nor each other's.
+    fn is_end_marker(duration: u32) -> bool {
+        abs_diff(duration, TE_END_1000) <= 199 || abs_diff(duration, TE_END_1000 + TE_SHORT) <= 199
+    }
+
     fn feed_data_250(&mut self, level: bool, duration: u32) -> Option<RawFrame> {
         if self.decode_count_bit >= MAX_BITS {
             return self.finish(DecoderState::Reset, duration);
         }
-        if level && self.decode_count_bit == KEY2_BITS && duration >= 800 && abs_diff(duration, TE_END_1000) <= 199 {
+        if level && self.decode_count_bit == KEY2_BITS && Self::is_end_marker(duration) {
             // ProtoPirate reports the frame only with the 0xA sync (ARF also on a passing XOR
             // checksum; KAT does not take that path, see the module doc). Both rewind to State0.
             if !self.sync_ok() {
@@ -921,7 +942,7 @@ impl Machine {
         }
         if event.is_none() {
             // A HIGH outside both symbol windows: the second end-marker check.
-            if abs_diff(duration, TE_END_1000) <= 199 && self.decode_count_bit == KEY2_BITS && self.sync_ok() {
+            if Self::is_end_marker(duration) && self.decode_count_bit == KEY2_BITS && self.sync_ok() {
                 let frame = self.complete_frame();
                 self.state = DecoderState::Reset;
                 return Some(frame);
@@ -1316,9 +1337,8 @@ impl ProtocolDecoder for PsaDecoder {
     }
 
     /// The frame `encode` sends, as the decoder reports it (Flipper-ARF writes the same `Key` /
-    /// `Key_2` back after building the upload). Needed because an upload whose last key2 bit is 0
-    /// does not decode again (`uploads_ending_in_a_zero_bit_are_not_redecoded`) and a TEA frame
-    /// only decrypts under the capture's recovered serial: its fields are the ones encoded.
+    /// `Key_2` back after building the upload). Needed because a TEA frame only decrypts under the
+    /// capture's recovered serial: its fields are the ones encoded.
     fn sent_signal(&self, decoded: &DecodedSignal, button: u8) -> Option<DecodedSignal> {
         let fields = next_fields(decoded, button)?;
         let (key1, validation) = frame_words(decoded.data, decoded.extra.unwrap_or(0) as u32, &fields);
@@ -1533,7 +1553,7 @@ fn build_upload(key1: u64, key2_low: u32, fields: &PsaFields) -> Vec<LevelDurati
         up.push(LevelDuration::new(bit, ENC_TE));
         up.push(LevelDuration::new(!bit, ENC_TE));
     }
-    up.push(LevelDuration::new(true, TE_END_1000));
+    up.push(LevelDuration::new(true, ENC_END_HIGH));
     up.push(LevelDuration::new(false, TE_END_1000));
     up
 }
@@ -1693,7 +1713,8 @@ mod tests {
         for pair in up[163..323].chunks(2) {
             assert_eq!((pair[0].duration_us, pair[1].duration_us, pair[0].level), (250, 250, !pair[1].level));
         }
-        assert_eq!((up[323].level, up[323].duration_us, up[324].level, up[324].duration_us), (true, 1000, false, 1000));
+        // The end HIGH is the genuine fobs' 900 µs (the references: 1000 µs, see ENC_END_HIGH).
+        assert_eq!((up[323].level, up[323].duration_us, up[324].level, up[324].duration_us), (true, 900, false, 1000));
     }
 
     #[test]
@@ -1757,21 +1778,37 @@ mod tests {
     }
 
     #[test]
-    fn uploads_ending_in_a_zero_bit_are_not_redecoded() {
-        // The references' 1000 µs end HIGH merges with a trailing 0 bit's 250 µs HIGH half into
-        // 1250 µs, outside the decoder's 801..1199 µs end window: ProtoPirate's (and ARF's)
-        // decoder does not decode such an upload of its own encoder either (host C harness).
-        // Genuine fobs send a ~895 µs end HIGH (IMPORTS: 897 µs; 1133/1145 µs after a 0 bit).
+    fn uploads_ending_in_a_zero_bit_decode() {
+        // A trailing 0 bit's 250 µs HIGH half merges with the end HIGH. KAT's 900 µs end (the
+        // genuine fobs') gives 1150 µs, inside the references' 801..1199 µs end window; the
+        // references' 1000 µs end (a Flipper sending a saved file, KAT <= 1.8.3) gives 1250 µs,
+        // which their decoders reject (host C harness) and KAT's accepts (`is_end_marker`).
         let dec = PsaDecoder::new();
         let xor = psa_from(0x6EDA_E3B4_785F_7BC6, 0x70F6, Some(0x99EB25));
         let wire = dec.encode(&xor, 0x02).unwrap();
         assert!(!wire[321].level && wire[322].level, "last key2 bit is 0: (LOW, HIGH)");
-        assert!(decode_all(&merged(&wire)).is_empty());
+        let sent = dec.sent_signal(&xor, 0x02).unwrap();
+        let ours = merged(&wire);
+        assert!(ours.iter().any(|p| p.level && p.duration_us == 1150), "merged end of KAT's upload");
+        assert_eq!(decode_all(&ours).first().map(|d| (d.data, d.extra)), Some((sent.data, sent.extra)));
+        let references: Vec<LevelDuration> = wire
+            .iter()
+            .map(|p| if p.level && p.duration_us == ENC_END_HIGH { LevelDuration::new(true, 1000) } else { *p })
+            .collect();
+        let theirs = merged(&references);
+        assert!(theirs.iter().any(|p| p.level && p.duration_us == 1250), "merged end of the references' upload");
+        assert_eq!(decode_all(&theirs).first().map(|d| (d.data, d.extra)), Some((sent.data, sent.extra)));
+        // Past the merged window the frame is not taken (an end HIGH of 1450 µs and more).
+        let late: Vec<LevelDuration> = merged(&wire[..ENC_UPLOAD_LEN])
+            .into_iter()
+            .map(|p| if p.level && p.duration_us == 1150 { LevelDuration::new(true, 1450) } else { p })
+            .collect();
+        assert!(decode_all(&late).is_empty());
     }
 
     /// `sent_signal` is the decoder's report of the frame `encode` sends (what the app keeps on a
-    /// capture after transmitting it), also where the upload does not decode again (a last key2
-    /// bit of 0) and for TEA frames (the encoded fields, as the recovered serial decrypts them).
+    /// capture after transmitting it), also for TEA frames (the encoded fields, as the recovered
+    /// serial decrypts them).
     #[test]
     fn sent_signal_is_the_frame_encoded() {
         let dec = PsaDecoder::new();
@@ -2102,10 +2139,101 @@ mod tests {
         assert!(dec.to_flipper_key(&DecodedSignal { extra: None, ..xor }).is_none());
     }
 
+    /// On demand, `KAT_PSA_SYNTH_OUT=<dir> cargo test psa_synthetic_test_files -- --ignored`: test
+    /// files for a made-up TEA remote (serial 5EED01, no real fob's; the BF1 search finds it) to check
+    /// over the air how KAT receives PSA frames a Flipper sends and how others receive KAT's:
+    /// - `rx_end{0,1}_{flipper,fob}_{ook,fsk}.sub`: RAW files of a frame whose last bit is 0 / 1, in
+    ///   the references' upload (`flipper`: end HIGH 1000 µs, what a Flipper sends from a saved file)
+    ///   or the genuine fobs' (`fob`: 900 µs), 3 copies, OOK (Ook650) or 2FSK (Dev476);
+    /// - `tx_end{0,1}_key.sub`: key files whose next code (TX Lock) ends in a 0 / 1 bit.
+    #[test]
+    #[ignore]
+    fn psa_synthetic_test_files() {
+        let Some(dir) = std::env::var_os("KAT_PSA_SYNTH_OUT") else { return };
+        let dir = std::path::PathBuf::from(dir);
+        const SERIAL: u32 = 0x5EED01;
+        // b0..b1 = F4 7A: the sync nibble (b1 low nibble 0xA), as the IMPORTS TEA fob sends it.
+        const HEADER: u64 = 0xF47A_0000_0000_0000;
+        let tea = |counter: u32| frame_words(HEADER, 0, &PsaFields { mode: MODE_TEA, serial: SERIAL, button: 0, counter, crc: 0 });
+        let mut by_last_bit: [Option<(u32, u64, u16)>; 2] = [None, None];
+        for counter in 0x0A0_0100u32.. {
+            let (key1, val) = tea(counter);
+            let slot = &mut by_last_bit[usize::from(val & 1)];
+            if slot.is_none() {
+                *slot = Some((counter, key1, val));
+            }
+            if by_last_bit.iter().all(Option::is_some) {
+                break;
+            }
+        }
+        let upload = |key1: u64, val: u16, end_high: u32| -> Vec<LevelDuration> {
+            let mut one = build_upload(key1, u32::from(val), &tea_fields_for(key1, val, SERIAL));
+            let n = one.len();
+            one[n - 2] = LevelDuration::new(true, end_high);
+            let mut all = vec![LevelDuration::new(false, 10_000)];
+            for _ in 0..3 {
+                all.extend_from_slice(&one);
+            }
+            all.push(LevelDuration::new(false, 10_000));
+            merged(&all)
+        };
+        let raw_sub = |name: &str, preset: &str, pulses: &[LevelDuration]| {
+            let values: Vec<String> =
+                pulses.iter().map(|p| if p.level { p.duration_us.to_string() } else { format!("-{}", p.duration_us) }).collect();
+            let mut text = format!("Filetype: Flipper SubGhz RAW File\nVersion: 1\nFrequency: 433920000\nPreset: {preset}\nProtocol: RAW\n");
+            for chunk in values.chunks(512) {
+                text += &format!("RAW_Data: {}\n", chunk.join(" "));
+            }
+            std::fs::write(dir.join(name), text).unwrap();
+        };
+        for (bit, found) in by_last_bit.iter().enumerate() {
+            let (counter, key1, val) = found.unwrap();
+            // The frame must be what the decoder reads back from a genuine-style press, and BF1 must
+            // find the made-up serial (as `autobf` will in the app).
+            let fob = upload(key1, val, ENC_END_HIGH);
+            assert_eq!(decode_all(&fob).first().map(|d| (d.data, d.extra)), Some((key1, Some(u64::from(val)))));
+            let BruteForceOutcome::Found(hit) = recover_key(key1, u64::from(val), &BruteForceControl::default()) else { panic!("no key") };
+            assert_eq!(hit.fields.serial, SERIAL);
+            for (style, end_high) in [("flipper", TE_END_1000), ("fob", ENC_END_HIGH)] {
+                let pulses = upload(key1, val, end_high);
+                raw_sub(&format!("rx_end{bit}_{style}_ook.sub"), "FuriHalSubGhzPresetOok650Async", &pulses);
+                raw_sub(&format!("rx_end{bit}_{style}_fsk.sub"), "FuriHalSubGhzPreset2FSKDev476Async", &pulses);
+            }
+            eprintln!("rx_end{bit}: counter {counter:07X} key1 {key1:016X} key2 {val:04X}");
+        }
+        // Key files whose next code (TX Lock = KAT button 0x01) ends in a 0 / 1 bit.
+        let dec = PsaDecoder::new();
+        let mut wanted = [true, true];
+        for counter in 0x0A0_0200u32.. {
+            let (key1, val) = tea(counter);
+            let capture = psa_from(key1, u64::from(val), Some(SERIAL));
+            let Some(next) = dec.sent_signal(&capture, 0x01) else { continue };
+            let bit = (next.extra.unwrap_or(0) & 1) as usize;
+            if !wanted[bit] {
+                continue;
+            }
+            wanted[bit] = false;
+            let mut key = dec.to_flipper_key(&decode_all(&upload(key1, val, ENC_END_HIGH))[0]).unwrap();
+            key.frequency = 433_920_000;
+            key.preset = Some("FuriHalSubGhzPresetOok650Async".to_string());
+            std::fs::write(dir.join(format!("tx_end{bit}_key.sub")), key.to_text()).unwrap();
+            eprintln!("tx_end{bit}: counter {counter:07X} key1 {key1:016X} key2 {val:04X} -> next {:016X}/{:04X}", next.data, next.extra.unwrap_or(0));
+            if !wanted.iter().any(|&w| w) {
+                break;
+            }
+        }
+    }
+
+    /// Fields of a frame of the made-up test remote (`psa_synthetic_test_files`): what the decoder
+    /// recovers with its serial.
+    fn tea_fields_for(key1: u64, val: u16, serial: u32) -> PsaFields {
+        tea_decrypt_with_serial(key1, u32::from(val), serial).expect("frame of the test remote").0
+    }
+
     /// `KAT_KEY_VECTORS=<dir> cargo test psa_oracle_vectors -- --ignored`: RAW uploads and KAT's
     /// key files for the C oracle (XOR frame; TEA frame, which the decoder leaves undecrypted).
-    /// Both captured frames end in a 1 bit: the references' upload of a frame ending in a 0 bit
-    /// is not re-decodable (`uploads_ending_in_a_zero_bit_are_not_redecoded`).
+    /// Both captured frames end in a 1 bit: the references' decoder does not take a frame ending in
+    /// a 0 bit from a 1000 µs-end upload (`uploads_ending_in_a_zero_bit_decode`).
     #[test]
     #[ignore]
     fn psa_oracle_vectors() {

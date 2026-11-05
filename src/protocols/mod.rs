@@ -1548,12 +1548,6 @@ mod tests {
         if own.iter().any(|x| d.serial.is_none() || x.serial == d.serial) {
             eprintln!("note: {name} sn={:X?}: TX decodes with its own decoder; the registry reports {got:?}", d.serial);
             Ok(())
-        } else if name == "PSA" && stream.iter().any(|p| p.level && p.duration_us == 1250) {
-            // Reference quirk, not a key-file one: when the last key2 bit is 0 its 250 µs HIGH half
-            // merges with the 1000 µs end HIGH, and ProtoPirate's / ARF's decoder rejects its own
-            // upload too (psa.rs `uploads_ending_in_a_zero_bit_are_not_redecoded`).
-            eprintln!("note: PSA sn={:X?}: upload ends in a 0 bit (not re-decodable, as in the references)", d.serial);
-            Ok(())
         } else {
             Err(format!("{name} sn={:X?}: TX decodes as {got:?} (own decoder: {} frames)", d.serial, own.len()))
         }

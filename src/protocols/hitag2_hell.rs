@@ -160,7 +160,10 @@
 //! dead, and the deep levels, which dominate, cost one block per surviving partial state
 //! whatever the width. Only AVX2's single-instruction 256-bit operations win (2.4× the `u32` word
 //! on one thread, 2.6× on all cores; 2.8× the C). With two frames the search stops at the true
-//! candidate: half a sweep on average, a full one at worst.
+//! candidate: half a sweep on average, a full one at worst (19–21 min here, depending on the hop).
+//! Measured: qDoctor's own sample request (state at candidate 477304 of 524288) in 1050 s, where
+//! qDoctor's C took 3358 s on 16 OpenMP threads (its CPU path always sweeps everything); the Opel
+//! Vectra capture's first two presses in about 17 min.
 
 use std::ops::{BitAnd, BitOr, BitXor, Not, Range};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -1790,17 +1793,24 @@ mod tests {
         }
     }
 
-    fn timed_recovery(label: &str, reqs: &[Hitag2Request]) -> (BruteForceOutcome, f64) {
+    /// [`recover_key_any`], timed: (outcome, seconds, candidates searched).
+    fn timed_recovery(reqs: &[Hitag2Request]) -> (BruteForceOutcome, f64, u32) {
         let ctl = BruteForceControl::default();
         let t = Instant::now();
         let out = recover_key_any(reqs, &ctl);
-        let secs = t.elapsed().as_secs_f64();
-        let searched = ctl.progress.load(Ordering::Relaxed);
+        (out, t.elapsed().as_secs_f64(), ctl.progress.load(Ordering::Relaxed))
+    }
+
+    /// Log a synthetic / published recovery: where the search stopped and how long it took.
+    fn log_recovery(label: &str, out: &BruteForceOutcome, secs: f64, searched: u32) {
+        let what = match out {
+            BruteForceOutcome::Found(k) => format!("found at candidate {} (request {}, UID {:08X})", k.candidate, k.request, k.uid),
+            other => format!("{other:?}"),
+        };
         eprintln!(
-            "{label}: {out:X?} in {secs:.1} s ({searched} of {SEARCH_TOTAL} candidates, full sweep ≈ {:.1} min)",
+            "{label}: {what} in {secs:.1} s ({searched} of {SEARCH_TOTAL} candidates, full sweep ≈ {:.1} min)",
             secs * SEARCH_TOTAL as f64 / searched.max(1) as f64 / 60.0
         );
-        (out, secs)
     }
 
     /// qDoctor's "Load Hell sample" (`Hitag2WorkflowController.loadSampleVector`).
@@ -1814,7 +1824,8 @@ mod tests {
             btn: 2,
             second: Some(SecondFrame { hop: 0x7AB0_EC32, cnt: 0x232, btn: 2 }),
         };
-        let (out, _) = timed_recovery("qDoctor sample", &[req]);
+        let (out, secs, searched) = timed_recovery(&[req]);
+        log_recovery("qDoctor sample", &out, secs, searched);
         let BruteForceOutcome::Found(got) = out else { panic!("{out:?}") };
         assert_eq!(authenticator(got.key, got.uid, 0x231, 2), 0x7AFC_C042);
         assert_eq!(authenticator(got.key, got.uid, 0x232, 2), 0x7AB0_EC32);
@@ -1830,22 +1841,25 @@ mod tests {
     fn full_recovery_known_keys() {
         for k in &KNOWN {
             let (key, uid, _, _, init_state, _, cand) = *k;
-            let (out, _) = timed_recovery(&format!("key {key:012X}"), &[known_request(k)]);
+            let (out, secs, searched) = timed_recovery(&[known_request(k)]);
+            log_recovery(&format!("key {key:012X}"), &out, secs, searched);
             assert_eq!(out, BruteForceOutcome::Found(RecoveredKey { key, uid, state: init_state, request: 0, candidate: cand }));
         }
     }
 
-    /// The real Opel Vectra remote: the key from its first two presses must sign all six.
+    /// The real Opel Vectra remote: the key from its first two presses must sign all six. Nothing
+    /// that identifies the key is asserted or printed — not the key, its state, nor where the
+    /// search stopped (with that, the key takes a second to recompute): it is a real car's.
     #[test]
     #[ignore]
     fn opel_vectra_key_from_two_captures() {
         let frames = opel_frames();
         let reqs = requests_for(&frames[0], Some(&frames[1])).unwrap();
-        let (out, _) = timed_recovery("Opel Vectra 2008", &reqs);
-        let BruteForceOutcome::Found(got) = out else { panic!("{out:?}") };
+        let (out, secs, _) = timed_recovery(&reqs);
+        let BruteForceOutcome::Found(got) = out else { panic!("no key found") };
         for f in &frames {
             assert_eq!(authenticator(got.key, got.uid, f.cnt, f.btn), f.hop, "press {:#X}", f.cnt);
         }
-        eprintln!("Opel Vectra 2008 key {:02X?} (Fiat BCM order {:02X?})", key_bytes(got.key), fiat_bcm_key(got.key));
+        eprintln!("Opel Vectra 2008: a key that signs all six presses, found in {:.0} min", secs / 60.0);
     }
 }

@@ -169,8 +169,9 @@ remote made with `:new` worked once after pairing.
 - KAT learns the frame sent by reading the upload with the protocol's own decoder (`sent_frame`). Encoder
   state the air does not carry stays the capture's: FAAC SLH's seed, with which the protocol re-reads the
   frame through its key file to get the counter. PSA reports the frame it built
-  (`ProtocolDecoder::sent_signal`): an upload whose last key2 bit is 0 does not decode again (in the
-  references either), and a TEA frame only decrypts under the serial "Recover key" found.
+  (`ProtocolDecoder::sent_signal`): a TEA frame only decrypts under the serial "Recover key" found.
+  KAT's PSA frames end like the genuine fobs' (900 µs, not the references' 1000 µs), so Flipper
+  firmwares can read them also when the last bit is 0 ([docs/psa.md](psa.md)).
 - Transmitting is refused while `:record` runs: TX stops the receiver, which would end the recording.
 
 ## Files

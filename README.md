@@ -46,7 +46,7 @@ Its 107 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPira
 
 - **KeeLoq magic serial** — Flipper-ARF's KeeLoq Decrypt: finds the manufacturer key of a KeeLoq remote KAT has no key for from two captures of it, on every core — about 5 s per type for types 6 and 7, about 20 minutes for type 8 on an 8-core laptop. The key is saved, and the remote then decodes and transmits ([docs/keeloq.md](docs/keeloq.md)).
 - **PSA (Peugeot/Citroën)** — ProtoPirate's TEA key brute force (BF1 and BF2), in under a second, and by default without being asked: every undecrypted PSA frame, received live, from an IQ recording or a file, gets the search in the background and, with its key, its serial, button and counter, export and transmit (`autobf`). The capture shows the key as recovered, or that no key fits.
-- **HiTag2 (Fiat V1, Renault V1, Fiat V2)** — the HiTag2 Hell attack, ported from qDoctor's C: finds the 48-bit key of a remote KAT has no key for from two captures of it (two presses), on every core — at most 20 minutes on a 16-thread CPU with AVX2, about half that on average. The key is saved per remote in `hitag2_keys.txt` (Flipper-ARF's and doctor-firmware's file), and the remote then transmits fresh codes instead of replays ([docs/hitag2_hell.md](docs/hitag2_hell.md)).
+- **HiTag2 (Fiat V1, Renault V1, Fiat V2)** — the HiTag2 Hell attack, ported from qDoctor's C: finds the 48-bit key of a remote KAT has no key for from two captures of it (two presses), on every core — about 20 minutes for a full search on a 16-thread CPU with AVX2, half that on average. The key is saved per remote in `hitag2_keys.txt` (Flipper-ARF's and doctor-firmware's file), and the remote then transmits fresh codes instead of replays ([docs/hitag2_hell.md](docs/hitag2_hell.md)).
 
 **Files**
 
@@ -88,18 +88,18 @@ On Windows there is nothing to install here: the `.zip` carries the HackRF libra
 Then check, unpack and run (with your version and platform):
 
 ```bash
-sha256sum -c kat-v1.8.3-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
-tar xzf kat-v1.8.3-x86_64-linux.tar.gz
-./kat-v1.8.3-x86_64-linux/kat
+sha256sum -c kat-v1.8.4-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.8.4-x86_64-linux.tar.gz
+./kat-v1.8.4-x86_64-linux/kat
 ```
 
 On Windows, in PowerShell (Windows Terminal):
 
 ```powershell
-$want = (Get-Content kat-v1.8.3-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.8.3-x86_64-windows.zip).Hash -eq $want    # True
-Expand-Archive kat-v1.8.3-x86_64-windows.zip .
-.\kat-v1.8.3-x86_64-windows\kat.exe
+$want = (Get-Content kat-v1.8.4-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.8.4-x86_64-windows.zip).Hash -eq $want    # True
+Expand-Archive kat-v1.8.4-x86_64-windows.zip .
+.\kat-v1.8.4-x86_64-windows\kat.exe
 ```
 
 The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. The Windows build isn't signed, so SmartScreen may stop its first start ("More info", then "Run anyway"). Intel Macs and other platforms build from source.
@@ -194,7 +194,7 @@ After an encoder transmission (Send next code, Send button…, TX Lock … Panic
 |---|---|
 | Recover key (KeeLoq magic serial) | KeeLoq frame no key decrypts: search the remote's magic-serial manufacturer key using all of its captures (two or more presses), on every core (Flipper-ARF's KeeLoq Decrypt). The key is saved as `BF_<serial>` and the remote's captures decode ([docs/keeloq.md](docs/keeloq.md)) |
 | Recover key (PSA brute force) | PSA TEA frame without a key: run ProtoPirate's key brute force in the background (with `autobf`, the default, it already ran on its own). On success the capture gets its serial, button and counter, and transmit actions; the detail panel says how the key was recovered, or that no key fits |
-| Recover key (HiTag2) | Fiat V1, Renault V1 or Fiat V2 frame KAT has no key for (it would be replayed): search the remote's key with HiTag2 Hell, paired with another capture of the same remote (same UID, another press), on every core, up to 20 minutes. The key is saved in `hitag2_keys.txt` and the remote's captures send fresh codes ([docs/hitag2_hell.md](docs/hitag2_hell.md)) |
+| Recover key (HiTag2) | Fiat V1, Renault V1 or Fiat V2 frame KAT has no key for (it would be replayed): search the remote's key with HiTag2 Hell, paired with another capture of the same remote (same UID, another press), on every core, about 20 minutes at most. The key is saved in `hitag2_keys.txt` and the remote's captures send fresh codes ([docs/hitag2_hell.md](docs/hitag2_hell.md)) |
 | Cancel key recovery | Stop a running key recovery (its progress shows in the status bar's title) |
 | Replay | Re-transmit the capture as recorded (the capture does not change) |
 | Send next code | Gate, garage and barrier remotes (instead of TX Lock … Panic): transmit the code after the stored one, which the capture then keeps, so each press sends a new code |

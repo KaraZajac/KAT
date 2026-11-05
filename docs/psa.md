@@ -45,9 +45,9 @@ and a TEA fob (serial 0x014590 recovered by the BF1 brute force, counters 0x9158
 | Short            | 250 µs           | 151..349 µs (State2 also takes 350 µs)           |
 | Long             | 500 µs           | 351..599 µs                                      |
 | Preamble         | > 0x46 short LOWs | then a 401..599 µs LOW (the sync)               |
-| End marker       | 1000 µs HIGH     | 801..1199 µs, only at exactly 80 bits           |
+| End marker       | 1000 µs HIGH     | 801..1199 µs, and (KAT) 1051..1449 µs: a Flipper's 1000 µs end after a final 0 bit; only at exactly 80 bits |
 | AM path (ARF)    | 60..200 µs half-bit | adaptive te, ≥ 8 preamble cells               |
-| Encoder          | 250 / 500 / 1000 µs | 80 preamble pairs, 10 repeats                |
+| Encoder          | 250 / 500 µs, end HIGH 900 µs | 80 preamble pairs, 10 repeats (references: end HIGH 1000 µs) |
 
 ## Frame Layout
 
@@ -128,16 +128,17 @@ counter + 1 (PP emulate plugin `current_counter++`, ARF/doctor `+ mult`) and the
   key, also for a BF2-recovered frame).
 - `b0..b1` (the sync) are kept from the captured key1.
 - Upload (325 entries): 80 × (HIGH 250, LOW 250), LOW 250 + HIGH 500 + LOW 250, 64 + 16 bits
-  MSB first (1 = HIGH/LOW, 0 = LOW/HIGH, 250 µs halves), HIGH 1000 + LOW 1000; **10 copies**
-  (PP/ARF; doctor sends 3).
+  MSB first (1 = HIGH/LOW, 0 = LOW/HIGH, 250 µs halves), HIGH 900 + LOW 1000 (the references: HIGH
+  1000, see Deviations); **10 copies** (PP/ARF; doctor sends 3).
 
 Re-encoding the TEA fob's first frame with counter 0x9158E55 reproduces its later genuine frame bit
 for bit, and the XOR fob's 0x39C frame is reproduced from its 0x39B frame with `b9` = 0x23.
 
-Reference quirk kept: the 1000 µs end HIGH merges with a trailing 0 bit's 250 µs HIGH half into
-1250 µs, outside the decoders' 801..1199 µs window, so ProtoPirate's (and KAT's) decoder does not
-re-decode such uploads of its own encoder. Genuine fobs send a ~895 µs end HIGH (897 µs, and
-1133/1145 µs after a 0 bit, in IMPORTS).
+The references' 1000 µs end HIGH merges with a trailing 0 bit's 250 µs HIGH half into 1250 µs, outside
+their decoders' 801..1199 µs window: no reference decodes such an upload of its own encoder, or a
+Flipper sending a saved file of such a frame. Genuine fobs end at ~900 µs (both IMPORTS fobs: medians
+893–909 µs after a final 1 bit, ~1140 µs merged with a final 0 bit). KAT fixes both sides (see
+Deviations).
 
 ## Deviations from the References (with evidence)
 
@@ -158,6 +159,19 @@ re-decode such uploads of its own encoder. Genuine fobs send a ~895 µs end HIGH
   [unchecked]`, which KAT keeps out of the list while the brute force runs: listed with its fields if
   the key is found (the TEA fob's frame at 70/100/160 µs half-bits: serial 0x014590, BF1), dropped if
   not (the Honda window).
+- **The end marker of a frame a Flipper sends (receiver).** Flipper firmwares (doctor-firmware,
+  Flipper-ARF, ProtoPirate) transmit a saved PSA file with the encoder above: a frame whose last bit
+  is 0 ends in a 1250 µs HIGH, which their decoders and KAT ≤ 1.8.3 reject, so half of all frames a
+  Flipper replays from a saved file never appeared. KAT also accepts 1051..1449 µs at the 80th bit.
+  Checked over the air (Flipper Zero → HackRF, a made-up TEA remote, the Flipper's upload replayed as
+  RAW): KAT 1.8.3 received none of the frames ending in a 0 bit, on AM and FM; with the wider window,
+  every copy; frames with the genuine fobs' end decoded in both. The tester's ten PSA key files sent
+  through the receive pipeline the same way (`radio/sim.rs` `sweep_psa_key_files`): 5 of 10 → 10 of 10.
+- **The end marker KAT sends (transmitter).** KAT's encoder ends a frame with the genuine fobs'
+  900 µs HIGH instead of the references' 1000 µs, so a frame whose last bit is 0 ends in ~1150 µs,
+  inside every reference decoder's window. Checked over the air (HackRF → Flipper Zero `subghz rx_raw`,
+  the recording decoded with the references' window, i.e. KAT 1.8.3's decoder): a 1.8.3 transmission
+  of such a frame was not readable, the new one is (9 of 10 copies; frames ending in a 1 bit: both).
 - **Buttons from ARF.** ProtoPirate's emulate plugin maps Lock/Unlock/Trunk/Panic to 0x1/0x2/0x4/0x8
   (its generic template, shared verbatim with Ford V1; 0x8 cannot even be an XOR-mode button under
   PP's own key2 filter). All four genuine frames carry button 0, which PP's map lacks; ARF's codes
@@ -187,7 +201,8 @@ for decoder pulses, uploads, `encode()` calls and brute forces, KAT additions sw
   jitter, dropped/split/stretched pulses and broken end markers; adaptive-AM frames at te 65..190 µs
   with and without resets; interleaved AM/250 µs frames; random noise; 8 071 frames in the final
   run, repeated with other seeds) and on every IMPORTS capture in both polarities.
-- **Encoder:** 6000 random uploads identical pulse for pulse to ProtoPirate's encoder (both modes,
+- **Encoder:** 6000 random uploads identical pulse for pulse to ProtoPirate's encoder before the end
+  HIGH changed to 900 µs (both modes,
   key2 = 0 / low byte 0xFF / key1 = 0 edge cases); 3000 full `encode()` calls (field re-derivation,
   button map, counter + 1) identical to the C encoder fed with the fields the C decrypts.
 - **Brute force:** 2 × 38 frames (each: 24 BF1 from the C encoder, 5 + 5 BF2 in the PP and ARF CRC

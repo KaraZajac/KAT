@@ -1721,3 +1721,200 @@ fn tx_loopback_decodes_through_the_rx_pipeline() {
         }
     }
 }
+
+// ──────────────────── PSA frames from Flipper key files (on demand, not in CI) ────────────────────
+
+/// Adjacent same-level half-bits merged into pulses.
+fn merge_halves(halves: &[(bool, u32)]) -> Vec<LevelDuration> {
+    let mut out: Vec<LevelDuration> = Vec::new();
+    for &(level, d) in halves {
+        match out.last_mut() {
+            Some(last) if last.level == level => last.duration_us += d,
+            _ => out.push(LevelDuration::new(level, d)),
+        }
+    }
+    out
+}
+
+/// A press on PSA's standard 250 µs path, as the encoder builds it (80 preamble pairs, sync LOW te /
+/// HIGH 2te / LOW te, key1 then key2 as Manchester half-bits) but with the genuine fobs' ~895 µs end
+/// HIGH (`IMPORTS/GROUPE PSA`; the encoder's 1000 µs end makes a final 0 bit undecodable), `copies`
+/// frames 882 µs apart as in those recordings.
+fn psa_std_press(te: u32, key1: u64, key2: u16, copies: usize) -> Vec<LevelDuration> {
+    let mut halves = Vec::new();
+    for c in 0..copies {
+        if c > 0 {
+            halves.push((false, 882));
+        }
+        for _ in 0..80 {
+            halves.extend([(true, te), (false, te)]);
+        }
+        halves.extend([(false, te), (true, 2 * te), (false, te)]);
+        let bits = (0..64).rev().map(|i| (key1 >> i) & 1 == 1).chain((0..16).rev().map(|i| (key2 >> i) & 1 == 1));
+        for bit in bits {
+            halves.extend([(bit, te), (!bit, te)]);
+        }
+        halves.push((true, 895));
+    }
+    halves.push((false, 2000));
+    merge_halves(&halves)
+}
+
+/// A press as a Flipper sends a saved PSA file: doctor-firmware's / Flipper-ARF's / ProtoPirate's
+/// encoder upload (`subghz_protocol_encoder_psa` build: 80 preamble pairs, sync, key1 + key2 at
+/// 250 µs, end HIGH 1000 / LOW 1000), repeated (doctor-firmware: `encoder.repeat = 3`).
+fn psa_flipper_press(te: u32, key1: u64, key2: u16, copies: usize) -> Vec<LevelDuration> {
+    let mut halves = Vec::new();
+    for _ in 0..copies {
+        for _ in 0..80 {
+            halves.extend([(true, te), (false, te)]);
+        }
+        halves.extend([(false, te), (true, 2 * te), (false, te)]);
+        let bits = (0..64).rev().map(|i| (key1 >> i) & 1 == 1).chain((0..16).rev().map(|i| (key2 >> i) & 1 == 1));
+        for bit in bits {
+            halves.extend([(bit, te), (!bit, te)]);
+        }
+        halves.extend([(true, 1000), (false, 1000)]);
+    }
+    merge_halves(&halves)
+}
+
+/// A press on Flipper-ARF's adaptive AM path (half-bits of 60–200 µs), framed as
+/// `psa::tests::am_frame`: wake-up pulse, 12 preamble cells, boundary cell, a leading 1, the 80 bits,
+/// a terminator; `copies` frames 5 ms apart.
+fn psa_am_press(te: u32, key1: u64, key2: u16, copies: usize) -> Vec<LevelDuration> {
+    let mut halves = Vec::new();
+    for c in 0..copies {
+        if c > 0 {
+            halves.push((false, 5000));
+        }
+        halves.extend([(true, 100), (false, te)]);
+        for _ in 0..12 {
+            halves.extend([(true, te), (false, te)]);
+        }
+        halves.extend([(true, te), (false, 3 * te)]);
+        let bits = std::iter::once(true)
+            .chain((0..64).rev().map(|i| (key1 >> i) & 1 == 1))
+            .chain((0..16).rev().map(|i| (key2 >> i) & 1 == 1));
+        for bit in bits {
+            halves.extend([(bit, te), (!bit, te)]);
+        }
+        let last = halves.last().unwrap().0;
+        halves.push((!last, 6 * te));
+    }
+    halves.push((false, 5000));
+    merge_halves(&halves)
+}
+
+/// The PSA decodes of a burst's AM and FM paths, as the app's registry gives them (`autobf` on:
+/// adaptive-AM TEA frames come out as `PSA [unchecked]` for the key search): (name, key1, key2, path).
+fn psa_decodes(bursts: &[Burst], freq: u32) -> Vec<(String, u64, u16, &'static str)> {
+    let mut out = Vec::new();
+    for b in bursts {
+        for (pairs, rf, path) in [(&b.am, RfModulation::AM, "AM"), (&b.fm, RfModulation::FM, "FM")] {
+            if let Some(p) = pairs {
+                let mut reg = ProtocolRegistry::new();
+                reg.set_auto_key_search(true);
+                for (n, d, _) in reg.process_signal_stream_path(p, freq, Some(rf)) {
+                    if n.starts_with("PSA") {
+                        out.push((n, d.data, d.extra.unwrap_or(0) as u16, path));
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
+/// On demand: every PSA key file (`Key` + `Key_2`) in `$KAT_SIM_PSA_DIR`, sent through the receive
+/// pipeline as a fob would press it (standard 250 µs path; adaptive AM path at 160/125/100/70 µs),
+/// as OOK and as 2FSK at the two deviations the files' presets use, at fob offsets 0 / ±30 kHz and
+/// 20 / 8 dB SNR, two noise seeds each. A frame counts when the registry returns its exact key1 /
+/// key2. `cargo test --release sweep_psa_key_files -- --ignored --nocapture --test-threads 1`
+#[test]
+#[ignore]
+fn sweep_psa_key_files() {
+    let Ok(dir) = std::env::var("KAT_SIM_PSA_DIR") else {
+        eprintln!("KAT_SIM_PSA_DIR is not set: nothing to do");
+        return;
+    };
+    let hex = |s: &str| s.split_whitespace().try_fold(0u64, |acc, b| u8::from_str_radix(b, 16).map(|v| (acc << 8) | u64::from(v)));
+    let mut frames: Vec<(String, u64, u16)> = Vec::new();
+    for entry in std::fs::read_dir(&dir).unwrap() {
+        let path = entry.unwrap().path();
+        let Ok(text) = std::fs::read_to_string(&path) else { continue };
+        let field = |name: &str| text.lines().find_map(|l| l.strip_prefix(name)).map(str::trim);
+        if field("Protocol:") != Some("PSA") {
+            continue;
+        }
+        let (Some(Ok(key1)), Some(Ok(key2))) = (field("Key:").map(hex), field("Key_2:").map(hex)) else { continue };
+        let name = path.file_name().unwrap().to_string_lossy().rsplit('_').next().unwrap().trim_end_matches(".sub").to_string();
+        frames.push((name, key1, key2 as u16));
+    }
+    frames.sort();
+    eprintln!("{} PSA frames from {dir}", frames.len());
+    for (name, key1, key2) in &frames {
+        let got = crate::protocols::psa_recover_key(*key1, u64::from(*key2), &crate::protocols::PsaBruteForceControl::default());
+        let serial = match got {
+            crate::protocols::PsaBruteForceOutcome::Found(hit) => format!("{:06X} ({})", hit.fields.serial, crate::protocols::psa_search_label(&hit)),
+            other => format!("{other:?}"),
+        };
+        eprintln!("  {name}: key1 {key1:016X} key2 {key2:04X} -> serial {serial}");
+    }
+
+    type Press = fn(u32, u64, u16, usize) -> Vec<LevelDuration>;
+    let timings: [(&str, Press, u32); 6] = [
+        ("250 us (standard)", psa_std_press, 250),
+        ("Flipper TX 250 us", psa_flipper_press, 250),
+        ("AM path 160 us", psa_am_press, 160),
+        ("AM path 125 us", psa_am_press, 125),
+        ("AM path 100 us", psa_am_press, 100),
+        ("AM path 70 us", psa_am_press, 70),
+    ];
+    let modus = [("OOK", Modu::Ook), ("2FSK +-25.4 kHz", Modu::Fsk(25_390.0)), ("2FSK +-31.7 kHz", Modu::Fsk(31_738.0))];
+    let offsets = [0.0, -30e3, 30e3];
+    let snrs = [20.0, 8.0];
+    let freq = 433_920_000;
+    let mut grand = (0usize, 0usize);
+    for (tname, press, te) in timings {
+        for (mname, modu) in modus {
+            let (mut ok, mut total) = (0usize, 0usize);
+            let mut misses: Vec<String> = Vec::new();
+            let mut how: std::collections::BTreeMap<String, usize> = Default::default();
+            for (fi, (name, key1, key2)) in frames.iter().enumerate() {
+                let truth = press(te, *key1, *key2, 3);
+                for &off in &offsets {
+                    for &snr in &snrs {
+                        for t in 0..2u64 {
+                            total += 1;
+                            let mut rng = seed(t + 100 * fi as u64);
+                            let spec = Spec::live(modu, off, snr);
+                            let iq = synth(&truth, &spec, &mut rng);
+                            let got = psa_decodes(&run_pipeline(&iq, &spec, freq), freq);
+                            match got.iter().find(|(_, k1, k2, _)| k1 == key1 && k2 == key2) {
+                                Some((n, _, _, path)) => {
+                                    ok += 1;
+                                    *how.entry(format!("{n} via {path}")).or_default() += 1;
+                                }
+                                None => misses.push(format!(
+                                    "{name} {off:+.0} Hz {snr} dB #{t}: {}",
+                                    if got.is_empty() { "no PSA decode".to_string() } else { format!("{} other PSA decode(s)", got.len()) }
+                                )),
+                            }
+                        }
+                    }
+                }
+            }
+            grand.0 += ok;
+            grand.1 += total;
+            eprintln!("{tname:>18} | {mname:<16} | {ok:>3}/{total:<3} | {how:?}");
+            for m in misses.iter().take(6) {
+                eprintln!("{:>18}   miss: {m}", "");
+            }
+            if misses.len() > 6 {
+                eprintln!("{:>18}   … {} more misses", "", misses.len() - 6);
+            }
+        }
+    }
+    eprintln!("total: {}/{} presses decoded with their exact frame", grand.0, grand.1);
+}

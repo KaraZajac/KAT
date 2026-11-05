@@ -2,6 +2,15 @@
 
 All notable changes to KAT are documented here.
 
+## [1.8.4] - 2026-11-05
+
+PSA between KAT and Flipper Zeros: KAT now receives the PSA frames a Flipper sends from saved files, and Flipper firmwares can read KAT's PSA transmissions, whatever a frame's last bit.
+
+### Fixed
+
+- **PSA frames a Flipper sends from a saved file were lost when their last bit was 0.** Flipper firmwares (doctor-firmware, Flipper-ARF, ProtoPirate) end each PSA frame they transmit with a 1000 µs pulse; after a final 0 bit it runs into the bit's last half, 1250 µs on the air, past the end window KAT took from those firmwares (801–1199 µs; they cannot read such a frame from each other either). So half of all PSA frames played from a Flipper's saved files never appeared, though the same frames from the fobs themselves (which end at about 900 µs) did. KAT now also accepts that merged end. Checked over the air, Flipper Zero → HackRF, with a made-up remote: KAT 1.8.3 received none of the frames ending in a 0 bit, on AM or FM, and now receives every copy; frames sent with a fob's timing decode in both. The tester's ten PSA key files sent through the receiver simulator the way a Flipper sends them: 5 of 10 before, 10 of 10 now ([docs/psa.md](docs/psa.md)).
+- **KAT's PSA transmissions ending in a 0 bit could not be read by Flipper firmwares.** KAT's PSA encoder used the same 1000 µs end; it now ends frames as the genuine fobs do, with 900 µs (measured on both PSA fobs in `IMPORTS`). Checked over the air, HackRF → Flipper Zero (its raw recording decoded with the firmwares' end window): such a frame from KAT 1.8.3 was unreadable, the new one is read (9 of 10 copies, as with frames ending in a 1 bit).
+
 ## [1.8.3] - 2026-11-05
 
 Key recovery for the testers: PSA keys are now found on their own (`autobf`), and Fiat V1, Renault V1 and Fiat V2 remotes get **Recover key (HiTag2)**, the HiTag2 Hell attack, with the recovered keys saved per remote.

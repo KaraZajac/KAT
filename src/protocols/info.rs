@@ -238,6 +238,30 @@ pub fn lookup(name: &str) -> Option<&'static ProtocolInfo> {
     })
 }
 
+/// Decoders of protocols that carry no checksum or other check KAT can verify: their frames never
+/// report `crc_valid`, so the interface shows "-" for them rather than "FAIL". Each sets
+/// `crc_valid: false` and nothing else (directly or through the gate modules' shared helpers);
+/// `no_checksum_protocols_never_report_a_valid_crc` holds them to it on the test captures.
+pub(super) const NO_CHECKSUM: &[&str] = &[
+    // Fixed-code gate, garage, barrier and shutter remotes.
+    "Allstar Firefly", "Ansonic", "BETT", "CAME", "CAME TWEE", "Cham_Code", "Clemsa", "Dickert_MAHS",
+    "Doitrand", "Dooya", "Elplast", "GateTX", "Holtek", "Holtek_HT12X", "Hormann HSM", "Linear",
+    "LinearDelta3", "Marantec24", "Mastercode", "MegaCode", "Nero Radio", "Nero Sketch", "Nice FLO",
+    "Princeton", "Revers_RB2", "Roger", "SMC5326", "Telcoma/Cardin EDGE", "Urmet",
+    // Rolling codes the references decode without a check.
+    "CAME Atomo", "Cardin S508", "Ditec GOL4", "Hay21", "iDo 117/111", "Phoenix_V2", "Prastel",
+    "Security+ 1.0",
+    // rtl_433 ports whose C has no integrity check.
+    "Alps-FWB1U545", "Audiovox-PROOE3B", "CodeAlarm-FRDPC2002", "Opel-Mokka",
+];
+
+/// Whether `name`'s protocol has a checksum (or another check) KAT verifies, so that a frame
+/// without `crc_valid` failed it. False for the protocols in [`NO_CHECKSUM`]; true for names
+/// [`lookup`] doesn't know.
+pub fn has_checksum(name: &str) -> bool {
+    lookup(name).is_none_or(|i| !NO_CHECKSUM.contains(&i.decoder))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

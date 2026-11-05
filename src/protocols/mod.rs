@@ -189,7 +189,7 @@ mod mazda_infinity;
 pub use common::DecodedSignal;
 pub use rtl433::{is_keeloq_chip, redecode_keeloq_chip};
 pub use flipper_key::FlipperKey;
-pub use info::{lookup as protocol_info, ProtocolInfo};
+pub use info::{has_checksum, lookup as protocol_info, ProtocolInfo};
 /// PSA TEA key recovery for the signal menu's "Recover key" action (ProtoPirate's brute force,
 /// which the references also run on demand rather than while decoding).
 pub use psa::{
@@ -1433,6 +1433,42 @@ mod tests {
                 diff.join("\n")
             );
         }
+    }
+
+    /// `info::NO_CHECKSUM` names registered decoders, and none of them ever reports a valid
+    /// checksum: on every IMPORTS capture and, when the references are checked out, every Flipper
+    /// unit-test capture (RAW files decoded, key files loaded), a decode whose protocol shows "-"
+    /// for its CRC has `crc_valid == false`. A decoder that gains a check must leave the list.
+    #[test]
+    fn no_checksum_protocols_never_report_a_valid_crc() {
+        crate::protocols::keys::load_keystore_from_embedded();
+        let mut reg = ProtocolRegistry::new();
+        for &name in info::NO_CHECKSUM {
+            assert_eq!(reg.get(name).map(|d| d.name()), Some(name), "{name}: not a registered decoder name");
+            assert!(!has_checksum(name), "{name}");
+        }
+        let mut paths = imports_subs().unwrap_or_default();
+        let unit = Path::new("REFERENCES/Flipper-ARF/applications/debug/unit_tests/resources/unit_tests/subghz");
+        if let Ok(dir) = std::fs::read_dir(unit) {
+            paths.extend(dir.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "sub")));
+        }
+        let (mut checked, mut unchecked) = (0, 0);
+        for path in &paths {
+            let mut decodes = decode_import(&mut reg, path).map(|(_, d)| d).unwrap_or_default();
+            if decodes.is_empty() {
+                let key = std::fs::read_to_string(path).ok().and_then(|t| FlipperKey::parse(&t).ok());
+                decodes.extend(key.and_then(|k| reg.decode_key(&k)));
+            }
+            for (name, d) in decodes {
+                if has_checksum(&name) {
+                    checked += 1;
+                } else {
+                    unchecked += 1;
+                    assert!(!d.crc_valid, "{}: {name} is listed without a checksum but reported a valid one", path.display());
+                }
+            }
+        }
+        eprintln!("{unchecked} decodes of protocols without a checksum, {checked} with one");
     }
 
     /// Whether `pulses` (an encoder's upload) decodes as `name` with `d`'s serial, through the whole

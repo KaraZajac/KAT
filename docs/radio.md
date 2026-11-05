@@ -235,8 +235,8 @@ first"): TX stops RX, which would end the recording.
 
 **When the receiver stops by itself** — the device cannot be opened (busy, unplugged), a setting is
 refused, or it goes away while streaming (an unplugged HackRF stops streaming, which KAT checks every
-100 ms; a failed RTL-SDR read ends RX, as in `rtl_sdr`) — the status line says "Receiver stopped:
-<reason> (r restarts)", the header goes back to idle with the level at zero, a running recording ends
+100 ms; a failed RTL-SDR read ends RX, as in `rtl_sdr`) — the status line says
+`Receiver stopped: <reason> (r restarts)`, the header goes back to idle with the level at zero, a running recording ends
 with it, and one `r` starts RX again. If no radio is found at startup, the warning names the reason for
 each device (not found, no USB permission, busy: another program or the RTL-SDR's DVB-T driver has it),
 and `kat.log` has the libraries' errors.

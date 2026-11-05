@@ -195,7 +195,7 @@ fn table_cell(col: Col, row: &RowText, capture: &Capture, width: u16) -> Cell<'s
             ModulationType::Nrz => Style::default().fg(Color::Green),
             ModulationType::Unknown => Style::default().fg(Color::DarkGray),
         },
-        Col::Crc if capture.protocol.is_none() => Style::default().fg(Color::DarkGray),
+        Col::Crc if !capture.crc_checked() => Style::default().fg(Color::DarkGray),
         Col::Crc if capture.crc_valid => Style::default().fg(Color::Green),
         Col::Crc => Style::default().fg(Color::Red),
         Col::Status => match capture.status {
@@ -439,6 +439,8 @@ fn signal_detail_lines(capture: &Capture, saved: Option<&SavedFobMatch>, max: us
     };
     let crc = if capture.protocol.is_none() {
         Span::styled("-", dim)
+    } else if !capture.crc_checked() {
+        Span::styled("none", dim)
     } else if capture.crc_valid {
         Span::styled("OK ✓", Style::default().fg(Color::Green))
     } else {

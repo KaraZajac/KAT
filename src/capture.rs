@@ -191,9 +191,15 @@ impl Capture {
         self.protocol.as_deref().unwrap_or("Unknown")
     }
 
-    /// Get CRC status as a string
+    /// Whether the capture's protocol has a checksum KAT verifies (unknown signals: no).
+    pub fn crc_checked(&self) -> bool {
+        self.protocol.as_deref().is_some_and(crate::protocols::has_checksum)
+    }
+
+    /// Get CRC status as a string: "-" when there is nothing to check (an unknown signal, or a
+    /// protocol without a checksum), else "OK" or "FAIL".
     pub fn crc_status(&self) -> &str {
-        if self.protocol.is_none() {
+        if !self.crc_checked() {
             "-"
         } else if self.crc_valid {
             "OK"

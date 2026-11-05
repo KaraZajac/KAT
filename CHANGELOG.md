@@ -2,6 +2,17 @@
 
 All notable changes to KAT are documented here.
 
+## [Unreleased]
+
+### Changed
+
+- **KAT's website moved to [kat.karazajac.io](https://kat.karazajac.io)**, rebuilt in the style of the other karazajac.io project pages, with the protocol list linking every protocol's page. The pages keep their names (`radio.html`, `kia_v0.html` …), and the old `karazajac.github.io/KAT/` addresses forward to the same page there. The site is built from `docs/` (`docs/build.mjs`); GitHub Pages now only serves the forwarding pages.
+- **No "FAIL" for protocols without a checksum.** The CRC column and the detail panel said FAIL for every frame of a protocol that has no checksum to check — fixed-code gate remotes such as Princeton and CAME, Security+ 1.0, CAME Atomo, and the Alps, Audiovox, Code Alarm and Opel Mokka ports — as if the decode were wrong. They now show "-" (detail panel: "none"); OK and FAIL remain for protocols with a check. `--decode` output and `.fob` files are unchanged.
+
+### Fixed
+
+- The receiver page (`docs/radio.md`) was cut short on the website: a `<reason>` placeholder was read as an HTML tag and hid the rest of the page, the over-the-air results included.
+
 ## [1.8.0] - 2026-11-05
 
 Two more Flipper firmwares, Momentum and RogueMaster, join the references for the protocols KAT lacked, and rtl_433 for receive-only decoders of remotes no Flipper firmware reads. KAT's receiver was also tested over the air for the first time, with a Flipper Zero replaying 67 `.sub` files to a HackRF: KAT 1.7 received 138 of their 250 frames, this release 239 ([docs/radio.md](docs/radio.md)). What that turned up is fixed below.

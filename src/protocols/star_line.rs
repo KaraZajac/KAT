@@ -311,7 +311,7 @@ pub fn collect_star_line_bits(
                 if level {
                     if duration >= (TE_LONG + TE_DELTA) {
                         step = DecoderStep::Reset;
-                        if decode_count_bit >= MIN_COUNT_BIT && decode_count_bit <= MIN_COUNT_BIT + 2 {
+                        if (MIN_COUNT_BIT..=MIN_COUNT_BIT + 2).contains(&decode_count_bit) {
                             return Some(decode_data);
                         }
                         decode_data = 0;
@@ -331,7 +331,7 @@ pub fn collect_star_line_bits(
                         && duration_diff!(duration, TE_SHORT) < TE_DELTA
                     {
                         if decode_count_bit < MIN_COUNT_BIT {
-                            decode_data = (decode_data << 1) | 0;
+                            decode_data <<= 1;
                             decode_count_bit += 1;
                         } else {
                             decode_count_bit += 1;

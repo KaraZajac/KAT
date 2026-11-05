@@ -4,16 +4,18 @@
 default button, counter, manufacturer key and seed — that KAT can transmit, typically to pair it with
 a gate / garage receiver in learning mode. It ports the SubGHz app's **Add Manually** of Flipper-ARF
 (`applications/main/subghz/scenes/subghz_scene_set_type.c`, `helpers/subghz_gen_info.c`,
-`helpers/subghz_txrx_create_protocol_key.c` and the protocols' `*_create_data`) and of
-doctor-firmware (the same files; its list is a superset). Code: `src/protocols/add_manually.rs`
-(types, parameters, key files), `src/app/add_manually.rs` and `src/ui/add_manually.rs` (picker).
+`helpers/subghz_txrx_create_protocol_key.c` and the protocols' `*_create_data`), of
+doctor-firmware (the same files; its list is a superset) and of RogueMaster (whose list adds six
+types; Momentum's adds none). Code: `src/protocols/add_manually.rs` (types, parameters, key files),
+`src/app/add_manually.rs` and `src/ui/add_manually.rs` (picker).
 
 ## Using it
 
-- `:new` opens the type picker: the 101 types in the references' menu order, under the headings
+- `:new` opens the type picker: the 107 types in the references' menu order, under the headings
   Rolling code, KeeLoq manufacturers (KL:), Nice, CAME, Fixed code and Security+. Each row shows the
   protocol (KeeLoq: the manufacturer key), frequency and preset; doctor-firmware-only types say
-  "doctor", types KAT cannot create "✗ n/a" (the reason is shown under the list).
+  "doctor" and RogueMaster's six "RM", types KAT cannot create "✗ n/a" (the reason is shown under
+  the list); the line under the list names the menus that list the selected type.
 - Type to filter (all words must match the name), Up/Down/PgUp/PgDn to select.
 - **Enter** creates the selected type with fresh random values (doctor-firmware's "Add Manually").
 - **Tab** first shows its fields — Key (fixed codes), Serial, Button, Counter, Seed, as Flipper-ARF's
@@ -51,7 +53,9 @@ there.
      programming mode for button 0xF of BFT / Aprimatic / Dea_Mio; `Seed` + `Manufacture`), FAAC SLH
      (FAAC learning of the seed; `Seed`, `AllowZeroSeed: true`), CAME Atomo, Alutech AT-4N, Somfy
      Telis / Keytis, KingGates Stylo4k, Beninca ARC, Jarolift, Ditec GOL4, Nice FloR-S / One,
-     Security+ 2.0, Phoenix V2 — each a `create_data` helper in its module. Counter steps as in each
+     Security+ 2.0, Phoenix V2 — each a `create_data` helper in its module — and RogueMaster's
+     Prastel (`subghz_protocol_prastel_create_data`: the serial's 21 frame bits, button 1..4 as raw
+     nibble 0xE / 0xD / 0xB / 0x7, the counter, scrambled; `add_manually::prastel_key`). Counter steps as in each
      C function: FAAC SLH (Flipper-ARF), Somfy, Ditec GOL4, Security+ 2.0 and Alutech advance the
      counter before the first code, the others store it as given.
 
@@ -60,8 +64,16 @@ there.
 - **One list**: Flipper-ARF's 78 types plus doctor-firmware's 23 (Genius, Erreka, Somfy Keytis,
   Ditec GOL4, Superrollo, Dorcas, KEY, HomeGate, Pujol, Pujol Vario, ET Blue (Mix), ATA PTX4, Seav,
   Wisniowski, Fadini, Mc Garcia, Clemsa Mutancode, Doormatic, Elvox, Verex, Telcoma EDGE) where
-  doctor's menu puts them. Where both have a type, ARF's name and parameters are used (they differ
-  only in "KL: Genius Bravo": ARF button 0x06, doctor 0x09 / "KL: Genius TX4RC 433M.").
+  doctor's menu puts them, plus RogueMaster's 6 (Erreka 868MHz, Prastel 433MHz, Nice O-Code / O-Code
+  One / O-Code+Crt 433MHz, Nord ICE 433MHz) where RogueMaster's puts them — its last two O-Code
+  types, which its enum appends after Security+ (with Telcoma EDGE), stay in the Nice group after
+  the first. Where several have a type, ARF's name and parameters are used (ARF and doctor differ
+  only in "KL: Genius Bravo": ARF button 0x06, doctor 0x09 / "KL: Genius TX4RC 433M."). Momentum's
+  94 types are all in the list (its Genius Bravo is doctor's). RogueMaster lacks Dorcas and differs
+  from ARF / doctor in three shared types (gen oracle, below): Monarch is a KeeLoq-with-seed type
+  there (`Seed: 00 00 01 00`), its FAAC SLH `create_data` stores the counter as given and writes
+  `Manufacture: FAAC_SLH` (doctor's behaviour; KAT keeps ARF's for the FAAC SLH types), and its
+  Beninca ARC runs the hardware AES like ARF's `lib` copy; its Genius Bravo is doctor's.
 - **All types work in KAT that its protocols allow.** Flipper-ARF's firmware registers only its car
   protocols and KeeLoq, so on a real ARF device every non-KeeLoq type fails ("Function requires an SD
   card with fresh databases") or crashes in `subghz_transmitter_free(NULL)` (FAAC SLH, Somfy Telis,
@@ -77,13 +89,16 @@ there.
 - **doctor's generic serializer** also writes `Serial` / `Btn` / `Cnt` (and a decimal `Seed` line
   before the hex one, which a hex reader then trips on); KAT writes the lines the protocols' own
   serializers write (Flipper-ARF's form).
-- **Not created** (listed with the reason): GangQi and Hollarm (no KAT protocol); Nice FloR-S /
+- **Not created** (listed with the reason): RogueMaster's Nord ICE (no KAT protocol: doctor's
+  `nord_ice.c` is not ported, the garage app ships it receive-only) and its three Nice O-Code types
+  (RogueMaster's O-Code key maker — installer code, receiver-certificate enrolment — is not ported;
+  KAT re-sends captured O-Code keys whose IC is known, see `nice_flor_s.md`); Nice FloR-S /
   Nice One and Alutech AT-4N without the user's rainbow table (`~/.config/KAT/nice_flor_s.bin`,
   `alutech_at_4n.bin`, see `nice_flor_s.md` / `alutech_at_4n.md`; the C would save a key encrypted
   with nothing); KeeLoq manufacturers without a usable key in KAT's keystore (the C saves an all-zero
-  key) — they become available when `~/.config/KAT/keeloq_mfcodes_user` adds the key; doctor's KEY
-  and Dorcas, whose hops use doctor-only KeeLoq discriminators (0x2FF; Monarch 0x280 kept in the seed)
-  while KAT's KeeLoq codec follows Flipper-ARF's.
+  key; Erreka 433 / 868 among them) — they become available when `~/.config/KAT/keeloq_mfcodes_user`
+  adds the key; doctor's KEY and Dorcas, whose hops use doctor-only KeeLoq discriminators (0x2FF;
+  Monarch 0x280 kept in the seed) while KAT's KeeLoq codec follows Flipper-ARF's.
 - **KeeLoq transmission** uses the manufacturer the remote names (as ARF's encoder uses the key
   file's `Manufacture`). On air, receivers that walk a whole keystore (Flipper, KAT) name the first
   entry whose key validates the frame — for about one remote in ten an earlier keystore entry
@@ -105,11 +120,16 @@ there.
 - `src/app/tx.rs` `rolling_codes_advance_on_every_press`: every available rolling-code type sends a
   new counter on each of three presses once the frame sent is kept (FAAC SLH keeping its seed); fixed
   codes keep their capture.
-- Reference gen oracle (Flipper-ARF's and doctor-firmware's `subghz_gen_info.c` and
-  `subghz_txrx_create_protocol_key.c` compiled unmodified, `rand()` scripted, KAT's keystore): for
-  three `rand()` sequences, 231 of 234 generated key files are byte-identical to the reference's
-  (doctor's generic `Serial`/`Btn`/`Cnt` lines aside); the 3 others are Beninca ARC against ARF's
-  hardware-AES copy (identical to doctor's).
+- Reference gen oracle (Flipper-ARF's, doctor-firmware's and — since round 2 — RogueMaster's
+  `subghz_gen_info.c` and `subghz_txrx_create_protocol_key.c` compiled unmodified, `rand()` scripted,
+  KAT's keystore): for three `rand()` sequences, 240 of 243 generated key files are byte-identical to
+  the reference of the type's menu (ARF for its types, doctor for doctor's, RogueMaster for
+  RogueMaster's; doctor's generic `Serial`/`Btn`/`Cnt` and RogueMaster's `Lat`/`Lon` lines aside),
+  GangQi, Hollarm and Prastel included; the 3 others are Beninca ARC against ARF's hardware-AES copy
+  (identical to doctor's). Against RogueMaster for the 80 types it shares, 225 of 240 are identical;
+  the rest are the five differences above (FAAC SLH ×2, Beninca ARC, Monarch, Genius Bravo). The
+  RogueMaster gen oracle is the gate round's gen oracle extended with a `roguemaster` tree, linked
+  against the RogueMaster reference-oracle build.
 - Reference decoders on KAT's transmissions (`subghz_oracle_{garage,doctor,arf}`, three seeds):
   every created remote decodes with the same protocol and serial (KeeLoq: Flipper-ARF and
   doctor-firmware name the type's manufacturer, or the same first match as KAT), except the
@@ -138,6 +158,7 @@ protocols without button names (KAT's car labels Lock/Unlock/Trunk/Panic are for
 | Genius 868MHz | Faac SLH (Genius) | 868.35 | AM650 | serial `((r & 0x00FFFFF0) \| 0xA0000006) >> 4`, button `0x06`, counter `0x02`, seed `r` | doctor | ✓ |
 | BFT Mitto 433MHz | KeeLoq (BFT) | 433.92 | AM650 | serial `r & 0x000FFFFF`, button `0x02`, counter `0x02`, seed `r & 0x000FFFFF` | both | ✓ |
 | Erreka 433MHz | KeeLoq (Erreka) | 433.92 | AM650 | serial `r & 0x000FFFFF`, button `0x02`, counter `0x02`, seed `r & 0x000FFFFF` | doctor | ✗ needs a Erreka key in `keeloq_mfcodes_user` |
+| Erreka 868MHz | KeeLoq (Erreka) | 868.35 | AM650 | serial `r & 0x000FFFFF`, button `0x02`, counter `0x02`, seed `r & 0x000FFFFF` | RogueMaster | ✗ needs a Erreka key in `keeloq_mfcodes_user` |
 | Somfy Telis 433MHz | Somfy Telis | 433.42 | AM650 | serial `r & 0x00FFFFFF`, button `0x02`, counter `0x03` | both | ✓ |
 | Somfy Keytis 433MHz | Somfy Keytis | 433.42 | AM650 | serial `(r & 0x0000FFFF) \| 0x00D50000`, button `0x04`, counter `0x03` | doctor | ✓ |
 | KingGates Stylo4k 433M. | KingGates Stylo4k | 433.92 | AM650 | serial `r & 0xFFFFFFFF`, button `0x0E`, counter `0x03` | both | ✓ |
@@ -147,6 +168,7 @@ protocols without button names (KAT's car labels Lock/Unlock/Trunk/Panic are for
 | AN-Motors AT4 433MHz | KeeLoq (AN-Motors) | 433.92 | AM650 | serial `(r & 0x000FFFFF) \| 0x04700000`, button `0x02`, counter `0x21` | both | ✓ |
 | Alutech AT4N 433MHz | Alutech AT-4N | 433.92 | AM650 | serial `(r & 0x000FFFFF) \| 0x00100000`, button `0x44`, counter `0x03` | both | ✗ needs `alutech_at_4n.bin` |
 | V2 Phoenix 433MHz | Phoenix_V2 | 433.92 | AM650 | serial `(r & 0x0FFFFFFF) \| 0xB0000000`, counter `0x025D` | both | ✓ |
+| Prastel 433MHz | Prastel | 433.92 | AM650 | serial `r & 0x001FFFFF` (the 21 frame bits), button `0x01`, counter `0x03` | RogueMaster | ✓ |
 | KL: HCS101 433MHz | KeeLoq (HCS101) | 433.92 | AM650 | serial `r & 0x000FFFFF`, button `0x02`, counter `0x03` | both | ✓ |
 | KL: DoorHan 315MHz | KeeLoq (DoorHan) | 315.00 | AM650 | serial `r & 0x0FFFFFFF`, button `0x02`, counter `0x03` | both | ✓ |
 | KL: DoorHan 433MHz | KeeLoq (DoorHan) | 433.92 | AM650 | serial `r & 0x0FFFFFFF`, button `0x02`, counter `0x03` | both | ✓ |
@@ -202,6 +224,9 @@ protocols without button names (KAT's car labels Lock/Unlock/Trunk/Panic are for
 | KL: Nice Smilo 433MHz | KeeLoq (NICE_Smilo) | 433.92 | AM650 | serial `r & 0x00FFFFFF`, button `0x02`, counter `0x03` | both | ✓ |
 | Nice FloR-S 433MHz | Nice FloR-S | 433.92 | AM650 | serial `r & 0x0FFFFFFF`, button `0x01`, counter `0x03` | both | ✗ needs `nice_flor_s.bin` |
 | Nice One 433MHz | Nice FloR-S | 433.92 | AM650 | serial `r & 0x0FFFFFFF`, button `0x01`, counter `0x03`, Nice One (72 bits) | both | ✗ needs `nice_flor_s.bin` |
+| Nice O-Code 433MHz | Nice FloR-S (O-Code) | 433.92 | AM650 | serial `r & 0x0FFFFFFF`, button `0x01`, counter `0xC089`, installer code `(uint16_t)` 4th `rand()` | RogueMaster | ✗ RogueMaster's O-Code key maker not ported |
+| Nice O-Code One 433MHz | Nice FloR-S (O-Code) | 433.92 | AM650 | as Nice O-Code, Nice One (72 bits) | RogueMaster | ✗ RogueMaster's O-Code key maker not ported |
+| Nice O-Code+Crt 433MHz | Nice FloR-S (O-Code) | 433.92 | AM650 | as Nice O-Code One, no installer code drawn: the gate's code and receiver certificate are asked for | RogueMaster | ✗ RogueMaster's O-Code key maker not ported |
 | Nice Flo 12bit 433MHz | Nice FLO | 433.92 | AM650 | key `(r & 0x00000FF0) \| 0x1`, 12 bits | both | ✓ |
 | Nice Flo 24bit 433MHz | Nice FLO | 433.92 | AM650 | key `(r & 0x00FFFFF0) \| 0x4`, 24 bits | both | ✓ |
 | CAME 12bit 433MHz | CAME | 433.92 | AM650 | key `(r & 0x00000FF0) \| 0x1`, 12 bits | both | ✓ |
@@ -216,8 +241,9 @@ protocols without button names (KAT's car labels Lock/Unlock/Trunk/Panic are for
 | Princeton 433MHz | Princeton | 433.92 | AM650 | key `(r & 0x00FFFFF0) \| 0x4`, 24 bits, TE 400 µs | both | ✓ |
 | ZKTeco 430MHz | Princeton | 430.50 | AM650 | key `(r & 0x00FFFF00) \| 0x30`, 24 bits, TE 357 µs | both | ✓ |
 | BETT 433MHz | BETT | 433.92 | AM650 | key `(r & 0x0000FFF0)`, 18 bits | both | ✓ |
-| GangQi 433MHz | GangQi | 433.92 | AM650 | 16-bit serial from `r₂`, button 0xD, byte-sum check, 34 bits | both | ✗ KAT has no GangQi protocol |
-| Hollarm 433MHz | Hollarm | 433.92 | AM650 | key `(r & 0x000FFF0000) \| 0xF0B0002200` + byte-sum check, 42 bits | both | ✗ KAT has no Hollarm protocol |
+| GangQi 433MHz | GangQi | 433.92 | AM650 | 16-bit serial from `r₂`, button 0xD, byte-sum check, 34 bits | both | ✓ |
+| Hollarm 433MHz | Hollarm | 433.92 | AM650 | key `(r & 0x000FFF0000) \| 0xF0B0002200` + byte-sum check, 42 bits | both | ✓ |
+| Nord ICE 433MHz | Nord ICE | 433.92 | AM650 | key `(r & 0x1FFFF81FF) \| 0x2400` (button 4 at bits 12..9, bit 13 set), 33 bits | RogueMaster | ✗ KAT has no Nord ICE protocol |
 | Revers RB2 433MHz | Revers_RB2 | 433.92 | AM650 | key `(r & 0x00000FFFFFFFF000) \| 0xFFFFF00000000000 \| 0x0000000000000A00`, 64 bits | both | ✓ |
 | Marantec24 868MHz | Marantec24 | 868.35 | AM650 | key `(r & 0xFFFFF0) \| 0x000008`, 24 bits | both | ✓ |
 | Marantec 433MHz | Marantec | 433.92 | AM650 | 20-bit serial from `r₃`, constant 0x130 / 0x86, button 0x4, CRC-8, 49 bits | both | ✓ |

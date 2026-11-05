@@ -338,6 +338,7 @@ impl std::fmt::Display for RadioState {
 }
 
 /// Events from the radio subsystem
+#[allow(clippy::large_enum_variant)] // one event per capture; boxing would touch every sender in src/radio
 pub enum RadioEvent {
     /// New signal captured
     SignalCaptured(Capture),
@@ -548,7 +549,7 @@ impl App {
         };
         let radio_open_error = (radio.is_none() && !open_errors.is_empty()).then(|| open_errors.join(" · "));
 
-        let device_detected = radio.as_ref().map_or(false, |r| r.is_available());
+        let device_detected = radio.as_ref().is_some_and(|r| r.is_available());
 
         let radio_state = if device_detected {
             RadioState::Idle
@@ -675,7 +676,7 @@ impl App {
     /// True if the active device supports transmit (HackRF only; RTL-SDR is receive-only).
     #[allow(dead_code)]
     pub fn can_transmit(&self) -> bool {
-        self.radio.as_ref().map_or(false, |r| r.supports_tx())
+        self.radio.as_ref().is_some_and(|r| r.supports_tx())
     }
 
     /// Select the next capture in the list
@@ -750,7 +751,7 @@ impl App {
 
     /// Execute a command
     pub fn execute_command(&mut self, command: &str) -> Result<()> {
-        let parts: Vec<&str> = command.trim().split_whitespace().collect();
+        let parts: Vec<&str> = command.split_whitespace().collect();
         if parts.is_empty() {
             return Ok(());
         }
@@ -879,7 +880,7 @@ impl App {
     /// Set the receive frequency
     fn set_frequency(&mut self, hz: u32) -> Result<()> {
         // Validate frequency range (common keyfob frequencies)
-        if hz < 300_000_000 || hz > 928_000_000 {
+        if !(300_000_000..=928_000_000).contains(&hz) {
             self.last_error = Some(format!(
                 "{} MHz is out of range: KAT receives 300–928 MHz (e.g. :freq 433.92)",
                 crate::radio::hopper::format_mhz(hz)
@@ -1189,54 +1190,7 @@ impl App {
         }
         while let Ok(event) = self.radio_event_rx.try_recv() {
             match event {
-                RadioEvent::SignalCaptured(mut capture) => {
-                    // Convert stored pairs to the format protocols expect
-                    let pairs: Vec<crate::radio::LevelDuration> = capture.raw_pairs
-                        .iter()
-                        .map(|p| crate::radio::LevelDuration::new(p.level, p.duration_us))
-                        .collect();
-
-                    // Try to decode with registered protocols (those flagged for the receive path's
-                    // AM/FM first, then all)
-                    if let Some((protocol_name, decoded)) =
-                        self.protocols.process_signal_path(&pairs, capture.frequency, capture.received_rf)
-                    {
-                        capture.protocol = Some(protocol_name);
-                        capture.serial = decoded.serial;
-                        capture.button = decoded.button;
-                        capture.counter = decoded.counter;
-                        capture.crc_valid = decoded.crc_valid;
-                        capture.data = decoded.data;
-                        capture.data_count_bit = decoded.data_count_bit;
-                        capture.data_extra = decoded.extra;
-                        capture.status = if decoded.encoder_capable {
-                            crate::capture::CaptureStatus::EncoderCapable
-                        } else {
-                            crate::capture::CaptureStatus::Decoded
-                        };
-                    }
-
-                    // When research_mode is off, only add successfully decoded signals.
-                    let show = self.storage.config.research_mode || capture.protocol.is_some();
-                    if show {
-                        // Same IQ is fed to AM and FM demodulators; both can emit for one keypress.
-                        // Skip if we already have this exact signal (protocol + data + serial + button).
-                        if self.capture_duplicate_of_existing(&capture) {
-                            self.status_message = Some("Duplicate signal ignored".to_string());
-                        } else {
-                            capture.id = self.next_capture_id;
-                            self.next_capture_id += 1;
-                            // Autosaved to the session file on the next tick (app/persistence.rs).
-                            self.captures.push(capture);
-
-                            // Selected only when that takes nothing from the user (app/input.rs).
-                            self.follow_new_capture();
-
-                            self.status_message = Some("New signal captured".to_string());
-                        }
-                    }
-                    // When research_mode is off and decode failed, the signal is dropped (not shown).
-                }
+                RadioEvent::SignalCaptured(capture) => self.add_received_signal(capture),
                 RadioEvent::Error(e) => {
                     // Only a receive thread sends this, when RX ended on its own (open/configure
                     // failure, unplug); it already stopped streaming, ended any recording and zeroed
@@ -1299,13 +1253,13 @@ impl App {
     }
 
     fn signal_actions_base(&self) -> Vec<SignalAction> {
-        let has_tx = self.radio.as_ref().map_or(false, |r| r.supports_tx());
+        let has_tx = self.radio.as_ref().is_some_and(|r| r.supports_tx());
         let selected = self.signal_menu_capture();
         let encoder_capable = selected
-            .map_or(false, |c| c.status == crate::capture::CaptureStatus::EncoderCapable);
+            .is_some_and(|c| c.status == crate::capture::CaptureStatus::EncoderCapable);
         // Gate/garage/barrier remotes (and KeeLoq barrier/alarm manufacturers) get the replay /
         // next-code menu instead of the car commands.
-        let is_non_car_keeloq = selected.map_or(false, |c| {
+        let is_non_car_keeloq = selected.is_some_and(|c| {
             is_keeloq_non_car(c.protocol_name())
                 || crate::protocols::protocol_info(c.protocol_name())
                     .is_some_and(|i| i.category == crate::protocols::info::Category::Gate)
@@ -1570,7 +1524,7 @@ impl App {
         // Pre-fill filename: Year_Make_Model_Region_Command_8HEX for all .fob exports
         let capture = self.captures.iter().find(|c| c.id == id);
         let default_name = capture
-            .map(|c| Self::default_export_filename(c))
+            .map(Self::default_export_filename)
             .unwrap_or_else(|| format!("capture_{}", id));
         let suffix_nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -1581,7 +1535,7 @@ impl App {
 
         // Pre-fill metadata from capture if set, otherwise make from protocol
         let make = capture
-            .and_then(|c| c.make.as_ref().map(String::clone))
+            .and_then(|c| c.make.clone())
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| {
                 capture
@@ -1592,16 +1546,16 @@ impl App {
         self.export_format = Some(ExportFormat::Fob);
         self.fob_meta_year = capture
             .and_then(|c| c.year.as_ref())
-            .map(String::clone)
+            .cloned()
             .unwrap_or_default();
         self.fob_meta_make = make;
         self.fob_meta_model = capture
             .and_then(|c| c.model.as_ref())
-            .map(String::clone)
+            .cloned()
             .unwrap_or_default();
         self.fob_meta_region = capture
             .and_then(|c| c.region.as_ref())
-            .map(String::clone)
+            .cloned()
             .unwrap_or_default();
         self.fob_meta_command = capture
             .and_then(|c| c.command.clone())
@@ -1815,8 +1769,8 @@ impl App {
             }
         }
 
-        dirs.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
-        files.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+        dirs.sort_by_key(|a| a.0.to_lowercase());
+        files.sort_by_key(|a| a.0.to_lowercase());
 
         for (name, path) in dirs {
             entries.push((name, path, true));
@@ -1943,7 +1897,7 @@ impl App {
         }
 
         let default_name = self.captures.iter().find(|c| c.id == id)
-            .map(|c| Self::default_export_filename(c))
+            .map(Self::default_export_filename)
             .unwrap_or_else(|| format!("capture_{}", id));
 
         self.export_capture_id = Some(id);

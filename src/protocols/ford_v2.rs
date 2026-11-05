@@ -361,9 +361,7 @@ impl ProtocolDecoder for FordV2Decoder {
 
             DecoderStep::Preamble => {
                 if Self::is_short(duration) {
-                    if self.preamble_count < u16::MAX {
-                        self.preamble_count += 1;
-                    }
+                    self.preamble_count = self.preamble_count.saturating_add(1);
                 } else if !level && Self::is_long(duration) {
                     if self.preamble_count >= PREAMBLE_MIN {
                         self.enter_sync_from_preamble(level, duration);

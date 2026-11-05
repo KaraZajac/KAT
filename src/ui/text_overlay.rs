@@ -19,6 +19,8 @@ KAT is developed by Kara Zajac (.kara).
 
 KAT would not be possible without ProtoPirate. The protocol decoders, reference implementations, and community work are the foundation this tool is built on. I am truly standing on the shoulders of giants.
 
+Protocols ProtoPirate does not carry are ported from Flipper-ARF (D4C1-Labs), The Doctor's firmware (thedoctorz), Momentum (Next-Flip) and RogueMaster, and the receive-only decoders from rtl_433 (Benjamin Larsson, Christian W. Zuckschwerdt and contributors), checked on the rtl_433_tests recordings.
+
 ProtoPirate Development Team
 ----
 RocketGod

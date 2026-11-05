@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 
 use super::{App, RadioDevice, RadioState};
+use crate::capture::Capture;
 use crate::radio::dsp::IqFormat;
 use crate::radio::hopper::{format_mhz, parse_frequency_list, HopPlan, DECODE_PAUSE_DWELLS};
 use crate::radio::iq_file::{find_file, parse_frequency_arg, parse_rate_arg, IqFileJob, IqFileSpec};
@@ -27,6 +28,88 @@ pub struct RxExtras {
     hop_home: u32,
     /// Captures already looked at by the pause-after-decode logic.
     seen_captures: usize,
+}
+
+/// A received burst (live or from an IQ file) as captures: one per distinct decode, as a RAW
+/// `.sub` import gives and as ProtoPirate's receive history lists every decoded frame (a burst can
+/// hold several: back-to-back presses with new counters, a fob alternating two frames). Each holds
+/// the pulses of its frame and that frame's repeats, the last one also the burst's tail, so a
+/// press that repeats one frame is one capture of the whole burst. Nothing decoded: the KeeLoq
+/// keystore fallback, else one unknown capture of the burst (research mode).
+fn received_captures(protocols: &mut crate::protocols::ProtocolRegistry, burst: Capture, research_mode: bool) -> Vec<Capture> {
+    use crate::capture::StoredLevelDuration;
+    let pairs: Vec<crate::radio::LevelDuration> =
+        burst.raw_pairs.iter().map(|p| crate::radio::LevelDuration::new(p.level, p.duration_us)).collect();
+    let decodes = protocols.process_signal_stream_path(&pairs, burst.frequency, burst.received_rf);
+    if decodes.is_empty() {
+        let mut capture = burst;
+        if let Some((name, decoded)) = protocols.process_signal_path(&pairs, capture.frequency, capture.received_rf) {
+            capture.protocol = Some(name);
+            super::files::set_decode(&mut capture, &decoded);
+        }
+        return if research_mode || capture.protocol.is_some() { vec![capture] } else { Vec::new() };
+    }
+    // Consecutive decodes of the same frame (its repeats) form one group of pulses; segments are
+    // contiguous from the burst's start.
+    let key = |name: &str, d: &crate::protocols::DecodedSignal| (name.to_string(), d.data, d.extra, d.serial, d.button, d.counter);
+    let mut groups: Vec<(String, crate::protocols::DecodedSignal, usize, usize)> = Vec::new(); // (name, decode, start, end)
+    let mut at = 0;
+    for (name, decoded, segment) in decodes {
+        let end = at + segment.len();
+        match groups.last_mut() {
+            Some(g) if key(&g.0, &g.1) == key(&name, &decoded) => g.3 = end,
+            _ => groups.push((name, decoded, at, end)),
+        }
+        at = end;
+    }
+    if let Some(last) = groups.last_mut() {
+        last.3 = pairs.len();
+    }
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    for (name, decoded, start, end) in groups {
+        if !seen.insert(key(&name, &decoded)) {
+            continue;
+        }
+        let mut capture = burst.clone();
+        capture.raw_pairs = burst.raw_pairs[start..end]
+            .iter()
+            .map(|p| StoredLevelDuration { level: p.level, duration_us: p.duration_us })
+            .collect();
+        capture.protocol = Some(name);
+        super::files::set_decode(&mut capture, &decoded);
+        out.push(capture);
+    }
+    out
+}
+
+impl App {
+    /// [received_captures] of a burst into the list. The same IQ feeds the AM and FM paths, and
+    /// both can report one press: a capture equal to one in the list (protocol, data, serial,
+    /// button) is skipped.
+    pub(super) fn add_received_signal(&mut self, burst: Capture) {
+        let research_mode = self.storage.config.research_mode;
+        let (mut added, mut duplicates) = (0, 0);
+        for mut capture in received_captures(&mut self.protocols, burst, research_mode) {
+            if self.capture_duplicate_of_existing(&capture) {
+                duplicates += 1;
+                continue;
+            }
+            capture.id = self.next_capture_id;
+            self.next_capture_id += 1;
+            // Autosaved to the session file on the next tick (app/persistence.rs).
+            self.captures.push(capture);
+            // Selected only when that takes nothing from the user (app/input.rs).
+            self.follow_new_capture();
+            added += 1;
+        }
+        match (added, duplicates) {
+            (0, 0) => {}
+            (0, _) => self.status_message = Some("Duplicate signal ignored".to_string()),
+            (1, _) => self.status_message = Some("New signal captured".to_string()),
+            (n, _) => self.status_message = Some(format!("{n} new signals captured")),
+        }
+    }
 }
 
 impl RxExtras {
@@ -434,5 +517,44 @@ impl App {
     /// Bursts found so far by the running IQ file (status bar).
     pub fn iq_job_bursts(&self) -> Option<u32> {
         self.rx.iq_job.as_ref().map(|j| j.bursts())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::capture::{RfModulation, StoredLevelDuration};
+
+    /// A RAW `.sub` capture as one burst of KAT's AM path.
+    fn burst(path: &str) -> Capture {
+        let text = std::fs::read_to_string(path).unwrap();
+        let crate::export::flipper::SubContent::Raw(sub) = crate::export::flipper::parse_sub_content(&text).unwrap() else {
+            panic!("{path}: not RAW");
+        };
+        Capture::from_pairs_with_rf(0, sub.frequency, sub.pairs, Some(RfModulation::AM))
+    }
+
+    #[test]
+    fn every_distinct_frame_of_a_burst_is_a_capture() {
+        crate::protocols::keys::load_keystore_from_embedded();
+        let mut reg = crate::protocols::ProtocolRegistry::new();
+        // Kia V1: ten presses back to back (no gap over 1.7 ms) are ten captures, in order.
+        let got = received_captures(&mut reg, burst("IMPORTS/KIA/KIA V1 N1 RAW.sub"), true);
+        assert_eq!(got.len(), 10);
+        assert!(got.iter().all(|c| c.protocol.as_deref() == Some("Kia V1") && c.serial == Some(0xB444706E)));
+        assert!(got.windows(2).all(|w| w[0].counter < w[1].counter), "{:?}", got.iter().map(|c| c.counter).collect::<Vec<_>>());
+        // Ford V0: three frames, each repeated; one capture each, and their pulses are the burst's.
+        let b = burst("IMPORTS/FORD/3_unlock_ford.sub");
+        let all = b.raw_pairs.len();
+        let got = received_captures(&mut reg, b, true);
+        assert_eq!(got.iter().map(|c| c.counter).collect::<Vec<_>>(), [Some(0x872C), Some(0x872D), Some(0x872E)]);
+        assert_eq!(got.iter().map(|c| c.raw_pairs.len()).sum::<usize>(), all);
+        // Nothing decodes: the whole burst as one unknown capture in research mode, else nothing.
+        let noise: Vec<StoredLevelDuration> =
+            (0..60).map(|i| StoredLevelDuration { level: i % 2 == 0, duration_us: 70 + 13 * (i % 7) }).collect();
+        let b = Capture::from_pairs_with_rf(0, 433_920_000, noise, Some(RfModulation::AM));
+        let got = received_captures(&mut reg, b.clone(), true);
+        assert_eq!((got.len(), got[0].protocol.as_deref(), got[0].raw_pairs.len()), (1, None, 60));
+        assert!(received_captures(&mut reg, b, false).is_empty());
     }
 }

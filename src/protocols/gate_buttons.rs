@@ -47,6 +47,11 @@ pub fn tx_buttons(protocol: &str, decoded: &DecodedSignal) -> Vec<u8> {
         "Roger" => switch(&[0x1, 0x2, 0x4, 0x8]),
         "Hay21" => switch(&[0x5A, 0xC3, 0x88]),
         "Prastel" => switch(&[1, 2, 3, 4]),
+        // GangQi / Hollarm (alarm remotes): the 4-bit code (the references' button editor takes any
+        // value); listed: the codes the C names — the remote's four buttons (its D-pad set) first,
+        // then the settings-mode codes.
+        "GangQi" => super::gangqi::DPAD.iter().copied().chain([0x5, 0x1, 0x2, 0x4, 0x6]).collect(),
+        "Hollarm" => super::hollarm::DPAD.iter().copied().chain([0x9, 0xA, 0xB, 0xD]).collect(),
         // Dooya: Flipper-ARF's D-pad codes (Up_Long, Down_Long, Stop, P2).
         "Dooya" => vec![0x11, 0x33, 0x55, 0xCC],
         // Holtek: position << 4 | ON (0xE) / OFF (0xB), as the C displays them.

@@ -61,8 +61,8 @@ fn try_kia_v3_v4_format(
 ) -> Option<(String, DecodedSignal)> {
     let mut b = *raw_bits;
     if is_v3_sync {
-        for i in 0..9 {
-            b[i] = !b[i];
+        for byte in &mut b {
+            *byte = !*byte;
         }
     }
     let encrypted = ((reverse8(b[3]) as u32) << 24)

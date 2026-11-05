@@ -689,7 +689,7 @@ mod tests {
             let r = seed;
             let d = if (i / 1000) % 2 == 0 {
                 50 + r % 5950
-            } else if !level && r % 61 == 0 {
+            } else if !level && r.is_multiple_of(61) {
                 IFG_LOW
             } else {
                 (if r & 1 == 0 { TE_SHORT } else { TE_LONG }) + (r >> 8) % 160 - 80
@@ -713,7 +713,7 @@ mod tests {
             };
             for entry in rd.flatten() {
                 let path = entry.path();
-                if path.extension().map_or(true, |e| e != "sub") {
+                if path.extension().is_none_or(|e| e != "sub") {
                     continue;
                 }
                 let Ok((_, raw)) = crate::export::flipper::import_sub_raw(&path) else {

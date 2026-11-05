@@ -117,6 +117,15 @@ emulate scene falls back to AM650, then FM476). The first preset is the primary 
 | Datsun Lada | FM | FM476 | ±47.61 kHz | doctor `datsun_lada.c` flag FM (433 MHz) | no named preset → FM476 (doctor's default FM receive preset) |
 | Holtek_HT12X | AM/FM | AM650 + FM476 | ±47.61 kHz | Flipper-ARF garage app / lib and doctor `holtek_ht12x.c` flag AM + FM | gate remote (HT12E); no named FM preset → FM476 |
 | Ansonic | AM/FM | AM650 + FM476 | ±47.61 kHz | Flipper-ARF `ansonic.c` (garage app and lib) flag FM; doctor `ansonic.c` flag AM | gate remote; the Flipper unit-test capture `ansonic_raw.sub` was recorded with OOK650 and the UberGuidoZ Ansonic brute-force files use it; no named FM preset → FM476 |
+| Hormann BiSecur | FM | F3 | ±31.74 kHz | Momentum / RogueMaster `hormann_bisecur.c` flag FM (868 MHz); their unit-test captures use a custom preset with DEVIATN 0x40 (±25.39 kHz) | that deviation lies exactly between F2 (±19.04) and F3 (±31.74); KAT transmits with a capture's own preset whenever it has one (the key files and the RAW capture carry it) |
+| Cardin S508 | FM | FM12K | ±12.70 kHz | RogueMaster `cardin_s508.c` flag FM (868 MHz); its header: "read with the FM12K preset" | decode-only (rolling AES-128): Replay of the recording only |
+| Continental-KR5V2X | FM | FM476 | ±47.61 kHz | rtl_433 `continental_car_remote.c` (`FSK_PULSE_MANCHESTER_ZEROBIT`) | rtl_433 port, receive only (replay of the recorded pulses); KAT measures ±43 kHz on the rtl_433_tests recordings → FM476 |
+| Honda-KR5V2X1X | FM | FM476 | ±47.61 kHz | rtl_433 `continental_car_remote.c` `honda_keyfob` (`FSK_PULSE_MANCHESTER_ZEROBIT`) | rtl_433 port, receive only; no recording, deviation unknown → FM476 |
+| Opel-Mokka | FM | FM476 | ±47.61 kHz | rtl_433 `opel_mokka.c` (`FSK_PULSE_MANCHESTER_ZEROBIT`) | rtl_433 port, receive only; no recording, deviation unknown → FM476 |
+| Alps-FWB1U545 | FM | F3 | ±31.74 kHz | rtl_433 `alps_fwb1u545.c` (`FSK_PULSE_MANCHESTER_ZEROBIT`); receive only | Replay only: the rtl_433_tests recordings show ±30–37 kHz, closest to F3 |
+| Elero | FM | F3 | ±31.74 kHz | rtl_433 `elero.c` (FSK_PULSE_PCM, 13 µs bits) | shutter remote, receive only (rtl_433 port; Replay uses the preset): the rtl_433_tests recordings show ±38 kHz, F3 is the closest |
+| Somfy-IOHC | FM | F2 | ±19.04 kHz | rtl_433 `somfy_iohc.c` (FSK_PULSE_PCM, 26 µs bits) | io-homecontrol (±19.2 kHz), receive only (rtl_433 port) |
+| RojaFlex-Remote | FM | FM476 | ±47.61 kHz | rtl_433 `rojaflex.c` (FSK_PULSE_PCM, 100 µs bits) | shutter remote, receive only (rtl_433 port); no deviation documented → FM476 |
 
 ### AM protocols
 

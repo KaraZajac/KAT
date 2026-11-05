@@ -250,7 +250,7 @@ impl Importer<'_> {
 }
 
 /// A decode's fields on a capture.
-fn set_decode(capture: &mut Capture, decoded: &DecodedSignal) {
+pub(super) fn set_decode(capture: &mut Capture, decoded: &DecodedSignal) {
     capture.serial = decoded.serial;
     capture.button = decoded.button;
     capture.counter = decoded.counter;

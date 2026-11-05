@@ -7,7 +7,8 @@
 //! - [`IqFormat`]: raw IQ sample formats (`.cs8` HackRF / hackrf_transfer, `.cu8` RTL-SDR / rtl_sdr,
 //!   `.cf32` GNU Radio / URH) and their conversion to complex samples.
 //! - [`DcTracker`]: removes the static DC offset (LO leakage), learning it only while no burst is open
-//!   so a carrier sitting at 0 Hz (a file recorded at the fob frequency) is not eaten.
+//!   so a carrier sitting at 0 Hz (a file recorded at the fob frequency) is not eaten, and never
+//!   from dead input (the pipeline's runs of identical samples).
 //! - [`Nco`]: digital mixer that moves the target frequency to 0 Hz (offset tuning).
 //! - [`FirDecimator`] + [`lowpass_taps`]: Kaiser-windowed sinc low-pass filters with polyphase
 //!   decimation; the pipeline chains two of them as the channel filter.
@@ -141,6 +142,15 @@ impl DcTracker {
                 self.initialized = true;
             }
         }
+        let dc = self.dc;
+        for s in block.iter_mut() {
+            *s -= dc;
+        }
+    }
+
+    /// Subtract the estimate without learning from `block`, even before the first estimate (dead
+    /// input: samples that carry no signal or noise).
+    pub fn subtract(&self, block: &mut [C32]) {
         let dc = self.dc;
         for s in block.iter_mut() {
             *s -= dc;

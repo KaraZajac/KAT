@@ -364,7 +364,7 @@ fn discriminator(mf: &str, serial: u32) -> u32 {
         "Aprimatic" => {
             let parity = (serial & 0x3FF).count_ones();
             let mut s = serial & 0x3FF;
-            if parity % 2 == 0 {
+            if parity.is_multiple_of(2) {
                 s |= 0xC00;
             }
             s & 0xFFF
@@ -1021,7 +1021,7 @@ mod tests {
         let plain = (0x1u32 << 28) | ((serial & 0x3FF) << 16) | 0x0042;
         let data = frame(0x1, serial, plain, keeloq_normal_learning(fix, entry("Sheriff").key));
         let (f, h) = fix_hop(data);
-        assert!(select_key(f, h, keeloq_keystore()).map_or(true, |m| m.entry.name != "Sheriff"));
+        assert!(select_key(f, h, keeloq_keystore()).is_none_or(|m| m.entry.name != "Sheriff"));
         for d in decode_all(&capture(data)) {
             assert_ne!(d.protocol_display_name.as_deref(), Some("KeeLoq (Sheriff)"));
         }
@@ -1235,7 +1235,7 @@ mod tests {
             for make in std::fs::read_dir("IMPORTS").unwrap().flatten() {
                 if make.path().is_dir() {
                     for f in std::fs::read_dir(make.path()).unwrap().flatten() {
-                        if f.path().extension().map_or(false, |e| e == "sub") {
+                        if f.path().extension().is_some_and(|e| e == "sub") {
                             subs.push(f.path());
                         }
                     }

@@ -16,9 +16,9 @@
 //!   collected bit is a 1 (sync). A 14-byte buffer accumulates; on a non-matching pair the
 //!   frame is checked: discard the leading sync byte, take 8 bytes, deobfuscate, validate.
 //! - Siemens obfuscation (the layer ported here, `mazda_xor_deobfuscate`):
-//!     parity = byte_parity(data[7]); odd → mask = data[6], XOR bytes 0..6;
-//!     even → mask = data[5], XOR bytes 0..5 and byte 6. Then bit-deinterleave bytes 5/6
-//!     via `(old5 & 0xAA)|(old6 & 0x55)` / `(old5 & 0x55)|(old6 & 0xAA)`.
+//!   parity = byte_parity(data[7]); odd → mask = data[6], XOR bytes 0..6;
+//!   even → mask = data[5], XOR bytes 0..5 and byte 6. Then bit-deinterleave bytes 5/6
+//!   via `(old5 & 0xAA)|(old6 & 0x55)` / `(old5 & 0x55)|(old6 & 0xAA)`.
 //!   The inner Siemens cipher's plaintext is left as-is (no key); only this obfuscation/
 //!   interleave layer is reversed, matching the C.
 //! - Gate: additive checksum `sum(data[0..7]) == data[7]` (matches the C `mazda_check_completion`),
@@ -214,9 +214,7 @@ impl MazdaSiemensDecoder {
 
         // Shift buffer by 1 byte (discard the sync/header byte).
         let mut data = [0u8; 8];
-        for i in 0..8 {
-            data[i] = self.data_buffer[i + 1];
-        }
+        data.copy_from_slice(&self.data_buffer[1..9]);
 
         Self::xor_deobfuscate(&mut data);
 
@@ -278,14 +276,14 @@ impl MazdaSiemensDecoder {
         if parity != 0 {
             // Odd parity: mask = byte[6], XOR bytes 0..6.
             let mask = data[6];
-            for i in 0..6 {
-                data[i] ^= mask;
+            for b in &mut data[..6] {
+                *b ^= mask;
             }
         } else {
             // Even parity: mask = byte[5], XOR bytes 0..5 and byte[6].
             let mask = data[5];
-            for i in 0..5 {
-                data[i] ^= mask;
+            for b in &mut data[..5] {
+                *b ^= mask;
             }
             data[6] ^= mask;
         }
@@ -309,13 +307,13 @@ impl MazdaSiemensDecoder {
 
         if parity != 0 {
             let mask = data[6];
-            for i in 0..6 {
-                data[i] ^= mask;
+            for b in &mut data[..6] {
+                *b ^= mask;
             }
         } else {
             let mask = data[5];
-            for i in 0..5 {
-                data[i] ^= mask;
+            for b in &mut data[..5] {
+                *b ^= mask;
             }
             data[6] ^= mask;
         }
@@ -586,7 +584,7 @@ mod tests {
     /// Field extraction matches mazda_parse_data: serial = >>32, button = >>24, counter = >>8.
     #[test]
     fn parse_fields_layout() {
-        let packed: u64 = 0x1234_5678_2000_06_3A;
+        let packed: u64 = 0x1234_5678_2000_063A;
         let (serial, button, counter) = MazdaSiemensDecoder::parse_fields(packed);
         assert_eq!(serial, 0x1234_5678);
         assert_eq!(button, 0x20);

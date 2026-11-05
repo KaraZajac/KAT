@@ -113,7 +113,8 @@ fn render_picker(frame: &mut Frame, app: &App) {
                     match (ty.source, available) {
                         (_, false) => "  ✗ n/a",
                         (Source::Doctor, true) => "  doctor",
-                        _ => "",
+                        (Source::RogueMaster, true) => "  RM",
+                        (Source::Both, true) => "",
                     }
                 );
                 let style = if Some(i) == selected {
@@ -136,11 +137,7 @@ fn render_picker(frame: &mut Frame, app: &App) {
             let ty = &TYPES[i];
             let s = add_manually::summary(ty);
             let fields: Vec<String> = s.fields.iter().map(|&(f, v)| field_text(f, v)).collect();
-            let from = match ty.source {
-                Source::Both => "Flipper-ARF + doctor-firmware",
-                Source::Doctor => "doctor-firmware",
-            };
-            let about = format!(" {} · {} · {} · {}", s.protocol, mhz(s.frequency), s.preset, from);
+            let about = format!(" {} · {} · {} · {}", s.protocol, mhz(s.frequency), s.preset, ty.menus());
             lines.push(Line::styled(text::truncate_end(&about, inner), Style::default().fg(Color::Cyan)));
             let detail = if fields.is_empty() { "Fixed code drawn at random (Security+ 1.0 rule)".to_string() } else { fields.join(" · ") };
             lines.push(Line::styled(text::truncate_end(&format!(" {detail}"), inner), theme::TEXT));

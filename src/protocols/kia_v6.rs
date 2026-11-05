@@ -203,12 +203,8 @@ impl KiaV6Decoder {
         state[5] = state[1];
         state[1] = temp;
 
-        let temp = state[2];
-        state[2] = state[10];
-        state[10] = temp;
-        let temp = state[6];
-        state[6] = state[14];
-        state[14] = temp;
+        state.swap(2, 10);
+        state.swap(6, 14);
 
         let temp = state[3];
         state[3] = state[7];
@@ -330,12 +326,8 @@ impl KiaV6Decoder {
         state[9] = state[13];
         state[13] = temp;
 
-        let temp = state[2];
-        state[2] = state[10];
-        state[10] = temp;
-        let temp = state[6];
-        state[6] = state[14];
-        state[14] = temp;
+        state.swap(2, 10);
+        state.swap(6, 14);
 
         let temp = state[3];
         state[3] = state[15];
@@ -495,6 +487,7 @@ impl KiaV6Decoder {
     }
 
     /// AES-128 key from V6 keystores A+B with XOR_MASK_LOW/HIGH (matches kia_v6.c)
+    #[allow(clippy::needless_range_loop)] // key-byte loops mirror kia_v6.c (`aes_key[i]`, `aes_key[i + 8]`)
     fn get_aes_key() -> [u8; 16] {
         let keystore_a = Self::get_keystore_a();
         let keystore_a_hi = ((keystore_a >> 32) & 0xFFFFFFFF) as u32;
@@ -608,13 +601,11 @@ impl ProtocolDecoder for KiaV6Decoder {
                 let diff_short = duration_diff!(duration, TE_SHORT);
                 let diff_long = duration_diff!(duration, TE_LONG);
 
-                if diff_long < TE_DELTA && diff_long < diff_short {
-                    if self.header_count >= PREAMBLE_COUNT {
-                        self.header_count = 0;
-                        self.te_last = duration;
-                        self.step = DecoderStep::WaitLongHigh;
-                        return None;
-                    }
+                if diff_long < TE_DELTA && diff_long < diff_short && self.header_count >= PREAMBLE_COUNT {
+                    self.header_count = 0;
+                    self.te_last = duration;
+                    self.step = DecoderStep::WaitLongHigh;
+                    return None;
                 }
 
                 if diff_short >= TE_DELTA && diff_long >= TE_DELTA {

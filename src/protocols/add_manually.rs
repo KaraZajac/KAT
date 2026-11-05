@@ -3,21 +3,27 @@
 //! transmit, typically to pair it with a receiver in learning mode. Port of the SubGHz app's "Add
 //! Manually" of Flipper-ARF (`applications/main/subghz/scenes/subghz_scene_set_type.c`,
 //! `helpers/subghz_gen_info.c`, `helpers/subghz_txrx_create_protocol_key.c`, the protocols'
-//! `*_create_data`) and doctor-firmware (the same files; a superset of ARF's list). See
-//! `docs/add_manually.md`.
+//! `*_create_data`), doctor-firmware (the same files; a superset of ARF's list) and RogueMaster
+//! (a superset of doctor's but for Dorcas). See `docs/add_manually.md`.
 //!
-//! **Types** ([TYPES]): the union of both menus — ARF's 78 entries in ARF's order with
+//! **Types** ([TYPES]): the union of the menus — ARF's 78 entries in ARF's order with
 //! doctor-firmware's 23 extra ones where doctor's menu puts them (doctor's order is ARF's with
-//! insertions), ARF's name and parameters where both have a type (they differ only in "KL: Genius
-//! Bravo": ARF button 0x06, doctor 0x09 and the name "KL: Genius TX4RC 433M."). The menu order is
-//! the C `SetType` enum order (the submenu adds items by index), which groups the types: rolling
-//! codes, "KL:" KeeLoq manufacturers, Nice, CAME, fixed codes, Security+ ([Group]).
+//! insertions) and RogueMaster's 6 extra ones where RogueMaster's puts them (its two O-Code
+//! variants that its enum appends after Security+ are kept with the Nice group, after its first
+//! O-Code type); ARF's name and parameters where several have a type (ARF and doctor differ only in
+//! "KL: Genius Bravo": ARF button 0x06, doctor 0x09 and the name "KL: Genius TX4RC 433M.";
+//! Momentum's and RogueMaster's menus list the same types with doctor's or ARF's parameters, except
+//! RogueMaster's Monarch (a KeeLoq seed 0x100) and its FAAC SLH / Beninca ARC creation, see the
+//! doc). The menu order is the C `SetType` enum order (the submenu adds items by index), which
+//! groups the types: rolling codes, "KL:" KeeLoq manufacturers, Nice, CAME, fixed codes, Security+
+//! ([Group]).
 //!
 //! **Parameters** ([fill]): `subghz_scene_set_type_fill_generation_infos` — `key = rand()`, then
 //! GangQi's and Marantec's own `rand()` draws (made for every type, so the sequence of draws is
 //! the C's), and per type the preset, frequency and the fields derived from `key` with the C's
-//! masks ([GenInfo]). `rand()` is newlib's (`RAND_MAX` 0x7FFFFFFF): [RandSource] returns 31-bit
-//! values; KAT's [Rng] is seeded from `/dev/urandom` (the time as a fallback).
+//! masks ([GenInfo]); RogueMaster's two O-Code types draw a fourth value (the installer code).
+//! `rand()` is newlib's (`RAND_MAX` 0x7FFFFFFF): [RandSource] returns 31-bit values; KAT's [Rng] is
+//! seeded from `/dev/urandom` (the time as a fallback).
 //!
 //! **Key file** ([generate]): what `subghz_scene_set_type_generate_protocol_from_infos` writes —
 //! fixed codes (`GenData`): the decoder's serialize with `Bit`/`Key` (+ Princeton's `TE` and
@@ -33,10 +39,13 @@
 //! which KAT does not (the protocols' own lines carry the remote). The app loads the file through
 //! `ProtocolRegistry::decode_key` like any key file.
 //!
-//! **Not available** ([availability]): GangQi and Hollarm (no KAT protocol); Nice FloR-S / Nice One
-//! and Alutech AT-4N without the user's rainbow table (`~/.config/KAT/nice_flor_s.bin`,
-//! `alutech_at_4n.bin`: the C would create a useless key); KeeLoq types whose manufacturer has no
-//! usable key in KAT's keystore (the C saves an all-zero key) — doctor's Erreka, Superrollo,
+//! RogueMaster's Prastel type is made with its `subghz_protocol_prastel_create_data` ([prastel_key]).
+//!
+//! **Not available** ([availability]): RogueMaster's Nord ICE (no KAT protocol) and its three Nice
+//! O-Code types (its O-Code key maker is not ported); Nice FloR-S / Nice One and Alutech AT-4N
+//! without the user's rainbow table (`~/.config/KAT/nice_flor_s.bin`, `alutech_at_4n.bin`: the C
+//! would create a useless key); KeeLoq types whose manufacturer has no usable key in KAT's keystore
+//! (the C saves an all-zero key) — doctor's Erreka (and RogueMaster's Erreka 868), Superrollo,
 //! HomeGate, Pujol, Pujol Vario, ET Blue (Mix), ATA PTX4, Seav, Wisniowski, Fadini, Mc Garcia,
 //! Clemsa Mutancode, Doormatic, Elvox and Verex, unless the user keystore adds them; doctor's KEY
 //! and Dorcas, whose hops need doctor's own KeeLoq discriminators (KAT's codec is ARF's).
@@ -119,6 +128,8 @@ pub enum Source {
     Both,
     /// doctor-firmware only.
     Doctor,
+    /// RogueMaster only (`subghz_scene_set_type.c` of RogueMaster).
+    RogueMaster,
 }
 
 /// The runs of the C menu order, shown as headings in the picker.
@@ -152,8 +163,21 @@ pub struct RemoteType {
     pub id: &'static str,
     /// The menu text (`submenu_names`).
     pub name: &'static str,
+    /// The reference menus that list the type.
     pub source: Source,
     pub group: Group,
+}
+
+impl RemoteType {
+    /// The reference menus that list the type (Momentum's and RogueMaster's menus also list most
+    /// Flipper-ARF / doctor-firmware types; their parameters are the same, see `docs/add_manually.md`).
+    pub fn menus(&self) -> &'static str {
+        match self.source {
+            Source::Both => "Flipper-ARF + doctor-firmware",
+            Source::Doctor => "doctor-firmware",
+            Source::RogueMaster => "RogueMaster",
+        }
+    }
 }
 
 /// Every type, in menu order (see the module doc).
@@ -164,6 +188,7 @@ pub static TYPES: &[RemoteType] = &[
     RemoteType { id: "Genius_868", name: "Genius 868MHz", source: Source::Doctor, group: Group::Rolling },
     RemoteType { id: "BFTMitto", name: "BFT Mitto 433MHz", source: Source::Both, group: Group::Rolling },
     RemoteType { id: "Erreka433", name: "Erreka 433MHz", source: Source::Doctor, group: Group::Rolling },
+    RemoteType { id: "Erreka868", name: "Erreka 868MHz", source: Source::RogueMaster, group: Group::Rolling },
     RemoteType { id: "SomfyTelis", name: "Somfy Telis 433MHz", source: Source::Both, group: Group::Rolling },
     RemoteType { id: "SomfyKeytis", name: "Somfy Keytis 433MHz", source: Source::Doctor, group: Group::Rolling },
     RemoteType { id: "KingGatesStylo4k", name: "KingGates Stylo4k 433M.", source: Source::Both, group: Group::Rolling },
@@ -173,6 +198,7 @@ pub static TYPES: &[RemoteType] = &[
     RemoteType { id: "ANMotorsAT4", name: "AN-Motors AT4 433MHz", source: Source::Both, group: Group::Rolling },
     RemoteType { id: "AlutechAT4N", name: "Alutech AT4N 433MHz", source: Source::Both, group: Group::Rolling },
     RemoteType { id: "Phoenix_V2_433", name: "V2 Phoenix 433MHz", source: Source::Both, group: Group::Rolling },
+    RemoteType { id: "Prastel_433_92", name: "Prastel 433MHz", source: Source::RogueMaster, group: Group::Rolling },
     RemoteType { id: "HCS101_433_92", name: "KL: HCS101 433MHz", source: Source::Both, group: Group::KeeLoq },
     RemoteType { id: "DoorHan_315_00", name: "KL: DoorHan 315MHz", source: Source::Both, group: Group::KeeLoq },
     RemoteType { id: "DoorHan_433_92", name: "KL: DoorHan 433MHz", source: Source::Both, group: Group::KeeLoq },
@@ -228,6 +254,9 @@ pub static TYPES: &[RemoteType] = &[
     RemoteType { id: "NiceSmilo_433_92", name: "KL: Nice Smilo 433MHz", source: Source::Both, group: Group::KeeLoq },
     RemoteType { id: "NiceFlorS_433_92", name: "Nice FloR-S 433MHz", source: Source::Both, group: Group::Nice },
     RemoteType { id: "NiceOne_433_92", name: "Nice One 433MHz", source: Source::Both, group: Group::Nice },
+    RemoteType { id: "NiceOCode_433_92", name: "Nice O-Code 433MHz", source: Source::RogueMaster, group: Group::Nice },
+    RemoteType { id: "NiceOCodeOne_433_92", name: "Nice O-Code One 433MHz", source: Source::RogueMaster, group: Group::Nice },
+    RemoteType { id: "NiceOCodeCert_433_92", name: "Nice O-Code+Crt 433MHz", source: Source::RogueMaster, group: Group::Nice },
     RemoteType { id: "NiceFlo12bit", name: "Nice Flo 12bit 433MHz", source: Source::Both, group: Group::Nice },
     RemoteType { id: "NiceFlo24bit", name: "Nice Flo 24bit 433MHz", source: Source::Both, group: Group::Nice },
     RemoteType { id: "CAME12bit", name: "CAME 12bit 433MHz", source: Source::Both, group: Group::Came },
@@ -244,6 +273,7 @@ pub static TYPES: &[RemoteType] = &[
     RemoteType { id: "BETT_433", name: "BETT 433MHz", source: Source::Both, group: Group::Fixed },
     RemoteType { id: "GangQi_433", name: "GangQi 433MHz", source: Source::Both, group: Group::Fixed },
     RemoteType { id: "Hollarm_433", name: "Hollarm 433MHz", source: Source::Both, group: Group::Fixed },
+    RemoteType { id: "NordIce_433", name: "Nord ICE 433MHz", source: Source::RogueMaster, group: Group::Fixed },
     RemoteType { id: "ReversRB2_433", name: "Revers RB2 433MHz", source: Source::Both, group: Group::Fixed },
     RemoteType { id: "Marantec24_868", name: "Marantec24 868MHz", source: Source::Both, group: Group::Fixed },
     RemoteType { id: "Marantec_433", name: "Marantec 433MHz", source: Source::Both, group: Group::Fixed },
@@ -286,6 +316,12 @@ pub enum GenInfo {
     SecPlus1,
     SecPlus2 { serial: u32, btn: u8, cnt: u32 },
     PhoenixV2 { serial: u32, cnt: u16 },
+    /// `GenPrastel` (RogueMaster): Prastel's `create_data` (21 serial bits, button 1..4, counter).
+    Prastel { serial: u32, btn: u8, cnt: u16 },
+    /// RogueMaster's Nice O-Code types (`GenNiceFlorS` with `o_code`): an installer code `ic`
+    /// (drawn for the first two), the 72-bit Nice One frame, or the receiver certificate the remote
+    /// enrols itself with (`cert`). Not created by KAT (see [availability]).
+    NiceOCode { serial: u32, btn: u8, cnt: u16, ic: u16, nice_one: bool, cert: bool },
 }
 
 /// A type's generation parameters: the preset (the C's short name), frequency and fields.
@@ -316,12 +352,45 @@ fn marantec_key(r: u32) -> u64 {
     ((full >> 8) << 8) | u64::from(super::marantec::crc8(full))
 }
 
-/// `subghz_scene_set_type_fill_generation_infos`: the parameters of `ty` (three `rand()` draws).
+/// `SUBGHZ_PROTOCOL_PRASTEL_SERIAL_MASK` (RogueMaster `prastel.h`): the 21 serial bits a frame carries.
+const PRASTEL_SERIAL_MASK: u64 = 0x001F_FFFF;
+
+/// RogueMaster `subghz_protocol_prastel_create_data` (`subghz_protocol_prastel_encode_key` +
+/// generic serialize): the Prastel key for a serial (its 21 frame bits), button 1..4 (raw nibble
+/// 0xE / 0xD / 0xB / 0x7, anything else 0) and counter. RogueMaster's scramble and button table
+/// are those of the Flipper-ARF garage copy that `prastel.rs` ports (byte-identical code).
+fn prastel_key(serial: u32, btn: u8, cnt: u16) -> FlipperKey {
+    let serial = serial & PRASTEL_SERIAL_MASK as u32;
+    let raw = super::prastel::btn_to_raw(btn);
+    let mut p = [0u8; 7];
+    p[1] = ((serial >> 8) & 0xF0) as u8;
+    p[2] = (0x70 | ((serial >> 8) & 0x0F) | ((serial >> 13) & 0x80)) as u8;
+    p[3] = serial as u8;
+    p[4] = (((serial >> 12) & 0xF0) as u8) | raw;
+    p[5] = cnt as u8;
+    p[6] = (cnt >> 8) as u8;
+    super::prastel::scramble(&mut p);
+    let mut payload = 0u64;
+    for (i, &b) in p.iter().enumerate() {
+        payload |= u64::from(b) << (0x30 - 8 * i as u32);
+    }
+    FlipperKey::for_protocol("Prastel", 42, (payload >> 2) & 0x3FF_FFFF_FFFF)
+}
+
+/// `subghz_scene_set_type_fill_generation_infos`: the parameters of `ty` (three `rand()` draws, a
+/// fourth for RogueMaster's O-Code installer code).
 pub fn fill(ty: &RemoteType, rng: &mut dyn RandSource) -> Gen {
     let key = u64::from(rng.rand());
     let gangqi_key = gangqi_key(rng.rand());
     let marantec_key = marantec_key(rng.rand());
-    gen_info(ty.id, key, gangqi_key, marantec_key).unwrap_or_else(|| panic!("no parameters for {}", ty.id))
+    let mut gen =
+        gen_info(ty.id, key, gangqi_key, marantec_key).unwrap_or_else(|| panic!("no parameters for {}", ty.id));
+    // RogueMaster's O-Code types draw their installer code in the switch: `.ic = (uint16_t)rand()`
+    // (not the certificate type).
+    if let GenInfo::NiceOCode { ic, cert: false, .. } = &mut gen.info {
+        *ic = rng.rand() as u16;
+    }
+    gen
 }
 
 /// The C's `switch(type)` (`subghz_gen_info.c`; doctor-firmware's for its own types).
@@ -334,6 +403,13 @@ fn gen_info(id: &str, key: u64, gangqi_key: u64, marantec_key: u64) -> Option<Ge
         "Genius_868" => gen("AM650", 868_350_000, GenInfo::FaacSlh { serial: (((key & 0x00FFFFF0) | 0xA0000006) >> 4) as u32, btn: 0x06, cnt: 0x02, seed: key as u32, manuf: "Genius" }),
         "BFTMitto" => gen("AM650", 433_920_000, GenInfo::KeeloqSeed { serial: (key & 0x000FFFFF) as u32, btn: 0x02, cnt: 0x02, seed: (key & 0x000FFFFF) as u32, manuf: "BFT" }),
         "Erreka433" => gen("AM650", 433_920_000, GenInfo::KeeloqSeed { serial: (key & 0x000FFFFF) as u32, btn: 0x02, cnt: 0x02, seed: (key & 0x000FFFFF) as u32, manuf: "Erreka" }),
+        // RogueMaster's `subghz_gen_info.c` for its own types.
+        "Erreka868" => gen("AM650", 868_350_000, GenInfo::KeeloqSeed { serial: (key & 0x000FFFFF) as u32, btn: 0x02, cnt: 0x02, seed: (key & 0x000FFFFF) as u32, manuf: "Erreka" }),
+        "Prastel_433_92" => gen("AM650", 433_920_000, GenInfo::Prastel { serial: (key & PRASTEL_SERIAL_MASK) as u32, btn: 0x01, cnt: 0x03 }),
+        "NiceOCode_433_92" => gen("AM650", 433_920_000, GenInfo::NiceOCode { serial: (key & 0x0FFFFFFF) as u32, btn: 0x01, cnt: 0xC089, ic: 0, nice_one: false, cert: false }),
+        "NiceOCodeOne_433_92" => gen("AM650", 433_920_000, GenInfo::NiceOCode { serial: (key & 0x0FFFFFFF) as u32, btn: 0x01, cnt: 0xC089, ic: 0, nice_one: true, cert: false }),
+        "NiceOCodeCert_433_92" => gen("AM650", 433_920_000, GenInfo::NiceOCode { serial: (key & 0x0FFFFFFF) as u32, btn: 0x01, cnt: 0xC089, ic: 0, nice_one: true, cert: true }),
+        "NordIce_433" => gen("AM650", 433_920_000, GenInfo::Data { protocol: "Nord ICE", key: (key & 0x1_FFFF_81FF) | 0x2400, bits: 33, te: 0 }),
         "SomfyTelis" => gen("AM650", 433_420_000, GenInfo::SomfyTelis { serial: (key & 0x00FFFFFF) as u32, btn: 0x02, cnt: 0x03 }),
         "SomfyKeytis" => gen("AM650", 433_420_000, GenInfo::SomfyKeytis { serial: ((key & 0x0000FFFF) | 0x00D50000) as u32, btn: 0x04, cnt: 0x03 }),
         "KingGatesStylo4k" => gen("AM650", 433_920_000, GenInfo::KingGatesStylo4k { serial: (key & 0xFFFFFFFF) as u32, btn: 0x0E, cnt: 0x03 }),
@@ -483,7 +559,9 @@ impl GenInfo {
             | GenInfo::KingGatesStylo4k { serial, btn, cnt }
             | GenInfo::Jarolift { serial, btn, cnt }
             | GenInfo::DitecGol4 { serial, btn, cnt }
-            | GenInfo::NiceFlorS { serial, btn, cnt, .. } => {
+            | GenInfo::NiceFlorS { serial, btn, cnt, .. }
+            | GenInfo::Prastel { serial, btn, cnt }
+            | GenInfo::NiceOCode { serial, btn, cnt, .. } => {
                 vec![(Serial, serial.into(), s), (Button, btn.into(), b), (Counter, cnt.into(), c2)]
             }
             GenInfo::BenincaArc { serial, btn, cnt } | GenInfo::SecPlus2 { serial, btn, cnt } => {
@@ -514,7 +592,9 @@ impl GenInfo {
                 | GenInfo::DitecGol4 { serial, .. }
                 | GenInfo::NiceFlorS { serial, .. }
                 | GenInfo::SecPlus2 { serial, .. }
-                | GenInfo::PhoenixV2 { serial, .. },
+                | GenInfo::PhoenixV2 { serial, .. }
+                | GenInfo::Prastel { serial, .. }
+                | GenInfo::NiceOCode { serial, .. },
                 Field::Serial,
             ) => *serial = value as u32,
             (
@@ -529,7 +609,9 @@ impl GenInfo {
                 | GenInfo::Jarolift { btn, .. }
                 | GenInfo::DitecGol4 { btn, .. }
                 | GenInfo::NiceFlorS { btn, .. }
-                | GenInfo::SecPlus2 { btn, .. },
+                | GenInfo::SecPlus2 { btn, .. }
+                | GenInfo::Prastel { btn, .. }
+                | GenInfo::NiceOCode { btn, .. },
                 Field::Button,
             ) => *btn = value as u8,
             (
@@ -543,7 +625,9 @@ impl GenInfo {
                 | GenInfo::Jarolift { cnt, .. }
                 | GenInfo::DitecGol4 { cnt, .. }
                 | GenInfo::NiceFlorS { cnt, .. }
-                | GenInfo::PhoenixV2 { cnt, .. },
+                | GenInfo::PhoenixV2 { cnt, .. }
+                | GenInfo::Prastel { cnt, .. }
+                | GenInfo::NiceOCode { cnt, .. },
                 Field::Counter,
             ) => *cnt = value as u16,
             (
@@ -573,6 +657,8 @@ impl GenInfo {
             GenInfo::SecPlus1 => "Security+ 1.0",
             GenInfo::SecPlus2 { .. } => "Security+ 2.0",
             GenInfo::PhoenixV2 { .. } => "Phoenix_V2",
+            GenInfo::Prastel { .. } => "Prastel",
+            GenInfo::NiceOCode { .. } => "Nice FloR-S",
         }
     }
 
@@ -619,6 +705,12 @@ pub fn availability(ty: &RemoteType) -> Result<(), String> {
 
 fn availability_of(info: &GenInfo, tables: &Tables) -> Result<(), String> {
     match info {
+        // RogueMaster creates these with its O-Code key maker (installer code; the certificate type
+        // walks its receiver-enrolment chain); KAT only re-sends captured O-Code keys with their IC.
+        GenInfo::NiceOCode { .. } => Err(
+            "RogueMaster's Nice O-Code remote creation (installer code / receiver certificate) is not ported; KAT re-sends captured O-Code keys"
+                .to_string(),
+        ),
         GenInfo::Data { protocol, .. } if super::info::lookup(protocol).is_none() => {
             Err(format!("KAT has no {protocol} protocol"))
         }
@@ -711,6 +803,8 @@ fn generate_with(gen: &Gen, rng: &mut dyn RandSource, tables: &Tables) -> Result
         }
         GenInfo::SecPlus2 { serial, btn, cnt } => super::secplus_v2::create_data(serial, btn, cnt),
         GenInfo::PhoenixV2 { serial, cnt } => super::phoenix_v2::create_data(serial, cnt),
+        GenInfo::Prastel { serial, btn, cnt } => prastel_key(serial, btn, cnt),
+        GenInfo::NiceOCode { .. } => unreachable!("availability_of refuses the O-Code types"),
     };
     key.frequency = gen.frequency;
     key.preset = Some(preset_file_name(gen.preset).to_string());
@@ -821,15 +915,18 @@ mod tests {
 
     /// Types KAT cannot create with its embedded keystore (and test tables).
     const UNAVAILABLE: &[&str] = &[
-        "GangQi_433", "Hollarm_433", "KEY433", "MonarchDorcas433", "Erreka433", "Superrollo_433_92", "HomeGate433", "Pujol433",
+        "Erreka868", "NiceOCode_433_92", "NiceOCodeOne_433_92", "NiceOCodeCert_433_92", "NordIce_433", "KEY433", "MonarchDorcas433", "Erreka433", "Superrollo_433_92", "HomeGate433", "Pujol433",
         "Pujol_Vario433", "ET_Blue433", "ET_Blue_Mix433", "ATA_PTX4_433", "Seav433", "Wisniowski433",
         "Fadini433", "Mc_Garcia433", "Clemsa_Mutancode433", "Doormatic433", "Elvox433", "Verex433",
     ];
 
     #[test]
     fn type_list_is_the_union_of_the_references() {
-        assert_eq!(TYPES.len(), 101);
+        assert_eq!(TYPES.len(), 107);
         assert_eq!(TYPES.iter().filter(|t| t.source == Source::Both).count(), 78);
+        assert_eq!(TYPES.iter().filter(|t| t.source == Source::RogueMaster).count(), 6);
+        assert_eq!(TYPES[find("Prastel")[0]].menus(), "RogueMaster");
+        assert_eq!(TYPES[find("GangQi")[0]].menus(), "Flipper-ARF + doctor-firmware");
         let mut ids: Vec<&str> = TYPES.iter().map(|t| t.id).collect();
         ids.sort_unstable();
         ids.dedup();
@@ -874,6 +971,42 @@ mod tests {
         let sp1 = TYPES.iter().find(|t| t.id == "SecPlus_v1_315_00").unwrap();
         let k = generate_with(&fill(sp1, &mut r), &mut r, &test_tables()).unwrap();
         assert_eq!(k.key, (9u64 << 32) | 0xE600_0000);
+        // RogueMaster's O-Code types draw a fourth value, the installer code (not the certificate
+        // type), and Prastel keeps the 21 serial bits.
+        let mut r = Scripted::new(&[0x1234_5678, 1, 2, 0x7654_ABCD]);
+        let g = fill(&TYPES[find("Nice O-Code 433")[0]], &mut r);
+        assert_eq!(
+            g.info,
+            GenInfo::NiceOCode { serial: 0x0234_5678, btn: 1, cnt: 0xC089, ic: 0xABCD, nice_one: false, cert: false }
+        );
+        let mut r = Scripted::new(&[0x1234_5678, 1, 2, 0x7654_ABCD]);
+        let g = fill(&TYPES[find("O-Code+Crt")[0]], &mut r);
+        assert!(matches!(g.info, GenInfo::NiceOCode { ic: 0, nice_one: true, cert: true, .. }));
+        assert_eq!(r.rand(), 0x7654_ABCD, "no fourth draw");
+        let g = fill(&TYPES[find("Prastel")[0]], &mut Scripted::new(&[0x7FFF_FFFF, 0, 0]));
+        assert_eq!((g.preset, g.frequency), ("AM650", 433_920_000));
+        assert_eq!(g.info, GenInfo::Prastel { serial: 0x1F_FFFF, btn: 1, cnt: 3 });
+        let g = fill(&TYPES[find("Nord ICE")[0]], &mut Scripted::new(&[0x7FFF_FFFF, 0, 0]));
+        assert_eq!(g.info, GenInfo::Data { protocol: "Nord ICE", key: 0x7FFF_A5FF, bits: 33, te: 0 });
+    }
+
+    /// RogueMaster's "Prastel 433MHz": the key decodes (Prastel, the garage-app decoder KAT ports)
+    /// with the serial's 21 frame bits, the button and the counter it was made from, for every
+    /// button; outside 1..4 the raw nibble is 0 (decoded button 0), as `btn_to_raw`.
+    #[test]
+    fn prastel_keys_carry_serial_button_and_counter() {
+        let reg = ProtocolRegistry::new();
+        for (serial, btn, cnt) in [(0x0012_3456u32, 1u8, 3u16), (0xFFFF_FFFF, 2, 0xFFFF), (0, 3, 0), (0x1A_5A5A, 4, 0x8001), (0x0F_0F0F, 7, 9)] {
+            let key = prastel_key(serial, btn, cnt);
+            assert_eq!((key.protocol.as_str(), key.bits), ("Prastel", 42));
+            let (name, d) = reg.decode_key(&key).unwrap();
+            assert_eq!(name, "Prastel");
+            let want_btn = if (1..=4).contains(&btn) { btn } else { 0 };
+            assert_eq!((d.serial, d.button, d.counter), (Some(serial & 0x1F_FFFF), Some(want_btn), Some(cnt)), "{serial:#x}");
+        }
+        // RogueMaster's own generation (gen oracle, `gen_roguemaster gen Prastel_433_92`).
+        assert_eq!(prastel_key(0x0012_3456, 1, 3).key, 0x0000_031A_D4E8_FF5C);
+        assert_eq!(prastel_key(0x7FFF_FFFF, 1, 3).key, 0x0000_03C1_FEFE_FF5C);
     }
 
     /// Every type, three seeds: the key file loads (text round trip), is encoder-capable, names the
@@ -970,6 +1103,15 @@ mod tests {
                         continue;
                     }
                 }
+                // Prastel: its 42-bit frames are also CAME's "Prastel" variant, and CAME (registered
+                // first, as in the Flipper-ARF garage app and doctor-firmware) reports them; the
+                // Prastel decoder itself reads the same remote.
+                if ty.id == "Prastel_433_92"
+                    && hits.iter().all(|(n, _, _)| n == "CAME [Prastel]")
+                    && reg.decode_with(&name, &stream).iter().any(same)
+                {
+                    continue;
+                }
                 // Revers RB2: whether the decoder re-syncs to the encoder's back-to-back frames depends
                 // on the key; the references' decoders decode exactly the same transmissions as KAT's
                 // (their own round trip fails too) — the key file and upload are checked against the
@@ -1036,8 +1178,15 @@ mod tests {
 
     #[test]
     fn availability_names_the_reason() {
-        let gangqi = &TYPES[find("GangQi")[0]];
-        assert_eq!(availability(gangqi), Err("KAT has no GangQi protocol".to_string()));
+        let nord_ice = &TYPES[find("Nord ICE")[0]];
+        assert_eq!(availability(nord_ice), Err("KAT has no Nord ICE protocol".to_string()));
+        for t in ["GangQi", "Hollarm", "Prastel"] {
+            assert_eq!(availability(&TYPES[find(t)[0]]), Ok(()), "{t}");
+        }
+        for t in find("O-Code") {
+            assert!(availability(&TYPES[t]).unwrap_err().contains("O-Code"), "{}", TYPES[t].name);
+        }
+        assert!(availability(&TYPES[find("Erreka 868")[0]]).unwrap_err().contains("Erreka"));
         let erreka = &TYPES[find("Erreka")[0]];
         assert!(availability(erreka).unwrap_err().contains("Erreka"));
         let none = Tables { nice_flor_s: None, alutech_at_4n: None };

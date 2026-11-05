@@ -2,7 +2,7 @@
 
 This folder describes how each keyfob and gate/garage remote protocol supported by KAT works. Each document corresponds to a decoder/encoder in `src/protocols/`.
 
-**Radio and app features:** [radio.md](radio.md) (receive pipeline, IQ recordings, `:record`, frequency hopping), [transmit.md](transmit.md) (OOK / 2-FSK transmit, per-protocol presets and deviations, TX power), [session.md](session.md) (session autosave and saved-fob matching), [timing_analysis.md](timing_analysis.md) (ProtoPirate's Timing Tuner and line-coding guesses), [add_manually.md](add_manually.md) (`:new`: new gate / garage remotes of 101 Flipper-ARF / doctor-firmware types, and the signal menu's "Send button…").
+**Radio and app features:** [radio.md](radio.md) (receive pipeline, IQ recordings, `:record`, frequency hopping), [transmit.md](transmit.md) (OOK / 2-FSK transmit, per-protocol presets and deviations, TX power), [session.md](session.md) (session autosave and saved-fob matching), [timing_analysis.md](timing_analysis.md) (ProtoPirate's Timing Tuner and line-coding guesses), [add_manually.md](add_manually.md) (`:new`: new gate / garage remotes of 107 Flipper-ARF / doctor-firmware / RogueMaster types, and the signal menu's "Send button…").
 
 **Capture/encode model:** Decoded signals expose optional `extra` (e.g. VAG: Key2 + type + key index + counter high byte; protocols with frames longer than 64 bits keep the remaining bits there). When present, the app stores it in `Capture.data_extra` (persisted in `.fob` as `signal.data_extra`) so retransmit can encode from the capture without decoder instance state. See [vag.md](vag.md) for the VAG encode-from-capture flow.
 
@@ -60,7 +60,7 @@ This folder describes how each keyfob and gate/garage remote protocol supported 
 
 ### Garage door, gate, barrier and shutter remotes
 
-Ported from Flipper-ARF's garage app (`applications/system/subghz_garage/protocols/`) and doctor-firmware; registered after every car protocol, most strongly gated first. Shared helpers: `g1_common.rs` … `g6_common.rs`.
+Ported from Flipper-ARF's garage app (`applications/system/subghz_garage/protocols/`) and doctor-firmware, and from Momentum and RogueMaster for Hörmann BiSecur and Cardin S508; registered after every car protocol, most strongly gated first. Shared helpers: `g1_common.rs` … `g6_common.rs`, `f_common.rs`.
 
 | Protocol | Rust module | Doc |
 |----------|-------------|-----|
@@ -98,6 +98,10 @@ Ported from Flipper-ARF's garage app (`applications/system/subghz_garage/protoco
 | BETT | `bett.rs` | [bett.md](bett.md) |
 | Elplast | `elplast.rs` | [elplast.md](elplast.md) |
 | Ansonic | `ansonic.rs` | [ansonic.md](ansonic.md) |
+| Hörmann BiSecur (Momentum / RogueMaster) | `hormann_bisecur.rs` | [hormann_bisecur.md](hormann_bisecur.md) |
+| GangQi | `gangqi.rs` | [gangqi.md](gangqi.md) |
+| Hollarm | `hollarm.rs` | [hollarm.md](hollarm.md) |
+| Cardin S508 (RogueMaster) | `cardin_s508.rs` | [cardin_s508.md](cardin_s508.md) |
 | Holtek | `holtek.rs` | [holtek.md](holtek.md) |
 | CAME TWEE | `came_twee.rs` | [came_twee.md](came_twee.md) |
 | MegaCode | `megacode.rs` | [megacode.md](megacode.md) |
@@ -112,11 +116,37 @@ Ported from Flipper-ARF's garage app (`applications/system/subghz_garage/protoco
 | SMC5326 | `smc5326.rs` | [smc5326.md](smc5326.md) |
 | Princeton (PT2262 / EV1527) | `princeton.rs` | [princeton.md](princeton.md) |
 
+### Receive-only remotes from rtl_433
+
+Ports of [rtl_433](https://github.com/merbanan/rtl_433) decoders (`src/devices/`) for remotes no Flipper firmware decodes; receive only, registered last. They share one exact port of rtl_433's receive chain, `src/protocols/rtl433/`: the pulse detector, the pulse slicers (PWM, PPM, Manchester zero-bit, PIWM_DC, PCM) and the bit buffer, run over KAT's level/duration stream.
+
+| Protocol | Rust module | Doc |
+|----------|-------------|-----|
+| Alps FWB1U545 | `alps_fwb1u545.rs` | [alps_fwb1u545.md](alps_fwb1u545.md) |
+| Continental KR5V2X | `continental_kr5v2x.rs` | [continental_kr5v2x.md](continental_kr5v2x.md) |
+| Honda KR5V2X/1X | `honda_kr5v2x1x.rs` | [honda_kr5v2x1x.md](honda_kr5v2x1x.md) |
+| Siemens 5WY72XX | `siemens_5wy72xx.rs` | [siemens_5wy72xx.md](siemens_5wy72xx.md) |
+| Chrysler car remote (315 MHz) | `chrysler_car_remote.rs` | [chrysler_car_remote.md](chrysler_car_remote.md) |
+| Opel Mokka | `opel_mokka.rs` | [opel_mokka.md](opel_mokka.md) |
+| MIC 6SC2 | `mic6sc2.rs` | [mic6sc2.md](mic6sc2.md) |
+| Code Alarm FRDPC2002 | `code_alarm_frdpc2002.rs` | [code_alarm_frdpc2002.md](code_alarm_frdpc2002.md) |
+| Compustar 1WG3R | `compustar_1wg3r.rs` | [compustar_1wg3r.md](compustar_1wg3r.md) |
+| Astrostart 2000 | `astrostart_2000.rs` | [astrostart_2000.md](astrostart_2000.md) |
+| Audiovox PRO-OE3B | `audiovox_pro_oe3b.rs` | [audiovox_pro_oe3b.md](audiovox_pro_oe3b.md) |
+| Microchip HCS361 (KeeLoq) | `microchip_hcs361.rs` | [microchip_hcs361.md](microchip_hcs361.md) |
+| Microchip HCS362 (KeeLoq) | `microchip_hcs362.rs` | [microchip_hcs362.md](microchip_hcs362.md) |
+| Elero (blinds, awnings) | `elero.rs` | [elero.md](elero.md) |
+| Somfy io-homecontrol | `somfy_iohc.rs` | [somfy_iohc.md](somfy_iohc.md) |
+| RojaFlex (shutters) | `rojaflex.rs` | [rojaflex.md](rojaflex.md) |
+| Markisol (not registered) | `markisol.rs` | [markisol.md](markisol.md) |
+
+rtl_433 decoders KAT does not duplicate (an existing decoder reads the same frames): [Ford-CarRemote → Ford V0](ford_car_remote.md), [Nidec-OUCG8D and Honda-CarRemote → Honda V0](nidec_oucg8d.md), [Akhan-100F14 → Princeton](akhan_100f14.md); rtl_433's GM-ABO1502T reads the frames of [GM](gm.md) with the same fields.
+
 **Add Manually** (new remotes of a chosen type): see [add_manually.md](add_manually.md).
 
 **Shared cipher modules:** `hitag2.rs` (HITAG2 keystream/authenticator, used by Fiat V1 and Renault V1), `aut64.rs`, `keeloq_common.rs`.
 
-**Not registered (mirrors Flipper-ARF):** Audi, Mazda Infinity and Hyundai (Pandora-firmware reverse engineering, shipped disabled by ARF) and Land Rover RKE (an ARF helper that is never registered) are ported and tested but kept out of KAT's registry, exactly as ARF does; each is a one-line change in `ProtocolRegistry::new()` to enable. Retired: **BMW CAS4** (ARF replaced it with **BMW**), **Porsche Touareg** (ProtoPirate removed it; same frame as Porsche Cayenne), **Suzuki** (ProtoPirate folded it into Kia V0) and **PSA2** (PSA decodes those frames).
+**Not registered (mirrors the references):** Audi, Mazda Infinity and Hyundai (Pandora-firmware reverse engineering, shipped disabled by ARF) and Land Rover RKE (an ARF helper that is never registered) are ported and tested but kept out of KAT's registry, exactly as ARF does, and so is Markisol, which rtl_433 ships disabled for its false positives; each is a one-line change in `ProtocolRegistry::new()` to enable. Retired: **BMW CAS4** (ARF replaced it with **BMW**), **Porsche Touareg** (ProtoPirate removed it; same frame as Porsche Cayenne), **Suzuki** (ProtoPirate folded it into Kia V0) and **PSA2** (PSA decodes those frames).
 
 **KeeLoq generic** is not a registered decoder; it runs when no protocol matches and tries KeeLoq with every keystore manufacturer key (using `keeloq_common`). Successful decodes appear as **Keeloq (*keystore name*)**.
 

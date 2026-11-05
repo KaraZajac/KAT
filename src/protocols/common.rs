@@ -99,7 +99,7 @@ pub fn add_bit(data: &mut u64, count: &mut usize, bit: bool) {
 pub fn short_preset_name(preset: Option<&str>) -> &'static str {
     let p = match preset {
         None => return "UNKNOWN",
-        Some(s) if s.is_empty() => return "UNKNOWN",
+        Some("") => return "UNKNOWN",
         Some(s) => s,
     };
     match p {

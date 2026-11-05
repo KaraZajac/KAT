@@ -771,7 +771,7 @@ mod tests {
             let r = seed;
             let d = if (i / 1000) % 2 == 0 {
                 50 + r % 5950
-            } else if r % 97 == 0 {
+            } else if r.is_multiple_of(97) {
                 if level {
                     HEADER_HIGH
                 } else {
@@ -797,7 +797,7 @@ mod tests {
         let mut checked = 0;
         for entry in dir.flatten() {
             let path = entry.path();
-            if path.extension().map_or(true, |e| e != "sub") {
+            if path.extension().is_none_or(|e| e != "sub") {
                 continue;
             }
             let Ok((_, raw)) = crate::export::flipper::import_sub_raw(&path) else {

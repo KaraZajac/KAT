@@ -192,6 +192,7 @@ fn table_cell(col: Col, row: &RowText, capture: &Capture, width: u16) -> Cell<'s
             ModulationType::Pwm => Style::default().fg(Color::Magenta),
             ModulationType::Manchester => Style::default().fg(Color::Cyan),
             ModulationType::DifferentialManchester => Style::default().fg(Color::Blue),
+            ModulationType::Nrz => Style::default().fg(Color::Green),
             ModulationType::Unknown => Style::default().fg(Color::DarkGray),
         },
         Col::Crc if capture.protocol.is_none() => Style::default().fg(Color::DarkGray),

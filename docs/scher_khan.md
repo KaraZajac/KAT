@@ -81,6 +81,12 @@ Buttons: 1 Lock, 2 Unlock, 3 Lock+Unlock, 4 Trunk, 5 Lock+Trunk, 6 Unlock+Trunk,
 9 Lock+Start, A Unlock+Start, C Trunk+Start, F All/Panic. KAT Lock/Unlock/Trunk/Panic → 1/2/4/F; other
 codes 1..F pass through.
 
+**Compustar 1WG3R (KAT deviation):** a 35-bit "MAGIC CODE, Static" frame whose inverted bits pass Compustar
+1WG3R's checks (111 marker, ID not 0000 / FFFF, inverse button byte) is not reported as Scher-Khan: it is the same
+air format, and rtl_433's recordings of those remotes show the frames carry an ID and a button, which the Compustar
+decoder reads ([compustar_1wg3r.md](compustar_1wg3r.md#overlap-with-scher-khan)). Other 35-bit frames, and every
+other length, decode as before; Scher-Khan key files load and transmit as before.
+
 ## Validation
 
 C oracle (unmodified ARF `scher_khan.c` on the host): decoder field-for-field and encoder pulse-for-pulse

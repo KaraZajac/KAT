@@ -2,6 +2,34 @@
 
 All notable changes to KAT are documented here.
 
+## [1.8.0] - 2026-11-05
+
+Two more Flipper firmwares, Momentum and RogueMaster, join the references for the protocols KAT lacked, and rtl_433 for receive-only decoders of remotes no Flipper firmware reads. KAT's receiver was also tested over the air for the first time, with a Flipper Zero replaying 67 `.sub` files to a HackRF: KAT 1.7 received 138 of their 250 frames, this release 239 ([docs/radio.md](docs/radio.md)). What that turned up is fixed below.
+
+### Added
+
+- **Gate and alarm remotes from the Flipper firmwares:** GangQi and Hollarm (doctor-firmware / Flipper-ARF: decode, Send next code, any button), Hörmann BiSecur (868 MHz FSK, Momentum / RogueMaster: decode, and re-send the stored frame as the C does) and Cardin S508 (868 MHz FSK, RogueMaster: decode only, as in the C).
+- **Add Manually has 107 types** (was 101): GangQi 433MHz and Hollarm 433MHz now create remotes, and RogueMaster's six types are listed — Prastel 433MHz creates remotes; Erreka 868MHz, the three Nice O-Code types and Nord ICE say why KAT can't make them. The picker marks RogueMaster-only types "RM" and names the menus that list the selected type.
+- **Receive-only decoders ported from rtl_433:** Alps FWB1U545, Continental KR5V2X and Honda KR5V2X/1X (Honda OEM remotes), Siemens 5WY72XX, Chrysler 315 MHz remotes, Opel Mokka, MIC 6SC2, Code Alarm FRDPC2002, Compustar 1WG3R, Astrostart 2000, Audiovox PRO-OE3B, the Microchip HCS361 and HCS362 KeeLoq encoders, and the Elero, Somfy io-homecontrol and RojaFlex blind and shutter remotes. They are exact models of rtl_433's pulse slicers and bit buffer, give rtl_433's fields on its test recordings where there are any, and match its C code on fuzzed pulse trains. They come last in the registry, so a frame a Flipper reference reads keeps that decoder; the capture can be replayed and exported. HCS361 and HCS362 frames go through KeeLoq identification and key recovery like an HCS200's. Markisol is ported too but, as in rtl_433, not enabled (false positives).
+- rtl_433's Ford, GM, Honda, Nidec and Akhan decoders read the same frames as Ford V0, GM, Honda V0 and Princeton, so they are not duplicated; the field mappings are documented ([docs/ford_car_remote.md](docs/ford_car_remote.md), [docs/nidec_oucg8d.md](docs/nidec_oucg8d.md), [docs/akhan_100f14.md](docs/akhan_100f14.md), [docs/gm.md](docs/gm.md)).
+
+### Changed
+
+- **Live receive lists every frame.** A burst that holds several different frames (presses in quick succession with new counters, a fob alternating two frames, a Flipper replaying a recording) now gives one capture per frame, as a `.sub` import and ProtoPirate's receive history do; before, only the burst's first frame was kept. Each capture holds its frame's pulses and repeats, so a press that repeats one frame is still one capture of the whole burst. Found by transmitting `.sub` files from a Flipper Zero to KAT's HackRF receiver.
+- **Compustar remotes are no longer reported as Scher-Khan.** Compustar 1WG3R remotes send the 35-bit frame the Flipper references read as Scher-Khan "MAGIC CODE, Static" (no fields) with every bit inverted. A frame that passes Compustar's checks now decodes as Compustar, with its ID and button; other 35-bit frames are still Scher-Khan's ([docs/compustar_1wg3r.md](docs/compustar_1wg3r.md)).
+
+### Fixed
+
+- **Remotes whose carrier drifts.** A cheap OOK remote whose oscillator drifts during a press, or is pulled off frequency each time it keys on, lost its first pulses and the ends of its long pulses in KAT's receiver. On rtl_433's Audiovox PRO-OE3B recordings (the carrier moves from −63 to −101 kHz within one frame) KAT decoded 1 of 3, 1 of 10 and 0 of 13 frames, plus one corrupt frame. The receiver now follows the carrier's frequency within a frame when it moves, and decodes all of them; a steady carrier gives the same pulses as before. In simulation, a Kia V1 fob that is pulled at key-on now decodes at a signal about 10 dB weaker.
+- **Transmissions longer than 3 seconds.** When a burst reached the 3-second limit with the carrier still on (an FSK fob held down, a Flipper replaying a long recording), the receiver took the carrier for the new noise floor and lost the rest. The burst now continues as a new one from its last frame gap: a simulated 10-second FSK transmission decodes 99–100 of 100 frames (was 9). A fob held down that sends its frames back to back, with no gap (a Kia V1 sends a new code every ~380 ms), lost the frame across each cut; the next part now starts 500 ms back, so that frame is whole in it.
+- **Recordings that start with silence.** Dead (all-zero) samples or a receiver still settling at the start of a file no longer hide the bursts after them: rtl_433's HCS361 `04/unlock` recording now decodes (all three frames), and GM, Nutek and PT2262 recordings that start the same way get proper bursts.
+- **Fast FSK.** An FSK burst whose bits are too short for the normal FM path is sliced again without smoothing, so Elero's 13 µs bits come through: KAT decodes rtl_433's three Elero recordings with rtl_433's ID, command and counter. So do Somfy io-homecontrol's 26 µs bits, which the normal path showed as FSK but merged (no recording exists; checked in simulation).
+- **Short pulses far apart.** The receiver's second pass estimated each frame's element length from the time its levels take, so a frame of short pulses between long gaps got the gap as its element and lost every pulse. A Chrysler V0 remote's preamble (320 µs pulses 3.7 ms apart) vanished this way: 3 of the 10 frames of `IMPORTS/chrysler/Chrysler PT Cruiser 2006 close.sub` never decoded, over the air and in simulation. When the estimate would erase a frame's pulses (or its gaps), the element length now comes from those alone.
+
+### Known issues
+
+- A FAAC SLH `.sub` replayed by a Flipper Zero doesn't decode in KAT: the Flipper's CC1101 puts every edge it sends on a 33 µs grid (8× the preset's data rate), which stretches some gaps past FAAC SLH's tolerance. The file itself decodes.
+
 ## [1.7.0] - 2026-11-04
 
 A sweep through the interface for bugs and usability: KAT now fits an 80×24 terminal, no longer ends on a failed export or a radio error, never overwrites a file, and has help built in.

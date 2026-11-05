@@ -3,7 +3,7 @@
 //! - [`reverse_key`]: `subghz_protocol_blocks_reverse_key` (`lib/subghz/blocks/math.c`), used by
 //!   both Security+ versions for their bit-reversed rolling codes.
 //! - [`push`]: append a level to an upload, merging it with the previous entry when the level
-//!   repeats (identical on air; the brief's "merge adjacent same-level durations").
+//!   repeats (identical on air: adjacent same-level durations merge).
 //! - [`ManchesterEncoder`]: an exact port of Flipper's `lib/toolbox/manchester_encoder.c`
 //!   (`manchester_encoder_advance` / `manchester_encoder_finish`), used by Security+ 2.0.
 //! - Somfy RTS frame helpers shared by Telis and Keytis: the 4-bit checksum, the XOR-chain

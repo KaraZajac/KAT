@@ -12,7 +12,9 @@
 //! of 1500 µs (or 750 µs) pulses count `header_count` on each LOW whose preceding HIGH was ~1500 µs;
 //! a ~750 µs HIGH + LOW pair after ≥ 2 header pairs is the start bit (counted as bit 1, value 0).
 //! Data: 750/750 = 0, 1100/1100 = 1. A HIGH ≥ 1420 µs (te_long + 2·te_delta) ends the frame, which is
-//! reported when it holds ≥ 35 bits (any length — there is no other gate, as in the C).
+//! reported when it holds ≥ 35 bits (any length — there is no other gate, as in the C), except a
+//! 35-bit frame that passes Compustar 1WG3R's checks: KAT leaves it to that decoder (the same
+//! air format with every bit inverted, read with its ID and button; `docs/compustar_1wg3r.md`).
 //!
 //! **Variants** (`subghz_protocol_scher_khan_check_remote_controller`, by bit count; shown as the
 //! display-name suffix `Scher-Khan [<variant>]`, PP's "Pt:" line):
@@ -45,6 +47,7 @@
 //!   `d3 = (d3 & 0xE0) | button` (bit 4 is cleared, as in the C), `d4:d5 = counter`, re-encrypt,
 //!   new CRC, keep 57 bits.
 //! - Any other length ≤ 64 bits: the key is sent unchanged (replay).
+//!
 //! Upload: 6 × (750 HIGH, 750 LOW), 3 × (1500 HIGH, 1500 LOW), start bit (750, 750), the
 //! `data_count_bit` low bits of `data` MSB-first (1 = 1100/1100, 0 = 750/750), then a 1500 µs HIGH;
 //! the C yields it 7 times (`encoder.repeat = 7`), so the KAT waveform holds 7 copies. Note the
@@ -536,7 +539,15 @@ impl ProtocolDecoder for ScherKhanDecoder {
                     if duration >= TE_DELTA * 2 + TE_LONG {
                         // Found stop bit
                         self.step = DecoderStep::Reset;
-                        let result = (self.decode_count_bit >= MIN_COUNT_BIT)
+                        // KAT deviation: a 35-bit frame that is a valid Compustar 1WG3R frame (the
+                        // same air format, every bit inverted) is left to that decoder, which reads
+                        // its ID and button; the references report it as "MAGIC CODE, Static" with
+                        // no fields (docs/compustar_1wg3r.md, from rtl_433's recordings).
+                        let compustar = self.decode_count_bit == 35
+                            && super::compustar_1wg3r::is_valid_frame(
+                                !(self.decode_data as u64) & ((1 << 35) - 1),
+                            );
+                        let result = (self.decode_count_bit >= MIN_COUNT_BIT && !compustar)
                             .then(|| Self::build(self.decode_data, self.decode_count_bit));
                         self.decode_data = 0;
                         self.decode_count_bit = 0;
@@ -592,7 +603,7 @@ impl ProtocolDecoder for ScherKhanDecoder {
     }
 
     /// `subghz_protocol_decoder_scher_khan_deserialize` (ProtoPirate: generic Bit/Key, Bit 35..=64)
-    /// + the `check_remote_controller` its display runs: the variant and fields come from the key
+    /// \+ the `check_remote_controller` its display runs: the variant and fields come from the key
     /// and the bit count; the file's Serial/Btn/Cnt are display copies the C overwrites. Longer
     /// frames (81/82-bit "MAGIC CODE PRO, Response") are refused like ProtoPirate refuses them: the
     /// C's 64-bit key keeps only their last 64 bits.
@@ -768,7 +779,7 @@ mod tests {
         assert_eq!(d.data_count_bit, 52);
         // Serial bits kept (incl. bit 47, which ARF's 0x7FFFFFFF0000 mask would drop), new button 0x2
         // with its inverted nibble 0xD, counter + 1.
-        let expect = 0x0E8C_1629_D830D_u64;
+        let expect = 0x0E8C1629D830D_u64;
         assert_eq!(d.data, expect);
         assert_eq!(encode_key(0x0E8C1619E830C, 51, BTN_UNLOCK), expect);
         // The re-encoded key parses back to the capture's serial (the 52-bit air frame itself has no

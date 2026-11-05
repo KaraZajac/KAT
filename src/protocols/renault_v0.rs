@@ -380,7 +380,7 @@ impl RenaultV0Decoder {
     /// ProtoPirate `renault_v0_decode_candidate`: the leading 1s are the preamble (≥ 10) and the
     /// frame follows them. A frame whose key MSB (serial bit 23) is 1 is absorbed into that
     /// preamble and never decodes there, so (union with Flipper-ARF's `renault_v0_decode_candidate`
-    /// + `renault_v0_attempt_at_offset`) a run is also read tail-anchored — its last 82 bits, with
+    /// \+ `renault_v0_attempt_at_offset`) a run is also read tail-anchored — its last 82 bits, with
     /// exactly the 16-bit type-13 preamble before them (`renault_v0_type_preamble_bits_valid`) —
     /// under ARF's type-13 gate: the same checksum, buttons 0x06/0x0A only
     /// (`renault_v0_type_button_valid`; ARF does not accept Trunk 0x05 as type 13).

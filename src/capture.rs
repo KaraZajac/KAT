@@ -96,6 +96,8 @@ pub enum ModulationType {
     Pwm,
     Manchester,
     DifferentialManchester,
+    /// Non-return-to-zero: one level per bit period (rtl_433's PCM slicer).
+    Nrz,
 }
 
 impl std::fmt::Display for ModulationType {
@@ -105,6 +107,7 @@ impl std::fmt::Display for ModulationType {
             ModulationType::Pwm => write!(f, "PWM"),
             ModulationType::Manchester => write!(f, "Manchester"),
             ModulationType::DifferentialManchester => write!(f, "Diff. Manchester"),
+            ModulationType::Nrz => write!(f, "NRZ"),
         }
     }
 }
@@ -224,7 +227,7 @@ impl Capture {
     /// Get data as hex string
     pub fn data_hex(&self) -> String {
         if self.data_count_bit > 0 {
-            let bytes = (self.data_count_bit + 7) / 8;
+            let bytes = self.data_count_bit.div_ceil(8);
             format!("{:0width$X}", self.data, width = bytes * 2)
         } else {
             "-".to_string()

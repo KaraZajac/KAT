@@ -176,11 +176,38 @@ pub static ALL: &[&ProtocolInfo] = &[
     &super::linear_delta3::INFO,
     &super::smc5326::INFO,
     &super::princeton::INFO,
-    // Kept, not registered (as in Flipper-ARF).
+    // Flipper firmware ports.
+    &super::hormann_bisecur::INFO,
+    &super::gangqi::INFO,
+    &super::hollarm::INFO,
+    &super::cardin_s508::INFO,
+
+    // rtl_433 ports: car remotes.
+    &super::siemens_5wy72xx::INFO,
+    &super::alps_fwb1u545::INFO,
+    &super::code_alarm_frdpc2002::INFO,
+    &super::astrostart_2000::INFO,
+    &super::chrysler_car_remote::INFO,
+    &super::compustar_1wg3r::INFO,
+    &super::audiovox_pro_oe3b::INFO,
+    &super::honda_kr5v2x1x::INFO,
+    &super::continental_kr5v2x::INFO,
+    &super::mic6sc2::INFO,
+    &super::opel_mokka::INFO,
+
+    // rtl_433 ports: KeeLoq chips and shutter remotes.
+    &super::elero::INFO,
+    &super::somfy_iohc::INFO,
+    &super::rojaflex::INFO,
+    &super::microchip_hcs362::INFO,
+    &super::microchip_hcs361::INFO,
+
+    // Kept, not registered (as in Flipper-ARF; Markisol as in rtl_433).
     &super::land_rover_rke::INFO,
     &super::audi::INFO,
     &super::hyundai::INFO,
     &super::mazda_infinity::INFO,
+    &super::markisol::INFO,
 ];
 
 /// A display name without its " [variant]" suffix ("Star Line [Cenmax]" → "Star Line").
@@ -428,7 +455,7 @@ mod tests {
             let info = lookup(name).unwrap_or_else(|| panic!("{name}: no ProtocolInfo"));
             assert_eq!((info.name, info.decoder), (name, name), "{name}");
         }
-        let unregistered = ["Land Rover RKE", "Audi", "Hyundai", "Mazda Infinity"];
+        let unregistered = ["Land Rover RKE", "Audi", "Hyundai", "Mazda Infinity", "Markisol"];
         for info in ALL {
             assert!(
                 reg.get(info.decoder).is_some() || unregistered.contains(&info.decoder),

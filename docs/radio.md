@@ -24,7 +24,8 @@ device / file ──► raw IQ (cs8 HackRF, cu8 RTL-SDR, cf32)
           └──► detector: FFT, ~31 kHz bins, noise floor per bin ─► bursts, each on its own carrier
                  └──► per burst: mixer (carrier → 0 Hz) ─► FIR ÷4 ─► channel FIR ÷2 ─► ~250 kS/s
                         └──► slicer, pass 1 (20 µs) ─► frames, element length, carrier offset / tones
-                               └──► pass 2 per frame (≈ TE/5) ─► AM pairs / FM pairs ─► captures
+                               └──► pass 2 per frame (≈ TE/5; OOK: carrier frequency tracked)
+                                      ─► AM pairs / FM pairs ─► captures
 ```
 
 Captures carry the **target** frequency (the one you tuned to or that the hopper was on), and
@@ -52,6 +53,13 @@ that rate, ±875 kHz at 10 MS/s input).
 burst is open, so a fob sitting exactly at 0 Hz in a file recorded at its own frequency is not
 removed with it.
 
+**Dead input.** A run of identical samples lasting 1 ms or more carries neither signal nor noise:
+an RTL-SDR's zero bytes before its first real buffer (seven of rtl_433's recordings start with
+58–260 ms of them), a stalled stream. A live receiver always has some noise, so this never happens
+with real samples. Neither the DC estimate nor the detector's noise floor is learned from it (they
+used to be: the floor came out ~100 dB too low, every bin of the band was "present" from then on and
+the whole file was one burst at "106 dB SNR").
+
 **Detection.** Hann-windowed FFT frames (64 points at 2 MS/s: 31.25 kHz bins; 8 at 250 kS/s), 50 %
 overlap, eight frames per batch through one vectorised FFT. The power of each bin is averaged over
 256 µs blocks (16 frames) and compared with a **noise floor per bin**: the median of the first
@@ -59,7 +67,13 @@ blocks after start or retune, then tracked while no burst is open (a strong burs
 whole band: an RTL-SDR's AGC drops the gain while it is on); one floor set per hop frequency,
 re-learned after a gain change. A bin more than **5.4 dB** over its floor is "carrier present"
 (90 s of pure noise at three levels: not one bin-block got there). The bins don't need to be
-flat: a steady spur, the DC residue or an interferer only raises its own bin's floor.
+flat: a steady spur, the DC residue or an interferer only raises its own bin's floor. **Noise
+step:** when every bin of the band stands above its floor by about the same factor (within 9 dB of
+each other) for 8 blocks (2 ms), the floor has moved, not a signal come on (a signal is peaked,
+even a strong one's skirt is ≥ 20 dB below its carrier): a receiver still settling after it
+started (`Microchip/HCS361/04/unlock` has ~6 ms of near-silent samples after its zero bytes, the
+floor learned there was ~30 dB low), a gain change, a broadband interferer. The floors are
+re-learned within 2 ms instead of one burst holding the whole band open until the 3 s cut.
 
 - **Signals.** Present bins up to ~100 kHz apart are one signal (both tones of ±47.6 kHz FSK),
   unless a separate power peak stands out (≥ 6 dB over the dip towards a stronger peak more than
@@ -71,8 +85,17 @@ flat: a steady spur, the DC residue or an interferer only raises its own bin's f
   each press on two frequencies 500 kHz apart) gives a burst per frequency.
 - **Burst end.** A burst closes after **80 ms without carrier in its bins** (one multi-frame button
   press stays one capture, noise between bursts can't keep it open). It needs ≥ 4 present blocks
-  (1 ms). One that never drops back to its floor for 3 s is cut and those bins re-baselined
-  (a steady interferer, a gain step).
+  (1 ms). One still on after 3 s is cut. If the cut part carries data (FSK tones or OOK keying, at
+  least 10 dB SNR) it is a transmission: a Flipper replaying an FSK RAW file holds the carrier for
+  the whole file, both levels being tones, and so does a held FSK fob. It goes on as a new burst
+  from the cut part's last frame gap (a low of ≥ 6 ms, for FSK a held tone of ≥ 6 ms; at most
+  500 ms back), so the frame across the cut is whole in the next part and decoded once. Frames
+  back to back with no gap at all (a held Kia V1 fob sends a new code every ~380 ms, separated only
+  by its preamble) go on from 500 ms back: the frame across the cut is whole, and one before it may
+  be decoded twice (the app drops the repeat as a duplicate). Its noise
+  level comes from the detector's floor, as nothing around it is quiet. Only a cut part without
+  data (a steady interferer, a gain step) has its bins re-baselined; before, a continuous FSK
+  carrier was re-baselined too and was then noise to the detector until it stopped.
 - **Artifacts.** A strong fob shows up weakly elsewhere in the band: its I/Q-imbalance image
   (mirrored around the LO, HackRF), spurs and intermodulation of the receiver or the transmitter
   (the HCS362 and Chrysler recordings show lines 16–31 dB down). A burst ≥ 10 dB weaker than
@@ -112,15 +135,48 @@ Mercedes V1, 50 µs).
   of the carrier-on samples finds **both tones**, so any remaining carrier error doesn't matter
   (per-burst AFC); a burst is FSK only if the tones are ≥ 4 kHz apart and ≥ 3.5× their spread; the
   slicer cuts halfway between them with hysteresis of 10 % of the separation; outside the carrier the
-  level is low.
+  level is low. **Short symbols:** if that finds no FSK, or finds FSK with at least 10 % of its
+  levels shorter than 60 µs (symbols the smoothing merged: Somfy io-homecontrol's 26 µs bits at
+  38.4 kbit/s show both tones but come out as a few dozen 50–1000 µs levels), and the carrier is on
+  for ≥ 1 ms at a stretch, the discriminator is sliced again without smoothing; if it holds two tones, its levels
+  are clean multiples (80 %) of an element shorter than 60 µs (≥ 2 samples), and those short levels
+  fill at least half of the carrier's time, on both tones (≥ 25 % each), that is the FM path,
+  debounced at TE/4 (a CC1101-style GFSK packet: Elero's 13 µs bits at 75 kbps come out as
+  13/26/39/52 µs, as rtl_433 `-Y minmax` measures them; io-homecontrol's as 26 µs multiples).
+  Otherwise pass 1's slicing stands. FSK that pass 1 resolves never gets here, nor does noise (not
+  two tones) or OOK: a pulled carrier's key-on blips are short but rare (the Chrysler remote's are
+  21 µs every 4 ms).
 - *Pass 2:* the burst is split into frames at lows of 6 ms or more. For each frame the element
-  length TE is estimated from pass 1 (10 % time-weighted quantile of its level durations); if it is
+  length TE is estimated from pass 1: the 10 % time-weighted quantile of its level durations, or
+  that of its HIGHs or of its LOWs alone when that is under a third of it and ≥ 100 µs (short
+  pulses between long lows carry under 10 % of a frame's time: a Chrysler V0 preamble of 320 µs
+  pulses 3.7 ms apart would get TE 3.7 ms, and its TE/4 debounce would erase every pulse). If TE is
   ≥ 100 µs the frame is sliced again with ~TE/5 averaging and TE/4 debounce. For OOK the frame's
-  carrier is first mixed to 0 Hz (its offset measured from pass 1) and averaged **coherently**, which
-  averages the noise away before the envelope is taken, close to a matched filter; for FSK the
-  discriminator is averaged and the two tones are found again per frame. Short-TE frames keep
-  pass 1, and a burst that also holds something else (another fob, interference) doesn't distort
-  the TE estimate of the frame next to it.
+  carrier phase is removed and the samples averaged **coherently**, which averages the noise away
+  before the envelope is taken, close to a matched filter; for FSK the discriminator is averaged and
+  the two tones are found again per frame. Short-TE frames keep pass 1, and a burst that also holds
+  something else (another fob, interference) doesn't distort the TE estimate of the frame next to
+  it.
+- *OOK carrier tracking (pass 2).* A coherent average over TE/5 loses the carrier wherever its
+  frequency is more than ~1/(4·TE/5) off the one removed (±2.7 kHz for a 445 µs TE), and cheap
+  remotes move far more: the Audiovox PRO-OE3B in rtl_433's recordings drifts −63 → −101 kHz within
+  one 33 ms frame, and every key-on pulls it (−63 → −74 kHz within a 444 µs pulse, −67 → −83 kHz within
+  a 900 µs one; it is back by the next pulse). With one frequency per frame, the frame's first pulses
+  and the ends of its long pulses (where the carrier is furthest from the mean) shrank or vanished:
+  920 µs pulses came out at 230–460 µs. Now the phase comes from the frame's mean frequency, or from
+  a **track of the carrier's frequency** where that follows a movement the mean misses: a slow track
+  (the discriminator summed over the carrier-on samples within ±8 coherent windows, across pulses:
+  drift over the press), then a fast one (±1 window, within each pulse: the pull). A track replaces
+  the mean (or the slow track) only if the movement it follows beyond its own noise is ≥ 2× that
+  noise (rms; 4× in variance) and large enough to matter (≥ 0.12 cycles per coherent window, rms),
+  and only if its noise is < 0.35 cycles per window. The noise is measured, not modelled: the
+  track is computed again from two interleaved halves of the samples, and their difference
+  (weighted by the carrier in each window) is noise only. A steady carrier keeps the mean (its
+  output is bit-identical to before); at low SNR a track's noise would cost more than a small drift
+  gains. Only keyed carriers are tracked: a frame whose carrier is on > 90 % of its span is weak
+  FSK that pass 1 didn't recognise, whose two tones the mean's coherent average separates like an
+  OOK envelope (one passes, the other doesn't: some of the Ford V0 ±20 kHz presses at −8 dB in
+  the sensitivity sweep decode that way), and a track would follow the tones.
 
 **Output.** Level/duration pairs in µs, `true` = carrier on (AM) or upper tone (FM). Each capture
 starts with a low for the idle time before it (10 ms … 1 s) and ends with the trailing gap (≥ 80 ms),
@@ -272,7 +328,7 @@ Decode rate vs SNR (dB over 2 MHz), fob 20 kHz off (KAT 1.4 row: fob exactly on 
 ### OOK
 
 Decode rate vs SNR (dB over 2 MHz). The 16-tap row is the lab's moving average in front of the 1.4
-demodulator (from the v1.5 brief, 10 kHz offset):
+demodulator (as measured for v1.5, 10 kHz offset):
 
 | case | 18.6 | 12.6 | 9 | 6.5 | 0.5 | −3 | −5.5 | −8 | −10 |
 |---|---|---|---|---|---|---|---|---|---|
@@ -285,6 +341,29 @@ demodulator (from the v1.5 brief, 10 kHz offset):
 
 Below about −6 dB the int8 samples clip heavily (σ ≈ 1.6× the carrier amplitude), so the last
 columns say as much about the test signal as about the receiver.
+
+### Drifting carriers
+
+OOK whose carrier moves like a cheap remote's (`sweep_drift`; model from the Audiovox PRO-OE3B
+recordings, measured pulse by pulse: a drift of up to −30 kHz with a 30 ms time constant, −1 kHz/ms
+at first, and a pull of up to −19 kHz with a 0.5 ms time constant at every key-on, gone by the next
+pulse), 10 kHz fob offset, live tuning, 16 trials; 50 % points in dB over 2 MHz, "before" is
+KAT 1.7:
+
+| carrier | Kia V1 (TE 800 µs), before | Kia V1, now | Ford V0 as OOK (TE 250 µs), before | Ford V0, now |
+|---|---|---|---|---|
+| steady | −8.5 | −8.5 (identical) | < −9 (8/16 at −9) | < −9 (identical) |
+| drift −30 kHz / 30 ms | −8.4 | −8.4 | < −9 (9/16) | < −9 (identical) |
+| pulled −19 kHz / 0.5 ms | +4.5 | −5.3 | < −9 (9/16) | < −9 (identical) |
+| both (the Audiovox) | > +12 (no decode at any SNR) | −5.3 | < −9 (8/16) | < −9 (identical) |
+
+The longer the element, the longer the coherent window (TE/5) and the less carrier movement it
+tolerates: Ford V0's 50 µs window took the pull before, Kia V1's 160 µs one didn't. A pulled carrier
+still needs ~3 dB more than a steady one: the fast track has to be estimated from one pulse at a
+time. With noise added to the Audiovox recordings (+3 / +4.8 / +7 / +9.5 dB of noise; two noise
+seeds each) KAT 1.7 decoded at most 1 frame per file, now lock 3, 3, 3, 1–2 of 3; option 10 of 10
+throughout; unlock 13, 11–13, 9–11, 7–9 of 13 (pass 1 alone, without pass 2: 3 / 10 / 13 up to
++4.8 dB, nothing at +9.5 dB).
 
 ### Robustness
 
@@ -299,6 +378,8 @@ columns say as much about the test signal as about the receiver.
 | two fobs at once: OOK 150 kHz below the target, FSK 150 kHz above, overlapping, 10 dB | two captures, both decode (normal suite) |
 | fob 300 kHz from a carrier 15 dB stronger that comes on before it and stays on | decodes (normal suite) |
 | strong fob (30 dB) with a −30 dB I/Q image 540 kHz away | one capture (normal suite) |
+| OOK fob drifting −30 kHz (30 ms time constant) and pulled −19 kHz at every key-on (the Audiovox PRO-OE3B), 3 dB, at +10 and −60 kHz | decodes (normal suite; KAT 1.7: Kia V1 on this carrier didn't decode at any SNR, see *Drifting carriers*) |
+| continuous ±47.6 kHz FSK carrier for 10 s (Kia V5 frames every 100 ms, 250 kS/s, 10 dB) | 4 bursts, each continuing at a frame gap; 99–100 of the 100 frames decode, none twice (normal suite; `kat --decode` of the same IQ: 92). KAT 1.7: the floor was re-baselined to the carrier at 3 s and 6 s, one burst in the last second, 9 decodes |
 
 ### Real recordings (rtl_433 test files)
 
@@ -310,15 +391,92 @@ rtl_433's public test recordings (`rtl_433_tests`, real IQ from RTL-SDRs, `.cu8`
 |---|---|---|---|
 | Microchip HCS200, BTN2 / BTN3 (6 files) | −116…−125 / +121 kHz (edge of the 250 kS/s band) | nothing | KeeLoq (Magic_3), serial D0921, counters AC4…ACC |
 | Microchip HCS200, BTN1 (6 files) | −95…−112 kHz | KeeLoq, `g002` 1 frame | same, `g002` 4 frames |
-| Chrysler car remote (7 files, 920 kS/s) | −74…−384 kHz | no burst beyond −126 kHz | every burst at its offset, 15–17 dB, clean 320 / 640 µs PWM (no KAT decoder for it) |
+| Chrysler car remote (7 files, 920 kS/s) | −74…−384 kHz | no burst beyond −126 kHz | every burst at its offset, 15–17 dB, the ~7 ms lead-in carrier, preamble and 320 / 640 µs PWM data that rtl_433 `-A` measures (121–123 pulses; Chrysler-CarRemote decodes them) |
 | Microchip HCS362 (868.3 MHz, 1 MS/s) | +280 kHz | 10 dB leakage of it | the bursts at +280.5 kHz, 38 dB |
 | Chamberlain CWPIRC (915 MHz, 1 MS/s) | −283 and +217 kHz | noise-level bursts | each press on both of its frequencies, 25 dB |
+
+Since KAT 1.7 (carrier tracking in pass 2, dead input, noise steps, long transmissions, short FSK
+symbols, pass 2's element length for short pulses far apart), compared over both rtl_433 corpora
+(230 recordings), every decode is the same, plus:
+
+| recording | what it is | KAT 1.7 | now |
+|---|---|---|---|
+| Audiovox PRO-OE3B lock / option / unlock (303.3 MHz, 250 kS/s) | carrier −50…−101 kHz, drifting up to 38 kHz within a frame and pulled at every key-on | 1 / 1 / 0 of rtl_433's 3 / 10 / 13 frames, plus a corrupt one (ID 0029) | 3 / 10 / 13, as rtl_433; pulses within 2 µs of the raw envelope |
+| Chrysler car remote 04 (920 kS/s) | −384 kHz, drifting | 1 of the 2 packets | 2 |
+| Chrysler car remote 01, 02, 04, 05 (920 kS/s) | a 7 ms lead-in carrier, then 25 pulses of ~310 µs 3.7 ms apart, then the PWM data | the preamble erased by pass 2: 96–98 of rtl_433's 123 pulses (the decodes don't need it) | 121–123 pulses, as rtl_433 |
+| Microchip HCS361 02 / 03 / 04, GM ABO1502T `g001`, Nutek 01 / 03, PT2262 `gfile001` | start with 58–260 ms of zero bytes (and HCS361/04 with ~6 ms of a settling receiver) | one burst over the whole file at "106 dB SNR", or none (HCS361/04 unlock); GM `g001` and PT2262 `gfile001` (at its 250 kS/s) got their decodes from that burst's FM path | the real bursts, 14–18 dB (HCS361 and GM at rtl_433's times); GM: the same two decodes and PT2262: the same seven, now from the AM path like the other files of those remotes |
+| Elero 01–03 (869.4 MHz, 2.048 MS/s) | CC1101 GFSK, 13 µs bits, ±26 kHz, +119 kHz | no burst | one FSK burst each, pulses 13 / 26 / 39 / 52 µs as rtl_433 `-Y minmax`; Elero decodes all three with rtl_433's ID, command and counter |
+
+The only changed field: EV1527 `g026`, one of its two Princeton decodes has TE 357 instead of 356 µs
+(both now 357; the remote's carrier is pulled ~2.6 kHz rms within its pulses, so pass 2 tracks it).
+
+**Pulse widths against rtl_433.** KAT's AM pulses come out 5–47 µs shorter than `rtl_433 -A`'s
+(gaps longer by as much), but they agree with the signal: the raw full-band envelope of the same
+recordings, sliced at half the carrier level with interpolated edges, gives the same widths within
+1–5 µs (HCS200 `g001`: KAT 373 / 756 µs, raw 375 / 757, rtl_433 420 / 800; Audiovox lock: 448 / 900,
+raw 447 / 899, rtl_433 464 / 920; Compustar lock: 717 / 1089, raw 721 / 1092, rtl_433 740 / 1112;
+KeeLoq `g012`: 415 / 877, raw 417 / 877, rtl_433 432 / 892). rtl_433 measures long: its envelope
+filter (1st-order IIR, τ ≈ 25 µs) and ±12 % hysteresis around a threshold that follows the pulse
+level, and it counts the sample that ends a pulse. Only on drifting carriers did KAT's own pulses
+shrink (see *OOK carrier tracking*).
 
 Other things these recordings exercise: a transmitter keying its own carrier on and off around the
 data (compustar), an RTL-SDR AGC that drops the gain during strong pulses (Chrysler), spurs and
 lines of a strong transmitter 16–31 dB down (HCS362, Chrysler; dropped as artifacts or duplicates).
-`rtl433_recordings_decode` (ignored; set `KAT_RTL433_TESTS` to the corpus's `tests` directory)
-checks these decodes and bursts.
+`rtl433_recordings_decode` (ignored; set `KAT_RTL433_TESTS` to the corpus's `tests` directory;
+files the corpus doesn't have are skipped) checks these decodes and bursts, the Audiovox frame
+counts, HCS361/04 unlock's burst and Elero's 13 µs FM grid.
+
+### Over the air: a Flipper Zero replaying `.sub` files, received live by a HackRF
+
+A Flipper Zero (Momentum firmware) sent 67 `.sub` files from its USB command line
+(`subghz tx_from_file`): 18 car captures from `IMPORTS` and 49 of Flipper-ARF's unit-test captures
+(gate remotes), on 314–434 and 868 MHz. KAT received them live (HackRF, 2 MS/s; the Flipper and the
+HackRF plugged into the same computer), and each file's live captures were compared with
+`kat --decode` of the file's own pulses: 250 distinct frames (protocol, serial, button, counter). A
+frame a file shares with one sent before it counts as received (KAT drops a repeat of a capture it
+already has).
+
+| KAT | frames received |
+|---|---|
+| 1.7 receive chain, one capture per burst | 138 of 250 |
+| one capture per frame; carrier tracking, dead input, transmissions over 3 s, short FSK symbols | 233 |
+| pass 2's element length for short pulses far apart; back-to-back frames over the 3 s cut | 239 |
+
+What the runs turned up, each reproduced in simulation (`src/radio/sim.rs`) before it was fixed:
+
+- A burst gave one capture, of its first frame, so presses in quick succession and replayed
+  recordings lost every later frame (Somfy Telis 1 → 8 of 8, Princeton 1 → 4 of 4).
+- A Flipper replaying an FSK RAW file holds its carrier for the whole file (25–37 s): at the 3 s
+  cut the floor was re-baselined to the carrier and the rest was noise (Kia V3, V4 and V5, Suzuki:
+  1–2 → all of their 15–20 frames).
+- Frames back to back with no gap (`KIA V1 N1 RAW.sub`, a held fob sending a new code every
+  ~380 ms) lost the frame across the 3 s cut.
+- A Chrysler V0 preamble (a 17 ms carrier, then 320 µs pulses 3.7 ms apart) was erased by pass 2:
+  3 of the 10 frames of `Chrysler PT Cruiser 2006 close.sub` never decoded.
+
+Still missed (11 of 250):
+
+- FAAC SLH (3 frames): the Flipper's TX timing, below.
+- The last frame of `KIA V1 N1 RAW.sub`: its final low runs into silence, which the Kia V1 decoder,
+  like ProtoPirate's, doesn't read as a bit (a real fob repeats its frame, so only the last copy of
+  a press is lost).
+- `Opel Vectra 2008.sub`: two of its Fiat V1 frames come out as Renault V1 (same serial and
+  counter, both HITAG2), two are missed.
+- One frame each of Fiat V0 (`Fiat Bravo 2010`), VAG (`Skoda_Fabia_2007`) and Princeton
+  (`gate_tx_raw.sub`: received with two bits flipped, which Princeton, having no checksum, decodes
+  as another serial).
+- Decodes the files don't have: that Princeton frame, and one Renault V1 (ARF) frame during
+  `Holden Barina 2016 AU.sub` (its checks are weak, as in the reference).
+
+**FAAC SLH.** `faac_slh_raw.sub` replayed by the Flipper and recorded by KAT live (433.92 MHz)
+doesn't decode: its LOWs between short pulses come out
+at 297 / 330 / 363 µs, and 91 of its 644 are 363 µs, above FAAC SLH's limit (te_short 255 +
+te_delta 100). That is what is on the air, not the receiver: the raw envelope of the recording
+(0.5 µs resolution, no channel filter) has the same distribution as KAT's pulses (LOW short median
+330 / KAT 328 µs, the same 91 over 355 µs). The Flipper's CC1101 samples its asynchronous data
+input at 8× the preset's data rate (Ook650Async: 3.79 kBaud → 30.35 kHz), so every replayed edge
+lands on a 32.95 µs tick: the file's 318 µs LOWs become 9, 10 or 11 ticks.
 
 ### Real pulse timings (IMPORTS)
 
@@ -358,6 +516,14 @@ on top of the detector, which is why burst-heavy input got slower. Finalising a 
 slicing it) happens when it closes, on the processing thread: ~0.1 s for a 3 s burst. Live RX needs
 a release build (a debug build is ~20× slower). `sweep_throughput` / `sweep_stage_costs` measure
 yours.
+
+The carrier tracking, the dead-input test (a strided check per chunk; per sample only where two
+samples 32 apart are equal) and the noise-step test leave these numbers as they were, measured back
+to back with KAT 1.7 on the same machine (2 MS/s noise 61.8 → 64 MS/s, FSK bursts 20.0 → 20.1,
+2.4 MS/s 22.9 → 23.0, 10 MS/s 38.3 → 38.2, 250 kS/s noise 88 → 90). OOK bursts cost more to slice:
+both tracks and their noise are evaluated on every OOK frame, ~20 ms of CPU per second of burst
+(the three Audiovox recordings, decoded 20 times: 1.45 → 2.03 s); all 230 rtl_433 recordings:
+6.0 → 6.85 s.
 
 **Not verified on hardware.** The synthetic measurements above and the rtl_433 recordings (real
 RTL-SDR IQ) are all there is. Live HackRF/RTL-SDR operation with the wide-band detector (the LO / DC

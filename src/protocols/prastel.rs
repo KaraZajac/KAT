@@ -173,7 +173,7 @@ fn unscramble(p: &mut [u8; 7]) {
 }
 
 /// `subghz_protocol_prastel_scramble`: exact inverse of [unscramble] (plus the parity bit).
-fn scramble(p: &mut [u8; 7]) {
+pub(super) fn scramble(p: &mut [u8; 7]) {
     let mut n = p[5] ^ 0xA7;
     let mut x = p[6] ^ 0x69;
 
@@ -234,7 +234,7 @@ fn btn_from_raw(raw: u8) -> u8 {
 }
 
 /// `subghz_protocol_prastel_btn_to_raw` (0 = none).
-fn btn_to_raw(btn: u8) -> u8 {
+pub(super) fn btn_to_raw(btn: u8) -> u8 {
     if (1..=4).contains(&btn) {
         RAW_MAP[btn as usize]
     } else {

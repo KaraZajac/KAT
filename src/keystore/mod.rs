@@ -15,8 +15,11 @@ pub const USER_KEYSTORE_FILE: &str = "keeloq_mfcodes_user";
 
 static USER_ENTRIES: OnceLock<Vec<(String, u32, u64)>> = OnceLock::new();
 
+/// What [parse_user_keystore] returns: the entries (name, type, key) and the line errors.
+pub type ParsedUserKeystore = (Vec<(String, u32, u64)>, Vec<(usize, String)>);
+
 /// Parse a Flipper user keystore. Returns the entries and the line errors (1-based line, text).
-pub fn parse_user_keystore(text: &str) -> Result<(Vec<(String, u32, u64)>, Vec<(usize, String)>), String> {
+pub fn parse_user_keystore(text: &str) -> Result<ParsedUserKeystore, String> {
     let mut entries = Vec::new();
     let mut errors = Vec::new();
     for (i, raw) in text.lines().enumerate() {
@@ -405,7 +408,7 @@ mod tests {
         eprintln!("KAT embedded keystore keys (type, hex, name):");
         for (i, (ty, key)) in entries.iter().enumerate() {
             let name = KEY_ENTRY_NAMES.get(i).copied().unwrap_or("?");
-            eprintln!("  type {}  {}  {}", ty, format!("{:016X}", key), name);
+            eprintln!("  type {}  {:016X}  {}", ty, key, name);
         }
     }
 }

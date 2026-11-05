@@ -81,11 +81,7 @@ const BTN_PANIC: u8 = 0x8;
 /// `|measured - ref| * 100 <= ref * TOLERANCE_PCT`.
 #[inline]
 fn in_range(measured_us: u32, ref_us: u32) -> bool {
-    let diff = if measured_us > ref_us {
-        measured_us - ref_us
-    } else {
-        ref_us - measured_us
-    };
+    let diff = measured_us.abs_diff(ref_us);
     diff.saturating_mul(100) <= ref_us.saturating_mul(TOLERANCE_PCT)
 }
 
@@ -161,11 +157,11 @@ impl LandRoverRkeDecoder {
         }
         // button: frame bits [9:6] (4 bits).
         for j in 0..4 {
-            bits[6 + j] = ((button >> j) & 1) as u8;
+            bits[6 + j] = (button >> j) & 1;
         }
         // func_bits: frame bits [5:2] (4 bits).
         for j in 0..4 {
-            bits[2 + j] = ((func_bits >> j) & 1) as u8;
+            bits[2 + j] = (func_bits >> j) & 1;
         }
         // status: frame bits [1:0] (2 bits).
         bits[0] = status & 1;
@@ -200,8 +196,8 @@ impl LandRoverRkeDecoder {
     /// `data` = frame bits [63:0], `extra` = frame bits [65:64].
     fn frame_to_data(bits: &[u8; FRAME_BITS]) -> (u64, u64) {
         let mut data: u64 = 0;
-        for i in 0..64 {
-            data |= (bits[i] as u64) << i;
+        for (i, &bit) in bits[..64].iter().enumerate() {
+            data |= (bit as u64) << i;
         }
         let extra: u64 = (bits[64] as u64) | ((bits[65] as u64) << 1);
         (data, extra)
@@ -210,8 +206,8 @@ impl LandRoverRkeDecoder {
     /// Inverse of `frame_to_data`.
     fn data_to_frame(data: u64, extra: u64) -> [u8; FRAME_BITS] {
         let mut bits = [0u8; FRAME_BITS];
-        for i in 0..64 {
-            bits[i] = ((data >> i) & 1) as u8;
+        for (i, bit) in bits[..64].iter_mut().enumerate() {
+            *bit = ((data >> i) & 1) as u8;
         }
         bits[64] = (extra & 1) as u8;
         bits[65] = ((extra >> 1) & 1) as u8;

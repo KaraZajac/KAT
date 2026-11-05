@@ -327,7 +327,7 @@ fn list_matches(list: &[&'static str], capture_value: &str) -> bool {
     if list.is_empty() {
         return false;
     }
-    if list.iter().any(|s| *s == "ALL") {
+    if list.contains(&"ALL") {
         return true;
     }
     list.iter()

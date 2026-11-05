@@ -105,6 +105,7 @@ fn key_nibble(key: &Aut64Key, nibble: u8, table: &[u8; 8], iteration: usize) -> 
 }
 
 /// Compute round key from state
+#[allow(clippy::needless_range_loop)] // mirrors aut64.c's loop; `i` is also key_nibble's iteration
 fn round_key(key: &Aut64Key, state: &[u8], round_n: usize) -> u8 {
     let mut result_hi: u8 = 0;
     let mut result_lo: u8 = 0;
@@ -201,6 +202,7 @@ fn permute_bits(key: &Aut64Key, byte: u8) -> u8 {
 }
 
 /// Compute inverse permutation box (reference: reverse_box). Used for encrypt key.
+#[allow(clippy::needless_range_loop)] // `i` and `j` are the permutation's values as well as indices
 fn reverse_box(box_in: &[u8], len: usize) -> Vec<u8> {
     let mut reversed = vec![0u8; len];
     for i in 0..len {
@@ -306,8 +308,7 @@ pub fn aut64_pack(src: &Aut64Key) -> [u8; AUT64_KEY_STRUCT_PACKED_SIZE] {
 /// Deserialize 16-byte packed key into key structure. Matches `aut64_unpack` in reference.
 #[allow(dead_code)]
 pub fn aut64_unpack(src: &[u8]) -> Aut64Key {
-    let mut dest = Aut64Key::default();
-    dest.index = src[0];
+    let mut dest = Aut64Key { index: src[0], ..Default::default() };
 
     for i in 0..(dest.key.len() / 2) {
         dest.key[i * 2] = src[i + 1] >> 4;

@@ -22,6 +22,7 @@
 //!   * byte 6 + byte 7 MSB → 9-bit counter = `(b6 << 1) | (b7 >> 7)`
 //!   * byte 7 bits 0x78 → 3 reserved bits (must be 0)
 //!   * byte 7 bits 0x07 → 3-bit check
+//!
 //! The check is a proprietary 3-bit polynomial over the counter (`calculate_check`); the tail is
 //! 0xFFFF or 0x7FFF depending on a 1-bit parity of the counter (`calculate_tail`). Emission is gated
 //! on the reserved bits being zero, the check matching, the tail matching, and `extra_bit` set —
@@ -225,6 +226,7 @@ impl HondaV2Decoder {
     }
 
     /// 3-bit check polynomial over the 9-bit counter (matches `honda_v2_calculate_check`).
+    #[allow(clippy::identity_op)] // `count >> 0` keeps the tap list as honda_v2.c writes it
     fn calculate_check(count: u32) -> u8 {
         let c0 = ((count >> 1) ^ (count >> 2) ^ (count >> 3) ^ (count >> 4) ^ (count >> 6)) & 1;
         let c1 = ((count >> 0)
@@ -240,6 +242,7 @@ impl HondaV2Decoder {
     }
 
     /// MSB selector for the 16-bit tail (matches `honda_v2_calculate_tail_msb`).
+    #[allow(clippy::identity_op)] // `count >> 0` keeps the tap list as honda_v2.c writes it
     fn calculate_tail_msb(count: u32) -> bool {
         (((count >> 0) ^ (count >> 2) ^ (count >> 4) ^ (count >> 5)) & 1) != 0
     }
@@ -562,7 +565,7 @@ impl ProtocolDecoder for HondaV2Decoder {
         let data = key.key_u64()?;
         let count = Self::count_from_bytes(&data.to_be_bytes());
         let tail = key.u32_field("Tail").map_or_else(|| Self::calculate_tail(count), |t| t as u16);
-        let extra_bit = key.u32_field("ExtraBit").map_or(true, |e| e & 1 != 0);
+        let extra_bit = key.u32_field("ExtraBit").is_none_or(|e| e & 1 != 0);
         let (check_ok, tail_ok) = Self::validate_frame(data, tail, extra_bit);
         Some(Self::signal(data, tail, check_ok && tail_ok))
     }

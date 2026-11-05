@@ -12,7 +12,8 @@
 //! that burst was found on:
 //!
 //! ```text
-//! IQ (cs8/cu8/cf32) → DC removal (learned while idle)
+//! IQ (cs8/cu8/cf32) → DC removal (learned while idle, never from dead input: ≥ 1 ms of identical
+//!   samples, an RTL-SDR's zero bytes at start)
 //!   [input > 2.5 MS/s: mixer (target → 0 Hz) → FIR ÷D to ≤ 2.5 MS/s]
 //!   → wide-band sample buffer (kept from just before the oldest open burst)
 //!   → detector: Hann-windowed FFT frames, ~31 kHz bins, 50 % overlap; power per bin over 256 µs
@@ -21,7 +22,10 @@
 //!     power peak stands out between them (a fob next to a strong carrier's skirt); signals further
 //!     apart are separate bursts (two fobs at once). A burst closes after 80 ms without carrier in
 //!     its bins (noise between bursts can't keep it open, pure noise opens nothing). With offset
-//!     tuning the LO / DC bins and the band edges never open a burst.
+//!     tuning the LO / DC bins and the band edges never open a burst. The whole band above its
+//!     floor by the same factor is a noise step (the floors are re-learned); a burst still on at
+//!     3 s is cut, and goes on from its last frame gap if it carries data (a continuous FSK
+//!     carrier), else its bins are re-baselined (a steady carrier, a moved floor).
 //!   → per closed burst: carrier = centre of its bins, weighted by how much their power changed
 //!     while it was on (the OOK carrier, or between the FSK tones). A burst ≥ 10 dB weaker than
 //!     one it is keyed with is that one's artifact (I/Q image, spur) and is dropped, and so is one
@@ -33,9 +37,13 @@
 //!       AM: |z| → 20 µs moving average → threshold between the noise level and the carrier level
 //!           (hysteresis, interpolated crossing times, 30 µs debounce)
 //!       FM: arg(Σ z·z*[-1]) over 20 µs → two-means on the carrier-on samples finds both tones
-//!           (per-burst AFC, so the remaining carrier error doesn't matter) → slice at their midpoint
-//!   → pass 2, per frame (split at lows ≥ 6 ms): averaging over ~TE/5 of that frame, coherent for
-//!     OOK (carrier mixed to 0 Hz first), on the discriminator for FSK; TE/4 debounce
+//!           (per-burst AFC, so the remaining carrier error doesn't matter) → slice at their midpoint;
+//!           symbols too short for that (13 µs GFSK), or merged by it (26 µs), are sliced again
+//!           without smoothing
+//!   → pass 2, per frame (split at lows ≥ 6 ms; TE from all its levels, or from its HIGHs or LOWs
+//!     alone where that TE's debounce would erase them): averaging over ~TE/5 of that frame, coherent for
+//!     OOK (carrier phase removed first: the frame's mean frequency, or a track of a carrier that
+//!     drifts and is pulled at every key-on), on the discriminator for FSK; TE/4 debounce
 //!   → each path is emitted only if it carries modulation (FSK bursts don't also come out as an
 //!     AM "carrier on" twin, OOK bursts don't come out as FM noise)
 //!   → if the slicer finds the carrier (or the middle of the tones) > 20 kHz from the channel
@@ -49,6 +57,8 @@
 
 use std::collections::VecDeque;
 use std::ops::Range;
+
+use num_complex::Complex64;
 
 use super::demodulator::LevelDuration;
 use super::dsp::{
@@ -126,10 +136,26 @@ const FLOOR_INIT_BLOCKS: usize = 8;
 const FLOOR_INIT_CAP: f32 = 10.0;
 const FLOOR_ALPHA: f32 = 0.02;
 const FLOOR_ALPHA_FAST: f32 = 0.1;
+/// The whole band this many blocks (2 ms) above its floor, flat within a factor 8 (9 dB, noise
+/// estimates of 64 bins spread ±4 dB), is a noise step (see `end_block`).
+const STEP_BLOCKS: u32 = 8;
+const STEP_FLATNESS: f32 = 8.0;
 /// A burst ends after this much time without carrier (keeps one multi-frame button press together).
 pub const GAP_US: u64 = 80_000;
 /// Longest burst before it is cut and emitted (a held button / continuous carrier).
 pub const MAX_BURST_US: u64 = 3_000_000;
+/// A burst cut at MAX_BURST_US that carries data (FSK tones or OOK keying, at least this SNR) is a
+/// transmission: it continues as a new burst from its last frame gap, at most this far back (and
+/// this far back when it has none), so the frame across the cut is whole in the next one. Only an
+/// unmodulated one (a steady carrier, a moved floor) has its bins re-baselined.
+const CONTINUE_SNR_DB: f32 = 10.0;
+const MAX_OVERLAP_US: u64 = 500_000;
+/// Input that repeats the same sample this long (1 ms, at least 64 samples) is dead: an RTL-SDR's
+/// zero bytes before its first real buffer (rtl_433's recordings start with up to 260 ms of them),
+/// a stalled stream. A live receiver always has noise, so it never does that; the DC estimate and
+/// the detector's noise floor are not learned from it.
+const DEAD_US: f64 = 1_000.0;
+const DEAD_MIN_SAMPLES: u64 = 64;
 /// Post-detection moving average.
 const SMOOTH_US: f64 = 20.0;
 /// Levels shorter than this are absorbed into their neighbours (the shortest protocol TE is 50 µs).
@@ -430,6 +456,10 @@ struct OpenBurst {
     /// (dB) when carrier present, NaN when not (artifact test).
     first_block: u64,
     history: Vec<f32>,
+    /// The rest of a burst cut at MAX_BURST_US: what came before it is not quiet.
+    continued: bool,
+    /// Cut at MAX_BURST_US while still on: what comes after it is not quiet.
+    cut: bool,
 }
 
 impl OpenBurst {
@@ -445,6 +475,8 @@ impl OpenBurst {
             min_power: vec![f32::INFINITY; n],
             first_block: block,
             history: Vec::new(),
+            continued: false,
+            cut: false,
         }
     }
 
@@ -473,6 +505,7 @@ impl OpenBurst {
         self.first_present = self.first_present.min(o.first_present);
         self.last_present_end = self.last_present_end.max(o.last_present_end);
         self.present_now |= o.present_now;
+        self.continued |= o.continued;
         self.seen |= o.seen;
         self.core |= o.core;
         for (a, b) in self.excess.iter_mut().zip(&o.excess) {
@@ -500,6 +533,32 @@ impl OpenBurst {
     }
 }
 
+impl OpenBurst {
+    /// The rest of this burst from wide sample `resume` on (detector blocks of `blk` samples, the
+    /// first starting at `half_n`), as a new burst: a transmission cut at MAX_BURST_US goes on.
+    fn continue_from(&self, resume: u64, blk: u64, half_n: u64) -> OpenBurst {
+        let block = (resume.saturating_sub(half_n) / blk).max(self.first_block);
+        let skip = ((block - self.first_block) as usize).min(self.history.len());
+        let history = self.history[skip..].to_vec();
+        let present = history.iter().filter(|l| !l.is_nan()).count() as u32;
+        let scale = present as f32 / self.present_blocks.max(1) as f32;
+        OpenBurst {
+            first_present: (half_n + block * blk).max(self.first_present),
+            last_present_end: self.last_present_end,
+            present_blocks: present,
+            present_now: false,
+            seen: self.seen,
+            core: self.core,
+            excess: self.excess.iter().map(|e| e * scale).collect(),
+            min_power: self.min_power.clone(),
+            first_block: block,
+            history,
+            continued: true,
+            cut: false,
+        }
+    }
+}
+
 /// A burst that closed recently (for the artifact test of bursts closing after it).
 #[derive(Debug, Clone)]
 struct ClosedBurst {
@@ -510,6 +569,16 @@ struct ClosedBurst {
     carrier_hz: f64,
     first_block: u64,
     history: Vec<f32>,
+    /// Cut at MAX_BURST_US and continued by an open burst (not a duplicate of it).
+    continued: bool,
+}
+
+/// What closing a burst produced (for a burst cut at MAX_BURST_US).
+struct Closed {
+    /// It carried data: a transmission, not a moved floor.
+    modulated: bool,
+    /// Wide-sample position of the middle of its last frame gap.
+    last_gap: Option<u64>,
 }
 
 /// True if burst `b` (block levels `b_hist` from block number `b0`, NaN = absent) is keyed with
@@ -578,6 +647,12 @@ pub struct RxPipeline {
     conv: Vec<C32>,
     tmp: Vec<C32>,
     blank_in: u64,
+    /// The last input sample and how many times in a row it has come (dead-input test).
+    dead_last: Option<C32>,
+    dead_run: u64,
+    dead_min: u64,
+    /// Wide-band sample ranges of dead input (pruned as the detector moves on).
+    dead: VecDeque<(u64, u64)>,
     /// Wide-band samples `[buf_start, buf_start + buf.len())`.
     buf: Vec<C32>,
     buf_start: u64,
@@ -587,6 +662,10 @@ pub struct RxPipeline {
     bursts: Vec<OpenBurst>,
     recent: VecDeque<ClosedBurst>,
     floor_cache: Vec<(u32, Vec<f32>)>,
+    /// Consecutive blocks in which the whole band stood above its floor by about the same factor
+    /// (a noise step), and the first of them.
+    step_blocks: u32,
+    step_start: u64,
     /// Channel filter stages (taps, decimation) from the wide rate to ~250 kS/s.
     chan: Vec<(Vec<f32>, usize)>,
     /// Wide samples the channel filter needs before its first valid output.
@@ -636,6 +715,10 @@ impl RxPipeline {
             conv: Vec::with_capacity(4096),
             tmp: Vec::with_capacity(4096),
             blank_in: 0,
+            dead_last: None,
+            dead_run: 0,
+            dead_min: ((DEAD_US * fs_in / 1e6) as u64).max(DEAD_MIN_SAMPLES),
+            dead: VecDeque::new(),
             buf: Vec::new(),
             buf_start: 0,
             next_block,
@@ -643,6 +726,8 @@ impl RxPipeline {
             bursts: Vec::new(),
             recent: VecDeque::new(),
             floor_cache: Vec::new(),
+            step_blocks: 0,
+            step_start: 0,
             chan,
             chan_len_w,
             last_burst_end: 0,
@@ -731,6 +816,7 @@ impl RxPipeline {
         self.det.floor.clear();
         self.det.init.clear();
         self.floor_cache.clear();
+        self.step_blocks = 0;
     }
 
     /// Feed raw IQ bytes. Completed bursts are returned (usually none).
@@ -783,6 +869,7 @@ impl RxPipeline {
         self.det.floor =
             self.floor_cache.iter().find(|(f, _)| *f == frequency).map(|e| e.1.clone()).unwrap_or_default();
         self.det.init.clear();
+        self.step_blocks = 0;
         if offset_hz != self.offset_hz {
             self.offset_hz = offset_hz;
             self.det.set_band(self.fs_w, self.wide_decim, offset_hz);
@@ -840,7 +927,31 @@ impl RxPipeline {
             cur.clear();
             format.convert(&chunk[skip * bps..], &mut cur);
             let learn = self.bursts.is_empty();
-            self.dc.process(&mut cur, learn);
+            let dead = self.find_dead(&cur);
+            if dead.is_empty() {
+                self.dc.process(&mut cur, learn);
+            } else {
+                let mut pos = 0;
+                for r in &dead {
+                    if r.start > pos {
+                        self.dc.process(&mut cur[pos..r.start], learn);
+                    }
+                    self.dc.subtract(&mut cur[r.clone()]);
+                    pos = r.end;
+                }
+                if pos < cur.len() {
+                    self.dc.process(&mut cur[pos..], learn);
+                }
+                let w0 = self.buf_end();
+                let d = self.wide_decim as u64;
+                for r in &dead {
+                    let (a, b) = (w0 + r.start as u64 / d, w0 + (r.end as u64).div_ceil(d));
+                    match self.dead.back_mut() {
+                        Some(last) if last.1 >= a => last.1 = last.1.max(b),
+                        _ => self.dead.push_back((a, b)),
+                    }
+                }
+            }
             match self.front.as_mut() {
                 Some((nco, fir)) => {
                     nco.mix(&mut cur);
@@ -855,6 +966,43 @@ impl RxPipeline {
             self.conv = cur;
             self.run_blocks();
         }
+    }
+
+    /// Ranges of `cur` (converted input) that are dead: part of a run of at least `dead_min`
+    /// identical samples (a run continues across calls).
+    fn find_dead(&mut self, cur: &[C32]) -> Vec<Range<usize>> {
+        let mut out: Vec<Range<usize>> = Vec::new();
+        let Some(&end) = cur.last() else {
+            return out;
+        };
+        // Fast path (live noise): a run of `dead_min` ≥ 2·STEP samples inside `cur` has two equal
+        // samples STEP apart, and one continuing from the last call starts with the last sample.
+        const STEP: usize = (DEAD_MIN_SAMPLES / 2) as usize;
+        let continues = self.dead_last == Some(cur[0]);
+        if !continues && !(STEP..cur.len()).step_by(STEP).any(|k| cur[k] == cur[k - STEP]) {
+            let trailing = cur.iter().rev().take_while(|&&s| s == end).count();
+            self.dead_last = Some(end);
+            self.dead_run = trailing as u64;
+            return out;
+        }
+        let mut run_start = 0usize; // where the current run starts in `cur` (0 if it began before)
+        for (k, &s) in cur.iter().enumerate() {
+            if self.dead_last == Some(s) {
+                self.dead_run += 1;
+            } else {
+                self.dead_last = Some(s);
+                self.dead_run = 1;
+                run_start = k;
+            }
+            if self.dead_run >= self.dead_min {
+                let from = if self.dead_run == self.dead_min { run_start } else { k };
+                match out.last_mut() {
+                    Some(r) if r.end >= from => r.end = k + 1,
+                    _ => out.push(from..k + 1),
+                }
+            }
+        }
+        out
     }
 
     /// Run the detector over every complete block, then drop samples no burst can need any more.
@@ -895,6 +1043,15 @@ impl RxPipeline {
         let allowed = self.det.allowed;
         let peak = (0..n).filter(|&i| BinSpace::has(allowed, i)).map(|i| self.det.power[i]).fold(0f32, f32::max);
         self.rssi_peak = self.rssi_peak.max(peak / self.det.cw_gain);
+        // Dead input has no noise to learn the floors from.
+        let frame_start = start.saturating_sub((n / 2) as u64);
+        while self.dead.front().is_some_and(|&(_, b)| b + (self.det.block as u64) < frame_start) {
+            self.dead.pop_front();
+        }
+        let dead = self.dead.iter().any(|&(a, b)| a < end + (n / 2) as u64 && frame_start < b);
+        if self.det.floor.is_empty() && dead {
+            return;
+        }
         if self.det.floor.is_empty() {
             // Learn the floors from the median of the first blocks after start/retune.
             self.det.init.push(self.det.power.clone());
@@ -914,10 +1071,35 @@ impl RxPipeline {
         let power = &self.det.power;
         let floor = &self.det.floor;
         let mut present = 0u128;
+        let (mut lo, mut hi) = (f32::INFINITY, 0f32);
         for i in 0..n {
-            if BinSpace::has(allowed, i) && power[i] > DETECT_RATIO * floor[i] {
-                present |= 1 << i;
+            if BinSpace::has(allowed, i) {
+                let r = power[i] / floor[i];
+                (lo, hi) = (lo.min(r), hi.max(r));
+                if r > DETECT_RATIO {
+                    present |= 1 << i;
+                }
             }
+        }
+        // A noise step: every bin of the band above its floor by about the same factor, block after
+        // block. That is the floor moving (a receiver still settling after it started, a gain change,
+        // a broadband interferer coming on), not a signal, which is peaked: re-learn the floors
+        // instead of holding a burst open over the whole band until MAX_BURST_US.
+        if lo > DETECT_RATIO && hi < STEP_FLATNESS * lo {
+            if self.step_blocks == 0 {
+                self.step_start = start;
+            }
+            self.step_blocks += 1;
+        } else {
+            self.step_blocks = 0;
+        }
+        if self.step_blocks >= STEP_BLOCKS {
+            let since = self.step_start;
+            self.bursts.retain(|b| b.first_present < since);
+            self.det.floor.clear();
+            self.det.init.clear();
+            self.step_blocks = 0;
+            return;
         }
         // Each signal in this block extends the burst whose peaks are near its own (merging bursts
         // it connects), or opens a new one.
@@ -964,7 +1146,7 @@ impl RxPipeline {
         }
         // Track the floors while nothing is on. Not during a burst, not even in bins away from it:
         // a strong burst can move the whole band (an RTL-SDR's AGC drops the gain while it is on).
-        if self.bursts.is_empty() {
+        if self.bursts.is_empty() && !dead {
             for (f, &p) in self.det.floor.iter_mut().zip(&self.det.power) {
                 let a = if p < 0.5 * *f { FLOOR_ALPHA_FAST } else { FLOOR_ALPHA };
                 *f = (*f + a * (p - *f)).max(1e-6);
@@ -983,18 +1165,35 @@ impl RxPipeline {
             }
         }
         closing.sort_by(|a, b| b.strength(allowed).total_cmp(&a.strength(allowed)));
-        for b in closing {
-            if end - b.last_present_end < gap {
-                // Cut while still present: bins that never dropped back to their floor in
-                // MAX_BURST_US mean the floor moved (gain change, new interferer). Re-baseline them
-                // instead of staying open forever.
+        let blk = self.det.block as u64;
+        for mut b in closing {
+            b.cut = end - b.last_present_end < gap;
+            let cut = b.cut.then(|| b.clone());
+            let closed = self.close(b, end);
+            let Some(b) = cut else { continue };
+            if closed.modulated {
+                // Still on and carrying data at MAX_BURST_US (a held button, a continuous FSK
+                // carrier: both levels are tones): a transmission. It goes on as a new burst from
+                // its last frame gap, so the frame across the cut is whole in that one; from
+                // MAX_OVERLAP_US back when there is no gap in that time (frames back to back, as a
+                // held Kia V1 fob sends them), and a frame before the cut may then come out twice
+                // (the app drops the repeat as a duplicate).
+                let earliest = end.saturating_sub(self.us_to_wide(MAX_OVERLAP_US)).max(b.first_present);
+                let resume = closed.last_gap.unwrap_or(earliest).clamp(earliest, end);
+                self.bursts.push(b.continue_from(resume, blk, (n / 2) as u64));
+                if let Some(r) = self.recent.back_mut() {
+                    r.continued = true;
+                }
+            } else {
+                // Cut while still present without data: bins that never dropped back to their floor
+                // in MAX_BURST_US mean the floor moved (gain change, new interferer, a steady
+                // carrier). Re-baseline them instead of staying open forever.
                 for i in (0..n).filter(|&i| BinSpace::has(space.dilate(b.seen, self.det.join), i)) {
                     if b.min_power[i] > DETECT_RATIO * self.det.floor[i] {
                         self.det.floor[i] = b.min_power[i];
                     }
                 }
             }
-            self.close(b, end);
         }
     }
 
@@ -1050,11 +1249,11 @@ impl RxPipeline {
         }) || self
             .recent
             .iter()
-            .any(|o| o.first_present < last && first < o.last_present_end && o.strength > strength && same(o.carrier_hz))
+            .any(|o| !o.continued && o.first_present < last && first < o.last_present_end && o.strength > strength && same(o.carrier_hz))
     }
 
     /// A burst ended at `close` (wide samples): slice it and queue the result.
-    fn close(&mut self, b: OpenBurst, close: u64) {
+    fn close(&mut self, b: OpenBurst, close: u64) -> Closed {
         let prev_end = self.last_burst_end;
         self.last_burst_end = prev_end.max(b.last_present_end);
         let strength = b.strength(self.det.allowed);
@@ -1063,12 +1262,12 @@ impl RxPipeline {
         let horizon = b.last_present_end.saturating_sub(2 * self.us_to_wide(GAP_US));
         self.recent.retain(|o| o.last_present_end >= horizon);
         let mut burst = None;
+        let mut last_gap = None;
         if !artifact && b.present_blocks >= MIN_PRESENT_BLOCKS {
-            burst = self.finalize(&b, carrier, close, prev_end);
-            if let Some(found) = &burst {
+            if let Some((found, gap)) = self.finalize(&b, carrier, close, prev_end) {
                 carrier = self.target_w() + found.offset_hz as f64;
-                if self.is_duplicate(b.first_present, b.last_present_end, carrier, strength) {
-                    burst = None;
+                if !self.is_duplicate(b.first_present, b.last_present_end, carrier, strength) {
+                    (burst, last_gap) = (Some(found), gap);
                 }
             }
         }
@@ -1079,8 +1278,11 @@ impl RxPipeline {
             carrier_hz: carrier,
             first_block: b.first_block,
             history: b.history,
+            continued: false,
         });
+        let modulated = burst.as_ref().is_some_and(|x| (x.am.is_some() || x.fm.is_some()) && x.snr_db >= CONTINUE_SNR_DB);
         self.out.extend(burst);
+        Closed { modulated, last_gap }
     }
 
     /// Mix wide samples `[x0, x1)` by −`carrier_hz` and run the channel filter. Returns the channel
@@ -1117,7 +1319,7 @@ impl RxPipeline {
     /// Channel-filter a completed burst around its carrier and slice it into AM and/or FM pairs.
     /// If the slicer finds the carrier (OOK) or the middle of the tones (FSK) far from the centre,
     /// the burst is filtered and sliced again around what it found.
-    fn finalize(&self, b: &OpenBurst, carrier: f64, close: u64, prev_end: u64) -> Option<Burst> {
+    fn finalize(&self, b: &OpenBurst, carrier: f64, close: u64, prev_end: u64) -> Option<(Burst, Option<u64>)> {
         let blk = self.det.block as u64;
         let region_start = b.first_present.saturating_sub(2 * blk).max(self.buf_start + self.chan_len_w);
         let region_end = (b.last_present_end + 2 * blk).min(self.buf_end());
@@ -1132,7 +1334,7 @@ impl RxPipeline {
                 (carrier, s) = (again, s2);
             }
         }
-        Some(Burst {
+        let burst = Burst {
             frequency: self.frequency,
             am: s.am,
             fm: s.fm,
@@ -1141,7 +1343,8 @@ impl RxPipeline {
             snr_db: s.snr_db,
             offset_hz: (carrier - self.target_w() + s.offset_hz as f64) as f32,
             deviation_hz: s.deviation_hz,
-        })
+        };
+        Some((burst, s.last_gap.map(|g| g.max(0.0) as u64)))
     }
 
     /// Extract the burst region `[region_start, region_end)` (wide samples) into a channel centred
@@ -1175,9 +1378,13 @@ impl RxPipeline {
         let block_powers = |z: &[C32]| -> Vec<f32> {
             z.chunks_exact(NOISE_BLOCK).map(|q| q.iter().map(|c| c.norm_sqr()).sum::<f32>() / NOISE_BLOCK as f32).collect()
         };
+        // Not around a transmission longer than MAX_BURST_US: before the rest of a cut burst and
+        // after one cut while still on, the carrier goes on.
         let valid = ch(x0 + self.chan_len_w).min(r0);
-        let mut quiet = block_powers(&zc[valid..r0]);
-        quiet.extend(block_powers(&zc[r1..]));
+        let mut quiet = if b.continued { Vec::new() } else { block_powers(&zc[valid..r0]) };
+        if !b.cut {
+            quiet.extend(block_powers(&zc[r1..]));
+        }
         let around = if quiet.len() >= MIN_QUIET_BLOCKS {
             quantile(&quiet, 0.5)
         } else {
@@ -1192,7 +1399,10 @@ impl RxPipeline {
                 around
             };
         let to_ch = |w: u64| (w as f64 / step) as u64;
-        slice_burst(&zc[r0..r1], present, floor, self.fs_out, to_ch(region_start), to_ch(close), to_ch(prev_end))
+        let mut s = slice_burst(&zc[r0..r1], present, floor, self.fs_out, to_ch(region_start), to_ch(close), to_ch(prev_end))?;
+        // Channel sample (from r0) → wide sample.
+        s.last_gap = s.last_gap.map(|g| t0 + (r0 as f64 + g) * step);
+        Some(s)
     }
 }
 
@@ -1204,6 +1414,8 @@ struct SliceOut {
     /// Carrier (OOK) or FSK centre in the channel (Hz).
     offset_hz: f32,
     deviation_hz: Option<f32>,
+    /// Middle of the last frame gap (a low of ≥ 6 ms; for FSK a level of either tone): samples.
+    last_gap: Option<f64>,
 }
 
 /// Slice a burst's channel samples `z` (rate `fs`, carrier near 0 Hz, noise power `floor` per
@@ -1212,9 +1424,9 @@ struct SliceOut {
 ///
 /// Pass 1 slices with fixed 20 µs smoothing. The burst is then split into frames at lows of
 /// 6 ms or more; for each frame the element length (TE) and, for OOK, the carrier offset are
-/// estimated, and pass 2 averages over ~TE/5: coherently for OOK (carrier mixed to 0 Hz, so
-/// noise averages out before envelope detection, close to a matched filter) and on the
-/// discriminator for FSK (tones found again per frame). Short-TE frames keep pass 1.
+/// estimated, and pass 2 averages over ~TE/5: coherently for OOK (the carrier's phase removed, see
+/// [`ook_envelope`], so noise averages out before envelope detection, close to a matched filter)
+/// and on the discriminator for FSK (tones found again per frame). Short-TE frames keep pass 1.
 fn slice_burst(
     z: &[C32],
     present: Range<usize>,
@@ -1238,7 +1450,17 @@ fn slice_burst(
     for k in 1..z.len() {
         disc.push(z[k] * z[k - 1].conj());
     }
-    let fm1 = slice_fsk(&disc, &mask1, w1, db1, fs);
+    // FSK with symbols shorter than that smoothing and debounce resolve (a CC1101-style GFSK
+    // packet: 13 µs bits at 75 kbps) only shows its two tones at the channel's own resolution.
+    // Symbols a little longer (26 µs at 38.4 kbps) do show two tones, but come out merged: many
+    // levels near the debounce limit. The unsmoothed slicing then replaces pass 1 when it finds a
+    // clean element grid.
+    let fine_te = 2.0 * DEBOUNCE_US / to_us;
+    let fm1 = match slice_fsk(&disc, &mask1, w1, db1, fs) {
+        Some(f) if short_level_share(&f.edges, fine_te) >= 0.1 => fine_fsk(&disc, &mask1, fine_te, fs).or(Some(f)),
+        Some(f) => Some(f),
+        None => fine_fsk(&disc, &mask1, fine_te, fs),
+    };
     let carrier = carrier_offset(&disc, &mask1); // cycles/sample (OOK carrier or FSK centre)
     // Tone estimates from pass 1 (its short smoothing has the fewest samples on tone ramps).
     let tones = fm1.as_ref().map(|f| (f.lo, f.hi));
@@ -1253,7 +1475,7 @@ fn slice_burst(
     let mut refined_any = false;
     for (a, b) in frame_ranges(p_init, &p_edges, z.len(), FRAME_GAP_US / to_us) {
         let frame_edges: Vec<f64> = p_edges.iter().copied().filter(|&e| e >= a as f64 && e < b as f64).collect();
-        let refined = estimate_te(&frame_edges, 20_000.0 / to_us)
+        let refined = frame_te(&frame_edges, 20_000.0 / to_us, 5.0 * w1 as f64)
             .filter(|&te| te >= 5.0 * w1 as f64)
             .and_then(|te| {
                 let w2 = ((te / 5.0).min(1_000.0 / to_us) as usize) | 1;
@@ -1263,11 +1485,10 @@ fn slice_burst(
                     let f = slice_fsk(&disc[a..b], &mask1[a..b], w2, db2, fs)?;
                     (f.init, f.edges)
                 } else {
-                    // OOK: this frame's carrier mixed to 0 Hz, then averaged coherently.
-                    let mut zc = z[a..b].to_vec();
-                    Nco::new(carrier_offset(&disc[a..b], &mask1[a..b]) * fs, fs).mix(&mut zc);
+                    // OOK: the carrier's phase removed, then averaged coherently.
+                    let env = ook_envelope(&z[a..b], &disc[a..b], &mask1[a..b], w2, fs);
                     let noise2 = RAYLEIGH_MEAN * (floor / w2 as f32).sqrt();
-                    let s = slice_level(&coherent_envelope(&zc, w2), noise2, 0..(b - a), db2)?;
+                    let s = slice_level(&env, noise2, 0..(b - a), db2)?;
                     (s.init, s.edges)
                 };
                 // Frames start and end inside a long low: anything else can't be stitched.
@@ -1305,13 +1526,34 @@ fn slice_burst(
         Some((lo, hi)) if fm.is_some() => (lo + hi) / 2.0,
         _ => (carrier * fs) as f32,
     };
+    let last_gap = match (&fm, &fm_pairs) {
+        (Some(f), Some(_)) => last_long_level(f.init, &f.edges, z.len(), FRAME_GAP_US / to_us, true),
+        _ => last_long_level(am.init, &am.edges, z.len(), FRAME_GAP_US / to_us, false),
+    };
     Some(SliceOut {
         am: am_out,
         deviation_hz: tones.filter(|_| fm_pairs.is_some()).map(|(lo, hi)| (hi - lo) / 2.0),
         fm: fm_pairs,
         snr_db: 20.0 * (am.hi / am.noise).log10(),
         offset_hz,
+        last_gap,
     })
+}
+
+/// Middle (samples) of the last level lasting at least `gap` samples: a low, or with `either`
+/// (FSK: no data while one tone is held) a level of either value. The trailing level counts.
+fn last_long_level(init: bool, edges: &[f64], len: usize, gap: f64, either: bool) -> Option<f64> {
+    let mut found = None;
+    let mut level = init;
+    let mut start = 0.0;
+    for &e in edges.iter().chain(std::iter::once(&(len as f64))) {
+        if (either || !level) && e - start >= gap {
+            found = Some((start + e) / 2.0);
+        }
+        level = !level;
+        start = e;
+    }
+    found
 }
 
 /// Odd window length (≥ 1) covering `us` microseconds at `fs`.
@@ -1413,6 +1655,62 @@ fn slice_fsk(disc: &[C32], mask: &[bool], w: usize, debounce: f64, fs: f64) -> O
     Some(FskSliced { init, edges, lo: tm.lo, hi: tm.hi })
 }
 
+/// FSK sliced without smoothing, for bursts whose symbols are shorter than `max_te` samples (pass 1
+/// smooths over 20 µs and drops levels under 30 µs, which merges them): only if the carrier is on
+/// in long stretches (FSK holds it through a frame), its samples hold two distinct tones at the
+/// channel's resolution, and the levels come out as clean multiples of one element length (at
+/// least 2 samples). Slower FSK is found by pass 1 and never gets here; OOK (one tone, even a
+/// pulled one: its levels are pulses, not short symbols) and noise (not two tones) don't pass.
+fn fine_fsk(disc: &[C32], mask: &[bool], max_te: f64, fs: f64) -> Option<FskSliced> {
+    let mut longest = 0usize;
+    let mut run = 0usize;
+    for &m in mask {
+        run = if m { run + 1 } else { 0 };
+        longest = longest.max(run);
+    }
+    if (longest as f64) < FINE_MIN_RUN_US * fs / 1e6 {
+        return None;
+    }
+    let f = slice_fsk(disc, mask, 1, 1.0, fs)?;
+    let te = estimate_te(&f.edges, 32.0 * max_te)?;
+    if te >= max_te || te < 2.0 {
+        return None;
+    }
+    let durations: Vec<f64> = f.edges.windows(2).map(|w| w[1] - w[0]).filter(|&d| d <= 32.0 * te).collect();
+    let clean = durations.iter().filter(|&&d| (d / te - (d / te).round()).abs() < 0.3).count();
+    if durations.len() < 16 || (clean as f64) < 0.8 * durations.len() as f64 {
+        return None;
+    }
+    // Symbols fill the carrier's time, on both tones: not a pulled OOK carrier, whose key-on
+    // blips of the other "tone" are short but rare.
+    let (mut short, mut level, mut prev) = ([0f64; 2], f.init, 0.0);
+    for &e in &f.edges {
+        if e - prev <= 32.0 * te {
+            short[usize::from(level)] += e - prev;
+        }
+        level = !level;
+        prev = e;
+    }
+    let on = mask.iter().filter(|&&m| m).count() as f64;
+    let total = short[0] + short[1];
+    if total < 0.5 * on || short[0].min(short[1]) < 0.25 * total {
+        return None;
+    }
+    slice_fsk(disc, mask, 1, (te / 4.0).max(1.0), fs)
+}
+
+/// The carrier must be on for this long at a stretch before short-symbol FSK is looked for.
+const FINE_MIN_RUN_US: f64 = 1_000.0;
+
+/// Share of a sliced burst's levels (between edges) shorter than `limit` samples.
+fn short_level_share(edges: &[f64], limit: f64) -> f64 {
+    let n = edges.len().saturating_sub(1);
+    if n == 0 {
+        return 0.0;
+    }
+    edges.windows(2).filter(|w| w[1] - w[0] < limit).count() as f64 / n as f64
+}
+
 /// Mean frequency (cycles/sample) of the carrier-on samples: arg of the summed discriminator
 /// products (robust to noise clicks, unlike averaging per-sample frequencies).
 fn carrier_offset(disc: &[C32], mask: &[bool]) -> f64 {
@@ -1448,6 +1746,167 @@ fn frame_ranges(init: bool, edges: &[f64], len: usize, gap: f64) -> Vec<(usize, 
     cuts.windows(2).filter(|w| w[1] > w[0]).map(|w| (w[0], w[1])).collect()
 }
 
+/// Pass-2 envelope of one OOK frame (`z`, its discriminator products `disc`, pass 1's carrier mask):
+/// the carrier's phase removed, then |z| averaged coherently over `w` samples.
+///
+/// A coherent average over `w` samples loses the carrier wherever its frequency is more than
+/// ~1/(4·w) cycles/sample from the one removed, and cheap remotes move: their oscillator drifts
+/// several kHz during a press and is pulled at every key-on (the Audiovox PRO-OE3B in rtl_433's
+/// recordings: −63 → −101 kHz within one 33 ms frame, up to 16 kHz within one 900 µs pulse). So
+/// the phase comes from the frame's mean frequency, or from a track of the carrier's frequency when
+/// that follows a movement the mean misses: a slow track (drift over the press, across pulses), then
+/// a fast one (the pull, within each pulse). A track is used only if its deviation from the previous
+/// choice is well above its own noise, measured by tracking two interleaved halves of the samples
+/// separately (at low SNR a track's noise costs more than a small drift, and a steady carrier keeps
+/// the mean exactly as before).
+fn ook_envelope(z: &[C32], disc: &[C32], mask: &[bool], w: usize, fs: f64) -> Vec<f32> {
+    let fixed = || {
+        let mut zc = z.to_vec();
+        Nco::new(carrier_offset(disc, mask) * fs, fs).mix(&mut zc);
+        coherent_envelope(&zc, w)
+    };
+    // Carrier-on samples to compare the tracks at.
+    let probes: Vec<usize> = (0..z.len().min(mask.len())).filter(|&k| mask[k] && k % 4 == 0).collect();
+    if probes.len() < 16 {
+        return fixed();
+    }
+    // Only keyed carriers (the pull is a key-on effect). A carrier on all through the frame is not
+    // OOK: weak FSK that pass 1 didn't recognise, whose tones the mean's coherent average separates
+    // like an OOK envelope (one tone passes, the other doesn't), and a track would follow them.
+    let (first, last) = (probes[0], probes[probes.len() - 1]);
+    let on = mask[first..=last].iter().filter(|&&m| m).count();
+    if on as f32 > TRACK_MAX_DUTY * (last - first + 1) as f32 {
+        return fixed();
+    }
+    let angle = |s: Complex64| (s.im.atan2(s.re) / std::f64::consts::TAU) as f32;
+    let wrap = |d: f32| d - d.round();
+    let f0 = carrier_offset(disc, mask) as f32;
+    let mut reference: Vec<f32> = vec![f0; probes.len()];
+    let mut ref_noise = 0f32;
+    let mut chosen: Option<Vec<Complex64>> = None;
+    // A movement smaller than this (rms, cycles/sample) costs the mean's envelope < 0.2 dB.
+    let min_dev = (MIN_TRACKED_DEVIATION / w as f32).powi(2);
+    let max_noise = (MAX_TRACK_NOISE / w as f32).powi(2);
+    for (half, within_runs) in [(TREND_WINDOWS * w, false), (w, true)] {
+        let block = (half / 4).max(1);
+        let full = track_sums(disc, mask, half, within_runs, None);
+        let a = track_sums(disc, mask, half, within_runs, Some((block, 0)));
+        let b = track_sums(disc, mask, half, within_runs, Some((block, 1)));
+        // Weighted by the carrier in each window (|sum|): where there is none, the track doesn't
+        // matter (and is as random from half the samples as from all of them).
+        let (mut dev, mut noise, mut wsum, mut n_noise) = (0f64, 0f64, 0f64, 0usize);
+        let mut angles = Vec::with_capacity(probes.len());
+        for (p, &k) in probes.iter().enumerate() {
+            let f = if full[k] == Complex64::new(0.0, 0.0) { reference[p] } else { angle(full[k]) };
+            angles.push(f);
+            if a[k] != Complex64::new(0.0, 0.0) && b[k] != Complex64::new(0.0, 0.0) {
+                let wt = full[k].norm();
+                dev += wt * (wrap(f - reference[p]) as f64).powi(2);
+                noise += wt * (wrap(angle(a[k]) - angle(b[k])) as f64).powi(2) / 4.0;
+                wsum += wt;
+                n_noise += 1;
+            }
+        }
+        if n_noise < 16 || wsum <= 0.0 {
+            continue;
+        }
+        let (dev, noise) = ((dev / wsum) as f32, (noise / wsum) as f32);
+        // Nested averages: the finer one's deviation from the coarser includes its extra noise only.
+        let excess = dev - (noise - ref_noise).max(0.0);
+        // A track noisier than this loses more than it can gain (and its noise isn't measurable from
+        // the two halves any more: at low SNR they are as random as the whole).
+        let usable = noise < max_noise;
+        let used = usable && excess > (TRACK_SIGNIFICANCE * noise).max(min_dev);
+        if used {
+            reference = angles;
+            ref_noise = noise;
+            chosen = Some(full);
+        }
+    }
+    match chosen {
+        Some(sums) => coherent_envelope(&derotate(z, &sums), w),
+        None => fixed(),
+    }
+}
+
+/// Frames whose carrier is on for more than this fraction of their span are not tracked.
+const TRACK_MAX_DUTY: f32 = 0.9;
+/// A track replaces the mean (or the slower track) only if the carrier's movement it follows is this
+/// many times its own noise (variance ratio).
+const TRACK_SIGNIFICANCE: f32 = 4.0;
+/// ... and only if that movement matters: rms deviation over 0.12 / (coherent window) cycles.
+const MIN_TRACKED_DEVIATION: f32 = 0.12;
+/// A track noisier than this (rms, cycles/sample, times the coherent window) is not used at all.
+const MAX_TRACK_NOISE: f32 = 0.35;
+/// The slow track (drift over the press) averages the discriminator over ± this many coherent
+/// windows, across pulses; the fast one (the pull at every key-on) over ± one, within each pulse.
+const TREND_WINDOWS: usize = 8;
+
+/// Windowed sums of the discriminator products of the carrier-on samples (`mask`) per sample: their
+/// argument is the carrier's local frequency. The window is ±`half` samples; `within_runs`: only
+/// the same carrier-on run (a pulse's frequency is not mixed with the next one's: each key-on pulls
+/// it anew), over a window of the same length kept inside the run. `subset` = (block, parity): only
+/// the samples in every other block of `block` samples (two independent halves, for the noise).
+/// Zero where the window has no samples.
+fn track_sums(disc: &[C32], mask: &[bool], half: usize, within_runs: bool, subset: Option<(usize, usize)>) -> Vec<Complex64> {
+    let n = disc.len().min(mask.len());
+    let mut prefix = vec![Complex64::new(0.0, 0.0); n + 1];
+    for k in 0..n {
+        let take = mask[k] && subset.is_none_or(|(blk, parity)| (k / blk) % 2 == parity);
+        let v = if take { Complex64::new(disc[k].re as f64, disc[k].im as f64) } else { Complex64::new(0.0, 0.0) };
+        prefix[k + 1] = prefix[k] + v;
+    }
+    let mut out = vec![Complex64::new(0.0, 0.0); n];
+    if !within_runs {
+        for (j, o) in out.iter_mut().enumerate() {
+            *o = prefix[(j + half + 1).min(n)] - prefix[j.saturating_sub(half)];
+        }
+        return out;
+    }
+    let mut k = 0;
+    while k < n {
+        if !mask[k] {
+            k += 1;
+            continue;
+        }
+        let s0 = k;
+        while k < n && mask[k] {
+            k += 1;
+        }
+        // The run's products, without its first and last (they straddle the edges).
+        let (i0, i1) = if k - s0 > 4 { (s0 + 1, k - 1) } else { (s0, k) };
+        let span = (2 * half + 1).min(i1 - i0);
+        for (j, o) in out.iter_mut().enumerate().take(k).skip(s0) {
+            let lo = j.saturating_sub(half).clamp(i0, i1 - span);
+            *o = prefix[lo + span] - prefix[lo];
+        }
+    }
+    out
+}
+
+/// `z` with the carrier's phase removed: the phase accumulated from the local frequency (the
+/// argument of `sums`, held where it is zero, e.g. between pulses: the rotation of noise doesn't
+/// matter).
+fn derotate(z: &[C32], sums: &[Complex64]) -> Vec<C32> {
+    let mut r = C32::new(1.0, 0.0);
+    let mut u = C32::new(1.0, 0.0);
+    z.iter()
+        .zip(sums)
+        .enumerate()
+        .map(|(k, (&x, s))| {
+            let m = s.norm();
+            if m > 0.0 {
+                u = C32::new((s.re / m) as f32, (s.im / m) as f32);
+            }
+            r *= u.conj();
+            if k % 256 == 255 {
+                r /= r.norm();
+            }
+            x * r
+        })
+        .collect()
+}
+
 /// |mean| of `z` over a centred window of `w` samples (coherent averaging).
 fn coherent_envelope(z: &[C32], w: usize) -> Vec<f32> {
     let half = w / 2;
@@ -1466,7 +1925,29 @@ fn coherent_envelope(z: &[C32], w: usize) -> Vec<f32> {
 /// durations (short noise glitches carry little time), refined to the median duration near it.
 /// Durations over `max_len` (gaps between frames) are ignored.
 fn estimate_te(edges: &[f64], max_len: f64) -> Option<f64> {
-    let mut d: Vec<f64> = edges.windows(2).map(|w| w[1] - w[0]).filter(|&x| x <= max_len).collect();
+    te_of_durations(edges.windows(2).map(|w| w[1] - w[0]).filter(|&x| x <= max_len).collect())
+}
+
+/// Element length of one frame for pass 2: [estimate_te] of all its levels, or of one level's
+/// (HIGHs or LOWs) when that is under a third of it (pass 2's TE/4 debounce would erase those
+/// levels) and at least `min_te`. Short pulses between long lows (a preamble of 300 µs pulses
+/// 3.7 ms apart) carry under 10 % of the frame's time, so the estimate of all levels is the long
+/// low. Frames whose levels survive the estimate of all of them keep it.
+fn frame_te(edges: &[f64], max_len: f64, min_te: f64) -> Option<f64> {
+    let all = estimate_te(edges, max_len)?;
+    let durations: Vec<f64> = edges.windows(2).map(|w| w[1] - w[0]).collect();
+    let mut te = all;
+    for parity in 0..2 {
+        let level: Vec<f64> = durations.iter().skip(parity).step_by(2).copied().filter(|&x| x <= max_len).collect();
+        if let Some(t) = te_of_durations(level).filter(|&t| t >= min_te && t < all / 3.0 && t < te) {
+            te = t;
+        }
+    }
+    Some(te)
+}
+
+/// [estimate_te] of level durations.
+fn te_of_durations(mut d: Vec<f64>) -> Option<f64> {
     if d.len() < 8 {
         return None;
     }

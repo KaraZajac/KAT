@@ -350,7 +350,8 @@ fn keeloq_frames(opts: &KeeloqBfOptions) -> Vec<(crate::protocols::keeloq_bf::Fr
         for path in collect_files(root) {
             match decode_file(&mut reg, &path, opts.freq, opts.rate, false) {
                 Ok(r) => {
-                    for d in r.decodes.iter().filter(|d| d.protocol.starts_with("KeeLoq")) {
+                    // KeeLoq frames, and HCS361 / HCS362 frames (the same code word in their first 64 bits).
+                    for d in r.decodes.iter().filter(|d| d.protocol.starts_with("KeeLoq") || crate::protocols::is_keeloq_chip(&d.protocol)) {
                         let f = crate::protocols::keeloq_bf::Frame::from_data(d.data);
                         if !frames.iter().any(|(g, _)| g.hop == f.hop) {
                             frames.push((f, format!("{} ({})", path.display(), d.protocol)));

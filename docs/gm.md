@@ -82,3 +82,9 @@ Real captures: the seven `IMPORTS/buick`, `IMPORTS/chevy` and `IMPORTS/gmc` capt
 315 and 433.92 MHz) do not use this PHY — they are Manchester with a ~120 µs half-bit (44-bit `10`
 preamble, fixed header, ~100 data bits, 62–68 ms repeats). No 112-bit window in them passes the GM checks
 at any alignment or polarity, so none decodes; they are a different (newer) GM RKE format.
+
+**rtl_433 `GM-ABO1502T`** (`src/devices/gm_car_remote.c`) reads the same frames as this
+decoder, so KAT has no separate port of it. On the nine frames of `rtl_433_tests/tests/general_motors/ABO1502T`
+the two agree field for field: rtl_433's `id` (e.g. `4BDB3B73EA`) is frame byte 1 followed by KAT's serial
+(`DB3B73EA`), and its button, sequence (KAT keeps the low 16 bits as the counter) and encrypted code match, with
+the same frame counts.

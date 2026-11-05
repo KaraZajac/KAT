@@ -23,9 +23,15 @@ pub(super) struct KeeloqBfJob {
     started: Instant,
 }
 
-/// A 64-bit KeeLoq frame (identified or not).
+/// A KeeLoq code word (identified or not): a 64-bit KeeLoq frame, or a Microchip HCS361 / HCS362
+/// frame (its first 64 bits are the same code word).
 fn is_keeloq(c: &Capture) -> bool {
-    c.data_count_bit == 64 && c.protocol.as_deref().is_some_and(|p| p.starts_with("KeeLoq"))
+    (c.data_count_bit == 64 && c.protocol.as_deref().is_some_and(|p| p.starts_with("KeeLoq"))) || is_chip(c)
+}
+
+/// A Microchip HCS361 / HCS362 capture (`Microchip-HCS36x [KeeLoq (…)]`, receive only).
+fn is_chip(c: &Capture) -> bool {
+    c.protocol.as_deref().is_some_and(crate::protocols::is_keeloq_chip)
 }
 
 /// "6/7" for the status line.
@@ -44,9 +50,13 @@ fn duration_label(secs: f64) -> String {
 }
 
 impl App {
-    /// Whether the signal menu offers the search for this capture: a KeeLoq frame no key decrypts.
+    /// Whether the signal menu offers the search for this capture: a KeeLoq frame no key decrypts
+    /// (`KeeLoq (Unknown)`, or an HCS361 / HCS362 frame `Microchip-HCS36x [KeeLoq (Unknown)]`).
     pub(super) fn keeloq_bf_offered(c: &Capture) -> bool {
-        c.data_count_bit == 64 && c.protocol.as_deref() == Some(bf::UNKNOWN_NAME)
+        match c.protocol.as_deref() {
+            Some(p) if is_chip(c) => p.ends_with(&format!("[{}]", bf::UNKNOWN_NAME)),
+            p => c.data_count_bit == 64 && p == Some(bf::UNKNOWN_NAME),
+        }
     }
 
     /// The captured frames of remote `serial`, one per hop code, oldest first.
@@ -181,7 +191,15 @@ impl App {
         };
         let mut decoded = 0;
         for c in self.captures.iter_mut().filter(|c| is_keeloq(c) && c.serial == Some(serial)) {
-            let Some(d) = bf::decode_frame(c.data).filter(|d| d.crc_valid) else {
+            // An HCS361 / HCS362 frame keeps its own (receive-only) protocol: renamed to plain
+            // KeeLoq it would be sent with the HCS200's line coding.
+            let d = if is_chip(c) {
+                crate::protocols::redecode_keeloq_chip(c.protocol.as_deref().unwrap_or(""), c.data, c.data_extra, c.data_count_bit)
+                    .filter(|d| d.protocol_display_name.as_deref().is_some_and(|n| !n.ends_with(&format!("[{}]", bf::UNKNOWN_NAME))))
+            } else {
+                bf::decode_frame(c.data).filter(|d| d.crc_valid)
+            };
+            let Some(d) = d else {
                 continue;
             };
             c.protocol = d.protocol_display_name;
@@ -240,6 +258,25 @@ impl App {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// HCS361 / HCS362 frames take part in the search like KeeLoq frames: offered while no key
+    /// fits, collected with the remote's other frames; other receive-only protocols are not.
+    #[test]
+    fn hcs36x_frames_join_the_key_search() {
+        let capture = |protocol: &str, bits: usize| {
+            let mut c = Capture::from_pairs(1, 315_000_000, Vec::new());
+            c.protocol = Some(protocol.to_string());
+            c.data_count_bit = bits;
+            c
+        };
+        let unknown = capture("Microchip-HCS361 [KeeLoq (Unknown)]", 67);
+        assert!(is_keeloq(&unknown) && App::keeloq_bf_offered(&unknown));
+        let known = capture("Microchip-HCS362 [KeeLoq (DoorHan)]", 69);
+        assert!(is_keeloq(&known) && !App::keeloq_bf_offered(&known));
+        assert!(App::keeloq_bf_offered(&capture("KeeLoq (Unknown)", 64)));
+        assert!(!is_keeloq(&capture("Compustar-1WG3R", 35)));
+        assert!(!is_keeloq(&capture("KeeLoq (Unknown)", 66)));
+    }
 
     #[test]
     fn labels() {

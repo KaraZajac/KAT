@@ -144,6 +144,38 @@ mod linear;
 mod linear_delta3;
 mod smc5326;
 mod princeton;
+// Flipper firmware ports (Momentum, RogueMaster, doctor-firmware, Flipper-ARF); shared helpers in
+// f_common.
+mod f_common;
+mod hormann_bisecur;
+mod gangqi;
+mod hollarm;
+mod cardin_s508;
+
+// rtl_433 ports (receive only), on rtl_433's receive chain (bit buffer, pulse detector, slicers)
+// in rtl433. Car remotes:
+mod rtl433;
+mod alps_fwb1u545;
+mod astrostart_2000;
+mod audiovox_pro_oe3b;
+mod chrysler_car_remote;
+mod code_alarm_frdpc2002;
+mod compustar_1wg3r;
+mod siemens_5wy72xx;
+mod honda_kr5v2x1x;
+mod continental_kr5v2x;
+mod mic6sc2;
+mod opel_mokka;
+// KeeLoq chips and shutter remotes:
+mod elero;
+mod somfy_iohc;
+mod rojaflex;
+mod microchip_hcs362;
+mod microchip_hcs361;
+// Markisol: kept, not registered (rtl_433 ships markisol.c disabled: excessive false positives).
+#[allow(dead_code)]
+mod markisol;
+
 // Experimental (Pandora RE) Flipper-ARF ports. Flipper-ARF ships all three disabled and KAT mirrors
 // that: they stay out of the registry (see the comment at the end of `ProtocolRegistry::new()`);
 // the modules stay so their tests still run and enabling one is a one-line change.
@@ -155,6 +187,7 @@ mod hyundai;
 mod mazda_infinity;
 
 pub use common::DecodedSignal;
+pub use rtl433::{is_keeloq_chip, redecode_keeloq_chip};
 pub use flipper_key::FlipperKey;
 pub use info::{lookup as protocol_info, ProtocolInfo};
 /// PSA TEA key recovery for the signal menu's "Recover key" action (ProtoPirate's brute force,
@@ -238,6 +271,7 @@ pub trait ProtocolDecoder: Send + Sync {
     /// Rebuild a decode from a Flipper key file (`Protocol`/`Bit`/`Key` plus the protocol's own
     /// lines), as the reference's `deserialize` does. None when KAT cannot load this protocol's
     /// key files or the key does not validate.
+    #[allow(clippy::wrong_self_convention)] // ~90 decoder impls plus callers; a rename would ripple
     fn from_flipper_key(&self, _key: &FlipperKey) -> Option<DecodedSignal> {
         None
     }
@@ -549,6 +583,24 @@ impl ProtocolRegistry {
             Box::new(bett::BettDecoder::new()),
             Box::new(elplast::ElplastDecoder::new()),
             Box::new(ansonic::AnsonicDecoder::new()),
+            // Flipper firmware ports.
+            // Hörmann BiSecur (Momentum / RogueMaster): FM 208/416 µs Manchester behind a 21-pair
+            // preamble, a 1664 µs HIGH and a 3-pulse 416 µs sync; exactly 176 bits, reported only when
+            // the frame's CRC-8 (per type 0x50 / 0x70) holds.
+            Box::new(hormann_bisecur::HormannBiSecurDecoder::new()),
+            // GangQi (doctor-firmware / Flipper-ARF): AM 500/1200 µs PWM between ~2.4 ms gaps, exactly
+            // 34 bits, reported only when the byte sum (the C's displayed type-1/type-2 sums) holds.
+            // Before Hollarm, as every reference registers them; no G1 frame ends on the same pulse
+            // with 34 bits (the references register the G1 protocols first).
+            Box::new(gangqi::GangQiDecoder::new()),
+            // Hollarm (Flipper-ARF = Momentum / RogueMaster copy): AM HIGH 200 µs + LOW 1000/1600 µs
+            // bits after a 2.4 ms gap, exactly 42 bits with the C's byte-sum check.
+            Box::new(hollarm::HollarmDecoder::new()),
+            // Cardin S508 (RogueMaster, decode-only): FM ~100/200 µs Manchester with per-level bands,
+            // a 12-bit sync then 128 opaque AES bits, no checksum — the loosest of the block, last
+            // (RogueMaster also registers it last).
+            Box::new(cardin_s508::CardinS508Decoder::new()),
+
             // [gate-registry: G1 static A]
             // G1 static fixed codes (Flipper-ARF garage app), most strongly gated first. Only frames
             // completing on the same pulse depend on this order. Holtek: 40 bits + 0x5 header nibble.
@@ -583,6 +635,48 @@ impl ProtocolRegistry {
             Box::new(smc5326::Smc5326Decoder::new()),
             // Princeton (PT2262/EV1527-style 24 bits, confirmed by a repeat): the loosest, last.
             Box::new(princeton::PrincetonDecoder::new()),
+            // rtl_433 ports (receive only) come last: the Flipper references' decoders keep
+            // first-match priority on any frame both read.
+            // KeeLoq chips and shutter remotes, strongest gate first.
+            // Elero (rtl_433 elero.c): FSK 13 µs NRZ, 31-bit sync, PN9-whitened frame, CRC-16 (strongest first).
+            Box::new(elero::EleroDecoder::new()),
+            // Somfy io-homecontrol (rtl_433 somfy_iohc.c): FSK 26 µs UART frame behind 0x57FD99, CRC-16.
+            Box::new(somfy_iohc::SomfyIohcDecoder::new()),
+            // RojaFlex (rtl_433 rojaflex.c): FSK 100 µs NRZ, 48-bit sync, 88 bits + CRC-16 or a 72-bit bridge frame.
+            Box::new(rojaflex::RojaflexDecoder::new()),
+            // Microchip HCS362 (rtl_433 hcs362.c): PWM 200/400 or MC 214 µs, preamble checks, 69 bits, 2-bit CRC.
+            Box::new(microchip_hcs362::MicrochipHcs362Decoder::new()),
+            // Microchip HCS361 (rtl_433 hcs361.c, six PWM/PIWM r_devices): 67 bits, 2-bit CRC (weakest: last).
+            Box::new(microchip_hcs361::MicrochipHcs361Decoder::new()),
+
+            // Car remotes on the Manchester zero-bit slicer, reported at a LOW over their reset limit,
+            // strongest gate first. Honda-KR5V2X1X: FSK 60 µs Manchester, 150..184-bit message,
+            // EC0F62 + CRC-8.
+            Box::new(honda_kr5v2x1x::HondaKr5v2x1xDecoder::new()),
+            // Continental-KR5V2X: FSK 100 µs Manchester, preamble F0F06 + 112 bits, sanity + XOR.
+            Box::new(continental_kr5v2x::ContinentalKr5v2xDecoder::new()),
+            // MIC6SC2-CarRemote: OOK 250 µs Manchester, 48..88-bit row starting 5554, XOR.
+            Box::new(mic6sc2::Mic6sc2Decoder::new()),
+            // Opel-Mokka: FSK 100 µs Manchester, exactly 268 bits, 88 zeros + the key ID twice.
+            Box::new(opel_mokka::OpelMokkaDecoder::new()),
+
+            // Car remotes, most strongly gated first; each reports where rtl_433 would output, mostly
+            // on the gap that ends its message.
+            // Siemens 5WY72XX: zerobit Manchester 220 µs, one row ≥ 113 bits, 0x6001 + 96 bits, XOR = 0.
+            Box::new(siemens_5wy72xx::Siemens5wy72xxDecoder::new()),
+            // Alps FWB1U545: FSK zerobit Manchester 500 µs, exactly 76 bits, 0x55 byte + repeated button byte.
+            Box::new(alps_fwb1u545::AlpsFwb1u545Decoder::new()),
+            // Code Alarm FRDPC2002: zerobit Manchester 550 µs ± 100, exactly 60 bits, 16 leading zero bits.
+            Box::new(code_alarm_frdpc2002::CodeAlarmFrdpc2002Decoder::new()),
+            // Astrostart 2000: gap PPM 326/526 µs, exactly 52 bits, inverse button byte + 4-bit ID checksum.
+            Box::new(astrostart_2000::Astrostart2000Decoder::new()),
+            // Chrysler car remote: PWM 350/700 µs + 7.35 ms sync, 48-bit rows, 8-bit sum + button rules.
+            Box::new(chrysler_car_remote::ChryslerCarRemoteDecoder::new()),
+            // Compustar 1WG3R: PWM 708/1076 µs + syncs, 35-bit rows, 111 + inverse button (= Scher-Khan's 35-bit Static frames).
+            Box::new(compustar_1wg3r::Compustar1wg3rDecoder::new()),
+            // Audiovox PRO-OE3B: PWM 445/895 µs, exactly 25 bits, fixed bit pattern + a button flag (loosest).
+            Box::new(audiovox_pro_oe3b::AudiovoxProOe3bDecoder::new()),
+
             // --- Experimental (Pandora RE): NOT registered -----------------------------------
             // Audi, Mazda Infinity and Hyundai are Flipper-ARF ports reverse-engineered from the
             // Pandora alarm firmware. ARF ships all three disabled, and KAT mirrors that. None of
@@ -1488,10 +1582,22 @@ mod tests {
         // Every registered car decoder writes key files (none is left at the trait's default).
         // "Renault V1 (ARF)" writes Flipper-ARF's "Renault V1"; the Renault V1 decoder hands its
         // `Bit: 82` keys over (renault_v1_arf.rs `flipper_key_files` loads them via `decode_key`).
-        // (Gate/garage protocols test their key files in their own modules.)
+        // The rtl_433 ports are receive only and write none: no Flipper firmware has a key format
+        // for them. (Gate/garage protocols test their key files in their own modules.)
+        let rtl433: &[&str] = &[
+            "Honda-KR5V2X1X", "Continental-KR5V2X", "MIC6SC2-CarRemote", "Opel-Mokka",
+            "Siemens-5WY72XX", "Alps-FWB1U545", "CodeAlarm-FRDPC2002", "Astrostart-2000",
+            "Chrysler-CarRemote", "Compustar-1WG3R", "Audiovox-PROOE3B",
+            "Microchip-HCS362", "Microchip-HCS361",
+        ];
         for d in &reg.decoders {
             let name = d.name();
             if info::lookup(name).is_some_and(|i| i.category == info::Category::Gate) {
+                continue;
+            }
+            if rtl433.contains(&name) {
+                assert!(!d.supports_encoding(), "{name}: an rtl_433 port is receive only");
+                assert!(d.to_flipper_key(&DecodedSignal::new(0, 64)).is_none(), "{name}");
                 continue;
             }
             let listed = written.iter().any(|&(_, dec)| dec == name) || name == "Renault V1 (ARF)";
@@ -1697,6 +1803,8 @@ mod tests {
         ("roger_raw.sub", "Roger"),
         ("revers_rb2_raw.sub", "Revers_RB2"),
         ("hay21_raw.sub", "Hay21"),
+        ("gangqi_raw.sub", "GangQi"),
+        ("hollarm_raw.sub", "Hollarm"),
     ];
 
     /// Key files of every `subghz_encoder_*` case for a protocol KAT implements. Three cases fail in
@@ -1711,7 +1819,7 @@ mod tests {
         "linear.sub", "megacode.sub", "holtek.sub", "security_pls_1_0.sub",
         "security_pls_2_0.sub", "power_smart.sub", "marantec.sub", "bett.sub", "doitrand.sub",
         "phoenix_v2.sub", "clemsa.sub", "ansonic.sub", "smc5326.sub", "holtek_ht12x.sub",
-        "dooya.sub", "mastercode.sub", "dickert_mahs.sub", "roger.sub",
+        "dooya.sub", "mastercode.sub", "dickert_mahs.sub", "roger.sub", "gangqi.sub", "hollarm.sub",
     ];
 
     /// The decoder name a decode belongs to ("KeeLoq (DoorHan)" → "KeeLoq").
@@ -1767,7 +1875,7 @@ mod tests {
                 .iter()
                 .map(|(n, _, _)| decoder_of(&reg, n))
                 .collect();
-            if !back.iter().any(|n| *n == protocol) {
+            if !back.contains(&protocol) {
                 failures.push(format!("{file}: {protocol} upload decodes as {back:?}"));
             }
         }

@@ -877,7 +877,7 @@ mod tests {
         let mut checked = 0;
         for entry in dir.flatten() {
             let path = entry.path();
-            if path.extension().map_or(true, |e| e != "sub") {
+            if path.extension().is_none_or(|e| e != "sub") {
                 continue;
             }
             let Ok((_, raw)) = crate::export::flipper::import_sub_raw(&path) else {

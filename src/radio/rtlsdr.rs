@@ -27,18 +27,10 @@ use rtl_sdr_rs::{DeviceId, RtlSdr, TunerGain};
 const SAMPLE_RATE: u32 = 2_000_000;
 
 /// Tuner gain setting for RTL-SDR (manual gain in 0.1 dB units; None = auto)
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 struct TunerGainSetting {
     /// Manual gain in tenths of dB, or None for auto
     gain_tenths_db: Option<i32>,
-}
-
-impl Default for TunerGainSetting {
-    fn default() -> Self {
-        Self {
-            gain_tenths_db: None, // auto
-        }
-    }
 }
 
 /// RTL-SDR controller: receive-only, no transmit.

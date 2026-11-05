@@ -282,9 +282,7 @@ impl FordV0Decoder {
     /// Calculate CRC for transmission (key1 bytes + BS byte, XOR 0x80)
     fn calculate_crc_for_tx(key1: u64, bs: u8) -> u8 {
         let mut buf = [0u8; 16];
-        for i in 0..8 {
-            buf[i] = (key1 >> (56 - i * 8)) as u8;
-        }
+        buf[..8].copy_from_slice(&key1.to_be_bytes());
         buf[8] = bs;
         Self::calculate_crc(&buf) ^ 0x80
     }
@@ -292,9 +290,7 @@ impl FordV0Decoder {
     /// Verify CRC of received key1 + key2 (ford_v0_verify_crc: low 7 bits only).
     fn verify_crc(key1: u64, key2: u16) -> bool {
         let mut buf = [0u8; 16];
-        for i in 0..8 {
-            buf[i] = (key1 >> (56 - i * 8)) as u8;
-        }
+        buf[..8].copy_from_slice(&key1.to_be_bytes());
         buf[8] = (key2 >> 8) as u8; // BS byte
         let calculated_crc = Self::calculate_crc(&buf);
         let received_crc = (key2 as u8) ^ 0x80;
@@ -330,9 +326,7 @@ impl FordV0Decoder {
         let mut buf = [0u8; 13];
 
         // Extract key1 bytes (big-endian)
-        for i in 0..8 {
-            buf[i] = (key1 >> (56 - i * 8)) as u8;
-        }
+        buf[..8].copy_from_slice(&key1.to_be_bytes());
         // Extract key2 bytes
         buf[8] = (key2 >> 8) as u8;
         buf[9] = key2 as u8;
@@ -355,8 +349,8 @@ impl FordV0Decoder {
             (buf[6], 6usize)
         };
 
-        for idx in 1..limit {
-            buf[idx] ^= xor_byte;
+        for b in &mut buf[1..limit] {
+            *b ^= xor_byte;
         }
 
         if buf[11] == 0 {
@@ -868,7 +862,8 @@ mod tests {
     /// checked bits.
     #[test]
     fn reencode_reproduces_next_genuine_press() {
-        let pairs: [((u64, u16), (u64, u16), u8); 7] = [
+        type Press = (u64, u16); // (key1, key2)
+        let pairs: [(Press, Press, u8); 7] = [
             ((0x556C_2991_7F3F_F82F, 0x6DD2), (FOCUS_LOCK_KEY1, FOCUS_LOCK_KEY2), 0x01), // Focus Lock
             ((0x556E_2B93_7D0D_FF2D, 0x7656), (0x5590_D56D_83F3_D3FE, 0x778D), 0x02), // Focus Unlock
             ((0x55C1_843C_D2C2_8205, 0xA055), (0x55C4_8139_D7C7_0487, 0xA130), 0x04), // Focus Trunk

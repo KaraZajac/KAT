@@ -234,11 +234,7 @@ impl ProtocolDecoder for FiatV0Decoder {
     }
 
     fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
-        let diff_short = if duration < TE_SHORT {
-            TE_SHORT - duration
-        } else {
-            duration - TE_SHORT
-        };
+        let diff_short = duration.abs_diff(TE_SHORT);
 
         match self.step {
             DecoderStep::Reset => {
@@ -649,6 +645,6 @@ mod tests {
         assert!(fiat.iter().all(|d| d.serial == Some(FIX)), "one fob");
         assert!(fiat.iter().any(|d| d.data == 0xA03B_F868_5453_6200), "matches Fiat type 0 N1.sub");
         // Every real tail is 0xxxx1 (+ the 71st bit, 1, from the next preamble).
-        assert!(fiat.iter().all(|d| d.button.map_or(false, |b| b & 0x43 == 0x03)));
+        assert!(fiat.iter().all(|d| d.button.is_some_and(|b| b & 0x43 == 0x03)));
     }
 }

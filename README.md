@@ -70,6 +70,7 @@ Releases from v1.5.0 on have ready-to-run binaries on the [releases page](https:
 | `kat-<version>-x86_64-linux.tar.gz` | 64-bit Intel/AMD Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and later) |
 | `kat-<version>-aarch64-linux.tar.gz` | 64-bit ARM Linux with glibc 2.35 or newer, such as 64-bit Raspberry Pi OS bookworm |
 | `kat-<version>-aarch64-macos.tar.gz` | Apple Silicon Macs |
+| `kat-<version>-x86_64-windows.zip` | 64-bit Windows 10 and 11 (since v1.8.1) |
 
 KAT needs the HackRF library at runtime, even if you only use an RTL-SDR. Installing it brings libusb along:
 
@@ -80,15 +81,26 @@ sudo pacman -S hackrf           # Arch Linux
 brew install hackrf             # macOS
 ```
 
+On Windows there is nothing to install here: the `.zip` carries the HackRF library and libusb next to `kat.exe`. The radio needs a WinUSB driver instead ([Radio hardware](#radio-hardware)).
+
 Then check, unpack and run (with your version and platform):
 
 ```bash
-sha256sum -c kat-v1.8.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
-tar xzf kat-v1.8.0-x86_64-linux.tar.gz
-./kat-v1.8.0-x86_64-linux/kat
+sha256sum -c kat-v1.8.1-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.8.1-x86_64-linux.tar.gz
+./kat-v1.8.1-x86_64-linux/kat
 ```
 
-The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. Intel Macs and other platforms build from source.
+On Windows, in PowerShell (Windows Terminal):
+
+```powershell
+$want = (Get-Content kat-v1.8.1-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.8.1-x86_64-windows.zip).Hash -eq $want    # True
+Expand-Archive kat-v1.8.1-x86_64-windows.zip .
+.\kat-v1.8.1-x86_64-windows\kat.exe
+```
+
+The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. The Windows build isn't signed, so SmartScreen may stop its first start ("More info", then "Run anyway"). Intel Macs and other platforms build from source.
 
 ### Building from source
 
@@ -100,6 +112,8 @@ sudo apt install libhackrf-dev pkg-config libusb-1.0-0-dev   # Debian / Ubuntu /
 sudo dnf install hackrf-devel pkg-config libusb1-devel       # Fedora
 sudo pacman -S hackrf libusb                                 # Arch Linux
 ```
+
+On Windows, build in an [MSYS2](https://www.msys2.org) UCRT64 shell, which has Rust and the HackRF library: `pacman -S --needed mingw-w64-ucrt-x86_64-{toolchain,rust,pkgconf,libusb,hackrf}`, then the commands below. `kat.exe` needs `libhackrf.dll`, `libusb-1.0.dll` and `libwinpthread-1.dll` from `/ucrt64/bin` next to it (or that folder on the `PATH`).
 
 ```bash
 git clone https://github.com/KaraZajac/KAT.git
@@ -119,6 +133,8 @@ KAT uses a HackRF if one is connected, otherwise the first RTL-SDR. With neither
 If the receiver stops by itself (the device is busy, refuses a setting or is unplugged), the status line says "Receiver stopped: … (r restarts)" and `r` starts it again.
 
 On Linux, the kernel's DVB-T driver can claim an RTL-SDR before KAT does; unload it with `sudo rmmod dvb_usb_rtl28xxu` or blacklist it (see [rtl-sdr-rs](https://crates.io/crates/rtl-sdr-rs)).
+
+On Windows, libusb only opens a radio that has the WinUSB driver. Install it once with [Zadig](https://zadig.akeo.ie): Options → List All Devices, select the HackRF One (an RTL-SDR shows as "Bulk-In, Interface (Interface 0)"), choose WinUSB, Install Driver. Without it, KAT's startup warning says "install its WinUSB driver with Zadig". `~/.config/KAT` is `C:\Users\<you>\.config\KAT` on Windows.
 
 ## Quick start
 

@@ -105,7 +105,7 @@ jobs:
           name="kat-${TAG}-${{ matrix.target }}"
           mkdir -p "dist/$name"
           cp target/release/kat.exe README.md LICENSE CHANGELOG.md "dist/$name/"
-          # The DLLs kat.exe loads from MSYS2: libhackrf, libusb and the compiler runtime.
+          # The DLLs kat.exe loads from MSYS2: libhackrf, libusb and winpthreads.
           ldd target/release/kat.exe | awk '$3 ~ /^\/ucrt64\// {print $3}' | sort -u | xargs -r cp -t "dist/$name/"
           ls -l "dist/$name"
           (cd dist && zip -qr "$name.zip" "$name" && sha256sum "$name.zip" > "$name.zip.sha256")

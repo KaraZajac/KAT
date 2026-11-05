@@ -53,7 +53,7 @@
   <div class="container hero-inner">
     <div class="hero-eyebrow">
       <span class="dot dot-pulse"></span>
-      v1.8.0 · Linux &amp; macOS · terminal
+      v1.8.1 · Linux, macOS &amp; Windows · terminal
     </div>
     <h1 class="hero-title">
       <span class="display-wordmark">KAT</span>
@@ -87,7 +87,7 @@
     </div>
 
     <div class="cta-row">
-      <a class="btn btn-primary" href="https://github.com/KaraZajac/KAT/releases/latest">↓ Download v1.8.0</a>
+      <a class="btn btn-primary" href="https://github.com/KaraZajac/KAT/releases/latest">↓ Download v1.8.1</a>
       <a class="btn" href="#protocols">Find your protocol</a>
       <a class="btn btn-ghost" href="https://github.com/KaraZajac/KAT">
         <svg height="16" viewBox="0 0 16 16" width="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -623,6 +623,7 @@ sudo dnf install hackrf         <span class="cmt"># Fedora</span>
 sudo pacman -S hackrf           <span class="cmt"># Arch Linux</span>
 brew install hackrf             <span class="cmt"># macOS</span></pre>
           </div>
+          <p>On Windows there is nothing to install here: the <code>.zip</code> carries the HackRF library and libusb next to <code>kat.exe</code>. The radio needs a WinUSB driver instead (Radios, below).</p>
         </div>
       </div>
 
@@ -632,15 +633,23 @@ brew install hackrf             <span class="cmt"># macOS</span></pre>
           <h3>Download, check and unpack</h3>
           <p>Get the archive for your machine, and its <code>.sha256</code> file, from the <a href="https://github.com/KaraZajac/KAT/releases/latest">latest release</a>:</p>
           <ul>
-            <li><code>kat-v1.8.0-x86_64-linux.tar.gz</code>: 64-bit Intel or AMD Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and later).</li>
-            <li><code>kat-v1.8.0-aarch64-linux.tar.gz</code>: 64-bit ARM Linux, such as 64-bit Raspberry Pi OS bookworm.</li>
-            <li><code>kat-v1.8.0-aarch64-macos.tar.gz</code>: Apple Silicon Macs. It isn't notarized; <code>xattr -d com.apple.quarantine kat</code> clears the block.</li>
+            <li><code>kat-v1.8.1-x86_64-linux.tar.gz</code>: 64-bit Intel or AMD Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and later).</li>
+            <li><code>kat-v1.8.1-aarch64-linux.tar.gz</code>: 64-bit ARM Linux, such as 64-bit Raspberry Pi OS bookworm.</li>
+            <li><code>kat-v1.8.1-aarch64-macos.tar.gz</code>: Apple Silicon Macs. It isn't notarized; <code>xattr -d com.apple.quarantine kat</code> clears the block.</li>
+            <li><code>kat-v1.8.1-x86_64-windows.zip</code>: 64-bit Windows 10 and 11. It isn't signed, so SmartScreen may stop its first start: “More info”, then “Run anyway”.</li>
             <li>Intel Macs and other platforms: build from source, below.</li>
           </ul>
           <div class="code-wrap">
-<pre class="code">sha256sum -c kat-v1.8.0-x86_64-linux.tar.gz.sha256    <span class="cmt"># macOS: shasum -a 256 -c …</span>
-tar xzf kat-v1.8.0-x86_64-linux.tar.gz
-./kat-v1.8.0-x86_64-linux/kat</pre>
+<pre class="code">sha256sum -c kat-v1.8.1-x86_64-linux.tar.gz.sha256    <span class="cmt"># macOS: shasum -a 256 -c …</span>
+tar xzf kat-v1.8.1-x86_64-linux.tar.gz
+./kat-v1.8.1-x86_64-linux/kat</pre>
+          </div>
+          <p>On Windows, in PowerShell (Windows Terminal):</p>
+          <div class="code-wrap">
+<pre class="code">$want = (Get-Content kat-v1.8.1-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.8.1-x86_64-windows.zip).Hash -eq $want    <span class="cmt"># True</span>
+Expand-Archive kat-v1.8.1-x86_64-windows.zip .
+.\kat-v1.8.1-x86_64-windows\kat.exe</pre>
           </div>
         </div>
       </div>
@@ -649,7 +658,7 @@ tar xzf kat-v1.8.0-x86_64-linux.tar.gz
         <span class="anno-num">3</span>
         <div>
           <h3>Run it</h3>
-          <p><code>kat</code> uses a HackRF if one is connected, else the first RTL-SDR, else it runs with files only.</p>
+          <p><code>kat</code> uses a HackRF if one is connected, else the first RTL-SDR, else it runs with files only. Its settings, captures and log are in <code>~/.config/KAT</code> (on Windows <code>C:\Users\&lt;you&gt;\.config\KAT</code>).</p>
           <dl class="keys">
             <dt><kbd>r</kbd></dt><dd>Receive, on 433.92&nbsp;MHz to start with</dd>
             <dt><code>:freq 315</code></dt><dd>Change the frequency</dd>
@@ -669,9 +678,9 @@ tar xzf kat-v1.8.0-x86_64-linux.tar.gz
           <h3>Radios</h3>
           <ul>
             <li>A <strong>HackRF One</strong> (or compatible) receives and transmits; an <strong>RTL-SDR</strong> only receives.</li>
-            <li>USB permission: install the udev rules from the hackrf or rtl-sdr package.</li>
-            <li>On Linux, the DVB-T driver can claim an RTL-SDR first: <code>sudo rmmod dvb_usb_rtl28xxu</code>, or blacklist it.</li>
-            <li>The binaries link libhackrf, libusb-1.0 (and libudev through it) and glibc. No librtlsdr is needed: KAT drives the RTL-SDR itself.</li>
+            <li>Linux: for USB permission, install the udev rules from the hackrf or rtl-sdr package. The DVB-T driver can claim an RTL-SDR first: <code>sudo rmmod dvb_usb_rtl28xxu</code>, or blacklist it.</li>
+            <li>Windows: libusb only opens a radio that has the WinUSB driver. Install it once with <a href="https://zadig.akeo.ie">Zadig</a>: Options → List All Devices, select the HackRF One (an RTL-SDR shows as “Bulk-In, Interface (Interface 0)”), WinUSB, Install Driver.</li>
+            <li>The Linux binaries link libhackrf, libusb-1.0 (and libudev through it) and glibc; the Windows <code>.zip</code> carries libhackrf.dll, libusb-1.0.dll and libwinpthread-1.dll. No librtlsdr is needed: KAT drives the RTL-SDR itself.</li>
           </ul>
         </div>
       </div>
@@ -683,7 +692,8 @@ tar xzf kat-v1.8.0-x86_64-linux.tar.gz
 <pre class="code">brew install hackrf                                          <span class="cmt"># macOS</span>
 sudo apt install libhackrf-dev pkg-config libusb-1.0-0-dev   <span class="cmt"># Debian / Ubuntu / Raspberry Pi OS</span>
 sudo dnf install hackrf-devel pkg-config libusb1-devel       <span class="cmt"># Fedora</span>
-sudo pacman -S hackrf libusb                                 <span class="cmt"># Arch Linux</span></pre>
+sudo pacman -S hackrf libusb                                 <span class="cmt"># Arch Linux</span>
+pacman -S --needed mingw-w64-ucrt-x86_64-{toolchain,rust,pkgconf,libusb,hackrf}   <span class="cmt"># Windows: an MSYS2 UCRT64 shell</span></pre>
           </div>
           <div class="code-wrap">
 <pre class="code">git clone https://github.com/KaraZajac/KAT.git
@@ -764,7 +774,7 @@ cargo build --release</pre>
   <div class="container footer-bottom">
     <p>Use KAT only on systems and vehicles you own or have explicit, written permission to test. <a href="#legal">The full notice.</a></p>
     <p class="footer-meta">
-      v1.8.0 · <a href="https://github.com/KaraZajac/KAT">github.com/KaraZajac/KAT</a> · <a href="https://github.com/KaraZajac/KAT/blob/main/LICENSE">BSD-3-Clause</a>
+      v1.8.1 · <a href="https://github.com/KaraZajac/KAT">github.com/KaraZajac/KAT</a> · <a href="https://github.com/KaraZajac/KAT/blob/main/LICENSE">BSD-3-Clause</a>
     </p>
     <div class="onion-line">
       <span class="onion-label">Also on Tor</span>

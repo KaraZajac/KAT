@@ -2,11 +2,13 @@
 
 All notable changes to KAT are documented here.
 
-## [Unreleased]
+## [1.8.1] - 2026-11-05
+
+KAT for Windows: releases now include a Windows x64 build. Also in this release: the website's move to [kat.karazajac.io](https://kat.karazajac.io), and no more "FAIL" in the CRC column for protocols that have no checksum.
 
 ### Added
 
-- **Windows builds, for testing.** CI builds KAT on Windows x64 (MSYS2's UCRT64 environment, with its HackRF library and libusb), runs the test suite there, and uploads a test build: `kat.exe` with the DLLs it loads. Releases get a `kat-<version>-x86_64-windows.zip`. The radio-not-found hints name the Windows step (a WinUSB driver, installed with Zadig) instead of udev rules and the DVB-T driver, and new remotes take their random serial from the system's randomness on every platform.
+- **Windows.** Releases include `kat-<version>-x86_64-windows.zip`: `kat.exe` with the three DLLs it loads next to it (`libhackrf.dll`, `libusb-1.0.dll` and MinGW's `libwinpthread-1.dll`), built in MSYS2's UCRT64 environment with its HackRF library 2026.01.3. CI builds KAT and runs the whole test suite on Windows for every push, and uploads that build as a test artifact. The radio needs a WinUSB driver, installed once with Zadig; the startup warning says so on Windows instead of naming udev rules and the DVB-T driver ([README](README.md#radio-hardware)). Settings and captures are in `C:\Users\<you>\.config\KAT`. New remotes (`:new`) take their random serial from the system's randomness on every platform (it was `/dev/urandom`). This is the first Windows release; please report what doesn't work.
 
 ### Changed
 

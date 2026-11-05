@@ -8,20 +8,25 @@
 //! - doctor-firmware `lib/subghz/protocols/psa.c`: PP's file with a stricter publish gate, a
 //!   `>=` preamble threshold, completion at the 80th bit without the end marker, a working fixed
 //!   125/250 µs path, repeat 3 and an in-app brute-force helper. Third reference: its decoder
-//!   differences are not ported (its gate drops a genuine frame, see below).
+//!   runs as a third machine (its 80th-bit rule and 125/250 µs path); its publish gate is not
+//!   ported (it drops genuine frames, see below).
 //!
-//! What KAT implements (union of the PP and ARF capabilities):
-//! - **Decoder** — ProtoPirate's and Flipper-ARF's `subghz_protocol_decoder_psa_feed` state
-//!   machines run side by side (see [`PsaDecoder`]). Every frame the PP machine completes is
-//!   reported: States 0/1/2 (250/500 µs Manchester, shared verbatim by PP and ARF) with
-//!   PP's emission gate (sync nibble `(key1 >> 48) & 0xF == 0xA`) and PP's decrypt routing
-//!   (`psa_handle_decoded_frame`: the XOR fast path runs only when
-//!   `psa_direct_xor_allowed_by_key2` passes; every other frame is a TEA frame). PP's own
-//!   States 3/4 (125/250 µs) feed only LOW pulses (events ShortHigh/LongHigh) to the Manchester
-//!   decoder, which can then only emit 0 bits, so key1 is 0, the sync check fails and that path
-//!   never reports a frame; it is ported anyway because it holds the machine like the C does.
-//!   From the ARF machine only its adaptive AM path (States 3/4, 60..200 µs half-bits, frame
-//!   realignment in `psa_am_complete`) is used, with PP's routing and a KAT decrypt gate.
+//! What KAT implements (union of the PP, ARF and doctor capabilities):
+//! - **Decoder** — ProtoPirate's, doctor-firmware's and Flipper-ARF's
+//!   `subghz_protocol_decoder_psa_feed` state machines run side by side (see [`PsaDecoder`]).
+//!   Every frame the PP machine completes is reported: States 0/1/2 (250/500 µs Manchester,
+//!   shared verbatim by PP and ARF) with PP's emission gate (sync nibble
+//!   `(key1 >> 48) & 0xF == 0xA`) and PP's decrypt routing (`psa_handle_decoded_frame`: the XOR
+//!   fast path runs only when `psa_direct_xor_allowed_by_key2` passes; every other frame is a TEA
+//!   frame). PP's own States 3/4 (125/250 µs) feed only LOW pulses (events ShortHigh/LongHigh) to
+//!   the Manchester decoder, which can then only emit 0 bits, so key1 is 0, the sync check fails
+//!   and that path never reports a frame; it is ported anyway because it holds the machine like
+//!   the C does. The doctor machine completes a frame at its 80th bit (`psa_try_complete_at_key2`)
+//!   whatever follows, on the 250/500 µs path (`>=` 0x46 preamble LOWs) and on its working
+//!   125/250 µs States 3/4; a frame only this rule reads (no end pulse PP's machine takes, a
+//!   70-LOW preamble, the 125 µs path) must decrypt like an AM-path frame. From the ARF machine
+//!   only its adaptive AM path (States 3/4, 60..200 µs half-bits, frame realignment in
+//!   `psa_am_complete`) is used, with PP's routing and a KAT decrypt gate.
 //! - **Encoder** — PP `psa_encoder_build_upload` (mode 0x23 XOR + mode 0x36 TEA, buffer[0..1] kept
 //!   from the captured key1, buffer[9] from the captured key2), 10 repeats (PP/ARF), counter + 1 (PP
 //!   emulate plugin `current_counter++`, ARF/doctor `+ mult`), ARF's PSA button codes, and the
@@ -34,8 +39,9 @@
 //!   encoder-capable) and the signal menu's **Recover key** action runs [`recover_key`] on a
 //!   background thread (≤ ~0.5 s on 16 cores in release; progress + cancel via
 //!   [`BruteForceControl`]), then fills in serial/button/counter. `encode()` then needs nothing but
-//!   key1, key2 and the serial. AM-path frames are reported only when the fast path decrypts them
-//!   (see below), so their TEA frames need the 250/500 µs path to be recovered.
+//!   key1, key2 and the serial. Frames that must decrypt (the AM path's, the doctor rule's alone)
+//!   are reported when the fast path decrypts them, or with `autobf` as [`UNCHECKED_NAME`] until the
+//!   key search confirms them (see below).
 //!
 //! Deviations, each backed by REAL captures in `IMPORTS/` (`GROUPE PSA` holds two fobs: an XOR
 //! fob, serial 0x99EB25, and a TEA fob, serial 0x014590 recovered by the brute force):
@@ -57,11 +63,13 @@
 //!   unmodified ARF psa.c replayed with the registry's reset points emits the same frame, which
 //!   decrypts neither by XOR nor by BF1/BF2). KAT emits AM-path frames only when they decrypt.
 //! - End marker: the references' encoder ends a frame with a 1000 µs HIGH, which after a final 0 bit
-//!   merges into 1250 µs, past their decoders' 801–1199 µs window, so no reference reads such a frame
+//!   merges into 1250 µs, past PP's and ARF's 801–1199 µs window, so they do not read such a frame
 //!   from another Flipper (a saved file sent again) or from KAT ≤ 1.8.3. Genuine fobs end at ~900 µs
 //!   (both IMPORTS fobs; ~1140 µs after a final 0 bit). KAT's decoder also takes 1051–1449 µs
 //!   (`Machine::is_end_marker`) and its encoder sends 900 µs (`ENC_END_HIGH`); both checked
-//!   over the air, Flipper Zero ↔ HackRF (`docs/psa.md`).
+//!   over the air, Flipper Zero ↔ HackRF (`docs/psa.md`). doctor-firmware needs no end pulse at
+//!   all: a fob that ends a frame without one, or with one of another length, reaches KAT through
+//!   the doctor machine (since 1.8.5; such a frame must decrypt, see [`PsaDecoder`]).
 //! - BF2's CRC-16 comparison differs: PP/doctor compare with `dec_v1 & 0xFFFF`, ARF with
 //!   `(byte(dec_v1 >> 16) << 8) | byte(dec_v1)`. No genuine BF2 capture exists to settle it; KAT
 //!   accepts either (union), which cannot change a PP result except by a ~2^-40 coincidence.
@@ -138,6 +146,9 @@ const TE_LONG_250: u32 = 0xFA;
 const TE_LONG_300: u32 = 0x12C;
 const TE_END_1000: u32 = 1000;
 const TE_END_500: u32 = 500;
+/// KAT: a LOW this long after doctor's 80th bit is no final 1 bit's LOW half (at most ~350 µs on
+/// the 250 µs path): the frame ended without an end pulse.
+const DOCTOR_PENDING_LOW_US: u32 = 1200;
 const TOLERANCE_49: u32 = 0x31;
 const TOLERANCE_50: u32 = 0x32;
 const TOLERANCE_99: u32 = 99;
@@ -658,6 +669,10 @@ enum Flavor {
     ProtoPirate,
     /// Flipper-ARF psa.c: adaptive AM States 3/4.
     Arf,
+    /// doctor-firmware psa.c: States 0/1/2 with a `>=` preamble threshold and the frame complete
+    /// at its 80th bit (`psa_try_complete_at_key2`, no end pulse needed), and working 125/250 µs
+    /// States 3/4 that complete the same way.
+    Doctor,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -668,9 +683,9 @@ enum DecoderState {
     Preamble250,
     /// State2: 250/500 µs Manchester, key1 (64) + key2 (16), 1000 µs end marker.
     Data250,
-    /// State3: PP 125 µs preamble / ARF adaptive AM preamble (te from HIGH+LOW cell periods).
+    /// State3: PP / doctor 125 µs preamble, ARF adaptive AM preamble (te from HIGH+LOW cell periods).
     Preamble125,
-    /// State4: PP 125/250 µs Manchester / ARF adaptive AM Manchester with frame realignment.
+    /// State4: PP / doctor 125/250 µs Manchester, ARF adaptive AM Manchester with frame realignment.
     Data125,
 }
 
@@ -680,7 +695,11 @@ struct RawFrame {
     key1: u64,
     key2_high: u32,
     key2_low: u32,
-    /// Completed by ARF's adaptive AM path (`psa_am_complete`).
+    /// A frame that must prove itself: completed on a fast-timing path (ARF's adaptive AM path,
+    /// `psa_am_complete`, or doctor's 125/250 µs States 3/4), or on the 250/500 µs path by doctor's
+    /// 80th-bit rule alone (no end pulse ProtoPirate's machine takes). KAT reports such a frame only
+    /// when it decrypts, or with `autobf` as [UNCHECKED_NAME] for the key search to confirm
+    /// ([PsaDecoder::emit]).
     am: bool,
 }
 
@@ -752,6 +771,8 @@ impl Machine {
             (DecoderState::Data125, Flavor::ProtoPirate) => self.feed_pp_data_125(level, duration),
             (DecoderState::Preamble125, Flavor::Arf) => self.feed_am_preamble(level, duration),
             (DecoderState::Data125, Flavor::Arf) => self.feed_am_data(level, duration),
+            (DecoderState::Preamble125, Flavor::Doctor) => self.feed_doctor_preamble_125(duration),
+            (DecoderState::Data125, Flavor::Doctor) => self.feed_doctor_data_125(level, duration),
         }
     }
 
@@ -800,6 +821,18 @@ impl Machine {
         frame
     }
 
+    /// doctor-firmware `psa_try_complete_at_key2`, called as the 80th bit is shifted in: with the
+    /// 0xA sync the frame is reported (its routing is ProtoPirate's, see [PsaDecoder::emit]),
+    /// without it the bits are dropped; State0 either way. `fast` marks the 125 µs path's frames.
+    fn try_complete_at_key2(&mut self, fast: bool) -> Option<RawFrame> {
+        self.state = DecoderState::Reset;
+        if !self.sync_ok() {
+            self.clear_data();
+            return None;
+        }
+        Some(RawFrame { am: fast, ..self.complete_frame() })
+    }
+
     // ---- States 0..2 (identical in ProtoPirate and Flipper-ARF) ------------------------------
 
     fn feed_reset(&mut self, level: bool, duration: u32) -> Option<RawFrame> {
@@ -808,7 +841,13 @@ impl Machine {
         }
         let new_state = if duration < TE_SHORT {
             if TE_SHORT - duration > TOLERANCE_99 {
-                if abs_diff(duration, TE_SHORT_125) > 40 || duration > 180 {
+                let to_125 = abs_diff(duration, TE_SHORT_125);
+                let out = match self.flavor {
+                    // doctor: `psa_is_te_125_short` (125 ± 49 µs).
+                    Flavor::Doctor => to_125 > TOLERANCE_49,
+                    Flavor::ProtoPirate | Flavor::Arf => to_125 > 40 || duration > 180,
+                };
+                if out {
                     return None;
                 }
                 DecoderState::Preamble125
@@ -852,7 +891,12 @@ impl Machine {
             return None;
         }
         if duration > TE_SHORT && abs_diff(duration, TE_LONG) < 100 {
-            if self.pattern_counter > PATTERN_THRESHOLD_1 {
+            // ProtoPirate / ARF: more than 0x46 preamble LOWs; doctor: at least 0x46.
+            let enough = match self.flavor {
+                Flavor::Doctor => self.pattern_counter >= PATTERN_THRESHOLD_1,
+                Flavor::ProtoPirate | Flavor::Arf => self.pattern_counter > PATTERN_THRESHOLD_1,
+            };
+            if enough {
                 self.clear_data();
                 self.manchester_state = ManchesterState::Mid1;
                 self.state = DecoderState::Data250;
@@ -866,19 +910,25 @@ impl Machine {
     }
 
     /// The end HIGH after the 80th bit: the references' 1000 ± 199 µs (genuine fobs: ~900 µs, ~1140 µs
-    /// after a final 0 bit) and, KAT only, 1250 ± 199 µs: the references' own encoder upload (a
-    /// Flipper sending a saved file, KAT ≤ 1.8.3) after a final 0 bit, whose 250 µs HIGH half and
-    /// 1000 µs end HIGH merge on the air. The references decode neither their own transmission of
-    /// such a frame nor each other's.
-    fn is_end_marker(duration: u32) -> bool {
-        abs_diff(duration, TE_END_1000) <= 199 || abs_diff(duration, TE_END_1000 + TE_SHORT) <= 199
+    /// after a final 0 bit; doctor also takes exactly 800 µs) and, KAT only, 1250 ± 199 µs: the
+    /// references' own encoder upload (a Flipper sending a saved file, KAT ≤ 1.8.3) after a final 0
+    /// bit, whose 250 µs HIGH half and 1000 µs end HIGH merge on the air. ProtoPirate and ARF decode
+    /// neither their own transmission of such a frame nor each other's. The doctor machine never
+    /// gets here: it completes at the 80th bit.
+    fn is_end_marker(&self, duration: u32) -> bool {
+        match self.flavor {
+            Flavor::Doctor => duration >= 800 && abs_diff(duration, TE_END_1000) <= 199,
+            Flavor::ProtoPirate | Flavor::Arf => {
+                abs_diff(duration, TE_END_1000) <= 199 || abs_diff(duration, TE_END_1000 + TE_SHORT) <= 199
+            }
+        }
     }
 
     fn feed_data_250(&mut self, level: bool, duration: u32) -> Option<RawFrame> {
         if self.decode_count_bit >= MAX_BITS {
             return self.finish(DecoderState::Reset, duration);
         }
-        if level && self.decode_count_bit == KEY2_BITS && Self::is_end_marker(duration) {
+        if level && self.decode_count_bit == KEY2_BITS && self.is_end_marker(duration) {
             // ProtoPirate reports the frame only with the 0xA sync (ARF also on a passing XOR
             // checksum; KAT does not take that path, see the module doc). Both rewind to State0.
             if !self.sync_ok() {
@@ -934,6 +984,9 @@ impl Machine {
             if self.decode_count_bit < KEY2_BITS {
                 if let Some(bit) = self.manchester_state.advance(ev) {
                     self.shift_in(bit);
+                    if self.flavor == Flavor::Doctor && self.decode_count_bit == KEY2_BITS {
+                        return self.try_complete_at_key2(false);
+                    }
                 }
             }
         }
@@ -942,7 +995,7 @@ impl Machine {
         }
         if event.is_none() {
             // A HIGH outside both symbol windows: the second end-marker check.
-            if Self::is_end_marker(duration) && self.decode_count_bit == KEY2_BITS && self.sync_ok() {
+            if self.is_end_marker(duration) && self.decode_count_bit == KEY2_BITS && self.sync_ok() {
                 let frame = self.complete_frame();
                 self.state = DecoderState::Reset;
                 return Some(frame);
@@ -1015,6 +1068,81 @@ impl Machine {
             return Some(frame);
         }
         None
+    }
+
+    // ---- doctor-firmware States 3/4 (125/250 µs) -----------------------------------------------
+
+    /// doctor `psa_is_te_125_short`: 125 ± 49 µs.
+    fn is_te_125_short(duration: u32) -> bool {
+        abs_diff(duration, TE_SHORT_125) <= TOLERANCE_49
+    }
+
+    /// doctor `psa_is_te_125_long`: 250 ± 49 µs.
+    fn is_te_125_long(duration: u32) -> bool {
+        abs_diff(duration, TE_LONG_250) <= TOLERANCE_49
+    }
+
+    /// doctor State3: count 125 µs pulses of either level (each after another one); a 250 µs pulse
+    /// after at least 0x45 of them starts the data, any other pulse rewinds to State0.
+    fn feed_doctor_preamble_125(&mut self, duration: u32) -> Option<RawFrame> {
+        if Self::is_te_125_long(duration) {
+            if self.pattern_counter >= PATTERN_THRESHOLD_2 {
+                self.clear_data();
+                self.manchester_state = ManchesterState::Mid1;
+                self.state = DecoderState::Data125;
+                self.pattern_counter = 0;
+                self.prev_duration = duration;
+                return None;
+            }
+            self.pattern_counter = 0;
+            return self.finish(DecoderState::Reset, duration);
+        }
+        if Self::is_te_125_short(duration) {
+            if abs_diff(self.prev_duration, TE_SHORT_125) <= TOLERANCE_49 {
+                self.pattern_counter = self.pattern_counter.wrapping_add(1);
+            } else {
+                self.pattern_counter = 0;
+            }
+            self.prev_duration = duration;
+            return None;
+        }
+        self.pattern_counter = 0;
+        self.finish(DecoderState::Reset, duration)
+    }
+
+    /// doctor State4: 125/250 µs Manchester on both levels (ProtoPirate's State4 feeds only the
+    /// LOWs), the frame complete at its 80th bit or on a 500 ± 99 µs end HIGH after it.
+    fn feed_doctor_data_125(&mut self, level: bool, duration: u32) -> Option<RawFrame> {
+        if self.decode_count_bit >= MAX_BITS {
+            return self.finish(DecoderState::Reset, duration);
+        }
+        let event = if Self::is_te_125_short(duration) {
+            Some(ManchesterEvent::from_half_bit(!level, false))
+        } else if Self::is_te_125_long(duration) {
+            Some(ManchesterEvent::from_half_bit(!level, true))
+        } else {
+            None
+        };
+        if let Some(ev) = event {
+            if self.decode_count_bit < KEY2_BITS {
+                if let Some(bit) = self.manchester_state.advance(ev) {
+                    self.shift_in(bit);
+                    if self.decode_count_bit == KEY2_BITS {
+                        return self.try_complete_at_key2(true);
+                    }
+                }
+            }
+        }
+        if !level {
+            return None;
+        }
+        if event.is_none() {
+            if abs_diff(duration, TE_END_500) <= 99 && self.decode_count_bit == KEY2_BITS {
+                return self.try_complete_at_key2(true);
+            }
+            return None;
+        }
+        self.finish(DecoderState::Data125, duration)
     }
 
     // ---- Flipper-ARF States 3/4 (adaptive AM, ported from ARF's psa.js) ------------------------
@@ -1223,16 +1351,26 @@ impl Machine {
 
 /// PSA decoder: ProtoPirate's and Flipper-ARF's state machines run side by side on every pulse.
 /// Every frame the ProtoPirate machine completes is reported (PP's 0xA-sync gate and decrypt
-/// routing); from the ARF machine only its adaptive-AM completions are used (its 250/500 µs path
-/// is PP's, minus ARF's checksum-only acceptance). Separate machines keep each one's state exactly
-/// as in its C file: ARF's AM State4 can stay stuck (count ≥ 121 with a 96-bit window,
-/// `new_state = State0` never stored) for the rest of a stream, which in one shared machine would
-/// also block ProtoPirate's 250/500 µs path.
+/// routing). doctor-firmware's machine completes a frame at its 80th bit, whatever follows it, on
+/// its 250/500 µs path and its 125/250 µs path; such a frame waits for ProtoPirate's end pulse and,
+/// if ProtoPirate's machine does not take it, must decrypt like ARF's AM-path frames (the 80th-bit
+/// rule alone also reads the first 80 bits of longer Manchester frames, e.g. a VW Polo 5 remote's,
+/// which then never decrypt). From the ARF machine only its adaptive-AM completions are used (its
+/// 250/500 µs path is PP's, minus ARF's checksum-only acceptance). Separate machines keep each
+/// one's state exactly as in its C file: ARF's AM State4 can stay stuck (count ≥ 121 with a 96-bit
+/// window, `new_state = State0` never stored) for the rest of a stream, which in one shared machine
+/// would also block ProtoPirate's 250/500 µs path. After a reported frame all three start again, as
+/// the registry restarts every decoder.
 pub struct PsaDecoder {
     pp: Machine,
+    doctor: Machine,
     arf: Machine,
-    /// KAT's additions to the C decoders: the brute force on a fast-path miss and the AM-path
-    /// decrypt gate. Always on; the C-oracle test driver turns them off to compare 1:1.
+    /// A 250/500 µs frame the doctor machine completed at its 80th bit, waiting for ProtoPirate's
+    /// end pulse: the first HIGH after it (or a LOW too long to be the last half-bit) decides.
+    doctor_pending: Option<RawFrame>,
+    /// KAT's additions to the C decoders: the doctor machine, the brute force on a fast-path miss
+    /// and the fast-path decrypt gate. Always on; the C-oracle test driver turns them off to
+    /// compare 1:1 with ProtoPirate's and ARF's C.
     kat_extensions: bool,
     /// `autobf`: AM-path frames the fast path cannot decrypt are reported as [UNCHECKED_NAME] for
     /// the key search to confirm, instead of being dropped.
@@ -1243,7 +1381,9 @@ impl PsaDecoder {
     pub fn new() -> Self {
         Self {
             pp: Machine::new(Flavor::ProtoPirate),
+            doctor: Machine::new(Flavor::Doctor),
             arf: Machine::new(Flavor::Arf),
+            doctor_pending: None,
             kat_extensions: true,
             report_unchecked: false,
         }
@@ -1302,7 +1442,9 @@ impl ProtocolDecoder for PsaDecoder {
 
     fn reset(&mut self) {
         self.pp = Machine::new(Flavor::ProtoPirate);
+        self.doctor = Machine::new(Flavor::Doctor);
         self.arf = Machine::new(Flavor::Arf);
+        self.doctor_pending = None;
     }
 
     fn set_report_unchecked(&mut self, on: bool) {
@@ -1310,10 +1452,36 @@ impl ProtocolDecoder for PsaDecoder {
     }
 
     fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
-        let pp = self.pp.feed(level, duration);
+        let mut frame = self.pp.feed(level, duration);
         let arf = self.arf.feed(level, duration).filter(|f| f.am);
-        // A ProtoPirate frame wins a (theoretical) same-pulse tie.
-        pp.or(arf).and_then(|frame| self.emit(frame))
+        if self.kat_extensions {
+            let doctor = self.doctor.feed(level, duration);
+            // A pending doctor frame: ProtoPirate's end pulse is the first HIGH after the 80th bit
+            // (a final 1 bit's LOW half comes first). Taken by ProtoPirate's machine, the frame is
+            // reported as before; otherwise doctor's rule alone read it, and it must decrypt.
+            if frame.is_some() {
+                self.doctor_pending = None;
+            } else if let Some(pending) = self.doctor_pending.take() {
+                if level || duration > DOCTOR_PENDING_LOW_US {
+                    frame = Some(RawFrame { am: true, ..pending });
+                } else {
+                    self.doctor_pending = Some(pending);
+                }
+            }
+            match doctor {
+                // 125/250 µs path: no ProtoPirate counterpart (its States 3/4 never complete).
+                Some(f) if f.am => frame = frame.or(Some(f)),
+                Some(f) => self.doctor_pending = Some(f),
+                None => {}
+            }
+        }
+        // A ProtoPirate frame wins a same-pulse tie. After a report all three machines restart (as
+        // the registry restarts every decoder), so a frame is reported once.
+        let out = frame.or(arf).and_then(|frame| self.emit(frame));
+        if out.is_some() && self.kat_extensions {
+            self.reset();
+        }
+        out
     }
 
     fn supports_encoding(&self) -> bool {
@@ -1777,33 +1945,158 @@ mod tests {
         assert_eq!(wire[..ENC_UPLOAD_LEN].iter().map(|p| (p.level, p.duration_us)).collect::<Vec<_>>(), expected.iter().map(|p| (p.level, p.duration_us)).collect::<Vec<_>>());
     }
 
+    /// Frames decoded by the ProtoPirate and ARF machines alone (KAT's extensions off): the
+    /// end-pulse rule (with KAT's 1250 µs window), without doctor-firmware's machine.
+    fn decode_all_c_like(pulses: &[LevelDuration]) -> Vec<DecodedSignal> {
+        let mut dec = PsaDecoder { kat_extensions: false, ..PsaDecoder::new() };
+        let mut out = Vec::new();
+        for p in pulses {
+            if let Some(d) = dec.feed(p.level, p.duration_us) {
+                out.push(d);
+                dec.reset();
+            }
+        }
+        out
+    }
+
     #[test]
     fn uploads_ending_in_a_zero_bit_decode() {
         // A trailing 0 bit's 250 µs HIGH half merges with the end HIGH. KAT's 900 µs end (the
         // genuine fobs') gives 1150 µs, inside the references' 801..1199 µs end window; the
         // references' 1000 µs end (a Flipper sending a saved file, KAT <= 1.8.3) gives 1250 µs,
-        // which their decoders reject (host C harness) and KAT's accepts (`is_end_marker`).
+        // which ProtoPirate's and ARF's decoders reject (host C harness) and KAT's end window
+        // takes. doctor-firmware's completes the frame at its 80th bit, before any end pulse.
         let dec = PsaDecoder::new();
         let xor = psa_from(0x6EDA_E3B4_785F_7BC6, 0x70F6, Some(0x99EB25));
         let wire = dec.encode(&xor, 0x02).unwrap();
         assert!(!wire[321].level && wire[322].level, "last key2 bit is 0: (LOW, HIGH)");
         let sent = dec.sent_signal(&xor, 0x02).unwrap();
+        let expected = Some((sent.data, sent.extra));
         let ours = merged(&wire);
         assert!(ours.iter().any(|p| p.level && p.duration_us == 1150), "merged end of KAT's upload");
-        assert_eq!(decode_all(&ours).first().map(|d| (d.data, d.extra)), Some((sent.data, sent.extra)));
+        assert_eq!(decode_all(&ours).first().map(|d| (d.data, d.extra)), expected);
+        assert_eq!(decode_all_c_like(&ours).first().map(|d| (d.data, d.extra)), expected);
         let references: Vec<LevelDuration> = wire
             .iter()
             .map(|p| if p.level && p.duration_us == ENC_END_HIGH { LevelDuration::new(true, 1000) } else { *p })
             .collect();
         let theirs = merged(&references);
         assert!(theirs.iter().any(|p| p.level && p.duration_us == 1250), "merged end of the references' upload");
-        assert_eq!(decode_all(&theirs).first().map(|d| (d.data, d.extra)), Some((sent.data, sent.extra)));
-        // Past the merged window the frame is not taken (an end HIGH of 1450 µs and more).
+        assert_eq!(decode_all(&theirs).first().map(|d| (d.data, d.extra)), expected);
+        assert_eq!(decode_all_c_like(&theirs).first().map(|d| (d.data, d.extra)), expected);
+        // Any end HIGH after the 80th bit (here 1450 µs): doctor's rule takes it (an XOR frame,
+        // which decrypts), the end-pulse rule not.
         let late: Vec<LevelDuration> = merged(&wire[..ENC_UPLOAD_LEN])
             .into_iter()
             .map(|p| if p.level && p.duration_us == 1150 { LevelDuration::new(true, 1450) } else { p })
             .collect();
-        assert!(decode_all(&late).is_empty());
+        assert_eq!(decode_all(&late).first().map(|d| (d.data, d.extra)), expected);
+        assert!(decode_all_c_like(&late).is_empty());
+    }
+
+    /// One press at half-bit `te`: `pairs` preamble pairs, the sync (LOW te, HIGH 2te, LOW te),
+    /// key1 + key2 as Manchester half-bits, then `end` (an end HIGH; None: nothing, the carrier
+    /// stops after the last half-bit), between 10 ms gaps: how the tester's FSK fobs may end a frame.
+    fn press(te: u32, key1: u64, key2: u16, pairs: usize, end: Option<u32>) -> Vec<LevelDuration> {
+        let mut halves = vec![LevelDuration::new(false, 10_000)];
+        for _ in 0..pairs {
+            halves.extend([LevelDuration::new(true, te), LevelDuration::new(false, te)]);
+        }
+        halves.extend([LevelDuration::new(false, te), LevelDuration::new(true, 2 * te), LevelDuration::new(false, te)]);
+        let bits = (0..64).rev().map(|i| (key1 >> i) & 1 == 1).chain((0..16).rev().map(|i| (key2 >> i) & 1 == 1));
+        for bit in bits {
+            halves.extend([LevelDuration::new(bit, te), LevelDuration::new(!bit, te)]);
+        }
+        if let Some(end) = end {
+            halves.push(LevelDuration::new(true, end));
+        }
+        halves.push(LevelDuration::new(false, 10_000));
+        merged(&halves)
+    }
+
+    /// Frames of one decoder with `autobf` (fast-path TEA frames reported as [UNCHECKED_NAME]).
+    fn decode_all_autobf(pulses: &[LevelDuration]) -> Vec<DecodedSignal> {
+        let mut dec = PsaDecoder::new();
+        dec.set_report_unchecked(true);
+        pulses.iter().filter_map(|p| dec.feed(p.level, p.duration_us)).collect()
+    }
+
+    /// doctor-firmware completes a 250 µs frame at its 80th bit (`psa_try_complete_at_key2`), so it
+    /// reads frames whose end pulse is missing or of another length, and takes 70 preamble LOWs
+    /// (`>=`, ProtoPirate `>`), checked against the unmodified doctor psa.c (host C harness). KAT
+    /// reports what either reads. A frame ProtoPirate's end-pulse rule also takes is reported as
+    /// before; one only doctor's rule reads must decrypt: an XOR frame at once, a TEA frame through
+    /// the key search (`autobf`), as on the fast-timing paths.
+    #[test]
+    fn frames_complete_at_the_80th_bit_like_doctor_firmware() {
+        const XOR: (u64, u16) = (0x6EDA_E3B4_785F_7BC6, 0x70F6); // last bit 0
+        const TEA: (u64, u16) = (0xF47A_2EA1_1A4C_7CAF, 0x2927); // last bit 1
+        let fields = |v: &[DecodedSignal]| v.first().map(|d| (d.data, d.extra, d.protocol_display_name.clone()));
+        for (key1, key2) in [XOR, TEA] {
+            let xor = key2 == XOR.1;
+            let plain = Some((key1, Some(u64::from(key2)), None));
+            let unchecked = Some((key1, Some(u64::from(key2)), Some(UNCHECKED_NAME.to_string())));
+            // KAT's end window: 801..1449 µs (a final 0 bit's 250 µs HIGH half merges with the end).
+            let end_rule = |end: Option<u32>| end.is_some_and(|e| (801..=1449).contains(&(if key2 & 1 == 0 { e + 250 } else { e })));
+            for end in [None, Some(250), Some(500), Some(700), Some(900), Some(1300), Some(2000), Some(5000)] {
+                let pulses = press(250, key1, key2, 80, end);
+                let c_like = decode_all_c_like(&pulses);
+                assert_eq!(c_like.is_empty(), !end_rule(end), "end rule {key1:X} end {end:?}");
+                let (got, got_bf) = (decode_all(&pulses), decode_all_autobf(&pulses));
+                if end_rule(end) || xor {
+                    assert_eq!(fields(&got), plain, "{key1:X} end {end:?}");
+                    assert_eq!(fields(&got_bf), plain, "{key1:X} end {end:?} autobf");
+                } else {
+                    assert!(got.is_empty(), "{key1:X} end {end:?}: a TEA frame waits for autobf");
+                    assert_eq!(fields(&got_bf), unchecked, "{key1:X} end {end:?} autobf");
+                }
+            }
+            // 71 preamble pairs: 70 LOWs before the sync (the last merges with it). doctor only.
+            let short = press(250, key1, key2, 71, Some(900));
+            assert!(decode_all_c_like(&short).is_empty());
+            assert_eq!(fields(&decode_all_autobf(&short)), if xor { plain } else { unchecked }, "{key1:X} 70 LOWs");
+            assert!(decode_all_autobf(&press(250, key1, key2, 70, Some(900))).is_empty(), "69 LOWs: nobody");
+        }
+        // Still only with the 0xA sync nibble.
+        assert!(decode_all_autobf(&press(250, 0x6EDB_E3B4_785F_7BC6, 0x70F6, 80, None)).is_empty());
+        // One report per frame, also without the registry's restarts: frames taken by ProtoPirate's
+        // end rule (900 µs) and by doctor's alone (no end pulse).
+        for end in [Some(900), None] {
+            let mut dec = PsaDecoder::new();
+            let three: Vec<LevelDuration> = (0..3).flat_map(|_| press(250, XOR.0, XOR.1, 80, end)).collect();
+            assert_eq!(three.iter().filter_map(|p| dec.feed(p.level, p.duration_us)).count(), 3, "end {end:?}");
+        }
+    }
+
+    /// doctor-firmware's 125/250 µs path (ProtoPirate's States 3/4 never complete a frame):
+    /// ≥ 0x45 short pulses, a 250 µs one, Manchester at 125 µs, complete at the 80th bit. Its
+    /// frames count like ARF's fast-path ones: an XOR frame at once, a TEA frame only through the
+    /// key search (`autobf`). The end KAT's ARF path cannot take (a 125 µs end pulse) is covered.
+    #[test]
+    fn doctor_125_us_path_completes_at_the_80th_bit() {
+        for end in [None, Some(125), Some(250), Some(450), Some(500), Some(2000)] {
+            let xor = press(125, 0x6EDA_E3B4_785F_7BC6, 0x70F6, 80, end);
+            let got = decode_all(&xor);
+            assert_eq!(got.len(), 1, "XOR end {end:?}");
+            assert_eq!((got[0].data, got[0].extra, got[0].serial), (0x6EDA_E3B4_785F_7BC6, Some(0x70F6), Some(0x99EB25)));
+
+            let tea = press(125, 0xF47A_2EA1_1A4C_7CAF, 0x2927, 80, end);
+            assert!(decode_all(&tea).is_empty(), "TEA end {end:?}: waits for autobf");
+            let mut dec = PsaDecoder::new();
+            dec.set_report_unchecked(true);
+            let got: Vec<DecodedSignal> = tea.iter().filter_map(|p| dec.feed(p.level, p.duration_us)).collect();
+            assert_eq!(got.len(), 1, "TEA end {end:?}");
+            assert_eq!(got[0].protocol_display_name.as_deref(), Some(UNCHECKED_NAME));
+            assert_eq!((got[0].data, got[0].extra), (0xF47A_2EA1_1A4C_7CAF, Some(0x2927)));
+        }
+        // The doctor machine alone: at least 0x45 short pulses before the 250 µs one (ARF's
+        // adaptive path, which needs 8 cells, reads shorter preambles in KAT anyway).
+        let doctor_frames = |pairs: usize| {
+            let mut m = Machine::new(Flavor::Doctor);
+            press(125, 0x6EDA_E3B4_785F_7BC6, 0x70F6, pairs, None).iter().filter_map(|p| m.feed(p.level, p.duration_us)).count()
+        };
+        // 36 pairs: 70 short pulses after the first HIGH, the last merged into the 250 µs one.
+        assert_eq!((doctor_frames(36), doctor_frames(35)), (1, 0));
     }
 
     /// `sent_signal` is the decoder's report of the frame `encode` sends (what the app keeps on a

@@ -2,6 +2,19 @@
 
 All notable changes to KAT are documented here.
 
+## [1.8.5] - 2026-11-05
+
+PSA as doctor-firmware reads it: KAT now decodes every PSA frame doctor-firmware decodes, including frames a fob ends without the end pulse ProtoPirate's decoder waits for.
+
+### Fixed
+
+- **PSA frames without the expected end pulse were not decoded.** A tester's PSA remotes work with doctor-firmware but not all of them with KAT. KAT took its PSA decoder from ProtoPirate, which finishes a frame only on an end pulse of about 1000 µs after its 80th bit (KAT: 801–1449 µs). doctor-firmware finishes the frame as its 80th bit arrives, whatever follows. A frame that ends without that pulse, or with one of another length, was listed by doctor-firmware and was an Unknown signal in KAT. Over the air, made-up frames sent from a Flipper Zero with the carrier switched off after the last bit, as a fob does, were 0 of 8 in KAT 1.8.4. doctor-firmware's own decoder (its C code, on the pulses KAT received) read 8 of 8. KAT now runs doctor-firmware's decoder beside ProtoPirate's and Flipper-ARF's, including its 125 µs path, which completes frames the same way ([docs/psa.md](docs/psa.md)):
+  - a frame ProtoPirate's end-pulse rule takes is reported as before;
+  - a frame only doctor-firmware's rule reads must decrypt, like the fast-timing paths' frames: an XOR frame at once, a TEA frame once `autobf` finds its key. That covers no end pulse or one of another length, a 70-pulse preamble, and the 125 µs path. On its own, the rule also reads the first 80 bits of longer frames (a VW Polo 5 remote in `IMPORTS`), which never decrypt.
+  - Compared with doctor-firmware's C on 184 variations of made-up frames (end pulses, preamble lengths, timings, duty-cycle skew), KAT now reads every frame doctor-firmware reads. 1.8.4 missed 19 of its 68.
+  - Checked over the air, Flipper Zero → HackRF, with made-up remotes. They used the tester's four FSK settings, OOK and stock FSK: 212 of 212 transmissions decoded, 1.8.4's own checks included, and frames without an end pulse 8 of 8 (1.8.4: 0 of 8). The four real PSA recordings in `IMPORTS`, replayed over the air, give every frame with its key; the Honda and VW Polo recordings give no PSA frame. The tester's ten key files in the receiver simulator: 2880 of 2880 presses, in every style. Sent at 250 µs without an end pulse, 1.8.4 decoded 0 of their 360 presses, 1.8.5 all 360.
+- With `autobf`, two all-ones frames that 1.8.4 listed with no key (in `Peugeot 307 open.sub` and `VW Polo 5 2017 unlock2.sub`) are no longer listed.
+
 ## [1.8.4] - 2026-11-05
 
 PSA between KAT and Flipper Zeros: KAT now receives the PSA frames a Flipper sends from saved files, and Flipper firmwares can read KAT's PSA transmissions, whatever a frame's last bit.

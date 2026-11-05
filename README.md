@@ -88,18 +88,18 @@ On Windows there is nothing to install here: the `.zip` carries the HackRF libra
 Then check, unpack and run (with your version and platform):
 
 ```bash
-sha256sum -c kat-v1.8.4-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
-tar xzf kat-v1.8.4-x86_64-linux.tar.gz
-./kat-v1.8.4-x86_64-linux/kat
+sha256sum -c kat-v1.8.5-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.8.5-x86_64-linux.tar.gz
+./kat-v1.8.5-x86_64-linux/kat
 ```
 
 On Windows, in PowerShell (Windows Terminal):
 
 ```powershell
-$want = (Get-Content kat-v1.8.4-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.8.4-x86_64-windows.zip).Hash -eq $want    # True
-Expand-Archive kat-v1.8.4-x86_64-windows.zip .
-.\kat-v1.8.4-x86_64-windows\kat.exe
+$want = (Get-Content kat-v1.8.5-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.8.5-x86_64-windows.zip).Hash -eq $want    # True
+Expand-Archive kat-v1.8.5-x86_64-windows.zip .
+.\kat-v1.8.5-x86_64-windows\kat.exe
 ```
 
 The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. The Windows build isn't signed, so SmartScreen may stop its first start ("More info", then "Run anyway"). Intel Macs and other platforms build from source.

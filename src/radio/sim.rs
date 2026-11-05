@@ -1779,6 +1779,28 @@ fn psa_flipper_press(te: u32, key1: u64, key2: u16, copies: usize) -> Vec<LevelD
     merge_halves(&halves)
 }
 
+/// A press whose frames end without an end pulse: 80 preamble pairs, sync, key1 + key2, and then
+/// nothing (the carrier stops, or holds the last level, before the next copy 5 ms later), the end
+/// doctor-firmware reads (frame complete at its 80th bit) and ProtoPirate's rule does not.
+fn psa_noend_press(te: u32, key1: u64, key2: u16, copies: usize) -> Vec<LevelDuration> {
+    let mut halves = Vec::new();
+    for c in 0..copies {
+        if c > 0 {
+            halves.push((false, 5000));
+        }
+        for _ in 0..80 {
+            halves.extend([(true, te), (false, te)]);
+        }
+        halves.extend([(false, te), (true, 2 * te), (false, te)]);
+        let bits = (0..64).rev().map(|i| (key1 >> i) & 1 == 1).chain((0..16).rev().map(|i| (key2 >> i) & 1 == 1));
+        for bit in bits {
+            halves.extend([(bit, te), (!bit, te)]);
+        }
+    }
+    halves.push((false, 5000));
+    merge_halves(&halves)
+}
+
 /// A press on Flipper-ARF's adaptive AM path (half-bits of 60–200 µs), framed as
 /// `psa::tests::am_frame`: wake-up pulse, 12 preamble cells, boundary cell, a leading 1, the 80 bits,
 /// a terminator; `copies` frames 5 ms apart.
@@ -1827,7 +1849,8 @@ fn psa_decodes(bursts: &[Burst], freq: u32) -> Vec<(String, u64, u16, &'static s
 }
 
 /// On demand: every PSA key file (`Key` + `Key_2`) in `$KAT_SIM_PSA_DIR`, sent through the receive
-/// pipeline as a fob would press it (standard 250 µs path; adaptive AM path at 160/125/100/70 µs),
+/// pipeline as a fob would press it (standard 250 µs path; frames with no end pulse at 250 and
+/// 125 µs, which doctor-firmware reads; adaptive AM path at 160/125/100/70 µs) and as a Flipper sends it,
 /// as OOK and as 2FSK at the two deviations the files' presets use, at fob offsets 0 / ±30 kHz and
 /// 20 / 8 dB SNR, two noise seeds each. A frame counts when the registry returns its exact key1 /
 /// key2. `cargo test --release sweep_psa_key_files -- --ignored --nocapture --test-threads 1`
@@ -1863,9 +1886,11 @@ fn sweep_psa_key_files() {
     }
 
     type Press = fn(u32, u64, u16, usize) -> Vec<LevelDuration>;
-    let timings: [(&str, Press, u32); 6] = [
+    let timings: [(&str, Press, u32); 8] = [
         ("250 us (standard)", psa_std_press, 250),
         ("Flipper TX 250 us", psa_flipper_press, 250),
+        ("250 us, no end", psa_noend_press, 250),
+        ("125 us, no end", psa_noend_press, 125),
         ("AM path 160 us", psa_am_press, 160),
         ("AM path 125 us", psa_am_press, 125),
         ("AM path 100 us", psa_am_press, 100),

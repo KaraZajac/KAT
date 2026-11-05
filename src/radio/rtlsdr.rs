@@ -228,8 +228,11 @@ fn check_rtlsdr_available() -> Result<(), String> {
 fn describe_open_error(e: &str) -> String {
     if e.starts_with("No device found") {
         "not found".to_string()
-    } else if e.contains("Access") {
-        "found but not accessible: check its USB permissions / udev rules".to_string()
+    } else if e.contains("Access") || e.contains("NotSupported") {
+        // NotSupported: Windows' libusb, for a dongle without a WinUSB driver.
+        format!("found but not accessible: {}", super::USB_ACCESS_HINT)
+    } else if (e.contains("busy") || e.contains("Busy")) && cfg!(windows) {
+        "found but busy: another program has it".to_string()
     } else if e.contains("busy") || e.contains("Busy") {
         "found but busy: the DVB-T driver (sudo rmmod dvb_usb_rtl28xxu) or another program has it".to_string()
     } else {
@@ -434,8 +437,9 @@ mod tests {
     #[test]
     fn open_errors_in_words() {
         assert_eq!(describe_open_error("No device found at index 0"), "not found");
-        assert!(describe_open_error("Error: Access").contains("udev rules"));
-        assert!(describe_open_error("Resource busy").contains("dvb_usb_rtl28xxu"));
+        assert!(describe_open_error("Error: Access").contains(super::super::USB_ACCESS_HINT));
+        assert!(describe_open_error("Error: NotSupported").contains(super::super::USB_ACCESS_HINT));
+        assert!(describe_open_error("Resource busy").contains(if cfg!(windows) { "another program" } else { "dvb_usb_rtl28xxu" }));
         assert_eq!(describe_open_error("Pipe error"), "cannot be opened (Pipe error)");
     }
 }

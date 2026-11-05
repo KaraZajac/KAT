@@ -4,6 +4,10 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Windows builds, for testing.** CI builds KAT on Windows x64 (MSYS2's UCRT64 environment, with its HackRF library and libusb), runs the test suite there, and uploads a test build: `kat.exe` with the DLLs it loads. Releases get a `kat-<version>-x86_64-windows.zip`. The radio-not-found hints name the Windows step (a WinUSB driver, installed with Zadig) instead of udev rules and the DVB-T driver, and new remotes take their random serial from the system's randomness on every platform.
+
 ### Changed
 
 - **KAT's website moved to [kat.karazajac.io](https://kat.karazajac.io)**, rebuilt in the style of the other karazajac.io project pages, with the protocol list linking every protocol's page. The pages keep their names (`radio.html`, `kia_v0.html` …), and the old `karazajac.github.io/KAT/` addresses forward to the same page there. The site is built from `docs/` (`docs/build.mjs`); GitHub Pages now only serves the forwarding pages.

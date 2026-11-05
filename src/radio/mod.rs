@@ -18,6 +18,13 @@ pub mod rx;
 mod sim;
 
 pub use demodulator::LevelDuration;
+
+/// What to do about a radio that is plugged in but may not be opened: Windows needs a WinUSB
+/// driver for it (Zadig installs one), Linux the udev rules its package provides.
+#[cfg(windows)]
+pub(crate) const USB_ACCESS_HINT: &str = "install its WinUSB driver with Zadig";
+#[cfg(not(windows))]
+pub(crate) const USB_ACCESS_HINT: &str = "check its USB permissions / udev rules";
 pub use hackrf::HackRfController;
 pub use rtlsdr::RtlSdrController;
 

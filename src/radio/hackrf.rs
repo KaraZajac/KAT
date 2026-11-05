@@ -281,7 +281,12 @@ fn check_hackrf_available() -> Result<(), String> {
 fn describe_open_error(e: &libhackrf::error::HackrfError) -> String {
     use libhackrf::error::HackrfError as E;
     match e {
-        E::NotFound => "not found (if one is plugged in: check its USB permissions / udev rules)".to_string(),
+        E::NotFound => format!("not found (if one is plugged in: {})", super::USB_ACCESS_HINT),
+        // On Windows a HackRF without a WinUSB driver fails here too.
+        E::Libusb | E::Busy if cfg!(windows) => format!(
+            "found but cannot be opened: {}, unless another program is using it",
+            super::USB_ACCESS_HINT
+        ),
         E::Libusb | E::Busy => "found but cannot be opened (another program, e.g. hackrf_transfer or GQRX, may be using it)".to_string(),
         other => format!("cannot be opened ({other:?})"),
     }

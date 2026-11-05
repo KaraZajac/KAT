@@ -1410,7 +1410,7 @@ mod tests {
                     .iter()
                     .map(|p| StoredLevelDuration { level: p.level, duration_us: p.duration_us })
                     .collect();
-                let rel = path.strip_prefix(root).unwrap_or(&path).display().to_string();
+                let rel = path.strip_prefix(root).unwrap_or(&path).to_string_lossy().replace('\\', "/");
                 out.push((rel, name, stored, timing));
             }
         }

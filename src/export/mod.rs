@@ -102,7 +102,7 @@ mod tests {
         }
         let found: Vec<String> = scan_import_files_recursive(&dir)
             .iter()
-            .map(|p| p.strip_prefix(&dir).unwrap().display().to_string())
+            .map(|p| p.strip_prefix(&dir).unwrap().to_string_lossy().replace('\\', "/"))
             .collect();
         assert_eq!(found, ["GARAGE/Gate.SUB", "a.sub", "b.Fob"]);
         assert!(has_extension(Path::new("x/Garage.SUB"), "sub"));

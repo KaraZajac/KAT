@@ -30,3 +30,53 @@ jobs:
 
       - name: Test
         run: cargo test --locked
+
+  # Windows x64 with MSYS2's UCRT64 environment, which packages Rust, libusb and the HackRF
+  # library. Each run also uploads a test build: kat.exe with the DLLs it loads.
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MSYS2 with Rust, libusb and the HackRF library
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          pacboy: >-
+            toolchain:p
+            rust:p
+            pkgconf:p
+            libusb:p
+            hackrf:p
+
+      - name: Build
+        run: cargo build --locked --all-targets
+
+      - name: Test
+        run: cargo test --locked
+
+      - name: Package a test build
+        run: |
+          cargo build --release --locked
+          name="kat-${GITHUB_SHA::7}-x86_64-windows"
+          mkdir -p "dist/$name"
+          cp target/release/kat.exe README.md LICENSE CHANGELOG.md "dist/$name/"
+          # The DLLs kat.exe loads from MSYS2: libhackrf, libusb and the compiler runtime.
+          ldd target/release/kat.exe | awk '$3 ~ /^\/ucrt64\// {print $3}' | sort -u | xargs -r cp -t "dist/$name/"
+          ls -l "dist/$name"
+
+      - name: Check the test build starts outside MSYS2
+        shell: pwsh
+        run: |
+          $exe = (Get-ChildItem dist/*/kat.exe | Select-Object -First 1).FullName
+          & $exe --version
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kat-x86_64-windows
+          path: dist/

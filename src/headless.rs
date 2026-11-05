@@ -533,7 +533,7 @@ mod tests {
         }
         let files: Vec<String> = collect_files(&dir)
             .iter()
-            .map(|p| p.strip_prefix(&dir).unwrap().display().to_string())
+            .map(|p| p.strip_prefix(&dir).unwrap().to_string_lossy().replace('\\', "/"))
             .collect();
         assert_eq!(files, ["a.sub", "b.cu8", "sub/d.cs8"]);
         std::fs::remove_dir_all(&dir).unwrap();

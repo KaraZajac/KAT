@@ -1337,6 +1337,12 @@ mod tests {
         assert_eq!(native_button_name("PSA2", 2), Some("Trunk"));
     }
 
+    /// `path` relative to IMPORTS with `/` separators, as testdata and the expectations write it
+    /// (Windows paths use `\`).
+    fn imports_rel(path: &Path) -> String {
+        path.strip_prefix("IMPORTS").unwrap_or(path).to_string_lossy().replace('\\', "/")
+    }
+
     /// Every `IMPORTS/<make>/*.sub` capture, sorted (None when IMPORTS is absent).
     fn imports_subs() -> Option<Vec<std::path::PathBuf>> {
         let root = Path::new("IMPORTS");
@@ -1397,7 +1403,7 @@ mod tests {
         let mut reg = ProtocolRegistry::new();
         let mut lines = Vec::new();
         for path in &subs {
-            let rel = path.strip_prefix("IMPORTS").unwrap_or(path).display().to_string();
+            let rel = imports_rel(path);
             match decode_import(&mut reg, path) {
                 Ok((freq, decodes)) if decodes.is_empty() => lines.push(format!("{rel} | {freq} | (none)")),
                 Ok((freq, decodes)) => {
@@ -1555,7 +1561,7 @@ mod tests {
         let mut failures = Vec::new();
         for path in &subs {
             let Ok(crate::export::flipper::SubContent::Key(key)) = crate::export::flipper::read_sub(path) else { continue };
-            let rel = path.strip_prefix("IMPORTS").unwrap_or(path).display().to_string();
+            let rel = imports_rel(path);
             found.push(rel.clone());
             let Some(&(_, want_name, want_fields)) = expected.iter().find(|e| e.0 == rel) else {
                 failures.push(format!("{rel}: key file without an expectation"));
@@ -1658,7 +1664,7 @@ mod tests {
         let mut unsupported: std::collections::BTreeSet<String> = Default::default();
         let mut seen = std::collections::HashSet::new();
         for path in &subs {
-            let rel = path.strip_prefix("IMPORTS").unwrap_or(path).display().to_string();
+            let rel = imports_rel(path);
             let Ok((freq, decodes)) = decode_import(&mut reg, path) else { continue };
             for (name, d) in decodes {
                 if !seen.insert((name.clone(), d.data, d.extra, d.data_count_bit)) {
@@ -1708,7 +1714,7 @@ mod tests {
         let mut reg = ProtocolRegistry::new();
         for path in &subs {
             let Ok(sub) = crate::export::flipper::import_sub(path) else { continue };
-            let rel = path.strip_prefix("IMPORTS").unwrap_or(path).display().to_string();
+            let rel = imports_rel(path);
             let Ok((_, decodes)) = decode_import(&mut reg, path) else { continue };
             let mut seen = std::collections::HashSet::new();
             for (name, d) in decodes {

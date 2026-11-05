@@ -23,7 +23,7 @@
 //! the C's), and per type the preset, frequency and the fields derived from `key` with the C's
 //! masks ([GenInfo]); RogueMaster's two O-Code types draw a fourth value (the installer code).
 //! `rand()` is newlib's (`RAND_MAX` 0x7FFFFFFF): [RandSource] returns 31-bit values; KAT's [Rng] is
-//! seeded from `/dev/urandom` (the time as a fallback).
+//! seeded from the operating system's randomness (on Windows too).
 //!
 //! **Key file** ([generate]): what `subghz_scene_set_type_generate_protocol_from_infos` writes —
 //! fixed codes (`GenData`): the decoder's serialize with `Bit`/`Key` (+ Princeton's `TE` and
@@ -72,20 +72,18 @@ impl Rng {
         Rng { state: seed }
     }
 
-    /// A generator seeded from `/dev/urandom`, or from the time and process id without it.
+    /// A generator seeded from the operating system's randomness, on every platform: std's
+    /// `RandomState` keys come from it (getrandom on Linux, the system RNG on macOS and Windows),
+    /// mixed with the time and the process id.
     pub fn from_entropy() -> Self {
-        use std::io::Read;
-        let mut b = [0u8; 8];
-        let seed = std::fs::File::open("/dev/urandom")
-            .and_then(|mut f| f.read_exact(&mut b))
-            .map(|()| u64::from_le_bytes(b))
-            .unwrap_or_else(|_| {
-                let t = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map_or(0, |d| d.as_nanos() as u64);
-                t ^ (u64::from(std::process::id()) << 32)
-            });
-        Rng::seeded(seed)
+        use std::hash::{BuildHasher, Hasher};
+        let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+        let t = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos() as u64);
+        h.write_u64(t);
+        h.write_u32(std::process::id());
+        Rng::seeded(h.finish())
     }
 
     fn next_u64(&mut self) -> u64 {

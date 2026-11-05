@@ -1,6 +1,7 @@
 //! Receive-side glue shared by the HackRF callback, the RTL-SDR thread and IQ files.
 //!
-//! - [`burst_captures`]: a pipeline [`Burst`] → one `Capture` per demodulated path (AM / FM).
+//! - [`burst_captures`]: a pipeline [`Burst`] → one `Capture` per demodulated path (AM / FM), with
+//!   its on-air time in the receive session ([`new_session`]).
 //! - [`LiveShared`]: what the app (through a controller) shares with a running receiver: home and
 //!   current frequency, RSSI, the IQ recorder, the hop plan and hop requests, gain-change notices.
 //! - [`LiveRx`]: per-receiver processing (pipeline + hopper): feeds buffers, emits captures, asks the
@@ -11,12 +12,12 @@
 //! detector leaves the LO bins out and searches the rest of the band); captures always carry the
 //! target frequency, bursts the carrier's measured offset from it.
 
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 
 use crate::app::RadioEvent;
-use crate::capture::{Capture, RfModulation, StoredLevelDuration};
+use crate::capture::{Capture, OnAir, RfModulation, StoredLevelDuration};
 
 use super::demodulator::LevelDuration;
 use super::dsp::IqFormat;
@@ -39,14 +40,24 @@ fn stored(pairs: &[LevelDuration]) -> Vec<StoredLevelDuration> {
     pairs.iter().map(|p| StoredLevelDuration { level: p.level, duration_us: p.duration_us }).collect()
 }
 
-/// One capture per path the burst carries (AM first), tagged with the burst's frequency.
-pub fn burst_captures(b: &Burst) -> Vec<Capture> {
+/// A new receive session (one RX run, one IQ file): captures' on-air times compare within one.
+pub fn new_session() -> u64 {
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    NEXT.fetch_add(1, Ordering::Relaxed)
+}
+
+/// One capture per path the burst carries (AM first), tagged with the burst's frequency and its
+/// on-air time in `session`, whose samples come at `sample_rate`.
+pub fn burst_captures(b: &Burst, session: u64, sample_rate: f64) -> Vec<Capture> {
+    let start_us = (b.start_sample as f64 * 1e6 / sample_rate) as u64;
     let mut out = Vec::new();
-    if let Some(p) = &b.am {
-        out.push(Capture::from_pairs_with_rf(0, b.frequency, stored(p), Some(RfModulation::AM)));
-    }
-    if let Some(p) = &b.fm {
-        out.push(Capture::from_pairs_with_rf(0, b.frequency, stored(p), Some(RfModulation::FM)));
+    for (pairs, rf) in [(&b.am, RfModulation::AM), (&b.fm, RfModulation::FM)] {
+        if let Some(p) = pairs {
+            let mut capture = Capture::from_pairs_with_rf(0, b.frequency, stored(p), Some(rf));
+            let length: u64 = p.iter().map(|x| u64::from(x.duration_us)).sum();
+            capture.on_air = Some(OnAir { session, start_us, end_us: start_us + length });
+            out.push(capture);
+        }
     }
     out
 }
@@ -169,6 +180,8 @@ pub struct LiveRx {
     format: IqFormat,
     sample_rate: u32,
     events: Sender<RadioEvent>,
+    /// This receive run ([new_session]).
+    session: u64,
 }
 
 impl LiveRx {
@@ -182,6 +195,7 @@ impl LiveRx {
             format,
             sample_rate,
             events,
+            session: new_session(),
         }
     }
 
@@ -197,7 +211,7 @@ impl LiveRx {
                 b.am.as_ref().map_or(0, |p| p.len()),
                 b.fm.as_ref().map_or(0, |p| p.len())
             );
-            for cap in burst_captures(&b) {
+            for cap in burst_captures(&b, self.session, f64::from(self.sample_rate)) {
                 let _ = self.events.send(RadioEvent::SignalCaptured(cap));
             }
         }

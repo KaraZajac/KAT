@@ -2,6 +2,15 @@
 
 All notable changes to KAT are documented here.
 
+## [1.8.2] - 2026-11-05
+
+Two settings asked for by the first Windows tester: list every press of a remote, and hide the signals no protocol decodes.
+
+### Added
+
+- **`ignore_duplicates`** (`config.ini`, `[general]`, default `true`). With `false`, every press of a remote is listed, as a Flipper's receive history lists it (Flipper-ARF, Momentum): a decoded signal is only merged with the same one (protocol, data, serial, button) that was on the air less than 500 ms before it — the same press still going, the AM and FM paths both reporting it, or both sides of a long transmission's 3-second cut. By default, as before, a signal already in the list is not added again. To tell a held button from a second press, received captures now carry when their pulses were on the air, counted in the receiver's samples. With duplicates kept, importing a file again adds its captures again. Checked over the air with a Flipper Zero and a HackRF: three presses of a Princeton remote give three captures (one by default), and a 6-second replay of a four-button remote, cut twice by the receiver, gives each of its twelve presses once, in order.
+- **`show_unknown_signals`** (default `true`): the setting that lists unknown signals, under a name that says what it does. `false` lists only the signals a protocol decodes, live, from IQ files and from imports. It was called `research_mode`, which is still read when the new key is absent ([README](README.md#configuration)).
+
 ## [1.8.1] - 2026-11-05
 
 KAT for Windows: releases now include a Windows x64 build. Also in this release: the website's move to [kat.karazajac.io](https://kat.karazajac.io), and no more "FAIL" in the CRC column for protocols that have no checksum.

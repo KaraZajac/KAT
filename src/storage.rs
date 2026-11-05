@@ -38,8 +38,12 @@ pub struct Config {
     pub import_directory: PathBuf,
     /// Maximum captures kept in the saved session (the newest; 0 = no limit)
     pub max_captures: usize,
-    /// If off, only successfully decoded signals are added to the list. If on, unknown signals are also shown.
-    pub research_mode: bool,
+    /// Unknown (undecoded) signals are listed too; off: only decoded ones (key `show_unknown_signals`,
+    /// formerly `research_mode`).
+    pub show_unknown_signals: bool,
+    /// A decoded signal already in the list is not added again. Off: every press is listed, and only
+    /// a repeat within 500 ms of the same signal (one press still on the air) is merged.
+    pub ignore_duplicates: bool,
 
     // [radio]
     /// Default frequency in Hz
@@ -77,7 +81,8 @@ impl Config {
             export_directory: config_dir.join("exports"),
             import_directory: config_dir.join("import"),
             max_captures: 100,
-            research_mode: true, // show unknown signals by default (researchers need to see them)
+            show_unknown_signals: true, // researchers need to see them
+            ignore_duplicates: true,
             default_frequency: 433_920_000,
             hop_frequencies: crate::radio::hopper::DEFAULT_HOP_FREQUENCIES.to_vec(),
             hop_dwell_ms: crate::radio::hopper::DEFAULT_DWELL_MS,
@@ -125,7 +130,10 @@ impl Config {
             .map(|s| expand_tilde(&s))
             .unwrap_or(defaults.import_directory);
         let max_captures = r.uint("general", "max_captures", defaults.max_captures as u64) as usize;
-        let research_mode = r.bool("general", "research_mode", defaults.research_mode);
+        // `research_mode` is the old name of `show_unknown_signals`, read when the new key is absent.
+        let legacy_unknown = r.bool("general", "research_mode", defaults.show_unknown_signals);
+        let show_unknown_signals = r.bool("general", "show_unknown_signals", legacy_unknown);
+        let ignore_duplicates = r.bool("general", "ignore_duplicates", defaults.ignore_duplicates);
 
         let default_frequency = r.frequency("radio", "default_frequency", defaults.default_frequency);
         let hop_frequencies = r.hop_list("radio", "hop_frequencies", defaults.hop_frequencies);
@@ -160,7 +168,8 @@ impl Config {
             export_directory,
             import_directory,
             max_captures,
-            research_mode,
+            show_unknown_signals,
+            ignore_duplicates,
             default_frequency,
             hop_frequencies,
             hop_dwell_ms,
@@ -207,9 +216,14 @@ import_directory = {import_dir}
 ; 0 = no limit). See [session] below.
 max_captures = {max_captures}
 
-; When off, only successfully decoded signals appear in the list.
-; When on, unknown (unidentified) signals are also shown (research mode).
-research_mode = {research_mode}
+; List unknown (undecoded) signals too, for timing analysis and research (true), or only the
+; signals a protocol decodes (false). Older versions called this research_mode.
+show_unknown_signals = {show_unknown_signals}
+
+; A decoded signal that is already in the list is not added again (true). With false, every
+; press is listed, as a Flipper's receive history does: only a repeat of the same signal within
+; 500 ms (one press still on the air) is merged.
+ignore_duplicates = {ignore_duplicates}
 
 [radio]
 ; Default receive frequency, in Hz or MHz ({freq_mhz:.2} MHz), 300-928 MHz.
@@ -253,7 +267,8 @@ session_autosave = {session_autosave}
             export_dir = export_str,
             import_dir = import_str,
             max_captures = self.max_captures,
-            research_mode = self.research_mode,
+            show_unknown_signals = self.show_unknown_signals,
+            ignore_duplicates = self.ignore_duplicates,
             freq_mhz = freq_mhz,
             frequency = self.default_frequency,
             hop_list = self
@@ -282,7 +297,18 @@ session_autosave = {session_autosave}
 
 /// The settings KAT reads, per section (`session_autosave` is also read under `[general]`).
 const KNOWN_KEYS: &[(&str, &[&str])] = &[
-    ("general", &["export_directory", "import_directory", "max_captures", "research_mode", "session_autosave"]),
+    (
+        "general",
+        &[
+            "export_directory",
+            "import_directory",
+            "max_captures",
+            "show_unknown_signals",
+            "research_mode",
+            "ignore_duplicates",
+            "session_autosave",
+        ],
+    ),
     (
         "radio",
         &[
@@ -687,6 +713,22 @@ mod config_warning_tests {
         assert_eq!(cfg.default_frequency, 433_920_000);
         assert!(!text.contains("no keystore directory"), "stale comment");
         assert!(text.contains("keeloq_mfcodes_user") && text.contains("nice_flor_s.bin"));
+    }
+
+    /// `show_unknown_signals` and `ignore_duplicates` default to on; `research_mode`, the old name
+    /// of `show_unknown_signals`, still works and gives way to the new key.
+    #[test]
+    fn unknown_signals_and_duplicates_switches() {
+        let (cfg, warnings) = parse("[general]\nmax_captures = 100\n");
+        assert_eq!((cfg.show_unknown_signals, cfg.ignore_duplicates), (true, true));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        let (cfg, warnings) = parse("[general]\nshow_unknown_signals = false\nignore_duplicates = no\n");
+        assert_eq!((cfg.show_unknown_signals, cfg.ignore_duplicates), (false, false));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        let (cfg, warnings) = parse("[general]\nresearch_mode = false\n");
+        assert!(!cfg.show_unknown_signals && warnings.is_empty(), "{warnings:?}");
+        let (cfg, _) = parse("[general]\nresearch_mode = false\nshow_unknown_signals = true\n");
+        assert!(cfg.show_unknown_signals, "the new key wins");
     }
 
     /// Switches take true/false, yes/no, on/off and 1/0 in any case; anything else keeps the

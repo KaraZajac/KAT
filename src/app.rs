@@ -1854,7 +1854,8 @@ impl App {
 
     /// Import pending .fob and .sub files into captures list.
     /// .sub files are decoded with registered protocols after load (no metadata in file).
-    /// When research_mode is off, only decoded captures are added (same as live capture).
+    /// With show_unknown_signals off, only decoded captures are added (as in live receive); with
+    /// ignore_duplicates off, a signal already in the list is added again.
     /// The status line says what each file gave (app/files.rs); the first new capture is selected.
     pub fn import_fob_files(&mut self) -> Result<()> {
         let paths = std::mem::take(&mut self.pending_fob_files);
@@ -1864,7 +1865,8 @@ impl App {
             protocols: &mut self.protocols,
             captures: &mut self.captures,
             next_id: &mut self.next_capture_id,
-            research_mode: self.storage.config.research_mode,
+            show_unknown: self.storage.config.show_unknown_signals,
+            ignore_duplicates: self.storage.config.ignore_duplicates,
             import_dir: &import_dir,
         };
         let results: Vec<(String, files::FileImport)> = paths.iter().map(|path| importer.import(path)).collect();
@@ -1995,6 +1997,7 @@ impl App {
             region: None,
             command: None,
             source_file: None,
+            on_air: None,
         };
         self.next_capture_id += 1;
         self.captures.push(capture);

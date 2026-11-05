@@ -53,7 +53,7 @@
   <div class="container hero-inner">
     <div class="hero-eyebrow">
       <span class="dot dot-pulse"></span>
-      v1.8.1 · Linux, macOS &amp; Windows · terminal
+      v1.8.2 · Linux, macOS &amp; Windows · terminal
     </div>
     <h1 class="hero-title">
       <span class="display-wordmark">KAT</span>
@@ -87,7 +87,7 @@
     </div>
 
     <div class="cta-row">
-      <a class="btn btn-primary" href="https://github.com/KaraZajac/KAT/releases/latest">↓ Download v1.8.1</a>
+      <a class="btn btn-primary" href="https://github.com/KaraZajac/KAT/releases/latest">↓ Download v1.8.2</a>
       <a class="btn" href="#protocols">Find your protocol</a>
       <a class="btn btn-ghost" href="https://github.com/KaraZajac/KAT">
         <svg height="16" viewBox="0 0 16 16" width="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -159,8 +159,9 @@
           <strong>Decode</strong>
           <p>Each burst goes to the decoders of its own modulation first, then
           the rest. A signal no protocol claims is tried as KeeLoq with every
-          manufacturer key in the keystore, and research mode, on by default,
-          lists unidentified signals too, ready for timing analysis.</p>
+          manufacturer key in the keystore. Unidentified signals are listed too,
+          ready for timing analysis (<code>show_unknown_signals</code>), and a remote
+          pressed again can be listed every time (<code>ignore_duplicates</code>).</p>
         </div>
       </div>
       <div class="annotation">
@@ -633,23 +634,23 @@ brew install hackrf             <span class="cmt"># macOS</span></pre>
           <h3>Download, check and unpack</h3>
           <p>Get the archive for your machine, and its <code>.sha256</code> file, from the <a href="https://github.com/KaraZajac/KAT/releases/latest">latest release</a>:</p>
           <ul>
-            <li><code>kat-v1.8.1-x86_64-linux.tar.gz</code>: 64-bit Intel or AMD Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and later).</li>
-            <li><code>kat-v1.8.1-aarch64-linux.tar.gz</code>: 64-bit ARM Linux, such as 64-bit Raspberry Pi OS bookworm.</li>
-            <li><code>kat-v1.8.1-aarch64-macos.tar.gz</code>: Apple Silicon Macs. It isn't notarized; <code>xattr -d com.apple.quarantine kat</code> clears the block.</li>
-            <li><code>kat-v1.8.1-x86_64-windows.zip</code>: 64-bit Windows 10 and 11. It isn't signed, so SmartScreen may stop its first start: “More info”, then “Run anyway”.</li>
+            <li><code>kat-v1.8.2-x86_64-linux.tar.gz</code>: 64-bit Intel or AMD Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and later).</li>
+            <li><code>kat-v1.8.2-aarch64-linux.tar.gz</code>: 64-bit ARM Linux, such as 64-bit Raspberry Pi OS bookworm.</li>
+            <li><code>kat-v1.8.2-aarch64-macos.tar.gz</code>: Apple Silicon Macs. It isn't notarized; <code>xattr -d com.apple.quarantine kat</code> clears the block.</li>
+            <li><code>kat-v1.8.2-x86_64-windows.zip</code>: 64-bit Windows 10 and 11. It isn't signed, so SmartScreen may stop its first start: “More info”, then “Run anyway”.</li>
             <li>Intel Macs and other platforms: build from source, below.</li>
           </ul>
           <div class="code-wrap">
-<pre class="code">sha256sum -c kat-v1.8.1-x86_64-linux.tar.gz.sha256    <span class="cmt"># macOS: shasum -a 256 -c …</span>
-tar xzf kat-v1.8.1-x86_64-linux.tar.gz
-./kat-v1.8.1-x86_64-linux/kat</pre>
+<pre class="code">sha256sum -c kat-v1.8.2-x86_64-linux.tar.gz.sha256    <span class="cmt"># macOS: shasum -a 256 -c …</span>
+tar xzf kat-v1.8.2-x86_64-linux.tar.gz
+./kat-v1.8.2-x86_64-linux/kat</pre>
           </div>
           <p>On Windows, in PowerShell (Windows Terminal):</p>
           <div class="code-wrap">
-<pre class="code">$want = (Get-Content kat-v1.8.1-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.8.1-x86_64-windows.zip).Hash -eq $want    <span class="cmt"># True</span>
-Expand-Archive kat-v1.8.1-x86_64-windows.zip .
-.\kat-v1.8.1-x86_64-windows\kat.exe</pre>
+<pre class="code">$want = (Get-Content kat-v1.8.2-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.8.2-x86_64-windows.zip).Hash -eq $want    <span class="cmt"># True</span>
+Expand-Archive kat-v1.8.2-x86_64-windows.zip .
+.\kat-v1.8.2-x86_64-windows\kat.exe</pre>
           </div>
         </div>
       </div>
@@ -774,7 +775,7 @@ cargo build --release</pre>
   <div class="container footer-bottom">
     <p>Use KAT only on systems and vehicles you own or have explicit, written permission to test. <a href="#legal">The full notice.</a></p>
     <p class="footer-meta">
-      v1.8.1 · <a href="https://github.com/KaraZajac/KAT">github.com/KaraZajac/KAT</a> · <a href="https://github.com/KaraZajac/KAT/blob/main/LICENSE">BSD-3-Clause</a>
+      v1.8.2 · <a href="https://github.com/KaraZajac/KAT">github.com/KaraZajac/KAT</a> · <a href="https://github.com/KaraZajac/KAT/blob/main/LICENSE">BSD-3-Clause</a>
     </p>
     <div class="onion-line">
       <span class="onion-label">Also on Tor</span>

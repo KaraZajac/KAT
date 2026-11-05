@@ -41,6 +41,6 @@ Captures decoded as **Keeloq (*name*)** are decode-only in this path. Retransmit
 1. Get `keeloq_mf_keys_with_names()` from the keystore.
 2. For each polarity, run `collect_kia_v3_v4_bits`; for each key, run Kia V3/V4 byte layout + `keeloq_decrypt`; on validation match, return `("Keeloq (name)", decoded)`.
 3. For each polarity, run `collect_star_line_bits`; for each key, try simple then normal learning with `keeloq_decrypt` / `keeloq_normal_learning`; on match, return `("Keeloq (name)", decoded)`.
-4. If no key validates, return `None` (capture stays unknown or is shown as unknown in research mode).
+4. If no key validates, return `None` (the capture stays unknown, and is listed as such unless `show_unknown_signals = false`).
 
 This fallback is a KAT feature (no reference counterpart). The KeeLoq primitives in keeloq_common match ProtoPirate `keeloq_common.h` and Flipper-ARF `keeloq_common.c`. The registered decoders it backs up — `keeloq` (400/800 µs KeeLoq, ARF `keeloq.c`) and `star_line` (ProtoPirate/ARF `star_line.c`) — run their own reference key searches over the whole keystore; this path only sees what they did not report.

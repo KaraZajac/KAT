@@ -87,6 +87,22 @@ pub struct Capture {
     /// Source file path when imported from .sub or .fob; None for live captures.
     #[serde(default)]
     pub source_file: Option<String>,
+    /// When the signal was on the air, for a capture received live or from an IQ file (not saved).
+    #[serde(skip)]
+    pub on_air: Option<OnAir>,
+}
+
+/// When a received capture's pulses were on the air: microseconds from the start of its receive
+/// session (one RX run or one IQ file), which tells a press still going from a new one. Counted in
+/// the receiver's samples, so it is exact between bursts of one session but is no clock time.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OnAir {
+    /// The receive session (`radio::rx::new_session`).
+    pub session: u64,
+    /// First pulse.
+    pub start_us: u64,
+    /// End of the last pulse.
+    pub end_us: u64,
 }
 
 /// Modulation type used by protocol (encoding: PWM vs Manchester)
@@ -170,6 +186,7 @@ impl Capture {
             region: None,
             command: None,
             source_file: None,
+            on_air: None,
         }
     }
 

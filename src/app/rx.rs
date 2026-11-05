@@ -2,12 +2,13 @@
 //! browser), IQ recording (`:record`), frequency hopping (`:hop`, the Hop setting), and the state the
 //! header and status bar show. A child module of `app` (`mod rx;`), so it can use App's fields.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use anyhow::Result;
 
 use super::{App, RadioDevice, RadioState};
-use crate::capture::Capture;
+use crate::capture::{Capture, OnAir};
 use crate::radio::dsp::IqFormat;
 use crate::radio::hopper::{format_mhz, parse_frequency_list, HopPlan, DECODE_PAUSE_DWELLS};
 use crate::radio::iq_file::{find_file, parse_frequency_arg, parse_rate_arg, IqFileJob, IqFileSpec};
@@ -28,15 +29,30 @@ pub struct RxExtras {
     hop_home: u32,
     /// Captures already looked at by the pause-after-decode logic.
     seen_captures: usize,
+    /// With duplicates kept (`ignore_duplicates = false`): when each decoded signal (protocol,
+    /// data, serial, button) was last on the air.
+    recent: HashMap<(String, u64, Option<u32>, Option<u8>), OnAir>,
 }
+
+/// Repeats of one signal closer than this on the air are one press, as in Flipper-ARF's receive
+/// history (`subghz_history_add_to_history`: 500 ms; Momentum uses 600 ms).
+const REPEAT_WINDOW_US: u64 = 500_000;
 
 /// A received burst (live or from an IQ file) as captures: one per distinct decode, as a RAW
 /// `.sub` import gives and as ProtoPirate's receive history lists every decoded frame (a burst can
 /// hold several: back-to-back presses with new counters, a fob alternating two frames). Each holds
 /// the pulses of its frame and that frame's repeats, the last one also the burst's tail, so a
-/// press that repeats one frame is one capture of the whole burst. Nothing decoded: the KeeLoq
-/// keystore fallback, else one unknown capture of the burst (research mode).
-fn received_captures(protocols: &mut crate::protocols::ProtocolRegistry, burst: Capture, research_mode: bool) -> Vec<Capture> {
+/// press that repeats one frame is one capture of the whole burst, on the air when its pulses were.
+/// A frame that comes back later in the burst is left out (`ignore_duplicates`), or with duplicates
+/// kept is a capture of its own, for [RxExtras::repeat_of_recent] to judge by its on-air time.
+/// Nothing decoded: the KeeLoq keystore fallback, else one unknown capture of the burst (config
+/// `show_unknown_signals`).
+fn received_captures(
+    protocols: &mut crate::protocols::ProtocolRegistry,
+    burst: Capture,
+    show_unknown: bool,
+    keep_duplicates: bool,
+) -> Vec<Capture> {
     use crate::capture::StoredLevelDuration;
     let pairs: Vec<crate::radio::LevelDuration> =
         burst.raw_pairs.iter().map(|p| crate::radio::LevelDuration::new(p.level, p.duration_us)).collect();
@@ -47,7 +63,7 @@ fn received_captures(protocols: &mut crate::protocols::ProtocolRegistry, burst: 
             capture.protocol = Some(name);
             super::files::set_decode(&mut capture, &decoded);
         }
-        return if research_mode || capture.protocol.is_some() { vec![capture] } else { Vec::new() };
+        return if show_unknown || capture.protocol.is_some() { vec![capture] } else { Vec::new() };
     }
     // Consecutive decodes of the same frame (its repeats) form one group of pulses; segments are
     // contiguous from the burst's start.
@@ -65,10 +81,17 @@ fn received_captures(protocols: &mut crate::protocols::ProtocolRegistry, burst: 
     if let Some(last) = groups.last_mut() {
         last.3 = pairs.len();
     }
+    // Time from the burst's start to each pair, for the groups' on-air times.
+    let offsets: Vec<u64> = std::iter::once(0)
+        .chain(burst.raw_pairs.iter().scan(0u64, |t, p| {
+            *t += u64::from(p.duration_us);
+            Some(*t)
+        }))
+        .collect();
     let mut seen = std::collections::HashSet::new();
     let mut out = Vec::new();
     for (name, decoded, start, end) in groups {
-        if !seen.insert(key(&name, &decoded)) {
+        if !seen.insert(key(&name, &decoded)) && !keep_duplicates {
             continue;
         }
         let mut capture = burst.clone();
@@ -76,6 +99,11 @@ fn received_captures(protocols: &mut crate::protocols::ProtocolRegistry, burst: 
             .iter()
             .map(|p| StoredLevelDuration { level: p.level, duration_us: p.duration_us })
             .collect();
+        capture.on_air = burst.on_air.map(|t| OnAir {
+            session: t.session,
+            start_us: t.start_us + offsets[start],
+            end_us: t.start_us + offsets[end],
+        });
         capture.protocol = Some(name);
         super::files::set_decode(&mut capture, &decoded);
         out.push(capture);
@@ -84,14 +112,22 @@ fn received_captures(protocols: &mut crate::protocols::ProtocolRegistry, burst: 
 }
 
 impl App {
-    /// [received_captures] of a burst into the list. The same IQ feeds the AM and FM paths, and
-    /// both can report one press: a capture equal to one in the list (protocol, data, serial,
-    /// button) is skipped.
+    /// [received_captures] of a burst into the list. A decoded capture equal to one in the list
+    /// (protocol, data, serial, button) is skipped (config `ignore_duplicates`, the default). With
+    /// duplicates kept, every press is listed, and only a repeat of a signal on the air less than
+    /// 500 ms before is skipped, as a Flipper's receive history does: the same press still going,
+    /// or reported twice (by the AM and FM paths, or on both sides of a long transmission's cut).
     pub(super) fn add_received_signal(&mut self, burst: Capture) {
-        let research_mode = self.storage.config.research_mode;
+        let show_unknown = self.storage.config.show_unknown_signals;
+        let keep_duplicates = !self.storage.config.ignore_duplicates;
         let (mut added, mut duplicates) = (0, 0);
-        for mut capture in received_captures(&mut self.protocols, burst, research_mode) {
-            if self.capture_duplicate_of_existing(&capture) {
+        for mut capture in received_captures(&mut self.protocols, burst, show_unknown, keep_duplicates) {
+            let skip = if keep_duplicates {
+                self.rx.repeat_of_recent(&capture)
+            } else {
+                self.capture_duplicate_of_existing(&capture)
+            };
+            if skip {
                 duplicates += 1;
                 continue;
             }
@@ -105,6 +141,8 @@ impl App {
         }
         match (added, duplicates) {
             (0, 0) => {}
+            // Duplicates kept: the same press, still on the air.
+            (0, _) if keep_duplicates => {}
             (0, _) => self.status_message = Some("Duplicate signal ignored".to_string()),
             (1, _) => self.status_message = Some("New signal captured".to_string()),
             (n, _) => self.status_message = Some(format!("{n} new signals captured")),
@@ -114,7 +152,36 @@ impl App {
 
 impl RxExtras {
     pub fn new() -> Self {
-        Self { iq_job: None, iq_captures_before: 0, hop_enabled: false, hop_plan: None, hop_home: 0, seen_captures: 0 }
+        Self {
+            iq_job: None,
+            iq_captures_before: 0,
+            hop_enabled: false,
+            hop_plan: None,
+            hop_home: 0,
+            seen_captures: 0,
+            recent: HashMap::new(),
+        }
+    }
+
+    /// Whether `capture` repeats a decoded signal that was on the air less than [REPEAT_WINDOW_US]
+    /// before it in the same receive session; that sighting then lasts until the repeat's end.
+    /// Otherwise `capture` becomes the signal's latest sighting. Unknown signals, and captures
+    /// without an on-air time, never repeat.
+    fn repeat_of_recent(&mut self, capture: &Capture) -> bool {
+        let (Some(name), Some(t)) = (&capture.protocol, capture.on_air) else { return false };
+        // Forget other sessions, and signals long gone.
+        self.recent.retain(|_, s| s.session == t.session && s.end_us + 10 * REPEAT_WINDOW_US >= t.start_us);
+        let key = (name.clone(), capture.data, capture.serial, capture.button);
+        match self.recent.get_mut(&key) {
+            Some(s) if t.start_us <= s.end_us + REPEAT_WINDOW_US => {
+                s.end_us = s.end_us.max(t.end_us);
+                true
+            }
+            _ => {
+                self.recent.insert(key, t);
+                false
+            }
+        }
     }
 }
 
@@ -539,22 +606,102 @@ mod tests {
         crate::protocols::keys::load_keystore_from_embedded();
         let mut reg = crate::protocols::ProtocolRegistry::new();
         // Kia V1: ten presses back to back (no gap over 1.7 ms) are ten captures, in order.
-        let got = received_captures(&mut reg, burst("IMPORTS/KIA/KIA V1 N1 RAW.sub"), true);
+        let got = received_captures(&mut reg, burst("IMPORTS/KIA/KIA V1 N1 RAW.sub"), true, false);
         assert_eq!(got.len(), 10);
         assert!(got.iter().all(|c| c.protocol.as_deref() == Some("Kia V1") && c.serial == Some(0xB444706E)));
         assert!(got.windows(2).all(|w| w[0].counter < w[1].counter), "{:?}", got.iter().map(|c| c.counter).collect::<Vec<_>>());
         // Ford V0: three frames, each repeated; one capture each, and their pulses are the burst's.
         let b = burst("IMPORTS/FORD/3_unlock_ford.sub");
         let all = b.raw_pairs.len();
-        let got = received_captures(&mut reg, b, true);
+        let got = received_captures(&mut reg, b, true, false);
         assert_eq!(got.iter().map(|c| c.counter).collect::<Vec<_>>(), [Some(0x872C), Some(0x872D), Some(0x872E)]);
         assert_eq!(got.iter().map(|c| c.raw_pairs.len()).sum::<usize>(), all);
         // Nothing decodes: the whole burst as one unknown capture in research mode, else nothing.
         let noise: Vec<StoredLevelDuration> =
             (0..60).map(|i| StoredLevelDuration { level: i % 2 == 0, duration_us: 70 + 13 * (i % 7) }).collect();
         let b = Capture::from_pairs_with_rf(0, 433_920_000, noise, Some(RfModulation::AM));
-        let got = received_captures(&mut reg, b.clone(), true);
+        let got = received_captures(&mut reg, b.clone(), true, false);
         assert_eq!((got.len(), got[0].protocol.as_deref(), got[0].raw_pairs.len()), (1, None, 60));
-        assert!(received_captures(&mut reg, b, false).is_empty());
+        assert!(received_captures(&mut reg, b, false, false).is_empty());
+    }
+
+    /// Each capture of a burst is on the air when its own pulses were: back to back from the
+    /// burst's start to its end.
+    #[test]
+    fn captures_carry_their_frames_on_air_time() {
+        crate::protocols::keys::load_keystore_from_embedded();
+        let mut reg = crate::protocols::ProtocolRegistry::new();
+        let mut b = burst("IMPORTS/FORD/3_unlock_ford.sub");
+        let total: u64 = b.raw_pairs.iter().map(|p| u64::from(p.duration_us)).sum();
+        b.on_air = Some(OnAir { session: 7, start_us: 1_000_000, end_us: 1_000_000 + total });
+        let got = received_captures(&mut reg, b, true, false);
+        let times: Vec<OnAir> = got.iter().map(|c| c.on_air.unwrap()).collect();
+        assert_eq!(times.len(), 3);
+        assert_eq!((times[0].session, times[0].start_us, times[2].end_us), (7, 1_000_000, 1_000_000 + total));
+        assert!(times.windows(2).all(|w| w[0].end_us == w[1].start_us && w[0].start_us < w[0].end_us), "{times:?}");
+    }
+
+    /// Two rounds of a four-button remote in one burst (`princeton_raw.sub` twice, 2.1 s apart):
+    /// four captures with duplicates ignored; with them kept, eight (each button came back 2.1 s
+    /// later: a new press), while the candidates of one press (Princeton's decodes differ in the
+    /// measured TE) are still one capture.
+    #[test]
+    fn kept_duplicates_list_each_press_of_a_long_burst() {
+        let path = "REFERENCES/Flipper-ARF/applications/debug/unit_tests/resources/unit_tests/subghz/princeton_raw.sub";
+        if !std::path::Path::new(path).exists() {
+            eprintln!("Skip: {path} not found (the references are not checked out)");
+            return;
+        }
+        let mut reg = crate::protocols::ProtocolRegistry::new();
+        let mut b = burst(path);
+        let once = b.raw_pairs.clone();
+        b.raw_pairs.extend(once);
+        let total: u64 = b.raw_pairs.iter().map(|p| u64::from(p.duration_us)).sum();
+        b.on_air = Some(OnAir { session: 3, start_us: 0, end_us: total });
+        let buttons = |got: &[Capture]| got.iter().map(|c| c.button.unwrap()).collect::<Vec<_>>();
+        // As add_received_signal filters them: against the list, or by the 500 ms rule.
+        let mut listed: Vec<Capture> = Vec::new();
+        for c in received_captures(&mut reg, b.clone(), true, false) {
+            if !super::super::files::is_duplicate(&listed, &c) {
+                listed.push(c);
+            }
+        }
+        assert_eq!(buttons(&listed), [0xF3, 0xFC, 0x30, 0xC0]);
+        let mut rx = RxExtras::new();
+        let kept: Vec<Capture> = received_captures(&mut reg, b, true, true).into_iter().filter(|c| !rx.repeat_of_recent(c)).collect();
+        assert_eq!(buttons(&kept), [0xF3, 0xFC, 0x30, 0xC0, 0xF3, 0xFC, 0x30, 0xC0]);
+    }
+
+    /// With duplicates kept, a signal repeats only within 500 ms of its last sighting in the same
+    /// session (a press still on the air, the AM and FM paths, the overlap at a cut); a later press,
+    /// another session, unknown signals and captures without an on-air time are new.
+    #[test]
+    fn repeats_within_half_a_second_are_one_press() {
+        let mut rx = RxExtras::new();
+        let at = |session: u64, start_ms: u64, end_ms: u64| {
+            let mut c = Capture::from_pairs_with_rf(0, 433_920_000, Vec::new(), Some(RfModulation::AM));
+            c.protocol = Some("Princeton".to_string());
+            c.data = 0x95D5D4;
+            c.serial = Some(0x95D5D);
+            c.button = Some(4);
+            c.on_air = Some(OnAir { session, start_us: start_ms * 1000, end_us: end_ms * 1000 });
+            c
+        };
+        assert!(!rx.repeat_of_recent(&at(1, 0, 100)), "first sighting");
+        assert!(rx.repeat_of_recent(&at(1, 0, 100)), "the same burst on the FM path");
+        assert!(rx.repeat_of_recent(&at(1, 450, 550)), "350 ms after it ended: still that press");
+        assert!(rx.repeat_of_recent(&at(1, 1000, 1100)), "450 ms after the extended sighting");
+        assert!(rx.repeat_of_recent(&at(1, 900, 1200)), "overlapping (a transmission cut at 3 s)");
+        assert!(!rx.repeat_of_recent(&at(1, 1800, 1900)), "600 ms later: a new press");
+        assert!(!rx.repeat_of_recent(&at(2, 1850, 1950)), "another session");
+        let mut other = at(2, 1900, 2000);
+        other.button = Some(8);
+        assert!(!rx.repeat_of_recent(&other), "another button");
+        let mut unknown = at(2, 1950, 2050);
+        unknown.protocol = None;
+        assert!(!rx.repeat_of_recent(&unknown) && !rx.repeat_of_recent(&unknown), "unknown signals never repeat");
+        let mut untimed = at(2, 0, 0);
+        untimed.on_air = None;
+        assert!(!rx.repeat_of_recent(&untimed) && !rx.repeat_of_recent(&untimed), "no on-air time");
     }
 }

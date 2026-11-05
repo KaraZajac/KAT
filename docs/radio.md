@@ -92,7 +92,8 @@ re-learned within 2 ms instead of one burst holding the whole band open until th
   500 ms back), so the frame across the cut is whole in the next part and decoded once. Frames
   back to back with no gap at all (a held Kia V1 fob sends a new code every ~380 ms, separated only
   by its preamble) go on from 500 ms back: the frame across the cut is whole, and one before it may
-  be decoded twice (the app drops the repeat as a duplicate). Its noise
+  be decoded twice (the app drops the repeat: as a duplicate, or with `ignore_duplicates = false` as
+  the same signal on the air twice within 500 ms). Its noise
   level comes from the detector's floor, as nothing around it is quiet. Only a cut part without
   data (a steady interferer, a gain step) has its bins re-baselined; before, a continuous FSK
   carrier was re-baselined too and was then noise to the detector until it stopped.
@@ -197,7 +198,8 @@ behind, buffers are dropped (logged) rather than stalling USB.
 Supported: `.cs8` (signed 8-bit I/Q, `hackrf_transfer`), `.cu8` (unsigned 8-bit, `rtl_sdr`,
 `rtl_433 -w`), `.cf32` / `.cfile` / `.complex` (float32, GNU Radio, URH). Files are processed on a
 background thread; progress shows in the status-bar title and the result in the status line. Captures
-go through the normal decode / de-duplication / research-mode path, with or without a radio.
+go through the same decoding, duplicate (`ignore_duplicates`) and unknown-signal (`show_unknown_signals`)
+rules as live ones, with or without a radio.
 
 ```sh
 # Record (fob at 433.92 MHz)

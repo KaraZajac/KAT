@@ -379,6 +379,7 @@ fn import_fob_v2(fob: &FobFile, next_id: u32) -> Result<Capture> {
         region: vehicle.region.clone().filter(|s| !s.is_empty()),
         command: vehicle.command.clone().filter(|s| !s.is_empty()),
         source_file: None,
+        on_air: None,
     })
 }
 
@@ -452,6 +453,7 @@ fn import_fob_v1(fob: &FobFileV1, next_id: u32) -> Result<Capture> {
         region: None,
         command: None,
         source_file: None,
+        on_air: None,
     })
 }
 

@@ -117,8 +117,10 @@ pub(super) struct Importer<'a> {
     pub protocols: &'a mut ProtocolRegistry,
     pub captures: &'a mut Vec<Capture>,
     pub next_id: &'a mut u32,
-    /// Unknown signals are listed too (config `research_mode`).
-    pub research_mode: bool,
+    /// Unknown signals are listed too (config `show_unknown_signals`).
+    pub show_unknown: bool,
+    /// A signal already in the list is not added again (config `ignore_duplicates`).
+    pub ignore_duplicates: bool,
     /// For each capture's `source_file` (the path relative to it).
     pub import_dir: &'a Path,
 }
@@ -142,9 +144,10 @@ impl Importer<'_> {
         (name, result)
     }
 
-    /// Add `capture` unless the list has it; it gets the next id and its source file.
+    /// Add `capture` unless the list has it (and duplicates are ignored); it gets the next id and
+    /// its source file. Repeats within one file are merged before this, either way.
     fn add(&mut self, mut capture: Capture, path: &Path) -> bool {
-        if is_duplicate(self.captures, &capture) {
+        if self.ignore_duplicates && is_duplicate(self.captures, &capture) {
             return false;
         }
         capture.id = *self.next_id;
@@ -191,9 +194,9 @@ impl Importer<'_> {
         // signal. (Decodes that were all in the list already add nothing: re-importing a file used
         // to add a spurious "Unknown" capture of all of it.)
         if !decoded_any {
-            if !self.research_mode {
+            if !self.show_unknown {
                 return FileImport::Nothing(
-                    "no protocol decodes it, and unknown signals are not listed (research_mode = false)".to_string(),
+                    "no protocol decodes it, and unknown signals are not listed (show_unknown_signals = false)".to_string(),
                 );
             }
             let mut capture = Capture::from_pairs_with_rf(*self.next_id, sub.frequency, sub.pairs, None);
@@ -236,9 +239,9 @@ impl Importer<'_> {
             }
         }
         super::key_files::fit_encoder_status(self.protocols, &mut capture);
-        if !self.research_mode && capture.protocol.is_none() {
+        if !self.show_unknown && capture.protocol.is_none() {
             return FileImport::Nothing(
-                "its signal is not decoded, and unknown signals are not listed (research_mode = false)".to_string(),
+                "its signal is not decoded, and unknown signals are not listed (show_unknown_signals = false)".to_string(),
             );
         }
         // A .fob is added as saved (also when the list has the same signal), as before.
@@ -337,7 +340,14 @@ mod tests {
     }
 
     fn importer<'a>(reg: &'a mut ProtocolRegistry, caps: &'a mut Vec<Capture>, next: &'a mut u32, research: bool) -> Importer<'a> {
-        Importer { protocols: reg, captures: caps, next_id: next, research_mode: research, import_dir: Path::new("IMPORTS") }
+        Importer {
+            protocols: reg,
+            captures: caps,
+            next_id: next,
+            show_unknown: research,
+            ignore_duplicates: true,
+            import_dir: Path::new("IMPORTS"),
+        }
     }
 
     /// A RAW `.sub` adds one capture per distinct decode; importing it again adds nothing (it used
@@ -366,6 +376,25 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// With duplicates kept (`ignore_duplicates = false`), importing a file again adds its
+    /// captures again; repeats within the file are still one capture each.
+    #[test]
+    fn kept_duplicates_import_again() {
+        crate::protocols::keys::load_keystore_from_embedded();
+        let src = Path::new("IMPORTS/KIA/Kia3_5cl_5op_5tr.sub");
+        if !src.exists() {
+            eprintln!("Skip: {src:?} not found (run from crate root)");
+            return;
+        }
+        let (mut reg, mut caps, mut next) = (ProtocolRegistry::new(), Vec::new(), 1u32);
+        let mut imp = importer(&mut reg, &mut caps, &mut next, true);
+        imp.ignore_duplicates = false;
+        assert_eq!(imp.import(src).1, FileImport::Added(15));
+        assert_eq!(imp.import(src).1, FileImport::Added(15));
+        assert_eq!(caps.len(), 30);
+        assert_eq!(caps[..15].iter().map(|c| c.data).collect::<Vec<_>>(), caps[15..].iter().map(|c| c.data).collect::<Vec<_>>());
+    }
+
     /// Unreadable and unknown files, and undecodable signals without research mode, say why.
     #[test]
     fn failed_imports_say_why() {
@@ -384,7 +413,7 @@ mod tests {
         assert!(matches!(imp.import(&empty_raw).1, FileImport::Failed(why) if why.contains("No RAW_Data")));
         assert!(matches!(imp.import(&dir.join("gone.sub")).1, FileImport::Failed(why) if why.starts_with("cannot read it (")));
         assert_eq!(imp.import(&text).1, FileImport::Failed("not a .fob or .sub file".to_string()));
-        assert!(matches!(imp.import(&noise).1, FileImport::Nothing(why) if why.contains("research_mode = false")));
+        assert!(matches!(imp.import(&noise).1, FileImport::Nothing(why) if why.contains("show_unknown_signals = false")));
         // In research mode the undecoded file is one unknown capture.
         let mut imp = importer(&mut reg, &mut caps, &mut next, true);
         assert_eq!(imp.import(&noise).1, FileImport::Added(1));

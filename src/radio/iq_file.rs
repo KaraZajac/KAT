@@ -286,6 +286,7 @@ fn run(
     let mut done = 0u64;
     let (mut n_bursts, mut n_caps) = (0u32, 0u32);
     let fs = spec.sample_rate as f64;
+    let session = super::rx::new_session();
     let mut emit = |bs: Vec<super::pipeline::Burst>| -> bool {
         for b in bs {
             n_bursts += 1;
@@ -297,7 +298,7 @@ fn run(
                 b.offset_hz / 1e3,
                 b.deviation_hz
             );
-            for cap in burst_captures(&b) {
+            for cap in burst_captures(&b, session, fs) {
                 n_caps += 1;
                 if events.send(RadioEvent::SignalCaptured(cap)).is_err() {
                     return false;

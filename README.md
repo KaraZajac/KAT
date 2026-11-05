@@ -31,7 +31,8 @@ Its 107 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPira
 - **107 protocols** — 53 car key fob and alarm protocols and 54 garage door, gate, barrier and shutter remote protocols ([the full list](#supported-protocols)).
 - **KeeLoq keystore fallback** — a signal no protocol claims is tried as KeeLoq with every manufacturer key in the embedded keystore and in your own `keeloq_mfcodes_user` ([docs/keeloq.md](docs/keeloq.md)).
 - **Signal detail** — encoding, RF modulation, encryption, serial, button, counter, key data, CRC, frequency and the raw level/duration pairs.
-- **Research mode** (on by default) — unidentified signals are listed too, ready for timing analysis.
+- **Unknown signals** (listed by default) — unidentified signals are listed too, ready for timing analysis; `show_unknown_signals = false` lists only decoded ones.
+- **Duplicates** — a decoded signal already in the list is not added again; with `ignore_duplicates = false` every press is listed, as a Flipper's receive history lists it ([Configuration](#configuration)).
 
 **Transmit** (HackRF)
 
@@ -86,18 +87,18 @@ On Windows there is nothing to install here: the `.zip` carries the HackRF libra
 Then check, unpack and run (with your version and platform):
 
 ```bash
-sha256sum -c kat-v1.8.1-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
-tar xzf kat-v1.8.1-x86_64-linux.tar.gz
-./kat-v1.8.1-x86_64-linux/kat
+sha256sum -c kat-v1.8.2-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.8.2-x86_64-linux.tar.gz
+./kat-v1.8.2-x86_64-linux/kat
 ```
 
 On Windows, in PowerShell (Windows Terminal):
 
 ```powershell
-$want = (Get-Content kat-v1.8.1-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.8.1-x86_64-windows.zip).Hash -eq $want    # True
-Expand-Archive kat-v1.8.1-x86_64-windows.zip .
-.\kat-v1.8.1-x86_64-windows\kat.exe
+$want = (Get-Content kat-v1.8.2-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.8.2-x86_64-windows.zip).Hash -eq $want    # True
+Expand-Archive kat-v1.8.2-x86_64-windows.zip .
+.\kat-v1.8.2-x86_64-windows\kat.exe
 ```
 
 The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. The Windows build isn't signed, so SmartScreen may stop its first start ("More info", then "Run anyway"). Intel Macs and other platforms build from source.
@@ -307,7 +308,8 @@ Example `config.ini` (all keys optional; defaults are used if missing):
 export_directory = ~/.config/KAT/exports
 import_directory = ~/.config/KAT/import
 max_captures = 100
-research_mode = true
+show_unknown_signals = true
+ignore_duplicates = true
 
 [radio]
 default_frequency = 433920000
@@ -332,7 +334,8 @@ Switches take `true`/`false`, `yes`/`no`, `on`/`off` or `1`/`0`. A value KAT can
 - **import_directory** — directory scanned at startup for .fob and .sub files to import (default `~/.config/KAT/import`). Exports are still saved to **export_directory**.
 - **default_frequency** — MHz (`433.92`) or Hz (`433920000`), 300–928 MHz.
 - **default_lna_gain / default_vga_gain** — fitted to what the radio takes: LNA 0–40 dB in 8 dB steps, VGA 0–62 dB in 2 dB steps (rounded down).
-- **research_mode** — when `true` (default), unknown (unidentified) signals are shown in addition to decoded ones; when `false`, only successfully decoded signals appear.
+- **show_unknown_signals** — when `true` (default), unknown (unidentified) signals are listed with the decoded ones; when `false`, only signals a protocol decodes appear, live, from IQ files and from imports. Older versions called it `research_mode`, which is still read when `show_unknown_signals` is absent.
+- **ignore_duplicates** — when `true` (default), a decoded signal already in the list (same protocol, data, serial and button) is not added again. When `false`, every press is listed, as a Flipper's receive history does: a signal is only merged with the same one on the air less than 500 ms before it (one press still going, the AM and FM paths both reporting it, or both sides of a long transmission's cut). Importing a file again then adds its captures again.
 - **include_raw_pairs** — when `true`, .fob exports include raw level/duration pairs for replay.
 - **hop_frequencies / hop_dwell_ms** — the `:hop` list (MHz) and the time spent on a quiet frequency.
 - **tx_vga_gain / tx_amp** — transmit power (0–47 dB TX VGA, RF amp); the defaults are the HackRF's maximum, as in KAT ≤ 1.4.

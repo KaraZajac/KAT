@@ -2,6 +2,16 @@
 
 All notable changes to KAT are documented here.
 
+## [1.8.6] - 2026-11-05
+
+Volunteers' recordings: KAT now reads every code doctor-firmware and Flipper-ARF read from a Mercedes, an Alfa Romeo Giulia and a Lada.
+
+### Fixed
+
+- **Mercedes V1 frames that a fob ends without a long gap were dropped.** A volunteer's 2015 Mercedes (FSB4 system), recorded with a Flipper Zero: doctor-firmware and Flipper-ARF read 9 codes from its lock and unlock files, KAT 1.8.5 only 3. KAT reports a Mercedes V1 frame only if no further chip follows its 122nd bit, so that BMW's longer frames are not cut short, and it waited for a gap of 280 µs or more. This fob ends most frames with a 190–330 µs LOW and then noise. Any pulse that is not a chip now ends the frame: all 9 codes, with the references' frame counts ([docs/mercedes_v1.md](docs/mercedes_v1.md)).
+- **Fiat V2 frames could be listed as Ford V3.** A volunteer's Alfa Romeo Giulia sends Fiat V2 frames. Read inverted, the first 13 bytes of its unlock frames are also a valid Ford V3 US frame, and Ford V3, earlier in KAT's registry, took 28 of the 30 unlock frames (3 of the 5 codes lost). A genuine Ford V3 US burst is a single 104-bit frame (`IMPORTS/FORD/22_ford_escape…`), so Ford V3 now rejects a frame that further bits follow. The Giulia decodes as Fiat V2 only: 5 lock and 5 unlock codes ([docs/ford_v3.md](docs/ford_v3.md)). Over the air, Flipper Zero → HackRF, with a made-up remote of the same layout: 1.8.5 listed every unlock transmission as Ford V3, now Fiat V2.
+- **Datsun Lada frames behind a preamble cut short by noise were dropped.** To keep Fiat Panda frames out, KAT required 64 short pulses before a Datsun Lada frame. In a real Lada recording (posted by a doctor-firmware user), noise had cut the preamble of two first frames to 25 and 59, and doctor-firmware reads them. A frame with a shorter preamble is now accepted when it passes Datsun Lada's cipher check, which the Fiat frame does not: 19 of 19 frames, as in doctor-firmware (1.8.5: 17). Over the air, with a made-up remote, a press whose two frames both had cut preambles was listed as Fiat V1 by 1.8.5 and is now Datsun Lada ([docs/datsun_lada.md](docs/datsun_lada.md)).
+
 ## [1.8.5] - 2026-11-05
 
 PSA as doctor-firmware reads it: KAT now decodes every PSA frame doctor-firmware decodes, including frames a fob ends without the end pulse ProtoPirate's decoder waits for.

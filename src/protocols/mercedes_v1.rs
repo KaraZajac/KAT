@@ -45,11 +45,14 @@
 //! 31 hop bits are constant.
 //!
 //! **Exact length (KAT).** A validated frame is held until the next pulse and emitted only if that
-//! pulse is a gap (≥280µs); if more chips follow, the frame is longer than 122 bits and is dropped.
-//! BMW (`bmw.rs`) uses the same template at 62µs chips — inside this decoder's 25–79 / 80–140µs
-//! windows — and its 128-bit frame would otherwise be cut at bit 122 and accepted by this weak
-//! field check (≈1 in 2 BMW frames), before BMW itself completes. Genuine Mercedes V1 bursts end on
-//! a HIGH chip followed by the LOW repeat gap, so they are unaffected.
+//! pulse is not a chip (outside 25–140µs); if a chip follows, the frame is longer than 122 bits and
+//! is dropped. BMW (`bmw.rs`) uses the same template at 62µs chips — inside this decoder's 25–79 /
+//! 80–140µs windows — and its 128-bit frame would otherwise be cut at bit 122 and accepted by this
+//! weak field check (≈1 in 2 BMW frames), before BMW itself completes. Genuine Mercedes V1 bursts
+//! end on a HIGH chip followed by a LOW that is no chip: the encoder's repeat gap, or, on a real
+//! 2015 fob (a volunteer's FSK capture, not in IMPORTS), a 190–330µs LOW and then noise. KAT 1.8.5
+//! and earlier waited for a ≥280µs gap and so read only 3 of that fob's 9 codes, where
+//! doctor-firmware and Flipper-ARF read all 9.
 //!
 //! # Encoder (matches `mercedes_v1_get_upload` / `_emit_burst`, repeat = `MERCEDES_V1_REPEAT_DEFAULT`)
 //! The hop code is opaque (no key), so TX replays the stored 122 bits. KAT Lock (0x01) / Unlock
@@ -464,8 +467,9 @@ impl ProtocolDecoder for MercedesV1Decoder {
 
     fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
         if self.step == DecoderStep::AwaitGap {
-            if duration >= GAP_US {
-                // Exactly 122 bits then the end-of-frame gap: emit.
+            if duration >= GAP_US || Self::chips(duration) == 0 {
+                // Exactly 122 bits, then a pulse that is not a chip (the repeat gap, or the
+                // 190–280µs LOW real fobs end on): emit.
                 let decoded = self.pending.take();
                 self.reset_soft();
                 return decoded;
@@ -893,6 +897,32 @@ mod tests {
         let results = reg.process_signal_stream(&wire, 433_920_000);
         let names: Vec<&str> = results.iter().map(|(n, _, _)| n.as_str()).collect();
         assert_eq!(names, vec!["Mercedes V1"; REPEAT_DEFAULT]);
+    }
+
+    /// BMW (62µs chips, same decoder template) lies inside this decoder's chip windows. Without the
+    /// A real fob (a volunteer's 2015 Mercedes, FSK; not in IMPORTS) ends most frames on a
+    /// 190–330µs LOW followed by noise, not on a long gap: the reference firmwares read all 9 of
+    /// its codes, KAT 1.8.5 (which waited for ≥280µs) only 3. Any pulse that is not a chip ends a
+    /// 122-bit frame; a chip still means more bits, i.e. a longer frame that is not Mercedes V1.
+    #[test]
+    fn frame_ends_on_any_pulse_that_is_not_a_chip() {
+        let (hi, lo) = make_frame(MB_LOCK, true, 0, SERIAL, COUNTER, HOP);
+        let wire = build_wire(hi, lo, 40);
+        let (body, end) = wire.split_at(wire.len() - 1);
+        assert!(body.last().unwrap().level && !end[0].level, "the frame ends on a HIGH chip");
+        for (low, decodes) in [(194, 1), (234, 1), (279, 1), (141, 1), (20, 1), (120, 0), (60, 0)] {
+            let mut pairs = body.to_vec();
+            pairs.extend([
+                LevelDuration::new(false, low),
+                LevelDuration::new(true, 230),
+                LevelDuration::new(false, 5_000),
+            ]);
+            let decoded = decode_all(&pairs);
+            assert_eq!(decoded.len(), decodes, "LOW of {low}µs after the frame");
+            if let Some(d) = decoded.first() {
+                assert_eq!((d.data, d.counter), (hi, Some(COUNTER as u16)));
+            }
+        }
     }
 
     /// BMW (62µs chips, same decoder template) lies inside this decoder's chip windows. Without the

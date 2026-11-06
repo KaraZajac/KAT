@@ -72,6 +72,11 @@ debounced and are unaffected.
    frame.
 5. **Resync:** a rejected frame whose trailing run is 32 bits or longer is treated as more preamble, so the
    genuine frame that follows still decodes (as in the C).
+6. **End (KAT):** the C reports the frame at its 122nd bit. KAT holds it for one more pulse and reports it
+   only if that pulse is not a chip (outside 25–140 µs). A chip there means a longer frame: BMW's 128-bit
+   frames use the same template at 62 µs chips and would otherwise be cut at bit 122 and accepted by the
+   weak field check. KAT 1.8.5 and earlier required a gap of 280 µs or more there, which a real fob does not
+   always leave (see Validation).
 
 ## Encoder
 
@@ -82,8 +87,12 @@ none). Each upload is 561 preamble "1" bits + 122 air bits (`!stored`) + a 50 ms
 
 ## Validation
 
-Verified with synthetic frames and encode→decode round trips; no decodable capture is available. The two
-`IMPORTS/mercedes` files do not decode:
+**A volunteer's 2015 Mercedes (FSB4 system)**, recorded by a Flipper Zero at 433.95 MHz with a custom 2-FSK
+setting (±19 kHz, 20 kBd), is not in `IMPORTS`. doctor-firmware and Flipper-ARF read 9 codes from its two
+files (4 lock, 5 unlock; 7 and 6 frames). KAT 1.8.5 read 3: the fob ends most frames with a 190–330 µs LOW
+followed by noise, not a gap of 280 µs or more. KAT now reads all 9, with the same frame counts.
+
+The two `IMPORTS/mercedes` files do not decode:
 
 - **`24_Merc_gle350_lulu.sub` (434.075 MHz):** noise only (159 pulses; longest run of chip-valid pulses: 3).
 - **`24_merc_gle350_luluttlulu.sub` (314.35 MHz):** recorded with the AM650 (OOK) preset. It contains 23

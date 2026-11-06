@@ -34,6 +34,17 @@
 //! (u2 l2 t2 p2); no other IMPORTS capture changes. The structural gates (burst-anchored ≥100-bit
 //! Manchester cell frame at 240/480µs, 0xFF header, sane serial) are unchanged.
 //!
+//! **KAT deviation (US frame ends the burst), from real-capture evidence.** The C reads the first
+//! 104 bits of any burst of ≥200 cells and ignores the rest. A volunteer's Alfa Romeo Giulia
+//! capture (433.92 MHz, not in IMPORTS) showed what that costs in KAT's first-match registry: the
+//! car's 112-bit Fiat V2 frames, read in the opposite polarity, start FF FE (the inverted 00 01
+//! markers), and whenever the Fiat type byte is 0xFE its inverse 0x01 is a valid US button. Fiat
+//! V2 and this path finish on the same gap after the frame, Ford V3 comes first in the registry,
+//! and 28 of the 30 unlock frames came out as Ford V3 (3 of its 5 codes lost). Genuine US bursts
+//! (`IMPORTS/FORD/22_ford_escape*`) are exactly one frame: 208 or 209 cells, at most one unpaired
+//! cell after bit 104. KAT therefore rejects a US frame when a whole bit follows it in the burst;
+//! the Giulia bursts carry 16 more cells (Fiat V2's last byte) and decode as Fiat V2.
+//!
 //! **Fields** (`ford_v3_parse_fields`): serial = raw[1..=4] (both variants).
 //! - EU: counter = `~raw[7] << 8 | ~raw[8]`, button = raw[6] bit 0 ? Unlock : Lock.
 //! - US: flag = raw[5], counter = `raw[7] << 8 | raw[8]`, button = raw[6].
@@ -258,7 +269,13 @@ impl FordV3Decoder {
                 bit_count += 1;
                 i += 2;
             }
-            if !ok || bit_count < CELL_MIN_BITS || !Self::cell_frame_valid(&frame) {
+            // KAT: the frame must end the burst, i.e. no whole bit after it (see the module doc,
+            // "frame ends the burst"); `i` is the first cell not read.
+            if !ok
+                || bit_count < CELL_MIN_BITS
+                || cells.len() - i > 1
+                || !Self::cell_frame_valid(&frame)
+            {
                 continue;
             }
             return Some(frame);
@@ -648,6 +665,46 @@ mod tests {
         // Too short a burst (< 200 cells) is never decoded.
         let short: Vec<LevelDuration> = pulses[..90].iter().copied().chain([LevelDuration::new(false, 10_000)]).collect();
         assert!(decode(&short).is_empty());
+    }
+
+    /// A Fiat V2 burst (112 bits, doctor-firmware's waveform: bit b as 210µs half-bits (!b, b))
+    /// whose first 13 bytes, read in this path's polarity, are a valid US frame: FF FE header and
+    /// the Fiat type byte 0xFE inverted to button 0x01. Made-up UID and hop; the Alfa Romeo Giulia
+    /// capture that showed it is a volunteer's, not in IMPORTS. The US path must leave the burst to
+    /// Fiat V2, yet still read those 13 bytes when they are the whole burst.
+    #[test]
+    fn us_path_leaves_longer_fiat_v2_bursts_alone() {
+        let fiat: [u8; 14] =
+            [0x00, 0x01, 0x5E, 0xED, 0x01, 0x23, 0xFE, 0xFB, 0xF9, 0x12, 0x34, 0x56, 0x78, 0x9A];
+        let burst = |bytes: &[u8]| {
+            let mut out = vec![LevelDuration::new(false, 20_000)];
+            for i in 0..bytes.len() * 8 {
+                let b = (bytes[i / 8] >> (7 - i % 8)) & 1 != 0;
+                for c in [!b, b] {
+                    match out.last_mut() {
+                        Some(last) if last.level == c => *last = LevelDuration::new(c, last.duration_us + 210),
+                        _ => out.push(LevelDuration::new(c, 210)),
+                    }
+                }
+            }
+            match out.last_mut() {
+                Some(last) if !last.level => *last = LevelDuration::new(false, last.duration_us + 20_000),
+                _ => out.push(LevelDuration::new(false, 20_000)),
+            }
+            out
+        };
+        let whole = burst(&fiat);
+        assert!(decode(&whole).is_empty(), "16 cells follow the 104th bit");
+        let names: Vec<String> = ProtocolRegistry::new()
+            .process_signal_stream(&whole, 433_920_000)
+            .into_iter()
+            .map(|(n, _, _)| n)
+            .collect();
+        assert_eq!(names, ["Fiat V2"]);
+
+        let first13 = decode(&burst(&fiat[..13]));
+        assert_eq!(first13.len(), 1, "the same bits as a burst of their own");
+        assert_eq!((first13[0].serial, first13[0].button), (Some(0xFEA1_12FE), Some(BTN_LOCK)));
     }
 
     #[test]

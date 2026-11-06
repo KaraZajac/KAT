@@ -64,6 +64,8 @@ US.
 3. Every pair must differ and ≥100 bits are required. The frame must pass the gate:
    `raw[0] == 0xFF`, the serial is not 0 or 0xFFFFFFFF, and `raw[6]` is 0x01/0x02/0x07/0x06 (the C also
    requires `raw[5]` bit 7 and only 0x01/0x02 — see Validation for why KAT relaxes this).
+4. **KAT:** the frame must end the burst. No whole bit may follow bit 104 (one unpaired cell may); the C
+   reads the first 104 bits of a longer burst and ignores the rest. See Validation.
 
 **EU path:**
 
@@ -97,8 +99,19 @@ Not supported (reference encoder is NULL). Decode-only.
   Escape frame carries `raw[5] = 0x08` and Trunk/Panic use `0x07`/`0x06`, so the C rejects the whole capture.
   KAT drops the flag check and accepts the two extra buttons (the structural gates are unchanged); no other
   capture changes. The `21_ford_escape` and `25_ford_bronco` captures hold no 240/480 µs OOK frames.
+- **US frames end the burst (KAT).** A volunteer's Alfa Romeo Giulia (433.92 MHz, OOK; not in `IMPORTS`)
+  sends 112-bit Fiat V2 frames. Read in the opposite polarity, their first 13 bytes start `FF FE` (the
+  inverted `00 01` markers), and when the Fiat type byte is `0xFE` its inverse `0x01` is a US button. Fiat V2
+  and the US path finish on the same gap after the frame, Ford V3 comes first in KAT's registry, and in
+  KAT 1.8.5 Ford V3 took 28 of the car's 30 unlock frames (3 of its 5 codes lost). The Flipper firmwares run
+  every decoder side by side: ProtoPirate and Flipper-ARF list one such Ford V3 frame beside the five Fiat V2
+  codes (doctor-firmware's Ford V3 has no US path). Every Escape burst is a single frame of 208 or 209
+  cells, at most one unpaired cell after bit 104, while the Giulia's carry 16 cells more (Fiat V2's last
+  byte). KAT now rejects a US frame that a whole bit follows, and the Giulia decodes as Fiat V2 only. Over the air (Flipper Zero → HackRF, a made-up remote
+  with the same layout), 1.8.5 listed all three unlock transmissions as Ford V3 and now lists Fiat V2.
 - **C oracle:** on the LDV captures every frame (fields and all 13 bytes) equals the compiled ProtoPirate and
   Flipper-ARF decoders; on 2000 randomized EU/US bursts the only differences are frames admitted by the US
   relaxation above. No reference has a Ford V3 encoder (all three register `.encoder` with NULL alloc).
 - **Unit tests:** cover the Flipper transition table, synthetic EU and US frames with variant-specific fields,
-  the preamble requirement, the US gate (including the Escape's 0x08 flag), dedup, and the LDV fields above.
+  the preamble requirement, the US gate (including the Escape's 0x08 flag), a Fiat V2 burst whose first 13
+  bytes pass that gate, dedup, and the LDV fields above.

@@ -92,11 +92,14 @@ Frame content from Flipper-ARF, waveform from doctor-firmware:
 Decodes REAL IMPORTS captures: the Chrysler Pacifica (UID `0xD737A2C3`, 47 frames, 434.075 MHz) and the Jeep
 Renegade (UID `0xD08BE613`, 29 frames, 433.889 MHz). The UID is stable, the selector follows the recorded
 button order (Unlock → Lock → Trunk …), and `raw[8..9]` counts down from press to press. The LDV / Ford V3
-captures do not match. The Fiat Bravo capture (`FIAT/Fiat Bravo 2010 …`) is not Fiat V2: its bursts are 70-bit
-frames after a ~756 µs sync. Unit tests cover synthetic frames in both polarities, a stretched first pulse,
-the merged-LOW boundary, FCA field parsing, the 6-copy encode→decode round trip (frames ending HIGH and LOW),
-and rejection of bad markers, UID, selector and Manchester, plus a window inside a longer burst, and the
-known-key forward encoding (both layouts, all 4 IV combos). C oracle: the real captures decode to the same
-frames as ProtoPirate's and Flipper-ARF's decoders (KAT's end-of-burst gate only drops their LDV false
-positive); on 1200 encodes of randomized frames (840 with a known-key hop) the transmitted frame equals the
-`Raw` Flipper-ARF's encoder writes back, byte for byte.
+captures do not match. A volunteer's Alfa Romeo Giulia (2015–2026, 433.92 MHz, not in `IMPORTS`) uses Fiat V2
+too: 5 lock and 5 unlock codes, the frames doctor-firmware, ProtoPirate and Flipper-ARF read. Its unlock
+frames also form a valid Ford V3 US frame in the opposite polarity; KAT 1.8.5 listed 28 of those 30 frames as
+Ford V3 ([ford_v3.md](ford_v3.md)). The Fiat Bravo capture (`FIAT/Fiat Bravo 2010 …`) is not Fiat V2: its
+bursts are 70-bit frames after a ~756 µs sync. Unit tests cover synthetic frames in both polarities, a
+stretched first pulse, the merged-LOW boundary, FCA field parsing, the 6-copy encode→decode round trip (frames
+ending HIGH and LOW), and rejection of bad markers, UID, selector and Manchester, plus a window inside a
+longer burst, and the known-key forward encoding (both layouts, all 4 IV combos). C oracle: the real captures
+decode to the same frames as ProtoPirate's and Flipper-ARF's decoders (KAT's end-of-burst gate only drops
+their LDV false positive); on 1200 encodes of randomized frames (840 with a known-key hop) the transmitted
+frame equals the `Raw` Flipper-ARF's encoder writes back, byte for byte.

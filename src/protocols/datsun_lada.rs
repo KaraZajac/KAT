@@ -39,12 +39,15 @@
 //! assumes zero. Even the C's own encoder output is "Check failed" for counter ≥ 256 or button 0x60.
 //!
 //! **Gating** — exactly the C's emission rule (sync + exactly 88 bits + XOR checksum, 1/256) plus one
-//! KAT addition: at least 64 consecutive short pulses must precede the sync. The C encoder sends 125
-//! (29 only on the 24-bit tails). Without this, the Fiat Panda capture (Fiat V1, Marelli PCF7946 — the
-//! same 11-byte Hitag2-family frame with a 29-toggle pre-sync run) yields an XOR-valid 88-bit "Datsun
-//! Lada" frame in inverted polarity. `learn` is NOT a gate (it would reject most genuine frames, see
-//! above); it drives `crc_valid` / `encoder_capable` and whether `counter` is reported, mirroring the C
-//! display ("Cnt" when learnable, "Check failed" otherwise).
+//! KAT addition: a frame behind fewer than 64 consecutive short pulses must also pass `learn`. The C
+//! encoder sends 125 (29 only on the 24-bit tails). Without the gate, the Fiat Panda capture (Fiat
+//! V1, Marelli PCF7946 — the same 11-byte Hitag2-family frame with a 29-toggle pre-sync run) yields
+//! an XOR-valid 88-bit "Datsun Lada" frame in inverted polarity, which does not verify. A real Lada
+//! capture (a doctor-firmware user's, not in IMPORTS) shows why the gate is not a plain minimum:
+//! noise cut the preamble of the first frame of two presses to 25 and 59 shorts, doctor-firmware
+//! reads both, and both verify. `learn` is otherwise NOT a gate (it would reject genuine frames,
+//! see above); it drives `crc_valid` / `encoder_capable` and whether `counter` is reported,
+//! mirroring the C display ("Cnt" when learnable, "Check failed" otherwise).
 //!
 //! **DecodedSignal packing** (88 bits > 64): `data` = `r[10..=3]` (first 64 wire bits, big-endian),
 //! `extra` = `r[2] << 16 | r[1] << 8 | r[0]` (last 24 wire bits, right-aligned), `data_count_bit` = 88.
@@ -383,6 +386,8 @@ pub struct DatsunLadaDecoder {
     glue: bool,
     /// KAT preamble gate: consecutive short pulses seen so far.
     short_run: u16,
+    /// Short pulses that preceded the current frame's sync (the preamble gate, applied at the end).
+    sync_run: u16,
 }
 
 impl DatsunLadaDecoder {
@@ -395,6 +400,7 @@ impl DatsunLadaDecoder {
             marker: false,
             glue: false,
             short_run: 0,
+            sync_run: 0,
         }
     }
 
@@ -482,6 +488,7 @@ impl ProtocolDecoder for DatsunLadaDecoder {
         self.marker = false;
         self.glue = false;
         self.short_run = 0;
+        self.sync_run = 0;
     }
 
     /// `datsun_lada_receive` + `datsun_lada_fields`.
@@ -508,14 +515,11 @@ impl ProtocolDecoder for DatsunLadaDecoder {
 
         if self.step == DecoderStep::Reset {
             self.decode_count_bit = 0;
-            if level
-                && short_width(previous)
-                && long_width(duration)
-                && run_before >= PREAMBLE_MIN_SHORTS
-            {
+            if level && short_width(previous) && long_width(duration) {
                 self.step = DecoderStep::Data;
                 self.marker = false;
                 self.receive_data = [0; FRAME_BYTES];
+                self.sync_run = run_before;
             }
             return None;
         }
@@ -544,7 +548,12 @@ impl ProtocolDecoder for DatsunLadaDecoder {
         let found = self.decode_count_bit == FRAME_BITS && checksum(&self.receive_data);
         self.step = DecoderStep::Reset;
         self.decode_count_bit = 0;
-        found.then(|| Self::signal_from_frame(&self.receive_data))
+        if !found {
+            return None;
+        }
+        // KAT preamble gate: behind fewer than 64 short pulses the frame must verify (`learn`).
+        let signal = Self::signal_from_frame(&self.receive_data);
+        (self.sync_run >= PREAMBLE_MIN_SHORTS || signal.crc_valid).then_some(signal)
     }
 
     fn supports_encoding(&self) -> bool {
@@ -806,12 +815,29 @@ mod tests {
         bad[4] ^= 0x10;
         assert!(decode_all(&transmit(&bad, 0x5A, 0)).is_empty());
 
-        // Short preamble (29 toggles, like the tails / Fiat V1): KAT gate rejects it.
-        let mut signal = Vec::new();
-        tx_preamble(&mut signal, 29);
-        tx_window(&mut signal, &air);
-        emit(&mut signal, true, TX_MAIN_END_HIGH_US);
-        assert!(decode_all(&signal).is_empty());
+        // Short preamble (29 toggles, like the tails / Fiat V1): KAT's gate accepts the frame only
+        // if `learn` verifies it. A real Lada capture (a doctor-firmware user's, not in IMPORTS)
+        // has first frames whose preamble noise cut to 25 and 59 shorts; doctor-firmware reads
+        // them. An XOR-valid frame that does not verify (the Fiat Panda one below) needs >= 64.
+        let short = |frame: &Frame, toggles: usize| {
+            let mut signal = Vec::new();
+            tx_preamble(&mut signal, toggles);
+            tx_window(&mut signal, frame);
+            emit(&mut signal, true, TX_MAIN_END_HIGH_US);
+            decode_all(&signal)
+        };
+        assert!(learn(&air).0);
+        for toggles in [25, 29, 59] {
+            let d = short(&air, toggles);
+            assert_eq!(d.len(), 1, "{toggles} toggles");
+            assert!(d[0].crc_valid && DatsunLadaDecoder::frame_from_signal(&d[0]) == Some(air));
+        }
+        let fiat = frame_from_wire([
+            0xEF, 0xB8, 0x2D, 0x66, 0x22, 0x34, 0xA6, 0x6F, 0x54, 0xFA, 0x6D,
+        ]);
+        assert!(short(&fiat, 29).is_empty() && short(&fiat, 63).is_empty());
+        let unverified = short(&fiat, 65); // odd: an even count merges its last LOW into the sync
+        assert!(unverified.len() == 1 && !unverified[0].crc_valid);
 
         // 87 or 89 bits instead of exactly 88.
         let bits: Vec<bool> = (0..FRAME_BITS)

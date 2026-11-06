@@ -48,8 +48,8 @@ KAT packing: `data` = `r[10..3]` (big-endian), `extra` = `r[2] r[1] r[0]` (24 bi
 ## Decoder Steps
 
 1. **Glitch handling** — pulses < 50 µs set `glue`; the next pulse is lengthened by the pulse before the glitch.
-2. **Reset** — wait for a long RF-LOW pulse right after a short one (sync). KAT addition: at least 64
-   consecutive short pulses must precede it.
+2. **Reset** — wait for a long RF-LOW pulse right after a short one (sync). KAT addition, checked at the
+   end: a frame that fewer than 64 consecutive short pulses preceded must also pass learn (step 5).
 3. **Data** — the level is inverted and the first half-bit of every cell is recorded: after a bit, a short
    pulse is the cell's second half and is skipped; a long pulse yields the next bit directly.
 4. **End** — the first pulse that is neither short nor long ends the frame; it is accepted only with exactly
@@ -77,5 +77,11 @@ of checksum errors / short preambles / 87- and 89-bit frames, glitch gluing, and
 
 Real captures: no `IMPORTS/nissan` or `IMPORTS/Skyline` capture contains an XOR-valid 88-bit frame in either
 polarity, so none decodes. The only hit in all of IMPORTS was `FIAT/Fiat Panda.sub` in inverted polarity
-(Fiat V1 / Marelli PCF7946 uses the same 11-byte frame shape with a 29-toggle pre-sync run); the preamble
-gate rejects it and the capture still decodes as Fiat V1 (regression test).
+(Fiat V1 / Marelli PCF7946 uses the same 11-byte frame shape with a 29-toggle pre-sync run); it does not
+pass learn, so the preamble gate rejects it and the capture still decodes as Fiat V1 (regression test).
+
+A real Lada recording (posted by a doctor-firmware user, not in `IMPORTS`; 2-FSK, 433.92 MHz) holds 10 presses,
+each sent twice. doctor-firmware reads all 19 frames that arrived. KAT 1.8.5 read 17: noise had cut the
+preamble of two first frames to 25 and 59 short pulses, under its plain 64-pulse minimum. Both verify with
+learn, and KAT now reads all 19. ProtoPirate and Flipper-ARF read the same frames as Fiat V1 (it is the
+same frame shape); KAT gives FSK recordings and FM bursts to its FM decoders first, so they are Datsun Lada.

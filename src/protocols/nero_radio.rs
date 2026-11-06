@@ -8,8 +8,10 @@
 //! start pulse HIGH 830 µs (decoder: `4·te_short` ± 80) + LOW te_short, then 56 (or 57) bits, MSB
 //! first, each a HIGH then a LOW: `1` = HIGH 400 + LOW 200, `0` = HIGH 200 + LOW 400 (all within
 //! `te_delta`). The last bit's LOW is the stop gap (encoder: 4600 µs, 1300 µs for 57-bit keys); a
-//! LOW ≥ 1250 µs classifies the last bit by its HIGH and ends the frame, which is reported with 56
-//! or 57 bits.
+//! LOW ≥ 900 µs classifies the last bit by its HIGH and ends the frame, which is reported with 56
+//! or 57 bits (RogueMaster's bound; doctor / ARF / Momentum use 1250 µs, which drops the first
+//! frame of every press in `nero_radio_raw.sub`: those end in 1048–1234 µs LOWs, the others in
+//! 4.4–4.7 ms; a data LOW is at most 480 µs, so 900 cuts no frame).
 //!
 //! Fields (`subghz_protocol_nero_radio_parse_data`, from the C's sample table `serial(28) |
 //! button(4) | serial/const(16) | "crc??"(8)`): button = `(data >> 24) & 0xF`; KAT's serial is the
@@ -56,7 +58,9 @@ const LONG_COUNT_BIT: usize = 57;
 const REPEAT: usize = 3;
 const PREAMBLE_PAIRS: usize = 49;
 const START: u32 = 830;
-const STOP: u32 = 1250;
+/// RogueMaster's value (doctor/ARF: 1250): the first frame of each press in the Flipper unit-test
+/// capture ends in a 1048–1234 µs LOW; data LOWs are at most 480 µs (RogueMaster nero_radio.c).
+const STOP: u32 = 900;
 const BUTTON_SHIFT: u32 = 24;
 
 #[derive(Debug, Clone, Copy, PartialEq)]

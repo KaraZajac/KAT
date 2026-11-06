@@ -263,15 +263,9 @@ mod tests {
                     ..decoded(key, bits)
                 };
                 let mut up = vec![LevelDuration::new(false, 50_000)];
-                let mut tx = dec
+                let tx = dec
                     .encode(&d, d.button.unwrap_or(0))
                     .unwrap_or_else(|| panic!("{name}"));
-                if name == "Marantec24" {
-                    // The C's own 15 200 µs gap sits on its decoder's strict bound: 1 µs of jitter.
-                    tx.iter_mut()
-                        .filter(|p| p.duration_us == 15_200)
-                        .for_each(|p| p.duration_us -= 1);
-                }
                 up.extend(tx);
                 push(&mut up, false, 50_000);
                 uploads.push((name, up));

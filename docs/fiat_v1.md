@@ -80,7 +80,8 @@ embedded keys use epoch 0). See `hitag2.rs` for the shared cipher core.
 ## RF
 
 - **Encoding:** Manchester (bit 1 = HIGH then LOW)
-- **RF modulation:** AM (OOK)
+- **RF modulation:** AM/FM — ProtoPirate flags AM, Flipper-ARF and doctor-firmware AM | FM (the union; every
+  capture so far is OOK, and KAT transmits AM650)
 - **Encryption:** HITAG2 (32-bit authenticator, 48-bit key)
 - **Frequencies:** 315 MHz, 433.92 MHz (ProtoPirate flags 315 | 433)
 

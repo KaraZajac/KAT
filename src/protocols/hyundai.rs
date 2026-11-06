@@ -59,7 +59,8 @@
 //! Noise essentially never yields 128+ alternating Manchester bits followed by 72 valid pairs;
 //! the residual risk is another 500µs-Manchester protocol with a 16–32-byte 0x55 preamble, a
 //! 72-bit body and an identical repeat. Buttons are NOT whitelisted (the RE only maps three; a
-//! Panic/remote-start code probably exists). `crc_valid` = true reflects the duplicate check.
+//! Panic/remote-start code probably exists). `crc_valid` is false: the duplicate is a gate, not a
+//! checksum (list "Hyundai" in `info::NO_CHECKSUM` when registering it).
 //!
 //! # Encoder
 //!
@@ -96,7 +97,7 @@ pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     encryption: "Rolling Code",
     make: "Hyundai",
     category: Category::Vehicle,
-    buttons: None,
+    buttons: Some(native_buttons),
     presets: &[&AM650],
 };
 
@@ -125,6 +126,16 @@ const CELL_CAPACITY: usize = (PREAMBLE_BYTES + WIRE_BYTES + 4) * 16 + 8;
 const BTN_0: u8 = 0x01; // Lock
 const BTN_1: u8 = 0x02; // Unlock
 const BTN_2: u8 = 0x09; // Trunk
+
+/// `hundai_button_name`: 0x01 Lock, 0x02 Unlock, 0x09 Trunk (the C's own codes; 0x04 is nothing).
+fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        BTN_0 => "Lock",
+        BTN_1 => "Unlock",
+        BTN_2 => "Trunk",
+        _ => "Other",
+    })
+}
 
 /// Decoder steps (HundaiDecoderStep).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -190,12 +201,7 @@ impl HyundaiDecoder {
     /// Button name for display (hundai_button_name).
     #[allow(dead_code)]
     fn button_name(btn: u8) -> &'static str {
-        match btn {
-            BTN_0 => "Lock",
-            BTN_1 => "Unlock",
-            BTN_2 => "Trunk",
-            _ => "Unknown",
-        }
+        native_buttons("", btn).unwrap_or("Unknown")
     }
 
     /// KAT generic button (or native nibble) → b5 nibble. `None` keeps the captured button.
@@ -277,7 +283,7 @@ impl HyundaiDecoder {
             serial: Some(uid(raw)),
             button: Some(raw[5] & 0x0F),
             counter: Some(raw[6] as u16),
-            crc_valid: true, // duplicate-confirmed (no checksum exists)
+            crc_valid: false, // no checksum exists; the duplicate is a gate (NO_CHECKSUM)
             data: u64::from_be_bytes(first8),
             data_count_bit: WIRE_BITS,
             encoder_capable: true,
@@ -476,7 +482,7 @@ mod tests {
             assert_eq!(f.data, 0x3C91_7E05_A241_172B);
             assert_eq!(f.extra, Some(b8 as u64));
             assert_eq!(f.data_count_bit, 72);
-            assert!(f.crc_valid && f.encoder_capable);
+            assert!(!f.crc_valid && f.encoder_capable, "no checksum in the frame");
         }
     }
 
@@ -661,7 +667,7 @@ mod tests {
                 serial: Some(seed),
                 button: Some((seed >> 28) as u8),
                 counter: Some((seed & 0xFFF) as u16),
-                crc_valid: true,
+                crc_valid: false,
                 data: 0,
                 data_count_bit: 53,
                 encoder_capable: true,

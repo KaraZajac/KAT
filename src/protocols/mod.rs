@@ -191,7 +191,7 @@ mod mazda_infinity;
 pub use common::DecodedSignal;
 pub use rtl433::{is_keeloq_chip, redecode_keeloq_chip};
 pub use flipper_key::FlipperKey;
-pub use info::{has_checksum, lookup as protocol_info, ProtocolInfo};
+pub use info::{has_checksum_for, lookup as protocol_info, ProtocolInfo};
 /// PSA TEA key recovery for the signal menu's "Recover key" action (ProtoPirate's brute force,
 /// which the references also run on demand rather than while decoding).
 pub use psa::{
@@ -315,8 +315,28 @@ pub struct ProtocolRegistry {
     /// Whether each decoder is a gate/garage protocol (`Category::Gate`): those take part in the
     /// inverted-polarity pass only for FSK input (see [Self::process_signal_stream_opts]).
     gate: Vec<bool>,
+    /// Whether each decoder is an rtl_433 port ([RTL433_PORTS]): receive-only ports that run after
+    /// every Flipper reference's decoder and never reset them (see
+    /// [Self::process_signal_stream_inner]).
+    rtl: Vec<bool>,
+    /// A second set of the decoders, fed only by [Self::replays]: a decoder's state that survives
+    /// `reset()` (repeat memories, `last_data`) must not see the frames replayed there.
+    probe: Vec<Box<dyn ProtocolDecoder>>,
     /// Key searches run on their own (config `autobf`): [Self::set_auto_key_search].
     auto_key_search: bool,
+}
+
+/// The rtl_433 ports (receive only; registered last).
+pub(crate) const RTL433_PORTS: &[&str] = &[
+    "Elero", "Somfy-IOHC", "RojaFlex-Remote", "Microchip-HCS362", "Microchip-HCS361",
+    "Honda-KR5V2X1X", "Continental-KR5V2X", "MIC6SC2-CarRemote", "Opel-Mokka",
+    "Siemens-5WY72XX", "Alps-FWB1U545", "CodeAlarm-FRDPC2002", "Astrostart-2000",
+    "Chrysler-CarRemote", "Compustar-1WG3R", "Audiovox-PROOE3B",
+];
+
+/// `pairs[start..=end]` as stored on a capture.
+fn segment(pairs: &[LevelDuration], start: usize, end: usize) -> Vec<LevelDuration> {
+    pairs[start..=end].iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect()
 }
 
 /// Whether a decoder flagged `decoder_rf` may see a capture received as `capture_rf` (Flipper-ARF's
@@ -328,10 +348,16 @@ pub fn modulation_allows(decoder_rf: crate::capture::RfModulation, capture_rf: O
     !matches!((decoder_rf, capture_rf), (AM, Some(FM)) | (FM, Some(AM)))
 }
 
+/// Car protocols left out of the inverted-polarity pass (no reference has that pass). Ford V3's
+/// EU path reads any ≥30-pulse preamble + 104 Manchester bits without a check, so a 240/480 µs
+/// frame cut short (a squelch closing early, a stored segment of an older KAT) read inverted is a
+/// "Ford V3" frame with nonsense fields, where every reference reports nothing.
+const NO_INVERTED_PASS: &[&str] = &["Ford V3"];
+
 impl ProtocolRegistry {
-    /// Create a new protocol registry with all built-in protocols
-    pub fn new() -> Self {
-        let decoders: Vec<Box<dyn ProtocolDecoder>> = vec![
+    /// Every decoder, in registry order (which decides first-match priority; the comments say why).
+    fn decoders() -> Vec<Box<dyn ProtocolDecoder>> {
+        vec![
             // Kia protocols
             // Kia V0 (ProtoPirate kia_v0.c) also decodes Suzuki V0, Honda V0 and Mitsubishi V0 (PP
             // folded its standalone suzuki.c / mitsubishi_v0.c into it); each type is gated on its
@@ -356,9 +382,10 @@ impl ProtocolRegistry {
             // CRC16-gated, so placement in the Ford group is safe (won't steal V0/V2/V3 captures).
             Box::new(ford_v1::FordV1Decoder::new()),
             // Ford V3: EU 240/480µs Manchester path (≥30-short preamble, 104 bits, ungated as in
-            // the C) + US half-bit-cell path gated on 0xFF header / serial / button 1|2 / flag
-            // bit 7. A US hit only fires at the end of a ≥200-cell burst that begins with that
-            // header; the IMPORTS sweep shows no change for the Ford V0/V1/V2 captures.
+            // the C) + US half-bit-cell path gated on 0xFF header / sane serial / button 1|2|6|7
+            // (the C's flag-bit-7 and 1|2-only checks are dropped: real 2022 Escape frames fail
+            // them, see ford_v3.rs). A US hit only fires at the end of a burst of ≥200 cells that
+            // is exactly one frame; the IMPORTS sweep shows no change for the Ford V0/V1/V2 captures.
             Box::new(ford_v3::FordV3Decoder::new()),
             Box::new(ford_v2::FordV2Decoder::new()),
             // Honda Static after the Kia/Ford block; checksum-gated emission makes order safe.
@@ -474,8 +501,8 @@ impl ProtocolRegistry {
             // Static has a 700µs sync gap); a cross-protocol encoder test in mercedes_v1.rs guards it.
             Box::new(mercedes_v1::MercedesV1Decoder::new()),
             // Opel V1: AM Manchester 120/240µs, 93-bit sliding window: framing 0x02 + XTEA
-            // ("RobertBOSCH48331") plaintext tail 0x05 + KAT button whitelist {0x20,0x04,0x08}.
-            // Decode-only (the C encoder is NULL).
+            // ("RobertBOSCH48331") plaintext tail 0x05; any button (a 2016 Holden Barina fob
+            // sends 0x73). Decode-only (the C encoder is NULL).
             Box::new(opel_v1::OpelV1Decoder::new()),
             // Renault V1 (ProtoPirate renault_v1.c, HITAG2): 1500/1000µs header, then a 104-bit
             // adaptive-TE (~125µs) Manchester frame that is byte-for-byte the Fiat V1 frame
@@ -516,10 +543,11 @@ impl ProtocolRegistry {
             Box::new(gm::GmDecoder::new()),
             // Datsun Lada (doctor-firmware datsun_lada.c): FM 433, Manchester 250/500µs, 88-bit
             // Hitag2-family frame. Gated on the C's exact-88-bit framing + XOR checksum, plus a KAT
-            // preamble gate (>= 64 short pulses before the sync; the C encoder sends 125). Fiat V1
-            // (Marelli PCF7946) carries the same 11-byte frame shape in the opposite polarity with
-            // only a 29-toggle run before its sync, so the preamble gate keeps Datsun Lada off Fiat
-            // captures; placed last so Fiat V1 and every earlier 250/500µs decoder keep priority.
+            // preamble gate (behind fewer than 64 short pulses the frame must also pass `learn`;
+            // the C encoder sends 125). Fiat V1 (Marelli PCF7946) carries the same 11-byte frame
+            // shape in the opposite polarity with only a 29-toggle run before its sync, so the gate
+            // keeps Datsun Lada off Fiat captures; placed last so Fiat V1 and every earlier
+            // 250/500µs decoder keep priority.
             Box::new(datsun_lada::DatsunLadaDecoder::new()),
             // --- Garage door / gate / barrier / shutter remotes --------------------------------
             // After every car decoder (their IMPORTS decodes keep first-match priority), most
@@ -714,8 +742,13 @@ impl ProtocolRegistry {
             //   Box::new(hyundai::HyundaiDecoder::new()),
             //       500/1000µs Manchester, 72 bits; the frame has NO checksum, so validity rests on
             //       framing alone (16..32-byte 0x55 preamble + duplicate frame).
-        ];
+        ]
+    }
 
+    /// Create a new protocol registry with all built-in protocols
+    pub fn new() -> Self {
+        let decoders = Self::decoders();
+        let probe = Self::decoders();
         let rf = decoders
             .iter()
             .map(|d| info::lookup(d.name()).map_or(crate::capture::RfModulation::Both, |i| i.rf))
@@ -724,7 +757,8 @@ impl ProtocolRegistry {
             .iter()
             .map(|d| info::lookup(d.name()).is_some_and(|i| i.category == info::Category::Gate))
             .collect();
-        Self { decoders, rf, gate, auto_key_search: false }
+        let rtl = decoders.iter().map(|d| RTL433_PORTS.contains(&d.name())).collect();
+        Self { decoders, probe, rf, gate, rtl, auto_key_search: false }
     }
 
     /// Process level+duration pairs from demodulator
@@ -855,14 +889,16 @@ impl ProtocolRegistry {
         // pass, and the gate/garage formats (many of them loose fixed codes such as Princeton or
         // CAME) would turn inverted noise into frames. On FSK input either tone can be "on", so
         // they take part there (a real FSK PT2262 remote in rtl_433's tests needs it).
-        let allowed: Vec<bool> = self
-            .rf
-            .iter()
-            .zip(&self.gate)
-            .map(|(&d, &gate)| modulation_allows(d, rf) && !(invert_level && gate && !fsk))
-            .collect();
+        let allowed = self.allowed(rf, invert_level, fsk);
         let mut out = Vec::new();
         let mut segment_start = 0_usize;
+        // A frame an rtl_433 port read, held back until it is clear that no Flipper decoder reads
+        // the signal: (port, first pulse, last pulse, name, decode). Once a Flipper decoder has
+        // read the signal a port held a frame of, that port's later frames of this stream are
+        // dropped too (the frames the Flipper decoder cannot take, e.g. the last of a press whose
+        // header it needs first, would otherwise be listed under the port's name).
+        let mut pending: Option<(usize, usize, usize, String, DecodedSignal)> = None;
+        let mut shadowed = vec![false; self.decoders.len()];
 
         for decoder in &mut self.decoders {
             decoder.reset();
@@ -872,35 +908,119 @@ impl ProtocolRegistry {
             let level = if invert_level { !pair.level } else { pair.level };
             let duration_us = pair.duration_us;
 
-            // Feed this pulse to all decoders that support this frequency and modulation
-            // (Flipper-style); the first in registry order that completes a frame on it wins.
-            let mut hits: Vec<(String, DecodedSignal)> = Vec::new();
-            for (decoder, &ok) in self.decoders.iter_mut().zip(&allowed) {
-                if !ok || !frequency_supported(decoder.supported_frequencies(), frequency) {
+            // Feed this pulse to every decoder that supports this frequency and modulation, in
+            // registry order; the first that completes a frame on it wins. As on a Flipper, where
+            // the winner's callback resets the receiver before the decoders after it are fed the
+            // pulse, every decoder is reset right then and the later ones see the pulse in their
+            // reset state (a frame-ending gap is the next frame's header to them). An rtl_433 port's
+            // hit resets the rtl_433 ports only: rtl_433 runs its devices independently, and the
+            // Flipper references keep first-match priority over any frame both read.
+            let mut hit: Option<(usize, String, DecodedSignal)> = None;
+            #[allow(clippy::needless_range_loop)] // the reset below borrows every decoder
+            for k in 0..self.decoders.len() {
+                if !allowed[k] || !frequency_supported(self.decoders[k].supported_frequencies(), frequency) {
                     continue;
                 }
-                if let Some(decoded) = decoder.feed(level, duration_us) {
-                    let name = decoded
-                        .protocol_display_name
-                        .as_deref()
-                        .unwrap_or_else(|| decoder.name());
-                    hits.push((name.to_string(), decoded));
+                let Some(decoded) = self.decoders[k].feed(level, duration_us) else { continue };
+                if hit.is_some() {
+                    continue;
                 }
-            }
-            if let Some((name, decoded)) = hits.into_iter().next() {
-                let segment: Vec<LevelDuration> = pairs[segment_start..=i]
-                    .iter()
-                    .map(|p| LevelDuration::new(p.level, p.duration_us))
-                    .collect();
-                out.push((name, decoded, segment));
-                for d in &mut self.decoders {
-                    d.reset();
+                let name = decoded
+                    .protocol_display_name
+                    .as_deref()
+                    .unwrap_or_else(|| self.decoders[k].name())
+                    .to_string();
+                let rtl = self.rtl[k];
+                for (d, &r) in self.decoders.iter_mut().zip(&self.rtl) {
+                    if r || !rtl {
+                        d.reset();
+                    }
                 }
-                segment_start = i + 1;
+                hit = Some((k, name, decoded));
             }
+            let Some((k, name, decoded)) = hit else { continue };
+            if self.rtl[k] {
+                if shadowed[k] {
+                    continue;
+                }
+                // Report the frame held before it; hold this one.
+                if let Some((_, s, e, n, d)) = pending.take() {
+                    out.push((n, d, segment(pairs, s, e)));
+                    segment_start = e + 1;
+                }
+                pending = Some((k, segment_start.min(i), i, name, decoded));
+                continue;
+            }
+            // A Flipper decoder reads the signal: a held rtl_433 frame of it is dropped.
+            if let Some((pk, s, _, _, _)) = pending.take() {
+                shadowed[pk] = true;
+                segment_start = s;
+            }
+            // The frame's pulses end on the one that completed it — unless the decoder reported at
+            // the middle of its last bit (Flipper's Manchester table emits a bit on its first half):
+            // then that bit's second half, the next pulse, is the frame's too. Replay sends the
+            // stored pulses as they are, and a frame stored without its last half-bit (a LOW,
+            // merged into the silence after the transmission) is read by no firmware.
+            let start = segment_start.min(i);
+            let end = if invert_level { i } else { self.frame_end(k, pairs, start, i) };
+            out.push((name, decoded, segment(pairs, start, end)));
+            segment_start = end + 1;
+        }
+        if let Some((_, s, e, n, d)) = pending {
+            out.push((n, d, segment(pairs, s, e)));
         }
 
         out
+    }
+
+    /// The last pulse of the frame decoder `k` reported on pulse `i` of `pairs`, its segment
+    /// starting at `start` (see [Self::process_signal_stream_inner]). The stored pulses, sent as
+    /// Replay sends them (equal levels merged, silence after), must decode again; when they do not,
+    /// the next pulse is added, then one more. `i` when nothing helps.
+    fn frame_end(&mut self, k: usize, pairs: &[LevelDuration], start: usize, i: usize) -> usize {
+        // A frame completed on a gap (a LOW no half-bit is as long as) ends there.
+        if !pairs[i].level && pairs[i].duration_us >= 2000 {
+            return i;
+        }
+        for end in i..(i + 3).min(pairs.len()) {
+            if self.replays(k, &pairs[start..=end]) {
+                return end;
+            }
+        }
+        i
+    }
+
+    /// Whether decoder `k` reads a frame from `pulses` sent as Replay sends them: adjacent pulses
+    /// of one level are one pulse on air, and silence (LOW) follows the last. Run on the probe copy
+    /// of the decoder, so that state surviving `reset()` (repeat memories) is left alone.
+    fn replays(&mut self, k: usize, pulses: &[LevelDuration]) -> bool {
+        let dec = &mut self.probe[k];
+        dec.reset();
+        let mut on_air: Vec<LevelDuration> = Vec::with_capacity(pulses.len() + 1);
+        for p in pulses.iter().chain(std::iter::once(&LevelDuration::new(false, 20_000))) {
+            match on_air.last_mut() {
+                Some(last) if last.level == p.level => last.duration_us += p.duration_us,
+                _ => on_air.push(*p),
+            }
+        }
+        let hit = on_air.iter().any(|p| dec.feed(p.level, p.duration_us).is_some());
+        dec.reset();
+        hit
+    }
+
+    /// Which decoders take part in a pass: those flagged for the capture's modulation
+    /// ([modulation_allows]), and in the inverted-polarity pass on OOK neither the gate protocols
+    /// nor [NO_INVERTED_PASS].
+    fn allowed(&self, rf: Option<crate::capture::RfModulation>, invert_level: bool, fsk: bool) -> Vec<bool> {
+        self.decoders
+            .iter()
+            .zip(&self.rf)
+            .zip(&self.gate)
+            .map(|((d, &rf_d), &gate)| {
+                modulation_allows(rf_d, rf)
+                    && !(invert_level && ((gate && !fsk) || NO_INVERTED_PASS.contains(&d.name())))
+            })
+            .collect()
     }
 
     /// Inner decode: feed pairs (with optional level flip) to decoders that support this frequency.
@@ -912,12 +1032,7 @@ impl ProtocolRegistry {
         rf: Option<crate::capture::RfModulation>,
         fsk: bool,
     ) -> Option<(String, DecodedSignal)> {
-        let allowed: Vec<bool> = self
-            .rf
-            .iter()
-            .zip(&self.gate)
-            .map(|(&d, &gate)| modulation_allows(d, rf) && !(invert_level && gate && !fsk))
-            .collect();
+        let allowed = self.allowed(rf, invert_level, fsk);
         for decoder in &mut self.decoders {
             decoder.reset();
         }
@@ -1009,7 +1124,7 @@ impl ProtocolRegistry {
     /// found ([ProtocolDecoder::set_report_unchecked]) instead of dropping them. Off by default.
     pub fn set_auto_key_search(&mut self, on: bool) {
         self.auto_key_search = on;
-        for d in &mut self.decoders {
+        for d in self.decoders.iter_mut().chain(&mut self.probe) {
             d.set_report_unchecked(on);
         }
     }
@@ -1358,7 +1473,7 @@ mod tests {
         assert_eq!(native_button_name("Fiat V0", 0x2B), Some("Unlock"));
         assert_eq!(native_button_name("Ford V3", 0x01), None); // generic Lock
         assert_eq!(native_button_name("Renault V1", 2), None); // generic Unlock
-        assert_eq!(native_button_name("Kia V7", 1), None);
+        assert_eq!(native_button_name("Kia V7", 1), Some("Lock")); // the references' own names
         assert_eq!(native_button_name("Toyota", 0xD1), Some("Estima"));
         assert_eq!(native_button_name("Toyota", 2), Some("Cmd 2"));
         assert_eq!(native_button_name("Porsche Cayenne", 0x08), Some("Open"));
@@ -1491,7 +1606,7 @@ mod tests {
         let mut reg = ProtocolRegistry::new();
         for &name in info::NO_CHECKSUM {
             assert_eq!(reg.get(name).map(|d| d.name()), Some(name), "{name}: not a registered decoder name");
-            assert!(!has_checksum(name), "{name}");
+            assert!(!info::has_checksum(name), "{name}");
         }
         let mut paths = imports_subs().unwrap_or_default();
         let unit = Path::new("REFERENCES/Flipper-ARF/applications/debug/unit_tests/resources/unit_tests/subghz");
@@ -1506,7 +1621,7 @@ mod tests {
                 decodes.extend(key.and_then(|k| reg.decode_key(&k)));
             }
             for (name, d) in decodes {
-                if has_checksum(&name) {
+                if info::has_checksum(&name) {
                     checked += 1;
                 } else {
                     unchecked += 1;
@@ -1574,7 +1689,7 @@ mod tests {
             // read `Key2`, so they cannot decrypt this file.
             ("VAG/Audi A3 2012 key.sub", "VAG", "data=C129194B7ABCFEC2/80 extra=8000000101032F1D sn=3BF8E083 btn=1 cnt=9C61 crc=1 tx=1"),
             // = frame A03BF868… of the RAW capture FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub
-            ("FIAT/Fiat type 0 N1.sub", "Fiat V0", "data=A03BF86854536200/71 sn=54536200 btn=3B cnt=F868 crc=1 tx=1"),
+            ("FIAT/Fiat type 0 N1.sub", "Fiat V0", "data=A03BF86854536200/71 sn=54536200 btn=3B cnt=F868 crc=0 tx=1"),
             ("HYUNDAI/HYU V0 N1.sub", "Kia V0", "data=F739167BD75B2BD/61 sn=67BD75B btn=2 cnt=7391 crc=1 tx=1"),
             ("HYUNDAI/HYU V0_great_konserva.sub", "Kia V0", "data=F6F4667BD75B2BF/61 sn=67BD75B btn=2 cnt=6F46 crc=1 tx=1"),
             // Flipper-ARF "KIA/HYU Vn" keys. KAT's transmission of each decodes in doctor-firmware's
@@ -1660,18 +1775,12 @@ mod tests {
         // `Bit: 82` keys over (renault_v1_arf.rs `flipper_key_files` loads them via `decode_key`).
         // The rtl_433 ports are receive only and write none: no Flipper firmware has a key format
         // for them. (Gate/garage protocols test their key files in their own modules.)
-        let rtl433: &[&str] = &[
-            "Honda-KR5V2X1X", "Continental-KR5V2X", "MIC6SC2-CarRemote", "Opel-Mokka",
-            "Siemens-5WY72XX", "Alps-FWB1U545", "CodeAlarm-FRDPC2002", "Astrostart-2000",
-            "Chrysler-CarRemote", "Compustar-1WG3R", "Audiovox-PROOE3B",
-            "Microchip-HCS362", "Microchip-HCS361",
-        ];
         for d in &reg.decoders {
             let name = d.name();
             if info::lookup(name).is_some_and(|i| i.category == info::Category::Gate) {
                 continue;
             }
-            if rtl433.contains(&name) {
+            if RTL433_PORTS.contains(&name) {
                 assert!(!d.supports_encoding(), "{name}: an rtl_433 port is receive only");
                 assert!(d.to_flipper_key(&DecodedSignal::new(0, 64)).is_none(), "{name}");
                 continue;

@@ -45,11 +45,13 @@ Chinese cloner remote that claims to be a Marantec replica. No checksum.
 
 ## Encoder
 
-`repeat` = 3, no counter: the 24 bits, the last LOW extended to `9·te_long + te_short` = 15 200 µs. **C quirk kept:**
-that gap is exactly 800 µs from the decoder's 14 400 µs target and the C compares with a strict `<`, so the reference
-decoder rejects its own encoder's gap (the oracle's unit-test encoder check fails for this reason); a receiver with a
-few µs of slack accepts it, and the real remote's gaps (15 146–15 180 µs in the unit-test capture) are just inside the
-bound. Button: the garage copy re-sends the captured key; ARF's lib copy lets the D-pad pick 0x8/0x4/0xC/0x0 and
+`repeat` = 3, no counter: the 24 bits, the last LOW extended to `9·te_long + te_short` = 15 200 µs. **Gap window:**
+the garage app, doctor-firmware, ARF and Momentum look for `9·te_long` ± `4·te_delta` (13 601..15 199 µs, strict `<`),
+800 µs from their own encoders' 15 200 µs gap, so none of them reads its own upload, and the real remote's gaps
+(15 118..15 188 µs in the unit-test capture) clear the bound by 12 µs at worst. RogueMaster centres the window on
+the encoder's gap (14 401..15 999 µs; "nothing was ever measured in the old low half"), and so does KAT since v1.8.7:
+every frame of the capture still decodes, and every firmware's transmission does too (until then KAT's own
+transmission did not decode in KAT, so the capture never recorded what was sent). Button: the garage copy re-sends the captured key; ARF's lib copy lets the D-pad pick 0x8/0x4/0xC/0x0 and
 rebuilds `serial << 4 | btn` — KAT takes that union and accepts any 4-bit native code (others keep the captured one).
 
 ## Key file

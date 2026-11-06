@@ -112,6 +112,7 @@ emulate scene falls back to AM650, then FM476). The first preset is the primary 
 | Mazda V2 | AM/FM | AM650 + FM476 | ±47.61 kHz | ARF `mazda_v2.c` flags AM + FM; doctor "AM/FM" | no named FM preset → FM476 |
 | Mercedes V0 | FM | FM20K | ±12.70 kHz | ARF / doctor `mercedes_v0.c` flag FM (433 MHz); doctor's built-in "mercedes" preset (`subghz_device_cc1101_preset_mercedes_async_regs`, registered as FM20K) | |
 | Mercedes V1 | FM | FM20K | ±12.70 kHz | ARF / doctor `mercedes_v1.c` flag FM (433 MHz); doctor's "mercedes" preset | FM20K's 20 kBaud matches V1's 50 µs chips |
+| Fiat V1 | AM/FM | AM650 + FM476 | ±47.61 kHz | PP flags AM; ARF and doctor `fiat_v1.c` flag AM + FM | no named FM preset → FM476; every capture so far is AM |
 | Renault V1 | AM/FM | AM650 + FM476 | ±47.61 kHz | PP flags AM + FM, catalog by modulation, README AM650; doctor `renault_v1.c` (HITAG2) flags AM + FM | no named FM preset → FM476 |
 | Renault V1 (ARF) | AM/FM | AM650 + FM476 | ±47.61 kHz | ARF `renault_v1.c` flags AM + FM | no named FM preset → FM476 |
 | Datsun Lada | FM | FM476 | ±47.61 kHz | doctor `datsun_lada.c` flag FM (433 MHz) | no named preset → FM476 (doctor's default FM receive preset) |
@@ -203,6 +204,19 @@ Synthetic only — no hardware in the loop:
   key files (Kia V0 / V2 / V5 / V6, VAG), send a new counter on each of three presses once the frame sent is
   kept; fixed codes keep their capture. PSA's reported frame equals the decode of its upload where that
   decodes, and two presses from the TEA fob's first frame give the fob's own later frame.
+
+Over the air (v1.8.4 on): a Flipper Zero next to the HackRF streams what it receives (`subghz rx_raw`) and
+the stream is decoded with the firmwares' decoders (host builds of the unmodified C) and KAT. What that showed:
+
+- The Flipper's receiver drops the first ~40 ms of every transmission while its gain settles, with or without
+  100 ms of carrier-off before the first pulse; a 50 ms carrier lead-in is absorbed instead, and every pulse
+  after it arrives. The first copy of a short upload is therefore luck on that receiver (Mazda V2: 2–3 of 3
+  copies per press), the later copies always arrive. KAT sends uploads as the references do, without a lead-in.
+- A replayed capture carries its recording's pulse skew, and the receiver adds its own: the LDV Ford V3 EU
+  frame, recorded with 513 µs HIGHs for 480, arrives with 545 µs ones, past the decoder's 60 µs tolerance, so
+  no firmware reads that replay (nor KAT) although every one reads the file. A Flipper replaying the RAW file
+  would send the same pulses.
+- 315 MHz reception on the rig is marginal (pulses stretched by up to 120 µs).
 
 Not verified: the HackRF's actual RF output (spectrum, LO leakage level, power at each TX setting), libhackrf's
 callback timing on real hardware, and reception by a car.

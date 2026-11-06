@@ -10,10 +10,13 @@
 //! **Decoder** (`subghz_protocol_decoder_linear_delta3_feed`): a LOW within 35000 ± 3600 µs starts a
 //! frame; HIGH/LOW pairs; a LOW ≥ 5000 µs ends it (the last bit from its HIGH alone). An 8-bit frame
 //! is reported only when it equals the previous 8-bit frame (`last_data`, non-zero). After every
-//! 8-bit frame the C keeps collecting **without clearing the bits**, so the next frame reads as 16
-//! bits and is dropped, and the one after it needs a new start LOW: a long transmission decodes
-//! every third frame from the fifth on (frames 2 and 5 match). The app's reset inside the callback
-//! is undone by the code that follows it (`parser_step = SaveDuration`, `last_data = data`).
+//! 8-bit frame the garage / doctor / ARF / Momentum copies keep collecting **without clearing the
+//! bits**, so the next frame reads as 16 bits and is dropped, and the one after it needs a new
+//! start LOW: a long transmission decodes every third frame from the fifth on, and a 3–4 frame tap
+//! never. RogueMaster's copy clears the bits after each 8-bit frame (its encoder is the same, so a
+//! real remote looks like its upload), and so does KAT since v1.8.7: the Flipper unit-test capture
+//! gives 62 frames (26 before), a 2-repeat press decodes. The app's reset inside the callback is
+//! undone by the code that follows it (`parser_step = SaveDuration`, `last_data = data`).
 //!
 //! **Encoder** (`subghz_protocol_encoder_linear_delta3_get_upload`, `encoder.repeat` = 3): the 8
 //! bits with the guard folded into the last LOW. Fixed code: `button` is ignored. (One 3-frame
@@ -178,6 +181,11 @@ impl ProtocolDecoder for LinearDelta3Decoder {
                         // (the app's reset inside the callback is overwritten right here)
                         self.step = Step::SaveDuration;
                         self.last_data = self.decode_data as u32;
+                        // RogueMaster's fix (linear_delta3.c): start the next frame's bits afresh.
+                        // The garage / doctor / ARF / Momentum copies keep collecting, so the next
+                        // frame reads as 16 bits and a 3–4 frame tap never decodes.
+                        self.decode_data = 0;
+                        self.decode_count_bit = 0;
                     }
                     self.just_emitted = out.is_some();
                     return out;
@@ -226,8 +234,11 @@ mod tests {
     use super::super::g1_common::test_support::*;
     use super::*;
 
-    /// One 3-frame burst never decodes (see the module doc); a held button (5 bursts) decodes
-    /// frames 5, 8, 11 and 14 — the registry's reset after each decode keeps that cadence.
+    /// Every frame from the third decodes (the first is the one the next confirms, and that one's
+    /// start LOW is read as the first frame's end): a 3-frame burst once, a held button (5 bursts,
+    /// 15 frames) 13 times — the registry's reset after each decode does not touch that
+    /// (`just_emitted`). Before RogueMaster's fix (see the module doc) a 3-frame burst never decoded
+    /// and a held button gave frames 5, 8, 11 and 14.
     #[test]
     fn encode_decode_roundtrip() {
         for data in [0xD0u64, 0x01, 0x7F, 0xFF] {
@@ -235,7 +246,8 @@ mod tests {
                 .encode(&fixed_code(data, 8), 0)
                 .unwrap();
             assert_eq!(burst.len(), 3 * 16);
-            assert!(feed_all(&mut LinearDelta3Decoder::new(), &burst).is_empty());
+            let one = feed_all(&mut LinearDelta3Decoder::new(), &burst);
+            assert_eq!(one.iter().map(|d| d.data).collect::<Vec<_>>(), [data; 1], "{data:02X}");
             let held = with_repeats(&burst, 5);
             let mut dec = LinearDelta3Decoder::new();
             let mut got = Vec::new();
@@ -245,7 +257,7 @@ mod tests {
                     dec.reset();
                 }
             }
-            assert_eq!(got, [data; 4], "{data:02X}");
+            assert_eq!(got, [data; 13], "{data:02X}");
         }
     }
 

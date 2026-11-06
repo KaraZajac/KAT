@@ -8,16 +8,18 @@
 //! Air format (868.35 MHz flag, AM): PWM, te_short 800 µs / te_long 1600 µs, te_delta 200 (strict
 //! `<`). A bit is a HIGH pulse and a LOW gap: `1` = HIGH 800 + LOW 3200 (`2·te_long`), `0` = HIGH
 //! 1600 + LOW 2400 (`3·te_short`); the last bit's LOW is the frame gap, `9·te_long + te_short`
-//! = 15 200 µs. The decoder waits for a LOW of `9·te_long` ± `4·te_delta` (13 601..15 199 µs),
-//! reads 24 bits, and reports the frame on the next such gap (classifying the last bit by its HIGH
-//! alone); it then looks for a gap again, so of back-to-back frames every other one is reported.
-//! 24 bits, MSB first: serial = `data >> 4` (20 bits), button = `data & 0xF`. No checksum.
+//! = 15 200 µs. The decoder waits for a LOW of 15 200 ± `4·te_delta` µs (14 401..15 999), reads 24
+//! bits, and reports the frame on the next such gap (classifying the last bit by its HIGH alone);
+//! it then looks for a gap again, so of back-to-back frames every other one is reported. 24 bits,
+//! MSB first: serial = `data >> 4` (20 bits), button = `data & 0xF`. No checksum.
 //!
-//! **C quirk kept**: the encoder's 15 200 µs gap is exactly 800 µs from the decoder's 14 400 µs
-//! target, and the C compares with a strict `<`, so the reference decoder does not accept its own
-//! encoder's gap; a receiver with a few µs of timing slack accepts it, and the real remote's gaps
-//! (15 146–15 180 µs in the unit-test capture) are just inside the bound. KAT sends the C's upload
-//! unchanged.
+//! **Gap window (RogueMaster's)**: the garage app, doctor-firmware, ARF and Momentum centre the
+//! window on `9·te_long` = 14 400 µs (13 601..15 199, strict `<`), 800 µs from their own encoders'
+//! 15 200 µs gap, so none of them reads its own upload (nor KAT's, which sends the C's unchanged),
+//! and the real remote's gaps (15 118..15 188 µs in `marantec24_raw.sub`) clear the bound by 12 µs
+//! at worst. RogueMaster re-centres the window on the encoder's gap ("nothing was ever measured in
+//! the old low half"); KAT does the same since v1.8.7: every frame of the capture still decodes,
+//! and every firmware's transmission does too.
 //!
 //! Encoder (`repeat` = 3, no counter): the 24-bit key as above. Button: the garage copy re-sends
 //! the captured key; Flipper-ARF's `lib/subghz/protocols/marantec24.c` lets the D-pad pick 0x8,
@@ -51,10 +53,13 @@ const TE_LONG: u32 = 1600;
 const TE_DELTA: u32 = 200;
 const MIN_COUNT_BIT: usize = 24;
 const REPEAT: usize = 3;
-/// The gap the decoder looks for: `te_long * 9` ± `te_delta * 4`.
-const GAP: u32 = TE_LONG * 9;
-/// The gap the encoder sends after the last bit: `te_long * 9 + te_short`.
+/// The gap the encoder sends after the last bit: `te_long * 9 + te_short` (= 15 200 µs; the real
+/// remote's gaps measure 15 118..15 188 µs in `marantec24_raw.sub`).
 const TX_GAP: u32 = TE_LONG * 9 + TE_SHORT;
+/// The gap the decoder looks for: RogueMaster's `TX_GAP` ± `te_delta * 4` (14 401..15 999 µs). The
+/// garage app / doctor / ARF / Momentum copies centre it on `te_long * 9` (13 601..15 199), 12 µs
+/// over the remote's longest gap and under every firmware's own 15 200 µs upload.
+const GAP: u32 = TX_GAP;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Step {
@@ -224,12 +229,9 @@ mod tests {
         feed_all(&mut Marantec24Decoder::new(), wire)
     }
 
-    /// The C's upload with each gap 1 µs shorter (any receiver jitter), so the reference decoder's
-    /// strict bound accepts it.
-    fn received(mut wire: Vec<LevelDuration>) -> Vec<LevelDuration> {
-        for p in wire.iter_mut().filter(|p| p.duration_us == TX_GAP) {
-            p.duration_us -= 1;
-        }
+    /// The C's upload as received (the decoder's window is centred on its gap since v1.8.7, so
+    /// nothing needs shaving any more).
+    fn received(wire: Vec<LevelDuration>) -> Vec<LevelDuration> {
         wire
     }
 
@@ -246,8 +248,8 @@ mod tests {
                 (0x10, (key & 0xF) as u8),
             ] {
                 let tx = Marantec24Decoder::new().encode(&d, button).unwrap();
-                // The exact C upload: the encoder's own gap sits on the decoder's strict bound.
-                assert!(decode(&tx).is_empty());
+                // The exact C upload decodes (the window is centred on its gap since v1.8.7).
+                assert!(!decode(&tx).is_empty());
                 let mut rx = received(tx);
                 rx.insert(0, LevelDuration::new(false, GAP));
                 // A frame's end gap is consumed by its report (the C returns to the gap search),

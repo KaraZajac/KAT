@@ -107,7 +107,7 @@ fn signal(data: u64, tail7: u8) -> DecodedSignal {
         serial: Some(data as u32),
         button: Some(tail7),
         counter: Some((data >> 32) as u16),
-        crc_valid: true,
+        crc_valid: false,
         data,
         data_count_bit: FRAME_BITS as usize,
         encoder_capable: true,
@@ -217,7 +217,8 @@ impl ProtocolDecoder for FiatV0Decoder {
     }
 
     fn supported_frequencies(&self) -> &[u32] {
-        &[433_920_000, 433_880_000]
+        // C flags: SubGhzProtocolFlag_315 | SubGhzProtocolFlag_433 (ProtoPirate, ARF, doctor).
+        &[315_000_000, 433_920_000]
     }
 
     fn reset(&mut self) {
@@ -457,7 +458,7 @@ mod tests {
             serial: Some(fix),
             button: Some(tail7),
             counter: Some(hop as u16),
-            crc_valid: true,
+            crc_valid: false,
             data: ((hop as u64) << 32) | fix as u64,
             data_count_bit: FRAME_BITS as usize,
             encoder_capable: true,

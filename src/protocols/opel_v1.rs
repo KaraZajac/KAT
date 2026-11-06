@@ -10,10 +10,9 @@
 //! Level → event mapping is `level ? ShortLow : ShortHigh` (and Long likewise), decoded with the
 //! **canonical Flipper `manchester_decoder.c` table** (states Start1/Mid1/Mid0/Start0, events
 //! 0/2/4/6, "same state → reset to Mid1", Mid0 → emit 0, Mid1 → emit 1), seeded `Mid1`. With this
-//! mapping an on-air `1` is HIGH→LOW and a `0` is LOW→HIGH. (KAT's shared 4-state table in
-//! `kia_v7.rs`/`ford_v3.rs`/`common.rs` is *not* equivalent to the Flipper table — see the
-//! `manchester_table_matches_flipper` test — so this module carries the canonical one, like
-//! `psa.rs` and `common.rs`.)
+//! mapping an on-air `1` is HIGH→LOW and a `0` is LOW→HIGH. (This module carries its own copy of
+//! that table, as `ford_v3.rs` does; `common.rs` holds the shared, identical port — see the
+//! `manchester_table_matches_flipper` test.)
 //!
 //! # Frame (93 bits, MSB first) — `opel_v1_try_finish`
 //! Bits shift into a 128-bit window (`data_high:data_low`); the bit count caps at 93, so once 93

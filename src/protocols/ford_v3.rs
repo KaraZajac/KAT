@@ -310,7 +310,7 @@ impl FordV3Decoder {
             serial: Some(serial),
             button: Some(button),
             counter: Some(counter),
-            crc_valid: true, // Ford V3 is plaintext with no CRC
+            crc_valid: false, // no CRC in the frame (NO_CHECKSUM: the interface shows "none")
             data: u64::from_be_bytes(data_bytes),
             data_count_bit: DATA_BITS,
             encoder_capable: false,

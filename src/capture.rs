@@ -221,9 +221,13 @@ impl Capture {
         self.protocol.as_deref().unwrap_or("Unknown")
     }
 
-    /// Whether the capture's protocol has a checksum KAT verifies (unknown signals: no).
+    /// Whether this capture's frame had a checksum (or another check) KAT verifies: unknown
+    /// signals and protocols without one have none, and some decoders check only some of their
+    /// frames (`protocols::info::has_checksum_for`).
     pub fn crc_checked(&self) -> bool {
-        self.protocol.as_deref().is_some_and(crate::protocols::has_checksum)
+        self.protocol
+            .as_deref()
+            .is_some_and(|p| crate::protocols::has_checksum_for(p, self.data_count_bit, self.data_extra))
     }
 
     /// Get CRC status as a string: "-" when there is nothing to check (an unknown signal, or a
@@ -260,10 +264,13 @@ impl Capture {
         }
     }
 
-    /// Get data as hex string
+    /// The frame's first 64 bits (`data`) as hex, padded to the frame's bytes up to 8: a 64-bit frame
+    /// 0x1234 is "0000000000001234", a 24-bit one "001234". A frame longer than 64 bits (its rest is
+    /// in `data_extra`) shows its first 16 digits, like the references' `Key:` line; padding to the
+    /// frame's full length put zeros in front of them instead (`000000F339…` for an 88-bit frame).
     pub fn data_hex(&self) -> String {
         if self.data_count_bit > 0 {
-            let bytes = self.data_count_bit.div_ceil(8);
+            let bytes = self.data_count_bit.div_ceil(8).min(8);
             format!("{:0width$X}", self.data, width = bytes * 2)
         } else {
             "-".to_string()
@@ -402,5 +409,29 @@ impl ButtonCommand {
             ButtonCommand::Trunk => 0x04,
             ButtonCommand::Panic => 0x08,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `data_hex` pads to the frame's bytes up to 8: never zeros in front of a long frame's first
+    /// 64 bits (the rest of such a frame is in `data_extra`).
+    #[test]
+    fn data_hex_pads_to_at_most_16_digits() {
+        let mut c = Capture::from_pairs(0, 433_920_000, Vec::new());
+        assert_eq!(c.data_hex(), "-");
+        c.data = 0x1234;
+        c.data_count_bit = 24;
+        assert_eq!(c.data_hex(), "001234");
+        c.data_count_bit = 64;
+        assert_eq!(c.data_hex(), "0000000000001234");
+        c.data = 0xF339_7867_4058_45F1;
+        c.data_count_bit = 88;
+        c.data_extra = Some(0x9AAA49);
+        assert_eq!(c.data_hex(), "F3397867405845F1");
+        c.data_count_bit = 176;
+        assert_eq!(c.data_hex(), "F3397867405845F1");
     }
 }

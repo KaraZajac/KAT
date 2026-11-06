@@ -10,8 +10,11 @@ layout: default
 
 ## Overview
 
-Linear Delta-3 8-bit DIP-switch remotes. The C's repeat check (`last_data`) and an odd state machine make
-the decoder report only every third frame of a held button (see Decoder Steps); KAT reproduces it exactly.
+Linear Delta-3 8-bit DIP-switch remotes. The garage app, doctor-firmware, ARF and Momentum keep collecting bits
+after an 8-bit frame, so their repeat check (`last_data`) reports only every third frame of a held button and never
+a 3–4 frame tap; RogueMaster clears the bits after each frame (its encoder is the same, so a real remote looks like
+its upload) and reports every frame after the first. KAT follows RogueMaster since v1.8.7: the Flipper unit-test
+capture gives 62 frames (26 before).
 
 ## Timing
 

@@ -26,7 +26,8 @@
 //! Key bytes `b0..b7`: button = `b0 & 0x0F`, serial = `b1 b2 b3`, 16-bit counter: the low byte is
 //! stored inverted in `b4..b6` bits, the high byte is XOR-masked with the serial rotated left by
 //! `4 + lo` (`REG_SH1/REG_SH2`). ProtoPirate's extra validity expression is ignored by the C (and is
-//! false on every real frame), so frames are reported unconditionally (`crc_valid` = true).
+//! false on every real frame), so frames are reported unconditionally (`crc_valid` = false: no
+//! check exists, `NO_CHECKSUM` in `info.rs`).
 //!
 //! Button codes (native, shown via `native_button_name`): 1 Lock, 2 Unlock, 3 Trunk, 4 Panic —
 //! ProtoPirate's emulate scene and Flipper-ARF's encoder/labels. (ProtoPirate's decoder label table
@@ -314,7 +315,7 @@ impl SubaruDecoder {
             button: Some(f.btn),
             counter: Some(f.cnt),
             // No checksum: reported unconditionally, like both references.
-            crc_valid: true,
+            crc_valid: false,
             data: key,
             data_count_bit: MIN_COUNT_BIT as usize,
             encoder_capable: true,

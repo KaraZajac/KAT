@@ -45,7 +45,8 @@
 //! sync, exactly 112 clean Manchester pairs with alternating levels). KAT additionally rejects a
 //! degenerate payload whose 108 bits after the command nibble are all identical (a run of preamble
 //! pairs decoded as data; e.g. all-zero data would otherwise pass with command 0x0).
-//! `crc_valid` = true means "passed the whitelist/structure gate" (the protocol has no CRC).
+//! `crc_valid` is false: the protocol has no CRC (the whitelist/structure gate decides emission;
+//! `NO_CHECKSUM` in `info.rs` makes the interface show "none" rather than a failed check).
 //!
 //! # Encoder (matches `mercedes_v0_encoder_upload` / `_burst`)
 //! Byte-exact replay of the captured 112 bits with only the command nibble re-stamped:
@@ -236,7 +237,7 @@ impl MercedesV0Decoder {
             serial: None,
             button: Some((hi >> 60) as u8),
             counter: None,
-            crc_valid: true,
+            crc_valid: false,
             data: hi,
             data_count_bit: BITS as usize,
             encoder_capable: true,
@@ -468,7 +469,7 @@ mod tests {
             serial: None,
             button: Some((hi >> 60) as u8),
             counter: None,
-            crc_valid: true,
+            crc_valid: false,
             data: hi,
             data_count_bit: BITS as usize,
             encoder_capable: true,
@@ -522,7 +523,7 @@ mod tests {
         assert_eq!(d.extra, Some(EXTRA));
         assert_eq!(d.button, Some(CMD_LOCK));
         assert_eq!(d.data_count_bit, 112);
-        assert!(d.crc_valid && d.encoder_capable);
+        assert!(!d.crc_valid && d.encoder_capable, "no checksum in the frame");
     }
 
     #[test]

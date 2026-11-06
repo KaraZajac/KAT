@@ -96,3 +96,11 @@ random vectors (all types, key indices, buttons, counter wrap). `IMPORTS/VAG/Pas
 decoded key file) is one of the `Vw_passat_b5_3bg.sub` frames. The VW Atlas captures decode in no
 reference. Unit tests cover the captures, every type's encode→decode round trip, the legacy `extra`
 layout and AUT64 golden vectors.
+
+## Key files
+
+ProtoPirate's lines: `Key` (Key1), `Key2`, `Type` (after parsing: 3 → 4 for key 3) and, for a decrypted frame,
+`Serial`, `Btn`, `Cnt` and `KeyIdx`. Flipper-ARF's "VAG GROUP" files carry the same lines (plus `BtnFlags`) but
+write a Type 1 button as its high nibble (`Btn: 2` for 0x20); KAT reads that form as the byte it means. Until
+v1.8.7 it compared ARF's nibble with the whole byte, rebuilt the frame around plaintext 0x02, and loaded every
+ARF-saved Type 1 fob as another, undecryptable frame.

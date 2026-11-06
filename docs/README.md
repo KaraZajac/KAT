@@ -118,7 +118,7 @@ Ported from Flipper-ARF's garage app (`applications/system/subghz_garage/protoco
 
 ### Receive-only remotes from rtl_433
 
-Ports of [rtl_433](https://github.com/merbanan/rtl_433) decoders (`src/devices/`) for remotes no Flipper firmware decodes; receive only, registered last. They share one exact port of rtl_433's receive chain, `src/protocols/rtl433/`: the pulse detector, the pulse slicers (PWM, PPM, Manchester zero-bit, PIWM_DC, PCM) and the bit buffer, run over KAT's level/duration stream.
+Ports of [rtl_433](https://github.com/merbanan/rtl_433) decoders (`src/devices/`) for remotes no Flipper firmware decodes; receive only, registered last. They share one exact port of rtl_433's receive chain, `src/protocols/rtl433/`: the pulse detector, the pulse slicers (PWM, PPM, Manchester zero-bit, PIWM_DC, PCM) and the bit buffer, run over KAT's level/duration stream. A frame one of them reads is held back and reported only if no Flipper decoder reads the signal, and their hits reset only the rtl_433 ports (rtl_433 runs its devices independently): the Audiovox-PROOE3B port's weak checks also fit GateTX and Princeton frames, and before v1.8.7 its hit reset every decoder on the pulse those two needed, so such remotes were listed as Audiovox and never as GateTX / Princeton.
 
 | Protocol | Rust module | Doc |
 |----------|-------------|-----|

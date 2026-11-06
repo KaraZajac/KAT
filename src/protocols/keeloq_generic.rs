@@ -103,7 +103,7 @@ fn try_kia_v3_v4_format(
                         crc_valid: true,
                         data: key_data,
                         data_count_bit: KIA_V3_V4_BITS,
-                        encoder_capable: true,
+                        encoder_capable: false, // no decoder/encoder resolves "Keeloq (<key>)" (mod.rs get)
                         extra: None,
                         protocol_display_name: None,
                     },
@@ -147,7 +147,7 @@ fn try_star_line_format(
                         crc_valid: true,
                         data,
                         data_count_bit: STAR_LINE_BITS,
-                        encoder_capable: true,
+                        encoder_capable: false, // no decoder/encoder resolves "Keeloq (<key>)" (mod.rs get)
                         extra: None,
                         protocol_display_name: None,
                     },
@@ -169,7 +169,7 @@ fn try_star_line_format(
                         crc_valid: true,
                         data,
                         data_count_bit: STAR_LINE_BITS,
-                        encoder_capable: true,
+                        encoder_capable: false, // no decoder/encoder resolves "Keeloq (<key>)" (mod.rs get)
                         extra: None,
                         protocol_display_name: None,
                     },

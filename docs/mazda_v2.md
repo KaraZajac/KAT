@@ -94,8 +94,12 @@ Supported — a real rolling-code generator, as in the C (`subghz_protocol_encod
   bits [2:1] change.
 
 Upload: preamble, sync `0xEC` and the 63 payload bits through the C's two-state level encoder, a one-bit
-tail and a 3000 µs HIGH gap, repeated 3 times (the C's default `Repeat`). KAT cannot write the bumped
-counter back into the capture, so re-sending the same capture transmits the same next code.
+tail and a 3000 µs HIGH gap, repeated 3 times (the C's default `Repeat`); the app keeps the frame sent on
+the capture, so the next press sends the code after. Each copy starts with a 1000 µs HIGH (KAT, since
+v1.8.7): the C's upload begins with the preamble's LOW, which on air merges into the silence before the
+transmission, so the sampler armed on the first HIGH, read the wrong halves and neither the C decoder nor
+KAT's could read the transmission; the idle sampler ignores a pulse over 749 µs, so the LOW after KAT's
+lead-in is the pulse that arms it.
 
 ## Deviations from the C
 

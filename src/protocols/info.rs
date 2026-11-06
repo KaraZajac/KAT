@@ -251,15 +251,45 @@ pub(super) const NO_CHECKSUM: &[&str] = &[
     // Rolling codes the references decode without a check.
     "CAME Atomo", "Cardin S508", "Ditec GOL4", "Hay21", "iDo 117/111", "Phoenix_V2", "Prastel",
     "Security+ 1.0",
+    // Car protocols whose frames carry no checksum: structural gates decide emission.
+    // (Hyundai, unregistered, verifies nothing either: list it here when it is registered.)
+    "Fiat V0", "Fiat V2", "Ford V2", "Ford V3", "Mercedes V0", "Mitsubishi V0", "Subaru",
     // rtl_433 ports whose C has no integrity check.
     "Alps-FWB1U545", "Audiovox-PROOE3B", "CodeAlarm-FRDPC2002", "Opel-Mokka",
 ];
 
+/// Whether a decode shown as `name`, with `bits` bits and `extra`, had a check at all.
+type Checked = fn(&str, usize, Option<u64>) -> bool;
+
+/// Decoders that verify only some of their frames: the others show "-", not "FAIL".
+const PARTIAL_CHECK: &[(&str, Checked)] = &[
+    // PRO1/PRO2 (57 bits) carry a CRC-8; the Static, Dynamic and unknown variants nothing.
+    ("Scher-Khan", |_, bits, _| bits == 57),
+    // The 2-bit CRC field follows the 64 key bits; a frame cut at 64 bits carries none.
+    ("Kia V5", |_, bits, _| bits > 64),
+    // Nice One's 72-bit tail has a CRC; a 52-bit Nice FloR-S frame has none.
+    ("Nice FloR-S", |name, _, _| strip_variant(name) == "Nice One"),
+    // An unidentified KeeLoq frame was decrypted by no key.
+    ("KeeLoq", |name, _, _| !name.eq_ignore_ascii_case("KeeLoq (Unknown)")),
+    // Faac SLH frames verify only with the remote's seed (kept in `extra`).
+    ("Faac SLH", |_, _, extra| extra.is_some()),
+];
+
 /// Whether `name`'s protocol has a checksum (or another check) KAT verifies, so that a frame
 /// without `crc_valid` failed it. False for the protocols in [`NO_CHECKSUM`]; true for names
-/// [`lookup`] doesn't know.
+/// [`lookup`] doesn't know. [has_checksum_for] also knows the decoders that check some frames only.
 pub fn has_checksum(name: &str) -> bool {
     lookup(name).is_none_or(|i| !NO_CHECKSUM.contains(&i.decoder))
+}
+
+/// [has_checksum] for one decode: shown as `name`, `bits` bits, with `extra` (the capture's
+/// `data_extra`), so that a frame of a decoder that checks only some frames ([PARTIAL_CHECK]) is
+/// reported "not checked" rather than "failed".
+pub fn has_checksum_for(name: &str, bits: usize, extra: Option<u64>) -> bool {
+    has_checksum(name)
+        && lookup(name).is_none_or(|i| {
+            PARTIAL_CHECK.iter().find(|(d, _)| *d == i.decoder).is_none_or(|(_, f)| f(name, bits, extra))
+        })
 }
 
 #[cfg(test)]
@@ -422,6 +452,12 @@ mod tests {
         ("kia v0", "encryption", "Rolling Code"),
         ("kia v0", "make", "Kia/Hyundai"),
         ("kia v0", "buttons", "0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-255=Other"),
+        // v1.8.7 review: Kia V7's labels are the references' (`kia_v7.c`: 1 Lock, 2 Unlock, 3 and 8
+        // Trunk) — KAT 1.4 labelled 8 "Panic" like ProtoPirate's emulate key; Fiat V1 is AM | FM in
+        // Flipper-ARF and doctor-firmware (union); Hyundai (unregistered) names the C's three codes.
+        ("Kia V7", "buttons", "0=Other,1=Lock,2=Unlock,3=Trunk,4-7=Other,8=Trunk,9-255=Other"),
+        ("Fiat V1", "rf", "AM/FM"),
+        ("Hyundai", "buttons", "0=Other,1=Lock,2=Unlock,3-8=Other,9=Trunk,10-255=Other"),
         // Prefix arms that matched names no protocol has: a bare "Ford" / "Fiat" / "Kia".
         ("Ford", "coding", "Unknown"),
         ("Ford", "rf", "—"),

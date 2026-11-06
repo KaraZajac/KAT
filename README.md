@@ -30,7 +30,7 @@ Its 107 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPira
 
 - **107 protocols** — 53 car key fob and alarm protocols and 54 garage door, gate, barrier and shutter remote protocols ([the full list](#supported-protocols)).
 - **KeeLoq keystore fallback** — a signal no protocol claims is tried as KeeLoq with every manufacturer key in the embedded keystore and in your own `keeloq_mfcodes_user` ([docs/keeloq.md](docs/keeloq.md)).
-- **Signal detail** — encoding, RF modulation, encryption, serial, button, counter, key data, CRC, frequency and the raw level/duration pairs.
+- **Signal detail** — encoding, RF modulation, encryption, serial, button, counter, key data, CRC (OK or FAIL where the protocol has a check KAT verifies; "none" where it has not: the fixed-code gate remotes, Fiat V0/V2, Ford V2/V3, Mercedes V0, Mitsubishi V0, Subaru, a KeeLoq frame no key identifies, Faac SLH without its seed, Scher-Khan's non-PRO variants …), frequency and the raw level/duration pairs.
 - **Unknown signals** (listed by default) — unidentified signals are listed too, ready for timing analysis; `show_unknown_signals = false` lists only decoded ones.
 - **Duplicates** — a decoded signal already in the list is not added again; with `ignore_duplicates = false` every press is listed, as a Flipper's receive history lists it ([Configuration](#configuration)).
 

@@ -401,7 +401,11 @@ impl ProtocolDecoder for KiaV3V4Decoder {
             _ => captured,
         };
         let counter = decoded.counter.unwrap_or(0).wrapping_add(1);
-        let v4 = decoded.extra.unwrap_or(0) == 0;
+        // The version is in `extra`; a capture from before it was stored goes by its name.
+        let v4 = match decoded.extra {
+            Some(version) => version == 0,
+            None => decoded.protocol_display_name.as_deref() != Some("Kia V3"),
+        };
         let mut out = Vec::new();
         for crc in 0..CRC_SWEEP_COUNT {
             out.extend(build_burst(serial, button, counter, v4, crc));

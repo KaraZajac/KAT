@@ -45,7 +45,8 @@ with 1 = HIGH,LOW: hop (32 bits, MSB first), fix (32 bits), 6 tail bits.
 - **Encoding:** Manchester 200/400 µs (on-air 1 = HIGH,LOW)
 - **RF modulation:** AM/OOK
 - **Encryption:** rolling/encrypted hop (no key); no checksum
-- **Frequencies:** 433.92 MHz (433.88 MHz captures fall inside the ±2% window)
+- **Frequencies:** 315 MHz, 433.92 MHz (every reference flags 315 | 433; 433.88 MHz captures fall inside the ±2 %
+  window)
 
 ## Decoder Steps
 

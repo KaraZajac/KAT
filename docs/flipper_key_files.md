@@ -109,7 +109,7 @@ doc comment has the details.
 | Renault V0 (PP) | `Renault V0` / 82 | Serial, Btn, Cnt, Key2, Disp | checksum required |
 | Renault V1 (PP) | `Renault V1` / 88 | Key_2, Recovered, Seed, Serial, Btn, Cnt, Hop | the seed search reruns on load; `Bit: 82` keys go to Renault V1 (ARF) |
 | Sheriff CFM (ARF) | `Sheriff CFM` / 64 | Model, Serial, Btn, Cnt | must decrypt |
-| KeeLoq (ARF) | `KeeLoq` / 64 | Seed (BFT), Manufacture | the named manufacturer's keys must validate the frame (TX then uses that manufacturer, as ARF); `Unknown` / no line: identified as on air |
+| KeeLoq (ARF) | `KeeLoq` / 64 | Seed (BFT), Manufacture | the named manufacturer's keys validate the frame (TX then uses that manufacturer, as ARF); `Unknown`, no line, a name KAT's keystore lacks (doctor-firmware's brand names) or a key that does not validate: identified as on air, as the references load such a file |
 | Mazda Siemens (ARF) | `MazdaSiemens` / 64 | Serial, Btn, Cnt | |
 | Mitsubishi V0 96-bit (ARF) | `Mitsubishi V0` / 96 | Serial, Cnt, Btn, Raw_Frame | Key is all zero, as ARF writes it; 61-bit keys load as Kia V0 type 4 |
 | Porsche Cayenne (ARF) | `Porsche AG` / 64 | Serial, Btn, Counter, Cnt | |

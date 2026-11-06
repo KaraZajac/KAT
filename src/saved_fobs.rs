@@ -157,10 +157,13 @@ pub fn counter_diff(received: u16, saved: u16) -> i32 {
     i32::from(received.wrapping_sub(saved) as i16)
 }
 
+/// Hex keys compare by value: no `0x`, case, or leading zeros (files written before v1.8.7 padded
+/// frames longer than 64 bits with zeros in front of their first 64 bits).
 fn normalize_hex(s: &str) -> String {
     let t = s.trim();
     let t = t.strip_prefix("0x").or_else(|| t.strip_prefix("0X")).unwrap_or(t);
-    t.to_ascii_uppercase()
+    let t = t.trim_start_matches('0');
+    if t.is_empty() { "0".to_string() } else { t.to_ascii_uppercase() }
 }
 
 /// ProtoPirate's rules (see the module doc) over the whole index; the match with the smallest
@@ -447,6 +450,9 @@ mod tests {
         assert!(find_match(&index, &rx("PSA", None, Some("A1B2C3D4E5F60718"), Some(12))).is_some());
         assert!(find_match(&index, &rx("PSA", None, Some("A1B2C3D4E5F60719"), Some(12))).is_none());
         assert!(find_match(&index, &rx("PSA", None, None, Some(12))).is_none());
+        // A file written before v1.8.7 padded an 80-bit frame's key to 20 digits.
+        let old = vec![saved("PSA", None, Some("0000A1B2C3D4E5F60718"), Some(10), "psa.fob")];
+        assert!(find_match(&old, &rx("PSA", None, Some("A1B2C3D4E5F60718"), Some(12))).is_some());
     }
 
     #[test]

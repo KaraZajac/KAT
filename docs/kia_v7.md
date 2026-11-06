@@ -27,7 +27,8 @@ Kia V7 uses Manchester encoding at 250/500 µs. 64 bits. The decoded 64-bit word
 - **byte 0:** header `0x4C`
 - **bytes 1–2:** counter (16-bit, big-endian)
 - **bytes 3–6:** serial (28-bit) — `(b3<<20)|(b4<<12)|(b5<<4)|(b6>>4)`, masked to 0x0FFFFFFF
-- **byte 6 low nibble:** button (4-bit) — Lock=1, Unlock=2, Trunk=3, Panic=8 (ProtoPirate emulate D-pad)
+- **byte 6 low nibble:** button (4-bit) — Lock=1, Unlock=2, Trunk=3 or 8 (the references' names; ProtoPirate's
+  emulate D-pad sends 8 for its Panic key, as KAT's Panic command does)
 - **byte 7:** CRC8 over bytes 0–6 (poly `0x7F`, init `0x4C`)
 
 ## RF

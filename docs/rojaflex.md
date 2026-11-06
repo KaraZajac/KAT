@@ -47,7 +47,8 @@ the same entry). Receive only. No recordings exist.
 
 **KAT deviation** (forced by the unknown tail on the FM path): a frame without CRC is taken only as the bridge's 9
 bytes (72 bits, "17 bytes without CRC" in the C's notes) with a correct Token II (byte 8 = the sum of bytes 1..7, as
-the C documents it and its cloner builds it); `crc_valid` stays false (the C checks nothing there). The C also
+the C documents it and its cloner builds it); `crc_valid` is true for such a frame — the sum was checked (until
+v1.8.7 it was false and the interface showed "FAIL" for a frame that carries no CRC). The C also
 reports 74..86-bit CRC-less frames and wrong sums, which only arise from cut or corrupted receptions; with an unknown
 tail, accepting them would turn 88-bit frames that fail their CRC into CRC-less "Bridge" / "Other" frames under a
 shorter tail reading, and pad cut frames up to 72 bits under a longer one.

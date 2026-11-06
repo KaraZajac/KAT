@@ -932,6 +932,10 @@ impl ProtocolDecoder for VagDecoder {
         if serial.is_none() && button.is_none() && counter.is_none() {
             return Some(d);
         }
+        // Flipper-ARF stores a Type 1 button as its high nibble (`dec[7] >> 4`: `Btn: 2` for
+        // 0x20); ProtoPirate and KAT keep the whole byte. Read ARF's form as the byte it means, or
+        // the frame is rebuilt around plaintext 0x02, which no key decrypts.
+        let button = button.map(|b| if p.vag_type == 1 && b < 0x10 { b << 4 } else { b });
         let now = p.decrypted.then_some((p.serial, p.btn, p.cnt));
         let want = (
             serial.or(now.map(|n| n.0)),
@@ -1332,6 +1336,25 @@ mod tests {
         assert_eq!(up.len(), 518);
         assert_eq!((up[90].level, up[90].duration_us, up[91].duration_us), (true, 1000, 500));
         assert_eq!((up[258].level, up[258].duration_us), (false, 10000));
+    }
+
+    /// Flipper-ARF ("VAG GROUP") writes a Type 1 button as its high nibble (`Btn: 2` for 0x20).
+    /// Its file of KAT's own upload (the oracle's serialize) must load as that frame, not as one
+    /// rebuilt around plaintext 0x02 (KAT 1.8.6: another Key1, no fields, no TX).
+    #[test]
+    fn arf_type1_key_file_loads() {
+        use crate::protocols::flipper_key::testing::key;
+        crate::protocols::keys::load_keystore_from_embedded();
+        let dec = VagDecoder::new();
+        let arf = key(
+            "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 434420000\n\
+             Preset: FuriHalSubGhzPresetOok650Async\nProtocol: VAG GROUP\nBit: 80\n\
+             Key: 00 D7 11 F8 6F 28 58 A1\nKey2: 00 00 00 00 00 00 66 2A\nType: 1\nKeyIdx: 0\n\
+             Cnt: 37778\nSerial: 4252471956\nBtn: 2\nBtnFlags: 0\n",
+        );
+        let d = dec.from_flipper_key(&arf).expect("loads");
+        assert_eq!((d.data, d.serial, d.button, d.counter), (0x00D7_11F8_6F28_58A1, Some(0xFD77_9294), Some(0x20), Some(0x9392)));
+        assert!(d.crc_valid && d.encoder_capable);
     }
 
     /// Key files: real decodes of every type round-trip with ProtoPirate's lines; the IMPORTS key

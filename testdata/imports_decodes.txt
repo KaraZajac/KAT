@@ -5,17 +5,17 @@ BYD/BYD Seal 2025 unlock x5.sub | 433075000 | (none)
 BYD/BYD Sealion lock x4.sub | 433889000 | (none)
 BYD/BYD Sealion unlock x3.sub | 433889000 | (none)
 BYD/BYD apertura.sub | 433920000 | (none)
-FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=DE21BFE54536200/71 sn=54536200 btn=13 cnt=1BFE crc=1 tx=1
-FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=FEC0E84D54536200/71 sn=54536200 btn=1B cnt=E84D crc=1 tx=1
-FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=52D6A31154536200/71 sn=54536200 btn=27 cnt=A311 crc=1 tx=1
-FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=9A3D037D54536200/71 sn=54536200 btn=33 cnt=37D crc=1 tx=1
-FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=A03BF86854536200/71 sn=54536200 btn=3B cnt=F868 crc=1 tx=1
-FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=5AD291DB54536200/71 sn=54536200 btn=33 cnt=91DB crc=1 tx=1
-FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=F6773EA154536200/71 sn=54536200 btn=3 cnt=3EA1 crc=1 tx=1
-FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=A41DDE9554536200/71 sn=54536200 btn=33 cnt=DE95 crc=1 tx=1
-FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=455C47A54536200/71 sn=54536200 btn=13 cnt=C47A crc=1 tx=1
-FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=5A14385B54536200/71 sn=54536200 btn=23 cnt=385B crc=1 tx=1
-FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=444A91254536200/71 sn=54536200 btn=2B cnt=A912 crc=1 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=DE21BFE54536200/71 sn=54536200 btn=13 cnt=1BFE crc=0 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=FEC0E84D54536200/71 sn=54536200 btn=1B cnt=E84D crc=0 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=52D6A31154536200/71 sn=54536200 btn=27 cnt=A311 crc=0 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=9A3D037D54536200/71 sn=54536200 btn=33 cnt=37D crc=0 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=A03BF86854536200/71 sn=54536200 btn=3B cnt=F868 crc=0 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=5AD291DB54536200/71 sn=54536200 btn=33 cnt=91DB crc=0 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=F6773EA154536200/71 sn=54536200 btn=3 cnt=3EA1 crc=0 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=A41DDE9554536200/71 sn=54536200 btn=33 cnt=DE95 crc=0 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=455C47A54536200/71 sn=54536200 btn=13 cnt=C47A crc=0 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=5A14385B54536200/71 sn=54536200 btn=23 cnt=385B crc=0 tx=1
+FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub | 433889000 | Fiat V0 | data=444A91254536200/71 sn=54536200 btn=2B cnt=A912 crc=0 tx=1
 FIAT/Fiat Panda.sub | 433920000 | Fiat V1 | data=1EFB82D662234/104 extra=A66F54FA6D sn=EFB82D66 btn=2 cnt=8D crc=1 tx=1
 FIAT/Fiat Panda.sub | 433920000 | Fiat V1 | data=1EFB82D662234/104 extra=A66F54FA6D sn=EFB82D66 btn=2 cnt=8D crc=1 tx=1
 FIAT/Fiat Panda.sub | 433920000 | Fiat V1 | data=1EFB82D662234/104 extra=A66F54FA6D sn=EFB82D66 btn=2 cnt=8D crc=1 tx=1
@@ -115,26 +115,26 @@ FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=5591D46C82F2D2FD/64 extr
 FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=5591D46C82F2D2FD/64 extra=78B4 sn=4306BE50 btn=2 cnt=877A crc=1 tx=1
 FORD/2008_Focus_Unlock.sub | 433920000 | Ford V0 | data=5591D46C82F2D2FD/64 extra=78B4 sn=4306BE50 btn=2 cnt=877A crc=1 tx=1
 FORD/21_ford_escape.sub | 312000000 | (none)
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40802EB/104 extra=DD7DCEFA7 sn=4E2464E4 btn=2 cnt=EB0D crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40802EB/104 extra=DD7DCEFA7 sn=4E2464E4 btn=2 cnt=EB0D crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40802EB/104 extra=EAE5D2242 sn=4E2464E4 btn=2 cnt=EB0E crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40802EB/104 extra=EAE5D2242 sn=4E2464E4 btn=2 cnt=EB0E crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40801EB/104 extra=F8F588C22 sn=4E2464E4 btn=1 cnt=EB0F crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40801EB/104 extra=F8F588C22 sn=4E2464E4 btn=1 cnt=EB0F crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40801EB/104 extra=F8F588C22 sn=4E2464E4 btn=1 cnt=EB0F crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40801EB/104 extra=1057DF9F5E sn=4E2464E4 btn=1 cnt=EB10 crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=113E15FA11 sn=4E2464E4 btn=7 cnt=EB11 crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=113E15FA11 sn=4E2464E4 btn=7 cnt=EB11 crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=113E15FA11 sn=4E2464E4 btn=7 cnt=EB11 crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=14BDAD1305 sn=4E2464E4 btn=7 cnt=EB14 crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=14BDAD1305 sn=4E2464E4 btn=7 cnt=EB14 crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=14BDAD1305 sn=4E2464E4 btn=7 cnt=EB14 crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=15C7D1FEBF sn=4E2464E4 btn=6 cnt=EB15 crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=15C7D1FEBF sn=4E2464E4 btn=6 cnt=EB15 crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=15C7D1FEBF sn=4E2464E4 btn=6 cnt=EB15 crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=16B69BCC5D sn=4E2464E4 btn=6 cnt=EB16 crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=16B69BCC5D sn=4E2464E4 btn=6 cnt=EB16 crc=1 tx=0
-FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=16B69BCC5D sn=4E2464E4 btn=6 cnt=EB16 crc=1 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40802EB/104 extra=DD7DCEFA7 sn=4E2464E4 btn=2 cnt=EB0D crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40802EB/104 extra=DD7DCEFA7 sn=4E2464E4 btn=2 cnt=EB0D crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40802EB/104 extra=EAE5D2242 sn=4E2464E4 btn=2 cnt=EB0E crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40802EB/104 extra=EAE5D2242 sn=4E2464E4 btn=2 cnt=EB0E crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40801EB/104 extra=F8F588C22 sn=4E2464E4 btn=1 cnt=EB0F crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40801EB/104 extra=F8F588C22 sn=4E2464E4 btn=1 cnt=EB0F crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40801EB/104 extra=F8F588C22 sn=4E2464E4 btn=1 cnt=EB0F crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40801EB/104 extra=1057DF9F5E sn=4E2464E4 btn=1 cnt=EB10 crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=113E15FA11 sn=4E2464E4 btn=7 cnt=EB11 crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=113E15FA11 sn=4E2464E4 btn=7 cnt=EB11 crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=113E15FA11 sn=4E2464E4 btn=7 cnt=EB11 crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=14BDAD1305 sn=4E2464E4 btn=7 cnt=EB14 crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=14BDAD1305 sn=4E2464E4 btn=7 cnt=EB14 crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40807EB/104 extra=14BDAD1305 sn=4E2464E4 btn=7 cnt=EB14 crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=15C7D1FEBF sn=4E2464E4 btn=6 cnt=EB15 crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=15C7D1FEBF sn=4E2464E4 btn=6 cnt=EB15 crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=15C7D1FEBF sn=4E2464E4 btn=6 cnt=EB15 crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=16B69BCC5D sn=4E2464E4 btn=6 cnt=EB16 crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=16B69BCC5D sn=4E2464E4 btn=6 cnt=EB16 crc=0 tx=0
+FORD/22_ford_escape_u2_l2_t2_p2.sub | 314980000 | Ford V3 | data=FF4E2464E40806EB/104 extra=16B69BCC5D sn=4E2464E4 btn=6 cnt=EB16 crc=0 tx=0
 FORD/25_ford_bronco_u2_l2_rs2_p2.sub | 433420000 | (none)
 FORD/3_unlock_ford.sub | 433920000 | Ford V0 | data=55CE9E199FA686AB/64 extra=EBCF sn=48189F19 btn=2 cnt=872C crc=1 tx=1
 FORD/3_unlock_ford.sub | 433920000 | Ford V0 | data=55CE9E199FA686AB/64 extra=EBCF sn=48189F19 btn=2 cnt=872C crc=1 tx=1
@@ -684,13 +684,13 @@ KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E02970D/57 sn=B444706E 
 KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E029804/57 sn=B444706E btn=2 cnt=98 crc=1 tx=1
 KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E029903/57 sn=B444706E btn=2 cnt=99 crc=1 tx=1
 KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E029A02/57 sn=B444706E btn=2 cnt=9A crc=1 tx=1
-LDV/LDV-T80_lock.sub | 433889000 | Ford V3 | data=4443A88F90656800/104 extra=948EDD7 sn=43A88F90 btn=1 cnt=FFFF crc=1 tx=0
-LDV/LDV-T80_lock.sub | 433889000 | Ford V3 | data=4443A88F90656800/104 extra=9686DA9 sn=43A88F90 btn=1 cnt=FFFF crc=1 tx=0
-LDV/LDV-T80_lock.sub | 433889000 | Ford V3 | data=4443A88F90656800/104 extra=9880F60 sn=43A88F90 btn=1 cnt=FFFF crc=1 tx=0
-LDV/LDV-T80_lock.sub | 433889000 | Ford V3 | data=4443A88F90656800/104 extra=9A99BFC sn=43A88F90 btn=1 cnt=FFFF crc=1 tx=0
-LDV/LDV-T80_unlock.sub | 433889000 | Ford V3 | data=4443A88F90657000/104 extra=8F0060D sn=43A88F90 btn=1 cnt=FFFF crc=1 tx=0
-LDV/LDV-T80_unlock.sub | 433889000 | Ford V3 | data=4443A88F90657000/104 extra=9109804 sn=43A88F90 btn=1 cnt=FFFF crc=1 tx=0
-LDV/LDV-T80_unlock.sub | 433889000 | Ford V3 | data=4443A88F90657000/104 extra=93093CD sn=43A88F90 btn=1 cnt=FFFF crc=1 tx=0
+LDV/LDV-T80_lock.sub | 433889000 | Ford V3 | data=4443A88F90656800/104 extra=948EDD7 sn=43A88F90 btn=1 cnt=FFFF crc=0 tx=0
+LDV/LDV-T80_lock.sub | 433889000 | Ford V3 | data=4443A88F90656800/104 extra=9686DA9 sn=43A88F90 btn=1 cnt=FFFF crc=0 tx=0
+LDV/LDV-T80_lock.sub | 433889000 | Ford V3 | data=4443A88F90656800/104 extra=9880F60 sn=43A88F90 btn=1 cnt=FFFF crc=0 tx=0
+LDV/LDV-T80_lock.sub | 433889000 | Ford V3 | data=4443A88F90656800/104 extra=9A99BFC sn=43A88F90 btn=1 cnt=FFFF crc=0 tx=0
+LDV/LDV-T80_unlock.sub | 433889000 | Ford V3 | data=4443A88F90657000/104 extra=8F0060D sn=43A88F90 btn=1 cnt=FFFF crc=0 tx=0
+LDV/LDV-T80_unlock.sub | 433889000 | Ford V3 | data=4443A88F90657000/104 extra=9109804 sn=43A88F90 btn=1 cnt=FFFF crc=0 tx=0
+LDV/LDV-T80_unlock.sub | 433889000 | Ford V3 | data=4443A88F90657000/104 extra=93093CD sn=43A88F90 btn=1 cnt=FFFF crc=0 tx=0
 Lamborghini/Lambo_Lock.sub | 315000000 | (none)
 Lamborghini/Lambo_Trunk.sub | 315000000 | (none)
 Lamborghini/Lambo_Unlock.sub | 315000000 | (none)
@@ -721,15 +721,15 @@ SKODA/Skoda_Fabia_2007 RAW.sub | 434390000 | VAG | data=C00FDC5634239909/80 extr
 SKODA/Skoda_Fabia_2007 RAW.sub | 434390000 | VAG | data=C0D61B7A42017AFA/80 extra=8000000002047B2B sn=7687620 btn=0 cnt=847A crc=1 tx=1
 SKODA/Skoda_Fabia_2007 RAW.sub | 434390000 | VAG | data=C0D61B7A42017AFA/80 extra=8000000002047B2B sn=7687620 btn=0 cnt=847A crc=1 tx=1
 SUBARU/20_subaru_outback_ll_tt_ulul_pp.sub | 433657070 | (none)
-SUBARU/Subaro Impreza RAW .sub | 433920000 | Subaru | data=E1CB715E4FD1C3F8/64 sn=CB715E btn=1 cnt=C90A crc=1 tx=1
-SUBARU/Subaro Impreza RAW .sub | 433920000 | Subaru | data=E1CB715E16DDF787/64 sn=CB715E btn=1 cnt=C90B crc=1 tx=1
-SUBARU/Subaro Impreza RAW .sub | 433920000 | Subaru | data=E1CB715EE4C09F78/64 sn=CB715E btn=1 cnt=C90C crc=1 tx=1
-SUBARU/Subaro Impreza RAW .sub | 433920000 | Subaru | data=E1CB715E80F44BA6/64 sn=CB715E btn=1 cnt=C90D crc=1 tx=1
-SUBARU/Subaro Impreza RAW .sub | 433920000 | Subaru | data=E1CB715E49CCE71A/64 sn=CB715E btn=1 cnt=C90E crc=1 tx=1
-SUBARU/Subaru Forester 2012 AU.sub | 433920000 | Subaru | data=E2324AFE5BE7500A/64 sn=324AFE btn=2 cnt=32 crc=1 tx=1
-SUBARU/Subaru WRX Impreza 2018 AU.sub | 433920000 | Subaru | data=E12A90CEF2FEDF44/64 sn=2A90CE btn=1 cnt=1904 crc=1 tx=1
-SUBARU/Subaru WRX Impreza 2018 AU.sub | 433920000 | Subaru | data=E12A90CEADCA8B6F/64 sn=2A90CE btn=1 cnt=1905 crc=1 tx=1
-SUBARU/Subaru WRX Impreza 2018 AU.sub | 433920000 | Subaru | data=E12A90CE52F62329/64 sn=2A90CE btn=1 cnt=1906 crc=1 tx=1
+SUBARU/Subaro Impreza RAW .sub | 433920000 | Subaru | data=E1CB715E4FD1C3F8/64 sn=CB715E btn=1 cnt=C90A crc=0 tx=1
+SUBARU/Subaro Impreza RAW .sub | 433920000 | Subaru | data=E1CB715E16DDF787/64 sn=CB715E btn=1 cnt=C90B crc=0 tx=1
+SUBARU/Subaro Impreza RAW .sub | 433920000 | Subaru | data=E1CB715EE4C09F78/64 sn=CB715E btn=1 cnt=C90C crc=0 tx=1
+SUBARU/Subaro Impreza RAW .sub | 433920000 | Subaru | data=E1CB715E80F44BA6/64 sn=CB715E btn=1 cnt=C90D crc=0 tx=1
+SUBARU/Subaro Impreza RAW .sub | 433920000 | Subaru | data=E1CB715E49CCE71A/64 sn=CB715E btn=1 cnt=C90E crc=0 tx=1
+SUBARU/Subaru Forester 2012 AU.sub | 433920000 | Subaru | data=E2324AFE5BE7500A/64 sn=324AFE btn=2 cnt=32 crc=0 tx=1
+SUBARU/Subaru WRX Impreza 2018 AU.sub | 433920000 | Subaru | data=E12A90CEF2FEDF44/64 sn=2A90CE btn=1 cnt=1904 crc=0 tx=1
+SUBARU/Subaru WRX Impreza 2018 AU.sub | 433920000 | Subaru | data=E12A90CEADCA8B6F/64 sn=2A90CE btn=1 cnt=1905 crc=0 tx=1
+SUBARU/Subaru WRX Impreza 2018 AU.sub | 433920000 | Subaru | data=E12A90CE52F62329/64 sn=2A90CE btn=1 cnt=1906 crc=0 tx=1
 SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F001915302423C10/64 sn=1530242 btn=3 cnt=19 crc=1 tx=1
 SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F001A15302423580/64 sn=1530242 btn=3 cnt=1A crc=1 tx=1
 SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F001B15302423FA0/64 sn=1530242 btn=3 cnt=1B crc=1 tx=1
@@ -1028,53 +1028,53 @@ buick/24_buick_encore_ul2_t2_l2_rs2_p2.sub | 433920000 | (none)
 buick/24_buick_envista_ul2_l2_t2_rs2_p2.sub | 433889000 | (none)
 chevy/18_chevy_malibu_l2_u2_rs2_t2_p2.sub | 433920000 | (none)
 chevy/22_chevy_trail_blazer_l2_u2_rs_p_t.sub | 433920000 | (none)
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=20235C167DE9 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=20235C167DE9 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=20235C167DE9 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=20235C167DE9 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=201D4A386B5D sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=201D4A386B5D sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=201D4A386B5D sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2019F11FE069 sn=D737A2C3 btn=BB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2019F11FE069 sn=D737A2C3 btn=BB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2019F11FE069 sn=D737A2C3 btn=BB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2019F11FE069 sn=D737A2C3 btn=BB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2015AEB194A5 sn=D737A2C3 btn=BB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2015AEB194A5 sn=D737A2C3 btn=BB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2015AEB194A5 sn=D737A2C3 btn=BB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2015AEB194A5 sn=D737A2C3 btn=BB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=2012C634A3F5 sn=D737A2C3 btn=7B cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=2012C634A3F5 sn=D737A2C3 btn=7B cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=2012C634A3F5 sn=D737A2C3 btn=7B cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=200E9228DF41 sn=D737A2C3 btn=7B cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=200E9228DF41 sn=D737A2C3 btn=7B cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=200E9228DF41 sn=D737A2C3 btn=7B cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=200E9228DF41 sn=D737A2C3 btn=7B cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C357FB/112 extra=200A55E511ED sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C357FB/112 extra=200A55E511ED sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C357FB/112 extra=2004D2FB2015 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C357FB/112 extra=2004D2FB2015 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C357FB/112 extra=2004D2FB2015 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=200007F12CB9 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=200007F12CB9 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=200007F12CB9 sn=D737A2C3 btn=FB cnt=9B crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=1FFECE6064D1 sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=1FFECE6064D1 sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=1FFECE6064D1 sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=1FFECE6064D1 sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF921FDF3A9 sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF921FDF3A9 sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF921FDF3A9 sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF459CC198D sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF459CC198D sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF459CC198D sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF459CC198D sn=D737A2C3 btn=FB cnt=9C crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FDB/112 extra=1FF0E6F77F51 sn=D737A2C3 btn=DB cnt=49C crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FDB/112 extra=1FF0E6F77F51 sn=D737A2C3 btn=DB cnt=49C crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=1FEEFA1842C9 sn=D737A2C3 btn=7B cnt=9C crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=1FEEFA1842C9 sn=D737A2C3 btn=7B cnt=9C crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=1FE8C064BA21 sn=D737A2C3 btn=7B cnt=9C crc=1 tx=1
-chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=1FE8C064BA21 sn=D737A2C3 btn=7B cnt=9C crc=1 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=20235C167DE9 sn=D737A2C3 btn=FB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=20235C167DE9 sn=D737A2C3 btn=FB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=20235C167DE9 sn=D737A2C3 btn=FB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=20235C167DE9 sn=D737A2C3 btn=FB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=201D4A386B5D sn=D737A2C3 btn=FB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=201D4A386B5D sn=D737A2C3 btn=FB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35EFB/112 extra=201D4A386B5D sn=D737A2C3 btn=FB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2019F11FE069 sn=D737A2C3 btn=BB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2019F11FE069 sn=D737A2C3 btn=BB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2019F11FE069 sn=D737A2C3 btn=BB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2019F11FE069 sn=D737A2C3 btn=BB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2015AEB194A5 sn=D737A2C3 btn=BB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2015AEB194A5 sn=D737A2C3 btn=BB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2015AEB194A5 sn=D737A2C3 btn=BB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FBB/112 extra=2015AEB194A5 sn=D737A2C3 btn=BB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=2012C634A3F5 sn=D737A2C3 btn=7B cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=2012C634A3F5 sn=D737A2C3 btn=7B cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=2012C634A3F5 sn=D737A2C3 btn=7B cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=200E9228DF41 sn=D737A2C3 btn=7B cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=200E9228DF41 sn=D737A2C3 btn=7B cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=200E9228DF41 sn=D737A2C3 btn=7B cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=200E9228DF41 sn=D737A2C3 btn=7B cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C357FB/112 extra=200A55E511ED sn=D737A2C3 btn=FB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C357FB/112 extra=200A55E511ED sn=D737A2C3 btn=FB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C357FB/112 extra=2004D2FB2015 sn=D737A2C3 btn=FB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C357FB/112 extra=2004D2FB2015 sn=D737A2C3 btn=FB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C357FB/112 extra=2004D2FB2015 sn=D737A2C3 btn=FB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=200007F12CB9 sn=D737A2C3 btn=FB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=200007F12CB9 sn=D737A2C3 btn=FB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=200007F12CB9 sn=D737A2C3 btn=FB cnt=9B crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=1FFECE6064D1 sn=D737A2C3 btn=FB cnt=9C crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=1FFECE6064D1 sn=D737A2C3 btn=FB cnt=9C crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=1FFECE6064D1 sn=D737A2C3 btn=FB cnt=9C crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35DFB/112 extra=1FFECE6064D1 sn=D737A2C3 btn=FB cnt=9C crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF921FDF3A9 sn=D737A2C3 btn=FB cnt=9C crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF921FDF3A9 sn=D737A2C3 btn=FB cnt=9C crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF921FDF3A9 sn=D737A2C3 btn=FB cnt=9C crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF459CC198D sn=D737A2C3 btn=FB cnt=9C crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF459CC198D sn=D737A2C3 btn=FB cnt=9C crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF459CC198D sn=D737A2C3 btn=FB cnt=9C crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35BFB/112 extra=1FF459CC198D sn=D737A2C3 btn=FB cnt=9C crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FDB/112 extra=1FF0E6F77F51 sn=D737A2C3 btn=DB cnt=49C crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35FDB/112 extra=1FF0E6F77F51 sn=D737A2C3 btn=DB cnt=49C crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=1FEEFA1842C9 sn=D737A2C3 btn=7B cnt=9C crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=1FEEFA1842C9 sn=D737A2C3 btn=7B cnt=9C crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=1FE8C064BA21 sn=D737A2C3 btn=7B cnt=9C crc=0 tx=1
+chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub | 434075000 | Fiat V2 | data=1D737A2C35F7B/112 extra=1FE8C064BA21 sn=D737A2C3 btn=7B cnt=9C crc=0 tx=1
 chrysler/Chrysler PT Cruiser 2006 close.sub | 433889000 | Chrysler V0 | data=7A11E7D2462A57D/80 extra=2462 sn=A11E7D24 btn=1 cnt=20 crc=1 tx=1
 chrysler/Chrysler PT Cruiser 2006 close.sub | 433889000 | Chrysler V0 | data=FB4725BFA44725BF/80 extra=7984 sn=4725BF79 btn=1 cnt=1F crc=1 tx=1
 chrysler/Chrysler PT Cruiser 2006 close.sub | 433889000 | Chrysler V0 | data=7BC17E1D4402C51D/80 extra=4402 sn=A11E7D24 btn=1 cnt=1E crc=1 tx=1
@@ -1150,35 +1150,35 @@ honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B
 honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B782388056BE7F/64 sn=B782388 btn=1 cnt=BE7F crc=0 tx=1
 honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
 honda/Unlock_honda.sub | 433657070 | Honda Static | data=1B7823A8056BE7F/64 sn=B7823A8 btn=1 cnt=BE7F crc=0 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137EFB/112 extra=F828439E1631 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137EFB/112 extra=F828439E1631 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137EFB/112 extra=F828439E1631 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137EFB/112 extra=F82760589BC9 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137EFB/112 extra=F82760589BC9 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F8229C688519 sn=D08BE613 btn=BB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F8229C688519 sn=D08BE613 btn=BB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F8229C688519 sn=D08BE613 btn=BB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F8229C688519 sn=D08BE613 btn=BB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F81C7B5F37B9 sn=D08BE613 btn=BB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F81C7B5F37B9 sn=D08BE613 btn=BB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F81C7B5F37B9 sn=D08BE613 btn=BB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F81C7B5F37B9 sn=D08BE613 btn=BB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81A85928FF1 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81A85928FF1 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81A85928FF1 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81A85928FF1 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81574F5EEA5 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81574F5EEA5 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81574F5EEA5 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81574F5EEA5 sn=D08BE613 btn=FB cnt=80 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F813F756E7E1 sn=D08BE613 btn=DB cnt=480 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F813F756E7E1 sn=D08BE613 btn=DB cnt=480 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F813F756E7E1 sn=D08BE613 btn=DB cnt=480 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F813F756E7E1 sn=D08BE613 btn=DB cnt=480 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F80FC6E93E9D sn=D08BE613 btn=DB cnt=480 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F80FC6E93E9D sn=D08BE613 btn=DB cnt=480 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F80FC6E93E9D sn=D08BE613 btn=DB cnt=480 crc=1 tx=1
-jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F80FC6E93E9D sn=D08BE613 btn=DB cnt=480 crc=1 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137EFB/112 extra=F828439E1631 sn=D08BE613 btn=FB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137EFB/112 extra=F828439E1631 sn=D08BE613 btn=FB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137EFB/112 extra=F828439E1631 sn=D08BE613 btn=FB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137EFB/112 extra=F82760589BC9 sn=D08BE613 btn=FB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137EFB/112 extra=F82760589BC9 sn=D08BE613 btn=FB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F8229C688519 sn=D08BE613 btn=BB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F8229C688519 sn=D08BE613 btn=BB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F8229C688519 sn=D08BE613 btn=BB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F8229C688519 sn=D08BE613 btn=BB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F81C7B5F37B9 sn=D08BE613 btn=BB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F81C7B5F37B9 sn=D08BE613 btn=BB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F81C7B5F37B9 sn=D08BE613 btn=BB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FBB/112 extra=F81C7B5F37B9 sn=D08BE613 btn=BB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81A85928FF1 sn=D08BE613 btn=FB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81A85928FF1 sn=D08BE613 btn=FB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81A85928FF1 sn=D08BE613 btn=FB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81A85928FF1 sn=D08BE613 btn=FB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81574F5EEA5 sn=D08BE613 btn=FB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81574F5EEA5 sn=D08BE613 btn=FB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81574F5EEA5 sn=D08BE613 btn=FB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE61377FB/112 extra=F81574F5EEA5 sn=D08BE613 btn=FB cnt=80 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F813F756E7E1 sn=D08BE613 btn=DB cnt=480 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F813F756E7E1 sn=D08BE613 btn=DB cnt=480 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F813F756E7E1 sn=D08BE613 btn=DB cnt=480 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F813F756E7E1 sn=D08BE613 btn=DB cnt=480 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F80FC6E93E9D sn=D08BE613 btn=DB cnt=480 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F80FC6E93E9D sn=D08BE613 btn=DB cnt=480 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F80FC6E93E9D sn=D08BE613 btn=DB cnt=480 crc=0 tx=1
+jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub | 433889000 | Fiat V2 | data=1D08BE6137FDB/112 extra=F80FC6E93E9D sn=D08BE613 btn=DB cnt=480 crc=0 tx=1
 mercedes/24_Merc_gle350_lulu.sub | 434075000 | (none)
 mercedes/24_merc_gle350_luluttlulu.sub | 314350000 | (none)
 mercedes/Mercedes W220 S430 1999 315.sub | 315000000 | (none)

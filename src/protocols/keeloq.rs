@@ -819,8 +819,10 @@ impl super::ProtocolDecoder for KeeloqDecoder {
     /// `check_remote_controller` its display runs with that manufacturer: "AN-Motors" / "HCS101"
     /// are forced, any other name restricts the keystore selector to that name's entries (BFT
     /// tries the file's Seed first, then the serial, then 0). A key that does not validate under
-    /// the named manufacturer (the C then shows "Unknown"), or a name KAT's keystore lacks, is
-    /// refused. "Manufacture: Unknown" or no line: the frame is identified like one on air.
+    /// the named manufacturer, or a name KAT's keystore lacks (doctor-firmware's own brand names,
+    /// "Star" for its Star Line key …), is loaded like "Manufacture: Unknown" or no line: the
+    /// frame is identified like one on air (the C loads such a file and shows "Unknown" at worst;
+    /// refusing it, as KAT did until v1.8.6, left the user unable to list or replay the file).
     ///
     /// The decode keeps the name ("KeeLoq (<manufacturer>)") and KAT's encoder transmits with that
     /// manufacturer, as ARF's encoder does with the file's `Manufacture` (also when KAT's
@@ -845,8 +847,14 @@ impl super::ProtocolDecoder for KeeloqDecoder {
                     .hex_bytes_field("Seed")
                     .and_then(|b| <[u8; 4]>::try_from(b.as_slice()).ok())
                     .map(u32::from_be_bytes);
-                let ident = key_file_identify(fix, hop, mf, seed)?;
-                Some(key_file_signal(data, fix, hop, &ident))
+                match key_file_identify(fix, hop, mf, seed) {
+                    Some(ident) => Some(key_file_signal(data, fix, hop, &ident)),
+                    // A name KAT's keystore lacks (doctor-firmware's "Star", "Wisniowski2" …), or
+                    // one whose key does not validate the frame: the C loads the file all the
+                    // same and shows what its selector finds ("Unknown" at worst), so KAT
+                    // identifies the frame like one on air.
+                    None => Self::parse_data(data),
+                }
             }
         }
     }
@@ -1544,9 +1552,11 @@ mod tests {
         // "Unknown" or no Manufacture line: identified like the frame on air.
         assert_eq!(dec.from_flipper_key(&key(&arf.replace("DoorHan", "Unknown"))), Some(loaded.clone()));
         assert_eq!(dec.from_flipper_key(&key(&arf.replace("Manufacture: DoorHan\n", ""))), Some(loaded.clone()));
-        // A manufacturer whose key does not validate the frame (the C shows "Unknown"), or Bit ≠ 64.
-        assert!(dec.from_flipper_key(&key(&arf.replace("DoorHan", "Sheriff"))).is_none());
-        assert!(dec.from_flipper_key(&key(&arf.replace("DoorHan", "No Such Brand"))).is_none());
+        // A manufacturer whose key does not validate the frame, or a name KAT's keystore lacks:
+        // loaded like a frame on air (the C loads it and shows what it finds), as DoorHan here.
+        assert_eq!(dec.from_flipper_key(&key(&arf.replace("DoorHan", "Sheriff"))), Some(loaded.clone()));
+        assert_eq!(dec.from_flipper_key(&key(&arf.replace("DoorHan", "No Such Brand"))), Some(loaded.clone()));
+        // Bit ≠ 64 is refused.
         assert!(dec.from_flipper_key(&key(&arf.replace("Bit: 64", "Bit: 66"))).is_none());
         // A forced "AN-Motors" (the C does not validate it): shown, but KAT's encoder would
         // identify DoorHan, so it is not offered for TX.

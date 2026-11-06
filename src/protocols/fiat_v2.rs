@@ -36,7 +36,8 @@
 //! carry exactly one frame between long gaps (`IMPORTS/chrysler/19_chrysler_pacifica*`,
 //! `IMPORTS/jeep/22_jeep_renegade*`: 47 and 29 frames, all still decode), so the gate costs
 //! nothing on genuine captures. doctor-firmware's extra type-nibble exclusions (0x1/0x7/0xA) were
-//! NOT adopted: the genuine Jeep Renegade frames have type 0x7.
+//! NOT adopted: the genuine Jeep Renegade frames have type 0x7. Nor its FCA-layout gate
+//! `(raw[7] & 0x3F) == 0` (the counter has left raw[7] there), for which no capture exists.
 //!
 //! **Encoder** — frame content from Flipper-ARF, waveform from doctor-firmware:
 //! - Flipper-ARF (`subghz_protocol_encoder_fiat_v2_deserialize`, "hop recompute"): if one of the
@@ -385,7 +386,7 @@ impl FiatV2Decoder {
             button: Some(raw[7]),
             counter: Some(Self::counter(raw)),
             // No CRC in this frame; emission is gated on markers / selector / UID / structure.
-            crc_valid: true,
+            crc_valid: false,
             data: u64::from_be_bytes(data_bytes),
             data_count_bit: WIRE_BITS,
             encoder_capable: true,
@@ -680,6 +681,7 @@ mod tests {
     fn oracle_vectors() {
         let mut fca = RAW_PACIFICA;
         fca[6] = 0xD2;
+        fca[7] &= 0xC0; // doctor-firmware's FCA gate: the counter has left raw[7]
         for (name, raw) in [("fiat_v2_1", RAW_PACIFICA), ("fiat_v2_2", fca)] {
             let up = FiatV2Decoder::new().encode(&FiatV2Decoder::build_signal(&raw), 0x40).unwrap();
             crate::protocols::fiat_v0::write_oracle_vector(

@@ -153,7 +153,9 @@ fn rojaflex_decode(bits: &BitBuffer) -> Option<DecodedSignal> {
     let mut d = frame_signal(&msg, count);
     d.serial = Some(id);
     d.button = Some(msg[5]);
-    d.crc_valid = has_crc;
+    // A 72-bit frame carries no CRC; one KAT accepted through its Token II sum (`bridge_frame`, the
+    // FM-path tail reading) was checked all the same, and is not a failed frame.
+    d.crc_valid = has_crc || bridge_frame(&d);
     d.protocol_display_name = (model != NAME).then(|| model.to_string());
     Some(d)
 }
@@ -258,7 +260,8 @@ pub(super) mod tests {
         let d = &decode_all(&mut RojaflexDecoder::new(), &wire(&frame(0x0000001, 3, 0xB5, 60, 0x02, true), 100))[0];
         assert_eq!((d.protocol_display_name.as_deref(), d.button), (Some("RojaFlex-Shutter"), Some(0xB5)));
         let d = &decode_all(&mut RojaflexDecoder::new(), &wire(&frame(0x0ABCDEF, 2, 0x1a, 1, 0x1a, false), 100))[0];
-        assert_eq!((d.protocol_display_name.as_deref(), d.crc_valid, d.data_count_bit), (Some("RojaFlex-Bridge"), false, 72));
+        // Accepted through its Token II sum, so it was checked (crc_valid), though it has no CRC.
+        assert_eq!((d.protocol_display_name.as_deref(), d.crc_valid, d.data_count_bit), (Some("RojaFlex-Bridge"), true, 72));
         assert_eq!(d.serial, Some(0x0ABCDEF));
     }
 

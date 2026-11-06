@@ -250,14 +250,10 @@ mod tests {
         assert_eq!(got.iter().map(rtl433_json).collect::<Vec<_>>(), [r#"{"model":"Audiovox-PROOE3B","id":"2EA9","button_str":"Lock"}"#]);
     }
 
-    /// rtl_433_tests `audiovox/PRO-OE3B/01` through KAT's receive pipeline and the registry. KAT's
-    /// AM chain distorts these frames: it misses the first pulse of each and shortens the long
-    /// (920 µs) pulses near its end to 230–460 µs (the remote's carrier drifts several kHz during a
-    /// press — rtl_433 measures −92 → −96 kHz over three frames — while rtl_433 slices the full-band
-    /// envelope). So KAT decodes Lock and Option with rtl_433's fields, no Unlock, and one corrupt
-    /// Lock frame (ID 0029) that passes the C's weak checks (the C decoder reads KAT's pulses the
-    /// same way). On rtl_433's pulses the decoder gives all 26 events. Pinned so that a receive-chain
-    /// change shows here.
+    /// rtl_433_tests `audiovox/PRO-OE3B/01` through KAT's receive pipeline and the registry: every
+    /// recording's rtl_433 events (lock 3, option 10, unlock 13; ID 2EA9). Until v1.8.0's receiver
+    /// fixes KAT's AM chain distorted these frames (a missed first pulse, shortened long pulses as
+    /// the remote's carrier drifted) and this test pinned a missed Unlock and a corrupt ID 0029.
     #[test]
     #[ignore]
     fn decodes_the_rtl_433_recordings() {
@@ -266,8 +262,7 @@ mod tests {
             return;
         };
         let dir = root.join("audiovox/PRO-OE3B/01");
-        let corrupt: serde_json::Value = serde_json::from_str(r#"{"model":"Audiovox-PROOE3B","id":"0029","button_str":"Lock"}"#).unwrap();
-        for (f, found, extra) in [("lock", true, Some(&corrupt)), ("option", true, None), ("unlock", false, None)] {
+        for f in ["lock", "option", "unlock"] {
             let path = dir.join(format!("{f}_303.3M_250k.cu8"));
             let got: Vec<serde_json::Value> = registry_decodes(&path)
                 .iter()
@@ -276,9 +271,7 @@ mod tests {
                     serde_json::from_str(&rtl433_json(d)).unwrap()
                 })
                 .collect();
-            let mut want: Vec<serde_json::Value> = if found { distinct(&expected_json(&path)) } else { Vec::new() };
-            want.extend(extra.cloned());
-            assert_eq!(distinct(&got), want, "{f}");
+            assert_eq!(distinct(&got), distinct(&expected_json(&path)), "{f}");
         }
     }
 

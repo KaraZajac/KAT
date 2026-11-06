@@ -54,11 +54,14 @@ pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     presets: &[&FM476],
 };
 
-/// 1/2/8 are KAT's generic Lock/Unlock/Panic.
+/// The references' names (`kia_v7.c`: 1 Lock, 2 Unlock, 3 and 8 Trunk, else "??"); KAT's
+/// generic 1/2 coincide, and the encoder's Panic → 0x08 is the ProtoPirate D-pad's.
 fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
     Some(match code {
-        0x3 => "Trunk",
-        _ => return None,
+        0x1 => "Lock",
+        0x2 => "Unlock",
+        0x3 | 0x8 => "Trunk",
+        _ => "Other",
     })
 }
 

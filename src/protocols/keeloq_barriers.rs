@@ -25,6 +25,10 @@ const BARRIER_NAMES: &[&str] = &[
     "aprimatic",
     "beninca",
     "benincavaaes128",
+    // … and gate / garage brands of the Pandora alarm's keystore entries.
+    "pandoradea",
+    "pandoragibidi",
+    "pandoramcode",
     "bett",
     "bft",
     "cameatomo",
@@ -171,6 +175,12 @@ const ALARM_NAMES: &[&str] = &[
     "tomahawktz9030",
     "tz9030",
     "starline",
+    // Keystore names that were in neither list (shown with car commands): alarms …
+    "pantera",
+    "sla6a9tomahawk9010",
+    "kgbsubaru",
+    "pandorapro",
+    "pandoram101",
     "zx730",
     "zx750",
     "zx755",

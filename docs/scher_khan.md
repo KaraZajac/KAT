@@ -75,7 +75,10 @@ counter + 1 (wraps to 0 past 0xFFFF).
 
 Upload: 6 × (750, 750), 3 × (1500, 1500), start bit (750, 750), the key MSB-first (1 = 1100/1100,
 0 = 750/750), 1500 µs HIGH — sent 7 times (C `encoder.repeat`). The encoder sends the start bit *and* the
-key's leading zero, so its frames decode one bit longer (52 / 58 bits) — reference behaviour.
+key's leading zero, so its frames decode one bit longer (52 / 58 bits) — reference behaviour. Because that
+reading has no fields, KAT keeps the key it encoded on the capture itself (`sent_signal`: the new button and
+counter, what the C's emulate scene writes back into its file), so the next press sends the code after; until
+v1.8.7 the capture never advanced and every press re-sent counter + 1.
 
 Buttons: 1 Lock, 2 Unlock, 3 Lock+Unlock, 4 Trunk, 5 Lock+Trunk, 6 Unlock+Trunk, 7 Lk+Ul+Tr, 8 Start,
 9 Lock+Start, A Unlock+Start, C Trunk+Start, F All/Panic. KAT Lock/Unlock/Trunk/Panic → 1/2/4/F; other

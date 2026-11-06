@@ -117,12 +117,13 @@ pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     aliases: &[],
     name_prefix: None,
     encoding: Coding::Manchester,
-    rf: Rf::AM,
+    // ProtoPirate flags AM; Flipper-ARF and doctor-firmware AM | FM (union; no FM capture exists).
+    rf: Rf::Both,
     encryption: "HITAG2",
     make: "Fiat",
     category: Category::Vehicle,
     buttons: Some(native_buttons),
-    presets: &[&AM650],
+    presets: &[&AM650, &FM476],
 };
 
 /// Fiat V1 buttons.
@@ -165,8 +166,9 @@ const EXTRA_TAIL_MASK: u64 = (1 << EXTRA_VARIANT_SHIFT) - 1;
 /// ARF's embedded key list is the first 8 of [`KNOWN_KEYS`] (the base of its L4 mutations).
 const ARF_KNOWN_KEY_COUNT: usize = 8;
 
-/// Flipper-ARF Hitag2 BF L2: `subghz_hitag2_bf_flash_dict` (verbatim order, incl. its duplicate
-/// "MIKRON" entry; 87 keys beyond [`KNOWN_KEYS`]).
+/// Flipper-ARF Hitag2 BF L2: `subghz_hitag2_bf_flash_dict` in its order (incl. its duplicate
+/// "MIKRON" entry), plus the six base keys its "Base:" comments name before their mutations
+/// (ARF's table has 89 entries; those six are [`KNOWN_KEYS`] 0..5, tried before this list).
 const ARF_DICT_KEYS: [[u8; 6]; 95] = [
     [0x4D, 0x49, 0x4B, 0x52, 0x4F, 0x4E],
     [0x4D, 0x49, 0x4B, 0x52, 0x4F, 0x4D],

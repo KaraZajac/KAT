@@ -64,9 +64,8 @@ Receive only, as rtl_433.
 ## Validation
 
 - rtl_433_tests `chrysler_car_remote` 01–05 (7 recordings, 315.1 MHz, **920 kS/s**, carriers 74–384 kHz off the
-  centre): `kat --decode` gives every recording's rtl_433 event (same ID / button); rtl_433 lists 10 events, KAT 9:
-  in 04, KAT's pulses lose one bit of the first packet (a pulse measured ≤ 250 µs, which the slicer ignores) and gain
-  a > 4.2 ms gap inside it, so only the second packet decodes. KAT also misses the 25-pulse preamble of every press
+  centre): `kat --decode` gives every recording's rtl_433 event (same ID / button), all 10 (until v1.8.0's receiver
+  fixes KAT read 9: in 04 its pulses lost one bit of the first packet). KAT also misses the 25-pulse preamble of every press
   (not used by the decoder). Forcing `--rate 250k` on these 920 kS/s files decodes nothing, as before.
 - rtl_433's own pulse packages through KAT's decoder: the expected `.json` files exactly (10 events).
 - Fuzz against the C reference: 2 × 20 000 trains (presses with and without the sync, long presses past 1200

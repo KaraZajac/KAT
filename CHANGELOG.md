@@ -2,6 +2,37 @@
 
 All notable changes to KAT are documented here.
 
+## [1.8.7] - 2026-11-05
+
+A review of every protocol module against its reference C (ProtoPirate, Flipper-ARF, doctor-firmware, Momentum, RogueMaster, rtl_433), with each reference's decoders and encoders run on the real captures, the Flipper unit-test files and KAT's own transmissions. What it found and changed:
+
+### Fixed
+
+- **Imported captures lost their frame's last half-bit, so replaying them worked on no Flipper.** A capture from a `.sub` file keeps the pulses up to the one on which its decoder reported the frame; Manchester decoders built on the Flipper table report at the middle of the last bit, so when that middle is a LOW the stored pulses ended there, without the last bit's HIGH half. Replay sent them that way, and no reference (nor KAT) read a replayed Ford V3 EU or Ford V0 frame of that kind (2 of the 4 frames of `IMPORTS/LDV/LDV-T80_lock.sub`, about half of all Ford V0 frames); the other half, ending on a HIGH, was never affected. The stored pulses now extend over the frame's last half-bit (the pulses must decode again when sent as Replay sends them, with silence after).
+- **A decoder reporting a frame now resets the others before they see the same pulse, as a Flipper does.** KAT fed every decoder the pulse first and reset afterwards, so a decoder placed after the reporting one never saw a frame-ending gap in its reset state — its next frame's header. Of a 42-bit CAME / Prastel press every other frame was lost and the Prastel fields never shown.
+- **rtl_433 ports no longer hide the Flipper decoders' frames.** The receive-only Audiovox-PROOE3B port reads GateTX and Princeton frames (its checks are weak) and its hit reset every decoder on the pulse GateTX and Princeton needed, so such remotes were listed as "Audiovox-PROOE3B" and never as GateTX / Princeton. A frame an rtl_433 port reads is now held back and reported only if no Flipper decoder reads the signal; an rtl_433 hit resets the rtl_433 ports only.
+- **Mazda V2: the first copy of the upload decoded by luck.** The upload (as the ARF encoder's) began with the preamble's LOW, which merges into whatever precedes the transmission: behind silence the receiver's sampler armed on the first HIGH and read the sync behind a preamble of ones (KAT's own receiver never read the first copy), behind a Flipper's receiver noise it depended on the noise's parity. Each copy now starts with a 3000 µs HIGH, which the sampler takes for a gap in every state, like the gap between the copies (after which the second and third copies always decoded). On a receiver whose gain settles during the first copy's preamble — the test rig's Flipper drops the first ~40 ms of every transmission — the first copy stays a matter of luck with any lead-in.
+- **Scher-Khan captures never advanced after "send".** The upload (as the C's) carries the start bit plus every key bit and decodes back as a frame one bit longer without fields, so the frame sent could not be matched to the capture; every press re-sent counter + 1. The encoder now reports the key it sent, as the C's emulate scene writes it back into its file.
+- **Flipper-ARF's VAG key files of Type 1 fobs loaded as another, undecryptable frame.** ARF writes a Type 1 button as its high nibble (`Btn: 2` for 0x20); KAT compared it with the whole byte and rebuilt the frame around plaintext 0x02.
+- **KeeLoq key files with a manufacturer name KAT's keystore lacks (doctor-firmware's own brand names, its "Star" …), or whose key does not validate the frame, were refused.** They load like a frame on air now, as the references load them.
+- **Marantec24:** the decoder's gap window sat 12 µs above the real remote's longest gap and under every firmware's own transmission (KAT's included, so the capture never recorded what was sent); RogueMaster's window, centred on that gap, is used.
+- **Nero Radio:** the first frame of every press in the Flipper unit-test capture ends in a 1.0–1.2 ms LOW and was dropped (frame end at 1250 µs); RogueMaster's 900 µs bound reads it, and no data LOW is longer than 480 µs.
+- **LinearDelta3:** a 3–4 frame tap never decoded and a held button gave every third frame; RogueMaster's decoder fix (clear the bits after each 8-bit frame) decodes every frame after the first.
+- **Fiat V0** is fed captures at 315 MHz again (every reference flags 315 | 433); **Fiat V1** is AM/FM as Flipper-ARF and doctor-firmware flag it (a 2-FSK `.sub` of one now decodes).
+- **Kia V3/V4:** a capture stored before the version was kept re-encoded as V4 whatever its name; the name decides now.
+- The detail panel's **Key/Data** showed frames longer than 64 bits zero-padded (`0x000000F339…` for an 88-bit Datsun Lada frame: the zeros were made up and the last 24 bits are in `extra`); it shows the first 64 bits, like the references' `Key` line. Saved `.fob` files written with the padding still match.
+- **CRC column:** "OK" was shown for protocols that verify nothing (Fiat V0, Fiat V2, Ford V2, Ford V3, Mercedes V0, Mitsubishi V0, Subaru) and "FAIL" for frames no check applies to (Nice FloR-S 52-bit frames, Scher-Khan's non-PRO variants, Kia V5 frames cut at 64 bits, KeeLoq frames no key identifies, Faac SLH without its seed, RojaFlex bridge commands, which carry no CRC but are checked by their token sum). All of these show "none" now (the bridge command "OK"); their decodes report `crc_valid` false in `--decode` and `.fob` files.
+- **Kia V7:** button 8 is labelled "Trunk", as every reference names it (KAT said "Panic", the ProtoPirate emulate key that sends it; KAT's Panic command still sends 8).
+- **Ford V3:** its EU path, which has no check at all, is left out of the inverted-polarity pass (no reference has one): a 240/480 µs Manchester frame cut short read inverted was a "Ford V3" frame with nonsense fields.
+- The generic KeeLoq fallback's "Keeloq (<key>)" decodes no longer claim to be re-encodable (no encoder takes them).
+
+### Known, not changed
+
+- `counter` is 16 bits: VAG (24), Security+ 1.0/2.0 (32), Opel V1, Fiat V0's hop, Honda Static, BMW, PSA and Kia V6 counters show their low 16 bits.
+- KAT writes key files with ProtoPirate's protocol names (`PSA`, `VAG`, `Chrysler V0`, `Kia Vn`…), which a Flipper-ARF build does not load (it matches names exactly; doctor-firmware has aliases).
+- Fiat V1 does not read a key file's `Hitag2 Key` / `Hitag2 Epoch` lines (the references verify that key and send fresh frames); the saved-keys file does the same job after one "Recover key (HiTag2)".
+- A Fiat-family remote at a ~125 µs half-bit (an Opel Vectra 2008 in `IMPORTS`: two of its thirteen frames) decodes as "Renault V1" rather than Fiat V1, in every reference too; a third Fiat V1 timing variant would take them.
+
 ## [1.8.6] - 2026-11-05
 
 Volunteers' recordings: KAT now reads every code doctor-firmware and Flipper-ARF read from a Mercedes, an Alfa Romeo Giulia and a Lada.

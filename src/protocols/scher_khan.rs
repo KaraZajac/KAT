@@ -602,6 +602,19 @@ impl ProtocolDecoder for ScherKhanDecoder {
         Some(signal)
     }
 
+    /// The frame `encode` sends: the key with the new button and counter (`encode_key`), as the
+    /// C's emulate scene writes it back into its file. Needed because the upload, like the C's,
+    /// carries the start bit plus `bit_count` data bits and so decodes back as a frame one bit
+    /// longer ("Scher-Khan 52bit", no fields), which `app/tx.rs` could not match to the capture:
+    /// the counter never advanced and every press re-sent counter + 1.
+    fn sent_signal(&self, decoded: &DecodedSignal, button: u8) -> Option<DecodedSignal> {
+        let bit_count = decoded.data_count_bit;
+        if !(MIN_COUNT_BIT..=64).contains(&bit_count) {
+            return None;
+        }
+        Some(Self::build(u128::from(encode_key(decoded.data, bit_count, button)), bit_count))
+    }
+
     /// `subghz_protocol_decoder_scher_khan_deserialize` (ProtoPirate: generic Bit/Key, Bit 35..=64)
     /// \+ the `check_remote_controller` its display runs: the variant and fields come from the key
     /// and the bit count; the file's Serial/Btn/Cnt are display copies the C overwrites. Longer
@@ -671,6 +684,22 @@ mod tests {
         }
         s.push(LevelDuration::new(true, 1500));
         s
+    }
+
+    /// `sent_signal` is the key the encoder sends (button and counter + 1), so the app can keep it
+    /// on the capture: the upload itself decodes back as a frame one bit longer, without fields.
+    #[test]
+    fn sent_signal_is_the_encoded_key() {
+        let dec = ScherKhanDecoder::new();
+        let d = decode_all(&capture(0x0000_E8C1_619E_830C, 51)).remove(0);
+        assert_eq!((d.data_count_bit, d.counter), (51, Some(0x830C)));
+        let sent = dec.sent_signal(&d, 0x02).unwrap();
+        assert_eq!((sent.data_count_bit, sent.counter, sent.serial), (51, Some(0x830D), d.serial));
+        assert_eq!(sent.data, encode_key(d.data, 51, 0x02));
+        // The upload reads back one bit longer, with no fields: why sent_signal exists.
+        let back = decode_all(&dec.encode(&d, 0x02).unwrap()).remove(0);
+        assert_eq!((back.data_count_bit, back.counter), (52, None));
+        assert_eq!(dec.sent_signal(&sent, 0x02).unwrap().counter, Some(0x830E));
     }
 
     /// Build a valid PRO frame (57 bits) from plaintext bytes, the way the C encoder does.

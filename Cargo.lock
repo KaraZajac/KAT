@@ -384,7 +384,7 @@ dependencies = [
 
 [[package]]
 name = "kat"
-version = "1.8.6"
+version = "1.8.7"
 dependencies = [
  "anyhow",
  "chrono",

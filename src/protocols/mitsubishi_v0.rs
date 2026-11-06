@@ -206,7 +206,7 @@ impl MitsubishiV0Decoder {
             serial: Some(serial),
             button: Some(button),
             counter: Some(counter),
-            crc_valid: true,
+            crc_valid: false,
             data,
             data_count_bit: BIT_COUNT,
             encoder_capable: true,
@@ -381,7 +381,7 @@ mod tests {
             serial: Some(serial),
             button: Some(button),
             counter: Some(counter),
-            crc_valid: true,
+            crc_valid: false,
             data,
             data_count_bit: BIT_COUNT,
             encoder_capable: true,
@@ -566,7 +566,9 @@ mod tests {
             let extra = u32::from_be_bytes(raw[8..].try_into().unwrap()) as u64;
             let src = signal(u64::from_be_bytes(raw[..8].try_into().unwrap()), Some(extra), 0, 0, 0);
             let wire = dec.encode(&src, 0x01).unwrap();
-            let one = &wire[..wire.len() / TX_REPEAT];
+            // Two copies: a single copy's last data LOW merges into the silence after it, and the
+            // decoder (like the C's) completes a frame only on a 250/500µs LOW.
+            let one = &wire[..2 * wire.len() / TX_REPEAT];
             let decoded = feed_all(&wire).remove(0);
             let key = dec.to_flipper_key(&decoded).unwrap();
             write_key_vector(&key_vector_dir(), &format!("mitsubishi_v0_{n}"), 433_920_000, "FuriHalSubGhzPreset2FSKDev476Async", one, &key);

@@ -23,7 +23,7 @@ Nero Radio remotes: a 56-bit (or 57-bit) static frame behind a long preamble. Th
 | Start | HIGH 830 + LOW 200 | decoder: `4·te_short` ±80 |
 | Bit `1` | HIGH 400 + LOW 200 | |
 | Bit `0` | HIGH 200 + LOW 400 | |
-| Stop | LOW ≥ 1250 µs | encoder: 4600 µs (1300 µs for 57-bit keys) |
+| Stop | LOW ≥ 900 µs (RogueMaster; doctor / ARF / Momentum: 1250 µs) | encoder: 4600 µs (1300 µs for 57-bit keys) |
 | Bits | 56 or 57 | |
 
 ## Frame Layout (56 bits, MSB first)
@@ -45,7 +45,7 @@ Nero Radio remotes: a 56-bit (or 57-bit) static frame behind a long preamble. Th
 ## Decoder Steps
 
 1. **Reset / CheckPreambula** — as Nero Sketch: > 40 short pairs, then the 830 µs start + short LOW.
-2. **SaveDuration / CheckDuration** — HIGH + LOW pairs → bits; a LOW ≥ 1250 µs classifies the last bit by its HIGH and
+2. **SaveDuration / CheckDuration** — HIGH + LOW pairs → bits; a LOW ≥ 900 µs classifies the last bit by its HIGH and
    reports the frame when 56 or 57 bits were read.
 
 ## Encoder

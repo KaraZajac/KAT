@@ -277,7 +277,7 @@ impl FordV2Decoder {
             serial: Some(serial),
             button: Some(k[6]),
             counter: Some(counter),
-            crc_valid: true, // validated by sync bytes + button structure
+            crc_valid: false, // no checksum: sync bytes + button structure are gates (NO_CHECKSUM)
             data,
             data_count_bit: DATA_BITS,
             encoder_capable: true,
@@ -509,7 +509,7 @@ mod tests {
             serial: Some(0x1234_5678),
             button: Some(raw[6]),
             counter: Some(counter),
-            crc_valid: true,
+            crc_valid: false,
             data,
             data_count_bit: DATA_BITS,
             encoder_capable: true,

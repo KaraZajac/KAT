@@ -54,6 +54,11 @@ US.
 - **Encryption:** none (plaintext)
 - **Frequencies:** 315 MHz, 433.92 MHz (the ±2 % match covers 312–315 MHz US captures)
 
+Neither path verifies anything (there is no checksum), so the CRC column shows "none" for Ford V3 captures, and
+the EU path takes part only in the normal-polarity pass of KAT's registry: with no check at all, a 240/480 µs
+Manchester frame cut short and read inverted is a "Ford V3" frame with nonsense fields where every reference
+reports nothing (no reference has an inverted pass).
+
 ## Decoder Steps
 
 **US path:**

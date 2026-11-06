@@ -1009,7 +1009,7 @@ mod tests {
         assert_eq!(n("Kia V5", 0x2), Some("Lock"));
         assert_eq!(n("Kia V6", 0x4), Some("Panic"));
         assert_eq!(n("Kia V7", 0x3), Some("Trunk"));
-        assert_eq!(n("Kia V7", 0x8), None, "generic Panic");
+        assert_eq!(n("Kia V7", 0x8), Some("Trunk"), "the references name 8 Trunk (KAT's Panic sends it)");
     }
 
     /// Gates: a Kia-shaped frame with a wrong CRC that is not a Honda key, a short preamble, and a

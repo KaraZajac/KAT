@@ -50,8 +50,8 @@
 //! frames, else `advance_hop` (table row XOR the captured delta, re-mixed by `mix_hop` when the
 //! idx bits change). Upload: preamble, sync 0xEC + 63 payload bits through the C's two-state level
 //! encoder, a one-bit tail and a 3000µs HIGH gap, repeated 3 times (the C's default `Repeat`).
-//! KAT has no way to write the bumped counter back into the capture, so re-sending the same
-//! capture transmits the same next code.
+//! The app keeps the frame sent on the capture (`app/tx.rs`), so the next press sends the code
+//! after.
 //!
 //! **Deviations from C**:
 //! - Sync check: the C's two-flag pattern loop accepts the normal sync only as an exact 0xEC, but
@@ -64,6 +64,18 @@
 //!   decoder at exact timing. The trailing preamble HIGH is a redundant half bit (the decoder treats
 //!   the leading LOW as the lead-in and samples the LOWs), so KAT drops it: the preamble is
 //!   `L, (H,L)×179` and the sync starts with a clean 1000µs HIGH.
+//! - Encoder lead-in: the preamble's leading LOW is what arms the sampler, and on air it merges
+//!   into what precedes the copy (the carrier is off). Behind silence (KAT's own receiver) the
+//!   sampler arms on the first HIGH instead, samples the wrong halves and reads the sync as 0xEC
+//!   behind a preamble of ones, which the parser rejects; behind noise (a Flipper's receiver
+//!   before a transmission) the noise's parity decides. The C encoder sends it so, hence its
+//!   first copy decodes by luck and the later copies, behind the 3000µs HIGH gap that idles the
+//!   sampler, always (KAT 1.8.6 sent the same). KAT now starts every copy with a 3000µs HIGH,
+//!   which the sampler takes for a gap in every state: the LOW after it is a pulse of its own.
+//!   (A 1000µs lead-in, tried first, is a sample when noise has armed the sampler and fails on
+//!   one parity.) The Flipper's receiver drops the first ~40 ms of every transmission while its
+//!   AGC settles, lead-in included, so on it the first copy stays a matter of luck either way;
+//!   KAT's receiver reads every copy.
 //! - The C's 149-tick same-key debounce is omitted: KAT resets every decoder after each emission
 //!   (which in the C also clears `last_key`), so it could never fire.
 //!
@@ -700,8 +712,12 @@ impl MazdaV2Decoder {
         }
     }
 
-    /// One upload copy (`mazda_v2_build_upload`, with KAT's preamble fix — see module docs).
+    /// One upload copy (`mazda_v2_build_upload`, with KAT's preamble fixes — see module docs).
     fn append_upload(signal: &mut Vec<LevelDuration>, data: u64) {
+        // KAT: a HIGH the sampler takes for a gap in every state (> DUR_LONG: idle stays idle,
+        // armed parses and idles), so that the preamble's leading LOW is a pulse of its own on
+        // air and arms the sampler, whatever preceded the copy (silence, noise, the gap).
+        Self::enc_add_level(signal, true, TE_GAP);
         // C: PREAMBLE_PAIRS × (L,H). The final HIGH is dropped so the sync's first HIGH stays 1000µs.
         for i in 0..PREAMBLE_PAIRS {
             Self::enc_add_level(signal, false, TE_SHORT);
@@ -984,6 +1000,49 @@ mod tests {
         signal
     }
 
+    /// `before` then one copy, as a receiver sees them: adjacent equal levels merged.
+    fn on_air(before: &[(bool, u32)]) -> Vec<LevelDuration> {
+        let mut out: Vec<LevelDuration> = before.iter().map(|&(l, d)| LevelDuration::new(l, d)).collect();
+        for p in one_copy(KEY) {
+            match out.last_mut() {
+                Some(last) if last.level == p.level => last.duration_us += p.duration_us,
+                _ => out.push(p),
+            }
+        }
+        out
+    }
+
+    /// On air the carrier is off before a transmission: a copy behind 20 ms of silence, equal
+    /// levels merged, must still decode (KAT 1.8.6 and the C encoder start with the preamble's
+    /// LOW, which merges into that silence; neither decoder read the result).
+    #[test]
+    fn upload_decodes_after_silence() {
+        let signal = on_air(&[(false, 20_000)]);
+        assert_eq!((signal[0].level, signal[0].duration_us), (false, 20_000));
+        assert_eq!((signal[1].level, signal[1].duration_us), (true, TE_GAP));
+        let decoded = decode_all(&signal, false);
+        assert_eq!(decoded.len(), 1);
+        assert_eq!(decoded[0].data, KEY);
+    }
+
+    /// A Flipper's receiver puts out noise pulses before a transmission, which arm the sampler
+    /// with either parity (the pulses of the test rig's recording of KAT 1.8.6's upload, and the
+    /// same with one more pair). The lead-in must make the copy decode behind both; the C's
+    /// upload decodes behind one, a 1000µs lead-in behind the other.
+    #[test]
+    fn upload_decodes_after_noise_of_either_parity() {
+        let noise = [(true, 191), (false, 848), (true, 63), (false, 870), (true, 169), (false, 68), (true, 65), (false, 870), (true, 131), (false, 622)];
+        let mut other = noise.to_vec();
+        other.extend([(false, 300), (true, 200)]);
+        for before in [&noise[..], &other[..]] {
+            let mut signal = vec![LevelDuration::new(false, 20_000)];
+            signal.extend(on_air(before));
+            let decoded = decode_all(&signal, false);
+            assert_eq!(decoded.len(), 1, "{} noise pulses", before.len());
+            assert_eq!(decoded[0].data, KEY);
+        }
+    }
+
     /// Byte sum and FNV-1a-32 of each table, computed from the C source text by the generator
     /// script (`static const uint8_t mazda_v2_table_{default,lock}[256][6]`, identical in the ARF
     /// and doctor-firmware copies). Any transcription slip changes these.
@@ -1082,8 +1141,11 @@ mod tests {
     #[test]
     fn upload_matches_c_build_upload() {
         let signal = one_copy(KEY);
+        // KAT's 3000µs lead-in HIGH precedes the C's upload (its 480 entries, 254 500µs).
+        assert_eq!((signal[0].level, signal[0].duration_us), (true, TE_GAP));
+        let signal = &signal[1..];
         let mut fnv = 0xCBF2_9CE4_8422_2325u64;
-        for ld in &signal {
+        for ld in signal {
             let word = ((ld.level as u64) << 32) | ld.duration_us as u64;
             for b in word.to_le_bytes() {
                 fnv = (fnv ^ b as u64).wrapping_mul(0x0000_0100_0000_01B3);
@@ -1187,8 +1249,8 @@ mod tests {
     fn rejects_corrupted_frames() {
         assert_eq!(
             pulses(&frame(KEY, PREAMBLE_PAIRS, SYNC)),
-            pulses(&one_copy(KEY)),
-            "helper mirrors append_upload"
+            pulses(&one_copy(KEY)[1..]),
+            "helper mirrors append_upload (after its lead-in HIGH)"
         );
         assert_eq!(
             decode_all(&frame(KEY, PREAMBLE_PAIRS, SYNC), false).len(),

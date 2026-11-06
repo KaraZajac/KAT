@@ -92,3 +92,28 @@ python3 scripts/demod_sub_to_bits.py path/to/file.sub --encoding raw --with-dura
 ```
 
 VAG Type 3/4 expects: first pulse **HIGH** ~500 µs, then LOW ~500 µs, repeated (preamble); after ≥41 such pairs, HIGH ~1000 µs then LOW ~500 µs (sync), then 3×750 µs, then data. If the first pulse is LOW or durations are outside 500±79/80, the decoder will not lock.
+
+## flipper_replay.py
+
+Replay test signals from a Flipper Zero one file at a time, to watch them arrive in KAT: each `.sub`
+file is uploaded over the Flipper's USB CLI, announced with what KAT should decode from it, sent once
+(`subghz tx_from_file`), then the script pauses (`--pause`, default 3 s) or waits for Enter (`--step`).
+
+```bash
+scripts/flipper_replay.py                    # every test file KAT hears when tuned to 433.92 MHz
+scripts/flipper_replay.py --freq 315         # the 315 MHz ones
+scripts/flipper_replay.py --step             # wait for Enter after each file
+scripts/flipper_replay.py --only princeton   # files whose path contains "princeton"
+scripts/flipper_replay.py --start 42         # resume at file 42 (the numbering of --list)
+scripts/flipper_replay.py --list             # print the sequence and exit
+scripts/flipper_replay.py IMPORTS/KIA        # a folder or file of your own
+```
+
+Defaults: `IMPORTS/` and the Flipper unit-test corpus under `REFERENCES/`, limited to the band KAT's
+receiver covers at `--freq` (1.15 MHz below to 0.65 MHz above it): RAW recordings plus key files of
+protocols the Flipper firmware encodes itself. Key files of ProtoPirate-only protocols (`Fiat type 0`,
+`KIA/HYU V5`, `VAG`…) crash Momentum's `tx_from_file`, so they are skipped unless `--keys all`. Uploads go
+to `/ext/subghz/kat_replay` and stay there for `--no-upload` reruns; `--clean` removes them at the end.
+Standard library only; the user must be allowed to open the serial port (group `dialout`). Frames that
+repeat across files (the unit-test `test_random_raw.sub` replays the others') show in KAT as duplicates,
+not as new captures, unless `ignore_duplicates = false` in its config.

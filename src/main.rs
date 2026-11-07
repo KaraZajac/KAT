@@ -16,6 +16,7 @@ mod session;
 mod storage;
 mod ui;
 mod vuln_db;
+mod web;
 
 use anyhow::Result;
 use crossterm::{
@@ -61,6 +62,8 @@ enum CliAction {
     Decode(headless::DecodeOptions),
     /// `--keeloq-bf <path>...`: recover a magic-serial KeeLoq manufacturer key.
     KeeloqBf(headless::KeeloqBfOptions),
+    /// `--web [addr]`: run the App with the web UI instead of the TUI.
+    Web(std::net::SocketAddr),
     Help,
     Version,
 }
@@ -178,6 +181,16 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<CliAction, Strin
                     .ok_or(format!("invalid sample rate: {v} (200k to 40M S/s, e.g. 2M, 2.4M, 250k, 2048000)"))?;
                 opts.rate = Some(rate);
             }
+            "--web" => {
+                // `--web` (default 0.0.0.0:8080), `--web=addr:port`, or `--web addr:port`.
+                let v = inline.or_else(|| it.next().filter(|v| !v.starts_with('-')));
+                let addr = match v {
+                    Some(v) => v.parse::<std::net::SocketAddr>()
+                        .map_err(|_| format!("invalid --web address: {v} (e.g. 0.0.0.0:8080)"))?,
+                    None => "0.0.0.0:8080".parse().unwrap(),
+                };
+                return Ok(CliAction::Web(addr));
+            }
             other if !other.starts_with('-') => {
                 return Err(format!("unexpected argument {other}: {}", file_hint(other)));
             }
@@ -236,6 +249,18 @@ fn main() -> Result<()> {
                 std::process::exit(2);
             }
             std::process::exit(headless::keeloq_bf(&opts))
+        }
+        Ok(CliAction::Web(addr)) => {
+            // The web UI does not need a TTY: run the App with the web server
+            // instead of the TUI, on a tokio runtime.
+            let rt = tokio::runtime::Runtime::new()?;
+            rt.block_on(async {
+                if let Err(e) = web::run_web(addr).await {
+                    eprintln!("kat --web: {e:#}");
+                    std::process::exit(1);
+                }
+            });
+            return Ok(());
         }
         Ok(CliAction::Help) => {
             println!("KAT v{VERSION} - Keyfob Analysis Toolkit\n\n{USAGE}");

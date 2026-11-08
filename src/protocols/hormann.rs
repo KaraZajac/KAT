@@ -7,10 +7,17 @@
 //! frame starts with a long HIGH start pulse of `24·te_short` = 12 000 µs (accepted ± 4800) and a
 //! LOW te_short, then 44 bits, MSB first, each a HIGH then a LOW: `1` = HIGH 1000 + LOW 500, `0` =
 //! HIGH 500 + LOW 1000 (all within `te_delta`). The next start pulse (a HIGH ≥ 2500 µs) ends the
-//! frame, but only when the last 44 bits read match the HSM pattern `0xFF000000003` (top byte
-//! `0xFF`, low two bits `11`); it is reported when at least 44 bits were read (the C's `>=`) and the
-//! decoder then expects the start pulse's LOW. With the pattern unmatched, the long HIGH is taken
-//! as a data HIGH and the frame breaks.
+//! frame, but only when the last 44 bits read match the HSM sanity mask `0xFE000000003` (the top
+//! seven bits set, low two bits `11`); it is reported when at least 44 bits were read (the C's `>=`)
+//! and the decoder then expects the start pulse's LOW. With the mask unmatched, the long HIGH is
+//! taken as a data HIGH and the frame breaks.
+//!
+//! **Mask (union with RogueMaster).** Flipper-ARF and doctor-firmware require all eight leading
+//! preamble ones (`0xFF000000003`). RogueMaster (Nov 2026, from Unleashed: "there are HSM remotes
+//! whose eighth preamble bit (bit 36) is 0 and which are otherwise identical in framing, Te and bit
+//! count") requires seven (`0xFE000000003`). KAT takes RogueMaster's mask, which decodes every frame
+//! the stricter one does plus those remotes; a frame is still pinned in 9 of its 44 positions,
+//! behind a 12 ms start pulse and 44 clean PWM bits.
 //!
 //! Fields (`subghz_protocol_hormann_check_remote_controller`): button = `(data >> 8) & 0xF` (the
 //! remote's four buttons are one-hot 0x1/0x2/0x4/0x8 per Flipper-ARF). No serial field, no
@@ -48,8 +55,9 @@ const TE_SHORT: u32 = 500;
 const TE_LONG: u32 = 1000;
 const TE_DELTA: u32 = 200;
 const MIN_COUNT_BIT: usize = 44;
-/// `HORMANN_HSM_PATTERN`.
-const PATTERN: u64 = 0xFF0_0000_0003;
+/// `HORMANN_HSM_PATTERN` as RogueMaster has it (seven leading ones; Flipper-ARF's is
+/// `0xFF0_0000_0003`, see the module doc).
+const PATTERN: u64 = 0xFE0_0000_0003;
 /// Frames in the upload (`for repeat < 20`); the transmitter sends the upload once.
 const FRAMES: usize = 20;
 const START: u32 = TE_SHORT * 24;
@@ -247,6 +255,14 @@ mod tests {
         tx.truncate((MIN_COUNT_BIT * 2 + 2) * 2 + 1);
         assert!(feed_all(&mut HormannDecoder::new(), &tx).is_empty());
         let mut tx = upload(0xFF1_2345_6201); // low bits 01
+        tx.truncate((MIN_COUNT_BIT * 2 + 2) * 2 + 1);
+        assert!(feed_all(&mut HormannDecoder::new(), &tx).is_empty());
+        // The 8th preamble one (bit 36) may be 0 (RogueMaster's mask); the 7th may not.
+        let mut tx = upload(0xFE1_2345_6203);
+        tx.truncate((MIN_COUNT_BIT * 2 + 2) * 2 + 1);
+        let got = feed_all(&mut HormannDecoder::new(), &tx);
+        assert_eq!(got.iter().map(|d| d.data).collect::<Vec<_>>(), [0xFE1_2345_6203; 2]);
+        let mut tx = upload(0xFD1_2345_6203);
         tx.truncate((MIN_COUNT_BIT * 2 + 2) * 2 + 1);
         assert!(feed_all(&mut HormannDecoder::new(), &tx).is_empty());
     }

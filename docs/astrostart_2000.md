@@ -2,17 +2,18 @@
 layout: default
 ---
 
-# Astrostart 2000 (rtl_433 port, receive only)
+# Astrostart 2000 (rtl_433 port, receive only; FoxFW key files)
 
 **Rust module:** `src/protocols/astrostart_2000.rs` (rtl_433 receive chain: `src/protocols/rtl433/`)
 **Reference:** rtl_433 `src/devices/astrostart_2000.c` ("Astrostart 2000 Car Remote (-f 372.4M)", model
-`Astrostart-2000`), slicer `pulse_slicer_ppm`
+`Astrostart-2000`), slicer `pulse_slicer_ppm`; key files: FoxFW `lib/subghz/protocols/astrostart.c` ("AstroStart
+2000", its own port of the same decoder)
 
 ## Overview
 
 Astroflex Astrostart 2000 / 3000 remote-starter remotes (FCC ID J5F-TX2000), 372.4 MHz: a button code with its
 inverse, a 32-bit ID and a 4-bit ID checksum; three messages per press. The remote has a primary and a secondary ID
-(the recordings: 3410DE88 and 0410DE88). No Flipper reference has it.
+(the recordings: 3410DE88 and 0410DE88). FoxFW is the only Flipper firmware that has it.
 
 ## Timing / modulation
 
@@ -46,9 +47,31 @@ inverse, a 32-bit ID and a 4-bit ID checksum; three messages per press. The remo
 | `data` | the 52 row bits, `data_count_bit` 52 |
 | `crc_valid` | true (inverse byte + checksum) |
 
+## Key files
+
+FoxFW saves a decode with its generic serializer; KAT writes and loads that file (`AstroStart 2000` is an alias of
+this protocol):
+
+```text
+Protocol: AstroStart 2000
+Bit: 52
+Key: 00 02 BD 41 23 4A BC D8
+```
+
+`Key` is the 52 frame bits (KAT's `data`). Loading is FoxFW's `deserialize` (exactly `Bit: 52`) followed by the
+decoder's checks (inverse byte, ID checksum), which FoxFW's decoder applies before it saves a frame: a key that fails
+them, or has bits set above its 52, is refused. KAT's files round-trip exactly.
+
+FoxFW's decoder only takes pulses of 120–900 µs; this remote's are about 100 µs (KAT measures 98–101 µs, rtl_433
+104–108 µs), so FoxFW reads none of the rtl_433 recordings (KAT's pulses of them, as RAW files). Its key files are
+the same either way.
+
 ## Encoder
 
-Receive only, as rtl_433.
+None. rtl_433 has no encoder, and FoxFW's SD encoder plugin (`applications/main/subghz/protocols_ext/enc_astrostart.c`)
+is a stub ("no TX — rolling button set, replay only"): its `deserialize` returns
+`SubGhzProtocolStatusErrorEncoderGetUpload` for every key file, so a Flipper running FoxFW sends nothing. KAT does
+the same: no TX buttons; Replay of recorded pulses remains.
 
 ## Validation
 
@@ -61,3 +84,9 @@ Receive only, as rtl_433.
 - Fuzz against the C reference (gap windows probed at their exclusive bounds): 2 × 20 000 trains, identical output,
   8 036 events.
 - No decode on any IMPORTS capture, the Flipper unit-test captures or another device's rtl_433_tests recording.
+- Key files against FoxFW's C (host build with its encoder plugins, `subghz_oracle_foxfwenc`): on 150 RAW files of
+  made-up frames (every mapped button code, "Multiple", unmapped codes; 200 µs pulses) FoxFW's serialized lines and
+  KAT's key file are identical.
+- Transmit against FoxFW's C: 120 made-up key files (110 valid, covering the button codes, 10 that KAT refuses);
+  FoxFW's encoder refuses every one (`deserialize failed (status -12)`), KAT sends nothing for any. KAT loads the 110
+  valid ones and refuses the 10 others.

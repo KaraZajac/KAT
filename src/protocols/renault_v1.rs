@@ -639,6 +639,12 @@ impl ProtocolDecoder for RenaultV1Decoder {
         self.seed_cache = seed_cache;
     }
 
+    /// The input ended on the pulse that completed a frame: report it now (the one-pulse delay has
+    /// no next pulse to wait for; the C reports on that last bit).
+    fn flush(&mut self) -> Option<DecodedSignal> {
+        self.pending.take()
+    }
+
     fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
         // A frame completed on the previous pulse is reported now (one-pulse delay, see module
         // doc); this pulse still runs through the state machine.
@@ -941,6 +947,16 @@ mod tests {
                 s.len() - 2
             };
             assert_eq!(hits, vec![second_half], "xor {:02X}", raw[10]);
+            // The input ends on the pulse the C fires on: the frame is reported when it ends
+            // ([ProtocolDecoder::flush]) instead of waiting for a pulse that never comes.
+            let reported = {
+                let mut dec = RenaultV1Decoder::new();
+                s.iter().find_map(|ld| dec.feed(ld.level, ld.duration_us)).expect("frame")
+            };
+            let mut dec = RenaultV1Decoder::new();
+            assert!(s[..second_half].iter().all(|ld| dec.feed(ld.level, ld.duration_us).is_none()));
+            assert_eq!(dec.flush(), Some(reported), "xor {:02X}", raw[10]);
+            assert!(dec.flush().is_none());
         }
     }
 

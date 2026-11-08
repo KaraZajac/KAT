@@ -89,7 +89,14 @@ registry resets after every hit, so each repeat in a capture is still listed.
 
 ## Encoder
 
-Not supported (reference encoder is NULL). Decode-only.
+Not supported (ProtoPirate's, Flipper-ARF's and doctor-firmware's encoder is NULL). Decode-only.
+
+FoxFW has an encoder, the SD plugin `enc_ford_v3.c`, which replays the key file's `Raw`. KAT does not use it:
+run on a host build of FoxFW with its plugins compiled in, on 132 made-up key files and KAT's key files for the
+15 real frames in `IMPORTS` (Escape, LDV), it sends no real frame. Its upload buffer holds 1400 pulses and a
+frame with fewer than about 55 bit changes overflows it (`furi_check`: a crash on the Flipper), which is every
+real frame. The frames that fit go out without frame bit 0, in the US polarity behind an EU preamble; FoxFW's
+own decoder reads them as another frame with another serial, and so does KAT's.
 
 ## Validation
 

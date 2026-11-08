@@ -5,19 +5,21 @@ layout: default
 # Kia V1 Protocol
 
 **Rust module:** `src/protocols/kia_v1.rs`  
-**Reference:** `REFERENCES/ProtoPirate/protocols/kia_v1.c` (Flipper-ARF `kia_v1.c` builds the same upload)
+**Reference:** `REFERENCES/ProtoPirate/protocols/kia_v1.c` (Flipper-ARF `kia_v1.c` builds the same upload); timing
+window and CRC check from doctor-firmware's `kia_v1.c`
 
 ## Overview
 
 Kia/Hyundai Manchester keyfob at 800/1600 µs. 57-bit frame: 32-bit serial, 8-bit button, 12-bit counter,
-4-bit CRC. The C reports every frame and only displays the CRC check.
+4-bit CRC. ProtoPirate reports every frame and only displays the CRC check; doctor-firmware and KAT report only
+frames whose CRC holds.
 
 ## Timing
 
 | Parameter | Value   | Notes                    |
 |-----------|---------|--------------------------|
-| Short     | 800 µs  | ±200 µs (strict `<`)     |
-| Long      | 1600 µs | ±200 µs                  |
+| Short     | 800 µs  | ±300 µs (strict `<`)     |
+| Long      | 1600 µs | ±300 µs                  |
 | Preamble  | > 70 LOW/HIGH long pairs | then a short LOW = sync |
 | Min bits  | 57      |                          |
 
@@ -47,6 +49,25 @@ Kia/Hyundai Manchester keyfob at 800/1600 µs. 57-bit frame: 32-bit serial, 8-bi
 
 KAT's earlier port used a hand-written Manchester table: on the real captures it reported wrong serials
 with failing CRCs (it matched none of the C's frames). This port and the C agree on every capture.
+
+### Timing tolerance (doctor-firmware's)
+
+ProtoPirate accepts a pulse within ±200 µs; doctor-firmware's copy of the same decoder accepts ±300 µs and emits a
+frame only when its CRC holds. KAT does both. Measured on KAT's simulated radio (synthetic IQ through the receive
+pipeline, the IMPORTS captures' 35 real frames and the encoder's frame, 240 trials per setting):
+
+| Impairment | ±200 (ProtoPirate) | ±300 (doctor) |
+|---|---|---|
+| SNR 4 dB + 60 µs jitter + fob clock ±10 % | 29 % | 87 % |
+| 75 µs pulse jitter | 25 % | 97 % |
+| fob clock 10 % slow | 28 % | 100 % |
+| fob clock 15 % fast or slow | 0 % | 100 % |
+| pulse asymmetry ±200 µs | 0–8 % | 100 % |
+
+Nothing ±200 reads is lost, and every IMPORTS capture decodes as before. Under heavy jitter both windows also
+read corrupted frames; ±300 reads fewer (67 against 72 per run) and fewer of them pass the 4-bit CRC by chance (1
+against 8): the CRC check drops the rest, as doctor-firmware does. ProtoPirate's and doctor-firmware's C agree with
+the two settings on 240 edge-case recordings each.
 
 ## Encoder
 

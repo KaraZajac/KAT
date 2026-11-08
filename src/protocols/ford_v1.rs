@@ -47,8 +47,9 @@
 //! the air block, refresh the CRC, then build burst 0 (`ford_v1_encoder_build_burst(.., 0)`):
 //! pkt[4] = 0x08 and the CRC recomputed, 400 × (HIGH 130, LOW 130), HIGH 130, LOW 65, the 17
 //! bytes MSB-first as (bit, 65µs)(!bit, 65µs), LOW 50 000µs. The C never advances `burst_idx`, so
-//! every transmission is burst 0; the Flipper TX loop repeats the upload `repeat` = 10 times and
-//! KAT's `encode()` returns the single upload, like other KAT encoders. Adjacent same-level
+//! every transmission is burst 0; the Flipper TX loop repeats the upload `repeat` = 10 times
+//! (doctor-firmware: 3). KAT's `encode()` returns the single upload and KAT sends it 3 times
+//! (`tx_copies.rs`; a key file's `Repeat` line sets the count). Adjacent same-level
 //! half-bits are merged into single pulses (identical on air).
 //!
 //! As in the C, a frame whose first air bit is 0 cannot be decoded (the sync LOW merges with the

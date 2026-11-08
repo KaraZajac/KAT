@@ -93,6 +93,10 @@ pub struct Capture {
     /// What a key search (a "Recover key" action, or `autobf`) found for this capture.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub key_recovery: Option<KeyRecovery>,
+    /// A loaded key file's `Repeat` line: the copies a reference that reads it sends
+    /// ([crate::protocols::transmission]); written back when the capture is saved as a key file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key_repeat: Option<u32>,
 }
 
 /// The result of a key search for a capture.
@@ -200,6 +204,7 @@ impl Capture {
             source_file: None,
             on_air: None,
             key_recovery: None,
+            key_repeat: None,
         }
     }
 

@@ -114,6 +114,8 @@ const BARRIER_NAMES: &[&str] = &[
     "pecinin",
     "pecninin",
     "pecnin",
+    // RogueMaster's Phantom/Hiland gate remotes (HCS300).
+    "phantomhiland",
     "phoenixv2",
     "powersmart",
     "prastel",

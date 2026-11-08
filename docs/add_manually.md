@@ -11,10 +11,10 @@ types; Momentum's adds none). Code: `src/protocols/add_manually.rs` (types, para
 
 ## Using it
 
-- `:new` opens the type picker: the 107 types in the references' menu order, under the headings
+- `:new` opens the type picker: the 112 types in the references' menu order, under the headings
   Rolling code, KeeLoq manufacturers (KL:), Nice, CAME, Fixed code and Security+. Each row shows the
   protocol (KeeLoq: the manufacturer key), frequency and preset; doctor-firmware-only types say
-  "doctor" and RogueMaster's six "RM", types KAT cannot create "✗ n/a" (the reason is shown under
+  "doctor", RogueMaster's nine "RM" and FoxFW's two "Fox", types KAT cannot create "✗ n/a" (the reason is shown under
   the list); the line under the list names the menus that list the selected type.
 - Type to filter (all words must match the name), Up/Down/PgUp/PgDn to select.
 - **Enter** creates the selected type with fresh random values (doctor-firmware's "Add Manually").
@@ -64,10 +64,13 @@ there.
 - **One list**: Flipper-ARF's 78 types plus doctor-firmware's 23 (Genius, Erreka, Somfy Keytis,
   Ditec GOL4, Superrollo, Dorcas, KEY, HomeGate, Pujol, Pujol Vario, ET Blue (Mix), ATA PTX4, Seav,
   Wisniowski, Fadini, Mc Garcia, Clemsa Mutancode, Doormatic, Elvox, Verex, Telcoma EDGE) where
-  doctor's menu puts them, plus RogueMaster's 6 (Erreka 868MHz, Prastel 433MHz, Nice O-Code / O-Code
-  One / O-Code+Crt 433MHz, Nord ICE 433MHz) where RogueMaster's puts them — its last two O-Code
-  types, which its enum appends after Security+ (with Telcoma EDGE), stay in the Nice group after
-  the first. Where several have a type, ARF's name and parameters are used (ARF and doctor differ
+  doctor's menu puts them, plus RogueMaster's 9 (Erreka 868MHz, Prastel 433MHz, Nice O-Code / O-Code
+  One / O-Code+Crt 433MHz, Nord ICE 433MHz, and from November 2026 FAAC TM 433MHz / 868MHz and
+  KL: Phantom/Hiland 433M) where RogueMaster's puts them. Its last two O-Code types, which its enum
+  appends after Security+ (with Telcoma EDGE), stay in the Nice group after the first. Its FAAC TM
+  types, which its enum puts after FAAC SLH, close the fixed-code group, since they are fixed codes. FoxFW's menu is
+  ARF's 78 plus two plain KeeLoq "KL: Erreka 433MHz / 868MHz" (serial `key & 0xFFFF`, button 0x02, counter 0x03, no
+  seed), listed after Aprimatic as FoxFW lists them; doctor's and RogueMaster's seeded "Erreka" types keep their place. Where several have a type, ARF's name and parameters are used (ARF and doctor differ
   only in "KL: Genius Bravo": ARF button 0x06, doctor 0x09 / "KL: Genius TX4RC 433M."). Momentum's
   94 types are all in the list (its Genius Bravo is doctor's). RogueMaster lacks Dorcas and differs
   from ARF / doctor in three shared types (gen oracle, below): Monarch is a KeeLoq-with-seed type
@@ -89,16 +92,16 @@ there.
 - **doctor's generic serializer** also writes `Serial` / `Btn` / `Cnt` (and a decimal `Seed` line
   before the hex one, which a hex reader then trips on); KAT writes the lines the protocols' own
   serializers write (Flipper-ARF's form).
-- **Not created** (listed with the reason): RogueMaster's Nord ICE (no KAT protocol: doctor's
-  `nord_ice.c` is not ported, the garage app ships it receive-only) and its three Nice O-Code types
-  (RogueMaster's O-Code key maker — installer code, receiver-certificate enrolment — is not ported;
+- **Not created** (listed with the reason): RogueMaster's three Nice O-Code types (RogueMaster's
+  O-Code key maker — installer code, receiver-certificate enrolment — is not ported;
   KAT re-sends captured O-Code keys whose IC is known, see `nice_flor_s.md`); Nice FloR-S /
   Nice One and Alutech AT-4N without the user's rainbow table (`~/.config/KAT/nice_flor_s.bin`,
   `alutech_at_4n.bin`, see `nice_flor_s.md` / `alutech_at_4n.md`; the C would save a key encrypted
   with nothing); KeeLoq manufacturers without a usable key in KAT's keystore (the C saves an all-zero
-  key; Erreka 433 / 868 among them) — they become available when `~/.config/KAT/keeloq_mfcodes_user`
-  adds the key; doctor's KEY and Dorcas, whose hops use doctor-only KeeLoq discriminators (0x2FF;
-  Monarch 0x280 kept in the seed) while KAT's KeeLoq codec follows Flipper-ARF's.
+  key; Erreka 433 / 868 and RogueMaster's Phantom/Hiland among them) — they become available when
+  `~/.config/KAT/keeloq_mfcodes_user` adds the key. doctor's KEY and Dorcas are created since November
+  2026, with doctor-firmware's / RogueMaster's KeeLoq discriminators (KEY 0x2FF; Monarch 0x280 kept in the
+  seed), which KAT's KeeLoq codec now has beside Flipper-ARF's rules.
 - **KeeLoq transmission** uses the manufacturer the remote names (as ARF's encoder uses the key
   file's `Manufacture`). On air, receivers that walk a whole keystore (Flipper, KAT) name the first
   entry whose key validates the frame — for about one remote in ten an earlier keystore entry
@@ -181,8 +184,9 @@ protocols without button names (KAT's car labels Lock/Unlock/Trunk/Panic are for
 | KL: Allmatic 868MHz | KeeLoq (Beninca) | 868.35 | AM650 | serial `(r & 0x00FFFF00) \| 0x01000011`, button `0x0C`, counter `0x05` | both | ✓ |
 | KL: Centurion 433MHz | KeeLoq (Centurion) | 433.92 | AM650 | serial `(r & 0x0000FFFF)`, button `0x02`, counter `0x03` | both | ✓ |
 | KL: Monarch 433MHz | KeeLoq (Monarch) | 433.92 | AM650 | serial `(r & 0x0000FFFF)`, button `0x0A`, counter `0x03` | both | ✓ |
-| KL: Dorcas 433MHz | KeeLoq (Monarch) | 433.92 | AM650 | serial `(r & 0x0000FFFF)`, button `0x0A`, counter `0x03`, seed `0x280` | doctor | ✗ doctor's Monarch discriminator 0x280 (KAT's KeeLoq is ARF's) |
-| KL: KEY 433MHz | KeeLoq (KEY) | 433.92 | AM650 | serial `(r & 0x0FFFFFFF)`, button `0x01`, counter `0x03` | doctor | ✗ doctor's KEY discriminator 0x2FF (KAT's KeeLoq is ARF's) |
+| KL: Dorcas 433MHz | KeeLoq (Monarch) | 433.92 | AM650 | serial `(r & 0x0000FFFF)`, button `0x0A`, counter `0x03`, seed `0x280` (the Monarch discriminator B) | doctor | ✓ |
+| KL: Phantom/Hiland 433M | KeeLoq (Phantom_Hiland) | 433.92 | AM650 | serial `r & 0x0FFFFFFF`, button `0x02`, counter `0x03`, seed `r & 0x3FF` (the discriminator: serial & 0x3FF, top 2 bits 0) | RogueMaster | ✗ needs a Phantom_Hiland key in `keeloq_mfcodes_user` |
+| KL: KEY 433MHz | KeeLoq (KEY) | 433.92 | AM650 | serial `(r & 0x0FFFFFFF)`, button `0x01`, counter `0x03` (discriminator 0x2FF) | doctor | ✓ |
 | KL: Jolly Mot. 433MHz | KeeLoq (Jolly_Motors) | 433.92 | AM650 | serial `(r & 0x000FFFFF)`, button `0x02`, counter `0x03` | both | ✓ |
 | KL: Motorline 433MHz | KeeLoq (Motorline) | 433.92 | AM650 | serial `r & 0x0FFFFFFF`, button `0x01`, counter `0x03` | both | ✓ |
 | KL: Sommer 434MHz | KeeLoq (Sommer) | 434.42 | FM476 | serial `(r & 0x0000FFFF) \| 0x01700000`, button `0x02`, counter `0x03` | both | ✓ |
@@ -198,6 +202,8 @@ protocols without button names (KAT's car labels Lock/Unlock/Trunk/Panic are for
 | KL: GSN 433MHz | KeeLoq (GSN) | 433.92 | AM650 | serial `r & 0x0FFFFFFF`, button `0x02`, counter `0x03` | both | ✓ |
 | KL: HomeGate 433MHz | KeeLoq (HomeGate) | 433.92 | AM650 | serial `r & 0x0FFFFFFF`, button `0x02`, counter `0x03` | doctor | ✗ needs a HomeGate key in `keeloq_mfcodes_user` |
 | KL: Aprimatic 433MHz | KeeLoq (Aprimatic) | 433.92 | AM650 | serial `(r & 0x000FFFFF) \| 0x00600000`, button `0x08`, counter `0x03` | both | ✓ |
+| KL: Erreka 433MHz | KeeLoq (Erreka) | 433.92 | AM650 | serial `r & 0x0000FFFF`, button `0x02`, counter `0x03` (no seed) | FoxFW | ✗ needs an Erreka key in `keeloq_mfcodes_user` |
+| KL: Erreka 868MHz | KeeLoq (Erreka) | 868.35 | AM650 | serial `r & 0x0000FFFF`, button `0x02`, counter `0x03` (no seed) | FoxFW | ✗ needs an Erreka key in `keeloq_mfcodes_user` |
 | KL: Elmes (PL) 433MHz | KeeLoq (Elmes_Poland) | 433.92 | AM650 | serial `(r & 0x00FFFFFF) \| 0x02000000`, button `0x02`, counter `0x03` | both | ✓ |
 | KL: Normstahl 433MHz | KeeLoq (Normstahl) | 433.92 | AM650 | serial `r & 0x0000FFFF`, button `0x04`, counter `0x03` | both | ✓ |
 | KL: JCM Tech 433MHz | KeeLoq (JCM_Tech) | 433.92 | AM650 | serial `r & 0x00FFFFFF`, button `0x02`, counter `0x03` | both | ✓ |
@@ -243,7 +249,7 @@ protocols without button names (KAT's car labels Lock/Unlock/Trunk/Panic are for
 | BETT 433MHz | BETT | 433.92 | AM650 | key `(r & 0x0000FFF0)`, 18 bits | both | ✓ |
 | GangQi 433MHz | GangQi | 433.92 | AM650 | 16-bit serial from `r₂`, button 0xD, byte-sum check, 34 bits | both | ✓ |
 | Hollarm 433MHz | Hollarm | 433.92 | AM650 | key `(r & 0x000FFF0000) \| 0xF0B0002200` + byte-sum check, 42 bits | both | ✓ |
-| Nord ICE 433MHz | Nord ICE | 433.92 | AM650 | key `(r & 0x1FFFF81FF) \| 0x2400` (button 4 at bits 12..9, bit 13 set), 33 bits | RogueMaster | ✗ KAT has no Nord ICE protocol |
+| Nord ICE 433MHz | Nord ICE | 433.92 | AM650 | key `(r & 0x1FFFF81FF) \| 0x2400` (button 4 at bits 12..9, bit 13 set), 33 bits | RogueMaster | ✓ |
 | Revers RB2 433MHz | Revers_RB2 | 433.92 | AM650 | key `(r & 0x00000FFFFFFFF000) \| 0xFFFFF00000000000 \| 0x0000000000000A00`, 64 bits | both | ✓ |
 | Marantec24 868MHz | Marantec24 | 868.35 | AM650 | key `(r & 0xFFFFF0) \| 0x000008`, 24 bits | both | ✓ |
 | Marantec 433MHz | Marantec | 433.92 | AM650 | 20-bit serial from `r₃`, constant 0x130 / 0x86, button 0x4, CRC-8, 49 bits | both | ✓ |
@@ -252,6 +258,8 @@ protocols without button names (KAT's car labels Lock/Unlock/Trunk/Panic are for
 | Linear 300MHz | Linear | 300.00 | AM650 | key `(r & 0x3FF)`, 10 bits | both | ✓ |
 | Telcoma EDGE 433MHz | Telcoma/Cardin EDGE | 433.92 | AM650 | key `0xFF000000 \| (r & 0x00FFFFF8)`, 32 bits | doctor | ✓ |
 | Gate TX 433MHz | GateTX | 433.92 | AM650 | key `reverse((r & 0x00F0FF00) \| 0xF0040, 24)`, 24 bits | both | ✓ |
+| FAAC TM 433MHz | Faac TM | 433.92 | AM650 | key `r & 0xFFF` (the 12 DIP switches), 12 bits, `TE: 0` (sent at 400 µs) | RogueMaster | ✓ |
+| FAAC TM 868MHz | Faac TM | 868.00 | AM650 | key `r & 0xFFF` (the 12 DIP switches), 12 bits, `TE: 0` (sent at 400 µs) | RogueMaster | ✓ |
 | Security+1.0 315MHz | Security+ 1.0 | 315.00 | AM650 | fixed code: `r` until `check_fixed` (id1 ≠ 0), rolling 0xE6000000 | both | ✓ |
 | Security+1.0 390MHz | Security+ 1.0 | 390.00 | AM650 | fixed code: `r` until `check_fixed` (id1 ≠ 0), rolling 0xE6000000 | both | ✓ |
 | Security+1.0 433MHz | Security+ 1.0 | 433.92 | AM650 | fixed code: `r` until `check_fixed` (id1 ≠ 0), rolling 0xE6000000 | both | ✓ |

@@ -59,6 +59,9 @@ const KEY_FILE_NAMES: &[(&str, &str)] = &[
     ("Porsche AG", "Porsche Cayenne"),
     ("MazdaSiemens", "Mazda Siemens"),
     ("Chrysler", "Chrysler V0"),
+    // Flipper-ARF and FoxFW also register "FIAT SPA" (`fiat_spa.c`), an older copy of Fiat V0 with
+    // the same key-file lines.
+    ("FIAT SPA", "Fiat V0"),
     // doctor-firmware (protocol name + registry.c legacy aliases)
     ("Toyota Lexus", "Toyota"),
     ("Korea V0", "Kia V0"),
@@ -90,6 +93,33 @@ pub fn registry_name(protocol: &str) -> &str {
         .iter()
         .find(|(alias, _)| alias.eq_ignore_ascii_case(p))
         .map_or(p, |(_, kat)| kat)
+}
+
+/// A key file's number (`Frequency`, `Bit`, `TE`, `Cnt` …) as every Flipper firmware reads it:
+/// `flipper_format_read_uint32` → `strint_to_uint32(value, NULL, &out, 10)` (lib/toolbox/strint.c)
+/// on the line's first value. A `0x` / `0b` prefix (any case) or one leading `0` is skipped, and the
+/// digits are then read in **decimal** up to the first other character: `0x190` is 190, `0x1A` is 1,
+/// `400abc` is 400. A sign, no digit (a lone `0` is 0) or a value past `u32::MAX` is no value, and the
+/// firmware treats the line as missing. No firmware writes a prefix; it only appears in hand-edited
+/// files, which then behave in KAT as on a Flipper.
+pub fn flipper_u32(text: &str) -> Option<u32> {
+    let s = text.split_whitespace().next()?;
+    if s.starts_with(['+', '-']) {
+        return None;
+    }
+    let prefixed = s.len() >= 2 && (s[..2].eq_ignore_ascii_case("0x") || s[..2].eq_ignore_ascii_case("0b"));
+    let (rest, lone_zero_ok) = if prefixed {
+        (&s[2..], false)
+    } else if let Some(r) = s.strip_prefix('0') {
+        (r, true)
+    } else {
+        (s, false)
+    };
+    let digits = &rest[..rest.find(|c: char| !c.is_ascii_digit()).unwrap_or(rest.len())];
+    if digits.is_empty() {
+        return lone_zero_ok.then_some(0);
+    }
+    digits.parse().ok()
 }
 
 /// Parse "00 00 0E 02", "0E02" or "0x0E02" (hex, big-endian) to an integer (≤ 64 bits).
@@ -242,13 +272,9 @@ impl FlipperKey {
         self.field(name).and_then(parse_hex_bytes)
     }
 
-    /// A decimal field (`Cnt: 1234`), or hex with a 0x prefix.
+    /// A number field (`Cnt: 1234`), read as the Flipper reads it ([flipper_u32]).
     pub fn u32_field(&self, name: &str) -> Option<u32> {
-        let v = self.field(name)?.trim();
-        match v.strip_prefix("0x").or_else(|| v.strip_prefix("0X")) {
-            Some(h) => u32::from_str_radix(h, 16).ok(),
-            None => v.parse().ok(),
-        }
+        flipper_u32(self.field(name)?)
     }
 
     /// Parse a key file's text. Errors when it has RAW_Data (a RAW file) or lacks Protocol/Key.
@@ -262,11 +288,11 @@ impl FlipperKey {
             match name {
                 "Filetype" | "Version" => {}
                 "RAW_Data" => return Err("RAW file, not a key file".to_string()),
-                "Frequency" => k.frequency = value.parse().map_err(|_| format!("bad Frequency: {value}"))?,
+                "Frequency" => k.frequency = flipper_u32(value).ok_or_else(|| format!("bad Frequency: {value}"))?,
                 "Preset" => k.preset = Some(value.to_string()),
                 "Protocol" => k.protocol = value.to_string(),
                 "Bit" => {
-                    k.bits = value.parse().map_err(|_| format!("bad Bit: {value}"))?;
+                    k.bits = flipper_u32(value).ok_or_else(|| format!("bad Bit: {value}"))? as usize;
                     have_bits = true;
                 }
                 "Key" => {
@@ -381,6 +407,22 @@ pub(crate) mod testing {
 mod tests {
     use super::*;
 
+    /// `strint_to_uint32(…, 10)` as the firmwares read numbers (the C's results; checked by sending
+    /// `TE: 0x190` through Flipper-ARF's, FoxFW's and Momentum's encoders: 190 µs pulses).
+    #[test]
+    fn numbers_read_as_the_flipper_reads_them() {
+        for (text, want) in [
+            ("400", Some(400)), ("0x190", Some(190)), ("0X190", Some(190)), ("0x1A", Some(1)), ("0b101", Some(101)),
+            ("0190", Some(190)), ("0", Some(0)), ("00", Some(0)), ("400abc", Some(400)), ("400 500", Some(400)),
+            (" 7 ", Some(7)), ("0x", None), ("abc", None), ("", None), ("-5", None), ("+5", None),
+            ("4294967295", Some(u32::MAX)), ("4294967296", None),
+        ] {
+            assert_eq!(flipper_u32(text), want, "{text:?}");
+        }
+        let k = FlipperKey::parse("Frequency: 0x433920000\nProtocol: Princeton\nBit: 0x24\nKey: 00 00 00 00 00 95 D5 D4\nTE: 0x190\n").unwrap();
+        assert_eq!((k.frequency, k.bits, k.u32_field("TE")), (433_920_000, 24, Some(190)));
+    }
+
     #[test]
     fn parses_a_key_file() {
         let k = FlipperKey::parse(
@@ -394,7 +436,7 @@ mod tests {
         assert_eq!((k.bits, k.key), (64, 0xC603_BC12_8D2B_3A5F));
         assert_eq!(k.field("Manufacture"), Some("DoorHan"));
         assert_eq!(k.hex_field("Seed"), Some(0));
-        assert_eq!(k.u32_field("Cnt"), Some(16));
+        assert_eq!(k.u32_field("Cnt"), Some(10), "a 0x prefix is skipped and the digits read in decimal, as on a Flipper");
         assert!(FlipperKey::parse("Protocol: RAW\nRAW_Data: 1 -2\n").is_err());
         assert!(FlipperKey::parse("Protocol: CAME\nBit: 12\n").is_err());
         assert_eq!(parse_hex_bytes("00 00 0E 02"), Some(0xE02));

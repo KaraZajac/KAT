@@ -3,9 +3,10 @@
 //! Port of ProtoPirate `protocols/kia_v2.c` (HEAD 2026-10; unchanged in behaviour since KAT's
 //! v1.3.0 port — only `pp_emit` refactoring). Flipper-ARF's `kia_v2.c` decodes identically (C
 //! oracle: same frames on random C-encoded streams and on IMPORTS) and builds the same upload.
+//! The timing window is doctor-firmware's (see "Timing tolerance").
 //!
-//! Air format (315 / 433.92 MHz, AM): Manchester, te_short 500µs / te_long 1000µs (te_delta 150,
-//! strict `<`). Preamble: ≥100 long pulses, then the first short HIGH is the sync and the first
+//! Air format (315 / 433.92 MHz, AM): Manchester, te_short 500µs / te_long 1000µs (te_delta 200,
+//! strict `<`; ProtoPirate 150). Preamble: ≥100 long pulses, then the first short HIGH is the sync and the first
 //! data bit (`1`). 53-bit frame: `1 << 52 | serial32 << 20 | button4 << 16 | raw_cnt12 << 4 |
 //! crc4`, where `raw_cnt = cnt_lo8 << 4 | cnt_hi4` (counter 12 bits) and the CRC-4 is the XOR of
 //! every nibble of bits 4..51 plus 1. The C only displays it ("CRC BAD") and emits regardless; KAT
@@ -20,6 +21,15 @@
 //! frame is reported on the pulse completing bit 53. (KAT's earlier port used a hand-written
 //! Manchester table with the opposite event sense; the C oracle and this port agree on 600 random
 //! C-encoded frames × 2 bursts.)
+//!
+//! **Timing tolerance** — doctor-firmware's copy of this decoder widens te_delta from 150 to 200 µs
+//! (it also emits only CRC-valid frames, as KAT already did). On KAT's simulated radio (synthetic
+//! IQ through the receive pipeline; the two IMPORTS keys sent by the encoder, OOK and FSK) 200
+//! decodes 98 % of frames with 50 µs pulse jitter where 150 decodes 54–62 %, 70 % instead of 33 %
+//! of FSK frames at −6 dB, and 40–47 % instead of 1–2 % with SNR 4 dB, 60 µs jitter and a ±10 %
+//! fob clock, with no wrong frame; nothing in IMPORTS changes. The one cost seen: a Kia V1 fob
+//! whose clock ran 30 % fast read as Kia V2 in 9 of 60 trials (3 with 150). ProtoPirate's and
+//! doctor-firmware's C agree with the two settings on 240 edge-case recordings each.
 //!
 //! Encoder (`kia_protocol_encoder_v2_deserialize` + `get_upload`): frame rebuilt from the fields,
 //! CRC recomputed; 2 bursts, each 252 × (LOW 1000, HIGH 1000), LOW 500, then bits 51..0 as
@@ -56,7 +66,8 @@ pub(super) const INFO: ProtocolInfo = ProtocolInfo {
 
 const TE_SHORT: u32 = 500;
 const TE_LONG: u32 = 1000;
-const TE_DELTA: u32 = 150;
+/// doctor-firmware's (ProtoPirate: 150); see "Timing tolerance".
+const TE_DELTA: u32 = 200;
 const MIN_COUNT_BIT: usize = 53;
 const HEADER_PAIRS: usize = 252;
 const TOTAL_BURSTS: usize = 2;

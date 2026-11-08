@@ -53,7 +53,7 @@
   <div class="container hero-inner">
     <div class="hero-eyebrow">
       <span class="dot dot-pulse"></span>
-      v1.8.7 · Linux, macOS &amp; Windows · terminal
+      v1.9.0 · Linux, macOS &amp; Windows · terminal
     </div>
     <h1 class="hero-title">
       <span class="display-wordmark">KAT</span>
@@ -65,7 +65,7 @@
       It works with a <strong>HackRF One</strong> (receive and transmit) or an
       <strong>RTL-SDR</strong> (receive only), and decodes IQ recordings and
       Flipper Zero <code>.sub</code> files with no radio attached.
-      <span class="hero-tag-pop">107 protocol decoders, each checked against the reference C code.</span>
+      <span class="hero-tag-pop">149 protocol decoders, each checked against the reference C code.</span>
     </p>
 
     <figure class="term-shot">
@@ -80,14 +80,14 @@
     </figure>
 
     <div class="stats-row" id="stats-row">
-      <div class="stat-chip"><span class="num" data-target="107">107</span><span>protocol decoders</span></div>
-      <div class="stat-chip"><span class="num" data-target="53">53</span><span>car key fobs &amp; alarms</span></div>
-      <div class="stat-chip"><span class="num" data-target="54">54</span><span>garage, gate &amp; shutter remotes</span></div>
+      <div class="stat-chip"><span class="num" data-target="149">149</span><span>protocol decoders</span></div>
+      <div class="stat-chip"><span class="num" data-target="80">80</span><span>car key fobs &amp; alarms</span></div>
+      <div class="stat-chip"><span class="num" data-target="69">69</span><span>garage, gate, home &amp; sensor remotes</span></div>
       <div class="stat-chip stat-vfy"><span class="num" data-target="239">239</span><span>of 250 frames caught over the air</span></div>
     </div>
 
     <div class="cta-row">
-      <a class="btn btn-primary" href="https://github.com/KaraZajac/KAT/releases/latest">↓ Download v1.8.7</a>
+      <a class="btn btn-primary" href="https://github.com/KaraZajac/KAT/releases/latest">↓ Download v1.9.0</a>
       <a class="btn" href="#protocols">Find your protocol</a>
       <a class="btn btn-ghost" href="https://github.com/KaraZajac/KAT">
         <svg height="16" viewBox="0 0 16 16" width="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -388,12 +388,12 @@
   <div class="container">
     <div class="section-head">
       <span class="section-tag">protocols</span>
-      <h2>107 decoders. Every one has a page.</h2>
+      <h2>149 decoders. Every one has a page.</h2>
       <p class="lead">
-        53 car key fob and alarm protocols and 54 garage door, gate, barrier
-        and shutter protocols. They follow ProtoPirate where it has the
-        protocol, then Flipper-ARF and doctor-firmware, then Momentum and
-        RogueMaster; remotes no Flipper firmware reads are decoded with
+        80 car key fob and alarm protocols and 69 garage door, gate, barrier,
+        shutter, doorbell, sensor and key-finder protocols. They follow ProtoPirate where it has the
+        protocol, then Flipper-ARF and doctor-firmware, then Momentum,
+        RogueMaster and FoxFW; remotes no Flipper firmware reads are decoded with
         receive-only ports of rtl_433. Each page covers the protocol's timing,
         frame layout and decoder, and its encoder where KAT has one.
       </p>
@@ -416,6 +416,8 @@
           <a class="pill" href="kia_v5.html">Kia V5</a>
           <a class="pill" href="kia_v6.html">Kia V6</a>
           <a class="pill" href="kia_v7.html">Kia V7</a>
+          <a class="pill" href="hyundai_kia_rio.html" title="FoxFW">Hyundai/Kia RIO</a>
+          <a class="pill" href="santa_fe.html" title="Hyundai Santa Fe 2013-16, FoxFW">SantaFe 13-16</a>
         </div>
       </div>
 
@@ -427,6 +429,8 @@
           <a class="pill" href="ford_v2.html">Ford V2</a>
           <a class="pill" href="ford_v3.html">Ford V3 (EU + US)</a>
           <a class="pill" href="gm.html" title="Chevrolet, Buick, GMC, Cadillac">GM</a>
+          <a class="pill" href="chevrolet_v0.html" title="FoxFW, decode only">Chevrolet V0</a>
+          <a class="pill" href="tesla_charge.html" title="Tesla charge-port signal, FoxFW">Tesla Charge</a>
           <a class="pill" href="chrysler_v0.html" title="Dodge, Jeep">Chrysler V0</a>
           <a class="pill" href="fiat_v2.html" title="FCA: Fiat, Chrysler, Jeep">Fiat V2 (FCA)</a>
         </div>
@@ -437,13 +441,25 @@
         <div class="pills">
           <a class="pill" href="honda_static.html">Honda Static</a>
           <a class="pill" href="honda_v1.html">Honda V1</a>
+          <a class="pill" href="honda_v5.html">Honda V5</a>
+          <a class="pill" href="nidec_rke.html" title="Honda OUCG8D-344H-A, FoxFW, decode only">Nidec RKE</a>
+          <a class="pill" href="honda_v4.html" title="FoxFW, decode only">Honda V4</a>
+          <a class="pill" href="honda_v7.html" title="FoxFW, decode only">Honda V7</a>
+          <a class="pill" href="honda_v9.html" title="FoxFW, decode only">Honda V9</a>
+          <a class="pill" href="honda_v2_v3.html" title="FoxFW, decode only">HondaV2&amp;V3</a>
+          <a class="pill" href="honda_v10.html" title="FoxFW, decode only">Honda V10</a>
           <a class="pill" href="honda_v2.html" title="formerly Land Rover V0">Honda V2</a>
           <a class="pill" href="kia_v0.html" title="frame types of Kia V0">Suzuki V0 / Honda V0</a>
           <a class="pill" href="toyota.html" title="Lexus">Toyota</a>
+          <a class="pill" href="lexus_v0.html" title="FoxFW, decode only">Lexus V0</a>
           <a class="pill" href="mazda_v0.html">Mazda V0</a>
           <a class="pill" href="mazda_v2.html">Mazda V2</a>
+          <a class="pill" href="mazda_v1.html" title="FoxFW, decode only">Mazda V1</a>
           <a class="pill" href="mazda_siemens.html">Mazda Siemens</a>
           <a class="pill" href="mitsubishi_v0.html">Mitsubishi V0</a>
+          <a class="pill" href="mitsubishi_v1.html" title="FoxFW, decode only">Mitsubishi V1</a>
+          <a class="pill" href="nissan_v0.html" title="FoxFW, decode only">Nissan V0</a>
+          <a class="pill" href="toyota_foxfw.html" title="FoxFW: Prius 2006 / Tundra, decode only">Toyota (FoxFW)</a>
           <a class="pill" href="subaru.html">Subaru</a>
           <a class="pill" href="datsun_lada.html">Datsun Lada</a>
         </div>
@@ -453,17 +469,28 @@
         <h3>European</h3>
         <div class="pills">
           <a class="pill" href="vag.html" title="Volkswagen, Audi, Seat, Skoda">VAG</a>
+          <a class="pill" href="vag_polo.html" title="VW Polo 5, FoxFW, decode only">VAG Polo</a>
+          <a class="pill" href="audi_v3.html" title="FoxFW, decode only">Audi V3</a>
           <a class="pill" href="porsche_cayenne.html">Porsche Cayenne</a>
           <a class="pill" href="bmw.html">BMW</a>
+          <a class="pill" href="bmw_v2.html" title="FoxFW, decode only">BMW V2</a>
+          <a class="pill" href="bmw_v3.html" title="FoxFW, decode only">BMW/Mini V3</a>
+          <a class="pill" href="bmw_cas3.html" title="BMW CAS3/CAS4, FoxFW, replay">BMW CAS3</a>
           <a class="pill" href="mercedes_v0.html">Mercedes V0</a>
           <a class="pill" href="mercedes_v1.html">Mercedes V1</a>
           <a class="pill" href="opel_v1.html">Opel V1</a>
+          <a class="pill" href="opel_v0.html" title="FoxFW, decode only">Opel V0</a>
+          <a class="pill" href="ldv_v0.html" title="FoxFW, decode only">LDV V0</a>
           <a class="pill" href="psa.html" title="Peugeot, Citroën">PSA</a>
           <a class="pill" href="renault_v0.html">Renault V0</a>
           <a class="pill" href="renault_v1.html">Renault V1</a>
           <a class="pill" href="renault_v1_arf.html">Renault V1 (ARF)</a>
+          <a class="pill" href="renault_v4.html" title="FoxFW, decode only">Renault/xHorse V4</a>
+          <a class="pill" href="renault_v2.html" title="Renault Clio 3, FoxFW, decode only">Renault V2</a>
           <a class="pill" href="fiat_v0.html">Fiat V0</a>
           <a class="pill" href="fiat_v1.html" title="Magneti Marelli BSI">Fiat V1</a>
+          <a class="pill" href="fiat_marelli.html" title="Flipper-ARF key files: load, save, replay">MARELLI</a>
+          <a class="pill" href="ducato_v0.html" title="FoxFW, decode only">Fiat Ducato V0</a>
         </div>
       </div>
 
@@ -476,6 +503,7 @@
           <a class="pill" href="sheriff_cfm.html" title="ZX-750 / ZX-930 alarms">Sheriff CFM</a>
           <a class="pill" href="keeloq.html" title="gates, garage doors, alarms">KeeLoq</a>
           <a class="pill" href="keeloq_generic.html" title="every keystore key, for signals no protocol claims">KeeLoq generic fallback</a>
+          <a class="pill" href="hitag2_rke.html" title="PCF7946/7947 RKE frame, FoxFW, decode only">Hitag2</a>
         </div>
       </div>
 
@@ -540,13 +568,27 @@
           <a class="pill" href="dooya.html" title="shutters, blinds">Dooya</a>
           <a class="pill" href="gangqi.html" title="GSM alarm remotes, 433.92 MHz">GangQi</a>
           <a class="pill" href="hollarm.html" title="GSM alarm remotes, 433.92 MHz">Hollarm</a>
+          <a class="pill" href="freezer.html" title="RogueMaster, 433.92 MHz">Freezer</a>
+          <a class="pill" href="faac_tm.html" title="DIP-switch remotes, 433.92 / 868 MHz">Faac TM</a>
+          <a class="pill" href="magellan.html" title="Paradox security sensors">Magellan</a>
+          <a class="pill" href="x10.html" title="home automation, 315 MHz">X10</a>
+          <a class="pill" href="legrand.html">Legrand</a>
+          <a class="pill" href="doorbell32.html" title="doorbells">Doorbell32</a>
+          <a class="pill" href="intertechno_v3.html" title="sockets, dimmers">Intertechno V3</a>
+          <a class="pill" href="keyfinder.html" title="key finders">KeyFinder</a>
+          <a class="pill" href="feron.html" title="LED-light remotes">Feron</a>
+          <a class="pill" href="keyfinder2.html" title="key finders">KeyFinder2</a>
+          <a class="pill" href="honeywell.html" title="security sensors">Honeywell Sec</a>
+          <a class="pill" href="honeywell_wdb.html" title="doorbells, PIR">Honeywell</a>
+          <a class="pill" href="treadmill37.html" title="treadmill remotes">Treadmill37</a>
+          <a class="pill" href="nord_ice.html">Nord ICE</a>
           <a class="pill" href="urmet.html">Urmet</a>
         </div>
       </div>
 
       <div class="proto-group wide">
         <h3>rtl_433: receive only</h3>
-        <p>Ported from rtl_433 for remotes no Flipper firmware reads. Receive only, as in rtl_433: KAT shows the fields, and the capture can be replayed as recorded and exported.</p>
+        <p>Ported from rtl_433 for remotes no Flipper firmware read. Receive only, as in rtl_433: KAT shows the fields, and the capture can be replayed as recorded and exported. FoxFW has since ported five of them; KAT saves and loads FoxFW's key files for those.</p>
         <div class="pills">
           <a class="pill" href="alps_fwb1u545.html" title="Honda OEM remote">Alps-FWB1U545</a>
           <a class="pill" href="continental_kr5v2x.html" title="Honda OEM remote">Continental-KR5V2X</a>
@@ -561,6 +603,7 @@
           <a class="pill" href="audiovox_pro_oe3b.html" title="alarm">Audiovox-PROOE3B</a>
           <a class="pill" href="microchip_hcs361.html" title="KeeLoq encoder: Jeep / Chrysler, Marelli, Leer remotes">Microchip-HCS361</a>
           <a class="pill" href="microchip_hcs362.html" title="KeeLoq encoder">Microchip-HCS362</a>
+          <a class="pill" href="cardin_s466.html" title="garage-door remote, 27.195 MHz">Cardin-S466</a>
           <a class="pill" href="elero.html" title="blind and awning motor remotes">Elero</a>
           <a class="pill" href="somfy_iohc.html" title="io-homecontrol: Somfy, Velux">Somfy-IOHC</a>
           <a class="pill" href="rojaflex.html" title="shutters, their remotes and bridge">RojaFlex-Remote</a>
@@ -637,23 +680,23 @@ brew install hackrf             <span class="cmt"># macOS</span></pre>
           <h3>Download, check and unpack</h3>
           <p>Get the archive for your machine, and its <code>.sha256</code> file, from the <a href="https://github.com/KaraZajac/KAT/releases/latest">latest release</a>:</p>
           <ul>
-            <li><code>kat-v1.8.7-x86_64-linux.tar.gz</code>: 64-bit Intel or AMD Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and later).</li>
-            <li><code>kat-v1.8.7-aarch64-linux.tar.gz</code>: 64-bit ARM Linux, such as 64-bit Raspberry Pi OS bookworm.</li>
-            <li><code>kat-v1.8.7-aarch64-macos.tar.gz</code>: Apple Silicon Macs. It isn't notarized; <code>xattr -d com.apple.quarantine kat</code> clears the block.</li>
-            <li><code>kat-v1.8.7-x86_64-windows.zip</code>: 64-bit Windows 10 and 11. It isn't signed, so SmartScreen may stop its first start: “More info”, then “Run anyway”.</li>
+            <li><code>kat-v1.9.0-x86_64-linux.tar.gz</code>: 64-bit Intel or AMD Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and later).</li>
+            <li><code>kat-v1.9.0-aarch64-linux.tar.gz</code>: 64-bit ARM Linux, such as 64-bit Raspberry Pi OS bookworm.</li>
+            <li><code>kat-v1.9.0-aarch64-macos.tar.gz</code>: Apple Silicon Macs. It isn't notarized; <code>xattr -d com.apple.quarantine kat</code> clears the block.</li>
+            <li><code>kat-v1.9.0-x86_64-windows.zip</code>: 64-bit Windows 10 and 11. It isn't signed, so SmartScreen may stop its first start: “More info”, then “Run anyway”.</li>
             <li>Intel Macs and other platforms: build from source, below.</li>
           </ul>
           <div class="code-wrap">
-<pre class="code">sha256sum -c kat-v1.8.7-x86_64-linux.tar.gz.sha256    <span class="cmt"># macOS: shasum -a 256 -c …</span>
-tar xzf kat-v1.8.7-x86_64-linux.tar.gz
-./kat-v1.8.7-x86_64-linux/kat</pre>
+<pre class="code">sha256sum -c kat-v1.9.0-x86_64-linux.tar.gz.sha256    <span class="cmt"># macOS: shasum -a 256 -c …</span>
+tar xzf kat-v1.9.0-x86_64-linux.tar.gz
+./kat-v1.9.0-x86_64-linux/kat</pre>
           </div>
           <p>On Windows, in PowerShell (Windows Terminal):</p>
           <div class="code-wrap">
-<pre class="code">$want = (Get-Content kat-v1.8.7-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.8.7-x86_64-windows.zip).Hash -eq $want    <span class="cmt"># True</span>
-Expand-Archive kat-v1.8.7-x86_64-windows.zip .
-.\kat-v1.8.7-x86_64-windows\kat.exe</pre>
+<pre class="code">$want = (Get-Content kat-v1.9.0-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.9.0-x86_64-windows.zip).Hash -eq $want    <span class="cmt"># True</span>
+Expand-Archive kat-v1.9.0-x86_64-windows.zip .
+.\kat-v1.9.0-x86_64-windows\kat.exe</pre>
           </div>
         </div>
       </div>
@@ -778,7 +821,7 @@ cargo build --release</pre>
   <div class="container footer-bottom">
     <p>Use KAT only on systems and vehicles you own or have explicit, written permission to test. <a href="#legal">The full notice.</a></p>
     <p class="footer-meta">
-      v1.8.7 · <a href="https://github.com/KaraZajac/KAT">github.com/KaraZajac/KAT</a> · <a href="https://github.com/KaraZajac/KAT/blob/main/LICENSE">BSD-3-Clause</a>
+      v1.9.0 · <a href="https://github.com/KaraZajac/KAT">github.com/KaraZajac/KAT</a> · <a href="https://github.com/KaraZajac/KAT/blob/main/LICENSE">BSD-3-Clause</a>
     </p>
     <div class="onion-line">
       <span class="onion-label">Also on Tor</span>

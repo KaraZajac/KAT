@@ -114,6 +114,7 @@ fn render_picker(frame: &mut Frame, app: &App) {
                         (_, false) => "  ✗ n/a",
                         (Source::Doctor, true) => "  doctor",
                         (Source::RogueMaster, true) => "  RM",
+                        (Source::FoxFW, true) => "  Fox",
                         (Source::Both, true) => "",
                     }
                 );

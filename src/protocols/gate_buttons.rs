@@ -6,7 +6,7 @@
 //! `ProtocolInfo::buttons`, the references' custom-button D-pad sets); without such a set, every
 //! code the encoder accepts (a 2-, 3- or 4-bit field: shown as "Btn 0xN"). Protocols whose encoder
 //! ignores the button (fixed codes that re-send the capture: CAME, Nice FLO, Linear, Marantec,
-//! Power Smart, Telcoma EDGE, …) and decode-only ones list nothing.
+//! Power Smart, Telcoma EDGE, Freezer, Faac TM, …) and decode-only ones list nothing.
 
 use std::sync::OnceLock;
 
@@ -63,6 +63,11 @@ pub fn tx_buttons(protocol: &str, decoded: &DecodedSignal) -> Vec<u8> {
         },
         "Ansonic" | "Clemsa" | "Doitrand" => range(0x0..=0x3),
         "MegaCode" => range(0x0..=0x7),
+        // KeyFinder: Flipper-ARF lib's custom buttons, the four colours (Red, Purple, Green, Blue).
+        "KeyFinder" => super::keyfinder::DPAD.to_vec(),
+        // Nord ICE: any 4-bit code (doctor's button editor); listed: the remote's four one-hot
+        // buttons, in the order doctor's D-pad walks them.
+        "Nord ICE" => super::nord_ice::DPAD.to_vec(),
         "Hormann HSM" | "Nero Radio" | "Marantec24" | "CAME TWEE" | "GateTX" | "Holtek_HT12X" => range(0x0..=0xF),
         _ => Vec::new(),
     }
@@ -141,7 +146,7 @@ mod tests {
             let buttons = tx_buttons(&name, &d);
             if buttons.is_empty() {
                 // Only fixed codes whose encoder ignores the button list nothing.
-                if !matches!(key.protocol.as_str(), "CAME" | "Nice FLO" | "Linear" | "BETT" | "Revers_RB2" | "Marantec" | "Telcoma/Cardin EDGE" | "Roger") {
+                if !matches!(key.protocol.as_str(), "CAME" | "Nice FLO" | "Linear" | "BETT" | "Revers_RB2" | "Marantec" | "Telcoma/Cardin EDGE" | "Roger" | "Faac TM") {
                     failures.push(format!("{name}: no buttons"));
                 }
                 continue;

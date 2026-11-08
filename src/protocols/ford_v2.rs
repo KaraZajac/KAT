@@ -38,7 +38,8 @@
 //! 70 × (LOW 240, HIGH 240), LOW 476, HIGH 240, then frame bits 1..103 as (bit, 240µs)(!bit,
 //! 240µs), bursts separated by HIGH 16 000µs (merged into the adjacent HIGH half-bits, as the C's
 //! `ford_v2_encoder_add_level` merges every same-level element). The Flipper TX loop repeats the
-//! upload `repeat` = 10 times; KAT's `encode()` returns the single upload.
+//! upload `repeat` = 10 times (doctor-firmware: 3); KAT's `encode()` returns the single upload and
+//! KAT sends it 3 times (`tx_copies.rs`; a key file's `Repeat` line sets the count).
 //!
 //! **Key files** (`subghz_protocol_decoder_ford_v2_serialize` / `_deserialize`; Flipper-ARF's are
 //! the same): `Protocol: Ford V2`, `Bit: 104`, `Key` = raw[0..8], then `Serial`, `Btn` (raw[6]),

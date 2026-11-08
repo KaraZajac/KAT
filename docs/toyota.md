@@ -12,8 +12,10 @@ layout: default
 Toyota / Lexus keyfobs using a 96-bit rolling frame at ~793/1587 µs. Flipper-ARF adopted this decoder +
 encoder from doctor-firmware in October 2026 and retired its earlier dual-variant KeeLoq Toyota decoder
 (Corolla 400/800 µs PWM + Tundra NRZ, decode-only; kept only as the uncompiled `toyota-old.c.bak`). KAT
-mirrors the replacement. The KeeLoq-PWM Prius captures in `IMPORTS/Toyota + Lexus/` keep decoding as
-Kia V3/V4.
+mirrors the replacement. The two Prius 2006 captures in `IMPORTS/Toyota + Lexus/` are in the older format:
+FoxFW still registers that decoder as "Toyota", and KAT reads them with its port, registered as Toyota
+(FoxFW) ([toyota_foxfw.md](toyota_foxfw.md)). FoxFW's key files say `Protocol: Toyota` too; KAT loads
+those (66–68 bits) as Toyota (FoxFW).
 
 The air format is read level-agnostically: two short pulses are a 0 bit, one long pulse is a 1 bit
 (bi-phase-space: a level change at every bit boundary, plus one mid-bit for a 0). A button press sends

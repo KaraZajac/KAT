@@ -33,6 +33,19 @@ startup, and `kat --decode <files|dirs>` (headless; key decodes are printed with
   `Porsche AG`, `MazdaSiemens`, `Chrysler`; doctor-firmware's `Toyota Lexus` and the legacy
   aliases its `registry.c` still loads (`Korea V0` … `Korea V7`, `Hitag-2`, `Renault`, `ScherKhan`,
   `HondaCVE`, `Passat`, `VAG v1`/`v2`, `Audi` → VAG). Names are matched case-insensitively.
+  Flipper-ARF's and FoxFW's `MARELLI` files load as their own protocol: KAT shows and replays them
+  as Flipper-ARF does but decodes nothing as MARELLI ([fiat_marelli.md](fiat_marelli.md)).
+  FoxFW's files for its own ports of five rtl_433 remotes (`Compustar`, `AstroStart 2000`,
+  `Audiovox PRO`, `Alps FWB1U545`, `Continental RKE`) load as KAT's rtl_433 ports of them, and
+  those ports save FoxFW's lines; nothing transmits them (FoxFW's encoders for them refuse every
+  file). FoxFW's Alps and Continental files hold less than a received frame, so KAT adds a `Raw`
+  line with the whole frame, which FoxFW ignores (see [alps_fwb1u545.md](alps_fwb1u545.md),
+  [continental_kr5v2x.md](continental_kr5v2x.md)).
+- **Numbers** (`Frequency`, `Bit`, `TE`, `Cnt` …) are read as every firmware reads them
+  (`strint_to_uint32(…, 10)`): a `0x` / `0b` prefix or a leading `0` is skipped and the digits are read in
+  decimal up to the first other character, so `TE: 0x190` is 190 on a Flipper and in KAT.
+- **`Repeat`** sets how many copies of the upload are sent, where the protocol's reference reads it (see
+  "Copies per press" in [transmit.md](transmit.md)); the capture keeps it and writes it back when saved.
 - **What loading does** is the reference's `deserialize`: the bit count is checked, the protocol's
   own checks run (CRC, KeeLoq / AUT64 / AES / TEA decryption with the keystore …) and a key that
   fails them is refused, as on the Flipper. Where the reference rebuilds the key from edited
@@ -69,9 +82,16 @@ file is never replaced), as the reference's `serialize` would:
   ProtoPirate), Flipper-ARF's for its own (`MazdaSiemens`, `Porsche AG`, `KeeLoq` +
   `Manufacture: …`), doctor-firmware's for Datsun Lada.
 
-A Flipper, ProtoPirate or Flipper-ARF loads these files like its own saves. (ProtoPirate's own
-`.psf` saves carry the same lines but put `Protocol` / `Bit` / `Key` before `Frequency` /
-`Preset`; the Flipper's reader does not care about the order.)
+ProtoPirate (and a stock Flipper, for the protocols it has) loads these files like its own saves.
+(ProtoPirate's own `.psf` saves carry the same lines but put `Protocol` / `Bit` / `Key` before
+`Frequency` / `Preset`; the Flipper's reader does not care about the order.) Flipper-ARF and FoxFW
+compare the `Protocol` name exactly (`strcmp`) and use other names for some car protocols, so their
+main apps refuse KAT's files for those: ProtoPirate's `PSA`, `VAG`, `Kia V0`…`Kia V6`, `Chrysler V0`,
+`Ford V0`, `Subaru` (they write `PSA GROUP`, `VAG GROUP`, `KIA/HYU V0`…, `Chrysler`, `FORD V0`,
+`SUBARU`), the 88-bit `Renault V1` (ARF's `Renault V1` is its 82-bit protocol; FoxFW names this one
+`Hitag-2`), `Honda V2` (FoxFW: `Land Rover V0`) and Suzuki frames saved as `Kia V0` (both have a
+`SUZUKI`). The other way round KAT loads their names (see the alias list in
+`src/protocols/flipper_key.rs`).
 
 ## Per protocol
 
@@ -113,7 +133,8 @@ doc comment has the details.
 | Mazda Siemens (ARF) | `MazdaSiemens` / 64 | Serial, Btn, Cnt | |
 | Mitsubishi V0 96-bit (ARF) | `Mitsubishi V0` / 96 | Serial, Cnt, Btn, Raw_Frame | Key is all zero, as ARF writes it; 61-bit keys load as Kia V0 type 4 |
 | Porsche Cayenne (ARF) | `Porsche AG` / 64 | Serial, Btn, Counter, Cnt | |
-| Toyota (ARF) | `Toyota` / 96 | Key_2, Btn, ToyotaBtn, Disp | Key_2 always written (ARF writes it only for a zero tail and cannot reload its other files) |
+| Toyota (ARF) | `Toyota` / 96 | Key_2, Btn, ToyotaBtn, Disp | Key_2 always written (ARF writes it only for a zero tail and cannot reload its other files); `Bit: 66`–`68` keys (FoxFW's `Toyota`) go to Toyota (FoxFW) |
+| Toyota (FoxFW) | `Toyota` / 66–68 | Tail | decode-only; no `Tail` reads 0; the variant comes from the button |
 | BMW (doctor) | `BMW` / 128 | Serial, Btn, Cnt, ValidationField, TE, Key_2, Key_3 | |
 | Mazda V2 (ARF) | `Mazda V2` / 63 | Hdr, Disp | |
 | Mercedes V0 (doctor) | `Mercedes V0` / 112 | Serial, Btn, Cnt, TE, Key_2 | |
@@ -132,7 +153,9 @@ the full Flipper preset name (ProtoPirate writes `FM476` / `AM650` for Kia V3/V4
 Star Line and Scher-Khan, which the stock SubGhz app cannot load); Kia V3/V4 has no `CRC` line;
 Honda Static writes `Checksum` only for verified frames; Toyota always writes `Key_2`; Chrysler V0
 writes its lines in order (ProtoPirate's serializer overwrites the start of its own file); Renault
-V1 is written as ProtoPirate's file reads after its seed search.
+V1 is written as ProtoPirate's file reads after its seed search; Alps-FWB1U545 and
+Continental-KR5V2X add a `Raw` line after FoxFW's lines (FoxFW's format drops part of their frames;
+FoxFW ignores the line).
 
 Checked against the reference C (host builds of ProtoPirate, Flipper-ARF and doctor-firmware run
 on the same RAW files): the lines KAT writes for the IMPORTS captures and for encoder-made frames

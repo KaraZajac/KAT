@@ -1,8 +1,8 @@
-//! Alps FWB1U545 car remote (receive only).
+//! Alps FWB1U545 car remote (receive only; FoxFW key files).
 //!
 //! Port of rtl_433 `src/devices/alps_fwb1u545.c` (`r_device` "Alps FWB1U545 Car Remote", model
-//! `Alps-FWB1U545`; FCC ID CWTWB1U545, an Alps Electric OEM remote for Honda). No Flipper reference
-//! has it.
+//! `Alps-FWB1U545`; FCC ID CWTWB1U545, an Alps Electric OEM remote for Honda). FoxFW has its own
+//! port of the same decoder ("Alps FWB1U545", see **Key files**); no other Flipper reference has it.
 //!
 //! **Modulation** — `FSK_PULSE_MANCHESTER_ZEROBIT`: short_width 500 µs, reset_limit 1500 µs, no
 //! tolerance (the slicer rejects no pulse). rtl_433's zerobit slicer ([super::rtl433])
@@ -23,22 +23,45 @@
 //! (its checks are sanity checks; it prints no `mic` field). rtl_433's `button_str` is the native
 //! button name.
 //!
-//! **Encoder** — receive only, as rtl_433 (KAT offers Replay of the recorded pulses).
+//! **Key files** — FoxFW's (`lib/subghz/protocols/alps_rke.c`, `ALPS_RKE_PROTOCOL_NAME` "Alps
+//! FWB1U545", an alias here), written by its generic serializer: `Protocol: Alps FWB1U545`,
+//! `Bit: 76`, `Key` (8 bytes) = bytes 1–8: ID, the button byte, its copy, the sequence. FoxFW never
+//! decodes the 4 unknown bits after the sequence and does not save the 0x55 byte, so KAT adds one
+//! line after FoxFW's: `Raw` = the frame's 10 bytes (the 76 bits, then 4 zero bits). FoxFW's
+//! `deserialize` reads only `Bit` and `Key` and ignores it (checked on FoxFW's C). Loading is
+//! FoxFW's `deserialize` (exactly `Bit: 76`), then the decoder's checks (the 0x55 byte, the button
+//! copy, the ID; FoxFW saves only frames that pass them, and also drops IDs 55555555 / AAAAAAAA,
+//! which rtl_433 and KAT read) on `Raw`, which must hold the key as bytes 1–8 (a `Raw` that fails
+//! is refused), giving the received decode back exactly. A file without `Raw` (FoxFW's own) is
+//! checked as the frame rebuilt with the 0x55 byte and **the unknown bits 0**, so it loads with
+//! `extra`'s low nibble (not displayed) cleared; a key that fails the checks is refused.
+//!
+//! **Encoder** — none. rtl_433 has none, and FoxFW's SD encoder plugin
+//! (`applications/main/subghz/protocols_ext/enc_alps_rke.c`) is a stub ("no TX — decode/save
+//! only"): its `deserialize` returns `SubGhzProtocolStatusErrorEncoderGetUpload` for every key file,
+//! so a Flipper running FoxFW sends nothing. `supports_encoding()` is false, `encode` returns None
+//! and nothing is encoder-capable; KAT offers Replay of the recorded pulses.
 
 use super::rtl433::{frame_signal, BitBuffer, DecodeFn, Device, Ends, Gaps, Modulation, Receiver};
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
 
 use super::info::prelude::*;
 
 const NAME: &str = "Alps-FWB1U545";
 
+/// FoxFW's protocol name (`ALPS_RKE_PROTOCOL_NAME`), written in key files.
+const FOXFW_NAME: &str = "Alps FWB1U545";
+
+/// The frame length (`ALPS_RKE_FRAME_BITS`, FoxFW's key `Bit`).
+const BITS: usize = 76;
+
 /// Metadata (see `info.rs`): 2-FSK; F3 (±31.74 kHz) is the closest preset to the recordings'
 /// deviation.
 pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     name: NAME,
     decoder: NAME,
-    aliases: &["Alps FWB1U545 Car Remote"],
+    aliases: &["Alps FWB1U545 Car Remote", FOXFW_NAME],
     name_prefix: None,
     encoding: Coding::Manchester,
     rf: Rf::FM,
@@ -87,21 +110,26 @@ impl DecodeFn for Alps {
         if bits.bits_per_row(0) != 76 || bits.num_rows() > 1 {
             return None; // DECODE_ABORT_LENGTH
         }
-        let b: [u8; 10] = bits.bytes(0);
-        // check preamble and button XOR
-        if b[0] != 0x55 || b[5] != b[6] {
-            return None; // DECODE_FAIL_SANITY
-        }
-        let id = u32::from_be_bytes([b[1], b[2], b[3], b[4]]);
-        if id == 0 || id == 0xffff_ffff {
-            return None; // DECODE_FAIL_SANITY
-        }
-        let mut d = frame_signal(&b, 76);
-        d.serial = Some(id);
-        d.button = Some(b[5] >> 4);
-        d.counter = Some(u16::from_be_bytes([b[7], b[8]]));
-        Some(d)
+        check(&bits.bytes(0))
     }
+}
+
+/// The C's sanity checks on the frame's 10 bytes (preamble byte, button copy, ID) and the decode
+/// they give.
+fn check(b: &[u8; 10]) -> Option<DecodedSignal> {
+    // check preamble and button XOR
+    if b[0] != 0x55 || b[5] != b[6] {
+        return None; // DECODE_FAIL_SANITY
+    }
+    let id = u32::from_be_bytes([b[1], b[2], b[3], b[4]]);
+    if id == 0 || id == 0xffff_ffff {
+        return None; // DECODE_FAIL_SANITY
+    }
+    let mut d = frame_signal(b, BITS);
+    d.serial = Some(id);
+    d.button = Some(b[5] >> 4);
+    d.counter = Some(u16::from_be_bytes([b[7], b[8]]));
+    Some(d)
 }
 
 /// Alps FWB1U545 decoder (receive only).
@@ -147,9 +175,45 @@ impl ProtocolDecoder for AlpsFwb1u545Decoder {
         false
     }
 
-    /// Receive only, as rtl_433.
+    /// None: rtl_433 has no encoder and FoxFW's plugin refuses every key (see "Encoder").
     fn encode(&self, _decoded: &DecodedSignal, _button: u8) -> Option<Vec<LevelDuration>> {
         None
+    }
+
+    /// FoxFW's `subghz_protocol_decoder_alps_rke_deserialize` (`Bit: 76`), then the decoder's checks
+    /// on KAT's `Raw` line, which must hold the key as bytes 1–8, or, without it (FoxFW's own files),
+    /// on the frame rebuilt with the 0x55 byte and the unknown bits 0 (see "Key files").
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if key.bits != BITS {
+            return None;
+        }
+        let k = key.key_u64()?.to_be_bytes();
+        if key.field("Raw").is_some() {
+            let raw: [u8; 10] = key.hex_bytes_field("Raw")?.try_into().ok()?;
+            return (raw[1..9] == k && raw[9] & 0x0F == 0).then(|| check(&raw)).flatten();
+        }
+        let mut b = [0u8; 10];
+        b[0] = 0x55;
+        b[1..9].copy_from_slice(&k);
+        check(&b)
+    }
+
+    /// FoxFW's `subghz_protocol_decoder_common_serialize` of the frame (`Bit: 76`, `Key` = bytes
+    /// 1–8: `id << 32 | button byte << 24 | copy << 16 | sequence`), then `Raw` = the frame's 10
+    /// bytes (KAT's line, see "Key files"). None for a decode the checks refuse (it would not load).
+    fn to_flipper_key(&self, d: &DecodedSignal) -> Option<FlipperKey> {
+        let extra = d.extra?;
+        if d.data_count_bit != BITS || d.data >> 56 != 0x55 || extra >> 12 != 0 {
+            return None;
+        }
+        let mut raw = [0u8; 10];
+        raw[..8].copy_from_slice(&d.data.to_be_bytes());
+        raw[8] = (extra >> 4) as u8;
+        raw[9] = ((extra & 0xF) << 4) as u8;
+        check(&raw)?;
+        let mut key = FlipperKey::for_protocol(FOXFW_NAME, BITS, d.data << 8 | extra >> 4);
+        key.push_hex_bytes("Raw", &raw);
+        Some(key)
     }
 }
 
@@ -264,6 +328,130 @@ mod tests {
             let want = expected_json(&path);
             assert_eq!(distinct(&got), distinct(&want), "{f}");
         }
+    }
+
+    /// A made-up frame whose RAW file (written to `$KAT_SYNTH_DIR` when set) FoxFW's decoder read with
+    /// `subghz_oracle_foxfwenc decode --protocol "Alps FWB1U545"`: KAT writes FoxFW's lines; reading
+    /// them back gives the decode with the 4 unknown bits 0 (FoxFW's key has no room for them).
+    #[test]
+    fn key_files_are_foxfws() {
+        const FOXFW: &str = "Frequency: 433920000; Preset: FuriHalSubGhzPreset2FSKDev476Async; Protocol: Alps FWB1U545; Bit: 76; Key: 13 57 9B DF E3 E3 24 68";
+        let air = vector_wire(&frame(0x1357_9BDF, 0xE, 0x3, 0x2468, 0xA));
+        crate::protocols::foxfw_common::test_support::dump("alps_unit.sub", 433_920_000, "FuriHalSubGhzPreset2FSKDev476Async", &air);
+        let got = decode_all(&mut AlpsFwb1u545Decoder::new(), &air);
+        assert_eq!(got.len(), 1, "only the recordings' shape is rtl_433's frame");
+        let d = &got[0];
+        assert_eq!((d.serial, d.button, d.counter, d.extra), (Some(0x1357_9BDF), Some(0xE), Some(0x2468), Some(0x68A)));
+        let dec = AlpsFwb1u545Decoder::new();
+        let mut key = dec.to_flipper_key(d).unwrap();
+        key.frequency = 433_920_000;
+        key.preset = Some("FuriHalSubGhzPreset2FSKDev476Async".into());
+        assert_eq!(key.to_text().lines().skip(2).collect::<Vec<_>>().join("; "), format!("{FOXFW}; Raw: 55 13 57 9B DF E3 E3 24 68 A0"));
+        // KAT's file keeps the 4 unknown bits (0xA) in `Raw`: the received decode comes back.
+        crate::protocols::flipper_key::testing::assert_round_trip(&dec, d);
+        // FoxFW's file has no room for them: they read 0.
+        let cleared = DecodedSignal { extra: Some(0x680), ..d.clone() };
+        let text = format!("Filetype: Flipper SubGhz Key File\nVersion: 1\n{}\n", FOXFW.replace("; ", "\n"));
+        assert_eq!(dec.from_flipper_key(&crate::protocols::flipper_key::testing::key(&text)), Some(cleared.clone()));
+        crate::protocols::flipper_key::testing::assert_round_trip(&dec, &cleared);
+        let reg = super::super::ProtocolRegistry::new();
+        assert_eq!(reg.get(FOXFW_NAME).map(|p| p.name()), Some(NAME));
+    }
+
+    /// Keys FoxFW's `deserialize` refuses (another `Bit`), keys whose frame fails the checks (FoxFW
+    /// writes none) and a `Raw` line that is not the key's frame or fails them: not loaded. IDs
+    /// 55555555 / AAAAAAAA, which FoxFW's decoder skips but rtl_433's reads, load.
+    #[test]
+    fn refuses_other_keys() {
+        let dec = AlpsFwb1u545Decoder::new();
+        let good = 0x1357_9BDF_u64 << 32 | 0xE3E3 << 16 | 0x2468;
+        let load = |bits: usize, k: u64| dec.from_flipper_key(&FlipperKey::new(FOXFW_NAME, bits, k, 433_920_000, "FuriHalSubGhzPreset2FSKDev476Async"));
+        assert_eq!(load(76, good).and_then(|d| d.counter), Some(0x2468));
+        assert!(load(72, good).is_none(), "Bit 72");
+        assert!(load(76, good ^ 1 << 16).is_none(), "button copy");
+        assert!(load(76, good & 0xFFFF_FFFF).is_none(), "ID 0");
+        assert!(load(76, good | 0xFFFF_FFFF << 32).is_none(), "ID FFFFFFFF");
+        assert_eq!(load(76, 0x5555_5555 << 32 | 0xE3E3 << 16 | 1).and_then(|d| d.serial), Some(0x5555_5555));
+        assert!(dec.to_flipper_key(&DecodedSignal::new(0, 64)).is_none());
+        let with_raw = |k: u64, raw: &[u8]| {
+            let mut key = FlipperKey::new(FOXFW_NAME, 76, k, 433_920_000, "FuriHalSubGhzPreset2FSKDev476Async");
+            key.push_hex_bytes("Raw", raw);
+            dec.from_flipper_key(&key)
+        };
+        let raw = [0x55, 0x13, 0x57, 0x9B, 0xDF, 0xE3, 0xE3, 0x24, 0x68, 0xA0];
+        assert_eq!(with_raw(good, &raw).and_then(|d| d.extra), Some(0x68A));
+        assert!(with_raw(good ^ 1, &raw).is_none(), "Raw is another frame than Key");
+        assert!(with_raw(good, &raw[..9]).is_none(), "Raw too short");
+        assert!(with_raw(good, &[0x54, 0x13, 0x57, 0x9B, 0xDF, 0xE3, 0xE3, 0x24, 0x68, 0xA0]).is_none(), "no 0x55 byte");
+        assert!(with_raw(good, &[0x55, 0x13, 0x57, 0x9B, 0xDF, 0xE3, 0xE3, 0x24, 0x68, 0xA1]).is_none(), "bits past the 76");
+    }
+
+    /// FoxFW's encoder plugin refuses every Alps FWB1U545 key (`subghz_oracle_foxfwenc encode`:
+    /// "deserialize failed (status -12)" for each of 120 made-up files) and rtl_433 has no encoder:
+    /// nothing transmits, for no button.
+    #[test]
+    fn transmits_nothing_as_foxfw() {
+        let dec = AlpsFwb1u545Decoder::new();
+        assert!(!dec.supports_encoding());
+        let d = decode_all(&mut AlpsFwb1u545Decoder::new(), &vector_wire(&frame(0x1357_9BDF, 0x1, 0, 7, 0))).remove(0);
+        let loaded = dec.from_flipper_key(&dec.to_flipper_key(&d).unwrap()).unwrap();
+        for x in [&d, &loaded] {
+            assert!(!x.encoder_capable);
+            for button in [0x01, 0x02, 0x04, 0x08, x.button.unwrap()] {
+                assert!(dec.encode(x, button).is_none());
+            }
+        }
+    }
+
+    /// A RAW file's pulses for a frame, in the two shapes the decoders read: FoxFW's decoder locks
+    /// on 8 half-bit pulses and Manchester-decodes from there, so it reads a frame only when a
+    /// preamble of 1 bits runs straight into it (after a preamble of 0 bits, or behind the
+    /// recordings' 2.5 ms gap, it loses the frame's first bits); rtl_433's slicer reads only a
+    /// message of exactly the 76 frame bits, as the remote sends it ([transmission]). So: the frame
+    /// behind twelve 1 bits, 20 ms of LOW, then [transmission].
+    fn vector_wire(row: &[bool]) -> Vec<LevelDuration> {
+        let mut foxfw = vec![false];
+        foxfw.extend([true; 12]);
+        foxfw.extend_from_slice(row);
+        let mut pairs = manchester_zerobit(&foxfw, 500, 20_000);
+        pairs.extend(transmission(row, 500));
+        pairs.last_mut().unwrap().1 = 20_000;
+        with_idle(&wire(&pairs), 20_000)
+    }
+
+    /// Made-up frames for the FoxFW comparison, as RAW files in `$KAT_SYNTH_DIR`: every named button
+    /// and others, random IDs, low nibbles, sequences and unknown bits.
+    #[test]
+    #[ignore = "oracle harness"]
+    fn dump_key_vectors() {
+        let mut rng = Rng(0x00A1_9545);
+        for i in 0..150u64 {
+            let id = loop {
+                let id = rng.next() as u32;
+                if id != 0 && id != 0xFFFF_FFFF && id != 0x5555_5555 && id != 0xAAAA_AAAA {
+                    break id;
+                }
+            };
+            let button = if i < 64 { [0xE, 0xC, 0x5, 0x1][(i % 4) as usize] } else { rng.below(16) as u8 };
+            let row = frame(id, button, rng.below(16) as u8, rng.next() as u16, rng.below(16) as u8);
+            crate::protocols::foxfw_common::test_support::dump(&format!("alps_{i:03}.sub"), 433_920_000, "FuriHalSubGhzPreset2FSKDev476Async", &vector_wire(&row));
+        }
+    }
+
+    /// `KAT_ALPS_RAW=<file listing RAW .sub files>`: KAT's key-file lines for each frame this decoder
+    /// reads in them, to diff with `subghz_oracle_foxfwenc decode --protocol "Alps FWB1U545"`.
+    #[test]
+    #[ignore = "oracle harness"]
+    fn key_lines_of_raw_files() {
+        print_raw_key_lines("KAT_ALPS_RAW", &mut AlpsFwb1u545Decoder::new());
+    }
+
+    /// `KAT_ALPS_ENCODE=<file listing key files>`: KAT's transmission of each (`(none)`: it never
+    /// transmits), to diff with `subghz_oracle_foxfwenc encode <file>`, which refuses each.
+    #[test]
+    #[ignore = "oracle harness"]
+    fn encode_key_files() {
+        print_key_file_encodes("KAT_ALPS_ENCODE", &AlpsFwb1u545Decoder::new());
     }
 
     /// Fuzz dump for the C harness (see `rtl433::test_util::dump_fuzz_trains`).

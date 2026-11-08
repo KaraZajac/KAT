@@ -60,6 +60,8 @@ which the C reaches through its inverted try.
    half-bit merged into the gap).
 4. **KAT gate**: the frame is reported only if the valid window ends the burst, with at most one trailing cell
    (doctor-firmware's stop pulse). Identical consecutive frames are suppressed until `reset()` (the C's dedup).
+   When the input ends right after the frame (a recording cut there), there is no pulse to end the burst: the
+   frame is reported then, as the C, which reports when its window completes, has.
 
 The end-of-burst gate is the one deviation from the C. The C's sliding window also matches 15 bits of any
 Manchester preamble plus the first 97 bits of a longer frame. On `LDV/LDV-T80_unlock` it would complete before

@@ -2,7 +2,7 @@
 
 KAT captures, decodes and retransmits car key fob and garage door, gate and barrier remote signals from a terminal. It works with a **HackRF One** (receive and transmit) or an **RTL-SDR** dongle (receive only), and decodes IQ recordings and Flipper Zero `.sub` files with no radio attached. It is written in Rust, with a [ratatui](https://ratatui.rs) interface.
 
-Its 107 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate), [Flipper-ARF](https://github.com/D4C1-Labs/Flipper-ARF), [doctor-firmware](https://github.com/thedoctorz/doctor-firmware), [Momentum](https://github.com/Next-Flip/Momentum-Firmware) and [RogueMaster](https://github.com/RogueMaster/flipperzero-firmware-wPlugins), with receive-only decoders from [rtl_433](https://github.com/merbanan/rtl_433) for remotes no Flipper firmware reads, and each one is checked against the reference C code compiled on a PC.
+Its 149 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate), [Flipper-ARF](https://github.com/D4C1-Labs/Flipper-ARF), [doctor-firmware](https://github.com/thedoctorz/doctor-firmware), [Momentum](https://github.com/Next-Flip/Momentum-Firmware), [RogueMaster](https://github.com/RogueMaster/flipperzero-firmware-wPlugins) and FoxFW, with receive-only decoders from [rtl_433](https://github.com/merbanan/rtl_433) for remotes no Flipper firmware reads, and each one is checked against the reference C code compiled on a PC.
 
 **Website: [kat.karazajac.io](https://kat.karazajac.io)**, with a page for every protocol.
 
@@ -28,7 +28,7 @@ Its 107 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPira
 
 **Decode**
 
-- **107 protocols** — 53 car key fob and alarm protocols and 54 garage door, gate, barrier and shutter remote protocols ([the full list](#supported-protocols)).
+- **149 protocols** — 80 car key fob and alarm protocols and 69 garage door, gate, barrier, shutter, doorbell, sensor and key-finder remote protocols ([the full list](#supported-protocols)), and Flipper-ARF's MARELLI key files.
 - **KeeLoq keystore fallback** — a signal no protocol claims is tried as KeeLoq with every manufacturer key in the embedded keystore and in your own `keeloq_mfcodes_user` ([docs/keeloq.md](docs/keeloq.md)).
 - **Signal detail** — encoding, RF modulation, encryption, serial, button, counter, key data, CRC (OK or FAIL where the protocol has a check KAT verifies; "none" where it has not: the fixed-code gate remotes, Fiat V0/V2, Ford V2/V3, Mercedes V0, Mitsubishi V0, Subaru, a KeeLoq frame no key identifies, Faac SLH without its seed, Scher-Khan's non-PRO variants …), frequency and the raw level/duration pairs.
 - **Unknown signals** (listed by default) — unidentified signals are listed too, ready for timing analysis; `show_unknown_signals = false` lists only decoded ones.
@@ -40,7 +40,7 @@ Its 107 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPira
 - **Gate and garage remotes** — **Send next code**, and **Send button…** with any of the remote's native buttons.
 - **Replay** any capture as recorded.
 - **The references' modulation** — FM protocols go out as continuous-phase 2-FSK at the references' deviation, OOK ones as OOK, at a configurable TX power ([docs/transmit.md](docs/transmit.md)).
-- **Add Manually** — `:new` creates a new gate or garage remote to pair with a receiver: any of Flipper-ARF's, doctor-firmware's and RogueMaster's 107 types (81 available in KAT), with a fresh serial, the manufacturer key and a first code computed as the references do ([docs/add_manually.md](docs/add_manually.md)).
+- **Add Manually** — `:new` creates a new gate or garage remote to pair with a receiver: any of Flipper-ARF's, doctor-firmware's, RogueMaster's and FoxFW's 112 types (86 available in KAT), with a fresh serial, the manufacturer key and a first code computed as the references do ([docs/add_manually.md](docs/add_manually.md)).
 
 **Recover keys**
 
@@ -348,7 +348,7 @@ Switches take `true`/`false`, `yes`/`no`, `on`/`off` or `1`/`0`. A value KAT can
 
 ## Supported protocols
 
-Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference; protocols ProtoPirate does not carry are ported from [Flipper-ARF](https://github.com/D4C1-Labs/Flipper-ARF) and [doctor-firmware](https://github.com/thedoctorz/doctor-firmware), then [Momentum](https://github.com/Next-Flip/Momentum-Firmware) and [RogueMaster](https://github.com/RogueMaster/flipperzero-firmware-wPlugins). Remotes no Flipper firmware reads are decoded with ports of [rtl_433](https://github.com/merbanan/rtl_433)'s decoders, receive only ([below](#receive-only-remotes-from-rtl_433)). KAT receives AM/OOK and FM/2-FSK and transmits each protocol with the modulation and FSK deviation the references use ([docs/transmit.md](docs/transmit.md)). “Replay” encoders re-send the captured rolling code (optionally re-stamping the button) because no manufacturer key is available.
+Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference; protocols ProtoPirate does not carry are ported from [Flipper-ARF](https://github.com/D4C1-Labs/Flipper-ARF) and [doctor-firmware](https://github.com/thedoctorz/doctor-firmware), then [Momentum](https://github.com/Next-Flip/Momentum-Firmware), [RogueMaster](https://github.com/RogueMaster/flipperzero-firmware-wPlugins) and FoxFW. Remotes no Flipper firmware reads are decoded with ports of [rtl_433](https://github.com/merbanan/rtl_433)'s decoders, receive only ([below](#receive-only-remotes-from-rtl_433)). KAT receives AM/OOK and FM/2-FSK and transmits each protocol with the modulation and FSK deviation the references use ([docs/transmit.md](docs/transmit.md)). “Replay” encoders re-send the captured rolling code (optionally re-stamping the button) because no manufacturer key is available.
 
 ### Car key fobs and alarms
 
@@ -368,11 +368,13 @@ Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference; pr
 | Chrysler V0 (Dodge/Jeep) | PWM | AM | Rolling Code (seed-XOR) | 315 / 433.92 MHz |
 | Honda Static | Manchester | FM | Fixed Code | 315 / 433.92 MHz |
 | Honda V1 | PWM | AM | Rolling Code | 315 / 433.92 MHz |
+| Honda V5 | Manchester | AM/FM | Rolling Code (CRC-8; decode-only) | 315 / 433.92 MHz |
 | Toyota (Lexus) | Bi-phase (diff. Manchester) | AM | Rolling Code (7-bit counter masks; encoder) | 315 / 433.92 MHz |
 | Honda V2 (formerly "Land Rover V0") | Diff. Manchester | FM | Rolling Code (3-bit check) | 315 / 433.92 MHz |
 | Fiat V0 | Manchester | AM | Rolling Code (replay) | 433.92 MHz |
 | Fiat V1 (Magneti Marelli BSI) | Manchester | AM | HITAG2 (PP 9 keys + ARF dictionary/heuristics + saved/recovered keys → fresh frame; replay otherwise) | 315 / 433.92 MHz |
 | Fiat V2 (FCA: Fiat/Chrysler/Jeep) | Manchester | AM | Rolling Code (HITAG2 forward-encode with a known or saved/recovered key, else replay) | 315 / 433.92 MHz |
+| MARELLI (Flipper-ARF key files; no decoder, as FoxFW) | Manchester | FM | Replay of saved frames (load, save, transmit) | 433.92 MHz |
 | Renault V0 | Manchester | AM | Rolling Code | 315 / 433.92 / 868.35 MHz |
 | Renault V1 | Manchester | AM/FM | HITAG2 (serial-derived seed auto-recovered, or a saved/recovered key → fresh frame; replay otherwise) | 315 / 433.92 / 868.35 MHz |
 | Renault V1 (ARF) — Flipper-ARF type table 0x04/0x0C/0x1A/0x3B/0x3F + Dynamic | Manchester | AM/FM | Rolling Code (replay only) | 315 / 433.92 / 868.35 MHz |
@@ -386,6 +388,32 @@ Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference; pr
 | Opel V1 | Manchester | AM | XTEA (decode-only) | 433.92 MHz |
 | GM (Chevrolet/Buick/GMC/Cadillac) | PPM | AM | Rolling Code (replay) | 315 / 433.92 MHz |
 | Datsun Lada | Manchester | FM | HITAG2-family | 433.92 MHz |
+| VAG Polo (VW Polo 5, FoxFW) | Manchester | AM | Rolling Code (decode-only) | 433.92 MHz |
+| Chevrolet V0 (GM Open/Close, FoxFW) | Manchester | AM | Rolling Code (decode-only) | 433.92 MHz |
+| Tesla Charge (FoxFW) | Manchester | AM | Fixed code (FoxFW encoder: the saved code, 5 copies) | 315 / 433.92 MHz |
+| Hyundai/Kia RIO (FoxFW) | PWM | AM | Fixed code, 16-bit checksum (FoxFW encoder: button → mask, checksum recomputed) | 433.92 MHz |
+| SantaFe 13-16 (FoxFW) | PWM | AM | Rolling Code, CRC-8 (FoxFW encoder: captured rolling word, button re-stamped, CRC recomputed) | 433.92 MHz |
+| Hitag2 (FoxFW) | Manchester | AM | PCF7946/7947 RKE frame, XOR check (decode-only) | 433.92 MHz |
+| Nidec RKE (FoxFW) | PWM | FM | Rolling Code (decode-only: FoxFW's encoder refuses every key) | 315 MHz |
+| Renault/xHorse V4 (FoxFW) | Manchester | AM | Clear counter, XOR check (decode-only) | 315 / 433.92 MHz |
+| Fiat Ducato V0 (FoxFW) | Manchester | AM | Rolling Code, 7-bit CRC field (decode-only) | 433.92 MHz |
+| Renault V2 (FoxFW) | Manchester | AM | Rolling Code, identify-only | 315 / 433.92 MHz |
+| Opel V0 (FoxFW) | Burst width | AM | Rolling Code (decode-only) | 433.92 MHz |
+| Honda V4 (FoxFW) | PWM | AM | Rolling Code, inverse-byte check (decode-only) | 315 / 433.92 MHz |
+| Honda V7 (FoxFW) | PWM | AM | Rolling Code, XOR checksum (decode-only) | 315 / 433.92 MHz |
+| Honda V9 (FoxFW) | Manchester | AM/FM | Rolling Code, XOR checksum (decode-only) | 315 / 433.92 MHz |
+| HondaV2&V3 (FoxFW) | Manchester | FM | Rolling Code, V3 CRC (decode-only) | 433.92 MHz |
+| Honda V10 (FoxFW) | Manchester | AM/FM | Rolling Code (decode-only) | 315 / 433.92 MHz |
+| Mitsubishi V1 (FoxFW) | Manchester | AM/FM | Rolling Code (decode-only) | 315 / 433.92 MHz |
+| LDV V0 (FoxFW) | Manchester | AM | Rolling Code (decode-only) | 315 / 433.92 MHz |
+| Lexus V0 (FoxFW) | Manchester | AM | Rolling Code, complement-verified (decode-only) | 315 / 433.92 MHz |
+| Mazda V1 (FoxFW) | Manchester | AM | Rolling Code (decode-only) | 315 / 433.92 MHz |
+| Nissan V0 (FoxFW) | Manchester | AM | Rolling Code (decode-only) | 315 / 433.92 MHz |
+| Toyota (FoxFW: Prius 2006 / Tundra, KeeLoq layout) | PWM | AM | Rolling Code, button whitelist (decode-only) | 315 / 433.92 MHz |
+| BMW V2 (FoxFW) | Manchester | AM | Rolling Code (decode-only) | 315 / 433.92 MHz |
+| BMW/Mini V3 (FoxFW) | Manchester | AM/FM | Rolling Code (decode-only) | 315 / 433.92 MHz |
+| Audi V3 (FoxFW) | Manchester | AM/FM | Rolling Code (decode-only) | 315 / 433.92 MHz |
+| BMW CAS3 (FoxFW) | PWM | AM | AES rolling code (FoxFW encoder: replay of the saved frame) | 315 / 433.92 / 868 MHz |
 | Porsche Cayenne (ARF “Porsche AG”) | PWM | AM | VAG rolling register (encoder) | 315 / 433.92 / 868.35 MHz |
 | Subaru | PWM | AM | Rolling Code (encoder: counter + 1) | 315 / 433.92 MHz |
 | VAG (VW/Audi/Seat/Skoda) | Manchester | AM | AUT64/XTEA (encoder: counter + 1, all types) | 315 / 433.92 / 434.42 MHz |
@@ -397,7 +425,7 @@ Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference; pr
 
 ### Garage door, gate, barrier and shutter remotes
 
-Ported from Flipper-ARF's garage app (`applications/system/subghz_garage`, its newest copies), with doctor-firmware where the app lacks a protocol or doctor can do more, and [Momentum](https://github.com/Next-Flip/Momentum-Firmware) and [RogueMaster](https://github.com/RogueMaster/flipperzero-firmware-wPlugins) for the two they add (Hörmann BiSecur, Cardin S508); every decoder matches the reference C compiled on a PC (field for field, on Flipper's unit-test captures, real recordings and fuzzed streams) and every encoder its upload pulse for pulse. They run on any frequency, like the Flipper. Their transmit actions are **Replay**, **Send next code** (counter + 1 where the protocol rolls) and **Send button…** (any of the remote's native buttons, or a typed code). `:new` creates a new remote of any of Flipper-ARF's, doctor-firmware's and RogueMaster's 107 types to pair with a receiver (**Add Manually**, [docs/add_manually.md](docs/add_manually.md)). Where Flipper-ARF's garage-app TX plugins are built without their counter/button helpers (they always send button 0 or jump the counter), KAT follows the source's intended behaviour, as doctor-firmware does.
+Ported from Flipper-ARF's garage app (`applications/system/subghz_garage`, its newest copies), with doctor-firmware where the app lacks a protocol or doctor can do more, and [Momentum](https://github.com/Next-Flip/Momentum-Firmware) and [RogueMaster](https://github.com/RogueMaster/flipperzero-firmware-wPlugins) for the ones they add (Hörmann BiSecur, Cardin S508, Freezer, Faac TM); every decoder matches the reference C compiled on a PC (field for field, on Flipper's unit-test captures, real recordings and fuzzed streams) and every encoder its upload pulse for pulse. They run on any frequency, like the Flipper. Their transmit actions are **Replay**, **Send next code** (counter + 1 where the protocol rolls) and **Send button…** (any of the remote's native buttons, or a typed code). `:new` creates a new remote of any of Flipper-ARF's, doctor-firmware's, RogueMaster's and FoxFW's 112 types to pair with a receiver (**Add Manually**, [docs/add_manually.md](docs/add_manually.md)). Where Flipper-ARF's garage-app TX plugins are built without their counter/button helpers (they always send button 0 or jump the counter), KAT follows the source's intended behaviour, as doctor-firmware does.
 
 | Protocol | Encoding | RF | Code | Bands (reference flags) | TX |
 |---|---|---|---|---|---|
@@ -424,11 +452,23 @@ Ported from Flipper-ARF's garage app (`applications/system/subghz_garage`, its n
 | Nero Sketch, Nero Radio, Revers RB2, Telcoma/Cardin EDGE, Allstar Firefly | PWM / Manchester | AM | Fixed Code | 315 / 433.92 MHz | yes |
 | Power Smart, Dooya (shutters/blinds) | Manchester / PWM | AM | Fixed Code | 315 / 433.92 MHz | yes |
 | GangQi, Hollarm (GSM alarm remotes) | PWM | AM | Fixed Code (byte sum) | 433.92 MHz | yes, any button |
-| Urmet | PWM | AM | Fixed Code | 433.92 MHz | replay only (its frame does not fit KAT's capture format) |
+| Freezer, Faac TM (RogueMaster) | PWM | AM | Fixed Code (Freezer confirmed by a repeat) | 433.92 MHz (Faac TM also 868) | yes |
+| Magellan (Paradox security sensors) | PWM | AM | Fixed Code (CRC-8) | 433.92 MHz | yes (the captured frame) |
+| X10 (home automation) | PWM | AM | Fixed Code (complement bytes) | 315 MHz (310) | yes |
+| Legrand | PWM | AM | Fixed Code (confirmed by a repeat) | 433.92 MHz | yes |
+| Doorbell32 (doorbells) | PWM | AM | Fixed Code (confirmed by a repeat, measured Te) | 433.92 MHz | yes |
+| Intertechno_V3 (sockets, dimmers) | PWM | AM | Fixed Code | 315 / 433.92 / 868 MHz | yes |
+| KeyFinder (four-colour key finders), KeyFinder2 | PWM | AM | Fixed Code | 433.92 MHz | yes (KeyFinder: the four colours) |
+| Feron (LED-light remotes) | PWM | AM | Fixed Code | 433.92 MHz | yes |
+| Honeywell Sec (security sensors) | Manchester | AM | Fixed Code (CRC-16) | 315 / 433.92 MHz | yes |
+| Honeywell (wireless doorbells / PIR) | PWM | AM | Fixed Code (parity) | 315 / 433.92 MHz | yes |
+| Treadmill37 (QH-433 treadmill remotes) | PWM | AM | Fixed Code | 433.92 MHz | yes |
+| Nord ICE | PWM | AM | Fixed Code | 433.92 MHz | yes, any button |
+| Urmet | PWM | AM | Fixed Code | 433.92 MHz | yes: the reference's transmission (Replay), from key files too |
 
 ### Receive-only remotes from rtl_433
 
-Ported from [rtl_433](https://github.com/merbanan/rtl_433) (`src/devices/`) for remotes that no Flipper firmware decodes, with exact models of rtl_433's pulse slicers and bit buffer. Each one gives rtl_433's fields on rtl_433's own test recordings ([rtl_433_tests](https://github.com/merbanan/rtl_433_tests)) where there are any, and the same output as rtl_433's C code on fuzzed pulse trains. They are receive only, as in rtl_433: KAT shows the fields, and the capture can be replayed (the recorded pulses) and exported. They run on any frequency and come last in the registry, so a frame a Flipper reference decodes keeps that decoder. rtl_433's Ford, GM, Honda, Nidec and Akhan decoders read the same frames as KAT's Ford V0, GM, Honda V0 and Princeton, so they are not duplicated; the field mappings are in [docs/](docs/README.md).
+Ported from [rtl_433](https://github.com/merbanan/rtl_433) (`src/devices/`) for remotes that no Flipper firmware decoded, with exact models of rtl_433's pulse slicers and bit buffer. Each one gives rtl_433's fields on rtl_433's own test recordings ([rtl_433_tests](https://github.com/merbanan/rtl_433_tests)) where there are any, and the same output as rtl_433's C code on fuzzed pulse trains. They are receive only, as in rtl_433: KAT shows the fields, and the capture can be replayed (the recorded pulses) and exported. FoxFW has since ported five of them itself: KAT saves and loads FoxFW's key files for Alps-FWB1U545, Continental-KR5V2X, Compustar-1WG3R, Astrostart-2000 and Audiovox-PROOE3B, and FoxFW's names for them load too. FoxFW's encoders for them refuse every file, so they stay receive only. FoxFW's Alps and Continental files hold less than a decode, so KAT adds a `Raw` line with the whole frame, which FoxFW ignores (see their pages). They run on any frequency and come last in the registry, so a frame a Flipper reference decodes keeps that decoder. rtl_433's Ford, GM, Honda, Nidec and Akhan decoders read the same frames as KAT's Ford V0, GM, Honda V0 and Princeton, so they are not duplicated; the field mappings are in [docs/](docs/README.md).
 
 | Protocol | Encoding | RF | Code | Frequency |
 |---|---|---|---|---|
@@ -448,10 +488,11 @@ Ported from [rtl_433](https://github.com/merbanan/rtl_433) (`src/devices/`) for 
 | Elero (blind and awning motor remotes) | NRZ (GFSK) | FM | Rolling Code (8-bit counter, no key) | 868 / 915 MHz |
 | Somfy-IOHC (io-homecontrol: Somfy, Velux) | NRZ (UART) | FM | AES-128 MAC, 16-bit counter | 868 MHz |
 | RojaFlex-Remote (shutters, their remotes and bridge) | NRZ | FM | Fixed Code (token sum, CRC-16) | 433.92 MHz |
+| Cardin-S466 (Cardin S466-TX2 garage-door remote) | PWM | AM | Fixed Code (tri-state DIP switches) | 27.195 MHz |
 
 Compustar 1WG3R remotes send the 35-bit frame the Flipper references read as Scher-Khan "MAGIC CODE, Static" with every bit inverted; KAT reads such a frame as Compustar (its ID and button) when it passes Compustar's checks, and as Scher-Khan otherwise ([docs/compustar_1wg3r.md](docs/compustar_1wg3r.md)). HCS361 and HCS362 frames carry the same 64-bit KeeLoq code word as an HCS200, so KAT identifies them with its keystore (a matching key shows the manufacturer and the counter) and includes them in KeeLoq key recovery. No Somfy io-homecontrol recording exists; KAT's receiver delivers its 26 µs FSK bits in simulation ([docs/somfy_iohc.md](docs/somfy_iohc.md)).
 
-Each protocol has its own page in [docs/](docs/README.md). Not ported (in the references but not remotes for gates, doors or shutters): doorbells, alarm sensors, lights, key finders, X10, treadmill and freezer remotes.
+Each protocol has its own page in [docs/](docs/README.md). The references' home, sensor and key-finder remotes (doorbells, alarm sensors, lights, key finders, X10, treadmill and freezer remotes) are ported too, with transmit.
 
 **Modulation gate:** like Flipper-ARF, decoders are only fed captures of their own modulation — a `.sub` file's preset decides (AM650 → AM protocols, FM476 → FM protocols); KAT's own receiver tries the protocols of the burst's path (AM or FM) first and the rest only when none decodes.
 
@@ -548,6 +589,7 @@ src/
 │   ├── renault_v0.rs, renault_v1.rs, fiat_v2.rs, hitag2.rs   # HITAG2 shared by Fiat V1 / Renault V1
 │   ├── hitag2_hell.rs, hitag2_keys.rs   # HiTag2 Hell key recovery (qDoctor), per-remote HiTag2 key file
 │   ├── bmw.rs, mercedes_v0.rs, mercedes_v1.rs, opel_v1.rs, gm.rs, mazda_v2.rs, datsun_lada.rs
+│   ├── vag_polo.rs, chevrolet_v0.rs   # FoxFW ports, decode only
 │   ├── sheriff_cfm.rs, audi.rs, mazda_infinity.rs, hyundai.rs   # hyundai: not registered
 │   ├── princeton.rs, came.rs, secplus_v2.rs, somfy_telis.rs, faac_slh.rs, …   # 54 gate, garage and shutter protocols
 │   ├── g1_common.rs … g6_common.rs, f_common.rs   # helpers shared by the gate protocols

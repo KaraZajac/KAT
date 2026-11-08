@@ -28,9 +28,12 @@ recording of these fobs would be material for research, like the formats below, 
 
 ### VW Polo 5 2017
 
+> FoxFW's **VAG Polo** decoder reads these captures (see [vag_polo.md](vag_polo.md)); KAT ports it. The
+> analysis below is the owner's own, from before that port, and stays for the wire-level detail.
+
 `VAG/VW Polo 5 2017 *.sub` (lock 1–3, unlock 1–3, five presses of each), 434.42 MHz, recorded with
-AM270. In `unlock2.sub`, PSA also reads one junk frame (`737AD61FFFFFFFFF…`, no valid fields), as it
-does in ProtoPirate and Flipper-ARF.
+AM270. Before VAG Polo, PSA read one junk frame in `unlock2.sub` (`737AD61FFFFFFFFF…`, no valid fields), as it
+does in ProtoPirate and Flipper-ARF; the Polo frames now come first.
 
 - **Modulation.** OOK Manchester, TE ≈ 290 µs (bit 1 = HIGH then LOW). The capture lengthens every
   HIGH by ~70 µs, so it reads 363/218 µs.

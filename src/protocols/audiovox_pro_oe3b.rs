@@ -1,7 +1,8 @@
-//! Audiovox PRO-OE3B / PRO-OE4B car remote (receive only).
+//! Audiovox PRO-OE3B / PRO-OE4B car remote (receive only; FoxFW key files).
 //!
 //! Port of rtl_433 `src/devices/audiovox_pro_oe3b.c` (`r_device` "Audiovox PRO-OE3B Car Remote",
-//! model `Audiovox-PROOE3B`; FCC ID BGAOE3B, AVX01BT3CL3, ~303 MHz). No Flipper reference has it.
+//! model `Audiovox-PROOE3B`; FCC ID BGAOE3B, AVX01BT3CL3, ~303 MHz). FoxFW has its own port of the
+//! same decoder ("Audiovox PRO", see **Key files**); no other Flipper reference has it.
 //!
 //! **Modulation** — `OOK_PULSE_PWM`: short_width 445 µs (pulse → 1), long_width 895 µs (→ 0),
 //! sync_width 1368 µs, reset_limit = gap_limit = 1790 µs, no tolerance, so the slicer's split points
@@ -20,21 +21,38 @@
 //! wire bits (before the decoder's inversion) right-aligned, `data_count_bit` = 25. `crc_valid` =
 //! false (no integrity check in the C).
 //!
-//! **Encoder** — receive only, as rtl_433.
+//! **Key files** — FoxFW's (`lib/subghz/protocols/audiovox.c`, `AUDIOVOX_PROTOCOL_NAME` "Audiovox
+//! PRO", an alias here), written by its generic serializer: `Protocol: Audiovox PRO`, `Bit: 25`,
+//! `Key` (8 bytes) = the 25 wire bits, i.e. `data` (FoxFW keeps the button as the inverted byte's
+//! flag bits, `& 0x55`, but does not save it). Loading is FoxFW's `deserialize` (exactly `Bit: 25`),
+//! then the decoder's sanity checks — FoxFW saves only frames that pass them; a key that fails
+//! them, or has bits set above its 25, is refused. The file round-trips exactly.
+//!
+//! **Encoder** — none. rtl_433 has none, and FoxFW's SD encoder plugin
+//! (`applications/main/subghz/protocols_ext/enc_audiovox.c`) is a stub ("fixed-code remote; TX not
+//! implemented — load/save only"): its `deserialize` returns `SubGhzProtocolStatusErrorEncoderGetUpload`
+//! for every key file, so a Flipper running FoxFW sends nothing. `supports_encoding()` is false,
+//! `encode` returns None and nothing is encoder-capable; Replay of recorded pulses remains.
 
 use super::rtl433::{button_table, frame_signal, join_names, BitBuffer, DecodeFn, Device, Ends, Gaps, Modulation, Receiver};
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
 
 use super::info::prelude::*;
 
 const NAME: &str = "Audiovox-PROOE3B";
 
+/// FoxFW's protocol name (`AUDIOVOX_PROTOCOL_NAME`), written in key files.
+const FOXFW_NAME: &str = "Audiovox PRO";
+
+/// The frame length (`AUDIOVOX_FRAME_BITS`, FoxFW's key `Bit`).
+const BITS: usize = 25;
+
 /// Metadata (see `info.rs`).
 pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     name: NAME,
     decoder: NAME,
-    aliases: &["Audiovox PRO-OE3B Car Remote"],
+    aliases: &["Audiovox PRO-OE3B Car Remote", FOXFW_NAME],
     name_prefix: None,
     encoding: Coding::Pwm,
     rf: Rf::AM,
@@ -84,26 +102,30 @@ impl DecodeFn for Audiovox {
         if bits.num_rows() != 1 {
             return None; // DECODE_ABORT_EARLY
         }
-        let wire: [u8; 4] = bits.bytes(0);
-        if bits.byte(0, 2) & 0xaa != 0 || bits.byte(0, 2) == 0x55 {
-            return None; // DECODE_FAIL_SANITY
-        }
-        bits.invert();
-        let b: [u8; 3] = bits.bytes(0);
-        let id = u16::from_be_bytes([b[0], b[1]]);
-        if id == 0 || id == 0xffff {
-            return None; // DECODE_FAIL_SANITY
-        }
-        // mask 0x01, 0x04, 0x10, 0x40 → flags bit 0..3
-        let flags = (0..4).filter(|i| b[2] >> (2 * i) & 1 == 1).fold(0u8, |f, i| f | 1 << i);
-        if flags == 0 {
-            return None; // DECODE_FAIL_SANITY
-        }
-        let mut d = frame_signal(&wire, 25);
-        d.serial = Some(u32::from(id));
-        d.button = Some(flags);
-        Some(d)
+        check(&bits.bytes(0))
     }
+}
+
+/// The C's sanity checks on the 25 wire bits (`wire`, their 4 bytes) and the decode they give.
+fn check(wire: &[u8; 4]) -> Option<DecodedSignal> {
+    if wire[2] & 0xaa != 0 || wire[2] == 0x55 {
+        return None; // DECODE_FAIL_SANITY
+    }
+    // bitbuffer_invert
+    let b = [!wire[0], !wire[1], !wire[2]];
+    let id = u16::from_be_bytes([b[0], b[1]]);
+    if id == 0 || id == 0xffff {
+        return None; // DECODE_FAIL_SANITY
+    }
+    // mask 0x01, 0x04, 0x10, 0x40 → flags bit 0..3
+    let flags = (0..4).filter(|i| b[2] >> (2 * i) & 1 == 1).fold(0u8, |f, i| f | 1 << i);
+    if flags == 0 {
+        return None; // DECODE_FAIL_SANITY
+    }
+    let mut d = frame_signal(wire, BITS);
+    d.serial = Some(u32::from(id));
+    d.button = Some(flags);
+    Some(d)
 }
 
 /// Audiovox PRO-OE3B decoder (receive only).
@@ -149,9 +171,25 @@ impl ProtocolDecoder for AudiovoxProOe3bDecoder {
         false
     }
 
-    /// Receive only, as rtl_433.
+    /// None: rtl_433 has no encoder and FoxFW's plugin refuses every key (see "Encoder").
     fn encode(&self, _decoded: &DecodedSignal, _button: u8) -> Option<Vec<LevelDuration>> {
         None
+    }
+
+    /// FoxFW's `subghz_protocol_decoder_audiovox_deserialize` (`Bit: 25`), then the decoder's
+    /// checks (see "Key files").
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        let k = key.key_u64()?;
+        if key.bits != BITS || k >> BITS != 0 {
+            return None;
+        }
+        // The 25 key bits as the first bits of the frame's 4 bytes.
+        check(&((k as u32) << 7).to_be_bytes())
+    }
+
+    /// FoxFW's `subghz_protocol_decoder_common_serialize` of the frame: `Bit: 25`, `Key` = `data`.
+    fn to_flipper_key(&self, d: &DecodedSignal) -> Option<FlipperKey> {
+        (d.data_count_bit == BITS && d.data >> BITS == 0).then(|| FlipperKey::for_protocol(FOXFW_NAME, BITS, d.data))
     }
 }
 
@@ -273,6 +311,112 @@ mod tests {
                 .collect();
             assert_eq!(distinct(&got), distinct(&expected_json(&path)), "{f}");
         }
+    }
+
+    /// A made-up frame whose RAW file (written to `$KAT_SYNTH_DIR` when set) FoxFW's decoder read with
+    /// `subghz_oracle_foxfwenc decode --protocol "Audiovox PRO"`: KAT writes FoxFW's lines and reads
+    /// them back to the same decode; FoxFW's name resolves to this decoder.
+    #[test]
+    fn key_files_are_foxfws() {
+        const FOXFW: &str = "Frequency: 303000000; Preset: FuriHalSubGhzPresetOok650Async; Protocol: Audiovox PRO; Bit: 25; Key: 00 00 00 00 01 D9 50 23";
+        let air = vector_wire(&frame(0x1357, 0b1010, true));
+        crate::protocols::foxfw_common::test_support::dump("audiovox_unit.sub", 303_000_000, "FuriHalSubGhzPresetOok650Async", &air);
+        let got = decode_all(&mut AudiovoxProOe3bDecoder::new(), &air);
+        assert_eq!(got.len(), 2, "sent twice");
+        let d = &got[0];
+        assert_eq!((d.serial, d.button, d.data_count_bit), (Some(0x1357), Some(0b1010), 25));
+        let dec = AudiovoxProOe3bDecoder::new();
+        let mut key = dec.to_flipper_key(d).unwrap();
+        key.frequency = 303_000_000;
+        key.preset = Some("FuriHalSubGhzPresetOok650Async".into());
+        assert_eq!(key.to_text().lines().skip(2).collect::<Vec<_>>().join("; "), FOXFW);
+        crate::protocols::flipper_key::testing::assert_round_trip(&dec, d);
+        let text = format!("Filetype: Flipper SubGhz Key File\nVersion: 1\n{}\n", FOXFW.replace("; ", "\n"));
+        assert_eq!(dec.from_flipper_key(&crate::protocols::flipper_key::testing::key(&text)).as_ref(), Some(d));
+        let reg = super::super::ProtocolRegistry::new();
+        assert_eq!(reg.get(FOXFW_NAME).map(|p| p.name()), Some(NAME));
+    }
+
+    /// Keys FoxFW's `deserialize` refuses (another `Bit`) and keys whose frame fails the sanity
+    /// checks or has bits above its 25 (FoxFW writes neither): not loaded.
+    #[test]
+    fn refuses_other_keys() {
+        let dec = AudiovoxProOe3bDecoder::new();
+        // ~0x1357, then ~(0xAA | Unlock 0x04 | Trunk 0x40) = 0x11, then the free bit
+        let good = 0xECA8_u64 << 9 | 0x11 << 1 | 1;
+        let load = |bits: usize, k: u64| dec.from_flipper_key(&FlipperKey::new(FOXFW_NAME, bits, k, 303_000_000, "FuriHalSubGhzPresetOok650Async"));
+        assert_eq!(load(25, good).and_then(|d| d.button), Some(0b1010));
+        assert!(load(24, good >> 1).is_none(), "Bit 24");
+        assert!(load(25, good | 0x02 << 1).is_none(), "a 0xAA bit of byte 2 set on the wire");
+        assert!(load(25, 0xECA8 << 9 | 0x55 << 1).is_none(), "no button (byte 2 = 0x55)");
+        assert!(load(25, 0xFFFF << 9 | 0x11 << 1).is_none(), "ID 0000");
+        assert!(load(25, 0x11 << 1).is_none(), "ID FFFF");
+        assert!(load(25, good | 1 << 25).is_none(), "bit above the 25");
+        assert!(dec.to_flipper_key(&DecodedSignal::new(0, 64)).is_none());
+    }
+
+    /// FoxFW's encoder plugin refuses every Audiovox PRO key (`subghz_oracle_foxfwenc encode`:
+    /// "deserialize failed (status -12)" for each of 120 made-up files) and rtl_433 has no encoder:
+    /// nothing transmits, for no button.
+    #[test]
+    fn transmits_nothing_as_foxfw() {
+        let dec = AudiovoxProOe3bDecoder::new();
+        assert!(!dec.supports_encoding());
+        let d = decode_all(&mut AudiovoxProOe3bDecoder::new(), &vector_wire(&frame(0x1357, 0b0001, false))).remove(0);
+        let loaded = dec.from_flipper_key(&dec.to_flipper_key(&d).unwrap()).unwrap();
+        for x in [&d, &loaded] {
+            assert!(!x.encoder_capable);
+            for button in [0x01, 0x02, 0x04, 0x08, x.button.unwrap()] {
+                assert!(dec.encode(x, button).is_none());
+            }
+        }
+    }
+
+    /// A RAW file's pulses for a frame: a 1368 µs sync pulse (FoxFW starts a frame only on one;
+    /// rtl_433's slicer counts it as a sync before the row), [wire_pairs], sent twice, 20 ms of LOW
+    /// around and between.
+    fn vector_wire(bits: &[bool]) -> Vec<LevelDuration> {
+        let mut pairs = vec![(1368, 425)];
+        pairs.extend(wire_pairs(bits));
+        pairs.last_mut().unwrap().1 = 20_000;
+        let again = pairs.clone();
+        pairs.extend(again);
+        with_idle(&wire(&pairs), 20_000)
+    }
+
+    /// Made-up frames for the FoxFW comparison, as RAW files in `$KAT_SYNTH_DIR`: every button
+    /// combination with either free bit, random IDs.
+    #[test]
+    #[ignore = "oracle harness"]
+    fn dump_key_vectors() {
+        let mut rng = Rng(0xA0D1_0E3B);
+        for i in 0..150u32 {
+            let id = loop {
+                let id = rng.next() as u16;
+                if id != 0 && id != 0xFFFF {
+                    break id;
+                }
+            };
+            let flags = (i % 15 + 1) as u8;
+            let wire = vector_wire(&frame(id, flags, (i / 15) % 2 == 1));
+            crate::protocols::foxfw_common::test_support::dump(&format!("audiovox_{i:03}.sub"), 303_000_000, "FuriHalSubGhzPresetOok650Async", &wire);
+        }
+    }
+
+    /// `KAT_AUDIOVOX_RAW=<file listing RAW .sub files>`: KAT's key-file lines for each frame this
+    /// decoder reads in them, to diff with `subghz_oracle_foxfwenc decode --protocol "Audiovox PRO"`.
+    #[test]
+    #[ignore = "oracle harness"]
+    fn key_lines_of_raw_files() {
+        print_raw_key_lines("KAT_AUDIOVOX_RAW", &mut AudiovoxProOe3bDecoder::new());
+    }
+
+    /// `KAT_AUDIOVOX_ENCODE=<file listing key files>`: KAT's transmission of each (`(none)`: it
+    /// never transmits), to diff with `subghz_oracle_foxfwenc encode <file>`, which refuses each.
+    #[test]
+    #[ignore = "oracle harness"]
+    fn encode_key_files() {
+        print_key_file_encodes("KAT_AUDIOVOX_ENCODE", &AudiovoxProOe3bDecoder::new());
     }
 
     /// Fuzz dump for the C harness (see `rtl433::test_util::dump_fuzz_trains`).

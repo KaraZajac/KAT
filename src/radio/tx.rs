@@ -31,6 +31,24 @@ pub const TX_LO_OFFSET_HZ: f64 = 500_000.0;
 const TX_AMPLITUDE: f64 = 127.0;
 /// libhackrf's `TRANSFER_COUNT`: USB transfers in flight while streaming (4 in every release).
 pub const LIBHACKRF_TRANSFER_COUNT: usize = 4;
+/// Longest transmission KAT sends: 60 s on air, 240 MB of samples at [TX_SAMPLE_RATE]. The samples
+/// are generated before anything is keyed (a Flipper streams them instead), so a corrupt timing
+/// (a key file's TE of 10^9 µs, a RAW file of million-µs pulses) must not reach the allocator; KAT's
+/// longest protocol transmissions (Toyota's 20 copies, Porsche Cayenne's slow PWM) last seconds.
+pub const MAX_TX_AIR_US: u64 = 60_000_000;
+
+/// The signal's air time, or an error when it is longer than [MAX_TX_AIR_US].
+pub fn check_tx_air_time(signal: &[LevelDuration]) -> anyhow::Result<u64> {
+    let total_us: u64 = signal.iter().map(|p| u64::from(p.duration_us)).sum();
+    if total_us > MAX_TX_AIR_US {
+        anyhow::bail!(
+            "transmission refused: {:.1} s on air, more than {} s (a corrupt timing in the capture or key file?)",
+            total_us as f64 / 1e6,
+            MAX_TX_AIR_US / 1_000_000
+        );
+    }
+    Ok(total_us)
+}
 
 /// Everything a transmission needs besides the pairs and the carrier frequency.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -204,6 +222,16 @@ mod tests {
 
     const FS: u32 = TX_SAMPLE_RATE;
 
+    /// A transmission longer than a minute is refused before its samples exist (a key file with a
+    /// TE of 2^30 µs makes MARELLI's encoder ask for hours); a normal one passes with its air time.
+    #[test]
+    fn absurd_air_times_are_refused_before_generating_samples() {
+        assert_eq!(check_tx_air_time(&pairs(&[(true, 400), (false, 1200)])).unwrap(), 1600);
+        assert_eq!(check_tx_air_time(&pairs(&[(true, 30_000_000), (false, 30_000_000)])).unwrap(), MAX_TX_AIR_US);
+        assert!(check_tx_air_time(&pairs(&[(true, 30_000_000), (false, 30_000_001)])).is_err());
+        assert!(check_tx_air_time(&pairs(&[(true, u32::MAX), (false, u32::MAX)])).is_err());
+    }
+
     fn pairs(v: &[(bool, u32)]) -> Vec<LevelDuration> {
         v.iter().map(|&(l, d)| LevelDuration::new(l, d)).collect()
     }
@@ -355,23 +383,37 @@ mod tests {
             ("KIA/KIA V5 N1 RAW.sub", "Kia V5", &FM476),
             ("KIA/Kia4_5cl_5op_5tr.sub", "Kia V4", &FM476),
             ("SUZUKI/Suzuki_v0_kd.sub", "Suzuki V0", &FM476),
-            ("honda/Unlock_honda.sub", "Honda Static", &HONDA1),
+            // No IMPORTS capture is a Honda Static frame any more (the Honda captures are Honda
+            // V5, decode only): this one comes from a key file, at Honda1.
+            ("", "Honda Static", &HONDA1),
         ];
         for (file, proto, preset) in cases {
-            let path = Path::new("IMPORTS").join(file);
-            if !path.exists() {
-                eprintln!("Skip: {path:?} not found (run from crate root)");
-                continue;
-            }
-            let (freq, raw) = import_sub_raw(&path).unwrap();
-            let pairs: Vec<LevelDuration> =
-                raw.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
             let mut reg = ProtocolRegistry::new();
-            let (_, decoded, _) = reg
-                .process_signal_stream(&pairs, freq)
-                .into_iter()
-                .find(|(n, _, _)| n == proto)
-                .unwrap_or_else(|| panic!("{file}: no {proto} decode"));
+            let freq;
+            let decoded = if file.is_empty() {
+                freq = 433_657_070;
+                let key = crate::protocols::flipper_key::testing::key(
+                    "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433657070\n\
+                     Preset: FuriHalSubGhzPresetCustom\nProtocol: Honda Static\nBit: 64\n\
+                     Key: 02 01 23 45 60 12 34 57\nSerial: 1193046\nBtn: 2\nCnt: 1193047\nChecksum: 33\n",
+                );
+                reg.get(proto).unwrap().from_flipper_key(&key).expect("key loads")
+            } else {
+                let path = Path::new("IMPORTS").join(file);
+                if !path.exists() {
+                    eprintln!("Skip: {path:?} not found (run from crate root)");
+                    continue;
+                }
+                let (f, raw) = import_sub_raw(&path).unwrap();
+                freq = f;
+                let pairs: Vec<LevelDuration> =
+                    raw.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
+                reg.process_signal_stream(&pairs, freq)
+                    .into_iter()
+                    .find(|(n, _, _)| n == proto)
+                    .unwrap_or_else(|| panic!("{file}: no {proto} decode"))
+                    .1
+            };
             let truth = reg.get(proto).unwrap().encode(&decoded, decoded.button.unwrap_or(1)).expect("encode");
             let m = preset.modulation();
             assert!(m.is_fsk(), "{proto}: {m}");

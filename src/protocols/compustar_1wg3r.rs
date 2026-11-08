@@ -1,8 +1,9 @@
-//! Compustar 1WG3R / 1WAMR-1900 car-alarm remote (receive only).
+//! Compustar 1WG3R / 1WAMR-1900 car-alarm remote (receive only; FoxFW key files).
 //!
 //! Port of rtl_433 `src/devices/compustar_1wg3r.c` (`r_device` "Compustar 1WG3R Car Remote",
-//! model `Compustar-1WG3R`; 433.92 MHz). No Flipper reference names it, but the air format is the
-//! one ProtoPirate / Flipper-ARF read as Scher-Khan "MAGIC CODE, Static" (35 bits, no fields):
+//! model `Compustar-1WG3R`; 433.92 MHz). FoxFW has its own port of the same decoder ("Compustar",
+//! see **Key files**); ProtoPirate / Flipper-ARF read the air format as Scher-Khan "MAGIC CODE,
+//! Static" (35 bits, no fields):
 //! Scher-Khan's 750/1100 µs PWM with a 1500 µs header, which reads a short pulse as 0. Scher-Khan
 //! is earlier in KAT's registry and would report most such frames first (on the sync pulse that
 //! ends each frame), so it leaves the 35-bit frames that pass this decoder's checks
@@ -24,27 +25,49 @@
 //!
 //! **Fields** — `serial` = the ID, `button` = the 8-bit button code, no counter (fixed code).
 //! `data` = the row's first 35 bits (the frame) right-aligned, `data_count_bit` = 35.
-//! `crc_valid` = true (the inverse byte matched).
+//! `crc_valid` = true (the inverse byte matched). `extra` = `Some(1)` when the row has a 36th bit
+//! and it is 1, else None (FoxFW's key keeps that bit, see **Key files**; not displayed).
 //!
 //! **Reports** — row-wise ([super::rtl433]): each new event is reported as soon as its
 //! row is final, with rtl_433's per-message duplicate suppression, so KAT reports what rtl_433
 //! outputs for the message (every batch of a secondary-mode press).
 //!
-//! **Encoder** — receive only, as rtl_433.
+//! **Key files** — FoxFW's (`lib/subghz/protocols/compustar.c`, `COMPUSTAR_PROTOCOL_NAME`
+//! "Compustar", an alias here), written by its generic serializer: `Protocol: Compustar`, `Bit: 36`,
+//! `Key` (8 bytes) = the 35 frame bits and one bit after them. FoxFW decodes 35- and 36-bit frames,
+//! appends a 0 to a 35-bit one and keeps a 36th bit as received without checking it; KAT writes
+//! the row's bit 35 (`extra`), 0 for a 35-bit row. Loading is FoxFW's `deserialize` (exactly
+//! `Bit: 36`), then the decoder's checks on the 35 frame bits (111 marker, ID, inverse byte) — FoxFW
+//! saves only frames that pass them and its display re-runs them; a key that fails them, or has
+//! bits set above its 36 (FoxFW never writes any), is refused. A loaded key is the decode of its
+//! frame, so the file round-trips exactly.
+//!
+//! **Encoder** — none. rtl_433 has none, and FoxFW's SD encoder plugin
+//! (`applications/main/subghz/protocols_ext/enc_compustar.c`) is a stub: its `deserialize` returns
+//! `SubGhzProtocolStatusErrorEncoderGetUpload` for every key file ("the PWM gap timing is not
+//! published by rtl_433 — TX would be guesswork"), so a Flipper running FoxFW sends nothing for a
+//! Compustar file. `supports_encoding()` is false, `encode` returns None and nothing is
+//! encoder-capable; Replay of recorded pulses remains.
 
 use super::rtl433::{button_table, frame_signal, join_names, BitBuffer, DecodeFn, Device, Ends, Gaps, Modulation, Receiver};
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
 
 use super::info::prelude::*;
 
 const NAME: &str = "Compustar-1WG3R";
 
+/// FoxFW's protocol name (`COMPUSTAR_PROTOCOL_NAME`), written in key files.
+const FOXFW_NAME: &str = "Compustar";
+
+/// FoxFW's key length (`COMPUSTAR_BIT_COUNT`): the 35 frame bits and the bit after them.
+const KEY_BITS: usize = 36;
+
 /// Metadata (see `info.rs`).
 pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     name: NAME,
     decoder: NAME,
-    aliases: &["Compustar 1WG3R Car Remote"],
+    aliases: &["Compustar 1WG3R Car Remote", FOXFW_NAME],
     name_prefix: None,
     encoding: Coding::Pwm,
     rf: Rf::AM,
@@ -128,27 +151,36 @@ impl DecodeFn for Compustar {
         if n < 35 {
             return None; // DECODE_ABORT_LENGTH
         }
-        if b[2] & 0xe0 != 0xe0 || b[4] & 1 != 0 {
-            return None; // DECODE_ABORT_EARLY
-        }
-        if (b[0] == 0xff && b[1] == 0xff) || (b[0] == 0x00 && b[1] == 0x00) {
-            return None; // DECODE_FAIL_SANITY
-        }
-        let button_inverse = b[2] << 3 | b[3] >> 5;
-        let button = b[3] << 3 | b[4] >> 5;
-        if !button_inverse != button {
-            return None; // DECODE_FAIL_MIC
-        }
+        let d = check_row(&b, n >= KEY_BITS && b[4] & 0x10 != 0)?;
         if self.previous_row.is_some_and(|prev| bits.compare_rows(prev, row, 35)) {
             return None; // duplicate of previous valid message
         }
         self.previous_row = Some(row);
-        let mut d = frame_signal(&b, 35);
-        d.serial = Some(u32::from(u16::from_be_bytes([b[0], b[1]])));
-        d.button = Some(button);
-        d.crc_valid = true;
         Some(d)
     }
+}
+
+/// The C's checks on a row's first 40 bits (`b`) — the 111 marker and bit 39 = 0, ID not 0000 /
+/// FFFF, the inverse byte — and the decode they give; `bit35` = the row's 36th bit (FoxFW's key
+/// keeps it, see "Key files").
+fn check_row(b: &[u8; 5], bit35: bool) -> Option<DecodedSignal> {
+    if b[2] & 0xe0 != 0xe0 || b[4] & 1 != 0 {
+        return None; // DECODE_ABORT_EARLY
+    }
+    if (b[0] == 0xff && b[1] == 0xff) || (b[0] == 0x00 && b[1] == 0x00) {
+        return None; // DECODE_FAIL_SANITY
+    }
+    let button_inverse = b[2] << 3 | b[3] >> 5;
+    let button = b[3] << 3 | b[4] >> 5;
+    if !button_inverse != button {
+        return None; // DECODE_FAIL_MIC
+    }
+    let mut d = frame_signal(b, 35);
+    d.serial = Some(u32::from(u16::from_be_bytes([b[0], b[1]])));
+    d.button = Some(button);
+    d.crc_valid = true;
+    d.extra = bit35.then_some(1);
+    Some(d)
 }
 
 /// Whether a 35-bit frame, right-aligned as this decoder reads it (`IIII xxx iiiiiiii bbbbbbbb`),
@@ -204,9 +236,32 @@ impl ProtocolDecoder for Compustar1wg3rDecoder {
         false
     }
 
-    /// Receive only, as rtl_433.
+    /// None: rtl_433 has no encoder and FoxFW's plugin refuses every key (see "Encoder").
     fn encode(&self, _decoded: &DecodedSignal, _button: u8) -> Option<Vec<LevelDuration>> {
         None
+    }
+
+    /// FoxFW's `subghz_protocol_decoder_compustar_deserialize` (`Bit: 36`), then the decoder's
+    /// checks (see "Key files").
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        let k = key.key_u64()?;
+        if key.bits != KEY_BITS || k >> KEY_BITS != 0 {
+            return None;
+        }
+        // The 36 key bits as the first bits of a row.
+        let b: [u8; 5] = (k << 4).to_be_bytes()[3..].try_into().ok()?;
+        check_row(&b, k & 1 == 1)
+    }
+
+    /// FoxFW's `subghz_protocol_decoder_common_serialize` of the frame: `Bit: 36`, `Key` = the 35
+    /// frame bits and bit 35 (see "Key files").
+    fn to_flipper_key(&self, d: &DecodedSignal) -> Option<FlipperKey> {
+        let bit35 = match d.extra {
+            None => 0,
+            Some(1) => 1,
+            Some(_) => return None,
+        };
+        (d.data_count_bit == 35 && d.data >> 35 == 0).then(|| FlipperKey::for_protocol(FOXFW_NAME, KEY_BITS, d.data << 1 | bit35))
     }
 }
 
@@ -388,6 +443,145 @@ mod tests {
             let names: Vec<String> = registry_decodes(&path).into_iter().map(|(n, _)| n).collect();
             assert!(!names.is_empty() && names.iter().all(|n| n == NAME), "{f}: {names:?}");
         }
+    }
+
+    /// KAT's key file for `d` as the oracle prints FoxFW's serialized lines (after Version, "; ").
+    fn key_lines(d: &DecodedSignal) -> String {
+        let mut key = Compustar1wg3rDecoder::new().to_flipper_key(d).unwrap();
+        key.frequency = 433_920_000;
+        key.preset = Some("FuriHalSubGhzPresetOok650Async".into());
+        key.to_text().lines().skip(2).collect::<Vec<_>>().join("; ")
+    }
+
+    /// Made-up frames whose RAW files (written to `$KAT_SYNTH_DIR` when set) FoxFW's decoder read
+    /// with `subghz_oracle_foxfwenc decode --protocol Compustar`: a press of three rows (FoxFW keeps
+    /// the last, appending its 0 bit) and a lone 36-bit row ending in 1 (FoxFW keeps that bit as
+    /// is). KAT writes FoxFW's lines and reads them back to the same decode.
+    #[test]
+    fn key_files_are_foxfws() {
+        // (rows, syncs, the oracle's serialized lines)
+        let mut long = frame(0x5A3C, 0x19);
+        long.push(true);
+        let cases = [
+            (vec![frame(0x5A3C, 0x87); 3], true, "compustar_unit_press.sub",
+             "Frequency: 433920000; Preset: FuriHalSubGhzPresetOok650Async; Protocol: Compustar; Bit: 36; Key: 00 00 00 05 A3 CE F1 0E"),
+            (vec![long], false, "compustar_unit_36.sub",
+             "Frequency: 433920000; Preset: FuriHalSubGhzPresetOok650Async; Protocol: Compustar; Bit: 36; Key: 00 00 00 05 A3 CF CC 33"),
+        ];
+        let dec = Compustar1wg3rDecoder::new();
+        let mut decodes = Vec::new();
+        for (rows, syncs, file, foxfw) in cases {
+            let air = vector_wire(&rows, syncs);
+            crate::protocols::foxfw_common::test_support::dump(file, 433_920_000, "FuriHalSubGhzPresetOok650Async", &air);
+            let got = decode_all(&mut Compustar1wg3rDecoder::new(), &air);
+            assert_eq!(got.len(), 1, "{file}");
+            let d = got[0].clone();
+            assert_eq!(key_lines(&d), foxfw, "{file}");
+            crate::protocols::flipper_key::testing::assert_round_trip(&dec, &d);
+            let text = format!("Filetype: Flipper SubGhz Key File\nVersion: 1\n{}\n", foxfw.replace("; ", "\n"));
+            assert_eq!(dec.from_flipper_key(&crate::protocols::flipper_key::testing::key(&text)).as_ref(), Some(&d), "{file}");
+            decodes.push(d);
+        }
+        // The row's 36th bit is kept in `extra`; the rest is the 35-bit decode.
+        let fields = |d: &DecodedSignal| (d.data, d.data_count_bit, d.extra, d.serial, d.button, d.crc_valid);
+        assert_eq!(fields(&decodes[0]), (0x5A3C << 19 | 0b111 << 16 | 0x78 << 8 | 0x87, 35, None, Some(0x5A3C), Some(0x87), true));
+        assert_eq!(fields(&decodes[1]), (0x5A3C << 19 | 0b111 << 16 | 0xE6 << 8 | 0x19, 35, Some(1), Some(0x5A3C), Some(0x19), true));
+        // FoxFW's name resolves to this decoder
+        let reg = super::super::ProtocolRegistry::new();
+        assert_eq!(reg.get(FOXFW_NAME).map(|p| p.name()), Some(NAME));
+    }
+
+    /// Keys FoxFW's `deserialize` refuses (another `Bit`) and keys whose frame fails the checks or
+    /// has bits above its 36 (FoxFW writes neither): not loaded.
+    #[test]
+    fn refuses_other_keys() {
+        let dec = Compustar1wg3rDecoder::new();
+        let good = 0x5A3C_u64 << 20 | 0b111 << 17 | 0x78 << 9 | 0x87 << 1;
+        let load = |bits: usize, k: u64| dec.from_flipper_key(&FlipperKey::new(FOXFW_NAME, bits, k, 433_920_000, "FuriHalSubGhzPresetOok650Async"));
+        assert_eq!(load(36, good).and_then(|d| d.button), Some(0x87));
+        assert!(load(35, good >> 1).is_none(), "Bit 35");
+        assert!(load(36, good ^ 1 << 9).is_none(), "inverse byte");
+        assert!(load(36, good & !(1 << 18)).is_none(), "111 marker");
+        assert!(load(36, good & 0xF_FFFF).is_none(), "ID 0000");
+        assert!(load(36, good | 0xFFFF << 20).is_none(), "ID FFFF");
+        assert!(load(36, good | 1 << 36).is_none(), "bit above the 36");
+        // a decode KAT cannot write as FoxFW's key
+        assert!(dec.to_flipper_key(&DecodedSignal::new(0, 64)).is_none());
+    }
+
+    /// FoxFW's encoder plugin refuses every Compustar key (`subghz_oracle_foxfwenc encode`:
+    /// "deserialize failed (status -12)", `SubGhzProtocolStatusErrorEncoderGetUpload`, for each of
+    /// 120 made-up files), and rtl_433 has no encoder: nothing transmits — not a decode, not a
+    /// loaded key, for no button (KAT's Lock / Unlock / Trunk / Panic or the frame's own).
+    #[test]
+    fn transmits_nothing_as_foxfw() {
+        let dec = Compustar1wg3rDecoder::new();
+        assert!(!dec.supports_encoding());
+        let d = decode_all(&mut Compustar1wg3rDecoder::new(), &vector_wire(&[frame(0x5A3C, 0x87)], false)).remove(0);
+        let loaded = dec.from_flipper_key(&dec.to_flipper_key(&d).unwrap()).unwrap();
+        for x in [&d, &loaded] {
+            assert!(!x.encoder_capable);
+            for button in [0x01, 0x02, 0x04, 0x08, x.button.unwrap()] {
+                assert!(dec.encode(x, button).is_none());
+            }
+        }
+    }
+
+    /// A RAW file's pulses for `rows`: the remote's press (three syncs before every row, see
+    /// [press]) or the rows alone; a 20 ms LOW before and after.
+    fn vector_wire(rows: &[Vec<bool>], syncs: bool) -> Vec<LevelDuration> {
+        let pairs = if syncs {
+            press(rows)
+        } else {
+            let mut p: Vec<(u32, u32)> = rows.iter().flatten().map(|&b| if b { (720, 760) } else { (1090, 1140) }).collect();
+            p.last_mut().unwrap().1 = 10_000;
+            p
+        };
+        with_idle(&wire(&pairs), 20_000)
+    }
+
+    /// Made-up frames for the FoxFW comparison, as RAW files in `$KAT_SYNTH_DIR`: every mapped
+    /// button code, secondary mode, other codes; presses (FoxFW reads the last row, KAT the
+    /// first), lone 35-bit rows and 36-bit rows with either last bit.
+    #[test]
+    #[ignore = "oracle harness"]
+    fn dump_key_vectors() {
+        let mut rng = Rng(0xC0_5757);
+        let mut codes: Vec<u8> = BUTTON_MAP.iter().flat_map(|(_, c)| c.iter().copied()).collect();
+        codes.extend([0x80, 0x87, 0x82, 0x84, 0x8F, 0x00, 0x20, 0x7F, 0xFF, 0x41]);
+        for i in 0..160 {
+            let id = loop {
+                let id = rng.next() as u16;
+                if id != 0 && id != 0xFFFF {
+                    break id;
+                }
+            };
+            let button = if i < codes.len() { codes[i] } else { rng.below(256) as u8 };
+            let mut row = frame(id, button);
+            let syncs = i % 3 != 2;
+            if i % 3 == 2 && i % 2 == 0 {
+                row.push(rng.chance(50));
+            }
+            let rows = if syncs { vec![row; 3] } else { vec![row] };
+            let name = format!("compustar_{i:03}.sub");
+            crate::protocols::foxfw_common::test_support::dump(&name, 433_920_000, "FuriHalSubGhzPresetOok650Async", &vector_wire(&rows, syncs));
+        }
+    }
+
+    /// `KAT_COMPUSTAR_RAW=<file listing RAW .sub files>`: KAT's key-file lines for each frame this
+    /// decoder reads in them, to diff with `subghz_oracle_foxfwenc decode --protocol Compustar`.
+    #[test]
+    #[ignore = "oracle harness"]
+    fn key_lines_of_raw_files() {
+        print_raw_key_lines("KAT_COMPUSTAR_RAW", &mut Compustar1wg3rDecoder::new());
+    }
+
+    /// `KAT_COMPUSTAR_ENCODE=<file listing key files>`: KAT's transmission of each (`(none)`: it
+    /// never transmits), to diff with `subghz_oracle_foxfwenc encode <file>`, which refuses each.
+    #[test]
+    #[ignore = "oracle harness"]
+    fn encode_key_files() {
+        print_key_file_encodes("KAT_COMPUSTAR_ENCODE", &Compustar1wg3rDecoder::new());
     }
 
     /// Fuzz dump for the C harness (see `rtl433::test_util::dump_fuzz_trains`).

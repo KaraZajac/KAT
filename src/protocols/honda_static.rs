@@ -3,6 +3,15 @@
 //! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/honda_static.c` and
 //! `honda_static.h`. Honda/Acura fixed-code keyfobs. FM, 315 MHz + 433.92 MHz, 64-bit frame.
 //!
+//! **Deviation from the reference (real-capture evidence).** The C's bit-reversed fallback does
+//! not verify the checksum, so Honda V5 frames (FoxFW `honda_v5.c`, same 63µs Manchester, 135 bits,
+//! CRC-8) pass its button / serial gates: `IMPORTS/honda/Lock_honda.sub` and `Unlock_honda.sub`
+//! (40 frames, 41 decodes) read here as button 1 in both files, a counter of 0x56BE7F in 40 of 41
+//! and a serial taking three values within one file. Honda V5 reads them with a valid CRC-8,
+//! one serial, buttons 0x21 / 0x22 and a rising counter, so the registry puts Honda V5 first and
+//! those frames are no longer Honda Static's (see `honda_v5.rs`). This decoder itself is
+//! unchanged; its checksum-verified forward frames are unaffected.
+//!
 //! Unlike most KAT decoders, Honda Static does NOT use the Flipper manchester_decoder.h transition
 //! table. It buffers a per-element *symbol stream* (one bit per ~63µs element) and then performs a
 //! custom Manchester unpack over symbol pairs (see `honda_static_manchester_pack_64` in the C). A

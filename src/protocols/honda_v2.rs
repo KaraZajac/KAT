@@ -41,7 +41,8 @@
 //! one (emulate `current_counter++`; ARF `count + mult`) and masked to 9 bits, then the key is
 //! rebuilt (`honda_v2_build_key`: check from the counter) and `honda_v2_build_upload` emits 319
 //! short pairs, HIGH 750, LOW 750, HIGH 250, the body, the counter-derived tail, the extra bit
-//! and a LOW 50 000µs gap. The Flipper TX loop repeats it `repeat` = 10 times; KAT returns one.
+//! and a LOW 50 000µs gap. The Flipper TX loop repeats it `repeat` = 10 times (doctor-firmware: 3);
+//! `encode` returns one and KAT sends it 3 times (`tx_copies.rs`; a `Repeat` line sets the count).
 //!
 //! Note on the C encoder (faithfully ported): `build_upload` forces frame bit 1 = 0 regardless of
 //! the key, so combined with the seeded bit 0 = 1 the top two frame bits are always `10`. The

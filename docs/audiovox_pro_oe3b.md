@@ -2,17 +2,18 @@
 layout: default
 ---
 
-# Audiovox PRO-OE3B (rtl_433 port, receive only)
+# Audiovox PRO-OE3B (rtl_433 port, receive only; FoxFW key files)
 
 **Rust module:** `src/protocols/audiovox_pro_oe3b.rs` (rtl_433 receive chain: `src/protocols/rtl433/`)
 **Reference:** rtl_433 `src/devices/audiovox_pro_oe3b.c` ("Audiovox PRO-OE3B Car Remote (-f 303.4M)", model
-`Audiovox-PROOE3B`), slicer `pulse_slicer_pwm`
+`Audiovox-PROOE3B`), slicer `pulse_slicer_pwm`; key files: FoxFW `lib/subghz/protocols/audiovox.c` ("Audiovox PRO",
+its own port of the same decoder)
 
 ## Overview
 
 Audiovox PRO-OE3B / PRO-OE4B aftermarket car remotes (FCC ID BGAOE3B, AVX01BT3CL3, ~303 MHz): a fixed 16-bit ID
-and button flags, repeated while a button is held; several buttons can be pressed together. No Flipper reference
-has it.
+and button flags, repeated while a button is held; several buttons can be pressed together. FoxFW is the only
+Flipper firmware that has it.
 
 ## Timing / modulation
 
@@ -51,9 +52,32 @@ The remote sends ~460/870 µs (1) and ~920/425 µs (0) pulse/gap pairs, 25 per f
 | `data` | the 25 wire bits (before the decoder's inversion), `data_count_bit` 25 |
 | `crc_valid` | false (no integrity check) |
 
+## Key files
+
+FoxFW saves a decode with its generic serializer; KAT writes and loads that file (`Audiovox PRO` is an alias of this
+protocol):
+
+```text
+Protocol: Audiovox PRO
+Bit: 25
+Key: 00 00 00 00 01 D9 50 23
+```
+
+`Key` is the 25 wire bits (KAT's `data`); FoxFW keeps the button as the inverted byte's flag bits (`& 0x55`) but does
+not save it. Loading is FoxFW's `deserialize` (exactly `Bit: 25`) followed by the decoder's sanity checks, which
+FoxFW's decoder applies before it saves a frame: a key that fails them, or has bits set above its 25, is refused.
+KAT's files round-trip exactly.
+
+FoxFW's decoder starts a frame only on a sync pulse of 1131–1600 µs; the rtl_433 recordings have none (frames start
+straight after ~15 ms gaps), so FoxFW reads none of them (KAT's pulses of them, as RAW files). Its key files are the
+same either way.
+
 ## Encoder
 
-Receive only, as rtl_433.
+None. rtl_433 has no encoder, and FoxFW's SD encoder plugin (`applications/main/subghz/protocols_ext/enc_audiovox.c`)
+is a stub ("fixed-code remote; TX not implemented — load/save only"): its `deserialize` returns
+`SubGhzProtocolStatusErrorEncoderGetUpload` for every key file, so a Flipper running FoxFW sends nothing. KAT does
+the same: no TX buttons; Replay of recorded pulses remains.
 
 ## Validation
 
@@ -68,3 +92,9 @@ Receive only, as rtl_433.
   of 13.
 - Fuzz against the C reference: 2 × 20 000 trains, identical output, 34 155 events.
 - No decode on any IMPORTS capture, the Flipper unit-test captures or another device's rtl_433_tests recording.
+- Key files against FoxFW's C (host build with its encoder plugins, `subghz_oracle_foxfwenc`): on 150 RAW files of
+  made-up frames (all 15 button combinations with either free bit, behind a 1368 µs sync pulse, which rtl_433's
+  slicer counts as a sync before the row) FoxFW's serialized lines and KAT's key file are identical.
+- Transmit against FoxFW's C: 120 made-up key files (110 valid, every button combination, 10 that KAT refuses);
+  FoxFW's encoder refuses every one (`deserialize failed (status -12)`), KAT sends nothing for any. KAT loads the 110
+  valid ones and refuses the 10 others.

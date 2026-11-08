@@ -23,7 +23,9 @@
 //! ([`keeloq_keystore`]) and applies ONLY that entry's learning type: SIMPLE (Pecinin: 12-bit serial
 //! check, button from the plaintext), NORMAL (Centurion: discriminator 0x1CE), SECURE (BFT: seed 0,
 //! then seed = serial, then 0 again), MAGIC_XOR_TYPE_1, MAGIC_SERIAL_TYPE_1/2/3, AERF (derived decrypt
-//! with 0x240 / 0x210 rounds, then plain), ERREKA, PUJOL, SIMPLE_JCM, and UNKNOWN (simple, normal,
+//! with 0x240 / 0x210 rounds, then plain), ERREKA, PUJOL, SIMPLE_JCM, and doctor-firmware's JCM_GEN2
+//! (16: the learning byte searched over 0..=255 and kept as the seed), STAGNOLI (17), TELCOMA_TABLE_HI
+//! (18: the table from the HI and LO entries, [`keeloq_telcoma_table`]; LO, 19, has no case of its own), and UNKNOWN (simple, normal,
 //! secure, magic-xor — each with the key and its byte-mirrored copy). The check: plaintext button ==
 //! fix button AND plaintext bits 23..16 == `fix & 0xFF` or == 0. The first match names the
 //! manufacturer. Counter = plaintext[15:0] (AN-Motors/HCS101: hop >> 16).
@@ -47,11 +49,12 @@
 //! Steelmate/Cardin_S449/Stilmatic/…, 8-bit for NICE_Smilo/NICE_MHOUSE/JCM_Tech/Pujol/Erreka,
 //! 0 for Beninca/Merlin, 0x1CE Centurion, 0x100 Monarch, Dea_Mio's C19-style form). Hop by the first
 //! keystore entry with that name: SIMPLE, NORMAL, SECURE (seed), MAGIC_XOR (serial), MAGIC_SERIAL_1,
-//! AERF, ERREKA, PUJOL, SIMPLE_JCM (8-bit disc), UNKNOWN per matched mode with the key as stored
+//! AERF, ERREKA, PUJOL, SIMPLE_JCM (8-bit disc), doctor-firmware's JCM_GEN2 (the decode's seed byte is
+//! the learning byte), STAGNOLI and TELCOMA_TABLE_HI (no hop when the LO half is missing), UNKNOWN per matched mode with the key as stored
 //! (never the mirrored copy — reference behaviour). MAGIC_SERIAL_2/3 have no encode case in the C:
 //! the captured frame is sent unchanged. AN-Motors/HCS101 build their plaintext hop; unidentified frames
-//! replay the captured hop under the new fix. Programming mode: button 0xF for BFT sends the seed as
-//! hop, Aprimatic 0x1A2B3C4D, Dea_Mio 0 (counter not advanced).
+//! replay the captured hop under the new fix. Programming mode: button 0xF for BFT (and, as FoxFW,
+//! Erreka) sends the seed as hop, Aprimatic 0x1A2B3C4D, Dea_Mio 0 (counter not advanced).
 //! Upload: 11 × (400 HIGH, 400 LOW), 400 HIGH, 4000 LOW, 64 bits, a status bit (400/800), 400 HIGH
 //! and a 16 ms LOW gap (Sommer 11.6 ms); "Superrollo" uses its own HCS361 framing. The C yields it 3
 //! times (`encoder.repeat = 3`), so the KAT waveform holds 3 copies.
@@ -63,7 +66,8 @@
 use super::common::DecodedSignal;
 use super::keeloq_common::{
     keeloq_decrypt, keeloq_decrypt_derived, keeloq_encrypt, keeloq_keystore,
-    keeloq_learning_aerf, keeloq_learning_erreka, keeloq_learning_pujol,
+    keeloq_learning_aerf, keeloq_learning_erreka, keeloq_learning_jcm_gen2, keeloq_learning_pujol,
+    keeloq_learning_stagnoli, keeloq_learning_telcoma_table, keeloq_telcoma_table,
     keeloq_magic_serial_type1_learning, keeloq_magic_serial_type2_learning,
     keeloq_magic_serial_type3_learning, keeloq_magic_xor_type1_learning, keeloq_normal_learning,
     keeloq_secure_learning, learning_types as lt, mirrored_key, reverse_key, MfKey,
@@ -109,6 +113,105 @@ const TE_SHORT: u32 = 400;
 const TE_LONG: u32 = 800;
 const TE_DELTA: u32 = 180;
 const MIN_COUNT_BIT: usize = 64;
+/// RogueMaster `KEELOQ_TE_FAST`: the HCS200/HCS300/HCS301 baud-rate-select field sends the same
+/// 66-bit frame at Te 200 µs instead of 400 µs ("half rate").
+const TE_FAST: u32 = 200;
+/// RogueMaster `KEELOQ_TE_FAST_GAP_DELTA`: the half rate is locked only when the sync gap (10·Te) is
+/// within 2000 ± 450 µs; that measured gap / 10 is the frame's Te.
+const TE_FAST_GAP_DELTA: u32 = 450;
+/// doctor-firmware / RogueMaster `KEELOQ_MONARCH_DISCRIMINATOR_A` / `_B`: Monarch's hop
+/// discriminator is constant per remote but not the same on every remote (B = Dorcas).
+const MONARCH_DISC_A: u32 = 0x100;
+const MONARCH_DISC_B: u32 = 0x280;
+/// doctor-firmware / RogueMaster `KEELOQ_KEY_DISCRIMINATOR`: KEY remotes put no serial in the hop.
+const KEY_DISC: u32 = 0x2FF;
+/// RogueMaster `KEELOQ_PHANTOM_HILAND_DISC_MASK` / `_SERIAL_MASK` (Phantom/Hiland, HCS300): the
+/// 12-bit discriminator carries `serial & 0x3FF` in its low 10 bits; the top 2 bits differ per remote
+/// and the receiver ignores them.
+const PHANTOM_DISC_MASK: u32 = 0xFFF;
+const PHANTOM_SERIAL_MASK: u32 = 0x3FF;
+
+/// `subghz_protocol_keeloq_te_delta`: the tolerance scaled with the locked Te (400 → 180, 200 → 90).
+fn te_delta(te: u32) -> u32 {
+    te * TE_DELTA / TE_SHORT
+}
+
+/// `subghz_protocol_keeloq_te_nominal`: the rate a measured Te belongs to (what a key file records).
+fn te_nominal(te: u32) -> u32 {
+    if te * 2 < TE_FAST + TE_SHORT {
+        TE_FAST
+    } else {
+        TE_SHORT
+    }
+}
+
+/// `subghz_protocol_keeloq_te_sanitize`: a key file's `TE` (200 = half rate, anything else the
+/// standard rate).
+fn te_sanitize(te: u32) -> u32 {
+    if te == TE_FAST {
+        TE_FAST
+    } else {
+        TE_SHORT
+    }
+}
+
+/// `DecodedSignal::extra` of a KeeLoq decode. Its low 32 bits hold a key file's seed that the decode
+/// flow cannot reproduce (BFT, Erreka); a half-rate frame's Te (200) sits in bits 32..=47, with
+/// [EXTRA_SEED_FLAG] marking a seed beside it. Standard-rate decodes without such a seed keep
+/// `extra` None, and a value with nothing above bit 31 (every capture saved before the half rate)
+/// is a seed.
+const EXTRA_TE_SHIFT: u32 = 32;
+const EXTRA_SEED_FLAG: u64 = 1 << 48;
+
+/// The seed in a KeeLoq decode's `extra` (see [EXTRA_TE_SHIFT]).
+fn extra_seed(extra: Option<u64>) -> Option<u32> {
+    let e = extra?;
+    (e >> 32 == 0 || e & EXTRA_SEED_FLAG != 0).then_some(e as u32)
+}
+
+/// The Te (200 or 400) in a KeeLoq decode's `extra` (see [EXTRA_TE_SHIFT]).
+fn extra_te(extra: Option<u64>) -> u32 {
+    te_sanitize(extra.map_or(0, |e| ((e >> EXTRA_TE_SHIFT) & 0xFFFF) as u32))
+}
+
+/// A KeeLoq decode's `extra` for `seed` (kept only when the decode cannot reproduce it) and Te.
+fn make_extra(seed: Option<u32>, te: u32) -> Option<u64> {
+    if te == TE_FAST {
+        Some((u64::from(TE_FAST) << EXTRA_TE_SHIFT) | seed.map_or(0, |s| EXTRA_SEED_FLAG | u64::from(s)))
+    } else {
+        seed.map(u64::from)
+    }
+}
+
+/// `subghz_protocol_keeloq_phantom_hiland_disc`: the seed when its low 10 bits belong to this
+/// serial, else `serial & 0x3FF`.
+fn phantom_hiland_disc(serial: u32, seed: u32) -> u32 {
+    let disc = seed & PHANTOM_DISC_MASK;
+    if disc & PHANTOM_SERIAL_MASK == serial & PHANTOM_SERIAL_MASK {
+        disc
+    } else {
+        serial & PHANTOM_SERIAL_MASK
+    }
+}
+
+/// `subghz_protocol_keeloq_check_decrypt_monarch`: the plaintext's discriminator is A or B (kept as
+/// the seed).
+fn check_decrypt_monarch(decrypt: u32, btn: u32) -> Option<u32> {
+    let disc = (decrypt >> 16) & 0xFFF;
+    (decrypt >> 28 == btn && (disc == MONARCH_DISC_A || disc == MONARCH_DISC_B)).then_some(disc)
+}
+
+/// `subghz_protocol_keeloq_check_decrypt_phantom_hiland`: the discriminator's low 10 bits are the
+/// serial's (the whole 12-bit field is kept as the seed).
+fn check_decrypt_phantom_hiland(decrypt: u32, btn: u32, fix: u32) -> Option<u32> {
+    let disc = (decrypt >> 16) & PHANTOM_DISC_MASK;
+    (decrypt >> 28 == btn && disc & PHANTOM_SERIAL_MASK == fix & PHANTOM_SERIAL_MASK).then_some(disc)
+}
+
+/// `subghz_protocol_keeloq_check_decrypt_key`: the constant discriminator 0x2FF.
+fn check_decrypt_key(decrypt: u32, btn: u32) -> bool {
+    decrypt >> 28 == btn && (decrypt >> 16) & 0xFFF == KEY_DISC
+}
 /// C `encoder.repeat` (counter mode 0).
 const TX_REPEAT: usize = 3;
 
@@ -212,6 +315,11 @@ fn select_key(fix: u32, hop: u32, keys: &'static [MfKey]) -> Option<KeyMatch> {
                     if (d >> 16) & 0xFFF == fix & 0xFFF {
                         return hit(entry, 0, d, seed);
                     }
+                } else if entry.name == "KEY" {
+                    // doctor-firmware / RogueMaster: discriminator 0x2FF.
+                    if check_decrypt_key(d, btn) {
+                        return hit(entry, 0, d, seed);
+                    }
                 } else if check_decrypt(d, btn, end_serial) {
                     return hit(entry, 0, d, seed);
                 }
@@ -222,6 +330,16 @@ fn select_key(fix: u32, hop: u32, keys: &'static [MfKey]) -> Option<KeyMatch> {
                     // `subghz_protocol_keeloq_check_decrypt_centurion`.
                     if d >> 28 == btn && (d >> 16) & 0x3FF == 0x1CE {
                         return hit(entry, 0, d, seed);
+                    }
+                } else if entry.name == "Monarch" {
+                    // doctor-firmware / RogueMaster: discriminator A or B, kept as the seed.
+                    if let Some(disc) = check_decrypt_monarch(d, btn) {
+                        return hit(entry, 0, d, disc);
+                    }
+                } else if entry.name == "Phantom_Hiland" {
+                    // RogueMaster: the serial's low 10 bits, the 12-bit field kept as the seed.
+                    if let Some(disc) = check_decrypt_phantom_hiland(d, btn, fix) {
+                        return hit(entry, 0, d, disc);
                     }
                 } else if check_decrypt(d, btn, end_serial) {
                     return hit(entry, 0, d, seed);
@@ -280,6 +398,31 @@ fn select_key(fix: u32, hop: u32, keys: &'static [MfKey]) -> Option<KeyMatch> {
                 let d = keeloq_decrypt(hop, key);
                 if check_decrypt(d, btn, end_serial) {
                     return hit(entry, 0, d, seed);
+                }
+            }
+            // doctor-firmware: the learning byte is searched over 0..=255 and kept as the seed.
+            lt::JCM_GEN2 => {
+                for jcm_seed in 0..=0xFFu32 {
+                    let man = keeloq_learning_jcm_gen2(fix, jcm_seed as u8, key);
+                    let d = keeloq_decrypt(hop, man);
+                    if check_decrypt(d, btn, end_serial) {
+                        return hit(entry, 0, d, jcm_seed);
+                    }
+                }
+            }
+            lt::STAGNOLI => {
+                let d = keeloq_decrypt(hop, keeloq_learning_stagnoli(fix, key));
+                if check_decrypt(d, btn, end_serial) {
+                    return hit(entry, 0, d, seed);
+                }
+            }
+            // Only the HI entry acts (the LO entry has no case); it needs both halves.
+            lt::TELCOMA_TABLE_HI => {
+                if let Some(table) = keeloq_telcoma_table() {
+                    let d = keeloq_decrypt(hop, keeloq_learning_telcoma_table(fix, &table));
+                    if check_decrypt(d, btn, end_serial) {
+                        return hit(entry, 0, d, seed);
+                    }
                 }
             }
             lt::UNKNOWN => {
@@ -358,8 +501,9 @@ fn fields(fix: u32, hop: u32, ident: &Ident) -> (u32, u8, u16) {
     }
 }
 
-/// Plaintext discriminator (bits 27..16 of the hop plaintext) per manufacturer (`gen_data`).
-fn discriminator(mf: &str, serial: u32) -> u32 {
+/// Plaintext discriminator (bits 27..16 of the hop plaintext) per manufacturer (`gen_data`); `seed`
+/// is the decode's or key file's (Monarch's and Phantom/Hiland's discriminator lives there).
+fn discriminator(mf: &str, serial: u32, seed: u32) -> u32 {
     match mf {
         "Aprimatic" => {
             let parity = (serial & 0x3FF).count_ones();
@@ -377,7 +521,14 @@ fn discriminator(mf: &str, serial: u32) -> u32 {
         }
         "Beninca" | "Merlin" => 0x000,
         "Centurion" => 0x1CE,
-        "Monarch" => 0x100,
+        // doctor-firmware / RogueMaster: the received discriminator (A or B, kept in the seed),
+        // A when the seed holds neither (Flipper-ARF: always 0x100 = A).
+        "Monarch" => match seed & 0xFFF {
+            d @ (MONARCH_DISC_A | MONARCH_DISC_B) => d,
+            _ => MONARCH_DISC_A,
+        },
+        "Phantom_Hiland" => phantom_hiland_disc(serial, seed),
+        "KEY" => KEY_DISC,
         "Dea_Mio" => {
             let first = (serial >> 8) & 0xF;
             ((serial & 0xFF) | ((0xC + first % 4) << 8)) & 0xFFF
@@ -403,10 +554,11 @@ fn gen_data(data: u64, btn: u8, ident: Option<&Ident>, fallback_cnt: u16) -> u64
     } else {
         (btn32 << 28) | serial
     };
-    // Programming mode (C prog_mode, per press): button 0xF for BFT / Aprimatic / Dea_Mio.
-    let prog = btn == 0xF && matches!(mf, "BFT" | "Aprimatic" | "Dea_Mio");
+    // Programming mode (C prog_mode, per press): button 0xF for BFT / Aprimatic / Dea_Mio, and as
+    // FoxFW's `PROG_MODE_KEELOQ_ERREKA` for Erreka (the seed as hop, like BFT).
+    let prog = btn == 0xF && matches!(mf, "BFT" | "Aprimatic" | "Dea_Mio" | "Erreka");
     let mut hop: u32 = match (prog, mf) {
-        (true, "BFT") => seed,
+        (true, "BFT" | "Erreka") => seed,
         (true, "Aprimatic") => 0x1A2B_3C4D,
         _ => 0,
     };
@@ -428,7 +580,7 @@ fn gen_data(data: u64, btn: u8, ident: Option<&Ident>, fallback_cnt: u16) -> u64
             }
         };
     }
-    if hop != 0 || (prog && matches!(mf, "BFT" | "Dea_Mio")) {
+    if hop != 0 || (prog && matches!(mf, "BFT" | "Dea_Mio" | "Erreka")) {
         reverse_key((u64::from(fix) << 32) | u64::from(hop), MIN_COUNT_BIT)
     } else {
         // C: the key is left as it was — the captured frame is sent unchanged.
@@ -440,7 +592,7 @@ fn gen_data(data: u64, btn: u8, ident: Option<&Ident>, fallback_cnt: u16) -> u64
 /// counter` ([discriminator]) encrypted per the entry's learning type, as the C's `switch`.
 #[allow(clippy::too_many_arguments)]
 fn encrypt_hop(mf: &str, entry: &MfKey, kl_type: u8, fix: u32, serial: u32, btn32: u32, cnt: u32, seed: u32) -> u32 {
-    let plain = (btn32 << 28) | (discriminator(mf, serial) << 16) | cnt;
+    let plain = (btn32 << 28) | (discriminator(mf, serial, seed) << 16) | cnt;
     let key = entry.key;
     match entry.learning {
         lt::SIMPLE => keeloq_encrypt(plain, key),
@@ -455,6 +607,12 @@ fn encrypt_hop(mf: &str, entry: &MfKey, kl_type: u8, fix: u32, serial: u32, btn3
             let plain = (btn32 << 28) | ((serial & 0xFF) << 16) | cnt;
             keeloq_encrypt(plain, key)
         }
+        lt::JCM_GEN2 => keeloq_encrypt(plain, keeloq_learning_jcm_gen2(fix, seed as u8, key)),
+        lt::STAGNOLI => keeloq_encrypt(plain, keeloq_learning_stagnoli(fix, key)),
+        lt::TELCOMA_TABLE_HI => match keeloq_telcoma_table() {
+            Some(table) => keeloq_encrypt(plain, keeloq_learning_telcoma_table(fix, &table)),
+            None => 0,
+        },
         // C: per kl_type, always with the key as stored (never the mirrored copy).
         lt::UNKNOWN => unknown_encrypt(plain, kl_type, fix, serial, seed, key),
         // MAGIC_SERIAL_TYPE_2/3 and the rest have no encode case: hop stays 0.
@@ -482,10 +640,10 @@ pub(super) fn create_data(
     let btn32 = u32::from(btn & 0x0F);
     let fix = if mf == "Pecinin" { serial } else { (btn32 << 28) | serial };
     let seed_value = seed.unwrap_or(0);
-    let prog = btn == 0xF && matches!(mf, "BFT" | "Aprimatic" | "Dea_Mio");
+    let prog = btn == 0xF && matches!(mf, "BFT" | "Aprimatic" | "Dea_Mio" | "Erreka");
     let cnt = u32::from(cnt);
     let hop = match (prog, mf) {
-        (true, "BFT") => seed_value,
+        (true, "BFT" | "Erreka") => seed_value,
         (true, "Aprimatic") => 0x1A2B_3C4D,
         (true, _) => 0,
         (false, "AN-Motors") => ((cnt & 0xFF) << 24) | ((cnt & 0xFF) << 16) | (btn32 << 12) | 0x404,
@@ -495,7 +653,7 @@ pub(super) fn create_data(
             encrypt_hop(mf, entry, 0, fix, serial, btn32, cnt, seed_value)
         }
     };
-    if hop == 0 && !(prog && matches!(mf, "BFT" | "Dea_Mio")) {
+    if hop == 0 && !(prog && matches!(mf, "BFT" | "Dea_Mio" | "Erreka")) {
         return None;
     }
     let data = reverse_key((u64::from(fix) << 32) | u64::from(hop), MIN_COUNT_BIT);
@@ -522,6 +680,9 @@ pub(super) fn can_create(manufacturer: &str) -> bool {
                     | lt::ERREKA
                     | lt::PUJOL
                     | lt::SIMPLE_JCM
+                    | lt::JCM_GEN2
+                    | lt::STAGNOLI
+                    | lt::TELCOMA_TABLE_HI
             )
         })
 }
@@ -540,7 +701,7 @@ fn named_ident(decoded: &DecodedSignal, fix: u32, hop: u32) -> Option<Ident> {
     if mf == "Unknown" {
         return None;
     }
-    key_file_identify(fix, hop, mf, decoded.extra.map(|e| e as u32))
+    key_file_identify(fix, hop, mf, extra_seed(decoded.extra))
 }
 
 /// `gen_data`'s `KEELOQ_LEARNING_UNKNOWN` case: encrypt per `kl_type`.
@@ -554,8 +715,9 @@ fn unknown_encrypt(plain: u32, kl_type: u8, fix: u32, serial: u32, seed: u32, ke
     }
 }
 
-/// One copy of the C upload (`subghz_protocol_encoder_keeloq_encode_to_timings`).
-fn upload_once(data: u64, mf: &str, signal: &mut Vec<LevelDuration>) {
+/// One copy of the C upload (`subghz_protocol_encoder_keeloq_encode_to_timings`) at Te `te` (400, or
+/// RogueMaster's half rate 200, which scales every pulse and the gap; Superrollo keeps its framing).
+fn upload_once(data: u64, mf: &str, te: u32, signal: &mut Vec<LevelDuration>) {
     if mf == "Superrollo" {
         // HCS361 framing: Te 450, 9 × (Te, 2Te) preamble, 10Te sync, 64 bits + VLOW + 2-bit CRC.
         let t = 450;
@@ -587,26 +749,27 @@ fn upload_once(data: u64, mf: &str, signal: &mut Vec<LevelDuration>) {
         signal.push(LevelDuration::new(false, t * 18));
         return;
     }
-    let gap = if mf == "Sommer" { TE_SHORT * 29 } else { TE_SHORT * 40 };
+    let (te_short, te_long) = (te, te * 2);
+    let gap = if mf == "Sommer" { te_short * 29 } else { te_short * 40 };
     for _ in 0..11 {
-        signal.push(LevelDuration::new(true, TE_SHORT));
-        signal.push(LevelDuration::new(false, TE_SHORT));
+        signal.push(LevelDuration::new(true, te_short));
+        signal.push(LevelDuration::new(false, te_short));
     }
-    signal.push(LevelDuration::new(true, TE_SHORT));
-    signal.push(LevelDuration::new(false, TE_SHORT * 10));
+    signal.push(LevelDuration::new(true, te_short));
+    signal.push(LevelDuration::new(false, te_short * 10));
     for i in (0..MIN_COUNT_BIT).rev() {
         if (data >> i) & 1 == 1 {
-            signal.push(LevelDuration::new(true, TE_SHORT));
-            signal.push(LevelDuration::new(false, TE_LONG));
+            signal.push(LevelDuration::new(true, te_short));
+            signal.push(LevelDuration::new(false, te_long));
         } else {
-            signal.push(LevelDuration::new(true, TE_LONG));
-            signal.push(LevelDuration::new(false, TE_SHORT));
+            signal.push(LevelDuration::new(true, te_long));
+            signal.push(LevelDuration::new(false, te_short));
         }
     }
     // Status bit, then the end pulse and gap.
-    signal.push(LevelDuration::new(true, TE_SHORT));
-    signal.push(LevelDuration::new(false, TE_LONG));
-    signal.push(LevelDuration::new(true, TE_SHORT));
+    signal.push(LevelDuration::new(true, te_short));
+    signal.push(LevelDuration::new(false, te_long));
+    signal.push(LevelDuration::new(true, te_short));
     signal.push(LevelDuration::new(false, gap));
 }
 
@@ -616,6 +779,8 @@ pub struct KeeloqDecoder {
     te_last: u32,
     decode_data: u64,
     decode_count_bit: usize,
+    /// RogueMaster's `te`: the frame's Te, locked from its sync gap (400, or the measured half rate).
+    te: u32,
 }
 
 impl KeeloqDecoder {
@@ -626,6 +791,7 @@ impl KeeloqDecoder {
             te_last: 0,
             decode_data: 0,
             decode_count_bit: 0,
+            te: TE_SHORT,
         }
     }
 
@@ -668,6 +834,14 @@ impl KeeloqDecoder {
             protocol_display_name: Some(format!("KeeLoq ({})", ident.name())),
         })
     }
+
+    /// [Self::parse_data] for a frame received at Te `te` (a half-rate frame keeps its Te in
+    /// `extra`, for the encoder and the key file).
+    pub(super) fn parse_data_te(data: u64, te: u32) -> Option<DecodedSignal> {
+        let mut d = Self::parse_data(data)?;
+        d.extra = make_extra(None, te);
+        Some(d)
+    }
 }
 
 impl Default for KeeloqDecoder {
@@ -702,12 +876,17 @@ impl super::ProtocolDecoder for KeeloqDecoder {
         self.te_last = 0;
         self.decode_data = 0;
         self.decode_count_bit = 0;
+        self.te = TE_SHORT;
     }
 
     fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
         match self.step {
             Step::Reset => {
-                if level && duration_diff!(duration, TE_SHORT) < TE_DELTA {
+                // RogueMaster: the preamble is accepted at either rate; the sync gap decides which.
+                if level
+                    && (duration_diff!(duration, TE_SHORT) < TE_DELTA
+                        || duration_diff!(duration, TE_FAST) < te_delta(TE_FAST))
+                {
                     self.step = Step::CheckPreamble;
                     self.header_count = self.header_count.wrapping_add(1);
                 } else if level
@@ -721,22 +900,33 @@ impl super::ProtocolDecoder for KeeloqDecoder {
             Step::CheckPreamble => {
                 if !level
                     && (duration_diff!(duration, TE_SHORT) < TE_DELTA
-                        || duration_diff!(duration, TE_SHORT * 2) < TE_DELTA)
+                        || duration_diff!(duration, TE_SHORT * 2) < TE_DELTA
+                        || duration_diff!(duration, TE_FAST) < te_delta(TE_FAST))
                 {
                     self.step = Step::Reset;
                     return None;
                 }
-                if self.header_count > 2
-                    && duration_diff!(duration, TE_SHORT * 10) < TE_DELTA * 10
-                {
-                    // Found header
-                    self.step = Step::SaveDuration;
-                    self.decode_data = 0;
-                    self.decode_count_bit = 0;
-                } else {
-                    self.step = Step::Reset;
-                    self.header_count = 0;
+                if self.header_count > 2 {
+                    // RogueMaster: the half rate first, on its own narrow band (the gap is 10·Te, so
+                    // it measures the encoder's real Te); else the standard rate on its usual band.
+                    let te = if duration_diff!(duration, TE_FAST * 10) < TE_FAST_GAP_DELTA {
+                        duration / 10
+                    } else if duration_diff!(duration, TE_SHORT * 10) < TE_DELTA * 10 {
+                        TE_SHORT
+                    } else {
+                        0
+                    };
+                    if te != 0 {
+                        // Found header
+                        self.te = te;
+                        self.step = Step::SaveDuration;
+                        self.decode_data = 0;
+                        self.decode_count_bit = 0;
+                        return None;
+                    }
                 }
+                self.step = Step::Reset;
+                self.header_count = 0;
             }
             Step::SaveDuration => {
                 if level {
@@ -746,23 +936,25 @@ impl super::ProtocolDecoder for KeeloqDecoder {
             }
             Step::CheckDuration => {
                 if !level {
-                    if duration >= TE_SHORT * 2 + TE_DELTA {
+                    // Every check scaled with the locked Te (400 µs: the C's constants).
+                    let (te, delta) = (self.te, te_delta(self.te));
+                    if duration >= te * 2 + delta {
                         // Found end TX
                         self.step = Step::Reset;
                         if (MIN_COUNT_BIT..=MIN_COUNT_BIT + 2).contains(&self.decode_count_bit) {
-                            let result = Self::parse_data(self.decode_data);
+                            let result = Self::parse_data_te(self.decode_data, te_nominal(te));
                             self.decode_data = 0;
                             self.decode_count_bit = 0;
                             self.header_count = 0;
                             return result;
                         }
-                    } else if duration_diff!(self.te_last, TE_SHORT) < TE_DELTA
-                        && duration_diff!(duration, TE_LONG) < TE_DELTA * 2
+                    } else if duration_diff!(self.te_last, te) < delta
+                        && duration_diff!(duration, te * 2) < delta * 2
                     {
                         self.add_bit(1);
                         self.step = Step::SaveDuration;
-                    } else if duration_diff!(self.te_last, TE_LONG) < TE_DELTA * 2
-                        && duration_diff!(duration, TE_SHORT) < TE_DELTA
+                    } else if duration_diff!(self.te_last, te * 2) < delta * 2
+                        && duration_diff!(duration, te) < delta
                     {
                         self.add_bit(0);
                         self.step = Step::SaveDuration;
@@ -807,9 +999,10 @@ impl super::ProtocolDecoder for KeeloqDecoder {
             decoded.counter.unwrap_or(0),
         );
         let mf = ident.as_ref().map_or("Unknown", Ident::name);
+        let te = extra_te(decoded.extra);
         let mut signal = Vec::with_capacity(TX_REPEAT * 160);
         for _ in 0..TX_REPEAT {
-            upload_once(data, mf, &mut signal);
+            upload_once(data, mf, te, &mut signal);
         }
         Some(signal)
     }
@@ -835,12 +1028,14 @@ impl super::ProtocolDecoder for KeeloqDecoder {
             return None;
         }
         let data = key.key_u64()?;
+        // RogueMaster: `TE` (written for half-rate captures only) is the rate the frame is sent at.
+        let te = te_sanitize(key.u32_field("TE").unwrap_or(TE_SHORT));
         let manufacturer = match key.field("Manufacture").map(str::trim) {
             Some("Sommer(fsk476)") => Some("Sommer"),
             other => other,
         };
         match manufacturer {
-            None | Some("") | Some("Unknown") => Self::parse_data(data),
+            None | Some("") | Some("Unknown") => Self::parse_data_te(data, te),
             Some(mf) => {
                 let (fix, hop) = fix_hop(data);
                 let seed = key
@@ -848,21 +1043,23 @@ impl super::ProtocolDecoder for KeeloqDecoder {
                     .and_then(|b| <[u8; 4]>::try_from(b.as_slice()).ok())
                     .map(u32::from_be_bytes);
                 match key_file_identify(fix, hop, mf, seed) {
-                    Some(ident) => Some(key_file_signal(data, fix, hop, &ident)),
+                    Some(ident) => Some(key_file_signal(data, fix, hop, &ident, te)),
                     // A name KAT's keystore lacks (doctor-firmware's "Star", "Wisniowski2" …), or
                     // one whose key does not validate the frame: the C loads the file all the
                     // same and shows what its selector finds ("Unknown" at worst), so KAT
                     // identifies the frame like one on air.
-                    None => Self::parse_data(data),
+                    None => Self::parse_data_te(data, te),
                 }
             }
         }
     }
 
     /// Key files: Flipper-ARF `subghz_protocol_decoder_keeloq_serialize`: Protocol "KeeLoq", Bit
-    /// 64, Key, then — for BFT — `Seed` (4 hex bytes, the seed the decrypt used) and `Manufacture`
-    /// (the decode's `(<manufacturer>)`, re-checked against the key as the C re-runs its check;
-    /// "Unknown" when nothing validates).
+    /// 64, Key, then — for BFT, and as doctor-firmware / RogueMaster also for Erreka, Monarch and
+    /// Phantom/Hiland (whose discriminator is the seed) — `Seed` (4 hex bytes, the seed the decrypt
+    /// used) and `Manufacture` (the decode's `(<manufacturer>)`, re-checked against the key as the C
+    /// re-runs its check; "Unknown" when nothing validates); RogueMaster's `TE: 200` after it for a
+    /// half-rate frame only (standard frames keep the layout older builds read).
     fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<super::FlipperKey> {
         if decoded.data_count_bit != MIN_COUNT_BIT {
             return None;
@@ -875,16 +1072,20 @@ impl super::ProtocolDecoder for KeeloqDecoder {
             .and_then(|n| n.strip_suffix(')'))
             .filter(|&n| n != "Unknown");
         let ident = match named {
-            Some(mf) => key_file_identify(fix, hop, mf, decoded.extra.map(|e| e as u32)),
+            Some(mf) => key_file_identify(fix, hop, mf, extra_seed(decoded.extra)),
             None => identify(fix, hop),
         };
         let mut key = super::FlipperKey::for_protocol("KeeLoq", MIN_COUNT_BIT, decoded.data);
         if let Some(Ident::Key(m)) = &ident {
-            if m.entry.name == "BFT" {
+            if matches!(m.entry.name.as_str(), "BFT" | "Erreka" | "Monarch" | "Phantom_Hiland") {
                 key.push_hex("Seed", u64::from(m.seed), 4);
             }
         }
         key.push("Manufacture", ident.as_ref().map_or("Unknown", Ident::name));
+        let te = extra_te(decoded.extra);
+        if te != TE_SHORT {
+            key.push("TE", te.to_string());
+        }
         Some(key)
     }
 }
@@ -909,6 +1110,19 @@ fn key_file_identify(fix: u32, hop: u32, manufacturer: &str, seed: Option<u32>) 
                 }));
             }
         }
+        // doctor-firmware / RogueMaster: an Erreka key file's seed (its "Add Manually" draws one;
+        // "without it the hops cannot be rebuilt"); the decode flow tries seed 0 only.
+        if let (Some(seed), lt::ERREKA) = (seed, entry.learning) {
+            let decrypt = keeloq_decrypt(hop, keeloq_learning_erreka(fix, seed, entry.key));
+            if check_decrypt(decrypt, fix >> 28, fix & 0xFF) {
+                return Some(Ident::Key(KeyMatch {
+                    entry,
+                    kl_type: 0,
+                    decrypt,
+                    seed,
+                }));
+            }
+        }
         if let Some(m) = select_key(fix, hop, std::slice::from_ref(entry)) {
             return Some(Ident::Key(m));
         }
@@ -920,7 +1134,7 @@ fn key_file_identify(fix: u32, hop: u32, manufacturer: &str, seed: Option<u32>) 
 /// when the decoder's own identification finds the same match, or when the named manufacturer's
 /// key validates the frame (the encoder then uses that manufacturer, see `named_ident`); a forced
 /// AN-Motors / HCS101 the frame does not confirm is not (see `KeeloqDecoder::from_flipper_key`).
-fn key_file_signal(data: u64, fix: u32, hop: u32, ident: &Ident) -> DecodedSignal {
+fn key_file_signal(data: u64, fix: u32, hop: u32, ident: &Ident, te: u32) -> DecodedSignal {
     let (serial, btn, cnt) = fields(fix, hop, ident);
     let reproduced = match (identify(fix, hop), ident) {
         (Some(Ident::AnMotors), Ident::AnMotors) | (Some(Ident::Hcs101), Ident::Hcs101) => true,
@@ -931,10 +1145,11 @@ fn key_file_signal(data: u64, fix: u32, hop: u32, ident: &Ident) -> DecodedSigna
         _ => false,
     };
     let encoder_capable = reproduced || matches!(ident, Ident::Key(_));
-    let extra = match ident {
-        Ident::Key(m) if m.entry.name == "BFT" && !reproduced => Some(u64::from(m.seed)),
+    let seed = match ident {
+        Ident::Key(m) if (m.entry.name == "BFT" || m.entry.learning == lt::ERREKA) && !reproduced => Some(m.seed),
         _ => None,
     };
+    let extra = make_extra(seed, te);
     DecodedSignal {
         serial: Some(serial),
         button: Some(btn),
@@ -975,7 +1190,7 @@ mod tests {
     /// One standard KeeLoq upload copy for a raw key.
     fn capture(data: u64) -> Vec<LevelDuration> {
         let mut s = Vec::new();
-        upload_once(data, "", &mut s);
+        upload_once(data, "", TE_SHORT, &mut s);
         s
     }
 
@@ -1112,7 +1327,7 @@ mod tests {
         for name in ["Sheriff", "DoorHan", "Beninca", "KGB/Subaru", "BFT", "Leopard", "Centurion", "Sommer", "Came_Space", "NICE_Smilo", "Monarch", "Dea_Mio", "Aprimatic"] {
             let e = entry(name);
             let fix = (0x2u32 << 28) | serial;
-            let disc = discriminator(name, serial);
+            let disc = discriminator(name, serial, 0);
             let plain = (0x2u32 << 28) | (disc << 16) | 0x0100;
             let man = match e.learning {
                 lt::SIMPLE => e.key,
@@ -1182,6 +1397,7 @@ mod tests {
         upload_once(
             reverse_key((u64::from((0xFu32 << 28) | serial) << 32) | u64::from(serial), 64),
             "BFT",
+            TE_SHORT,
             &mut once,
         );
         let pulses = |s: &[LevelDuration]| -> Vec<(bool, u32)> {
@@ -1480,6 +1696,7 @@ mod tests {
 
     #[test]
     fn keeloq_random_frame_acceptance_rate() {
+        let _lock = KEYSTORE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         // ARF's identification (AN-Motors, HCS101, then one learning attempt per typed keystore
         // entry, eight per UNKNOWN entry) identifies ~6% of random 64-bit frames with KAT's keystore.
         let mut s = 0x9E37_79B9_7F4A_7C15u64;
@@ -1609,6 +1826,279 @@ mod tests {
         assert_eq!(fix_hop(tx.data).1, fix_hop(bft).1);
     }
 
+    /// Serializes the tests that depend on the exact keystore contents with the ones that add
+    /// made-up keys (doctor-firmware's learning types 16..19, the discriminator rules; removed again
+    /// on drop): `keeloq_common::KEYSTORE_TEST_LOCK`, which the other modules' keystore-dependent
+    /// tests take too.
+    static KEYSTORE_LOCK: &std::sync::Mutex<()> = &super::super::keeloq_common::KEYSTORE_TEST_LOCK;
+    const DOCTOR_KEYS: [&str; 4] = ["T_JcmGen2", "T_Stagnoli", "T_Telcoma", "T_TelcomaLo"];
+
+    struct DoctorKeys(#[allow(dead_code)] std::sync::MutexGuard<'static, ()>);
+
+    impl DoctorKeys {
+        fn add() -> Self {
+            let guard = KEYSTORE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            for (name, learning, key) in [
+                ("T_JcmGen2", lt::JCM_GEN2, 0x5A3C_96E1_0B4D_7F28),
+                ("T_Stagnoli", lt::STAGNOLI, 0x13A7_C85E_29D4_B06F),
+                ("T_Telcoma", lt::TELCOMA_TABLE_HI, 0x9E21_47B8_C3D5_0A6F),
+                ("T_TelcomaLo", lt::TELCOMA_TABLE_LO, 0x4C8D_E2A1_7B93_F056),
+            ] {
+                super::super::keeloq_common::add_keeloq_key(MfKey { name: name.into(), learning, key });
+            }
+            DoctorKeys(guard)
+        }
+    }
+
+    impl Drop for DoctorKeys {
+        fn drop(&mut self) {
+            super::super::keeloq_common::remove_keeloq_keys(&DOCTOR_KEYS);
+        }
+    }
+
+    /// Learning types 16..19: identification, and encode then decode, per type, with made-up keys.
+    #[test]
+    fn keeloq_doctor_learning_types() {
+        let _keys = DoctorKeys::add();
+        let dec = KeeloqDecoder::new();
+        let table = keeloq_telcoma_table().expect("both Telcoma halves");
+        assert_eq!(table, [0x9E21_47B8, 0xC3D5_0A6F, 0x4C8D_E2A1, 0x7B93_F056]);
+        for (name, jcm_seed) in [("T_JcmGen2", 0x9Cu32), ("T_Stagnoli", 0), ("T_Telcoma", 0)] {
+            let key = entry(name).key;
+            // First-match identification: skip the serials another entry also validates (the
+            // 256-way JCM Gen2 search claims about one frame in ten).
+            let (serial, data) = (0x0A5C_3E17u32..)
+                .map(|serial| {
+                    let fix = (0x4u32 << 28) | serial;
+                    let plain = (0x4u32 << 28) | ((serial & 0x3FF) << 16) | 0x0123;
+                    let man = match name {
+                        "T_JcmGen2" => keeloq_learning_jcm_gen2(fix, jcm_seed as u8, key),
+                        "T_Stagnoli" => keeloq_learning_stagnoli(fix, key),
+                        _ => keeloq_learning_telcoma_table(fix, &table),
+                    };
+                    (serial, frame(0x4, serial, plain, man))
+                })
+                .find(|&(_, data)| {
+                    let (fix, hop) = fix_hop(data);
+                    matches!(identify(fix, hop), Some(Ident::Key(m)) if m.entry.name == name)
+                })
+                .unwrap();
+            let src = decode_all(&capture(data)).pop().unwrap();
+            assert_eq!(src.protocol_display_name.as_deref(), Some(&*format!("KeeLoq ({name})")), "{name}");
+            assert_eq!((src.serial, src.button, src.counter), (Some(serial), Some(0x4), Some(0x0123)), "{name}");
+            assert!(src.encoder_capable, "{name}");
+            // Encode (counter + 1, another button too), then decode the transmission.
+            for button in [0x4u8, 0x2] {
+                let tx = decode_all(&dec.encode(&src, button).unwrap());
+                let d = tx.last().unwrap();
+                // On air an earlier entry may claim the new frame (first match, as the C); the
+                // named decode (the key file's Manufacture) is the encoder's own entry.
+                let (fix, hop) = fix_hop(d.data);
+                let ident = key_file_identify(fix, hop, name, None).expect(name);
+                let (s, b, c) = fields(fix, hop, &ident);
+                assert_eq!((s, b, c), (serial, button, 0x0124), "{name}");
+            }
+            // Key file: the Manufacture line names it, and the file decodes back to the same frame.
+            let file = dec.to_flipper_key(&src).unwrap();
+            assert_eq!(file.field("Manufacture"), Some(name));
+            assert_eq!(dec.from_flipper_key(&file), Some(src.clone()), "{name}");
+        }
+        assert!(can_create("T_JcmGen2") && can_create("T_Stagnoli") && can_create("T_Telcoma"));
+        assert!(!can_create("T_TelcomaLo"));
+    }
+
+    /// RogueMaster's half rate: the same frame at Te 200 µs (the sync gap locks the rate, at the
+    /// encoder's measured Te), reported with its Te in `extra`, sent back at that rate, written to a
+    /// key file as `TE: 200` and read back; standard-rate frames keep `extra` None and no TE line.
+    #[test]
+    fn keeloq_half_rate() {
+        let dec = KeeloqDecoder::new();
+        let e = entry("DoorHan");
+        assert_eq!(e.learning, lt::SIMPLE);
+        let serial = 0x0ABC_DE12;
+        let plain = (0x2u32 << 28) | ((serial & 0x3FF) << 16) | 0x0100;
+        let data = frame(0x2, serial, plain, e.key);
+        for te in [200u32, 185, 215] {
+            let mut s = Vec::new();
+            upload_once(data, "", te, &mut s);
+            let got = decode_all(&s);
+            assert_eq!(got.len(), 1, "Te {te}");
+            let d = &got[0];
+            assert_eq!(d.protocol_display_name.as_deref(), Some("KeeLoq (DoorHan)"));
+            assert_eq!((d.serial, d.button, d.counter), (Some(serial), Some(0x2), Some(0x0100)));
+            assert_eq!((extra_te(d.extra), extra_seed(d.extra)), (TE_FAST, None));
+            // Sent back at 200 µs (counter + 1): every pulse halves, the sync gap is 2000 µs.
+            let tx = dec.encode(d, 0x2).unwrap();
+            assert_eq!((tx[0].level, tx[0].duration_us), (true, 200));
+            assert_eq!(tx.iter().find(|p| !p.level && p.duration_us > 1000).map(|p| p.duration_us), Some(2000));
+            assert_eq!(tx.last().map(|p| p.duration_us), Some(8000));
+            let back = decode_all(&tx);
+            assert_eq!(back.len(), TX_REPEAT);
+            assert!(back.iter().all(|b| b.counter == Some(0x0101) && extra_te(b.extra) == TE_FAST));
+            // Key file: TE after Manufacture; loads back as the same half-rate decode.
+            let text = dec.to_flipper_key(d).unwrap().to_text();
+            assert!(text.ends_with("Manufacture: DoorHan\nTE: 200\n"), "{text}");
+            assert_eq!(dec.from_flipper_key(&super::super::FlipperKey::parse(&text).unwrap()).as_ref(), Some(d));
+        }
+        // Standard rate: unchanged.
+        let std = decode_all(&capture(data)).pop().unwrap();
+        assert_eq!(std.extra, None);
+        let text = dec.to_flipper_key(&std).unwrap().to_text();
+        assert!(!text.contains("TE:"), "{text}");
+        // A file's TE other than 200 is the standard rate (RogueMaster's sanitize).
+        let other = super::super::FlipperKey::parse(&format!("{text}TE: 300\n")).unwrap();
+        assert_eq!(dec.from_flipper_key(&other).unwrap().extra, None);
+        // An unidentified half-rate frame keeps its Te too (key recovery may name it later).
+        let mut s = Vec::new();
+        upload_once(0x0123_4567_89AB_CDEF, "", 200, &mut s);
+        let unknown = decode_all(&s).pop().unwrap();
+        assert_eq!(unknown.protocol_display_name.as_deref(), Some(UNKNOWN_NAME));
+        assert_eq!(extra_te(unknown.extra), TE_FAST);
+        // A BFT seed beside the half rate (and a legacy seed-only value) both read back.
+        assert_eq!(extra_seed(make_extra(Some(0x0ABC_DE12), TE_FAST)), Some(0x0ABC_DE12));
+        assert_eq!(extra_te(make_extra(Some(0x0ABC_DE12), TE_FAST)), TE_FAST);
+        assert_eq!((extra_seed(Some(0x0ABC_DE12)), extra_te(Some(0x0ABC_DE12))), (Some(0x0ABC_DE12), TE_SHORT));
+    }
+
+    /// Made-up "Phantom_Hiland" (normal learning) and "Erreka" (Erreka learning) keys for
+    /// [keeloq_discriminator_rules], removed on drop.
+    struct RuleKeys(#[allow(dead_code)] std::sync::MutexGuard<'static, ()>);
+
+    impl RuleKeys {
+        fn add() -> Self {
+            let guard = KEYSTORE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            for (name, learning, key) in [
+                ("Phantom_Hiland", lt::NORMAL, 0x3C5A_9617_E2D8_4B01),
+                ("Erreka", lt::ERREKA, 0x71D2_08AF_5C36_E94B),
+            ] {
+                super::super::keeloq_common::add_keeloq_key(MfKey { name: name.into(), learning, key });
+            }
+            RuleKeys(guard)
+        }
+    }
+
+    impl Drop for RuleKeys {
+        fn drop(&mut self) {
+            super::super::keeloq_common::remove_keeloq_keys(&["Phantom_Hiland", "Erreka"]);
+        }
+    }
+
+    /// A frame of `name`'s (normal-learning or simple) key with plaintext discriminator `disc`,
+    /// button 2, counter 0x0123, at the first serial from `start` that the keystore's first match
+    /// names `name` (an earlier entry may claim a frame of another key, as in the C).
+    fn named_frame(name: &str, start: u32, disc: impl Fn(u32) -> u32) -> (u32, u64) {
+        let e = keeloq_keystore().iter().rev().find(|e| e.name == name).unwrap();
+        (start..)
+            .map(|serial| {
+                let fix = (0x2u32 << 28) | serial;
+                let plain = (0x2u32 << 28) | (disc(serial) << 16) | 0x0123;
+                let man = match e.learning {
+                    lt::NORMAL => keeloq_normal_learning(fix, e.key),
+                    _ => e.key,
+                };
+                (serial, frame(0x2, serial, plain, man))
+            })
+            .find(|&(_, data)| {
+                let (fix, hop) = fix_hop(data);
+                matches!(identify(fix, hop), Some(Ident::Key(m)) if m.entry.name == name)
+            })
+            .unwrap()
+    }
+
+    /// The plaintext of `d`'s hop under `name`'s key (normal learning or simple).
+    fn plaintext(name: &str, data: u64) -> u32 {
+        let e = keeloq_keystore().iter().rev().find(|e| e.name == name).unwrap();
+        let (fix, hop) = fix_hop(data);
+        match e.learning {
+            lt::NORMAL => keeloq_decrypt(hop, keeloq_normal_learning(fix, e.key)),
+            _ => keeloq_decrypt(hop, e.key),
+        }
+    }
+
+    /// doctor-firmware / RogueMaster discriminator rules: Phantom/Hiland (made-up key: the serial's
+    /// low 10 bits, top 2 bits per remote, kept as the seed), Monarch A / B (kept as the seed) and
+    /// KEY (0x2FF), each identified, re-sent with its discriminator (counter + 1, another button),
+    /// and written with its Seed (Monarch, Phantom/Hiland); an Erreka key file's seed (made-up key).
+    #[test]
+    fn keeloq_discriminator_rules() {
+        let _keys = RuleKeys::add();
+        let dec = KeeloqDecoder::new();
+        assert_eq!(entry("Monarch").learning, lt::NORMAL);
+        assert_eq!(entry("KEY").learning, lt::SIMPLE);
+        let cases: [(&str, u32); 7] = [
+            ("Phantom_Hiland", 0 << 10),
+            ("Phantom_Hiland", 1 << 10),
+            ("Phantom_Hiland", 2 << 10),
+            ("Phantom_Hiland", 3 << 10),
+            ("Monarch", MONARCH_DISC_A),
+            ("Monarch", MONARCH_DISC_B),
+            ("KEY", KEY_DISC),
+        ];
+        for (name, top) in cases {
+            let disc = |serial: u32| if name == "Phantom_Hiland" { top | (serial & 0x3FF) } else { top };
+            let (serial, data) = named_frame(name, 0x0A5C_3E17, disc);
+            let want = disc(serial);
+            let src = decode_all(&capture(data)).pop().unwrap();
+            assert_eq!(src.protocol_display_name.as_deref(), Some(&*format!("KeeLoq ({name})")), "{name} {want:03X}");
+            assert_eq!((src.serial, src.button, src.counter), (Some(serial), Some(0x2), Some(0x0123)));
+            let tx = decode_all(&dec.encode(&src, 0x4).unwrap());
+            let p = plaintext(name, tx[0].data);
+            assert_eq!((p >> 28, (p >> 16) & 0xFFF, p & 0xFFFF), (0x4, want, 0x0124), "{name} {want:03X}");
+            let text = dec.to_flipper_key(&src).unwrap().to_text();
+            let seeded = name != "KEY";
+            assert_eq!(text.contains(&format!("Seed: 00 00 {:02X} {:02X}\n", want >> 8, want & 0xFF)), seeded, "{text}");
+            assert_eq!(dec.from_flipper_key(&super::super::FlipperKey::parse(&text).unwrap()).as_ref(), Some(&src), "{name}");
+        }
+        // Monarch: a discriminator that is neither A nor B is not Monarch's (the generic check
+        // would have taken 0x200: its low byte is 0).
+        let e = entry("Monarch");
+        let fix = (0x2u32 << 28) | 0x0A5C_3E17;
+        let hop = keeloq_encrypt((0x2u32 << 28) | (0x200 << 16) | 0x0123, keeloq_normal_learning(fix, e.key));
+        assert!(select_key(fix, hop, std::slice::from_ref(e)).is_none());
+        // Phantom/Hiland: low 10 bits must be the serial's.
+        let ph = keeloq_keystore().iter().rev().find(|e| e.name == "Phantom_Hiland").unwrap();
+        let fix = (0x2u32 << 28) | 0x0A5C_3E17;
+        let hop = keeloq_encrypt((0x2u32 << 28) | (((0x0A5C_3E17 + 1) & 0x3FF) << 16) | 0x0123, keeloq_normal_learning(fix, ph.key));
+        assert!(select_key(fix, hop, std::slice::from_ref(ph)).is_none());
+        // serial & 0x3FF = 0x217: a seed with those low bits is kept whole, any other gives way.
+        assert_eq!(phantom_hiland_disc(0x0A5C_3E17, 0xA17), 0xA17);
+        assert_eq!(phantom_hiland_disc(0x0A5C_3E17, 0xA18), 0x217);
+        // Add Manually: Phantom/Hiland and Dorcas with their seeds, KEY with its constant.
+        for (mf, seed, want) in [
+            ("Phantom_Hiland", Some(0x817u32), 0x817u32),
+            ("Monarch", Some(MONARCH_DISC_B), MONARCH_DISC_B),
+            ("Monarch", None, MONARCH_DISC_A),
+            ("KEY", None, KEY_DISC),
+        ] {
+            assert!(can_create(mf), "{mf}");
+            let file = create_data(0x0A5C_3C17, 0x2, 0x0003, mf, seed).unwrap();
+            let d = dec.from_flipper_key(&file).unwrap();
+            assert_eq!(d.protocol_display_name.as_deref(), Some(&*format!("KeeLoq ({mf})")), "{mf}");
+            let p = plaintext(mf, d.data);
+            assert_eq!(((p >> 16) & 0xFFF, p & 0xFFFF), (want, 0x0003), "{mf}");
+        }
+        // Erreka: the key file's seed decrypts the frame and is kept for the encoder and the file.
+        let seed = 0x000B_EEF5;
+        let file = create_data(0x0A5C_3E17, 0x2, 0x0010, "Erreka", Some(seed)).unwrap();
+        let text = file.to_text();
+        assert!(text.contains("Seed: 00 0B EE F5\nManufacture: Erreka\n"), "{text}");
+        let d = dec.from_flipper_key(&file).unwrap();
+        assert_eq!((d.protocol_display_name.as_deref(), d.counter), (Some("KeeLoq (Erreka)"), Some(0x0010)));
+        assert_eq!(extra_seed(d.extra), Some(seed));
+        assert!(dec.to_flipper_key(&d).unwrap().to_text().contains("Seed: 00 0B EE F5\n"));
+        let tx = dec.encode(&d, 0x2).unwrap();
+        let (fix, hop) = fix_hop(decode_all(&tx)[0].data);
+        let ek = keeloq_keystore().iter().rev().find(|e| e.name == "Erreka").unwrap();
+        let p = keeloq_decrypt(hop, keeloq_learning_erreka(fix, seed, ek.key));
+        assert_eq!((p >> 28, p & 0xFFFF), (0x2, 0x0011));
+        // FoxFW's Erreka programming mode: button 0xF sends the seed as the hop (as BFT does).
+        let tx = dec.encode(&d, 0xF).unwrap();
+        let (fix, hop) = fix_hop(decode_all(&tx)[0].data);
+        assert_eq!((fix >> 28, hop), (0xF, seed));
+        let prog = create_data(0x0A5C_3E17, 0xF, 0x0010, "Erreka", Some(seed)).unwrap();
+        assert_eq!(fix_hop(prog.key).1, seed);
+    }
+
     /// `KAT_KEY_VECTORS=<dir> cargo test keeloq_oracle_vectors -- --ignored`: RAW uploads and KAT's
     /// key files for the C oracle, one per supported learning type (with its manufacturer).
     #[test]
@@ -1626,7 +2116,7 @@ mod tests {
                 "HCS101" => reverse_key((u64::from(fix) << 32) | 0x1234_2000, 64),
                 _ => {
                     let e = entry(name);
-                    let disc = discriminator(name, serial);
+                    let disc = discriminator(name, serial, 0);
                     let plain = (0x2u32 << 28) | (disc << 16) | 0x0100;
                     let man = match e.learning {
                         lt::SIMPLE => e.key,

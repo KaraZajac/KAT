@@ -67,9 +67,11 @@ preamble/data boundary.
 
 ## Validation
 
-Decodes the IMPORTS/honda Lock and Unlock captures exactly as ProtoPirate and Flipper-ARF do (41 frames).
-Note: all of them come through the C's unchecked reverse-packet path (`crc_valid` = false; the Unlock
-capture decodes as Lock), so they are probably not genuine Honda Static frames. doctor-firmware's older
-copy decodes neither. Differential tests against the compiled C: 1500 randomized bursts decode identically;
+**Deviation from the reference.** ProtoPirate's and Flipper-ARF's C decode the IMPORTS/honda Lock and Unlock
+captures as Honda Static (41 decodes) through the unchecked reverse-packet path (`crc_valid` = false): button 1
+in both files, a counter of 0x56BE7F in 40 of 41, and a "serial" with three values in one file. They are not
+Honda Static frames but 135-bit Honda V5 frames with a valid CRC-8 (serial 0xB53EFF72, buttons 0x21 / 0x22, a
+rising counter; see [honda_v5.md](honda_v5.md)), so KAT tries Honda V5 first and these captures no longer decode
+as Honda Static. The decoder itself is unchanged. doctor-firmware's older copy decodes neither. Differential tests against the compiled C (before the Honda V5 ordering): 1500 randomized bursts decode identically;
 1990 uploads equal ProtoPirate's (encoder + emulate scene) pulse for pulse. Unit tests cover the round trip
 (button, 24-bit counter carry), the compact Key layout and packet validation.

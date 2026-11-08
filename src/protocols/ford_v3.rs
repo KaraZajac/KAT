@@ -69,6 +69,14 @@
 //! 0xFF header, sane serial, flag bit 7, button 1/2; stricter than KAT's US decoder gate), then
 //! parses the fields as the decoder does (the file's Serial/Btn/Cnt are not read, as in the C).
 //! Decode-only, like the reference: a loaded key can be listed and exported, not transmitted.
+//!
+//! **FoxFW's encoder is not used.** FoxFW has one (the SD plugin `enc_ford_v3.c`, which replays
+//! `Raw`); run on a host build with its plugins compiled in, on 132 made-up key files and KAT's key
+//! files for the 15 real frames in `IMPORTS`, it cannot send a single real frame: its 1400-element
+//! upload overflows (`furi_check`, a crash on the Flipper) on every frame with fewer than about 55
+//! bit changes, all 15 real ones included. The frames that fit go out without frame bit 0, in the US
+//! polarity behind an EU preamble, and FoxFW's own decoder (as KAT's) reads them as another frame,
+//! with another serial. KAT keeps Ford V3 receive only.
 
 use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
@@ -458,8 +466,9 @@ impl ProtocolDecoder for FordV3Decoder {
         }
         let mut raw = [0u8; DATA_BYTES];
         raw[..8].copy_from_slice(&key.key_u64()?.to_be_bytes());
-        if let Some(full) = key.hex_bytes_field("Raw").filter(|r| r.len() == DATA_BYTES) {
-            raw.copy_from_slice(&full);
+        // `flipper_format_read_hex(.., "Raw", raw, 13)`: the first 13 values (a longer line loads too).
+        if let Some(full) = key.hex_bytes_field("Raw").filter(|r| r.len() >= DATA_BYTES) {
+            raw.copy_from_slice(&full[..DATA_BYTES]);
         }
         let variant = match key.u32_field("Variant") {
             Some(0) => Variant::Eu,

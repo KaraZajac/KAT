@@ -36,6 +36,7 @@ fn ports() -> Vec<Port> {
         (|| Box::new(microchip_hcs361::MicrochipHcs361Decoder::new()), keeloq_fields),
         (|| Box::new(microchip_hcs362::MicrochipHcs362Decoder::new()), keeloq_fields),
         (|| Box::new(markisol::MarkisolDecoder::new()), fields),
+        (|| Box::new(cardin_s466::CardinS466Decoder::new()), cardin_s466::rtl433_json),
     ]
 }
 

@@ -51,7 +51,7 @@
 //! explicit Cnt is supplied). KAT's generic button maps like the C's D-pad remap: 0x01 → 0x10
 //! Lock, 0x02 → 0x20 Unlock, 0x04 → 0x40 Trunk; anything else (incl. 0x08 Panic, which the fob
 //! lacks) keeps the captured button. The Flipper TX loop repeats the upload 4 times; KAT's
-//! `encode()` returns the single upload, like other KAT encoders.
+//! `encode()` returns the single upload and KAT sends it 4 times (`tx_copies.rs`).
 //!
 //! Key files (`subghz_protocol_decoder_mazda_siemens_serialize` / `_deserialize`): `Protocol:
 //! MazdaSiemens` (ARF's name; KAT's key-file name table maps it back), `Bit: 64`, `Key` = the

@@ -24,7 +24,7 @@
 //! counter, button)`, key = reverse(yek), CRC recomputed; 200 × (HIGH 400, LOW 400), LOW 400,
 //! HIGH 800, LOW 400, HIGH 400, the 64 key bits + `0` + 2 CRC bits as Manchester (1 → LOW, HIGH;
 //! 0 → HIGH, LOW, 400µs halves), closing LOW 400 + HIGH 400; adjacent equal levels merged. One
-//! upload per call (the C TX loop repeats it 6 times). Each press sends counter + 1, as both
+//! upload per call, which KAT sends 6 times as the C's TX loop does (`tx_copies.rs`). Each press sends counter + 1, as both
 //! references do; KAT's generic button maps to ARF's Kia V5 codes: Lock → 0x2, Unlock → 0x1,
 //! Trunk → 0x4, Panic → 0x8 ("Horn"); anything else keeps the captured button.
 //!

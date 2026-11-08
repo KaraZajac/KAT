@@ -93,11 +93,13 @@ pub static ALL: &[&ProtocolInfo] = &[
     &super::ford_v1::INFO,
     &super::ford_v3::INFO,
     &super::ford_v2::INFO,
+    &super::honda_v5::INFO,
     &super::honda_static::INFO,
     &super::honda_v1::INFO,
     &super::subaru::INFO,
     &super::fiat_v0::INFO,
     &super::fiat_v1::INFO,
+    &super::fiat_marelli::INFO,
     &super::scher_khan::INFO,
     &super::star_line::INFO,
     &super::sheriff_cfm::INFO,
@@ -181,6 +183,55 @@ pub static ALL: &[&ProtocolInfo] = &[
     &super::gangqi::INFO,
     &super::hollarm::INFO,
     &super::cardin_s508::INFO,
+    &super::freezer::INFO,
+    &super::faac_tm::INFO,
+    // Home / sensor / key-finder remotes.
+    &super::honeywell::INFO,
+    &super::magellan::INFO,
+    &super::x10::INFO,
+    &super::honeywell_wdb::INFO,
+    &super::legrand::INFO,
+    &super::doorbell32::INFO,
+    &super::intertechno_v3::INFO,
+    &super::keyfinder::INFO,
+    &super::treadmill37::INFO,
+    &super::nord_ice::INFO,
+    &super::feron::INFO,
+    &super::keyfinder2::INFO,
+    // FoxFW: decode-only car remotes.
+    &super::vag_polo::INFO,
+    &super::chevrolet_v0::INFO,
+    // FoxFW decoders.
+    &super::tesla_charge::INFO,
+    &super::hyundai_kia_rio::INFO,
+    &super::santa_fe::INFO,
+    &super::hitag2_rke::INFO,
+    &super::nidec_rke::INFO,
+    // FoxFW decoders.
+    &super::renault_v4::INFO,
+    &super::ducato_v0::INFO,
+    &super::renault_v2::INFO,
+    &super::opel_v0::INFO,
+    // FoxFW Honda decoders (decode only).
+    &super::honda_v4::INFO,
+    &super::honda_v7::INFO,
+    &super::honda_v9::INFO,
+    &super::honda_v2_v3::INFO,
+    &super::honda_v10::INFO,
+
+    // FoxFW decoders (decode-only).
+    &super::mitsubishi_v1::INFO,
+    &super::ldv_v0::INFO,
+    &super::lexus_v0::INFO,
+    &super::mazda_v1::INFO,
+    &super::nissan_v0::INFO,
+    &super::toyota_foxfw::INFO,
+    // FoxFW decoders.
+    &super::audi_v2::INFO,
+    &super::bmw_v2::INFO,
+    &super::bmw_v3::INFO,
+    &super::audi_v3::INFO,
+    &super::bmw_cas3::INFO,
 
     // rtl_433 ports: car remotes.
     &super::siemens_5wy72xx::INFO,
@@ -201,13 +252,20 @@ pub static ALL: &[&ProtocolInfo] = &[
     &super::rojaflex::INFO,
     &super::microchip_hcs362::INFO,
     &super::microchip_hcs361::INFO,
+    &super::cardin_s466::INFO,
 
     // Kept, not registered (as in Flipper-ARF; Markisol as in rtl_433).
     &super::land_rover_rke::INFO,
     &super::audi::INFO,
+    &super::audi_v1::INFO,
     &super::hyundai::INFO,
     &super::mazda_infinity::INFO,
+    &super::fiat_multi::INFO,
+    &super::renault_v3::INFO,
     &super::markisol::INFO,
+    // Ported from FoxFW, not registered (honda_v6.rs, honda_v8.rs).
+    &super::honda_v6::INFO,
+    &super::honda_v8::INFO,
 ];
 
 /// A display name without its " [variant]" suffix ("Star Line [Cenmax]" → "Star Line").
@@ -247,15 +305,24 @@ pub(super) const NO_CHECKSUM: &[&str] = &[
     "Allstar Firefly", "Ansonic", "BETT", "CAME", "CAME TWEE", "Cham_Code", "Clemsa", "Dickert_MAHS",
     "Doitrand", "Dooya", "Elplast", "GateTX", "Holtek", "Holtek_HT12X", "Hormann HSM", "Linear",
     "LinearDelta3", "Marantec24", "Mastercode", "MegaCode", "Nero Radio", "Nero Sketch", "Nice FLO",
-    "Princeton", "Revers_RB2", "Roger", "SMC5326", "Telcoma/Cardin EDGE", "Urmet",
+    "Princeton", "Revers_RB2", "Roger", "SMC5326", "Telcoma/Cardin EDGE", "Urmet", "Freezer", "Faac TM",
+    // Home / key-finder remotes without a check (Magellan has a CRC-8, X10 complement bytes).
+    "Legrand", "Doorbell32", "Intertechno_V3", "KeyFinder", "Feron", "KeyFinder2", "Treadmill37", "Nord ICE",
     // Rolling codes the references decode without a check.
     "CAME Atomo", "Cardin S508", "Ditec GOL4", "Hay21", "iDo 117/111", "Phoenix_V2", "Prastel",
     "Security+ 1.0",
     // Car protocols whose frames carry no checksum: structural gates decide emission.
     // (Hyundai, unregistered, verifies nothing either: list it here when it is registered.)
     "Fiat V0", "Fiat V2", "Ford V2", "Ford V3", "Mercedes V0", "Mitsubishi V0", "Subaru",
+    // Key files only: the file never holds the frame's CRC byte (see fiat_marelli.rs).
+    "MARELLI",
+    // FoxFW decoders whose C has no integrity check (structural gates, button whitelists, framing bytes).
+    "Honda V10", "Renault V2", "Opel V0", "LDV V0", "Mazda V1", "Mitsubishi V1", "Nissan V0",
+    "Audi V3", "BMW V2", "BMW/Mini V3", "BMW CAS3", "Toyota (FoxFW)",
     // rtl_433 ports whose C has no integrity check.
-    "Alps-FWB1U545", "Audiovox-PROOE3B", "CodeAlarm-FRDPC2002", "Opel-Mokka",
+    "Alps-FWB1U545", "Audiovox-PROOE3B", "CodeAlarm-FRDPC2002", "Opel-Mokka", "Cardin-S466",
+    // FoxFW's structural-gate car remotes.
+    "VAG Polo", "Chevrolet V0",
 ];
 
 /// Whether a decode shown as `name`, with `bits` bits and `extra`, had a check at all.
@@ -271,8 +338,17 @@ const PARTIAL_CHECK: &[(&str, Checked)] = &[
     ("Nice FloR-S", |name, _, _| strip_variant(name) == "Nice One"),
     // An unidentified KeeLoq frame was decrypted by no key.
     ("KeeLoq", |name, _, _| !name.eq_ignore_ascii_case("KeeLoq (Unknown)")),
+    // Fiat Multi: V3's hop linear checks hold for every reported 70-bit frame; V5 (97 bits) has none.
+    ("Fiat Multi", |_, bits, _| bits == 70),
     // Faac SLH frames verify only with the remote's seed (kept in `extra`).
     ("Faac SLH", |_, _, extra| extra.is_some()),
+    // HondaV2&V3: a V3 frame (120 bits) has a CRC, a V2 frame (148 bits) none.
+    ("HondaV2&V3", |_, bits, _| bits == 120),
+    // Lexus V0 verifies a frame only once its complement partner was seen (`extra` = 1).
+    ("Lexus V0", |_, _, extra| extra == Some(1)),
+    // Continental KR5V2X: a received frame (112 bits) has its XOR checksum; a FoxFW key file keeps
+    // bytes 0..7 only (64 bits), without it.
+    ("Continental-KR5V2X", |_, bits, _| bits == 112),
 ];
 
 /// Whether `name`'s protocol has a checksum (or another check) KAT verifies, so that a frame
@@ -457,6 +533,8 @@ mod tests {
         // Flipper-ARF and doctor-firmware (union); Hyundai (unregistered) names the C's three codes.
         ("Kia V7", "buttons", "0=Other,1=Lock,2=Unlock,3=Trunk,4-7=Other,8=Trunk,9-255=Other"),
         ("Fiat V1", "rf", "AM/FM"),
+        // Flipper-ARF and FoxFW flag Subaru AM + FM (ProtoPirate AM; November 2026).
+        ("Subaru", "rf", "AM/FM"),
         ("Hyundai", "buttons", "0=Other,1=Lock,2=Unlock,3-8=Other,9=Trunk,10-255=Other"),
         // Prefix arms that matched names no protocol has: a bare "Ford" / "Fiat" / "Kia".
         ("Ford", "coding", "Unknown"),
@@ -515,7 +593,10 @@ mod tests {
             let info = lookup(name).unwrap_or_else(|| panic!("{name}: no ProtocolInfo"));
             assert_eq!((info.name, info.decoder), (name, name), "{name}");
         }
-        let unregistered = ["Land Rover RKE", "Audi", "Hyundai", "Mazda Infinity", "Markisol"];
+        let unregistered = [
+            "Land Rover RKE", "Audi", "Hyundai", "Mazda Infinity", "Markisol", "Fiat Multi", "Renault V3",
+            "Honda V6", "Honda V8", "Audi V1", "Audi V2",
+        ];
         for info in ALL {
             assert!(
                 reg.get(info.decoder).is_some() || unregistered.contains(&info.decoder),

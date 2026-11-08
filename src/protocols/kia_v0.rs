@@ -36,8 +36,8 @@
 //! its first decode only, which for a Mitsubishi transmission is the first copy (Kia V0); `.sub`
 //! imports list both, as ProtoPirate's history does.
 //!
-//! Encoder (`kia_v0_encoder_apply_fields` + upload builders), one upload per call (the C TX loop
-//! repeats it 3 times), adjacent equal levels merged (identical on air):
+//! Encoder (`kia_v0_encoder_apply_fields` + upload builders), one upload per call, which KAT sends 3
+//! times as the C's TX loop does (`tx_copies.rs`), adjacent equal levels merged (identical on air):
 //! - Kia: HIGH 750, LOW 750, 319 short pairs, frame, HIGH 1500, LOW 1500, 15 short pairs, frame, HIGH 1000.
 //! - Mitsubishi: as Kia but an 80-pair second preamble and a closing HIGH 1500 + LOW 1500.
 //! - Suzuki: 320 short pairs, frame, LOW 2000, HIGH 2000, LOW 250, 15 short pairs, frame.

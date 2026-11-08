@@ -1048,12 +1048,12 @@ impl App {
             protocol_display_name: capture.protocol.clone(),
         };
 
-        // Generate the signal with the new button
+        // Generate the signal with the new button: the reference's copies, or the key file's `Repeat`
         let button_code = command.code();
-        let signal = match protocol.encode(&decoded, button_code) {
+        let signal = match crate::protocols::transmission(protocol, &decoded, button_code, capture.key_repeat) {
             Some(s) => s,
             None => {
-                self.last_error = Some("Failed to encode signal".to_string());
+                self.last_error = Some(tx_failure(capture.key_repeat, "Failed to encode signal"));
                 return Ok(());
             }
         };
@@ -1166,10 +1166,10 @@ impl App {
             protocol_display_name: capture.protocol.clone(),
         };
 
-        let signal = match protocol.encode(&decoded, button) {
+        let signal = match crate::protocols::transmission(protocol, &decoded, button, capture.key_repeat) {
             Some(s) => s,
             None => {
-                self.last_error = Some("Failed to encode next code".to_string());
+                self.last_error = Some(tx_failure(capture.key_repeat, "Failed to encode next code"));
                 return Ok(());
             }
         };
@@ -2043,8 +2043,19 @@ impl App {
             source_file: None,
             on_air: None,
             key_recovery: None,
+            key_repeat: None,
         };
         self.next_capture_id += 1;
         self.captures.push(capture);
+    }
+}
+
+/// The message for a transmission that produced no signal: a key file's `Repeat: 0` (a Flipper sends
+/// nothing for it either), else `otherwise`.
+fn tx_failure(key_repeat: Option<u32>, otherwise: &str) -> String {
+    if key_repeat == Some(0) {
+        "Nothing sent: the key file says Repeat: 0 (a Flipper sends nothing either)".to_string()
+    } else {
+        otherwise.to_string()
     }
 }

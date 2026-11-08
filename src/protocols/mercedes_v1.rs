@@ -465,6 +465,14 @@ impl ProtocolDecoder for MercedesV1Decoder {
         self.reset_soft();
     }
 
+    /// The input ended right after a 122-bit frame: no chip followed it, so it is emitted, as the
+    /// C emits it on its last bit.
+    fn flush(&mut self) -> Option<DecodedSignal> {
+        let decoded = (self.step == DecoderStep::AwaitGap).then(|| self.pending.take()).flatten();
+        self.reset_soft();
+        decoded
+    }
+
     fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
         if self.step == DecoderStep::AwaitGap {
             if duration >= GAP_US || Self::chips(duration) == 0 {
@@ -923,6 +931,27 @@ mod tests {
                 assert_eq!((d.data, d.counter), (hi, Some(COUNTER as u16)));
             }
         }
+    }
+
+    /// A recording that ends on the frame's last chip: no chip followed, so the frame held for the
+    /// next pulse is emitted when the input ends ([ProtocolDecoder::flush]), as the C emits it on
+    /// its last bit; alone and in the registry.
+    #[test]
+    fn the_input_ending_after_the_frame_ends_it() {
+        let (hi, lo) = make_frame(MB_LOCK, true, 0, SERIAL, COUNTER, HOP);
+        let wire = build_wire(hi, lo, 40);
+        let body = &wire[..wire.len() - 1];
+        let mut dec = MercedesV1Decoder::new();
+        assert!(body.iter().all(|p| dec.feed(p.level, p.duration_us).is_none()));
+        assert_eq!(dec.flush().map(|d| (d.data, d.counter)), Some((hi, Some(COUNTER as u16))));
+        assert!(dec.flush().is_none());
+        let mut reg = ProtocolRegistry::new();
+        let names: Vec<String> = reg.process_signal_stream(body, 433_920_000).into_iter().map(|(n, _, _)| n).collect();
+        assert_eq!(names, ["Mercedes V1"]);
+        // Ended before the 122nd bit: nothing to report.
+        let mut dec = MercedesV1Decoder::new();
+        wire[..wire.len() - 4].iter().for_each(|p| assert!(dec.feed(p.level, p.duration_us).is_none()));
+        assert!(dec.flush().is_none());
     }
 
     /// BMW (62µs chips, same decoder template) lies inside this decoder's chip windows. Without the

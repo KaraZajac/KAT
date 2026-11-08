@@ -1,7 +1,8 @@
-//! Astrostart 2000 / 3000 remote-starter remote (receive only).
+//! Astrostart 2000 / 3000 remote-starter remote (receive only; FoxFW key files).
 //!
 //! Port of rtl_433 `src/devices/astrostart_2000.c` (`r_device` "Astrostart 2000 Car Remote",
-//! model `Astrostart-2000`; Astroflex, FCC ID J5F-TX2000, 372.4 MHz). No Flipper reference has it.
+//! model `Astrostart-2000`; Astroflex, FCC ID J5F-TX2000, 372.4 MHz). FoxFW has its own port of
+//! the same decoder ("AstroStart 2000", see **Key files**); no other Flipper reference has it.
 //!
 //! **Modulation** — `OOK_PULSE_PPM`: short_width 326 µs (gap → 0), long_width 526 µs (gap → 1),
 //! reset_limit = gap_limit = 541 µs, tolerance 80 µs: a gap in 247–405 µs is a 0, 447–605 µs a 1
@@ -20,21 +21,38 @@
 //! **Fields** — `serial` = the ID, `button` = byte 0, no counter (fixed code). `data` = the 52 row
 //! bits right-aligned (`data_count_bit` 52). `crc_valid` = true (inverse byte + checksum passed).
 //!
-//! **Encoder** — receive only, as rtl_433.
+//! **Key files** — FoxFW's (`lib/subghz/protocols/astrostart.c`, `ASTROSTART_PROTOCOL_NAME`
+//! "AstroStart 2000", an alias here), written by its generic serializer: `Protocol: AstroStart 2000`,
+//! `Bit: 52`, `Key` (8 bytes) = the 52 frame bits, i.e. `data`. Loading is FoxFW's `deserialize`
+//! (exactly `Bit: 52`), then the decoder's checks (inverse byte, ID checksum) — FoxFW saves only
+//! frames that pass them; a key that fails them, or has bits set above its 52, is refused. The file
+//! round-trips exactly.
+//!
+//! **Encoder** — none. rtl_433 has none, and FoxFW's SD encoder plugin
+//! (`applications/main/subghz/protocols_ext/enc_astrostart.c`) is a stub ("no TX — rolling button
+//! set, replay only"): its `deserialize` returns `SubGhzProtocolStatusErrorEncoderGetUpload` for every
+//! key file, so a Flipper running FoxFW sends nothing. `supports_encoding()` is false, `encode`
+//! returns None and nothing is encoder-capable; Replay of recorded pulses remains.
 
 use super::rtl433::{button_table, frame_signal, join_names, BitBuffer, DecodeFn, Device, Ends, Gaps, Modulation, Receiver};
-use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
+use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
 
 use super::info::prelude::*;
 
 const NAME: &str = "Astrostart-2000";
 
+/// FoxFW's protocol name (`ASTROSTART_PROTOCOL_NAME`), written in key files.
+const FOXFW_NAME: &str = "AstroStart 2000";
+
+/// The frame length (`ASTROSTART_FRAME_BITS`, FoxFW's key `Bit`).
+const BITS: usize = 52;
+
 /// Metadata (see `info.rs`). Gap-width PPM; like GM, the closest line-coding label is PWM.
 pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     name: NAME,
     decoder: NAME,
-    aliases: &["Astrostart 2000 Car Remote"],
+    aliases: &["Astrostart 2000 Car Remote", FOXFW_NAME],
     name_prefix: None,
     encoding: Coding::Pwm,
     rf: Rf::AM,
@@ -97,19 +115,23 @@ impl DecodeFn for Astrostart {
         if bits.num_rows() != 1 {
             return None; // DECODE_ABORT_EARLY
         }
-        let b: [u8; 7] = bits.bytes(0);
-        if b[0] != !b[1] {
-            return None; // DECODE_FAIL_MIC
-        }
-        if b[6] >> 4 != checksum(&b) {
-            return None; // DECODE_FAIL_MIC
-        }
-        let mut d = frame_signal(&b, 52);
-        d.serial = Some(u32::from_be_bytes([b[2], b[3], b[4], b[5]]));
-        d.button = Some(b[0]);
-        d.crc_valid = true;
-        Some(d)
+        check(&bits.bytes(0))
     }
+}
+
+/// The C's checks on the frame's 7 bytes (inverse byte, ID checksum) and the decode they give.
+fn check(b: &[u8; 7]) -> Option<DecodedSignal> {
+    if b[0] != !b[1] {
+        return None; // DECODE_FAIL_MIC
+    }
+    if b[6] >> 4 != checksum(b) {
+        return None; // DECODE_FAIL_MIC
+    }
+    let mut d = frame_signal(b, BITS);
+    d.serial = Some(u32::from_be_bytes([b[2], b[3], b[4], b[5]]));
+    d.button = Some(b[0]);
+    d.crc_valid = true;
+    Some(d)
 }
 
 /// Astrostart 2000 decoder (receive only).
@@ -155,9 +177,25 @@ impl ProtocolDecoder for Astrostart2000Decoder {
         false
     }
 
-    /// Receive only, as rtl_433.
+    /// None: rtl_433 has no encoder and FoxFW's plugin refuses every key (see "Encoder").
     fn encode(&self, _decoded: &DecodedSignal, _button: u8) -> Option<Vec<LevelDuration>> {
         None
+    }
+
+    /// FoxFW's `subghz_protocol_decoder_astrostart_deserialize` (`Bit: 52`), then the decoder's
+    /// checks (see "Key files").
+    fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        let k = key.key_u64()?;
+        if key.bits != BITS || k >> BITS != 0 {
+            return None;
+        }
+        // The 52 key bits as the first bits of the frame's 7 bytes.
+        check(&(k << 4).to_be_bytes()[1..].try_into().ok()?)
+    }
+
+    /// FoxFW's `subghz_protocol_decoder_common_serialize` of the frame: `Bit: 52`, `Key` = `data`.
+    fn to_flipper_key(&self, d: &DecodedSignal) -> Option<FlipperKey> {
+        (d.data_count_bit == BITS && d.data >> BITS == 0).then(|| FlipperKey::for_protocol(FOXFW_NAME, BITS, d.data))
     }
 }
 
@@ -274,6 +312,104 @@ mod tests {
                 .collect();
             assert_eq!(distinct(&got), distinct(&expected_json(&path)), "{f}");
         }
+    }
+
+    /// A made-up frame whose RAW file (written to `$KAT_SYNTH_DIR` when set) FoxFW's decoder read with
+    /// `subghz_oracle_foxfwenc decode --protocol "AstroStart 2000"`: KAT writes FoxFW's lines and reads
+    /// them back to the same decode; FoxFW's name resolves to this decoder.
+    #[test]
+    fn key_files_are_foxfws() {
+        const FOXFW: &str = "Frequency: 372400000; Preset: FuriHalSubGhzPresetOok650Async; Protocol: AstroStart 2000; Bit: 52; Key: 00 02 BD 41 23 4A BC D8";
+        let air = vector_wire(&frame(0x2B, 0x1234_ABCD));
+        crate::protocols::foxfw_common::test_support::dump("astrostart_unit.sub", 372_400_000, "FuriHalSubGhzPresetOok650Async", &air);
+        let got = decode_all(&mut Astrostart2000Decoder::new(), &air);
+        assert_eq!(got.len(), 2, "sent twice");
+        let d = &got[0];
+        assert_eq!((d.serial, d.button, d.crc_valid, d.data_count_bit), (Some(0x1234_ABCD), Some(0x2B), true, 52));
+        let dec = Astrostart2000Decoder::new();
+        let mut key = dec.to_flipper_key(d).unwrap();
+        key.frequency = 372_400_000;
+        key.preset = Some("FuriHalSubGhzPresetOok650Async".into());
+        assert_eq!(key.to_text().lines().skip(2).collect::<Vec<_>>().join("; "), FOXFW);
+        crate::protocols::flipper_key::testing::assert_round_trip(&dec, d);
+        let text = format!("Filetype: Flipper SubGhz Key File\nVersion: 1\n{}\n", FOXFW.replace("; ", "\n"));
+        assert_eq!(dec.from_flipper_key(&crate::protocols::flipper_key::testing::key(&text)).as_ref(), Some(d));
+        let reg = super::super::ProtocolRegistry::new();
+        assert_eq!(reg.get(FOXFW_NAME).map(|p| p.name()), Some(NAME));
+    }
+
+    /// Keys FoxFW's `deserialize` refuses (another `Bit`) and keys whose frame fails the checks or
+    /// has bits above its 52 (FoxFW writes neither): not loaded.
+    #[test]
+    fn refuses_other_keys() {
+        let dec = Astrostart2000Decoder::new();
+        let good = 0x2B_u64 << 44 | 0xD4 << 36 | 0x1234_ABCD << 4 | u64::from(checksum(&[0, 0, 0x12, 0x34, 0xAB, 0xCD]));
+        let load = |bits: usize, k: u64| dec.from_flipper_key(&FlipperKey::new(FOXFW_NAME, bits, k, 372_400_000, "FuriHalSubGhzPresetOok650Async"));
+        assert_eq!(load(52, good).and_then(|d| d.serial), Some(0x1234_ABCD));
+        assert!(load(51, good >> 1).is_none(), "Bit 51");
+        assert!(load(52, good ^ 1 << 36).is_none(), "inverse byte");
+        assert!(load(52, good ^ 1).is_none(), "checksum");
+        assert!(load(52, good | 1 << 52).is_none(), "bit above the 52");
+        assert!(dec.to_flipper_key(&DecodedSignal::new(0, 64)).is_none());
+    }
+
+    /// FoxFW's encoder plugin refuses every AstroStart 2000 key (`subghz_oracle_foxfwenc encode`:
+    /// "deserialize failed (status -12)" for each of 120 made-up files) and rtl_433 has no encoder:
+    /// nothing transmits, for no button.
+    #[test]
+    fn transmits_nothing_as_foxfw() {
+        let dec = Astrostart2000Decoder::new();
+        assert!(!dec.supports_encoding());
+        let d = decode_all(&mut Astrostart2000Decoder::new(), &vector_wire(&frame(0x13, 0x1234_ABCD))).remove(0);
+        let loaded = dec.from_flipper_key(&dec.to_flipper_key(&d).unwrap()).unwrap();
+        for x in [&d, &loaded] {
+            assert!(!x.encoder_capable);
+            for button in [0x01, 0x02, 0x04, 0x08, x.button.unwrap()] {
+                assert!(dec.encode(x, button).is_none());
+            }
+        }
+    }
+
+    /// A RAW file's pulses for a frame: [ppm] with 200 µs pulses (FoxFW reads 120–900 µs), sent
+    /// twice, 20 ms of LOW around and between.
+    fn vector_wire(bits: &[bool]) -> Vec<LevelDuration> {
+        let mut pairs = ppm(bits, 326, 526, 20_000);
+        pairs.extend(ppm(bits, 326, 526, 20_000));
+        for p in pairs.iter_mut() {
+            p.0 = 200;
+        }
+        with_idle(&wire(&pairs), 20_000)
+    }
+
+    /// Made-up frames for the FoxFW comparison, as RAW files in `$KAT_SYNTH_DIR`: every mapped
+    /// button code, "Multiple", unmapped codes, random IDs.
+    #[test]
+    #[ignore = "oracle harness"]
+    fn dump_key_vectors() {
+        let mut rng = Rng(0xA57_2000);
+        let mut codes: Vec<u8> = BUTTON_MAP.iter().flat_map(|(_, c)| c.iter().copied()).collect();
+        codes.extend([0x00, 0xFF, 0x01, 0x80, 0x5A]);
+        for i in 0..150 {
+            let button = if i < codes.len() { codes[i] } else { rng.below(256) as u8 };
+            let wire = vector_wire(&frame(button, rng.next() as u32));
+            crate::protocols::foxfw_common::test_support::dump(&format!("astrostart_{i:03}.sub"), 372_400_000, "FuriHalSubGhzPresetOok650Async", &wire);
+        }
+    }
+
+    /// `KAT_ASTROSTART_RAW=<file listing RAW .sub files>`: KAT's key-file lines for each frame this
+    /// decoder reads in them, to diff with `subghz_oracle_foxfwenc decode --protocol "AstroStart 2000"`.
+    #[test]
+    #[ignore = "oracle harness"]
+    fn key_lines_of_raw_files() {
+        print_raw_key_lines("KAT_ASTROSTART_RAW", &mut Astrostart2000Decoder::new());
+    }
+
+    /// `KAT_ASTROSTART_ENCODE=<file listing key files>`: KAT's transmission of each (`(none)`: it
+    /// never transmits), to diff with `subghz_oracle_foxfwenc encode <file>`, which refuses each.
+    #[test]
+    #[ignore = "oracle harness"]
+    fn encode_key_files() {
+        print_key_file_encodes("KAT_ASTROSTART_ENCODE", &Astrostart2000Decoder::new());
     }
 
     /// Fuzz dump for the C harness (see `rtl433::test_util::dump_fuzz_trains`).

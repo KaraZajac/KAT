@@ -73,12 +73,14 @@ pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     aliases: &[],
     name_prefix: None,
     encoding: Coding::Pwm,
-    rf: Rf::AM,
+    // Flipper-ARF and FoxFW flag Subaru AM + FM (ProtoPirate: AM), so an FM-preset `.sub` reaches
+    // the decoder too; KAT transmits AM650 unless the capture says otherwise.
+    rf: Rf::Both,
     encryption: "Rolling Code",
     make: "Subaru",
     category: Category::Vehicle,
     buttons: Some(native_buttons),
-    presets: &[&AM650],
+    presets: &[&AM650, &FM476],
 };
 
 /// ProtoPirate emulate / Flipper-ARF codes (1 and 2 coincide with the generic ones).

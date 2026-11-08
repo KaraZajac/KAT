@@ -16,10 +16,19 @@ only; the C reports every frame).
 
 | Parameter | Value   | Notes                |
 |-----------|---------|----------------------|
-| Short     | 500 µs  | ±150 µs (strict `<`) |
-| Long      | 1000 µs | ±150 µs              |
+| Short     | 500 µs  | ±200 µs (strict `<`; doctor-firmware's, ProtoPirate ±150) |
+| Long      | 1000 µs | ±200 µs              |
 | Preamble  | ≥ 100 long pulses | then a short HIGH = sync |
 | Min bits  | 53      |                      |
+
+### Timing tolerance (doctor-firmware's)
+
+ProtoPirate accepts a pulse within ±150 µs, doctor-firmware's copy ±200 µs; KAT uses ±200. Measured on KAT's
+simulated radio (synthetic IQ through the receive pipeline; the two IMPORTS keys sent by the encoder, OOK and FSK,
+120 trials per setting): with 50 µs pulse jitter ±200 decodes 98 % against 54–62 %, FSK at −6 dB 70 % against
+33 %, and with SNR 4 dB, 60 µs jitter and a ±10 % fob clock 40–47 % against 1–2 %, with no wrong frame (Kia V2
+reports only CRC-valid frames either way). The one cost seen: a Kia V1 fob whose clock ran 30 % fast read as Kia
+V2 in 9 of 60 trials (3 with ±150). No IMPORTS capture changes.
 
 ## Frame Layout (53 bits)
 

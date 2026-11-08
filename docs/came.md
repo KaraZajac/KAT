@@ -53,6 +53,17 @@ the key and its mirror image).
 The app's reset inside the callback means the LOW that ended a decoded frame is not reused as the next
 header, so a held button decodes every other repeat (KAT does the same).
 
+**Faac TM frames (from RogueMaster, November 2026).** A Faac TM remote ([faac_tm.md](faac_tm.md): 12 DIP bits in
+the same grammar, Te measured per frame, nominally 400 µs) running fast fits CAME's windows up to Te ≈ 395 µs.
+RogueMaster's `came.c` tells them apart by the gap after the frame, counted in the frame's own Te: gap and Te come
+from one oscillator, so the ratio carries no clock error. CAME repeats every 47 Te, Faac TM every 35. A 12-bit
+frame whose mean Te is 340 µs or more is reported only when the gap that ends it is 42..=52 Te. The mean Te is the
+start bit plus every data pulse, divided by 37, and 340 µs is slower than any CAME remote (nominally 320 µs).
+Otherwise the frame is left to Faac TM, which is registered after CAME. The last frame of a slow press, followed by
+silence, is therefore not CAME's either. Frames under 340 µs and the 18/24/25/42-bit lengths are unaffected. KAT
+adds the rule to Flipper-ARF's decoder (the union of what the references read). On 72 synthetic files (Te 300–395
+µs, gaps of 30–60 Te and silence) KAT's CAME gives the same 82 frames as RogueMaster's C.
+
 ## Encoder
 
 `subghz_protocol_encoder_came_get_upload`, `encoder.repeat` = 3: header LOW (by bit count), start HIGH,

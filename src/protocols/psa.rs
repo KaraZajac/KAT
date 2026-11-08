@@ -1447,6 +1447,16 @@ impl ProtocolDecoder for PsaDecoder {
         self.doctor_pending = None;
     }
 
+    /// The input ended while a doctor-firmware frame waited for ProtoPirate's end pulse: that pulse
+    /// will not come, so doctor's rule alone read the frame (doctor-firmware reports it on its 80th
+    /// bit), and it must decrypt like an AM-path frame.
+    fn flush(&mut self) -> Option<DecodedSignal> {
+        let pending = self.doctor_pending.take()?;
+        let out = self.emit(RawFrame { am: true, ..pending });
+        self.reset();
+        out
+    }
+
     fn set_report_unchecked(&mut self, on: bool) {
         self.report_unchecked = on;
     }
@@ -2068,6 +2078,34 @@ mod tests {
         }
     }
 
+    /// A recording that ends right after a frame's 80th bit, before ProtoPirate's end pulse could
+    /// come: doctor-firmware has reported the frame on that bit; KAT's doctor path, which waits one
+    /// pulse for ProtoPirate's rule, reports it when the input ends ([ProtocolDecoder::flush]) and,
+    /// as any frame only doctor's rule reads, only if it decrypts (or, with `autobf`, unchecked).
+    #[test]
+    fn flush_reports_a_doctor_frame_the_input_ends_after() {
+        const XOR: (u64, u16) = (0x6EDA_E3B4_785F_7BC6, 0x70F6);
+        const TEA: (u64, u16) = (0xF47A_2EA1_1A4C_7CAF, 0x2927);
+        for (key1, key2) in [XOR, TEA] {
+            let pulses = press(250, key1, key2, 80, None);
+            // Drop the trailing silence (with a final 1 bit's LOW half merged into it).
+            let cut = &pulses[..pulses.len() - 1];
+            for autobf in [false, true] {
+                let mut dec = PsaDecoder::new();
+                dec.set_report_unchecked(autobf);
+                let fed: Vec<DecodedSignal> = cut.iter().filter_map(|p| dec.feed(p.level, p.duration_us)).collect();
+                let got = fed.into_iter().chain(dec.flush()).map(|d| (d.data, d.protocol_display_name)).collect::<Vec<_>>();
+                let want = match (key2 == XOR.1, autobf) {
+                    (true, _) => vec![(key1, None)],
+                    (false, true) => vec![(key1, Some(UNCHECKED_NAME.to_string()))],
+                    (false, false) => vec![],
+                };
+                assert_eq!(got, want, "{key1:X} autobf {autobf}");
+                assert!(dec.flush().is_none());
+            }
+        }
+    }
+
     /// doctor-firmware's 125/250 µs path (ProtoPirate's States 3/4 never complete a frame):
     /// ≥ 0x45 short pulses, a 250 µs one, Manchester at 125 µs, complete at the 80th bit. Its
     /// frames count like ARF's fast-path ones: an XOR frame at once, a TEA frame only through the
@@ -2300,12 +2338,17 @@ mod tests {
         // ARF's AM path (re-armed by the registry's resets) accepts this Honda Static capture's
         // inter-frame noise as 4CDA57A60039A20E/4FF4, which decrypts neither by XOR nor by
         // BF1/BF2. The C-equivalent decoder still sees it; the registry must not report it, and
-        // every Honda Static frame must still decode.
+        // every Honda frame (now Honda V5) must still decode.
         let Some(results) = registry_decodes("honda/Lock_honda.sub") else {
             return;
         };
         let names: Vec<&str> = results.iter().map(|(n, _)| n.as_str()).collect();
-        assert_eq!(names, vec!["Honda Static"; 24]);
+        // 23 Honda V5 frames; the one frame V5's CRC rejects (counter 0x56FE21 in the Honda Static
+        // reading) still comes through Honda Static's unchecked path, between the 11th and 12th.
+        let mut want = vec!["Honda V5"; 11];
+        want.push("Honda Static");
+        want.extend(vec!["Honda V5"; 12]);
+        assert_eq!(names, want);
         let mut c_like = PsaDecoder { kat_extensions: false, ..PsaDecoder::new() };
         let (freq, raw) = import_sub_raw(Path::new("IMPORTS/honda/Lock_honda.sub")).unwrap();
         assert_eq!(freq, 433_657_070);
@@ -2358,7 +2401,8 @@ mod tests {
         assert_eq!(unchecked.len(), 1);
         assert_eq!((unchecked[0].data, unchecked[0].extra), (0x4CDA_57A6_0039_A20E, Some(0x4FF4)));
         assert_eq!(auto_key_search(UNCHECKED_NAME, unchecked[0]), AutoKeySearch::Dropped);
-        assert_eq!(got.iter().filter(|(n, _, _)| n == "Honda Static").count(), 24);
+        assert_eq!(got.iter().filter(|(n, _, _)| n == "Honda V5").count(), 23);
+        assert_eq!(got.iter().filter(|(n, _, _)| n == "Honda Static").count(), 1);
         // An undecrypted listed frame keeps its decode, marked as searched.
         let tea = DecodedSignal { serial: None, ..unchecked[0].clone() };
         assert_eq!(auto_key_search("PSA", &tea), AutoKeySearch::NotFound(SEARCH_LABEL_ALL.to_string()));

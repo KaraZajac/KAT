@@ -8,9 +8,11 @@
 //!
 //! **Types** ([TYPES]): the union of the menus — ARF's 78 entries in ARF's order with
 //! doctor-firmware's 23 extra ones where doctor's menu puts them (doctor's order is ARF's with
-//! insertions) and RogueMaster's 6 extra ones where RogueMaster's puts them (its two O-Code
+//! insertions) and RogueMaster's 9 extra ones where RogueMaster's puts them (its two O-Code
 //! variants that its enum appends after Security+ are kept with the Nice group, after its first
-//! O-Code type); ARF's name and parameters where several have a type (ARF and doctor differ only in
+//! O-Code type; its two FAAC TM types, which its enum puts after FAAC SLH, close the fixed-code
+//! group, since they are fixed codes) and FoxFW's 2 extra ones (plain KeeLoq "KL: Erreka 433/868MHz",
+//! after Aprimatic as in FoxFW's menu); ARF's name and parameters where several have a type (ARF and doctor differ only in
 //! "KL: Genius Bravo": ARF button 0x06, doctor 0x09 and the name "KL: Genius TX4RC 433M.";
 //! Momentum's and RogueMaster's menus list the same types with doctor's or ARF's parameters, except
 //! RogueMaster's Monarch (a KeeLoq seed 0x100) and its FAAC SLH / Beninca ARC creation, see the
@@ -41,14 +43,15 @@
 //!
 //! RogueMaster's Prastel type is made with its `subghz_protocol_prastel_create_data` ([prastel_key]).
 //!
-//! **Not available** ([availability]): RogueMaster's Nord ICE (no KAT protocol) and its three Nice
-//! O-Code types (its O-Code key maker is not ported); Nice FloR-S / Nice One and Alutech AT-4N
+//! **Not available** ([availability]): RogueMaster's three Nice O-Code types (its O-Code key maker is not ported); Nice FloR-S / Nice One and Alutech AT-4N
 //! without the user's rainbow table (`~/.config/KAT/nice_flor_s.bin`, `alutech_at_4n.bin`: the C
 //! would create a useless key); KeeLoq types whose manufacturer has no usable key in KAT's keystore
 //! (the C saves an all-zero key) — doctor's Erreka (and RogueMaster's Erreka 868), Superrollo,
 //! HomeGate, Pujol, Pujol Vario, ET Blue (Mix), ATA PTX4, Seav, Wisniowski, Fadini, Mc Garcia,
-//! Clemsa Mutancode, Doormatic, Elvox and Verex, unless the user keystore adds them; doctor's KEY
-//! and Dorcas, whose hops need doctor's own KeeLoq discriminators (KAT's codec is ARF's).
+//! Clemsa Mutancode, Doormatic, Elvox and Verex, and RogueMaster's Phantom/Hiland, unless the user
+//! keystore adds them. doctor's KEY and Dorcas are made with doctor-firmware's / RogueMaster's
+//! discriminators (KEY 0x2FF; Dorcas' Monarch 0x280, kept in the seed), which KAT's KeeLoq codec
+//! has since November 2026.
 
 use std::collections::VecDeque;
 
@@ -128,6 +131,8 @@ pub enum Source {
     Doctor,
     /// RogueMaster only (`subghz_scene_set_type.c` of RogueMaster).
     RogueMaster,
+    /// FoxFW only (`subghz_scene_set_type.c` of FoxFW).
+    FoxFW,
 }
 
 /// The runs of the C menu order, shown as headings in the picker.
@@ -174,6 +179,7 @@ impl RemoteType {
             Source::Both => "Flipper-ARF + doctor-firmware",
             Source::Doctor => "doctor-firmware",
             Source::RogueMaster => "RogueMaster",
+            Source::FoxFW => "FoxFW",
         }
     }
 }
@@ -210,6 +216,7 @@ pub static TYPES: &[RemoteType] = &[
     RemoteType { id: "Centurion433", name: "KL: Centurion 433MHz", source: Source::Both, group: Group::KeeLoq },
     RemoteType { id: "Monarch433", name: "KL: Monarch 433MHz", source: Source::Both, group: Group::KeeLoq },
     RemoteType { id: "MonarchDorcas433", name: "KL: Dorcas 433MHz", source: Source::Doctor, group: Group::KeeLoq },
+    RemoteType { id: "PhantomHiland433", name: "KL: Phantom/Hiland 433M", source: Source::RogueMaster, group: Group::KeeLoq },
     RemoteType { id: "KEY433", name: "KL: KEY 433MHz", source: Source::Doctor, group: Group::KeeLoq },
     RemoteType { id: "JollyMotors433", name: "KL: Jolly Mot. 433MHz", source: Source::Both, group: Group::KeeLoq },
     RemoteType { id: "Motorline433", name: "KL: Motorline 433MHz", source: Source::Both, group: Group::KeeLoq },
@@ -226,6 +233,8 @@ pub static TYPES: &[RemoteType] = &[
     RemoteType { id: "GSN", name: "KL: GSN 433MHz", source: Source::Both, group: Group::KeeLoq },
     RemoteType { id: "HomeGate433", name: "KL: HomeGate 433MHz", source: Source::Doctor, group: Group::KeeLoq },
     RemoteType { id: "Aprimatic", name: "KL: Aprimatic 433MHz", source: Source::Both, group: Group::KeeLoq },
+    RemoteType { id: "ErrekaKL433", name: "KL: Erreka 433MHz", source: Source::FoxFW, group: Group::KeeLoq },
+    RemoteType { id: "ErrekaKL868", name: "KL: Erreka 868MHz", source: Source::FoxFW, group: Group::KeeLoq },
     RemoteType { id: "ElmesElectronic", name: "KL: Elmes (PL) 433MHz", source: Source::Both, group: Group::KeeLoq },
     RemoteType { id: "Normstahl_433_92", name: "KL: Normstahl 433MHz", source: Source::Both, group: Group::KeeLoq },
     RemoteType { id: "JCM_433_92", name: "KL: JCM Tech 433MHz", source: Source::Both, group: Group::KeeLoq },
@@ -280,6 +289,8 @@ pub static TYPES: &[RemoteType] = &[
     RemoteType { id: "Linear_300_00", name: "Linear 300MHz", source: Source::Both, group: Group::Fixed },
     RemoteType { id: "TelcomaEdge433", name: "Telcoma EDGE 433MHz", source: Source::Doctor, group: Group::Fixed },
     RemoteType { id: "GateTX", name: "Gate TX 433MHz", source: Source::Both, group: Group::Fixed },
+    RemoteType { id: "FaacTm433", name: "FAAC TM 433MHz", source: Source::RogueMaster, group: Group::Fixed },
+    RemoteType { id: "FaacTm868", name: "FAAC TM 868MHz", source: Source::RogueMaster, group: Group::Fixed },
     RemoteType { id: "SecPlus_v1_315_00", name: "Security+1.0 315MHz", source: Source::Both, group: Group::SecPlus },
     RemoteType { id: "SecPlus_v1_390_00", name: "Security+1.0 390MHz", source: Source::Both, group: Group::SecPlus },
     RemoteType { id: "SecPlus_v1_433_00", name: "Security+1.0 433MHz", source: Source::Both, group: Group::SecPlus },
@@ -430,6 +441,9 @@ fn gen_info(id: &str, key: u64, gangqi_key: u64, marantec_key: u64) -> Option<Ge
         "Centurion433" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: (key & 0x0000FFFF) as u32, btn: 0x02, cnt: 0x03, manuf: "Centurion" }),
         "Monarch433" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: (key & 0x0000FFFF) as u32, btn: 0x0A, cnt: 0x03, manuf: "Monarch" }),
         "MonarchDorcas433" => gen("AM650", 433_920_000, GenInfo::KeeloqSeed { serial: (key & 0x0000FFFF) as u32, btn: 0x0A, cnt: 0x03, seed: 0x280, manuf: "Monarch" }),
+        // RogueMaster: the seed carries the 12-bit discriminator, serial & 0x3FF in its low 10 bits
+        // (its quick path clears the top 2).
+        "PhantomHiland433" => gen("AM650", 433_920_000, GenInfo::KeeloqSeed { serial: (key & 0x0FFFFFFF) as u32, btn: 0x02, cnt: 0x03, seed: (key & 0x3FF) as u32, manuf: "Phantom_Hiland" }),
         "KEY433" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: (key & 0x0FFFFFFF) as u32, btn: 0x01, cnt: 0x03, manuf: "KEY" }),
         "JollyMotors433" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: (key & 0x000FFFFF) as u32, btn: 0x02, cnt: 0x03, manuf: "Jolly_Motors" }),
         "Motorline433" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: (key & 0x0FFFFFFF) as u32, btn: 0x01, cnt: 0x03, manuf: "Motorline" }),
@@ -446,6 +460,10 @@ fn gen_info(id: &str, key: u64, gangqi_key: u64, marantec_key: u64) -> Option<Ge
         "GSN" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: (key & 0x0FFFFFFF) as u32, btn: 0x02, cnt: 0x03, manuf: "GSN" }),
         "HomeGate433" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: (key & 0x0FFFFFFF) as u32, btn: 0x02, cnt: 0x03, manuf: "HomeGate" }),
         "Aprimatic" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: ((key & 0x000FFFFF) | 0x00600000) as u32, btn: 0x08, cnt: 0x03, manuf: "Aprimatic" }),
+        // FoxFW's plain KeeLoq Erreka types (its `SetTypeErreka433/868`; doctor's and RogueMaster's
+        // seeded "Erreka 433/868MHz" are the types above).
+        "ErrekaKL433" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: (key & 0x0000FFFF) as u32, btn: 0x02, cnt: 0x03, manuf: "Erreka" }),
+        "ErrekaKL868" => gen("AM650", 868_350_000, GenInfo::Keeloq { serial: (key & 0x0000FFFF) as u32, btn: 0x02, cnt: 0x03, manuf: "Erreka" }),
         "ElmesElectronic" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: ((key & 0x00FFFFFF) | 0x02000000) as u32, btn: 0x02, cnt: 0x03, manuf: "Elmes_Poland" }),
         "Normstahl_433_92" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: (key & 0x0000FFFF) as u32, btn: 0x04, cnt: 0x03, manuf: "Normstahl" }),
         "JCM_433_92" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: (key & 0x00FFFFFF) as u32, btn: 0x02, cnt: 0x03, manuf: "JCM_Tech" }),
@@ -496,6 +514,9 @@ fn gen_info(id: &str, key: u64, gangqi_key: u64, marantec_key: u64) -> Option<Ge
         "Linear_300_00" => gen("AM650", 300_000_000, GenInfo::Data { protocol: "Linear", key: key & 0x3FF, bits: 10, te: 0 }),
         "TelcomaEdge433" => gen("AM650", 433_920_000, GenInfo::Data { protocol: "Telcoma/Cardin EDGE", key: 0xFF000000 | (key & 0x00FFFFF8), bits: 32, te: 0 }),
         "GateTX" => gen("AM650", 433_920_000, GenInfo::Data { protocol: "GateTX", key: reverse_key((key & 0x00F0FF00) | 0xF0040, 24), bits: 24, te: 0 }),
+        // RogueMaster: 12 DIP switches, no button field.
+        "FaacTm433" => gen("AM650", 433_920_000, GenInfo::Data { protocol: "Faac TM", key: key & 0xFFF, bits: 12, te: 0 }),
+        "FaacTm868" => gen("AM650", 868_000_000, GenInfo::Data { protocol: "Faac TM", key: key & 0xFFF, bits: 12, te: 0 }),
         "SecPlus_v1_315_00" => gen("AM650", 315_000_000, GenInfo::SecPlus1),
         "SecPlus_v1_390_00" => gen("AM650", 390_000_000, GenInfo::SecPlus1),
         "SecPlus_v1_433_00" => gen("AM650", 433_920_000, GenInfo::SecPlus1),
@@ -718,17 +739,6 @@ fn availability_of(info: &GenInfo, tables: &Tables) -> Result<(), String> {
         GenInfo::AlutechAt4n { .. } if tables.alutech_at_4n.is_none() => {
             Err("needs the Alutech AT-4N rainbow table (~/.config/KAT/alutech_at_4n.bin)".to_string())
         }
-        // doctor-firmware's KEY and Dorcas remotes rely on its own KeeLoq rules (hop discriminator
-        // 0x2FF for KEY, 0x280 kept in the seed for Dorcas' Monarch); KAT's KeeLoq codec follows
-        // Flipper-ARF's, which builds them like any KEY / Monarch remote — a different remote.
-        GenInfo::Keeloq { manuf: "KEY", .. } => Err(
-            "doctor-firmware builds KEY hops with discriminator 0x2FF, a rule KAT's KeeLoq codec (Flipper-ARF's) lacks"
-                .to_string(),
-        ),
-        GenInfo::KeeloqSeed { manuf: "Monarch", .. } => Err(
-            "doctor-firmware builds Dorcas hops with the Monarch discriminator 0x280, a rule KAT's KeeLoq codec (Flipper-ARF's) lacks"
-                .to_string(),
-        ),
         GenInfo::Keeloq { manuf, .. } | GenInfo::KeeloqSeed { manuf, .. } if !super::keeloq::can_create(manuf) => {
             Err(format!("no usable {manuf} key in the keystore (add one to ~/.config/KAT/keeloq_mfcodes_user)"))
         }
@@ -754,6 +764,10 @@ fn generate_with(gen: &Gen, rng: &mut dyn RandSource, tables: &Tables) -> Result
                 // them to the type's TE and 30.
                 k.push("TE", te.to_string());
                 k.push("Guard_time", "30");
+            } else if protocol == "Faac TM" {
+                // RogueMaster: the decoder's serialize writes the fresh decoder's TE (0); the
+                // encoder sends a TE outside 100..1000 at the nominal 400 µs.
+                k.push("TE", te.to_string());
             }
             k
         }
@@ -913,16 +927,17 @@ mod tests {
 
     /// Types KAT cannot create with its embedded keystore (and test tables).
     const UNAVAILABLE: &[&str] = &[
-        "Erreka868", "NiceOCode_433_92", "NiceOCodeOne_433_92", "NiceOCodeCert_433_92", "NordIce_433", "KEY433", "MonarchDorcas433", "Erreka433", "Superrollo_433_92", "HomeGate433", "Pujol433",
-        "Pujol_Vario433", "ET_Blue433", "ET_Blue_Mix433", "ATA_PTX4_433", "Seav433", "Wisniowski433",
+        "Erreka868", "NiceOCode_433_92", "NiceOCodeOne_433_92", "NiceOCodeCert_433_92", "PhantomHiland433", "Erreka433", "Superrollo_433_92", "HomeGate433", "Pujol433",
+        "Pujol_Vario433", "ET_Blue433", "ET_Blue_Mix433", "ATA_PTX4_433", "Seav433", "Wisniowski433", "ErrekaKL433", "ErrekaKL868",
         "Fadini433", "Mc_Garcia433", "Clemsa_Mutancode433", "Doormatic433", "Elvox433", "Verex433",
     ];
 
     #[test]
     fn type_list_is_the_union_of_the_references() {
-        assert_eq!(TYPES.len(), 107);
+        assert_eq!(TYPES.len(), 112);
         assert_eq!(TYPES.iter().filter(|t| t.source == Source::Both).count(), 78);
-        assert_eq!(TYPES.iter().filter(|t| t.source == Source::RogueMaster).count(), 6);
+        assert_eq!(TYPES.iter().filter(|t| t.source == Source::RogueMaster).count(), 9);
+        assert_eq!(TYPES.iter().filter(|t| t.source == Source::FoxFW).count(), 2);
         assert_eq!(TYPES[find("Prastel")[0]].menus(), "RogueMaster");
         assert_eq!(TYPES[find("GangQi")[0]].menus(), "Flipper-ARF + doctor-firmware");
         let mut ids: Vec<&str> = TYPES.iter().map(|t| t.id).collect();
@@ -1012,6 +1027,7 @@ mod tests {
     /// remote — same serial and button, counter + 1 for rolling codes (as each encoder steps it).
     #[test]
     fn every_type_creates_a_remote_that_transmits() {
+        let _keystore = super::super::keeloq_common::KEYSTORE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         crate::protocols::keys::load_keystore_from_embedded();
         let mut reg = registry();
         let tables = test_tables();
@@ -1176,9 +1192,8 @@ mod tests {
 
     #[test]
     fn availability_names_the_reason() {
-        let nord_ice = &TYPES[find("Nord ICE")[0]];
-        assert_eq!(availability(nord_ice), Err("KAT has no Nord ICE protocol".to_string()));
-        for t in ["GangQi", "Hollarm", "Prastel"] {
+        let _keystore = super::super::keeloq_common::KEYSTORE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        for t in ["GangQi", "Hollarm", "Prastel", "Nord ICE"] {
             assert_eq!(availability(&TYPES[find(t)[0]]), Ok(()), "{t}");
         }
         for t in find("O-Code") {

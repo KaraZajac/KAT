@@ -107,6 +107,54 @@ pub fn decode_all(dec: &mut dyn ProtocolDecoder, wire: &[LevelDuration]) -> Vec<
     out
 }
 
+/// Oracle harness for the ports FoxFW also decodes (its key files): for every RAW `.sub` listed in
+/// the file `$env` (one path a line), the key-file lines `dec.to_flipper_key` writes for each frame
+/// `dec` reports, fed the file's values from a reset and reset after each report like
+/// `subghz_oracle_foxfwenc decode --protocol`, with the file's Frequency / Preset:
+/// `KATKEY <file> | <lines after Version, joined by "; ">` (the oracle's serialized-fields layout),
+/// `KATKEY <file> | (none)` when nothing decodes. Nothing when `$env` is unset.
+pub fn print_raw_key_lines(env: &str, dec: &mut dyn ProtocolDecoder) {
+    let Ok(list) = std::env::var(env) else { return };
+    for file in std::fs::read_to_string(list).unwrap().lines().filter(|l| !l.is_empty()) {
+        let sub = match crate::export::flipper::read_sub(Path::new(file)) {
+            Ok(crate::export::flipper::SubContent::Raw(sub)) => sub,
+            _ => panic!("{file}: not a RAW .sub"),
+        };
+        let wire: Vec<LevelDuration> = sub.pairs.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
+        let decodes = decode_all(dec, &wire);
+        if decodes.is_empty() {
+            println!("KATKEY {file} | (none)");
+        }
+        for d in decodes {
+            let text = dec.to_flipper_key(&d).map_or("(no key file)".to_string(), |mut key| {
+                key.frequency = sub.frequency;
+                if let Some(p) = &sub.preset {
+                    key.set_preset(p);
+                }
+                key.to_text().lines().filter(|l| !l.starts_with("Filetype:") && !l.starts_with("Version:")).collect::<Vec<_>>().join("; ")
+            });
+            println!("KATKEY {file} | {text}");
+        }
+    }
+}
+
+/// Oracle harness for the encoder: for every key file listed in the file `$env`, KAT's
+/// transmission of it (`from_flipper_key`, then `encode` with the key's own button, as Replay /
+/// "Send next code" and the round-trip tests do): `KATENC <file> | <signed µs …>`, or
+/// `KATENC <file> | (none)` when the key does not load or nothing is sent — to compare with
+/// `subghz_oracle_foxfwenc encode <file>`. Nothing when `$env` is unset.
+pub fn print_key_file_encodes(env: &str, dec: &dyn ProtocolDecoder) {
+    let Ok(list) = std::env::var(env) else { return };
+    for file in std::fs::read_to_string(list).unwrap().lines().filter(|l| !l.is_empty()) {
+        let key = crate::protocols::FlipperKey::parse(&std::fs::read_to_string(file).unwrap()).ok();
+        let tx = key.and_then(|k| dec.from_flipper_key(&k)).and_then(|d| dec.encode(&d, d.button.unwrap_or(0)));
+        let text = tx.map_or("(none)".to_string(), |tx| {
+            tx.iter().map(|p| if p.level { p.duration_us.to_string() } else { format!("-{}", p.duration_us) }).collect::<Vec<_>>().join(" ")
+        });
+        println!("KATENC {file} | {text}");
+    }
+}
+
 /// The registry's decodes (name, decode) of `wire` at `freq`, received as `rf`.
 pub fn registry(wire: &[LevelDuration], freq: u32, rf: Option<crate::capture::RfModulation>) -> Vec<(String, DecodedSignal)> {
     ProtocolRegistry::new().process_signal_stream_rf(wire, freq, rf).into_iter().map(|(n, d, _)| (n, d)).collect()

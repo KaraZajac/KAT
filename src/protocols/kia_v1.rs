@@ -4,14 +4,17 @@
 //! displayed CRC changed — `instance->crc = crc` instead of `cnt_high << 4 | crc` — which KAT does
 //! not display). Flipper-ARF's `kia_v1.c` builds the same upload and differs only in resetting the
 //! decoder on an out-of-tolerance pulse; on every IMPORTS capture both C decoders agree, and on
-//! random C-encoded frames ProtoPirate's decodes are a superset, so KAT follows ProtoPirate.
+//! random C-encoded frames ProtoPirate's decodes are a superset, so KAT follows ProtoPirate, with
+//! doctor-firmware's two changes to the same decoder: te_delta 300 and only CRC-valid frames
+//! reported (see "Timing tolerance").
 //!
-//! Air format (315 / 433.92 MHz, AM): Manchester, te_short 800µs / te_long 1600µs (te_delta 200,
-//! strict `<`). Preamble: LOW/HIGH long pairs; >70 of them followed by a short LOW is the sync,
+//! Air format (315 / 433.92 MHz, AM): Manchester, te_short 800µs / te_long 1600µs (te_delta 300,
+//! strict `<`; ProtoPirate 200). Preamble: LOW/HIGH long pairs; >70 of them followed by a short LOW is the sync,
 //! which also stands for the first data bit (`1`, the serial's MSB). 57-bit frame:
 //! `serial32 << 24 | button8 << 16 | cnt_lo8 << 8 | cnt_hi4 << 4 | crc4`, counter 12 bits.
 //! CRC-4: XOR of all nibbles of serial, button, cnt_lo and cnt_hi, plus 1 (`kia_v1_crc4(.., 7, 1)`);
-//! the C reports it (`crc_check`) but emits regardless.
+//! ProtoPirate reports it (`crc_check`) but emits regardless; doctor-firmware, and KAT, emit only
+//! frames whose CRC holds.
 //!
 //! Decoder (`kia_protocol_decoder_v1_feed`): Flipper's Manchester machine (common.rs) with
 //! ProtoPirate's `pp_manchester_event` mapping (`level ? ShortLow : ShortHigh`), state reset to
@@ -20,10 +23,22 @@
 //! (KAT's earlier port used a hand-written Manchester table that mis-decoded the real captures:
 //! wrong serial, CRC failing. The C oracle and this port agree on every IMPORTS capture.)
 //!
+//! **Timing tolerance** — doctor-firmware's copy of this decoder widens te_delta from 200 to 300 µs
+//! and drops frames whose CRC fails; KAT does both. On KAT's simulated radio (synthetic IQ through
+//! the receive pipeline; the 35 real frames of the IMPORTS captures and the encoder's frame) 300
+//! decodes 87 % of frames with SNR 4 dB, 60 µs pulse jitter and a ±10 % fob clock, where 200
+//! decodes 29 %, 97 % instead of 25 % with 75 µs jitter, and frames with a fob clock 10–15 % off
+//! that 200 never reads; it loses none. Under heavy jitter both windows also read corrupted frames
+//! (wrong data); 300 reads fewer of them (67 against 72 per run), and fewer pass the 4-bit CRC (1
+//! against 8), which the CRC check then drops with the rest. Every IMPORTS frame passes its CRC and
+//! decodes as before; ProtoPirate's and doctor-firmware's C agree with the two settings on 240
+//! edge-case recordings each.
+//!
 //! Encoder (`kia_protocol_encoder_v1_get_upload`): 3 bursts separated by LOW 25 000µs, each
 //! 90 × (LOW 1600, HIGH 1600), LOW 800, then frame bits 55..0 as Manchester (1 → HIGH 800 +
 //! LOW 800, 0 → LOW 800 + HIGH 800); adjacent equal levels merged (identical on air). One upload
-//! per call (the C TX loop repeats it). Like ProtoPirate's emulate scene, each press sends the
+//! per call; KAT sends it 3 times (`tx_copies.rs`: ProtoPirate's TX loop repeats it 10 times,
+//! doctor-firmware's 3; a key file's `Repeat` line sets the count). Like ProtoPirate's emulate scene, each press sends the
 //! counter plus one; KAT's generic button maps to the C's names: Lock → 1 ("Close"), Unlock → 2
 //! ("Open"), Trunk → 3 ("Boot"), Panic → 4 (emulate D-pad Left); anything else keeps the captured
 //! button.
@@ -69,7 +84,8 @@ pub(super) fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
 
 const TE_SHORT: u32 = 800;
 const TE_LONG: u32 = 1600;
-const TE_DELTA: u32 = 200;
+/// doctor-firmware's (ProtoPirate: 200); see "Timing tolerance".
+const TE_DELTA: u32 = 300;
 const MIN_COUNT_BIT: usize = 57;
 const TOTAL_BURSTS: usize = 3;
 const INTER_BURST_GAP_US: u32 = 25_000;
@@ -228,7 +244,8 @@ impl ProtocolDecoder for KiaV1Decoder {
                     self.decode_data = 0;
                     self.decode_count_bit = 0;
                     self.step = DecoderStep::Reset;
-                    return Some(frame);
+                    // doctor-firmware: `if(instance->crc_check && instance->base.callback)`
+                    return frame.crc_valid.then_some(frame);
                 }
             }
         }

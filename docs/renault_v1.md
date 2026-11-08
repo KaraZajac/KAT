@@ -165,6 +165,8 @@ re-runs the deterministic seed search on the frame, so `.fob` files exported by 
   type-B bursts, and the frames are identical, so Renault V1 decodes Fiat V1 type-B repeats when run on
   its own. The C would fire one pulse before Fiat V1 completes the same frame; KAT delays Renault V1's
   emission by exactly that pulse so both fire together and Fiat V1, earlier in the registry, wins.
+  A recording that ends on the pulse the C fires on still gives the frame: it is reported when the input
+  ends.
   A Renault remote fast enough for Fiat V1's 100/200 µs window would likewise be labelled Fiat V1.
 - Unit tests: synthetic bursts, adaptive TE from 100 to 150 µs, gate rejection (XOR, header word, UID),
   duplicate memory and reset, emission timing, registry decode at 315/433/868 MHz, Fiat V1 type-B bursts

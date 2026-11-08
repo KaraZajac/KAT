@@ -21,14 +21,24 @@
 //! **Fields**: `data` = the first 8 bytes big-endian (the C's `urmet_bytes_to_key`), Bit =
 //! 8·bytes; no serial / button / counter (the reference shows the raw bytes only).
 //!
-//! **Encoder**: the C transmits the stored gap list (`Gaps`: 1·te HIGH + gap·te LOW each, a
-//! final 1·te HIGH and a 68·te LOW, 5 times) and serializes `Raw` (all bytes) + `Gaps`. A frame
-//! has up to 40 bytes and 192 gaps, which `DecodedSignal` (a 64-bit `data` + a 64-bit `extra`)
-//! cannot carry, so KAT decodes Urmet but does not re-encode it (`encoder_capable` = false; the
-//! capture's raw pairs can still be replayed) and does not write key files. `from_flipper_key`
-//! reads the reference's key files (`Raw` when present, else the `Key`, as its deserialize does).
+//! **Encoder** (doctor-firmware's, the same in FoxFW's `enc_urmet.c`): the C transmits the stored
+//! gap list (`Gaps`: 1·te HIGH + gap·te LOW each, clamped to 1..20 te, a final 1·te HIGH and a
+//! 68·te LOW, `encoder.repeat` = 5) and serializes `Raw` (all bytes) + `Gaps`; a file without
+//! `Gaps` gets them rebuilt from the bytes (`urmet_gaps_from_bytes`). A frame has up to 40 bytes
+//! and 192 gaps, which `DecodedSignal` (a 64-bit `data` + a 64-bit `extra`) cannot carry, so KAT
+//! keeps the frame in the capture's pulses instead:
+//! - a key file loads with its transmission as the capture's recording
+//!   ([ProtocolDecoder::key_file_pulses]): Replay sends exactly the C's upload;
+//! - a capture's key file is rebuilt from its recording ([ProtocolDecoder::key_file_from_pulses],
+//!   the decoder run again over the pulses keeps the frame's bytes and gaps as the C's instance
+//!   does after its callback): `Protocol`, `Bit` (8 · bytes), `Key` (the first 8 bytes), `Raw`,
+//!   `Gaps`, as the C's serialize writes them.
+//!
+//! `encode` itself stays None (`encoder_capable` false): the decode alone cannot rebuild the frame.
+//! `from_flipper_key` reads the reference's key files (`Raw` when present, else the `Key`, as its
+//! deserialize does).
 
-use super::g3_common::duration_diff;
+use super::g3_common::{duration_diff, repeat_upload, UploadBuilder};
 use super::info::prelude::*;
 use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
@@ -62,6 +72,10 @@ const URMET_MIN_BYTES: usize = 16;
 const URMET_MAX_BYTES: usize = 40;
 const URMET_MAX_GAPS: usize = 192;
 const URMET_BITBUF: usize = 512;
+/// `URMET_PAUSE_TE`: the trailing LOW of a transmitted frame (~34 ms).
+const URMET_PAUSE_TE: u32 = 68;
+/// The encoder's `encoder.repeat`.
+const URMET_TX_REPEAT: usize = 5;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Step {
@@ -74,7 +88,7 @@ enum Step {
     Data,
 }
 
-/// Urmet decoder (`SubGhzProtocolDecoderUrmet`; the last accepted frame's copy is not kept).
+/// Urmet decoder (`SubGhzProtocolDecoderUrmet`).
 pub struct UrmetDecoder {
     step: Step,
     pending_high: bool,
@@ -82,6 +96,9 @@ pub struct UrmetDecoder {
     bit_cnt: usize,
     bit_buf: Vec<u8>,
     rx_gaps: Vec<u8>,
+    /// The last reported frame's bytes and gaps (the C's `raw_bytes` / `gaps`, which its serialize
+    /// writes); see [frame_from_pulses].
+    last: Option<(Vec<u8>, Vec<u8>)>,
 }
 
 fn is_manchester_edge(duration: u32) -> bool {
@@ -183,6 +200,7 @@ impl UrmetDecoder {
             bit_cnt: 0,
             bit_buf: vec![0; URMET_BITBUF],
             rx_gaps: Vec::with_capacity(URMET_MAX_GAPS),
+            last: None,
         }
     }
 
@@ -220,9 +238,108 @@ impl UrmetDecoder {
         let decoded = decode_inv_usart(&self.bit_buf[..self.bit_cnt], URMET_MAX_BYTES);
         let found =
             (payload_plausible(&decoded) && self.rx_gaps.len() >= 2).then(|| signal(&decoded));
+        if found.is_some() {
+            self.last = Some((decoded, self.rx_gaps.clone()));
+        }
         self.abort();
         found
     }
+}
+
+/// `urmet_gaps_from_bytes`: the gap list of a frame's bytes (inverted 8N1 USART, LSB first: start
+/// bit 1, the data bits inverted, stop bit 0), every HIGH one te: the run of zeros after each 1,
+/// capped at 20, 0 → 1.
+fn gaps_from_bytes(bytes: &[u8]) -> Vec<u8> {
+    let mut bits: Vec<u8> = Vec::with_capacity(URMET_BITBUF);
+    for &val in bytes {
+        if bits.len() + 10 >= URMET_BITBUF {
+            break;
+        }
+        bits.push(1); // start
+        for b in 0..8 {
+            bits.push(if (val >> b) & 1 == 1 { 0 } else { 1 });
+        }
+        bits.push(0); // stop
+    }
+    let mut gaps = Vec::new();
+    let mut i = 0;
+    while i < bits.len() && gaps.len() < URMET_MAX_GAPS {
+        if bits[i] != 1 {
+            i += 1;
+            continue;
+        }
+        i += 1; // the one-te HIGH
+        let mut low = 0u8;
+        while i < bits.len() && bits[i] == 0 && low < 20 {
+            low += 1;
+            i += 1;
+        }
+        gaps.push(low.max(1));
+    }
+    gaps
+}
+
+/// `urmet_load_from_ff`: a key file's (bytes, gaps) — `Raw` when present, else Bit/8 bytes of
+/// `Key` (zero-filled past its 8 bytes); `Gaps` when present, else rebuilt from the bytes; None
+/// when the byte count is outside 16..=40 or fewer than 2 gaps result.
+fn frame_from_key(key: &FlipperKey) -> Option<(Vec<u8>, Vec<u8>)> {
+    let bytes = match key.field("Raw") {
+        Some(raw) => {
+            let v = super::flipper_key::parse_hex_vec(raw)?;
+            (v.len() <= URMET_MAX_BYTES).then_some(v)?
+        }
+        None => {
+            let bits = key.bits;
+            if !(URMET_MIN_BYTES * 8..=URMET_MAX_BYTES * 8).contains(&bits) || !bits.is_multiple_of(8) {
+                return None;
+            }
+            let mut v = vec![0u8; bits / 8];
+            v[..8].copy_from_slice(&key.key.to_be_bytes());
+            v
+        }
+    };
+    if !(URMET_MIN_BYTES..=URMET_MAX_BYTES).contains(&bytes.len()) {
+        return None;
+    }
+    let gaps = match key.field("Gaps") {
+        Some(g) => {
+            let v = super::flipper_key::parse_hex_vec(g)?;
+            (v.len() <= URMET_MAX_GAPS).then_some(v)?
+        }
+        None => gaps_from_bytes(&bytes),
+    };
+    (gaps.len() >= 2).then_some((bytes, gaps))
+}
+
+/// The frame (bytes, gaps) the decoder reports first in `pulses` (a capture's recording).
+pub(super) fn frame_from_pulses(pulses: &[LevelDuration]) -> Option<(Vec<u8>, Vec<u8>)> {
+    let mut dec = UrmetDecoder::new();
+    pulses
+        .iter()
+        .chain(std::iter::once(&LevelDuration::new(false, URMET_END_GAP_US * 2)))
+        .find_map(|p| dec.feed(p.level, p.duration_us).and_then(|_| dec.last.take()))
+}
+
+/// `subghz_protocol_encoder_urmet_get_upload` for a gap list, repeated `encoder.repeat` (5) times:
+/// per gap 1·te HIGH + gap·te LOW (gap clamped to 1..20), a final 1·te HIGH, a 68·te LOW.
+fn upload(gaps: &[u8]) -> Vec<LevelDuration> {
+    let mut b = UploadBuilder::new();
+    for &g in gaps {
+        b.push(true, URMET_TE);
+        b.push(false, u32::from(g.clamp(1, 20)) * URMET_TE);
+    }
+    b.push(true, URMET_TE);
+    b.push(false, URMET_PAUSE_TE * URMET_TE);
+    repeat_upload(&b.finish(), URMET_TX_REPEAT)
+}
+
+/// `subghz_protocol_decoder_urmet_serialize`: `Bit`, `Key` (the first 8 bytes), `Raw`, `Gaps`.
+fn key_file(bytes: &[u8], gaps: &[u8]) -> FlipperKey {
+    let hex = |v: &[u8]| v.iter().map(|b| format!("{b:02X}")).collect::<Vec<_>>().join(" ");
+    let mut key = FlipperKey::new("Urmet", bytes.len() * 8, bytes_to_key(bytes), 433_920_000, "FuriHalSubGhzPresetOok650Async");
+    key.push("Raw", hex(bytes));
+    key.push("Gaps", hex(gaps));
+    key
 }
 
 impl Default for UrmetDecoder {
@@ -412,6 +529,14 @@ impl ProtocolDecoder for UrmetDecoder {
         }
         Some(signal(&bytes))
     }
+
+    fn key_file_pulses(&self, key: &FlipperKey) -> Option<Vec<LevelDuration>> {
+        frame_from_key(key).map(|(_, gaps)| upload(&gaps))
+    }
+
+    fn key_file_from_pulses(&self, pulses: &[LevelDuration]) -> Option<FlipperKey> {
+        frame_from_pulses(pulses).map(|(bytes, gaps)| key_file(&bytes, &gaps))
+    }
 }
 
 #[cfg(test)]
@@ -549,5 +674,102 @@ mod tests {
         assert!(d
             .from_flipper_key(&FlipperKey::parse(&one_gap).unwrap())
             .is_none());
+    }
+
+    /// A key file's transmission is the C's upload: per gap 1·te HIGH + gap·te LOW, a closing
+    /// 1·te HIGH, a 68·te LOW, 5 times; without `Gaps` the gaps come from the bytes.
+    #[test]
+    fn key_file_pulses_are_the_c_upload() {
+        let d = UrmetDecoder::new();
+        let raw: Vec<String> = FRAME.iter().map(|b| format!("{b:02X}")).collect();
+        let text = format!(
+            "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+             Preset: FuriHalSubGhzPresetOok650Async\nProtocol: Urmet\nBit: 144\n\
+             Key: 55 57 5D 5F 75 77 7D 7F\nRaw: {}\nGaps: 01 0B 01 02 1F\n",
+            raw.join(" ")
+        );
+        let up = d.key_file_pulses(&FlipperKey::parse(&text).unwrap()).unwrap();
+        let one: Vec<(bool, u32)> = vec![
+            (true, 500), (false, 500), (true, 500), (false, 5500), (true, 500), (false, 500),
+            (true, 500), (false, 1000), (true, 500), (false, 10_000), (true, 500), (false, 34_000),
+        ];
+        let got: Vec<(bool, u32)> = up.iter().map(|p| (p.level, p.duration_us)).collect();
+        assert_eq!(got.len(), one.len() * URMET_TX_REPEAT);
+        for copy in got.chunks(one.len()) {
+            assert_eq!(copy, one.as_slice()); // the gap 0x1F is clamped to 20 te
+        }
+        // No Gaps line: rebuilt from the bytes (`urmet_gaps_from_bytes`).
+        let no_gaps = text.replace("Gaps: 01 0B 01 02 1F\n", "");
+        let up = d.key_file_pulses(&FlipperKey::parse(&no_gaps).unwrap()).unwrap();
+        assert_eq!(up.len(), (gaps_from_bytes(&FRAME).len() * 2 + 2) * URMET_TX_REPEAT);
+        // 0x55 LSB first, inverted on the wire: start 1, data 0 1 0 1 0 1 0 1, stop 0 → five runs of
+        // one zero; 0xFF: start 1, eight 0s, stop 0 → one run of nine.
+        assert_eq!(&gaps_from_bytes(&[0x55])[..], &[1, 1, 1, 1, 1]);
+        assert_eq!(&gaps_from_bytes(&[0xFF])[..], &[9]);
+        // Every other protocol keeps no pulses with its key files.
+        assert!(super::super::came::CameDecoder::new().key_file_pulses(&FlipperKey::parse(&text).unwrap()).is_none());
+    }
+
+    /// A received frame's key file (rebuilt from the recording) holds the C's `Raw` + `Gaps`, and
+    /// loading it again gives the same decode and a transmission of exactly those gaps.
+    #[test]
+    fn capture_key_files_round_trip() {
+        let d = UrmetDecoder::new();
+        for idle in [0u32, 2] {
+            let p = on_air(&FRAME, idle);
+            let (bytes, gaps) = frame_from_pulses(&p).unwrap();
+            assert_eq!(bytes.len(), 19);
+            assert_eq!(&bytes[1..], &FRAME[..]);
+            let key = d.key_file_from_pulses(&p).unwrap();
+            let text = key.to_text();
+            assert!(text.contains("Protocol: Urmet\nBit: 152\nKey: FD 55 57 5D 5F 75 77 7D\nRaw: FD 55 57"), "{text}");
+            assert!(text.contains(&format!("\nGaps: {:02X} {:02X}", gaps[0], gaps[1])), "{text}");
+            let loaded = FlipperKey::parse(&text).unwrap();
+            assert_eq!(d.from_flipper_key(&loaded).unwrap().data, 0xFD55_575D_5F75_777D);
+            let up = d.key_file_pulses(&loaded).unwrap();
+            assert_eq!(up.len(), (gaps.len() * 2 + 2) * URMET_TX_REPEAT);
+            let lows: Vec<u32> = up.iter().skip(1).step_by(2).take(gaps.len()).map(|p| p.duration_us / URMET_TE).collect();
+            assert_eq!(lows, gaps.iter().map(|&g| u32::from(g.clamp(1, 20))).collect::<Vec<_>>());
+        }
+        // Pulses without an Urmet frame give no key file.
+        assert!(d.key_file_from_pulses(&on_air(&FRAME, 0)[24..]).is_none());
+    }
+
+    /// Oracle-parity dump (`#[ignore]`d): `URMET_KEYS=<list>` (key files, one path per line) prints
+    /// `<file> | <signed µs>` of each key file's transmission (doctor-firmware's `encode` output);
+    /// `URMET_RAWS=<list>` (RAW `.sub` files) prints `<file> | <key-file lines>` of every frame.
+    #[test]
+    #[ignore]
+    fn urmet_parity_dump() {
+        let read = |var: &str| -> Vec<String> {
+            std::env::var(var).ok().map_or(Vec::new(), |p| std::fs::read_to_string(p).unwrap().lines().map(str::to_string).collect())
+        };
+        let d = UrmetDecoder::new();
+        for file in read("URMET_KEYS") {
+            let key = FlipperKey::parse(&std::fs::read_to_string(&file).unwrap()).unwrap();
+            let line = d.key_file_pulses(&key).map_or("(none)".to_string(), |up| {
+                up.iter().map(|p| if p.level { p.duration_us.to_string() } else { format!("-{}", p.duration_us) }).collect::<Vec<_>>().join(" ")
+            });
+            println!("{file} | {line}");
+        }
+        for file in read("URMET_RAWS") {
+            let (_, raw) = crate::export::flipper::import_sub_raw(std::path::Path::new(&file)).unwrap();
+            let pulses: Vec<LevelDuration> = raw.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
+            let mut dec = UrmetDecoder::new();
+            let mut any = false;
+            for p in pulses.iter().chain(std::iter::once(&LevelDuration::new(false, 50_000))) {
+                if dec.feed(p.level, p.duration_us).is_some() {
+                    if let Some((bytes, gaps)) = dec.last.take() {
+                        any = true;
+                        let text = key_file(&bytes, &gaps).to_text();
+                        let lines: Vec<&str> = text.lines().skip_while(|l| !l.starts_with("Protocol:")).collect();
+                        println!("{file} | {}", lines.join("; "));
+                    }
+                }
+            }
+            if !any {
+                println!("{file} | (none)");
+            }
+        }
     }
 }

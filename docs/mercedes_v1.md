@@ -76,7 +76,8 @@ debounced and are unaffected.
    only if that pulse is not a chip (outside 25–140 µs). A chip there means a longer frame: BMW's 128-bit
    frames use the same template at 62 µs chips and would otherwise be cut at bit 122 and accepted by the
    weak field check. KAT 1.8.5 and earlier required a gap of 280 µs or more there, which a real fob does not
-   always leave (see Validation).
+   always leave (see Validation). A recording that ends right after the 122nd bit ends the frame too: no chip
+   followed, and the C has reported it.
 
 ## Encoder
 

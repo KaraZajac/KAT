@@ -2,13 +2,13 @@
 
 This folder describes how each keyfob and gate/garage remote protocol supported by KAT works. Each document corresponds to a decoder/encoder in `src/protocols/`.
 
-**Radio and app features:** [radio.md](radio.md) (receive pipeline, IQ recordings, `:record`, frequency hopping), [transmit.md](transmit.md) (OOK / 2-FSK transmit, per-protocol presets and deviations, TX power), [session.md](session.md) (session autosave and saved-fob matching), [timing_analysis.md](timing_analysis.md) (ProtoPirate's Timing Tuner and line-coding guesses), [add_manually.md](add_manually.md) (`:new`: new gate / garage remotes of 107 Flipper-ARF / doctor-firmware / RogueMaster types, and the signal menu's "Send button…"), [hitag2_hell.md](hitag2_hell.md) (Recover key (HiTag2): the HiTag2 Hell attack for Fiat V1 / Renault V1 / Fiat V2 remotes, and the `hitag2_keys.txt` key file).
+**Radio and app features:** [radio.md](radio.md) (receive pipeline, IQ recordings, `:record`, frequency hopping), [transmit.md](transmit.md) (OOK / 2-FSK transmit, per-protocol presets and deviations, TX power), [session.md](session.md) (session autosave and saved-fob matching), [timing_analysis.md](timing_analysis.md) (ProtoPirate's Timing Tuner and line-coding guesses), [add_manually.md](add_manually.md) (`:new`: new gate / garage remotes of 112 Flipper-ARF / doctor-firmware / RogueMaster / FoxFW types, and the signal menu's "Send button…"), [hitag2_hell.md](hitag2_hell.md) (Recover key (HiTag2): the HiTag2 Hell attack for Fiat V1 / Renault V1 / Fiat V2 remotes, and the `hitag2_keys.txt` key file).
 
 **Capture/encode model:** Decoded signals expose optional `extra` (e.g. VAG: Key2 + type + key index + counter high byte; protocols with frames longer than 64 bits keep the remaining bits there). When present, the app stores it in `Capture.data_extra` (persisted in `.fob` as `signal.data_extra`) so retransmit can encode from the capture without decoder instance state. See [vag.md](vag.md) for the VAG encode-from-capture flow.
 
 **Flipper key files:** [flipper_key_files.md](flipper_key_files.md) — loading and saving decoded keys (`Protocol` / `Bit` / `Key` `.sub` files, as ProtoPirate and Flipper-ARF save every decode): the name and lines each protocol writes, and what loads.
 
-**Unidentified captures:** [unidentified_captures.md](unidentified_captures.md) — the owner-collection captures in `IMPORTS/` that no decoder (KAT's or a reference's) reads: which were recorded with the wrong preset, and what is known of the formats no reference implements (VW Polo 5 2017, Lexus UX 250 2021, Volvo S40 1999).
+**Unidentified captures:** [unidentified_captures.md](unidentified_captures.md) — the owner-collection captures in `IMPORTS/` that no decoder (KAT's or a reference's) reads: which were recorded with the wrong preset, and what is known of the formats no reference implements (VW Polo 5 2017 — now read by FoxFW's VAG Polo —, Lexus UX 250 2021, Volvo S40 1999).
 
 | Protocol | Rust module | Doc |
 |----------|-------------|-----|
@@ -24,6 +24,7 @@ This folder describes how each keyfob and gate/garage remote protocol supported 
 | Ford V2 | `ford_v2.rs` | [ford_v2.md](ford_v2.md) |
 | Ford V3 | `ford_v3.rs` | [ford_v3.md](ford_v3.md) |
 | Honda Static | `honda_static.rs` | [honda_static.md](honda_static.md) |
+| Honda V5 | `honda_v5.rs` | [honda_v5.md](honda_v5.md) |
 | Honda V1 | `honda_v1.rs` | [honda_v1.md](honda_v1.md) |
 | Honda V2 (formerly Land Rover V0) | `honda_v2.rs` | [honda_v2.md](honda_v2.md) |
 | Chrysler V0 | `chrysler_v0.rs` | [chrysler_v0.md](chrysler_v0.md) |
@@ -33,6 +34,7 @@ This folder describes how each keyfob and gate/garage remote protocol supported 
 | VAG | `vag.rs` | [vag.md](vag.md) |
 | Fiat V0 | `fiat_v0.rs` | [fiat_v0.md](fiat_v0.md) |
 | Fiat V1 | `fiat_v1.rs` | [fiat_v1.md](fiat_v1.md) |
+| MARELLI (key files) | `fiat_marelli.rs` | [fiat_marelli.md](fiat_marelli.md) |
 | Fiat V2 (FCA: Fiat/Chrysler/Jeep) | `fiat_v2.rs` | [fiat_v2.md](fiat_v2.md) |
 | Renault V0 | `renault_v0.rs` | [renault_v0.md](renault_v0.md) |
 | Renault V1 (HITAG2) | `renault_v1.rs` | [renault_v1.md](renault_v1.md) |
@@ -47,6 +49,32 @@ This folder describes how each keyfob and gate/garage remote protocol supported 
 | Mercedes V1 | `mercedes_v1.rs` | [mercedes_v1.md](mercedes_v1.md) |
 | Opel V1 | `opel_v1.rs` | [opel_v1.md](opel_v1.md) |
 | Datsun Lada | `datsun_lada.rs` | [datsun_lada.md](datsun_lada.md) |
+| VAG Polo (FoxFW, decode only) | `vag_polo.rs` | [vag_polo.md](vag_polo.md) |
+| Chevrolet V0 (FoxFW, decode only) | `chevrolet_v0.rs` | [chevrolet_v0.md](chevrolet_v0.md) |
+| Tesla Charge (FoxFW) | `tesla_charge.rs` | [tesla_charge.md](tesla_charge.md) |
+| Hyundai/Kia RIO (FoxFW) | `hyundai_kia_rio.rs` | [hyundai_kia_rio.md](hyundai_kia_rio.md) |
+| SantaFe 13-16 (FoxFW) | `santa_fe.rs` | [santa_fe.md](santa_fe.md) |
+| Hitag2 (FoxFW, decode only) | `hitag2_rke.rs` | [hitag2_rke.md](hitag2_rke.md) |
+| Nidec RKE (FoxFW, decode only) | `nidec_rke.rs` | [nidec_rke.md](nidec_rke.md) |
+| Renault/xHorse V4 (FoxFW, decode only) | `renault_v4.rs` | [renault_v4.md](renault_v4.md) |
+| Fiat Ducato V0 (FoxFW, decode only) | `ducato_v0.rs` | [ducato_v0.md](ducato_v0.md) |
+| Renault V2 (FoxFW, decode only) | `renault_v2.rs` | [renault_v2.md](renault_v2.md) |
+| Opel V0 (FoxFW, decode only) | `opel_v0.rs` | [opel_v0.md](opel_v0.md) |
+| Honda V4 (FoxFW, decode only) | `honda_v4.rs` | [honda_v4.md](honda_v4.md) |
+| Honda V7 (FoxFW, decode only) | `honda_v7.rs` | [honda_v7.md](honda_v7.md) |
+| Honda V9 (FoxFW, decode only) | `honda_v9.rs` | [honda_v9.md](honda_v9.md) |
+| HondaV2&V3 (FoxFW, decode only) | `honda_v2_v3.rs` | [honda_v2_v3.md](honda_v2_v3.md) |
+| Honda V10 (FoxFW, decode only) | `honda_v10.rs` | [honda_v10.md](honda_v10.md) |
+| Mitsubishi V1 (FoxFW, decode only) | `mitsubishi_v1.rs` | [mitsubishi_v1.md](mitsubishi_v1.md) |
+| LDV V0 (FoxFW, decode only) | `ldv_v0.rs` | [ldv_v0.md](ldv_v0.md) |
+| Lexus V0 (FoxFW, decode only) | `lexus_v0.rs` | [lexus_v0.md](lexus_v0.md) |
+| Mazda V1 (FoxFW, decode only) | `mazda_v1.rs` | [mazda_v1.md](mazda_v1.md) |
+| Nissan V0 (FoxFW, decode only) | `nissan_v0.rs` | [nissan_v0.md](nissan_v0.md) |
+| Toyota (FoxFW, decode only) | `toyota_foxfw.rs` | [toyota_foxfw.md](toyota_foxfw.md) |
+| BMW V2 (FoxFW, decode only) | `bmw_v2.rs` | [bmw_v2.md](bmw_v2.md) |
+| BMW/Mini V3 (FoxFW, decode only) | `bmw_v3.rs` | [bmw_v3.md](bmw_v3.md) |
+| Audi V3 (FoxFW, decode only) | `audi_v3.rs` | [audi_v3.md](audi_v3.md) |
+| BMW CAS3 (FoxFW) | `bmw_cas3.rs` | [bmw_cas3.md](bmw_cas3.md) |
 | Porsche Cayenne | `porsche_cayenne.rs` | [porsche_cayenne.md](porsche_cayenne.md) |
 | Scher-Khan | `scher_khan.rs` | [scher_khan.md](scher_khan.md) |
 | Star Line | `star_line.rs` | [star_line.md](star_line.md) |
@@ -102,6 +130,20 @@ Ported from Flipper-ARF's garage app (`applications/system/subghz_garage/protoco
 | GangQi | `gangqi.rs` | [gangqi.md](gangqi.md) |
 | Hollarm | `hollarm.rs` | [hollarm.md](hollarm.md) |
 | Cardin S508 (RogueMaster) | `cardin_s508.rs` | [cardin_s508.md](cardin_s508.md) |
+| Freezer (RogueMaster) | `freezer.rs` | [freezer.md](freezer.md) |
+| Faac TM (RogueMaster) | `faac_tm.rs` | [faac_tm.md](faac_tm.md) |
+| Magellan (Paradox sensors) | `magellan.rs` | [magellan.md](magellan.md) |
+| X10 | `x10.rs` | [x10.md](x10.md) |
+| Legrand | `legrand.rs` | [legrand.md](legrand.md) |
+| Doorbell32 | `doorbell32.rs` | [doorbell32.md](doorbell32.md) |
+| Intertechno V3 | `intertechno_v3.rs` | [intertechno_v3.md](intertechno_v3.md) |
+| KeyFinder | `keyfinder.rs` | [keyfinder.md](keyfinder.md) |
+| Feron | `feron.rs` | [feron.md](feron.md) |
+| KeyFinder2 | `keyfinder2.rs` | [keyfinder2.md](keyfinder2.md) |
+| Honeywell Sec | `honeywell.rs` | [honeywell.md](honeywell.md) |
+| Honeywell | `honeywell_wdb.rs` | [honeywell_wdb.md](honeywell_wdb.md) |
+| Treadmill37 | `treadmill37.rs` | [treadmill37.md](treadmill37.md) |
+| Nord ICE | `nord_ice.rs` | [nord_ice.md](nord_ice.md) |
 | Holtek | `holtek.rs` | [holtek.md](holtek.md) |
 | CAME TWEE | `came_twee.rs` | [came_twee.md](came_twee.md) |
 | MegaCode | `megacode.rs` | [megacode.md](megacode.md) |
@@ -118,7 +160,7 @@ Ported from Flipper-ARF's garage app (`applications/system/subghz_garage/protoco
 
 ### Receive-only remotes from rtl_433
 
-Ports of [rtl_433](https://github.com/merbanan/rtl_433) decoders (`src/devices/`) for remotes no Flipper firmware decodes; receive only, registered last. They share one exact port of rtl_433's receive chain, `src/protocols/rtl433/`: the pulse detector, the pulse slicers (PWM, PPM, Manchester zero-bit, PIWM_DC, PCM) and the bit buffer, run over KAT's level/duration stream. A frame one of them reads is held back and reported only if no Flipper decoder reads the signal, and their hits reset only the rtl_433 ports (rtl_433 runs its devices independently): the Audiovox-PROOE3B port's weak checks also fit GateTX and Princeton frames, and before v1.8.7 its hit reset every decoder on the pulse those two needed, so such remotes were listed as Audiovox and never as GateTX / Princeton.
+Ports of [rtl_433](https://github.com/merbanan/rtl_433) decoders (`src/devices/`) for remotes no Flipper firmware decoded; receive only, registered last. FoxFW has since ported five of them (Alps FWB1U545, Continental KR5V2X, Compustar 1WG3R, Astrostart 2000, Audiovox PRO-OE3B) with encoders that refuse every file; KAT saves and loads FoxFW's key files for those five. They share one exact port of rtl_433's receive chain, `src/protocols/rtl433/`: the pulse detector, the pulse slicers (PWM, PPM, Manchester zero-bit, PIWM_DC, PCM) and the bit buffer, run over KAT's level/duration stream. A frame one of them reads is held back and reported only if no Flipper decoder reads the signal, and their hits reset only the rtl_433 ports (rtl_433 runs its devices independently): the Audiovox-PROOE3B port's weak checks also fit GateTX and Princeton frames, and before v1.8.7 its hit reset every decoder on the pulse those two needed, so such remotes were listed as Audiovox and never as GateTX / Princeton.
 
 | Protocol | Rust module | Doc |
 |----------|-------------|-----|
@@ -135,6 +177,7 @@ Ports of [rtl_433](https://github.com/merbanan/rtl_433) decoders (`src/devices/`
 | Audiovox PRO-OE3B | `audiovox_pro_oe3b.rs` | [audiovox_pro_oe3b.md](audiovox_pro_oe3b.md) |
 | Microchip HCS361 (KeeLoq) | `microchip_hcs361.rs` | [microchip_hcs361.md](microchip_hcs361.md) |
 | Microchip HCS362 (KeeLoq) | `microchip_hcs362.rs` | [microchip_hcs362.md](microchip_hcs362.md) |
+| Cardin S466-TX2 (27.195 MHz garage remote) | `cardin_s466.rs` | [cardin_s466.md](cardin_s466.md) |
 | Elero (blinds, awnings) | `elero.rs` | [elero.md](elero.md) |
 | Somfy io-homecontrol | `somfy_iohc.rs` | [somfy_iohc.md](somfy_iohc.md) |
 | RojaFlex (shutters) | `rojaflex.rs` | [rojaflex.md](rojaflex.md) |

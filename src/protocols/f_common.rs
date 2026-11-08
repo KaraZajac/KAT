@@ -1,6 +1,6 @@
 //! Helpers shared by the gate and alarm remotes ported from doctor-firmware, Flipper-ARF, Momentum
-//! and RogueMaster (GangQi, Hollarm, Hörmann BiSecur, Cardin S508): upload building as the C
-//! encoders' `yield` sends it, and the test / oracle-parity tools.
+//! and RogueMaster (GangQi, Hollarm, Hörmann BiSecur, Cardin S508, Freezer, Faac TM): upload building
+//! as the C encoders' `yield` sends it, and the test / oracle-parity tools.
 
 use crate::radio::demodulator::LevelDuration;
 
@@ -154,7 +154,10 @@ mod parity {
     use super::test_support::*;
     use crate::radio::demodulator::LevelDuration;
 
-    const NAMES: [&str; 4] = ["Hormann BiSecur", "Cardin S508", "GangQi", "Hollarm"];
+    const NAMES: [&str; 14] = [
+        "Hormann BiSecur", "Cardin S508", "GangQi", "Hollarm", "Freezer", "Faac TM", "Magellan", "X10", "Legrand",
+        "Doorbell32", "Intertechno_V3", "KeyFinder", "Feron", "KeyFinder2",
+    ];
 
     fn decoder(name: &str) -> Box<dyn ProtocolDecoder> {
         match name {
@@ -164,6 +167,16 @@ mod parity {
                 Box::new(super::super::hormann_bisecur::HormannBiSecurDecoder::new())
             }
             "Cardin S508" => Box::new(super::super::cardin_s508::CardinS508Decoder::new()),
+            "Freezer" => Box::new(super::super::freezer::FreezerDecoder::new()),
+            "Faac TM" => Box::new(super::super::faac_tm::FaacTmDecoder::new()),
+            "Magellan" => Box::new(super::super::magellan::MagellanDecoder::new()),
+            "X10" => Box::new(super::super::x10::X10Decoder::new()),
+            "Legrand" => Box::new(super::super::legrand::LegrandDecoder::new()),
+            "Doorbell32" => Box::new(super::super::doorbell32::Doorbell32Decoder::new()),
+            "Intertechno_V3" => Box::new(super::super::intertechno_v3::IntertechnoV3Decoder::new()),
+            "KeyFinder" => Box::new(super::super::keyfinder::KeyFinderDecoder::new()),
+            "Feron" => Box::new(super::super::feron::FeronDecoder::new()),
+            "KeyFinder2" => Box::new(super::super::keyfinder2::KeyFinder2Decoder::new()),
             _ => unreachable!("{name}"),
         }
     }

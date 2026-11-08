@@ -202,6 +202,10 @@ pub struct RenaultV0Decoder {
     manchester_state: u8,
     decoded_bits: [u8; DECODED_BITS_MAX],
     decoded_bit_count: usize,
+    /// A reported run ended on the next burst's sync, which (re)started the data step: in the C the
+    /// receiver's reset runs inside the callback (`decode_candidate`) and the sync then opens the
+    /// next frame, so the registry's reset right after this report is skipped once.
+    just_emitted: bool,
 }
 
 impl RenaultV0Decoder {
@@ -211,6 +215,7 @@ impl RenaultV0Decoder {
             manchester_state: STATE_MID1,
             decoded_bits: [0; DECODED_BITS_MAX],
             decoded_bit_count: 0,
+            just_emitted: false,
         }
     }
 
@@ -514,12 +519,16 @@ impl ProtocolDecoder for RenaultV0Decoder {
     }
 
     fn reset(&mut self) {
+        if std::mem::take(&mut self.just_emitted) {
+            return;
+        }
         self.step = DecoderStep::Reset;
         self.manchester_state = STATE_MID1;
         self.decoded_bit_count = 0;
     }
 
     fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
+        self.just_emitted = false;
         if self.step == DecoderStep::Reset {
             if level && duration >= SYNC_MIN_US {
                 self.start_data();
@@ -539,6 +548,7 @@ impl ProtocolDecoder for RenaultV0Decoder {
                 let result = self.decode_candidate();
                 if level && duration >= SYNC_MIN_US {
                     self.start_data();
+                    self.just_emitted = result.is_some();
                 } else {
                     self.step = DecoderStep::Reset;
                 }
@@ -856,6 +866,65 @@ mod tests {
         assert_eq!(decoded[0].data, frame.data);
         assert_eq!(decoded[0].extra, frame.extra);
         assert_eq!(decoded[0].counter, Some(0x2C));
+    }
+
+    /// Three bursts of a made-up frame (serial 0x1234A4, button 6, counter 0x42) 200 µs apart, as a
+    /// reference encoder sends them (signed µs, HIGH positive): ProtoPirate's, Flipper-ARF's and
+    /// doctor-firmware's decoders read 3 frames.
+    const THREE_BURSTS_200US: &[i32] = &[
+        -20000, 1000, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125,
+        -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -250, 125, -125, 125, -125, 250,
+        -250, 125, -125, 250, -250, 125, -125, 125, -125, 250, -125, 125, -250, 250, -250, 125, -125, 250, -250, 250,
+        -250, 125, -125, 250, -250, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 250, -125, 125,
+        -250, 125, -125, 250, -250, 125, -125, 125, -125, 125, -125, 250, -250, 250, -250, 125, -125, 125, -125, 250,
+        -250, 250, -250, 125, -125, 250, -250, 125, -125, 250, -125, 125, -250, 250, -125, 125, -125, 125, -250, 125,
+        -125, 125, -125, 125, -125, 250, -125, 125, -250, 250, -250, 250, -250, 250, -125, 125, -125, 125, -125, 125,
+        -250, 125, -125, 125, -125, 125, -125, 250, -125, 125, -250, 125, -125, 125, -125, 125, -200, 1000, -125, 125,
+        -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125,
+        -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -250, 125, -125, 125, -125, 250, -250, 125, -125, 250,
+        -250, 125, -125, 125, -125, 250, -125, 125, -250, 250, -250, 125, -125, 250, -250, 250, -250, 125, -125, 250,
+        -250, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 250, -125, 125, -250, 125, -125, 250,
+        -250, 125, -125, 125, -125, 125, -125, 250, -250, 250, -250, 125, -125, 125, -125, 250, -250, 250, -250, 125,
+        -125, 250, -250, 125, -125, 250, -125, 125, -250, 250, -125, 125, -125, 125, -250, 125, -125, 125, -125, 125,
+        -125, 250, -125, 125, -250, 250, -250, 250, -250, 250, -125, 125, -125, 125, -125, 125, -250, 125, -125, 125,
+        -125, 125, -125, 250, -125, 125, -250, 125, -125, 125, -125, 125, -200, 1000, -125, 125, -125, 125, -125, 125,
+        -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125, -125, 125,
+        -125, 125, -125, 125, -125, 125, -250, 125, -125, 125, -125, 250, -250, 125, -125, 250, -250, 125, -125, 125,
+        -125, 250, -125, 125, -250, 250, -250, 125, -125, 250, -250, 250, -250, 125, -125, 250, -250, 125, -125, 125,
+        -125, 125, -125, 125, -125, 125, -125, 125, -125, 250, -125, 125, -250, 125, -125, 250, -250, 125, -125, 125,
+        -125, 125, -125, 250, -250, 250, -250, 125, -125, 125, -125, 250, -250, 250, -250, 125, -125, 250, -250, 125,
+        -125, 250, -125, 125, -250, 250, -125, 125, -125, 125, -250, 125, -125, 125, -125, 125, -125, 250, -125, 125,
+        -250, 250, -250, 250, -250, 250, -125, 125, -125, 125, -125, 125, -250, 125, -125, 125, -125, 125, -125, 250,
+        -125, 125, -250, 125, -125, 125, -125, 125, -20000,
+    ];
+
+    /// Bursts sent 200 µs apart: each burst's sync is what ends the previous frame, and in the C
+    /// (ProtoPirate, Flipper-ARF, doctor-firmware) it also opens the next one, because the
+    /// receiver's reset runs inside the callback. KAT's registry reset wiped that restart and lost
+    /// a frame per sync. KAT now reads what the C reads: all 3 of the reference-encoded bursts
+    /// (KAT used to read 2), and 2 of the 3 bursts of its own upload with the gaps cut to 200 µs,
+    /// where a burst's last long pulse breaks the run in the C too (KAT used to read 1).
+    #[test]
+    fn a_sync_that_ends_a_frame_also_starts_the_next() {
+        let names = |signal: &[LevelDuration]| -> Vec<String> {
+            let mut reg = crate::protocols::ProtocolRegistry::new();
+            reg.process_signal_stream(signal, 433_920_000).into_iter().map(|(n, _, _)| n).collect()
+        };
+        let reference: Vec<LevelDuration> =
+            THREE_BURSTS_200US.iter().map(|&v| LevelDuration::new(v > 0, v.unsigned_abs())).collect();
+        let mut dec = RenaultV0Decoder::new();
+        let alone = crate::protocols::f_common::test_support::feed_resetting(&mut dec, &reference);
+        assert_eq!(alone.iter().map(|d| (d.serial, d.counter)).collect::<Vec<_>>(), [(Some(0x12_34A4), Some(0x42)); 3]);
+        assert_eq!(names(&reference), ["Renault V0"; 3]);
+
+        let mut own = RenaultV0Decoder::build_upload(0x1234_A406_428A_4DC3, 0x1_5E18);
+        let last = own.len() - 1;
+        for p in own[..last].iter_mut().filter(|p| !p.level && p.duration_us == TX_INTER_BURST_US) {
+            p.duration_us = 200;
+        }
+        let mut dec = RenaultV0Decoder::new();
+        assert_eq!(crate::protocols::f_common::test_support::feed_resetting(&mut dec, &own).len(), 2);
+        assert_eq!(names(&own), ["Renault V0"; 2]);
     }
 
     #[test]

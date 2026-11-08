@@ -74,7 +74,10 @@ the same.
    buffers a 1 or 0.
 3. **Candidate**: on an unclassifiable pulse (or once >109 bits are buffered), strip the leading 1s as
    preamble (≥10 required, ≥82 bits must follow), read 64 key bits and 18 `Key2` bits, and emit only if the
-   type-13 checksum and button whitelist pass. A HIGH ≥800 µs restarts Data immediately.
+   type-13 checksum and button whitelist pass. A HIGH ≥800 µs restarts Data immediately, also when it ended a
+   reported frame: in the C the receiver's reset runs inside the callback, before that restart, so the next
+   burst's sync opens its frame. KAT keeps the restart through the registry's reset that follows a report
+   (KAT used to wipe it, and bursts sent with only a short LOW before the next sync lost every other frame).
 
 ## Encoder
 

@@ -91,7 +91,9 @@ KAT runs three state machines side by side on every pulse, each exactly as in it
    levels; complete at the 80th bit). A 250 µs frame of this machine waits for ProtoPirate's end
    pulse (the first HIGH after the 80th bit, or a LOW over 1200 µs): if the ProtoPirate machine takes
    the frame, it is reported as before; otherwise only the 80th-bit rule read it, and it **must
-   decrypt** like an AM-path frame. So do the 125 µs path's frames.
+   decrypt** like an AM-path frame. So do the 125 µs path's frames. A recording that ends before
+   that pulse ends the wait: the frame is then the 80th-bit rule's alone (doctor-firmware has reported
+   it on that bit).
 3. **Flipper-ARF machine** — the same States 0..2, plus ARF's adaptive AM States 3/4 (ported from
    ARF's `psa.js`): te measured from ≥ 8 preamble cells, Manchester at the measured te, and on a
    terminator an 80- or 88-bit window realigned to the offset with the 0xA nibble, ≥ 4 distinct key1

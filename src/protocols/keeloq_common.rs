@@ -2,7 +2,10 @@
 //!
 //! Aligned with ProtoPirate `REFERENCES/ProtoPirate/protocols/keeloq_common.h` and Flipper-ARF
 //! `lib/subghz/protocols/keeloq_common.c` / `keeloq_common.h` (the superset: it adds secure, FAAC,
-//! AERF, Erreka and Pujol learning and the `decrypt_derived` cipher variant). Shared by KeeLoq,
+//! AERF, Erreka and Pujol learning and the `decrypt_derived` cipher variant). JCM Gen2, Stagnoli
+//! and the table-driven Telcoma learning (types 16..19) are ported from doctor-firmware's
+//! `keeloq_common.c` (`learning_jcm_gen2`, `learning_stagnoli`, `learning_telcoma_table`,
+//! `get_telcoma_table`; vectors from that C in the tests). Shared by KeeLoq,
 //! Star Line, Kia V3/V4, Sheriff CFM and the KeeLoq generic fallback.
 //! NLF (Non-Linear Feedback) constant 0x3A5C742E per reference.
 //!
@@ -195,6 +198,84 @@ pub fn keeloq_learning_pujol(data: u32, key: u64) -> u64 {
     ((k2 as u64) << 32) | (k1 as u64)
 }
 
+/// doctor-firmware `subghz_protocol_keeloq_common_learning_jcm_gen2`: rebuilds an intermediate key
+/// from the manufacturer key and the fix part, runs one KeeLoq decryption with it, then shuffles
+/// the result into the final key. `data` = button + serial (the fix part), `btn` = the learning
+/// byte (the decoder searches it over 0..=255 and keeps it as the seed).
+pub fn keeloq_learning_jcm_gen2(data: u32, btn: u8, key: u64) -> u64 {
+    let mut k = key.to_le_bytes();
+    let b0 = data as u8;
+    let b1 = (data >> 8) as u8;
+    let hi = data >> 16;
+    k[0] ^= b0;
+    k[6] ^= (((data << 4) & 0xFF0) | u32::from(b0 >> 4)) as u8;
+    let mix = btn.rotate_left(4).wrapping_add(k[2]);
+    k[2] = mix;
+    k[5] = k[5].wrapping_sub(1).wrapping_sub(btn);
+    k[4] ^= b1;
+    let (k7, k4) = (k[7], k[4]);
+    let seed = u32::from(btn ^ ((((hi << 4) & 0xFF0) | ((hi >> 4) & 0x0F)) as u8))
+        | (u32::from(!b0) << 8)
+        | (u32::from(b1 ^ ((data >> 24) & 0x0F) as u8) << 16)
+        | (u32::from((((data >> 4) & 0xFF0) as u8) | (b1 >> 4)) << 24);
+    let d = keeloq_decrypt(seed, u64::from_le_bytes(k));
+    let o = [
+        (d >> 24) as u8,
+        (((d & 0x0F) << 4) | ((d >> 4) & 0x0F)) as u8,
+        mix.wrapping_add((((d >> 4) & 0xFF0) | ((d >> 12) & 0x0F)) as u8),
+        (d >> 8) as u8,
+        ((d >> 24) as u8).wrapping_add(k4).wrapping_add(1),
+        (d >> 16) as u8,
+        !d as u8,
+        ((d >> 16) as u8).wrapping_add(k7),
+    ];
+    u64::from_le_bytes(o)
+}
+
+/// doctor-firmware `subghz_protocol_keeloq_common_learning_stagnoli`: magic XOR type 1 with the
+/// top byte of the fix part forced to 0xA0 | nibble. `data` = serial (28 bit).
+pub fn keeloq_learning_stagnoli(data: u32, key: u64) -> u64 {
+    let fix = (data & 0x0FFF_FFFF) | 0xA000_0000;
+    (u64::from(fix ^ (key >> 32) as u32) << 32) | u64::from(fix ^ key as u32)
+}
+
+/// doctor-firmware `subghz_protocol_keeloq_common_learning_telcoma_table`: 32 rounds of
+/// `x ^= table[x & 3]; x = rotl(x, 1)` give the high key word, 32 more the low one.
+pub fn keeloq_learning_telcoma_table(data: u32, table: &[u32; 4]) -> u64 {
+    let mut x = data & 0x0FFF_FFFF;
+    for _ in 0..32 {
+        x ^= table[(x & 3) as usize];
+        x = x.rotate_left(1);
+    }
+    let k1 = x;
+    for _ in 0..32 {
+        x ^= table[(x & 3) as usize];
+        x = x.rotate_left(1);
+    }
+    (u64::from(k1) << 32) | u64::from(x)
+}
+
+/// doctor-firmware `subghz_protocol_keeloq_common_get_telcoma_table` over [`keeloq_keystore`]
+/// (embedded blob plus the user keystore): the halves are found by learning type, not name; a
+/// TELCOMA_TABLE_HI entry fills `table[0..1]` (key high word, low word), a TELCOMA_TABLE_LO entry
+/// `table[2..3]`, the last of each wins. None unless both halves exist.
+pub fn keeloq_telcoma_table() -> Option<[u32; 4]> {
+    let mut table = [0u32; 4];
+    let (mut hi, mut lo) = (false, false);
+    for e in keeloq_keystore() {
+        if e.learning == learning_types::TELCOMA_TABLE_HI {
+            table[0] = (e.key >> 32) as u32;
+            table[1] = e.key as u32;
+            hi = true;
+        } else if e.learning == learning_types::TELCOMA_TABLE_LO {
+            table[2] = (e.key >> 32) as u32;
+            table[3] = e.key as u32;
+            lo = true;
+        }
+    }
+    (hi && lo).then_some(table)
+}
+
 /// KeeLoq learning type constants (Flipper-ARF keeloq_common.h: KEELOQ_LEARNING_*).
 #[allow(dead_code)]
 pub mod learning_types {
@@ -214,6 +295,13 @@ pub mod learning_types {
     pub const PUJOL: u32 = 13;
     pub const AERF: u32 = 14;
     pub const SIMPLE_JCM: u32 = 15;
+    // 16..19 are doctor-firmware's. 20 is deliberately absent: it is the Star Line alias in KAT
+    // (doctor-firmware's PANDORA_HOP).
+    pub const JCM_GEN2: u32 = 16;
+    pub const STAGNOLI: u32 = 17;
+    /// Needs a [`TELCOMA_TABLE_LO`] entry too (see [`super::keeloq_telcoma_table`]).
+    pub const TELCOMA_TABLE_HI: u32 = 18;
+    pub const TELCOMA_TABLE_LO: u32 = 19;
 }
 
 /// One keystore manufacturer entry (C `SubGhzKey`: name, key, learning type).
@@ -282,6 +370,21 @@ pub fn add_keeloq_key(entry: MfKey) -> bool {
     true
 }
 
+/// Test lock for the keystore, which is one per process: the tests that add made-up keys (some
+/// under real manufacturer names, whose rules are name-based) take it while their keys are in,
+/// and the tests whose results depend on the keystore's contents (the IMPORTS golden test, Add
+/// Manually availability) take it so they never see those keys.
+#[cfg(test)]
+pub static KEYSTORE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Test helper: take the session keys named `names` out again (see [`add_keeloq_key`]).
+#[cfg(test)]
+pub fn remove_keeloq_keys(names: &[&str]) {
+    let mut keys = keystore_cell().write().unwrap_or_else(|e| e.into_inner());
+    let next: Vec<MfKey> = keys.iter().filter(|e| !names.contains(&e.name.as_str())).cloned().collect();
+    *keys = Vec::leak(next);
+}
+
 /// C "mirrored man": the manufacturer key with its byte order reversed (tried for
 /// `KEELOQ_LEARNING_UNKNOWN` entries).
 pub fn mirrored_key(key: u64) -> u64 {
@@ -309,6 +412,30 @@ mod tests {
         assert_eq!(keeloq_learning_aerf(data, key), AERF_VECTOR);
         assert_eq!(keeloq_decrypt_derived(data, key, 0x240), DERIVED_VECTOR);
         assert_eq!(keeloq_decrypt_derived(data, key, 0x40), DERIVED40_VECTOR);
+    }
+
+    /// doctor-firmware C (`keeloq_common.c` compiled on the host, made-up inputs): `jcm_gen2(data,
+    /// btn, key)`, `stagnoli(data, key)`, `telcoma_table(data, [key_a hi, lo, key_b hi, lo])`.
+    #[test]
+    fn doctor_learning_functions_match_c_vectors() {
+        let datas = [0x2ABC_DE12u32, 0x5123_456F, 0xF000_0001, 0x8FED_CBA9];
+        let keys = [
+            0x1122_3344_5566_7788u64,
+            0xA1B2_C3D4_E5F6_0718,
+            0x0F1E_2D3C_4B5A_6978,
+            0xDEAD_BEEF_0123_4567,
+        ];
+        let btns = [0u8, 2, 7, 0xF];
+        let jcm = [0xD0E3_BF17_57DB_C17Cu64, 0x3965_98F1_2348_A95F, 0x9AA7_8BAC_E2F8_856F, 0xE9C5_0B32_EDF1_A30D];
+        let stag = [0xBB9E_ED56_FFDA_A99Au64, 0x0091_86BB_44D5_4277, 0xAF1E_2D3D_EB5A_6979, 0x7140_7546_AECE_8ECE];
+        let telc = [0x8F85_6D7A_D288_CF69u64, 0x3B35_3001_2EAC_77D1, 0x8B16_F318_BEE3_8C49, 0x330F_D3C5_85A7_CED7];
+        for i in 0..4 {
+            assert_eq!(keeloq_learning_jcm_gen2(datas[i], btns[i], keys[i]), jcm[i], "jcm {i}");
+            assert_eq!(keeloq_learning_stagnoli(datas[i], keys[i]), stag[i], "stagnoli {i}");
+            let (a, b) = (keys[i], keys[(i + 1) % 4]);
+            let table = [(a >> 32) as u32, a as u32, (b >> 32) as u32, b as u32];
+            assert_eq!(keeloq_learning_telcoma_table(datas[i], &table), telc[i], "telcoma {i}");
+        }
     }
 
     #[test]

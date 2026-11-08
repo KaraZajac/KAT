@@ -21,6 +21,7 @@ use std::path::Path;
 
 use crate::capture::{Capture, CaptureStatus, StoredLevelDuration};
 use crate::protocols::{FlipperKey, ProtocolRegistry};
+use crate::radio::demodulator::LevelDuration;
 use crate::radio::preset::{format_hex_bytes, parse_hex_bytes, RfPreset};
 
 /// What a `.sub` file holds: RAW pairs or a decoded key.
@@ -53,13 +54,22 @@ pub fn parse_sub_content(s: &str) -> Result<SubContent> {
 }
 
 /// The capture a key file stands for: the decode its protocol rebuilds from it
-/// (`ProtocolDecoder::from_flipper_key`), at the file's frequency and preset, without raw pairs.
+/// (`ProtocolDecoder::from_flipper_key`), at the file's frequency and preset, without raw pairs —
+/// except for a protocol whose frame does not fit the decode (Urmet), whose transmission becomes
+/// the capture's recording (`ProtocolDecoder::key_file_pulses`), so Replay sends it.
 /// Err when the protocol is unknown to KAT or the key does not load (wrong Bit, failed check …).
 pub fn capture_from_key(key: &FlipperKey, registry: &ProtocolRegistry, id: u32) -> Result<Capture> {
     let (name, decoded) = registry.decode_key(key).ok_or_else(|| {
         anyhow::anyhow!("{} key file ({} bits) is not supported or does not validate", key.protocol, key.bits)
     })?;
-    let mut capture = Capture::from_pairs_with_rf(id, key.frequency, Vec::new(), None);
+    let pairs: Vec<StoredLevelDuration> = registry
+        .get(&name)
+        .and_then(|p| p.key_file_pulses(key))
+        .unwrap_or_default()
+        .into_iter()
+        .map(|p| StoredLevelDuration { level: p.level, duration_us: p.duration_us })
+        .collect();
+    let mut capture = Capture::from_pairs_with_rf(id, key.frequency, pairs, None);
     capture.rf_preset = key.rf_preset();
     capture.protocol = Some(name);
     capture.serial = decoded.serial;
@@ -69,6 +79,7 @@ pub fn capture_from_key(key: &FlipperKey, registry: &ProtocolRegistry, id: u32) 
     capture.data = decoded.data;
     capture.data_count_bit = decoded.data_count_bit;
     capture.data_extra = decoded.extra;
+    capture.key_repeat = key.u32_field("Repeat");
     capture.status = if decoded.encoder_capable { CaptureStatus::EncoderCapable } else { CaptureStatus::Decoded };
     Ok(capture)
 }
@@ -78,9 +89,18 @@ pub fn capture_from_key(key: &FlipperKey, registry: &ProtocolRegistry, id: u32) 
 /// file support (or the capture is not a decode of it).
 pub fn capture_flipper_key(capture: &Capture, registry: &ProtocolRegistry) -> Option<FlipperKey> {
     let decoder = registry.get(capture.protocol.as_deref()?)?;
-    let mut key = decoder.to_flipper_key(&capture.decoded_signal())?;
+    let mut key = decoder.to_flipper_key(&capture.decoded_signal()).or_else(|| {
+        // A frame the decode cannot hold (Urmet): rebuilt from the capture's recording.
+        let pulses: Vec<LevelDuration> =
+            capture.raw_pairs.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
+        decoder.key_file_from_pulses(&pulses)
+    })?;
     key.frequency = capture.frequency;
     key.set_preset(&capture.export_preset());
+    // A loaded file's `Repeat` line stays with it (a protocol that writes its own, Kia V7, keeps that).
+    if let (Some(n), None) = (capture.key_repeat, key.field("Repeat")) {
+        key.push_u32("Repeat", n);
+    }
     Some(key)
 }
 
@@ -437,6 +457,57 @@ mod tests {
 
     /// A RAW capture's decode (with its custom CC1101 preset) exported as a key file keeps the
     /// preset lines where the Flipper expects them and reloads to the same decode.
+    /// Urmet's frame does not fit the decode: a received frame still saves as an Urmet key file
+    /// (`Raw` + `Gaps`, rebuilt from the recording), and that file loads with doctor-firmware's
+    /// transmission as the capture's recording, which Replay sends.
+    #[test]
+    fn urmet_captures_keep_their_frame_through_key_files() {
+        // A frame as the remote sends it: wake-up burst, 34 ms gap, preamble H1 L1 H1 L11, 18
+        // inverted-USART bytes in the 5/7/D/F alphabet, a closing HIGH, 34 ms.
+        let bytes = [0x55u8, 0x57, 0x5D, 0x5F, 0x75, 0x77, 0x7D, 0x7F, 0xD5, 0xD7, 0xDD, 0xDF, 0xF5, 0xF7, 0xFD, 0xFF, 0x55, 0x7D];
+        let mut bits: Vec<bool> = [1u8, 0, 1].iter().chain([0u8; 11].iter()).map(|&b| b == 1).collect();
+        for v in bytes {
+            bits.push(true);
+            bits.extend((0..8).map(|k| (v >> k) & 1 == 0));
+            bits.push(false);
+        }
+        bits.push(true);
+        let mut pairs: Vec<crate::radio::LevelDuration> = Vec::new();
+        let mut push = |level: bool, d: u32| match pairs.last_mut() {
+            Some(last) if last.level == level => last.duration_us += d,
+            _ => pairs.push(crate::radio::LevelDuration::new(level, d)),
+        };
+        push(false, 20_000);
+        for _ in 0..12 {
+            push(true, 150);
+            push(false, 150);
+        }
+        push(false, 34_000);
+        for b in &bits {
+            push(*b, 500);
+        }
+        push(false, 34_000);
+        let mut reg = ProtocolRegistry::new();
+        let (name, d, seg) = reg.process_signal_stream(&pairs, 433_920_000).into_iter().next().unwrap();
+        assert_eq!(name, "Urmet");
+        let mut c = Capture::from_pairs_with_rf(1, 433_920_000, seg.iter().map(|p| StoredLevelDuration { level: p.level, duration_us: p.duration_us }).collect(), None);
+        c.protocol = Some(name.clone());
+        c.data = d.data;
+        c.data_count_bit = d.data_count_bit;
+        let text = capture_flipper_key(&c, &reg).expect("an Urmet key file").to_text();
+        assert!(text.contains("\nProtocol: Urmet\nBit: 152\nKey: FD 55 57 5D 5F 75 77 7D\nRaw: FD 55 57 5D"), "{text}");
+        assert!(text.contains("\nGaps: "), "{text}");
+        let SubContent::Key(k) = parse_sub_content(&text).unwrap() else { panic!() };
+        let back = capture_from_key(&k, &reg, 2).unwrap();
+        assert_eq!((back.protocol.as_deref(), back.data), (Some("Urmet"), d.data));
+        // 5 copies of: per gap HIGH 500 + LOW n·500, a closing HIGH 500, LOW 34 ms.
+        assert!(!back.raw_pairs.is_empty() && back.raw_pairs.len().is_multiple_of(5));
+        assert_eq!(back.raw_pairs.iter().filter(|p| !p.level && p.duration_us == 34_000).count(), 5);
+        assert!(back.raw_pairs.iter().filter(|p| p.level).all(|p| p.duration_us == 500));
+        // A key file of any other protocol still loads without a recording.
+        assert!(capture_from_key(&FlipperKey::parse("Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\nPreset: FuriHalSubGhzPresetOok650Async\nProtocol: CAME\nBit: 12\nKey: 00 00 00 00 00 00 0A BC\n").unwrap(), &reg, 3).unwrap().raw_pairs.is_empty());
+    }
+
     #[test]
     fn raw_capture_exports_as_key_file() {
         crate::protocols::keys::load_keystore_from_embedded();

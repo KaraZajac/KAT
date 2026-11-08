@@ -18,6 +18,17 @@
 //! "CAME [Airforce]" / "CAME [Prastel]" (the key file still says `Protocol: CAME`). In Flipper-ARF's
 //! garage app CAME is registered before its 42-bit "Prastel" protocol and wins frames both decode.
 //!
+//! **Faac TM frames (RogueMaster, Nov 2026).** A Faac TM remote (`faac_tm.rs`: 12 DIP bits in the
+//! same short/long grammar, Te measured per frame, nominally 400 µs) running fast fits CAME's
+//! windows up to Te ≈ 395 µs. RogueMaster's `came.c` tells them apart by the gap after the frame,
+//! counted in the frame's own Te (gap and Te come from one oscillator, so the ratio carries no clock
+//! error): CAME repeats every 47 Te, Faac TM every 35. A 12-bit frame whose mean Te (the start bit
+//! and every data pulse summed, / 37) is 340 µs or more — slower than any CAME remote, 320 µs
+//! nominal — is reported only when the gap that ends it lies within 42..=52 Te; otherwise it is left
+//! to Faac TM (registered after CAME, as in RogueMaster). The last frame of a slow press, followed by
+//! silence, is therefore not CAME's either. Frames under 340 µs and the 18/24/25/42-bit lengths are
+//! unaffected. KAT adds this to Flipper-ARF's decoder (the union of what the references read).
+//!
 //! **Encoder** (`subghz_protocol_encoder_came_get_upload`, `encoder.repeat` = 3): header, start bit,
 //! the key's bits; keys up to 42 bits. CAME has no button field: `button` is ignored (ARF's lib
 //! encoder also re-sends the captured code for every D-pad direction).
@@ -56,6 +67,11 @@ const CAME_24_COUNT_BIT: usize = 24;
 const PRASTEL_25_COUNT_BIT: usize = 25;
 const PRASTEL_42_COUNT_BIT: usize = 42;
 const AIRFORCE_COUNT_BIT: usize = 18;
+/// RogueMaster `CAME_12_FOREIGN_TE_MIN`: a 12-bit frame this slow (mean Te, µs) may be Faac TM's.
+const FOREIGN_TE_MIN: u32 = 340;
+/// RogueMaster `CAME_12_GAP_TE_MIN` / `_MAX`: CAME repeats every 47 Te.
+const GAP_TE_MIN: u32 = 42;
+const GAP_TE_MAX: u32 = 52;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Step {
@@ -71,6 +87,8 @@ pub struct CameDecoder {
     te_last: u32,
     decode_data: u64,
     decode_count_bit: u8,
+    /// RogueMaster's `te`: the sum of the frame's pulses (start bit included).
+    te: u32,
 }
 
 /// The display variant `get_string` names by bit count.
@@ -124,12 +142,28 @@ impl CameDecoder {
             te_last: 0,
             decode_data: 0,
             decode_count_bit: 0,
+            te: 0,
         }
     }
 
     fn add_bit(&mut self, bit: u64) {
         self.decode_data = self.decode_data << 1 | bit;
         self.decode_count_bit = self.decode_count_bit.wrapping_add(1);
+    }
+
+    /// RogueMaster `subghz_protocol_came_is_foreign_12bit`: a 12-bit frame slower than any CAME
+    /// remote whose closing `gap` is not CAME's 47-Te repeat (see the module doc).
+    fn is_foreign_12bit(&self, gap: u32) -> bool {
+        if self.decode_count_bit as usize != MIN_COUNT_BIT {
+            return false;
+        }
+        // start bit plus 3 Te per bit
+        let te = self.te / (MIN_COUNT_BIT as u32 * 3 + 1);
+        if te < FOREIGN_TE_MIN {
+            return false;
+        }
+        let gap_te = gap / te;
+        !(GAP_TE_MIN..=GAP_TE_MAX).contains(&gap_te)
     }
 }
 
@@ -175,6 +209,7 @@ impl ProtocolDecoder for CameDecoder {
                     self.step = Step::SaveDuration;
                     self.decode_data = 0;
                     self.decode_count_bit = 0;
+                    self.te = duration;
                 } else {
                     self.step = Step::Reset;
                 }
@@ -191,7 +226,8 @@ impl ProtocolDecoder for CameDecoder {
                                 | PRASTEL_25_COUNT_BIT
                                 | PRASTEL_42_COUNT_BIT
                                 | CAME_24_COUNT_BIT
-                        ) {
+                        ) && !self.is_foreign_12bit(duration)
+                        {
                             // callback → the app resets the receiver (came_reset).
                             self.step = Step::Reset;
                             return Some(decoded(self.decode_data, bits));
@@ -199,6 +235,7 @@ impl ProtocolDecoder for CameDecoder {
                         return None;
                     }
                     self.te_last = duration;
+                    self.te = self.te.wrapping_add(duration);
                     self.step = Step::CheckDuration;
                 } else {
                     self.step = Step::Reset;
@@ -206,6 +243,7 @@ impl ProtocolDecoder for CameDecoder {
             }
             Step::CheckDuration => {
                 if level {
+                    self.te = self.te.wrapping_add(duration);
                     if duration_diff!(self.te_last, TE_SHORT) < TE_DELTA
                         && duration_diff!(duration, TE_LONG) < TE_DELTA
                     {
@@ -246,6 +284,19 @@ impl ProtocolDecoder for CameDecoder {
 
     fn to_flipper_key(&self, d: &DecodedSignal) -> Option<FlipperKey> {
         Some(generic_key(NAME, d))
+    }
+}
+
+#[cfg(test)]
+pub(super) mod testing {
+    //! Frames for other modules' tests.
+    use super::*;
+
+    /// The encoder's upload for a `bits`-bit `data` (3 copies), with a trailing silence.
+    pub fn on_air(data: u64, bits: usize) -> Vec<LevelDuration> {
+        let mut wire = CameDecoder::new().encode(&decoded(data, bits), 0).unwrap();
+        push(&mut wire, false, 30_000);
+        wire
     }
 }
 
@@ -316,6 +367,44 @@ mod tests {
             1,
             "only the intact repeat decodes"
         );
+    }
+
+    /// A 12-bit frame of `data` at a uniform `te` (start bit, 12 short/long pairs), closed by `gap`.
+    fn frame_at(data: u64, te: u32, gap: u32) -> Vec<LevelDuration> {
+        let mut w = vec![LevelDuration::new(false, te * 47)];
+        push(&mut w, true, te);
+        for i in (0..12).rev() {
+            let (low, high) = if (data >> i) & 1 == 1 { (te * 2, te) } else { (te, te * 2) };
+            push(&mut w, false, low);
+            push(&mut w, true, high);
+        }
+        push(&mut w, false, gap);
+        w
+    }
+
+    /// RogueMaster's foreign-frame rule: a 12-bit frame at Te ≥ 340 µs is CAME's only when its gap
+    /// is 42..=52 Te; nominal CAME timing and the other lengths are unaffected.
+    #[test]
+    fn slow_12bit_frames_need_came_gap() {
+        let got = |w: &[LevelDuration]| feed_all(&mut CameDecoder::new(), w).len();
+        // Nominal 320 µs: any closing gap.
+        assert_eq!(got(&frame_at(0xA5C, 320, 320 * 35)), 1);
+        assert_eq!(got(&frame_at(0xA5C, 320, 60_000)), 1);
+        // 380 µs (a fast Faac TM fits CAME's windows): CAME's 47 Te gap yes, Faac TM's 35 Te or
+        // silence no.
+        assert_eq!(got(&frame_at(0xA5C, 380, 380 * 47)), 1);
+        assert_eq!(got(&frame_at(0xA5C, 380, 380 * 35)), 0);
+        assert_eq!(got(&frame_at(0xA5C, 380, 60_000)), 0);
+        // 24 bits at 380 µs: not tested (header inside the 17920 ± 9450 µs window).
+        let mut w = vec![LevelDuration::new(false, 380 * 47)];
+        push(&mut w, true, 380);
+        for i in (0..24).rev() {
+            let (low, high) = if (0x6AB234u64 >> i) & 1 == 1 { (760, 380) } else { (380, 760) };
+            push(&mut w, false, low);
+            push(&mut w, true, high);
+        }
+        push(&mut w, false, 380 * 35);
+        assert_eq!(got(&w), 1);
     }
 
     #[test]

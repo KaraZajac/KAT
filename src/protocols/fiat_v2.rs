@@ -481,6 +481,16 @@ impl ProtocolDecoder for FiatV2Decoder {
         hit.and_then(|raw| self.commit(raw))
     }
 
+    /// The input ended right after a frame, before the pulse that ends its burst: KAT holds the
+    /// frame until then (it must end the burst, see the module doc), where the C has already
+    /// reported it when its window completed.
+    fn flush(&mut self) -> Option<DecodedSignal> {
+        let raw = self.pending.take()?;
+        self.clear_cells();
+        self.step = DecoderStep::Reset;
+        self.commit(raw)
+    }
+
     fn supports_encoding(&self) -> bool {
         true
     }
@@ -606,6 +616,23 @@ mod tests {
         assert_eq!(d.extra, Some(0x2023_5C16_7DE9));
         assert_eq!(d.data_count_bit, 112);
         assert_eq!(FiatV2Decoder::hop(&RAW_PACIFICA), 0x235C_167D);
+    }
+
+    /// A recording that ends right after a frame (no closing gap): the frame is reported when the
+    /// input ends ([crate::protocols::ProtocolDecoder::flush]), alone and in the registry.
+    #[test]
+    fn a_frame_the_input_ends_after_is_reported() {
+        let mut pulses = vec![LevelDuration::new(false, 20_000)];
+        for p in cells_to_pulses(&frame_cells(&RAW_PACIFICA)) {
+            FiatV2Decoder::enc_add_level(&mut pulses, p.level, p.duration_us);
+        }
+        let mut decoder = FiatV2Decoder::new();
+        assert!(pulses.iter().all(|p| decoder.feed(p.level, p.duration_us).is_none()));
+        assert_eq!(decoder.flush().map(|d| d.serial), Some(Some(0xD737_A2C3)));
+        assert!(decoder.flush().is_none());
+        let mut reg = crate::protocols::ProtocolRegistry::new();
+        let names: Vec<String> = reg.process_signal_stream(&pulses, 433_920_000).into_iter().map(|(n, _, _)| n).collect();
+        assert_eq!(names, ["Fiat V2"]);
     }
 
     #[test]

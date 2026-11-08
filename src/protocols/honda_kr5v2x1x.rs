@@ -306,6 +306,9 @@ mod tests {
 
     #[test]
     fn registry_reports_it_on_fm() {
+        // The same remotes' frames are Honda V5 frames (FoxFW honda_v5.c; header, layout and CRC-8
+        // agree), and the registry holds an rtl_433 port back when a Flipper decoder reads the
+        // signal: the registry reports Honda V5, and this decoder reads it on its own (`decodes_frames_from_the_c_layout`).
         let f = frame(0x08, 0x0BAD_CAFE, 0x21, 4242, 0x0F0F_A5A5);
         let got = registry(
             &air(&f, 30),
@@ -314,8 +317,10 @@ mod tests {
         );
         assert_eq!(
             got.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(),
-            [NAME]
+            ["Honda V5"]
         );
         assert_eq!(got[0].1.serial, Some(0x0BAD_CAFE));
+        assert_eq!(got[0].1.button, Some(0x21));
+        assert_eq!(got[0].1.counter, Some(4242));
     }
 }

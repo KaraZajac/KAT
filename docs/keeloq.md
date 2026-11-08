@@ -34,6 +34,14 @@ pipeline): `Microchip/HCS200` → `KeeLoq (Magic_3)` serial D0921 with consecuti
 | Bit 1 / 0 | 400 HIGH + 800 LOW / 800 HIGH + 400 LOW |                               |
 | End       | LOW ≥ 980 µs | 64..66 bits, first 64 kept                               |
 
+**Half rate (RogueMaster, November 2026).** The HCS200/HCS300/HCS301 encoders have a baud-rate-select field, so
+the same 66-bit frame also ships at Te 200 µs. As in RogueMaster's `keeloq.c` (from Unleashed), the preamble is
+accepted at either rate (HIGH 400 ± 180 or 200 ± 90 µs; preamble LOWs of 200 ± 90 µs too), and the sync gap
+decides which. A gap within 2000 ± 450 µs locks the half rate at the encoder's measured Te (gap / 10). Otherwise
+the standard band (4000 ± 1800 µs) locks 400 µs. Every bit and end check then scales with the locked Te: tolerance
+Te·180/400, so 90 µs at 200, and the end of frame is a LOW ≥ 2·Te + tolerance. The two gap bands overlap from 2200
+to 2450 µs, where the half rate is tried first (RogueMaster's order). A half-rate decode keeps its Te for the
+encoder and the key file.
 ## Frame Layout (64 bits, MSB-first, bit-reversed = fix | hop)
 
 - **fix (32 bits):** button (4) << 28 | serial (28)
@@ -45,9 +53,17 @@ pipeline): `Microchip/HCS200` → `KeeLoq (Magic_3)` serial D0921 with consecuti
 2. **HCS101** — hop = `cnt16 btn 0x000`; counter = hop >> 16.
 3. **Reference selector** — each keystore entry with ONLY its learning type: SIMPLE (Pecinin: 12-bit
    serial check, button from the plaintext), NORMAL (Centurion: discriminator 0x1CE), SECURE (BFT: seed 0,
-   then seed = serial), MAGIC_XOR_TYPE_1, MAGIC_SERIAL_TYPE_1/2/3, AERF, ERREKA, PUJOL, SIMPLE_JCM, UNKNOWN
+   then seed = serial), MAGIC_XOR_TYPE_1, MAGIC_SERIAL_TYPE_1/2/3, AERF, ERREKA, PUJOL, SIMPLE_JCM, JCM_GEN2, STAGNOLI,
+   TELCOMA_TABLE_HI, UNKNOWN
    (simple, normal, secure, magic-xor, each with the key and its byte-mirrored copy). Check: plaintext
    button = fix button and plaintext[23:16] = serial[7:0] or 0.
+   doctor-firmware's and RogueMaster's per-manufacturer rules replace that check for four names, the
+   union with Flipper-ARF, which has none of them:
+   - **KEY** (SIMPLE): the 12-bit discriminator is 0x2FF.
+   - **Monarch** (NORMAL): the discriminator is 0x100 or 0x280 (Dorcas), kept as the seed.
+   - **Phantom/Hiland** (NORMAL, RogueMaster; `Phantom_Hiland` in the keystore): the discriminator's low 10
+     bits are the serial's, and the whole 12-bit field is kept as the seed. Its top 2 bits differ per remote
+     and the receiver ignores them.
 
 The first match names the manufacturer. A random 64-bit frame is identified ≈6% of the time, so strongly
 gated KeeLoq-PWM protocols (Sheriff CFM) are registered before KeeLoq.
@@ -87,7 +103,17 @@ Encryption: 0
 Each line is `KEY:TYPE:NAME`: the 64-bit manufacturer key as 16 hex digits, the learning type in the
 Flipper's numbering (1 simple, 2 normal, 3 secure, 4 magic XOR type 1, 6–8 magic serial types 1–3, …;
 0 = unknown, KAT tries simple/normal/secure/magic XOR with the key and its byte-mirrored copy) and the
-manufacturer name shown as `KeeLoq (<name>)`. Encrypted Flipper keystores (`Encryption: 1`) cannot be
+manufacturer name shown as `KeeLoq (<name>)`.
+
+Types 16-19 are doctor-firmware's (ported from its `keeloq_common.c` / `keeloq.c`; type 20 stays KAT's
+Star Line alias, not doctor's PANDORA_HOP):
+
+| Type | Name | Learning |
+|------|------|----------|
+| 16 | JCM_GEN2 | Intermediate key from the key and the fix part, one KeeLoq decrypt, then a byte shuffle into the final key. The learning byte is searched over 0-255 on decode and kept as the seed; the encoder reuses it. |
+| 17 | STAGNOLI | Magic XOR type 1 with the fix part's top byte forced to `0xA0`. |
+| 18 | TELCOMA_TABLE_HI | Table-driven: 32 rounds of `x ^= table[x & 3]; x = rotl(x, 1)` on the 28-bit serial give the key's high word, 32 more the low word. The 4-word table is the key of this entry (words 0-1) and of a type 19 entry (words 2-3); without both, the entry does nothing. Name the type 18 entry as the brand. |
+| 19 | TELCOMA_TABLE_LO | The second half of the Telcoma table. Never matches on its own. | Encrypted Flipper keystores (`Encryption: 1`) cannot be
 read. KAT reports how many keys it loaded in the status line at start-up (and on stderr for
 `kat --decode`).
 
@@ -168,15 +194,25 @@ file's `Manufacture`, so a key whose frame an earlier keystore entry would also 
 with its own seed, is transmitted with its own manufacturer; counter + 1 (wraps to 0). `fix = button << 28 | serial` (Pecinin: serial only).
 Discriminator per manufacturer (default serial & 0x3FF; Aprimatic parity form; 12-bit for DTM_Neo,
 FAAC_RC,XT, Mutanco/Clemsa, Came_Space, Genius_Bravo, GSN, Rosh, Rossi, Pecinin, Steelmate, Cardin_S449,
-Stilmatic, …; 8-bit for NICE_Smilo/MHOUSE, JCM_Tech, Pujol, Erreka; 0 Beninca/Merlin; 0x1CE Centurion; 0x100
-Monarch; Dea_Mio's C19 form). Hop by the entry's learning type; UNKNOWN entries per matched mode with the key
+Stilmatic, …; 8-bit for NICE_Smilo/MHOUSE, JCM_Tech, Pujol, Erreka; 0 Beninca/Merlin; 0x1CE Centurion; 0x2FF
+KEY; Monarch's received discriminator (0x100 or 0x280, the seed; 0x100 when the seed holds neither, Flipper-ARF's
+fixed value); Phantom/Hiland's received discriminator (the seed when its low 10 bits are the serial's, else
+serial & 0x3FF); Dea_Mio's C19 form). Hop by the entry's learning type; UNKNOWN entries per matched mode with the key
 as stored (reference quirk). MAGIC_SERIAL_2/3 have no encode case in the C → the captured frame is
 re-sent. AN-Motors/HCS101 rebuild their plaintext hop; unidentified → the
 captured hop is replayed. Programming mode (button 0xF): BFT sends its seed as hop, Aprimatic 0x1A2B3C4D,
-Dea_Mio 0.
+Dea_Mio 0, and Erreka its seed as FoxFW does (`PROG_MODE_KEELOQ_ERREKA`).
 
 Upload: 11 × (400, 400), 400 HIGH, 4000 LOW, 64 bits, status bit (400/800), 400 HIGH, 16 ms LOW (Sommer
-11.6 ms); "Superrollo" uses ARF's HCS361 framing. Sent 3 times (C `encoder.repeat`).
+11.6 ms); "Superrollo" uses ARF's HCS361 framing. Sent 3 times (C `encoder.repeat`). A half-rate capture (or a key
+file with `TE: 200`) is sent at Te 200 µs, every pulse and the gap halved, as RogueMaster's encoder does; its
+other counter modes (7 and up: DoorHan forced-resync packs) are not ported.
+
+**Key files.** `Bit: 64`, `Key`, then `Seed` (4 hex bytes) for BFT (Flipper-ARF) and, as doctor-firmware and
+RogueMaster write it, for Erreka, Monarch and Phantom/Hiland. Then `Manufacture`, then RogueMaster's `TE: 200`
+for a half-rate frame only, so standard files keep the layout older builds read. On load, a `TE` other than 200
+is the standard rate. An Erreka file's `Seed` decrypts its frame, as doctor-firmware's / RogueMaster's: their
+"Add Manually" draws one, while the decode flow tries seed 0.
 
 Buttons are 4-bit function codes; KAT Lock/Unlock/Trunk/Panic (1/2/4/8) and codes 1..F are sent as is.
 For ARF's "shifted" brands (DoorHan, Pandora_*, Alligator_S-275, …) codes 2/4/8/1 are labelled B1..B4.
@@ -188,3 +224,8 @@ identification matches field-for-field (manufacturer, serial, button, counter, s
 upload pulse-for-pulse on randomized frames for every keystore entry and learning type. Real remotes in
 ARF's unit-test captures: three DoorHan remotes (consecutive counters), an AN-Motors and a Stilmatic
 remote. The IMPORTS sweep has no KeeLoq capture.
+
+The half rate and the four manufacturer rules (November 2026) are checked by the tests `keeloq_half_rate` and
+`keeloq_discriminator_rules`: frames at Te 185, 200 and 215 µs decode and are sent back at 200 µs. KEY, Monarch A
+and B, and Phantom/Hiland (a made-up key, all four top-bit values) are identified, re-sent with their
+discriminator and round-trip through key files. No real half-rate or Phantom/Hiland recording is in the corpus.

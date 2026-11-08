@@ -684,7 +684,9 @@ fn transmit_signal_hackrf(
         if settings.amp { "on" } else { "off" }
     );
 
-    // Generate the samples first: nothing is keyed until they are ready.
+    // Generate the samples first: nothing is keyed until they are ready (and nothing absurdly long
+    // is generated at all).
+    super::tx::check_tx_air_time(signal)?;
     let samples = generate_tx_iq(signal, settings.modulation, TX_SAMPLE_RATE, TX_LO_OFFSET_HZ);
     let total = samples.len();
     let stream = Arc::new(TxStream::new(samples));

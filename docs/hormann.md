@@ -12,8 +12,14 @@ button switching.
 ## Overview
 
 Hörmann HSM garage remotes (the older static-code HSM series, not BiSecur): a 44-bit frame announced by a long 12 ms
-start pulse. Frames carry a fixed pattern `0xFF000000003` (top byte `0xFF`, low two bits `11`), which the decoder
-requires; the four buttons are one-hot (0x1/0x2/0x4/0x8) in bits 8..11. No checksum.
+start pulse. Frames carry a fixed pattern (the top preamble bits set, low two bits `11`), which the decoder
+checks as a mask; the four buttons are one-hot (0x1/0x2/0x4/0x8) in bits 8..11. No checksum.
+
+**Mask: the union with RogueMaster (November 2026).** Flipper-ARF and doctor-firmware require all eight leading
+preamble ones, mask `0xFF000000003`. RogueMaster (from Unleashed) requires seven, mask `0xFE000000003`: "there are
+HSM remotes whose eighth preamble bit (bit 36) is 0 and which are otherwise identical in framing, Te and bit
+count". KAT takes RogueMaster's mask, which decodes every frame the stricter one does plus those remotes. A frame
+is still pinned in 9 of its 44 positions, behind a 12 ms start pulse and 44 clean PWM bits.
 
 ## Timing
 
@@ -25,7 +31,7 @@ requires; the four buttons are one-hot (0x1/0x2/0x4/0x8) in bits 8..11. No check
 | Start LOW | 500 µs ±200 | |
 | Bit `1` | HIGH 1000 + LOW 500 | |
 | Bit `0` | HIGH 500 + LOW 1000 | |
-| Frame end | HIGH ≥ 2500 µs **and** the pattern matches | the next start pulse |
+| Frame end | HIGH ≥ 2500 µs **and** `data & 0xFE000000003 == 0xFE000000003` | the next start pulse |
 | Bits | ≥ 44 | the C's `>=`; key files and the encoder need exactly 44 |
 
 ## Frame Layout (44 bits, MSB first)
@@ -60,5 +66,7 @@ Hormann HSM key file.)
 ## Validation
 
 - Flipper unit test `hormann_hsm_raw.sub` (comma-separated RAW_Data) decodes (14 frames, `FF2947CAF13`, button 0xF).
+- RogueMaster's mask (November 2026): a frame whose bit 36 is 0 decodes and one whose bit 37 is 0 does not (test
+  `needs_the_pattern`); the 444-file corpus (IMPORTS, the ARF / RogueMaster / Momentum unit tests) decodes as before.
 - C oracle (doctor + garage builds): decodes (key, Btn) on the unit-test corpus, IMPORTS, UberGuidoZ and 4224 fuzz files (two seeds)
   equal the oracle's; encoder uploads pulse-identical for 6 key files (including keys without the pattern).

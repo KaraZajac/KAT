@@ -51,7 +51,8 @@ The decoder reports the version as the display name ("Kia V3" / "Kia V4", as Pro
 KAT's earlier port also reported frames failing the KeeLoq check (with `crc_valid` false — or with no key
 loaded, everything): the IMPORTS Isuzu and Toyota Prius 2006 captures (other makes' KeeLoq; the Isuzu
 "serial" changed on every press) were listed as Kia V3/V4. Both references reject them; the Prius frames
-now decode as Toyota (stable serial 08DCE7FB).
+now decode as Toyota (FoxFW) ([toyota_foxfw.md](toyota_foxfw.md)), serial 7231804 (the stable 08DCE7FB
+quoted here before is the same 28 bits inverted).
 
 ## Encoder
 

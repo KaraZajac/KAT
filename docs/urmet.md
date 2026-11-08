@@ -49,15 +49,29 @@ when it has 16..40 plausible bytes and ≥ 2 gaps. `reset` keeps the gap buffer 
 
 ## Encoder
 
-The reference transmits its stored `Gaps` (one te HIGH + gap·te LOW each, a closing te HIGH and a 68·te LOW,
-5 times) and serializes `Raw` + `Gaps`. Up to 40 bytes and 192 gaps do not fit `DecodedSignal` (a 64-bit `data` and
-a 64-bit `extra`), so KAT decodes Urmet but does not re-encode it (`encoder_capable` = false; the capture's raw
-pairs can still be replayed) and writes no key file. `from_flipper_key` reads the reference's key files (`Raw` when
-present, else Bit/8 bytes of `Key`; a `Gaps` line must hold 2..192 values), as its deserialize does.
+doctor-firmware's encoder (FoxFW's `enc_urmet.c` is the same code) transmits the stored `Gaps`: one te HIGH +
+gap·te LOW each (clamped to 1..20 te), a closing te HIGH and a 68·te LOW, 5 times; a key file without `Gaps` gets
+them rebuilt from the bytes (`urmet_gaps_from_bytes`: inverted 8N1 USART, the run of zeros after each one-te HIGH).
+Up to 40 bytes and 192 gaps do not fit `DecodedSignal` (a 64-bit `data` and a 64-bit `extra`), so KAT keeps the
+frame in the capture's recording instead:
+
+- **Loading a key file** gives a capture whose recording is that transmission (`key_file_pulses`), so **Replay**
+  sends exactly what the reference's encoder sends.
+- **Saving** a received frame as a key file rebuilds `Raw` and `Gaps` from the capture's recording
+  (`key_file_from_pulses`: the decoder run again over the pulses keeps the frame's bytes and gaps, as the C's
+  instance does after its callback).
+
+`encode` itself still returns nothing (`encoder_capable` false): the decode alone cannot rebuild the frame.
 
 ## Key file
 
-`Protocol: Urmet`, `Bit: 8·n`, `Key` (first 8 bytes), `Raw` (n bytes), `Gaps` (gap list) — read only.
+`Protocol: Urmet`, `Bit: 8·n`, `Key` (first 8 bytes), `Raw` (n bytes), `Gaps` (gap list), in the order the C's
+serialize writes them. `from_flipper_key` reads the reference's files: `Raw` when present, else Bit/8 bytes of `Key`
+(zero-filled past 8); a `Gaps` line must hold 2..192 values.
+
+Parity with doctor-firmware's C (`subghz_oracle_doctor`): 120 synthetic recordings (16–40 bytes, idle bits between
+bytes, stretched pulses) give the same `Bit` / `Key` / `Raw` / `Gaps` lines, and 339 key files (`Raw` + `Gaps`,
+`Raw` only, `Key` only) give the same transmission, pulse for pulse (`urmet_parity_dump`).
 
 ## Validation
 

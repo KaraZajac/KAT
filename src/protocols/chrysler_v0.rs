@@ -33,7 +33,7 @@
 //! (`plain_a[5] ^= 0x0C`, `plain_b[3] ^= 0x30`) when the requested button differs, then payload A
 //! (even counter) and B (counter − 1) each sent as 24 preamble pairs + short + 15.6ms gap + 80
 //! PWM bits + short + 15.6ms gap (424 entries; the Flipper sends the upload `repeat` = 2 times while
-//! held, KAT returns it once). Buttons: KAT Lock → 1, Unlock → 2 (ProtoPirate emulate, ARF and
+//! held; `encode` returns it once and KAT sends it twice, `tx_copies.rs`). Buttons: KAT Lock → 1, Unlock → 2 (ProtoPirate emulate, ARF and
 //! doctor D-pads); Trunk/Panic keep the captured button.
 //!
 //! **Deviation (counter), from real captures:** KAT sends seed − 1, made even: A(N−2) + B(N−3)

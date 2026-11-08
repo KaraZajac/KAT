@@ -46,7 +46,9 @@
 //! persists (`toyota_write_state`). Loading follows the decoder's deserialize: `Key_2` required with
 //! its high half zero, 96 bits, a key starting 0x00 with bit 55 set unless the file has the
 //! encoder's `Copy` line, and the `ToyotaBtn` / `Btn` checks (`toyota_read_button`); the decode is
-//! then the decoder's own for that payload (the `Btn` command never reaches the frame).
+//! then the decoder's own for that payload (the `Btn` command never reaches the frame). FoxFW still
+//! registers ARF's retired KeeLoq decoder under the name "Toyota": its keys (`Bit` 66..=68, `Tail`)
+//! go to KAT's port of it, "Toyota (FoxFW)" (`toyota_foxfw.rs`).
 
 use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
@@ -547,8 +549,12 @@ impl ProtocolDecoder for ToyotaDecoder {
         encode_action(&key).map(|(upload, _)| upload)
     }
 
-    /// `subghz_protocol_decoder_toyota_deserialize` (see the module doc, "Key files").
+    /// `subghz_protocol_decoder_toyota_deserialize` (see the module doc, "Key files"). A key of 66..=68
+    /// bits is FoxFW's "Toyota" and goes to Toyota (FoxFW).
     fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
+        if super::toyota_foxfw::KEY_FILE_BITS.contains(&key.bits) {
+            return super::toyota_foxfw::ToyotaFoxfwDecoder::new().from_flipper_key(key);
+        }
         let have_copy = key.hex_bytes_field("Copy").is_some_and(|c| c.len() == PAYLOAD_BYTES);
         let tail = key.hex_field("Key_2")?;
         if tail >> 32 != 0 || key.bits != COUNT_BIT {

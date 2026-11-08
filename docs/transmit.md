@@ -103,8 +103,14 @@ emulate scene falls back to AM650, then FM476). The first preset is the primary 
 | Ford V1 | FM | F4 | ±14.28 kHz | PP help "V1 [F4 315/433]", catalog FM F4; ARF flag FM | |
 | Ford V2 | FM | F4 | ±14.28 kHz | PP help "V2 [F4 434]", catalog FM F4; ARF flag FM | |
 | Ford V3 | AM/FM | AM650 + F4 | ±14.28 kHz | PP help "V3 [AM650+F4 434]", PP flags AM + FM, catalog FM F4; ARF flags AM + FM | |
+| Honda V5 | AM/FM | Honda1 + AM650 | ±15.87 kHz | FoxFW flag AM (decode only: no TX); `honda/Lock_honda.sub` / `Unlock_honda.sub` were received with Honda1 | KAT declares AM/FM for the real FSK captures |
+| Mitsubishi V1 | AM/FM | FM476 + AM650 | ±47.61 kHz | FoxFW `mitsubishi_v1.c` flags AM + FM | decode-only: no transmit |
 | Honda Static | FM | Honda1 | ±15.87 kHz | PP help "Static [Honda1 315/433]", catalog FM Honda1; ARF flag FM | IMPORTS `honda/*_honda.sub` were recorded with exactly Honda1's registers |
 | Honda V2 | FM | F4 | ±14.28 kHz | PP help "V2 [F4 315/433]", catalog FM F4; ARF flag FM | formerly "Land Rover V0" |
+| HondaV2&V3 | FM | FM476 | ±47.61 kHz | FoxFW `honda_v2_v3.c` header ("Modulation: 2-FSK (FuriHalSubGhzPreset2FSKDev476Async)", flag FM) | decode only (the C's encoder is an SD plugin, not ported): Replay only |
+| Honda V6 | AM/FM | FM476 + AM650 | ±47.61 kHz | FoxFW `honda_v6.c` flags AM + FM | ported, not registered; no recording, deviation unknown → FM476 |
+| Honda V9 | AM/FM | Honda1 + AM650 | ±15.87 kHz | FoxFW `honda_v9.c` flags AM + FM; Manchester te 63/126 µs, as the IMPORTS `honda/*_honda.sub` recorded with Honda1 | decode only; no recording of V9 itself, Honda1 by its timing |
+| Honda V10 | AM/FM | FM476 + AM650 | ±47.61 kHz | FoxFW `honda_v10.c` flags AM + FM ("native 2-FSK") | decode only; no recording, deviation unknown → FM476 |
 | Scher-Khan | AM/FM | FM476 + AM650 | ±47.61 kHz | PP help "Scher-Khan [FM 315/433]", PP flag FM, catalog FM default; ARF flags FM + AM | no named FM preset → FM476 |
 | PSA | AM/FM | AM650 + F3 | ±31.74 kHz | PP help "[AM650+F3]", PP flags AM + FM, catalog by modulation; ARF flags AM + FM | IMPORTS `GROUPE PSA` captures are OOK |
 | Mazda V0 | AM/FM | AM650 + F2 | ±19.04 kHz | PP help "Mazda V0 [AM650+F2 315/433]", PP flags AM + FM; ARF flag FM | F2 from doctor-firmware's `setting_user.example` (PP's README: "FM (F2?)") |
@@ -113,16 +119,22 @@ emulate scene falls back to AM650, then FM476). The first preset is the primary 
 | Mercedes V0 | FM | FM20K | ±12.70 kHz | ARF / doctor `mercedes_v0.c` flag FM (433 MHz); doctor's built-in "mercedes" preset (`subghz_device_cc1101_preset_mercedes_async_regs`, registered as FM20K) | |
 | Mercedes V1 | FM | FM20K | ±12.70 kHz | ARF / doctor `mercedes_v1.c` flag FM (433 MHz); doctor's "mercedes" preset | FM20K's 20 kBaud matches V1's 50 µs chips |
 | Fiat V1 | AM/FM | AM650 + FM476 | ±47.61 kHz | PP flags AM; ARF and doctor `fiat_v1.c` flag AM + FM | no named FM preset → FM476; every capture so far is AM |
+| MARELLI | FM | FM476 | ±47.61 kHz | Flipper-ARF `fiat_marelli.c` flags 433 + FM (FoxFW the same, without Decodable) | key files only (no decoder): replays the saved frame; no named FM preset → FM476, a file's own preset first |
+| Subaru | AM/FM | AM650 + FM476 | ±47.61 kHz | PP flags AM; Flipper-ARF and FoxFW `subaru.c` flag AM + FM | no named FM preset → FM476; every capture so far is AM (an FM-preset `.sub` now reaches the decoder) |
 | Renault V1 | AM/FM | AM650 + FM476 | ±47.61 kHz | PP flags AM + FM, catalog by modulation, README AM650; doctor `renault_v1.c` (HITAG2) flags AM + FM | no named FM preset → FM476 |
 | Renault V1 (ARF) | AM/FM | AM650 + FM476 | ±47.61 kHz | ARF `renault_v1.c` flags AM + FM | no named FM preset → FM476 |
+| Renault V3 | AM/FM | AM650 + FM476 | ±47.61 kHz | FoxFW `renault_v3.c` flags AM + FM (2-FSK NRZ, 52 µs bits) | FoxFW decoder, receive only and not registered (it takes BMW frames); no named FM preset → FM476 |
 | Datsun Lada | FM | FM476 | ±47.61 kHz | doctor `datsun_lada.c` flag FM (433 MHz) | no named preset → FM476 (doctor's default FM receive preset) |
 | Holtek_HT12X | AM/FM | AM650 + FM476 | ±47.61 kHz | Flipper-ARF garage app / lib and doctor `holtek_ht12x.c` flag AM + FM | gate remote (HT12E); no named FM preset → FM476 |
 | Ansonic | AM/FM | AM650 + FM476 | ±47.61 kHz | Flipper-ARF `ansonic.c` (garage app and lib) flag FM; doctor `ansonic.c` flag AM | gate remote; the Flipper unit-test capture `ansonic_raw.sub` was recorded with OOK650 and the UberGuidoZ Ansonic brute-force files use it; no named FM preset → FM476 |
 | Hormann BiSecur | FM | F3 | ±31.74 kHz | Momentum / RogueMaster `hormann_bisecur.c` flag FM (868 MHz); their unit-test captures use a custom preset with DEVIATN 0x40 (±25.39 kHz) | that deviation lies exactly between F2 (±19.04) and F3 (±31.74); KAT transmits with a capture's own preset whenever it has one (the key files and the RAW capture carry it) |
 | Cardin S508 | FM | FM12K | ±12.70 kHz | RogueMaster `cardin_s508.c` flag FM (868 MHz); its header: "read with the FM12K preset" | decode-only (rolling AES-128): Replay of the recording only |
+| Audi V3 | AM/FM | AM650 + FM476 | ±47.61 kHz | FoxFW `audi_v3.c` flags 433 / 315 + AM + FM (2-FSK per its header) | decode-only (encrypted hop): Replay of the recording only; no named FM preset → FM476; no capture |
+| BMW/Mini V3 | AM/FM | FM476 + AM650 | ±47.61 kHz | FoxFW `bmw_v3.c` flags 433 / 315 + AM + FM ("2-FSK -> add FM") | decode-only (AES rolling code): Replay of the recording only; no named FM preset → FM476; no capture |
 | Continental-KR5V2X | FM | FM476 | ±47.61 kHz | rtl_433 `continental_car_remote.c` (`FSK_PULSE_MANCHESTER_ZEROBIT`) | rtl_433 port, receive only (replay of the recorded pulses); KAT measures ±43 kHz on the rtl_433_tests recordings → FM476 |
 | Honda-KR5V2X1X | FM | FM476 | ±47.61 kHz | rtl_433 `continental_car_remote.c` `honda_keyfob` (`FSK_PULSE_MANCHESTER_ZEROBIT`) | rtl_433 port, receive only; no recording, deviation unknown → FM476 |
 | Opel-Mokka | FM | FM476 | ±47.61 kHz | rtl_433 `opel_mokka.c` (`FSK_PULSE_MANCHESTER_ZEROBIT`) | rtl_433 port, receive only; no recording, deviation unknown → FM476 |
+| Nidec RKE | FM | FM476 | ±47.61 kHz | FoxFW `nidec_rke.c` flag FM (315 MHz; rtl_433 `nidec_car_remote.c` is 313.8 MHz FSK) | receive only (FoxFW's encoder plugin refuses every key): Replay of the recording only; no named preset → FM476 |
 | Alps-FWB1U545 | FM | F3 | ±31.74 kHz | rtl_433 `alps_fwb1u545.c` (`FSK_PULSE_MANCHESTER_ZEROBIT`); receive only | Replay only: the rtl_433_tests recordings show ±30–37 kHz, closest to F3 |
 | Elero | FM | F3 | ±31.74 kHz | rtl_433 `elero.c` (FSK_PULSE_PCM, 13 µs bits) | shutter remote, receive only (rtl_433 port; Replay uses the preset): the rtl_433_tests recordings show ±38 kHz, F3 is the closest |
 | Somfy-IOHC | FM | F2 | ±19.04 kHz | rtl_433 `somfy_iohc.c` (FSK_PULSE_PCM, 26 µs bits) | io-homecontrol (±19.2 kHz), receive only (rtl_433 port) |
@@ -130,14 +142,54 @@ emulate scene falls back to AM650, then FM476). The first preset is the primary 
 
 ### AM protocols
 
-AM650 (OOK): Kia V1, VAG, Ford V0, Honda V1, Subaru, Fiat V0, Fiat V1, Fiat V2, Star Line, Sheriff CFM,
-KeeLoq (registry and generic fallback), Chrysler V0, Porsche Cayenne, Toyota, BMW, Opel V1, Renault V0, GM, and
-the unregistered Land Rover RKE, Audi, Hyundai and Mazda Infinity. ProtoPirate's help lists AM650 for every one
-it carries. Flipper-ARF also flags Subaru and Fiat V1 FM (and doctor-firmware lists Fiat V1/V2 as AM/FM); no
-reference names an FM preset for them and no capture shows one, so KAT keeps them AM. A capture of any of them
-with its own FSK preset (an imported `.sub`) still transmits FSK.
+AM650 (OOK): Kia V1, VAG, Ford V0, Honda V1, Honda V4, Honda V7, Fiat V0, Fiat V2, Star Line, Sheriff CFM,
+KeeLoq (registry and generic fallback), Chrysler V0, Porsche Cayenne, Toyota, BMW, Opel V1, Renault V0, GM, FoxFW's
+Tesla Charge, Hyundai/Kia RIO and SantaFe 13-16 (flag AM; their encoder plugins transmit), and the unregistered
+Land Rover RKE, Audi, Hyundai, Mazda Infinity and Honda V8. ProtoPirate's help lists AM650 for every one
+it carries. doctor-firmware lists Fiat V2 as AM/FM; no reference names an FM preset for it and no capture shows
+one, so KAT keeps it AM. Fiat V1 and Subaru, which Flipper-ARF and FoxFW flag AM + FM, are in the FM table above
+(AM650 first: every capture so far is AM). A capture of any of them with its own FSK preset (an imported `.sub`)
+still transmits FSK.
 
 `src/protocols/info.rs` checks that this table lists every FM and AM/FM protocol with the presets the code uses.
+
+## Copies per press
+
+A Flipper encoder builds one upload and its TX loop sends it `encoder.repeat` times; most encoders read a key
+file's optional `Repeat` line into that count. KAT sends the same number of copies, and the `Repeat` line where
+the reference reads it (`src/protocols/tx_copies.rs`):
+
+| Copies | Encoders |
+|---|---|
+| 1 | CAME Atomo, Hormann HSM / BiSecur, Honda V1, Mercedes V0, Renault V0, Renault V1, Datsun Lada |
+| 2 | Chrysler V0 |
+| 3 | the gate and home remotes (CAME, Nice FLO, Princeton, Security+ …), BMW, BMW CAS3, Hyundai/Kia RIO, SantaFe 13-16, Sheriff CFM, Mazda V2; and Kia V0 (Suzuki, Honda, Mitsubishi types), Honda Static, Kia V7, Fiat V0, Ford V0 / V1 / V2, Honda V2, Kia V1 / V2 / V6, Mazda V0, Subaru, VAG |
+| 4 | Ditec GOL4, Mercedes V1, Mazda Siemens |
+| 5 | Allstar Firefly, KeyFinder, KeyFinder2, Tesla Charge, GM |
+| 6 | Fiat V1, Fiat V2, Kia V5 |
+| 7 | Scher-Khan |
+| 16 | Kia V3/V4 (ProtoPirate's 16 bursts, each with another CRC nibble) |
+| 40 | Star Line |
+
+- **Car remotes.** Up to v1.8.7 KAT sent one upload where the references send several: 1 of ProtoPirate's 3 for
+  Kia V0, Suzuki V0, Honda Static and Kia V7, 1 of 6 for Kia V5, 1 of 2 for Chrysler V0, 1 of Flipper-ARF's 4 / 5
+  for Mazda Siemens / GM, and 1 of 10 for Fiat V0, Ford V0 / V1 / V2, Honda V2, Kia V1 / V2 / V6, Mazda V0, Subaru
+  and VAG. For that last group KAT sends 3, not ProtoPirate's 10: ten copies last up to 12 s (a Kia V1 upload
+  takes 1.2 s), ProtoPirate's own emulate screen stops at the button's release once 666 ms have passed, and
+  doctor-firmware's copies of the same encoders send 3. A key file's `Repeat: 10` gives ProtoPirate's full count.
+- **`Repeat` line.** Loading a key file keeps its `Repeat` line with the capture (and saving it as a key file
+  writes it back). Every listed encoder except VAG's and Kia V3/V4's reads it, as their references do; KeeLoq,
+  PSA, Porsche Cayenne, Telcoma/Cardin EDGE, Doorbell32, MARELLI and Renault V1 (ARF) ignore it, as theirs do.
+  `Repeat: 0` sends nothing, as on a Flipper. KAT reads the line wherever it is; a Flipper reads a file's lines
+  in order and finds `Repeat` only when every line its loader looks for before it is there (Princeton: an
+  optional `Guard_time`), so on such a file it ignores the line. A count whose transmission would last past the
+  60 s limit is refused like any other.
+- **Measured** on the references' C (host builds, `encode` with the default count and `--repeat 1 / 2 / 3 / 5`)
+  for KAT's key files of every encoder-capable decode in the test corpus, of KAT's encoder vectors and of
+  generated frames (268 files, 99 encoders): KAT's transmission has the reference's airtime (within 1 %, the
+  counter KAT advances on each press changes a few bits) at the default count and at every `Repeat` value, for
+  every listed encoder; for the ten-copy group the default equals ProtoPirate's `--repeat 3` and
+  doctor-firmware's default. Kia V3/V4 ignores `Repeat` in KAT (the C would send its first n bursts).
 
 ## After a transmission
 

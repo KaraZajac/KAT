@@ -88,18 +88,18 @@ On Windows there is nothing to install here: the `.zip` carries the HackRF libra
 Then check, unpack and run (with your version and platform):
 
 ```bash
-sha256sum -c kat-v1.8.6-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
-tar xzf kat-v1.8.6-x86_64-linux.tar.gz
-./kat-v1.8.6-x86_64-linux/kat
+sha256sum -c kat-v1.9.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.9.0-x86_64-linux.tar.gz
+./kat-v1.9.0-x86_64-linux/kat
 ```
 
 On Windows, in PowerShell (Windows Terminal):
 
 ```powershell
-$want = (Get-Content kat-v1.8.6-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.8.6-x86_64-windows.zip).Hash -eq $want    # True
-Expand-Archive kat-v1.8.6-x86_64-windows.zip .
-.\kat-v1.8.6-x86_64-windows\kat.exe
+$want = (Get-Content kat-v1.9.0-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.9.0-x86_64-windows.zip).Hash -eq $want    # True
+Expand-Archive kat-v1.9.0-x86_64-windows.zip .
+.\kat-v1.9.0-x86_64-windows\kat.exe
 ```
 
 The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. The Windows build isn't signed, so SmartScreen may stop its first start ("More info", then "Run anyway"). Intel Macs and other platforms build from source.
@@ -591,9 +591,9 @@ src/
 │   ├── bmw.rs, mercedes_v0.rs, mercedes_v1.rs, opel_v1.rs, gm.rs, mazda_v2.rs, datsun_lada.rs
 │   ├── vag_polo.rs, chevrolet_v0.rs   # FoxFW ports, decode only
 │   ├── sheriff_cfm.rs, audi.rs, mazda_infinity.rs, hyundai.rs   # hyundai: not registered
-│   ├── princeton.rs, came.rs, secplus_v2.rs, somfy_telis.rs, faac_slh.rs, …   # 54 gate, garage and shutter protocols
+│   ├── princeton.rs, came.rs, secplus_v2.rs, somfy_telis.rs, faac_slh.rs, …   # 69 gate, garage, shutter, doorbell, sensor and key-finder protocols
 │   ├── g1_common.rs … g6_common.rs, f_common.rs   # helpers shared by the gate protocols
-│   ├── alps_fwb1u545.rs, elero.rs, microchip_hcs361.rs, …   # 16 receive-only rtl_433 ports (markisol.rs: not registered)
+│   ├── alps_fwb1u545.rs, elero.rs, microchip_hcs361.rs, …   # 17 receive-only rtl_433 ports (markisol.rs: not registered)
 │   ├── rtl433/          # rtl_433's pulse detector, pulse slicers and bit buffer, shared by those ports
 │   ├── flipper_key.rs   # Flipper key-file (.sub Protocol/Bit/Key) reader and writer
 │   ├── add_manually.rs  # "Add Manually" type list and new-remote generation (ARF / doctor-firmware / RogueMaster)

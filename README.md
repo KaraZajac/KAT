@@ -1,6 +1,6 @@
 # KAT — Keyfob Analysis Toolkit
 
-KAT captures, decodes and retransmits car key fob and garage door, gate and barrier remote signals from a terminal. It works with a **HackRF One** (receive and transmit) or an **RTL-SDR** dongle (receive only), and decodes IQ recordings and Flipper Zero `.sub` files with no radio attached. It is written in Rust, with a [ratatui](https://ratatui.rs) interface.
+KAT captures, decodes and retransmits car key fob and garage door, gate and barrier remote signals from a terminal. It works with a **HackRF One** (receive and transmit), an **RTL-SDR** dongle (receive only) or a **Flipper Zero** on USB (receive and transmit through its console), and decodes IQ recordings and Flipper Zero `.sub` files with no radio attached. It is written in Rust, with a [ratatui](https://ratatui.rs) interface.
 
 Its 149 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate), [Flipper-ARF](https://github.com/D4C1-Labs/Flipper-ARF), [doctor-firmware](https://github.com/thedoctorz/doctor-firmware), [Momentum](https://github.com/Next-Flip/Momentum-Firmware), [RogueMaster](https://github.com/RogueMaster/flipperzero-firmware-wPlugins) and FoxFW, with receive-only decoders from [rtl_433](https://github.com/merbanan/rtl_433) for remotes no Flipper firmware reads, and each one is checked against the reference C code compiled on a PC.
 
@@ -23,6 +23,7 @@ Its 149 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPira
 **Receive**
 
 - **HackRF, RTL-SDR or a recording** — one receive chain for all three, AM/OOK and FM/2-FSK. A wide-band detector finds fobs anywhere in the received band (at 2 MS/s from 1.15 MHz below to 0.65 MHz above the tuned frequency, two at once included), and each burst is filtered and sliced around its own carrier, so fobs decode up to ±325 kHz off frequency ([docs/radio.md](docs/radio.md)).
+- **A Flipper Zero as the radio** — plugged in over USB, with no app to install: KAT reads the pulses its receiver streams (`subghz rx_raw`), cuts each decoded frame out of the receiver's noise and lists it like an SDR's, and transmits its own encoders' output as a RAW `.sub` played with `subghz tx_from_file` (OOK or 2-FSK). FM reception needs doctor-firmware ([docs/flipper_radio.md](docs/flipper_radio.md)).
 - **Frequency hopping** — `:hop` cycles Flipper's hopper list (315.00, 390.00, 430.50, 433.92, 434.25, 434.42, 868.35 MHz) and stays on a frequency while a signal is on air, like ProtoPirate.
 - **IQ recordings** — decode `.cs8` (hackrf_transfer), `.cu8` (rtl_sdr / rtl_433) and `.cf32` recordings without a radio, and record the raw IQ while receiving (`:record`).
 
@@ -88,18 +89,18 @@ On Windows there is nothing to install here: the `.zip` carries the HackRF libra
 Then check, unpack and run (with your version and platform):
 
 ```bash
-sha256sum -c kat-v1.9.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
-tar xzf kat-v1.9.0-x86_64-linux.tar.gz
-./kat-v1.9.0-x86_64-linux/kat
+sha256sum -c kat-v1.10.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.10.0-x86_64-linux.tar.gz
+./kat-v1.10.0-x86_64-linux/kat
 ```
 
 On Windows, in PowerShell (Windows Terminal):
 
 ```powershell
-$want = (Get-Content kat-v1.9.0-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.9.0-x86_64-windows.zip).Hash -eq $want    # True
-Expand-Archive kat-v1.9.0-x86_64-windows.zip .
-.\kat-v1.9.0-x86_64-windows\kat.exe
+$want = (Get-Content kat-v1.10.0-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.10.0-x86_64-windows.zip).Hash -eq $want    # True
+Expand-Archive kat-v1.10.0-x86_64-windows.zip .
+.\kat-v1.10.0-x86_64-windows\kat.exe
 ```
 
 The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. The Windows build isn't signed, so SmartScreen may stop its first start ("More info", then "Run anyway"). Intel Macs and other platforms build from source.
@@ -129,8 +130,9 @@ The binary is `target/release/kat`. Use a release build for live receive and IQ 
 
 - **HackRF One** (or compatible) — receive and transmit.
 - **RTL-SDR** dongle — receive only.
+- **Flipper Zero** on USB — receive and transmit through its console; decoded signals only (no signal meter, `:record` or hopping), FM reception with doctor-firmware ([docs/flipper_radio.md](docs/flipper_radio.md)). Close qFlipper first; on Linux, join the `dialout` group.
 
-KAT uses a HackRF if one is connected, otherwise the first RTL-SDR. With neither, it warns at startup and then runs without a radio: you can still open, decode, analyse and export captures. The warning names the reason for each device — not found, no USB permission (install the udev rules your HackRF or rtl-sdr package provides), or in use by another program — and `~/.config/KAT/kat.log` has the details. The header shows the radio in use: **HackRF**, **RTL-SDR (RX only)** or **No device** (status DISCONNECTED, in red).
+KAT uses a HackRF if one is connected, otherwise the first RTL-SDR, otherwise a Flipper Zero; `device` in `config.ini` picks one. With none, it warns at startup and then runs without a radio: you can still open, decode, analyse and export captures. The warning names the reason for each device — not found, no USB permission (install the udev rules your HackRF or rtl-sdr package provides), or in use by another program — and `~/.config/KAT/kat.log` has the details. The header shows the radio in use: **HackRF**, **RTL-SDR (RX only)** or **No device** (status DISCONNECTED, in red).
 
 If the receiver stops by itself (the device is busy, refuses a setting or is unplugged), the status line says "Receiver stopped: … (r restarts)" and `r` starts it again.
 
@@ -186,7 +188,7 @@ A new capture is selected only when the selection is on the last row (or nothing
 
 ### Signal actions
 
-`Enter` on a capture opens its actions. Without a HackRF (RTL-SDR or no radio), the transmit actions are not offered; while `:record` runs, transmitting is refused (it would stop the receiver and end the recording).
+`Enter` on a capture opens its actions. With an RTL-SDR or no radio, the transmit actions are not offered; while `:record` runs, transmitting is refused (it would stop the receiver and end the recording).
 
 After an encoder transmission (Send next code, Send button…, TX Lock … Panic) a rolling code's capture keeps the code it sent — counter, frame and button — so the next press sends the one after and the session autosave remembers it, as Flipper-ARF, doctor-firmware and ProtoPirate keep the last code they sent ([docs/transmit.md](docs/transmit.md#after-a-transmission)). Exports never replace a file (a name in use gets `_2`, `_3`, …), end with "Exported to <full path>", and a failed one is reported in the status line.
 
@@ -324,6 +326,9 @@ hop_frequencies = 315.00, 390.00, 430.50, 433.92, 434.25, 434.42, 868.35
 hop_dwell_ms = 100
 tx_vga_gain = 47
 tx_amp = true
+device = auto
+; flipper_port = /dev/ttyACM0
+; flipper_preset = FM476
 
 [export]
 default_format = fob
@@ -344,6 +349,8 @@ Switches take `true`/`false`, `yes`/`no`, `on`/`off` or `1`/`0`. A value KAT can
 - **include_raw_pairs** — when `true`, .fob exports include raw level/duration pairs for replay.
 - **hop_frequencies / hop_dwell_ms** — the `:hop` list (MHz) and the time spent on a quiet frequency.
 - **tx_vga_gain / tx_amp** — transmit power (0–47 dB TX VGA, RF amp); the defaults are the HackRF's maximum, as in KAT ≤ 1.4.
+- **device** — which radio to open: `auto` (a HackRF, else an RTL-SDR, else a Flipper Zero), `hackrf`, `rtlsdr` or `flipper`.
+- **flipper_port / flipper_preset** — a Flipper Zero's console port when KAT does not find it by its USB name, and the receive preset of doctor-firmware's `rx_raw` (`FM476`, `FM238`, `AM650`, …; other firmwares receive with their own AM preset only). See [docs/flipper_radio.md](docs/flipper_radio.md).
 - **session_autosave** — autosave captures to `session.json` (default on); **max_captures** also caps the saved session.
 
 ## Supported protocols
@@ -596,12 +603,14 @@ src/
 │   ├── alps_fwb1u545.rs, elero.rs, microchip_hcs361.rs, …   # 17 receive-only rtl_433 ports (markisol.rs: not registered)
 │   ├── rtl433/          # rtl_433's pulse detector, pulse slicers and bit buffer, shared by those ports
 │   ├── flipper_key.rs   # Flipper key-file (.sub Protocol/Bit/Key) reader and writer
+│   ├── stream_locator.rs   # Frames in an endless pulse stream (a Flipper's rx_raw)
 │   ├── add_manually.rs  # "Add Manually" type list and new-remote generation (ARF / doctor-firmware / RogueMaster)
 │   ├── gate_buttons.rs  # Native button lists for "Send button…"
 │   └── ...
 ├── radio/
 │   ├── hackrf.rs        # HackRF device control (RX/TX)
 │   ├── rtlsdr.rs        # RTL-SDR device control (RX only)
+│   ├── flipper.rs       # Flipper Zero over its USB console (rx_raw stream, tx_from_file)
 │   ├── dsp.rs           # IQ formats, DC removal, mixer, decimating FIR filters
 │   ├── pipeline.rs      # Receive pipeline: wide-band detector, per-burst channel filter, AM/FM slicing -> bursts
 │   ├── rx.rs            # Live receive glue (pipeline + hopper + recorder -> captures)

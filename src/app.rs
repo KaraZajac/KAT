@@ -11,16 +11,18 @@ use crate::protocols::{
     is_keeloq_non_car, psa_recover_key, ProtocolRegistry, PsaBruteForceControl, PsaBruteForceOutcome,
     PSA_BRUTE_FORCE_TOTAL,
 };
-use crate::radio::{HackRfController, LevelDuration, RtlSdrController};
+use crate::radio::{FlipperController, HackRfController, LevelDuration, RtlSdrController};
 use crate::storage::Storage;
 
 mod rx;
 mod files;
 
-/// Active radio device: HackRF (full TX/RX) or RTL-SDR (receive-only).
+/// Active radio device: HackRF (full TX/RX), RTL-SDR (receive-only) or a Flipper Zero on USB (TX/RX
+/// through its console, pulses instead of IQ: see [crate::radio::flipper]).
 pub enum RadioDevice {
     HackRf(HackRfController),
     RtlSdr(RtlSdrController),
+    Flipper(FlipperController),
 }
 
 impl RadioDevice {
@@ -28,6 +30,7 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.is_available(),
             RadioDevice::RtlSdr(r) => r.is_available(),
+            RadioDevice::Flipper(f) => f.is_available(),
         }
     }
 
@@ -35,13 +38,25 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.supports_tx(),
             RadioDevice::RtlSdr(r) => r.supports_tx(),
+            RadioDevice::Flipper(f) => f.supports_tx(),
         }
+    }
+
+    /// Frequency hopping: the SDRs retune between reads; a Flipper would restart `rx_raw` each time.
+    pub fn supports_hopping(&self) -> bool {
+        !matches!(self, RadioDevice::Flipper(_))
+    }
+
+    /// `:record` writes raw IQ, which a Flipper does not give.
+    pub fn supports_recording(&self) -> bool {
+        !matches!(self, RadioDevice::Flipper(_))
     }
 
     pub fn start_receiving(&mut self, frequency: u32) -> anyhow::Result<()> {
         match self {
             RadioDevice::HackRf(h) => h.start_receiving(frequency),
             RadioDevice::RtlSdr(r) => r.start_receiving(frequency),
+            RadioDevice::Flipper(f) => f.start_receiving(frequency),
         }
     }
 
@@ -49,6 +64,7 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.stop_receiving(),
             RadioDevice::RtlSdr(r) => r.stop_receiving(),
+            RadioDevice::Flipper(f) => f.stop_receiving(),
         }
     }
 
@@ -56,6 +72,7 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.set_frequency(frequency),
             RadioDevice::RtlSdr(r) => r.set_frequency(frequency),
+            RadioDevice::Flipper(f) => f.set_frequency(frequency),
         }
     }
 
@@ -63,6 +80,8 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.set_lna_gain(gain),
             RadioDevice::RtlSdr(r) => r.set_lna_gain(gain),
+            // The Flipper's gain is its preset's.
+            RadioDevice::Flipper(_) => Ok(()),
         }
     }
 
@@ -70,6 +89,7 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.set_vga_gain(gain),
             RadioDevice::RtlSdr(r) => r.set_vga_gain(gain),
+            RadioDevice::Flipper(_) => Ok(()),
         }
     }
 
@@ -77,6 +97,7 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.set_amp_enable(enabled),
             RadioDevice::RtlSdr(r) => r.set_amp_enable(enabled),
+            RadioDevice::Flipper(_) => Ok(()),
         }
     }
 
@@ -89,6 +110,7 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.transmit(signal, frequency, settings),
             RadioDevice::RtlSdr(r) => r.transmit(signal, frequency),
+            RadioDevice::Flipper(f) => f.transmit(signal, frequency, settings),
         }
     }
 
@@ -97,14 +119,17 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(_) => "HackRF",
             RadioDevice::RtlSdr(_) => "RTL-SDR (RX only)",
+            RadioDevice::Flipper(_) => "Flipper Zero",
         }
     }
 
-    /// Shared atomic for RSSI (UI reads so RX never blocks on channel). None if no radio.
+    /// Shared atomic for RSSI (UI reads so RX never blocks on channel). None if no radio, or one
+    /// that gives no level (a Flipper streams demodulated pulses only).
     pub fn rssi_source(&self) -> Option<Arc<AtomicU32>> {
         match self {
             RadioDevice::HackRf(h) => Some(h.rssi_source()),
             RadioDevice::RtlSdr(r) => Some(r.rssi_source()),
+            RadioDevice::Flipper(_) => None,
         }
     }
 }
@@ -542,32 +567,51 @@ impl App {
         protocols.set_auto_key_search(storage.config.autobf);
         let (radio_event_tx, radio_event_rx) = mpsc::channel();
 
-        // Try HackRF first, then RTL-SDR; keep why each could not be opened (no-device popup).
+        // The radio (config `device`; auto: HackRF, then RTL-SDR, then a Flipper Zero on USB); keep
+        // why each could not be opened (no-device popup).
+        use crate::storage::RadioChoice;
+        let choice = storage.config.radio_device;
         let mut open_errors: Vec<String> = Vec::new();
-        let radio: Option<RadioDevice> = match HackRfController::new(radio_event_tx.clone()) {
-            Ok(mut h) if h.is_available() => {
-                tracing::info!("HackRF initialized successfully");
-                let _ = h.set_lna_gain(storage.config.default_lna_gain);
-                let _ = h.set_vga_gain(storage.config.default_vga_gain);
-                let _ = h.set_amp_enable(storage.config.default_amp);
-                Some(RadioDevice::HackRf(h))
-            }
-            hackrf => {
-                open_errors.extend(hackrf.ok().and_then(|h| h.open_error().map(|e| format!("HackRF: {e}"))));
-                match RtlSdrController::new(radio_event_tx.clone()) {
-                    Ok(mut r) if r.is_available() => {
-                        tracing::info!("RTL-SDR initialized (receive-only)");
-                        let _ = r.set_lna_gain(storage.config.default_lna_gain);
-                        let _ = r.set_vga_gain(storage.config.default_vga_gain);
-                        Some(RadioDevice::RtlSdr(r))
-                    }
-                    rtl => {
-                        open_errors.extend(rtl.ok().and_then(|r| r.open_error().map(|e| format!("RTL-SDR: {e}"))));
-                        None
-                    }
+        let mut radio: Option<RadioDevice> = None;
+        if matches!(choice, RadioChoice::Auto | RadioChoice::HackRf) {
+            match HackRfController::new(radio_event_tx.clone()) {
+                Ok(mut h) if h.is_available() => {
+                    tracing::info!("HackRF initialized successfully");
+                    let _ = h.set_lna_gain(storage.config.default_lna_gain);
+                    let _ = h.set_vga_gain(storage.config.default_vga_gain);
+                    let _ = h.set_amp_enable(storage.config.default_amp);
+                    radio = Some(RadioDevice::HackRf(h));
+                }
+                hackrf => {
+                    open_errors.extend(hackrf.ok().and_then(|h| h.open_error().map(|e| format!("HackRF: {e}"))))
                 }
             }
-        };
+        }
+        if radio.is_none() && matches!(choice, RadioChoice::Auto | RadioChoice::RtlSdr) {
+            match RtlSdrController::new(radio_event_tx.clone()) {
+                Ok(mut r) if r.is_available() => {
+                    tracing::info!("RTL-SDR initialized (receive-only)");
+                    let _ = r.set_lna_gain(storage.config.default_lna_gain);
+                    let _ = r.set_vga_gain(storage.config.default_vga_gain);
+                    radio = Some(RadioDevice::RtlSdr(r));
+                }
+                rtl => open_errors.extend(rtl.ok().and_then(|r| r.open_error().map(|e| format!("RTL-SDR: {e}")))),
+            }
+        }
+        if radio.is_none() && matches!(choice, RadioChoice::Auto | RadioChoice::Flipper) {
+            let f = FlipperController::new(
+                radio_event_tx.clone(),
+                storage.config.flipper_port.as_deref(),
+                storage.config.flipper_preset.as_deref(),
+                storage.config.autobf,
+            );
+            if f.is_available() {
+                tracing::info!("Flipper Zero initialized (TX/RX over its USB console)");
+                radio = Some(RadioDevice::Flipper(f));
+            } else {
+                open_errors.extend(f.open_error().map(|e| format!("Flipper Zero: {e}")));
+            }
+        }
         let radio_open_error = (radio.is_none() && !open_errors.is_empty()).then(|| open_errors.join(" · "));
 
         let device_detected = radio.as_ref().is_some_and(|r| r.is_available());
@@ -695,6 +739,21 @@ impl App {
     /// Display name of the active radio device, if any (e.g. "HackRF", "RTL-SDR (RX only)").
     pub fn radio_device_name(&self) -> Option<&'static str> {
         self.radio.as_ref().map(|r| r.display_name())
+    }
+
+    /// The radio's settings as the header shows them: the SDR gains, or a Flipper's receive preset.
+    pub fn radio_settings_label(&self) -> String {
+        match &self.radio {
+            Some(RadioDevice::Flipper(_)) => {
+                format!("Preset: {}", self.storage.config.flipper_preset.as_deref().unwrap_or("firmware's AM"))
+            }
+            _ => format!(
+                "LNA:{} VGA:{} AMP:{}",
+                self.lna_gain,
+                self.vga_gain,
+                if self.amp_enabled { "ON" } else { "OFF" }
+            ),
+        }
     }
 
     /// True if the active device supports transmit (HackRF only; RTL-SDR is receive-only).
@@ -918,7 +977,12 @@ impl App {
         if let Some(ref mut radio) = self.radio {
             if self.radio_state == RadioState::Receiving {
                 radio.stop_receiving()?;
-                radio.start_receiving(hz)?;
+                // A radio may refuse the new frequency (a Flipper's CC1101 has gaps in 300–928 MHz):
+                // then it is not receiving, and the header must not say RX.
+                if let Err(e) = radio.start_receiving(hz) {
+                    self.radio_state = RadioState::Idle;
+                    return Err(e);
+                }
             } else {
                 radio.set_frequency(hz)?;
             }

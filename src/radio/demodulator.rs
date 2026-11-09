@@ -15,7 +15,7 @@
 //! FM key design: phase diff → freq (Hz), EMA smoothing, zero-centered threshold with hysteresis.
 
 /// A single level+duration pair representing one segment of the signal
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LevelDuration {
     /// Signal level (true = high, false = low)
     pub level: bool,

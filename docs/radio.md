@@ -15,6 +15,9 @@ recording decodes exactly like the live signal it came from. The pipeline finds 
 the band it receives, not only at the frequency you tuned to: cheap SAW-resonator remotes are often
 75–150 kHz off, and a Flipper Zero (OOK650 preset) receives ±325 kHz.
 
+A Flipper Zero used as the radio gives demodulated pulses instead of IQ and skips this pipeline:
+its stream is read as [flipper_radio.md](flipper_radio.md) describes.
+
 ## Overview
 
 ```text

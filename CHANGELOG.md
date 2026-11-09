@@ -2,6 +2,18 @@
 
 All notable changes to KAT are documented here.
 
+## [1.10.0] - 2026-11-08
+
+A Flipper Zero plugged in over USB can be KAT's radio: it receives and transmits through its console, with no app to install.
+
+### Added
+
+- **A Flipper Zero as the radio** ([flipper_radio.md](docs/flipper_radio.md)): plugged in over USB, it receives and transmits for KAT through its console, with no app to install (config `device = flipper`, or found when no HackRF or RTL-SDR is; `flipper_port` when its name is unusual). Receive: `subghz rx_raw` streams the CC1101's pulses, noise included between transmissions; KAT's decoders read the stream as it comes (`StreamLocator`: each pulse once, as a burst's), cut every frame they read out of the noise (the shortest stretch its decoder still reads, plus the rest of a regular preamble) and hand it to the app as a burst, so it is decoded, listed and de-duplicated like an SDR's. Streamed this way, the 127 AM Flipper recordings in IMPORTS give exactly the 329 frames KAT decodes from the files. FM reception needs doctor-firmware, whose `rx_raw` takes a preset (`flipper_preset = FM476`; KAT checks the firmware's usage text first). Transmit: KAT's own transmission (encoders, copies, rolling-code advance) is written as a RAW `.sub` to the SD card and played with `subghz tx_from_file`, with AM650 for OOK and, for 2-FSK, the preset of its deviation (FM238 / FM476 by name, others as a register image); receiving pauses meanwhile, and a refusal (region lock, frequency) shows the Flipper's words. There is no signal meter, `:record` or hopping with a Flipper. Tested on a simulated Flipper console (pseudo-terminal) and the IMPORTS recordings.
+
+### Fixed
+
+- **Changing the frequency while receiving, to one the radio refuses, left the header on RX** with nothing received (a Flipper's CC1101 has gaps between 300 and 928 MHz): the receiver goes back to idle and the status line gives the radio's reason.
+
 ## [1.9.0] - 2026-11-08
 
 42 more remotes: 27 car remotes, most of them ported from FoxFW, and 15 gate, home, sensor and key-finder remotes from the Flipper firmwares and rtl_433. Car remotes now send as many copies per press as their reference firmware, and a key file's `Repeat` line sets the count.

@@ -257,12 +257,7 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App) {
         Some((f, i, n)) => format!("HOP {} MHz ({}/{})", format_mhz(f), i + 1, n),
         None => format!("{} MHz", format_mhz(app.frequency)),
     };
-    let gains = format!(
-        "LNA:{} VGA:{} AMP:{}",
-        app.lna_gain,
-        app.vga_gain,
-        if app.amp_enabled { "ON" } else { "OFF" }
-    );
+    let gains = app.radio_settings_label();
 
     let full_title = format!("Keyfob Analysis Toolkit v{}", VERSION);
     let short_title = format!("KAT v{}", VERSION);
@@ -477,7 +472,7 @@ fn render_message_popup(frame: &mut Frame, title: &str, border: Color, width: u1
 fn no_device_message(open_error: Option<&str>) -> Vec<(String, Style)> {
     let red = Style::default().fg(Color::Red);
     let mut lines = vec![
-        ("No HackRF or RTL-SDR detected.".to_string(), red.add_modifier(Modifier::BOLD)),
+        ("No HackRF, RTL-SDR or Flipper Zero detected.".to_string(), red.add_modifier(Modifier::BOLD)),
         (String::new(), red),
     ];
     // Why the devices couldn't be opened (permissions, busy, DVB-T driver): the popup grows to fit.
@@ -487,7 +482,8 @@ fn no_device_message(open_error: Option<&str>) -> Vec<(String, Style)> {
     }
     lines.extend([
         (
-            "Connect a HackRF (TX+RX) or RTL-SDR (RX only) and restart, or continue without TX/RX support."
+            "Connect a HackRF (TX+RX), an RTL-SDR (RX only) or a Flipper Zero (TX+RX over USB) and restart, \
+             or continue without TX/RX support."
                 .to_string(),
             red,
         ),
@@ -794,7 +790,7 @@ mod tests {
                 render_message_popup(f, "Warning", Color::Red, 60, &no_device_message(None))
             });
             let text = rows.join("\n");
-            for words in ["No HackRF or RTL-SDR detected.", "Press any key to continue.", "TX/RX support."] {
+            for words in ["No HackRF, RTL-SDR or Flipper Zero detected.", "Press any key to continue.", "TX/RX support."] {
                 assert!(text.contains(words), "{width}×{height}: {words:?} missing\n{text}");
             }
         }

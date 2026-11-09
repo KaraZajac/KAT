@@ -1,7 +1,8 @@
-//! Radio subsystem for HackRF and RTL-SDR control.
+//! Radio subsystem: HackRF, RTL-SDR and Flipper Zero control.
 
 pub mod demodulator;
 pub mod dsp;
+mod flipper;
 mod hackrf;
 pub mod hopper;
 pub mod iq_file;
@@ -25,6 +26,7 @@ pub use demodulator::LevelDuration;
 pub(crate) const USB_ACCESS_HINT: &str = "install its WinUSB driver with Zadig";
 #[cfg(not(windows))]
 pub(crate) const USB_ACCESS_HINT: &str = "check its USB permissions / udev rules";
+pub use flipper::FlipperController;
 pub use hackrf::HackRfController;
 pub use rtlsdr::RtlSdrController;
 

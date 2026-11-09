@@ -211,6 +211,7 @@ mod nissan_v0;
 // Toyota (FoxFW): FoxFW's "Toyota", Flipper-ARF's retired KeeLoq Toyota (decode-only).
 mod toyota_foxfw;
 mod tx_copies;
+mod stream_locator;
 #[cfg(test)]
 mod dd_testutil;
 // FoxFW decoders (decode only but BMW CAS3, which FoxFW's enc_bmw_cas3.c replays): Audi V1/V2/V3,
@@ -275,6 +276,7 @@ pub use common::DecodedSignal;
 pub use rtl433::{is_keeloq_chip, redecode_keeloq_chip};
 pub use flipper_key::FlipperKey;
 pub use tx_copies::transmission;
+pub use stream_locator::{LocatedFrame, StreamLocator};
 pub use info::{has_checksum_for, lookup as protocol_info, ProtocolInfo};
 /// PSA TEA key recovery for the signal menu's "Recover key" action (ProtoPirate's brute force,
 /// which the references also run on demand rather than while decoding).

@@ -65,6 +65,13 @@ pub struct Config {
     pub tx_vga_gain: u32,
     /// TX RF amplifier (about +11 dB) for every transmission
     pub tx_amp: bool,
+    /// Which radio KAT opens (`device`): auto (a HackRF, else an RTL-SDR, else a Flipper Zero), or one.
+    pub radio_device: RadioChoice,
+    /// A Flipper Zero's console port (`flipper_port`); None: found by its USB name.
+    pub flipper_port: Option<String>,
+    /// The receive preset of doctor-firmware's `rx_raw` (`flipper_preset`, e.g. FM476); None: the
+    /// firmware's own (OOK).
+    pub flipper_preset: Option<String>,
 
     // [export]
     /// Default export format (fob or sub)
@@ -96,6 +103,9 @@ impl Config {
             // KAT ≤ 1.4 always transmitted at maximum power.
             tx_vga_gain: 47,
             tx_amp: true,
+            radio_device: RadioChoice::Auto,
+            flipper_port: None,
+            flipper_preset: None,
             default_export_format: "fob".to_string(),
             include_raw_pairs: true,
             session_autosave: true,
@@ -148,6 +158,9 @@ impl Config {
         let default_amp = r.bool("radio", "default_amp", defaults.default_amp);
         let tx_vga_gain = r.gain("radio", "tx_vga_gain", defaults.tx_vga_gain, 47, 1);
         let tx_amp = r.bool("radio", "tx_amp", defaults.tx_amp);
+        let radio_device = r.get("radio", "device", defaults.radio_device, |d| d.name().to_string(), RadioChoice::parse);
+        let flipper_port = r.text("radio", "flipper_port");
+        let flipper_preset = r.text("radio", "flipper_preset");
 
         let default_export_format = match r.text("export", "default_format") {
             Some(f) if f.eq_ignore_ascii_case("fob") || f.eq_ignore_ascii_case("sub") => f.to_ascii_lowercase(),
@@ -184,6 +197,9 @@ impl Config {
             default_amp,
             tx_vga_gain,
             tx_amp,
+            radio_device,
+            flipper_port,
+            flipper_preset,
             default_export_format,
             include_raw_pairs,
             session_autosave,
@@ -261,6 +277,17 @@ default_amp = {amp}
 tx_vga_gain = {tx_vga}
 tx_amp = {tx_amp}
 
+; Which radio KAT opens: auto (a HackRF, else an RTL-SDR, else a Flipper Zero on USB), hackrf,
+; rtlsdr or flipper.
+device = {device}
+
+; A Flipper Zero is used through its USB console (transmit and receive, docs/flipper_radio.md).
+; flipper_port: its serial port, when KAT does not find it (/dev/ttyACM0, /dev/cu.usbmodemflip_Name1,
+; COM5). flipper_preset: the receive preset of doctor-firmware's rx_raw (AM270, AM650, FM238,
+; FM476, ...); the other firmwares receive with their own AM preset only.
+{flipper_port}
+{flipper_preset}
+
 [export]
 ; Default export format: fob (JSON metadata) or sub (Flipper Zero)
 default_format = {export_fmt}
@@ -296,6 +323,15 @@ session_autosave = {session_autosave}
             amp = self.default_amp,
             tx_vga = self.tx_vga_gain,
             tx_amp = self.tx_amp,
+            device = self.radio_device.name(),
+            flipper_port = match &self.flipper_port {
+                Some(p) => format!("flipper_port = {p}"),
+                None => "; flipper_port = /dev/ttyACM0".to_string(),
+            },
+            flipper_preset = match &self.flipper_preset {
+                Some(p) => format!("flipper_preset = {p}"),
+                None => "; flipper_preset = FM476".to_string(),
+            },
             export_fmt = self.default_export_format,
             raw_pairs = self.include_raw_pairs,
             session_autosave = self.session_autosave,
@@ -305,6 +341,38 @@ session_autosave = {session_autosave}
             .with_context(|| format!("Failed to write config to {:?}", path))?;
 
         Ok(())
+    }
+}
+
+/// Which radio KAT opens (`[radio] device`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RadioChoice {
+    /// A HackRF, else an RTL-SDR, else a Flipper Zero.
+    Auto,
+    HackRf,
+    RtlSdr,
+    Flipper,
+}
+
+impl RadioChoice {
+    fn parse(value: &str) -> Result<Self, String> {
+        match value.to_ascii_lowercase().replace(['-', '_', ' '], "").as_str() {
+            "auto" => Ok(Self::Auto),
+            "hackrf" => Ok(Self::HackRf),
+            "rtlsdr" => Ok(Self::RtlSdr),
+            "flipper" | "flipperzero" => Ok(Self::Flipper),
+            _ => Err("is not auto, hackrf, rtlsdr or flipper".to_string()),
+        }
+    }
+
+    /// As `config.ini` writes it.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::HackRf => "hackrf",
+            Self::RtlSdr => "rtlsdr",
+            Self::Flipper => "flipper",
+        }
     }
 }
 
@@ -334,6 +402,9 @@ const KNOWN_KEYS: &[(&str, &[&str])] = &[
             "default_amp",
             "tx_vga_gain",
             "tx_amp",
+            "device",
+            "flipper_port",
+            "flipper_preset",
         ],
     ),
     ("export", &["default_format", "include_raw_pairs"]),
@@ -755,6 +826,40 @@ mod config_warning_tests {
         assert!(!cfg.show_unknown_signals && warnings.is_empty(), "{warnings:?}");
         let (cfg, _) = parse("[general]\nresearch_mode = false\nshow_unknown_signals = true\n");
         assert!(cfg.show_unknown_signals, "the new key wins");
+    }
+
+    /// `device` picks the radio (auto by default); the Flipper's port and receive preset are read
+    /// as written, and a written config with them set loads back as it was.
+    #[test]
+    fn radio_device_and_flipper_settings() {
+        let (cfg, warnings) = parse("[radio]\ntx_amp = true\n");
+        assert_eq!((cfg.radio_device, cfg.flipper_port.as_deref(), cfg.flipper_preset.as_deref()), (RadioChoice::Auto, None, None));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        for (word, want) in [("flipper", RadioChoice::Flipper), ("Flipper Zero", RadioChoice::Flipper), ("RTL-SDR", RadioChoice::RtlSdr), ("hackrf", RadioChoice::HackRf)] {
+            let (cfg, warnings) = parse(&format!("[radio]\ndevice = {word}\n"));
+            assert_eq!(cfg.radio_device, want, "{word}");
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+        let (cfg, warnings) = parse("[radio]\ndevice = bladerf\n");
+        assert_eq!(cfg.radio_device, RadioChoice::Auto);
+        assert!(warnings.iter().any(|w| w.contains("device = bladerf")), "{warnings:?}");
+
+        let dir = std::env::temp_dir().join(format!("kat_cfg_flipper_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("config.ini");
+        let mut want = Config::default_for(&dir);
+        want.radio_device = RadioChoice::Flipper;
+        want.flipper_port = Some("/dev/ttyACM1".to_string());
+        want.flipper_preset = Some("FM476".to_string());
+        want.save_to_ini(&path).unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+        let (cfg, warnings) = Config::parse_ini(&text, &dir);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert_eq!(
+            (cfg.radio_device, cfg.flipper_port.as_deref(), cfg.flipper_preset.as_deref()),
+            (RadioChoice::Flipper, Some("/dev/ttyACM1"), Some("FM476"))
+        );
     }
 
     /// `autobf` is on unless the config says otherwise.

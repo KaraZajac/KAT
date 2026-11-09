@@ -8,7 +8,8 @@ layout: default
 `src/radio/hackrf.rs` (HackRF TX path), `src/protocols/info.rs` + each protocol module's `INFO` (per-protocol
 presets), `src/app/tx.rs` (queue, TX power)
 
-KAT transmits with a HackRF. Since v1.5 it keys the carrier the way the protocol (or the capture) calls for:
+KAT transmits with a HackRF (or a Flipper Zero, which plays the same transmission from a RAW `.sub`
+with the preset of its modulation: [flipper_radio.md](flipper_radio.md)). Since v1.5 it keys the carrier the way the protocol (or the capture) calls for:
 on-off keying for AM protocols, continuous-phase 2-FSK with the right deviation for FM protocols. Up to v1.4
 every transmission was OOK at full power, so FM protocols went out as OOK.
 

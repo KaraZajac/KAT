@@ -227,6 +227,7 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.iq_format(),
             RadioDevice::RtlSdr(r) => r.iq_format(),
+            RadioDevice::Flipper(f) => f.iq_format(),
         }
     }
 
@@ -234,6 +235,7 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.sample_rate(),
             RadioDevice::RtlSdr(r) => r.sample_rate(),
+            RadioDevice::Flipper(f) => f.sample_rate(),
         }
     }
 
@@ -242,6 +244,7 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.rx_frequency(),
             RadioDevice::RtlSdr(r) => r.rx_frequency(),
+            RadioDevice::Flipper(f) => f.rx_frequency(),
         }
     }
 
@@ -249,6 +252,7 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.set_hopping(plan),
             RadioDevice::RtlSdr(r) => r.set_hopping(plan),
+            RadioDevice::Flipper(f) => f.set_hopping(plan),
         }
     }
 
@@ -256,6 +260,7 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.hop_state(),
             RadioDevice::RtlSdr(r) => r.hop_state(),
+            RadioDevice::Flipper(f) => f.hop_state(),
         }
     }
 
@@ -263,6 +268,7 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.hop_pause(dwells),
             RadioDevice::RtlSdr(r) => r.hop_pause(dwells),
+            RadioDevice::Flipper(f) => f.hop_pause(dwells),
         }
     }
 
@@ -270,6 +276,7 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.start_recording(path),
             RadioDevice::RtlSdr(r) => r.start_recording(path),
+            RadioDevice::Flipper(f) => f.start_recording(path),
         }
     }
 
@@ -277,6 +284,7 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.stop_recording(),
             RadioDevice::RtlSdr(r) => r.stop_recording(),
+            RadioDevice::Flipper(f) => f.stop_recording(),
         }
     }
 
@@ -284,6 +292,7 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.recording_status(),
             RadioDevice::RtlSdr(r) => r.recording_status(),
+            RadioDevice::Flipper(f) => f.recording_status(),
         }
     }
 
@@ -291,6 +300,7 @@ impl RadioDevice {
         match self {
             RadioDevice::HackRf(h) => h.take_ended_recording(),
             RadioDevice::RtlSdr(r) => r.take_ended_recording(),
+            RadioDevice::Flipper(f) => f.take_ended_recording(),
         }
     }
 }
@@ -429,6 +439,10 @@ impl App {
             self.last_error = Some("No radio device connected".to_string());
             return Ok(());
         }
+        if self.radio.as_ref().is_some_and(|r| !r.supports_recording()) {
+            self.last_error = Some("A Flipper gives pulses, not IQ: :record needs a HackRF or an RTL-SDR".to_string());
+            return Ok(());
+        }
         if self.rx.hop_enabled {
             self.last_error = Some("Stop hopping first (:hop off): a recording has one centre frequency".to_string());
             return Ok(());
@@ -515,6 +529,11 @@ impl App {
             return;
         };
         if on {
+            if !radio.supports_hopping() {
+                self.last_error =
+                    Some("Hopping needs a HackRF or an RTL-SDR (a Flipper restarts rx_raw for every frequency)".to_string());
+                return;
+            }
             if radio.recording_status().is_some() {
                 self.last_error = Some("Stop recording first (:record stop)".to_string());
                 return;

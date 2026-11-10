@@ -66,6 +66,12 @@ pub const HELP_TEXT: &str = r#"KEYS
                 key recovery
   a             Analyze: what the signal is
                 (← →: the captures next to it)
+  c             Compare: its remote's presses lined
+                up, what each bit does (Tab: the
+                decoded data / the bits as sent)
+  /             Filter the list: words that must fit,
+                serial:1a2b, !word, #7 or id:3-9
+  s  S          Sort by the next column / reverse
   i             Vehicle info (year, make, model …)
   d  u          Delete the capture / undo
   r             Start or stop receiving
@@ -74,8 +80,8 @@ pub const HELP_TEXT: &str = r#"KEYS
   Tab           Radio settings
   :             Command line (↑ ↓: earlier commands)
   ?  F1         This help
-  Esc           Close; clear the message; cancel
-                queued transmissions
+  Esc           Close; cancel queued transmissions;
+                clear the message, then the filter
   q  Ctrl-C     Quit (asks while work is running)
 
   Forms: Tab/↓ next field, Shift-Tab/↑ previous.
@@ -106,6 +112,13 @@ COMMANDS   (ID: 4  #4  1,3,5  1 3 5  1-5)
   :klbf [ID] [type]    Recover a KeeLoq key (:klbf stop)
   :analyze [ID]        What a signal is: modulation,
                        pulse widths, coding, bits
+  :compare [IDs]       What the bits do: fixed, counter,
+                       button (1-5 / 6-9: two groups)
+  :filter [words]      Show the captures that fit
+                       (:filter alone: all of them)
+  :sort [column] [desc]
+                       Sort the list (:sort alone: by
+                       ID, the order of arrival)
   :delete <ID>|all     Delete captures (u: undo)
   :clear               Delete captures + saved session
   :license  :credits   License, credits

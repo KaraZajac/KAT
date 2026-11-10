@@ -1,7 +1,7 @@
 //! Keyboard input, commands and selection for [`App`]: what a key means (Ctrl-C, Ctrl / Alt
 //! characters), the text fields' Ctrl-U / Ctrl-W, capture-ID lists (`:replay 1-5`, `:delete 2 4`) and their summaries, delete with a
-//! one-level undo (`u`), when a new capture takes the selection, the signal menu's capture and
-//! highlighted action, list paging, the export and capture-metadata forms, the `:load` browser's
+//! one-level undo (`u`), the signal menu's capture and highlighted action, list paging (through
+//! the list as shown: app/list_view.rs), the export and capture-metadata forms, the `:load` browser's
 //! keys and path resolution, the help / License / Credits overlays, the quit and `:delete all`
 //! confirmations, the settings dropdown's rows and the background-job status line.
 //!
@@ -15,8 +15,8 @@ use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::{
-    tx_power_label, App, ExportFormat, InputMode, SettingsField, SignalAction, LNA_STEPS, PRESET_FREQUENCIES,
-    TX_POWER_STEPS, VGA_STEPS,
+    list_view, tx_power_label, App, ExportFormat, InputMode, SettingsField, SignalAction, LNA_STEPS,
+    PRESET_FREQUENCIES, TX_POWER_STEPS, VGA_STEPS,
 };
 use crate::capture::{ButtonCommand, Capture};
 use crate::radio::hopper::format_mhz;
@@ -225,6 +225,19 @@ pub(super) fn ids_text(ids: &[u32]) -> String {
     ranges_text(&merge_ranges(ids.iter().map(|&id| (id, id)).collect()))
 }
 
+/// A capture-ID list for a command that takes the captures in the order named: the IDs that exist,
+/// each once, and the ones named that do not ("#04, #05") when there are any. An error when the
+/// list cannot be read or names no capture that exists.
+pub(super) fn ids_in_order(spec: &str, existing: &[u32]) -> Result<(Vec<u32>, Option<String>), String> {
+    let sel = resolve_ids(&parse_id_items(spec)?, existing);
+    if sel.found.is_empty() {
+        return Err(not_found_text(&sel));
+    }
+    let mut seen = HashSet::new();
+    let ids = sel.found.iter().copied().filter(|id| seen.insert(*id)).collect();
+    Ok((ids, (!sel.missing.is_empty()).then(|| ranges_text(&sel.missing))))
+}
+
 /// "Capture #05 not found", "Captures #04, #05 not found".
 fn not_found_text(sel: &IdSelection) -> String {
     let noun = if sel.missing_count() == 1 { "Capture" } else { "Captures" };
@@ -284,20 +297,6 @@ fn restore_at<T>(list: &mut Vec<T>, removed: Vec<(usize, T)>) {
     }
 }
 
-/// Whether a capture just added at index `new` takes the selection: only in the list view (not
-/// under a menu, form or prompt) and only when nothing is selected or the selection is on the row
-/// before it, the old end of the list (tail-follow). Otherwise browsing was hijacked, and an open
-/// signal menu retargeted.
-fn follows_new_capture(mode: InputMode, selected: Option<usize>, new: usize) -> bool {
-    mode == InputMode::Normal && selected.is_none_or(|s| s + 1 >= new)
-}
-
-/// The selection `delta` rows away (clamped to the list), from the top when nothing is selected.
-fn moved_selection(selected: Option<usize>, len: usize, delta: isize) -> Option<usize> {
-    let last = len.checked_sub(1)?;
-    let from = selected.unwrap_or(0).min(last);
-    Some(from.saturating_add_signed(delta).min(last))
-}
 
 /// The row to highlight in a (possibly changed) action list: the remembered action's, else the
 /// first (never the neighbour that slid under the highlight, such as "Delete Signal").
@@ -470,6 +469,10 @@ impl App {
                 kill(&mut self.command_input, what);
                 self.command_edited();
             }
+            InputMode::Filter => {
+                kill(self.filter_text_mut(), what);
+                self.filter_edited();
+            }
             InputMode::NewRemote | InputMode::NewRemoteEdit | InputMode::SendButton => {
                 return self.add_manually_kill(what);
             }
@@ -621,28 +624,32 @@ impl App {
 
     // ── Captures list ──
 
-    /// PgUp / PgDn (`pages` -1 / 1): a page of the list, the rows the last frame showed.
+    /// PgUp / PgDn (`pages` -1 / 1): a page of the list as shown (its filter and sort,
+    /// app/list_view.rs), the rows the last frame showed.
     pub fn page_captures(&mut self, pages: isize) {
         let rows = self.list_page_rows.get().max(1) as isize;
-        self.select_capture_row(moved_selection(self.selected_capture, self.captures.len(), pages * rows));
+        let view = self.visible_captures();
+        self.select_capture_at(list_view::moved(&view, self.selected_capture, pages * rows));
     }
 
-    /// Home / g (`last` false), End / G (true).
+    /// Home / g (`last` false), End / G (true): the list's first and last row.
     pub fn select_capture_edge(&mut self, last: bool) {
-        let end = self.captures.len().checked_sub(1);
-        self.select_capture_row(end.map(|end| if last { end } else { 0 }));
+        let view = self.visible_captures();
+        self.select_capture_at(if last { view.last() } else { view.first() }.copied());
     }
 
-    fn select_capture_row(&mut self, row: Option<usize>) {
-        if row.is_some() {
-            self.selected_capture = row;
+    fn select_capture_at(&mut self, at: Option<usize>) {
+        if at.is_some() {
+            self.selected_capture = at;
         }
     }
 
-    /// A capture was just added at the end of the list: select it only per `follows_new_capture`.
+    /// A capture was just added at the end of `captures`: select it only per
+    /// `list_view::follows_new`.
     pub(super) fn follow_new_capture(&mut self) {
         let new = self.captures.len().saturating_sub(1);
-        if follows_new_capture(self.input_mode, self.selected_capture, new) {
+        let view = self.visible_captures();
+        if list_view::follows_new(self.input_mode, &view, self.selected_capture, new, self.list_view.sort) {
             self.selected_capture = Some(new);
         }
     }
@@ -667,8 +674,14 @@ impl App {
             return Ok(());
         }
         let ids: HashSet<u32> = sel.found.iter().copied().collect();
+        // When the selected capture goes, the selection stays on its row of the list as shown.
+        let selected_goes = self.selected_capture.and_then(|i| self.captures.get(i)).is_some_and(|c| ids.contains(&c.id));
+        let row = self.selected_row().filter(|_| selected_goes);
         let (removed, selected) = remove_where(&mut self.captures, |c| ids.contains(&c.id), self.selected_capture);
         self.selected_capture = selected;
+        if let Some(row) = row {
+            self.select_row(row);
+        }
         let deleted: Vec<u32> = removed.iter().map(|(_, c)| c.id).collect();
         self.input.undo = removed;
         let mut msg = format!("Deleted {}", ids_text(&deleted));
@@ -712,8 +725,12 @@ impl App {
         };
         let at = first.min(self.captures.len());
         let ids: Vec<u32> = removed.iter().map(|(_, c)| c.id).collect();
+        let selected = self.selected_capture.and_then(|i| self.captures.get(i)).map(|c| c.id);
         restore_at(&mut self.captures, removed);
-        self.selected_capture = Some(at);
+        // The first restored capture is selected when the list shows it. Under a filter that
+        // hides it the selection stays on its capture, which moved down the list.
+        self.selected_capture = selected.and_then(|id| self.captures.iter().position(|c| c.id == id));
+        self.select_if_shown(at);
         self.status_message = Some(format!("Restored {}", ids_text(&ids)));
     }
 
@@ -1103,6 +1120,18 @@ mod tests {
         }
     }
 
+    /// A command that takes its captures in the order named gets them so, each once, and is told
+    /// which of the IDs no capture has.
+    #[test]
+    fn ids_in_order_keeps_the_order_named() {
+        let existing = [1, 2, 3, 6, 7];
+        assert_eq!(ids_in_order("3, 1", &existing), Ok((vec![3, 1], None)));
+        assert_eq!(ids_in_order("7-5 1 6", &existing), Ok((vec![7, 6, 1], Some("#05".to_string()))));
+        assert_eq!(ids_in_order("1-9", &existing), Ok((vec![1, 2, 3, 6, 7], Some("#04, #05, #08, #09".to_string()))));
+        assert_eq!(ids_in_order("4 5", &existing), Err("Captures #04, #05 not found".to_string()));
+        assert!(ids_in_order("x", &existing).unwrap_err().starts_with("Invalid capture ID: x"));
+    }
+
     #[test]
     fn id_lists_resolve_against_the_captures_without_listing_ranges() {
         let existing = [1, 2, 3, 6, 7];
@@ -1166,25 +1195,6 @@ mod tests {
         list.push(6);
         restore_at(&mut list, removed);
         assert_eq!(list, vec![1, 2, 3, 4, 5, 6]);
-    }
-
-    #[test]
-    fn new_captures_take_the_selection_only_at_the_tail_of_the_list() {
-        assert!(follows_new_capture(InputMode::Normal, None, 0));
-        assert!(follows_new_capture(InputMode::Normal, None, 5));
-        assert!(follows_new_capture(InputMode::Normal, Some(4), 5), "selection on the last row: follow");
-        assert!(!follows_new_capture(InputMode::Normal, Some(2), 5), "browsing: stay");
-        assert!(!follows_new_capture(InputMode::SignalMenu, Some(4), 5), "an open menu keeps its capture");
-        assert!(!follows_new_capture(InputMode::Command, None, 5));
-    }
-
-    #[test]
-    fn list_paging() {
-        assert_eq!(moved_selection(None, 0, 10), None);
-        assert_eq!(moved_selection(None, 30, 10), Some(10));
-        assert_eq!(moved_selection(Some(25), 30, 10), Some(29));
-        assert_eq!(moved_selection(Some(5), 30, -10), Some(0));
-        assert_eq!(moved_selection(Some(99), 30, -10), Some(19), "a stale selection is clamped first");
     }
 
     #[test]

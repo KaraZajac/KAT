@@ -59,6 +59,8 @@ Its 149 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPira
 **Analyse**
 
 - **Analyze** — `a` on any capture, decoded or not, works out what the signal is: OOK or FSK (measured on a HackRF or RTL-SDR: the two tones, the carrier's offset, the level), the pulse widths of each level, the base TE, the line coding (PWM, PPM, Manchester, NRZ), the frames and how they repeat, a trial decode of the bits, a drawn waveform and the raw durations ([docs/analyze.md](docs/analyze.md)). A decoded capture is also compared with its protocol's timing, as ProtoPirate's Timing Tuner does ([docs/timing_analysis.md](docs/timing_analysis.md)); an unknown one gets KAT's protocols with similar widths.
+- **Compare** — `c` lines up the frames of one remote's presses, bit under bit, and says what each bit does from press to press: fixed, part of a counter, following the button, or changing with no pattern (encrypted, a checksum). It compares the decoded data and the bits as sent, so it shows where the serial, the counter and the button of a signal no decoder knows are ([docs/compare.md](docs/compare.md)).
+- **Filter and sort** — `/` narrows the captures list to the captures that fit the words typed (protocol, frequency, serial, button …) and `s` sorts it by a column, for a list that several radios fill at once ([below](#filter-and-sort)).
 - **Saved-fob matching** — a capture that matches one of your `.fob` files (ProtoPirate's rules: protocol, serial or key, counter within ±50) gets a ★ and shows the saved vehicle.
 - **Vulnerability database** — capture metadata (year, make, model, region) is matched against a built-in CVE list ([below](#vulnerability-database)).
 - **Session autosave** — captures are saved as they arrive and offered for restore at the next start ([docs/session.md](docs/session.md)).
@@ -90,18 +92,18 @@ On Windows there is nothing to install here: the `.zip` carries the HackRF libra
 Then check, unpack and run (with your version and platform):
 
 ```bash
-sha256sum -c kat-v1.11.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
-tar xzf kat-v1.11.0-x86_64-linux.tar.gz
-./kat-v1.11.0-x86_64-linux/kat
+sha256sum -c kat-v1.12.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.12.0-x86_64-linux.tar.gz
+./kat-v1.12.0-x86_64-linux/kat
 ```
 
 On Windows, in PowerShell (Windows Terminal):
 
 ```powershell
-$want = (Get-Content kat-v1.11.0-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.11.0-x86_64-windows.zip).Hash -eq $want    # True
-Expand-Archive kat-v1.11.0-x86_64-windows.zip .
-.\kat-v1.11.0-x86_64-windows\kat.exe
+$want = (Get-Content kat-v1.12.0-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.12.0-x86_64-windows.zip).Hash -eq $want    # True
+Expand-Archive kat-v1.12.0-x86_64-windows.zip .
+.\kat-v1.12.0-x86_64-windows\kat.exe
 ```
 
 The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. The Windows build isn't signed, so SmartScreen may stop its first start ("More info", then "Run anyway"). Intel Macs and other platforms build from source.
@@ -148,8 +150,8 @@ On Windows, libusb only opens a radio that has the WinUSB driver. Install it onc
 1. Connect the radio and start KAT: `kat` (`target/release/kat` when built from source).
 2. Press `r` to start receiving. KAT listens on 433.92 MHz by default; `:freq 315` changes the frequency and `:hop on` hops over the common key fob frequencies.
 3. Press a button on the fob. Each frame it sends appears in the captures list (a press that repeats one frame is one capture), decoded when KAT knows the protocol.
-4. Move through the list with `j` / `k` or the arrow keys; the detail panel shows the selected capture.
-5. Press `Enter` for the capture's actions: transmit, export, analyze, key recovery. `a` analyzes it straight away, also a signal no decoder knows.
+4. Move through the list with `j` / `k` or the arrow keys; the detail panel shows the selected capture. `/` filters the list and `s` sorts it.
+5. Press `Enter` for the capture's actions: transmit, export, analyze, key recovery. `a` analyzes it straight away, also a signal no decoder knows, and `c` compares the presses of its remote: which bits are fixed, count or follow the button.
 6. Press `Tab` for the radio settings, `:` for commands (`:load` opens files and recordings), and `q` to quit.
 
 ## Command line
@@ -179,6 +181,9 @@ Exit status: `0` on success; `1` when `--decode` could not read a file or found 
 | `Enter` | Open the selected capture's action menu (it stays on that capture while new ones arrive) |
 | `i` | Edit the capture's metadata: year, make, model, region and command (used by the CVE match and `.fob` export). `Tab` / `↓` and `Shift-Tab` / `↑` move between the fields, `Enter` goes to the next one and saves on the last (the export form works the same) |
 | `a` | Analyze the selected capture: keying, pulse widths, TE, line coding, frames and bits ([docs/analyze.md](docs/analyze.md)) |
+| `c` | Compare the presses of the selected capture's remote: which bits stay fixed, count, follow the button or change with no pattern. In the report `Tab` changes between the decoded data and the bits as sent ([docs/compare.md](docs/compare.md)) |
+| `/` | Filter the list: it narrows while you type; `Enter` keeps the filter, `Esc` goes back to the one before ([below](#filter-and-sort)) |
+| `s` / `S` | Sort the list by the next column / reverse the order |
 | `d` | Delete the selected capture |
 | `u` | Undo the last delete (`d`, `:delete`, `:delete all`) |
 | `r` | Start or stop receiving (with several radios, on the selected one) |
@@ -187,12 +192,29 @@ Exit status: `0` on success; `1` when `--decode` could not read a file or found 
 | `Tab` | Radio settings: choose a setting with `←` / `→` (or `Tab` / `Shift-Tab`), `Enter` to change it, `↑` / `↓` to pick a value, `Enter` to apply. The bar has the settings the selected radio has: LNA, VGA and AMP for a HackRF, one Gain for an RTL-SDR, the frequency alone for a Flipper Zero, and TX power when a HackRF transmits. A value set by command that is not in the list (`:freq 433.42`) shows as the first row, "(current)" |
 | `:` | Command line |
 | `?` or `F1` | Help (also `:help`) |
-| `Esc` | Close a menu, form or overlay; in the list, clear the message and cancel the transmissions still queued |
+| `Esc` | Close a menu, form or overlay; in the list, clear the message and cancel the transmissions still queued, and with neither there, clear the filter |
 | `q` or `Ctrl-C` | Quit (also `:q`); asks first while a key search, an IQ file, a recording or a transmission is running. In menus, forms and prompts `Ctrl-C` works as `Esc` |
 
-A new capture is selected only when the selection is on the last row (or nothing is selected) and no menu or form is open, so it never moves the selection you are working with.
+A new capture is selected only when the selection is on the last row (or nothing is selected) and no menu or form is open, so it never moves the selection you are working with. In a list sorted by a column it is never selected, and under a filter only when it fits.
 
-Where you type (the command line, the forms, the filter of `:new`), `Ctrl-U` clears the text and `Ctrl-W` or `Alt-Backspace` deletes its last word. The status bar shows the last message, errors in red; one too long for its line wraps, and the bar grows to three lines for it when the terminal has the rows.
+Where you type (the command line, the list's filter, the forms, the filter of `:new`), `Ctrl-U` clears the text and `Ctrl-W` or `Alt-Backspace` deletes its last word. The status bar shows the last message, errors in red; one too long for its line wraps, and the bar grows to three lines for it when the terminal has the rows.
+
+### Filter and sort
+
+`/` opens the filter line (`:filter <words>` sets the same filter). A capture is shown when every word fits it, in any case:
+
+| Word | Shows the captures… |
+|---|---|
+| `kia` | with it in the protocol, frequency (as listed: `433.92`), radio, serial, button, status, make or model |
+| `serial:1a2b` | with it in that column. Every column has a name: `id`, `time`, `protocol`, `mhz`, `radio`, `serial`, `btn`, `cnt`, `mod`, `crc`, `status`, `vuln`, and `make`, `model`, `file` of the capture's details (`proto`, `freq`, `button`, `counter` work too) |
+| `!unknown`, `!btn:lock` | without it |
+| `#7`, `id:7`, `id:3-9` | with that ID, or an ID in that range |
+
+`kia unlock 433.92` shows the Unlock presses of Kia remotes on 433.92 MHz. The list's title says how many captures are shown and the filter ("Captures · 5 of 25 · filter: kia unlock"). `Esc` in the list or `:filter` alone clears it. A file you load, or a remote made with `:new`, that the filter would hide clears it too, so what you added is in front of you.
+
+`s` sorts by the next column of the list, back to the order of arrival after the last; `S` reverses the order. `:sort serial`, `:sort cnt desc` sort by a column by name, `:sort` alone goes back to the order of arrival. Captures with nothing in the column (no serial, no counter) come last either way, and equal ones stay in the order they arrived. The title names the sort ("sort: Serial ▲").
+
+The keys work on what the list shows: moving, `Home` / `End`, `←` / `→` in Analyze, and `c`, which compares the shown captures of a remote. IDs do not change, and a command takes a capture by its ID whether it is shown or not.
 
 ### Signal actions
 
@@ -238,6 +260,9 @@ Press `:` and type a command (`:help` lists them); the command word works in any
 | `:new [type…]` | Create a new gate/garage remote ("Add Manually"): opens the type picker, or creates the one type the words name (e.g. `:new princeton 433`) |
 | `:klbf [ID] [auto\|6\|7\|8]` | Recover the magic-serial KeeLoq key of a remote (default: the selected capture, Auto = types 6 and 7); `:klbf stop` cancels |
 | `:analyze [ID]` | Analyze a capture (default: the selected one); `:timing` is the older name and still works |
+| `:compare [IDs]` | Compare the presses of the selected capture's remote, or the captures named, in the order named (`:compare 1-5`); `:compare 1-5 / 6-10` compares two groups in place of the buttons. `:cmp` is short for it ([docs/compare.md](docs/compare.md)) |
+| `:filter [words]` | Show only the captures that fit the words ([Filter and sort](#filter-and-sort)); `:filter` alone shows all again |
+| `:sort [column] [desc]` | Sort the list by a column (`:sort serial`, `:sort cnt desc`); `:sort` alone is the order of arrival |
 | `:delete <ID>` / `:delete all` | Delete captures (`:delete all` asks first); `u` in the list brings back the last deleted. `:del` is short for it |
 | `:clear` | Clear all captures and delete the saved session and its backup (`session.json`, `session.json.bak`); asks first, cannot be undone |
 | `:help` or `:?` | Keys and commands (also `?` or `F1`) |
@@ -571,7 +596,7 @@ One receive pipeline serves the HackRF, the RTL-SDR and IQ recordings ([docs/rad
 
 ## Documentation
 
-Each protocol has its own page in [docs/](docs/README.md): how it works, the frame layout and what KAT does with it. Feature pages: [receive](docs/radio.md), [transmit](docs/transmit.md), [session autosave and saved-fob matching](docs/session.md), [Analyze](docs/analyze.md) and its [timing comparison](docs/timing_analysis.md), [Add Manually](docs/add_manually.md), [Flipper key files](docs/flipper_key_files.md), [KeeLoq and key recovery](docs/keeloq.md), [HiTag2 key recovery](docs/hitag2_hell.md) and [unidentified captures](docs/unidentified_captures.md).
+Each protocol has its own page in [docs/](docs/README.md): how it works, the frame layout and what KAT does with it. Feature pages: [receive](docs/radio.md), [transmit](docs/transmit.md), [session autosave and saved-fob matching](docs/session.md), [Analyze](docs/analyze.md) and its [timing comparison](docs/timing_analysis.md), [Compare](docs/compare.md), [Add Manually](docs/add_manually.md), [Flipper key files](docs/flipper_key_files.md), [KeeLoq and key recovery](docs/keeloq.md), [HiTag2 key recovery](docs/hitag2_hell.md) and [unidentified captures](docs/unidentified_captures.md).
 
 The `IMPORTS/` directory holds sample `.sub` captures by manufacturer; the test suite decodes all of them. If you see `desktop.ini` files in its subfolders (from Windows), you can delete them; git ignores them.
 
@@ -583,7 +608,8 @@ src/
 ├── app.rs               # Application state, radio events, signal actions
 ├── app/                 # radios.rs (the radios, selection, :radios, :txradio, own transmissions),
 │                        # rx.rs (:iq, :record, :hop), tx.rs (transmit queue, :txpower), persistence.rs (session),
-│                        # fob_matching.rs (saved-fob ★), analyze_view.rs (Analyze overlay), key_files.rs (Flipper key
+│                        # fob_matching.rs (saved-fob ★), analyze_view.rs (Analyze overlay), compare_view.rs (Compare
+│                        # overlay), list_view.rs (the list's filter and sort), key_files.rs (Flipper key
 │                        # files), add_manually.rs (:new, Send button…), keeloq_bf.rs (KeeLoq key recovery),
 │                        # hitag2_bf.rs (HiTag2 key recovery), auto_bf.rs (autobf PSA searches),
 │                        # input.rs (keys, ID lists, delete/undo, quit prompt, menus), files.rs (export names,
@@ -591,6 +617,7 @@ src/
 ├── headless.rs          # kat --decode / --keeloq-bf: decode files, recover KeeLoq keys without the TUI
 ├── analysis/timing.rs   # Pulse clusters, TE, line-coding guess; ProtoPirate's Timing Tuner comparison
 ├── analysis/signal.rs   # The Analyze report (signal/: rows, trial decode of the bits, tables, layout)
+├── analysis/compare.rs  # Compare: what each bit of a remote's frames does from press to press
 ├── session.rs           # session.json format and atomic writer
 ├── saved_fobs.rs        # Index of saved .fob files for matching
 ├── capture.rs           # Capture data (data_extra for protocol encode state), encoding/RF modulation
@@ -654,6 +681,7 @@ src/
     ├── command.rs       # VIM-style command line
     ├── text_overlay.rs  # License, credits and help overlays
     ├── analyze_overlay.rs # The Analyze report overlay
+    ├── compare_overlay.rs # The Compare report overlay
     ├── text.rs          # Display-width text helpers: wrapping, cutting with …
     ├── theme.rs         # Shared styles (selection highlight, dim text)
     ├── add_manually.rs  # :new type picker and field editor, Send button… list

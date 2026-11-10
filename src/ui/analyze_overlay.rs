@@ -10,7 +10,7 @@ use ratatui::{
     Frame,
 };
 
-use crate::analysis::signal::Tone;
+use crate::analysis::signal::{self, Tone};
 use crate::app::{AnalyzeView, App};
 
 use super::text_overlay::{overlay_block, overlay_rect};
@@ -39,13 +39,22 @@ pub fn render_analyze_overlay(frame: &mut Frame, app: &App) {
 
 /// Draw `view` from its line `scroll` on; returns the last line it can be scrolled to.
 fn render_view(frame: &mut Frame, view: &AnalyzeView, scroll: usize) -> usize {
+    render_report(frame, &view.title, scroll, |width| view.lines(width))
+}
+
+/// Draw a report overlay (Analyze, Compare) from its line `scroll` on: `lines` lays the report out
+/// for a text width. Returns the last line it can be scrolled to.
+pub(super) fn render_report<L>(frame: &mut Frame, title: &str, scroll: usize, lines: impl FnOnce(usize) -> L) -> usize
+where
+    L: std::ops::Deref<Target = [signal::Line]>,
+{
     let area = overlay_rect(frame.area());
     frame.render_widget(Clear, area);
 
     // The report's lines start with a space; one column stays free at the right border too.
     let width = area.width.saturating_sub(3) as usize;
     let rows = area.height.saturating_sub(2) as usize;
-    let lines = view.lines(width);
+    let lines = lines(width);
     let scroll_max = lines.len().saturating_sub(rows);
     let scroll = scroll.min(scroll_max);
 
@@ -58,7 +67,7 @@ fn render_view(frame: &mut Frame, view: &AnalyzeView, scroll: usize) -> usize {
         // cut here with "…", where the border would cut it bare.
         .map(|line| text::truncate_line(line, area.width.saturating_sub(2) as usize))
         .collect();
-    let block = overlay_block(&view.title, area.width, scroll, rows, lines.len());
+    let block = overlay_block(title, area.width, scroll, rows, lines.len());
     frame.render_widget(Paragraph::new(shown).block(block), area);
     scroll_max
 }
@@ -66,7 +75,7 @@ fn render_view(frame: &mut Frame, view: &AnalyzeView, scroll: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analysis::signal::{self, Source};
+    use crate::analysis::signal::Source;
     use crate::capture::{RfModulation, StoredLevelDuration};
     use crate::ui::text;
     use ratatui::{backend::TestBackend, Terminal};

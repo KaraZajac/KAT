@@ -8,7 +8,7 @@ use ratatui::{
     Frame,
 };
 
-use crate::app::{App, RadioState};
+use crate::app::{App, Column, RadioState, Sort};
 use crate::capture::{Capture, CaptureStatus, KeyRecovery, ModulationType};
 use crate::radio::hopper::format_mhz;
 use crate::saved_fobs::SavedFobMatch;
@@ -108,21 +108,38 @@ impl Col {
         Col::Vuln,
     ];
 
-    fn header(self) -> &'static str {
+    /// The column as the list's filter and sort know it (app/list_view.rs): its name and its
+    /// text for a capture come from there.
+    fn column(self) -> Column {
         match self {
-            Col::Id => "ID",
-            Col::Time => "Time",
-            Col::Protocol => "Protocol",
-            Col::Freq => "MHz",
-            Col::Radio => "Radio",
-            Col::Serial => "Serial",
-            Col::Btn => "Btn",
-            Col::Cnt => "Cnt",
-            Col::Mod => "Mod",
-            Col::Crc => "CRC",
-            Col::Status => "Status",
-            Col::Vuln => "Vuln",
+            Col::Id => Column::Id,
+            Col::Time => Column::Time,
+            Col::Protocol => Column::Protocol,
+            Col::Freq => Column::Freq,
+            Col::Radio => Column::Radio,
+            Col::Serial => Column::Serial,
+            Col::Btn => Column::Btn,
+            Col::Cnt => Column::Cnt,
+            Col::Mod => Column::Mod,
+            Col::Crc => Column::Crc,
+            Col::Status => Column::Status,
+            Col::Vuln => Column::Vuln,
         }
+    }
+
+    fn header(self) -> &'static str {
+        self.column().title()
+    }
+
+    /// The header as shown: the column the list is sorted by carries the direction ("Serial▲":
+    /// upwards, "Serial▼": downwards). The order of arrival, the ID upwards, is not marked.
+    fn header_shown(self, sort: Sort) -> String {
+        let mark = match sort.descending {
+            _ if sort.column != self.column() || sort.is_arrival_order() => "",
+            false => "▲",
+            true => "▼",
+        };
+        format!("{}{mark}", self.header())
     }
 }
 
@@ -166,19 +183,6 @@ fn choose_columns(width: u16, content: &[(Col, u16)]) -> (Vec<(Col, u16)>, u16) 
     (cols, spacing)
 }
 
-/// Whether the capture has a known vulnerability: it can be re-encoded, or its vehicle (set with
-/// `i`) matches a CVE.
-fn vuln_found(capture: &Capture) -> bool {
-    capture.status == CaptureStatus::EncoderCapable
-        || !vuln_db::match_vulns(
-            capture.year.as_deref(),
-            capture.make.as_deref(),
-            capture.model.as_deref(),
-            capture.region.as_deref(),
-        )
-        .is_empty()
-}
-
 /// One capture's table row: the text of each column (in [Col::ALL] order), whether it matches a
 /// saved .fob, and whether it has a known vulnerability.
 struct RowText {
@@ -188,30 +192,13 @@ struct RowText {
 }
 
 fn row_text(capture: &Capture, saved: bool) -> RowText {
-    let vuln = vuln_found(capture);
-    let status = match capture.status {
-        // KAT's own transmission, heard by another of its radios
-        _ if capture.own_tx.is_some() => "Own TX",
-        CaptureStatus::EncoderCapable => "Encode",
-        CaptureStatus::Decoded => "Decoded",
-        CaptureStatus::Unknown => "Unknown",
-    };
+    // The text the filter looks in (app/list_view.rs), so what is seen is what is found.
     let cells = Col::ALL.map(|col| match col {
         // ★ = matches a saved .fob (protocol + serial/key + counter within ±50)
         Col::Id => format!("{:02}{}", capture.id, if saved { "★" } else { "" }),
-        Col::Time => capture.timestamp_short(),
-        Col::Protocol => capture.protocol_name().to_string(),
-        Col::Freq => format_mhz(capture.frequency),
-        Col::Radio => capture.radio.clone().unwrap_or_else(|| "-".to_string()),
-        Col::Serial => capture.serial_hex(),
-        Col::Btn => capture.button_name().to_string(),
-        Col::Cnt => capture.counter_str(),
-        Col::Mod => capture.modulation().to_string(),
-        Col::Crc => capture.crc_status().to_string(),
-        Col::Status => status.to_string(),
-        Col::Vuln => if vuln { "Yes" } else { "No" }.to_string(),
+        _ => col.column().text(capture),
     });
-    RowText { cells, saved, vuln }
+    RowText { cells, saved, vuln: capture.vuln_found() }
 }
 
 /// A table cell: its text cut to the column with "…", in the column's colour.
@@ -247,9 +234,47 @@ fn table_cell(col: Col, row: &RowText, capture: &Capture, width: u16) -> Cell<'s
     Cell::from(text::truncate_end(content, width as usize)).style(style)
 }
 
-/// Render the compact signal table
+/// The table's title: " Captures ", and under a filter or a sort what the list shows:
+/// " Captures · 3 of 15 · filter: acme · sort: Serial ▼ ". For a box `width` columns wide: a long
+/// filter is cut, and the sort (the header marks it too) goes before the count does.
+fn list_title(shown: usize, count: usize, filter: &str, sort: Sort, width: usize) -> String {
+    let filter = filter.trim();
+    let room = width.saturating_sub(2);
+    let sorted = (!sort.is_arrival_order())
+        .then(|| format!("sort: {} {}", sort.column.title(), if sort.descending { "▼" } else { "▲" }));
+    let title = |filter_room: Option<usize>, sorted: Option<&String>| {
+        let mut parts = vec!["Captures".to_string()];
+        if !filter.is_empty() {
+            parts.push(format!("{shown} of {count}"));
+            if let Some(room) = filter_room {
+                parts.push(format!("filter: {}", text::truncate_end(filter, room)));
+            }
+        }
+        parts.extend(sorted.cloned());
+        format!(" {} ", parts.join(" · "))
+    };
+    if filter.is_empty() {
+        return title(None, sorted.as_ref());
+    }
+    // The filter's text gets what the other parts leave, a few columns at least.
+    const FILTER_MIN: usize = 6;
+    for sorted in [sorted.as_ref(), None] {
+        let fixed = text::width(&title(Some(0), sorted));
+        if fixed + FILTER_MIN.min(text::width(filter)) <= room {
+            return title(Some(room - fixed), sorted);
+        }
+    }
+    title(None, None)
+}
+
+/// Render the compact signal table: the captures the list's filter keeps, in the order of its
+/// sort (app/list_view.rs).
 fn render_table(frame: &mut Frame, area: Rect, app: &App) {
-    let block = Block::default().borders(Borders::ALL).title(" Captures ");
+    let view = app.visible_captures();
+    let sort = app.list_view.sort;
+    let filter = app.list_view.filter.as_str();
+    let title = list_title(view.len(), app.captures.len(), filter, sort, area.width as usize);
+    let block = Block::default().borders(Borders::ALL).title(title);
     let inner = block.inner(area);
 
     let rows: Vec<RowText> = app
@@ -258,7 +283,8 @@ fn render_table(frame: &mut Frame, area: Rect, app: &App) {
         .map(|c| row_text(c, app.saved_match(c.id).is_some()))
         .collect();
     // Content-sized columns: each as wide as its header and its widest value (the Radio column
-    // only with several radios).
+    // only with several radios). Of every capture, not only the shown ones: the columns stay
+    // where they are while a filter is typed.
     let show_radio = app.show_radio_column();
     let content: Vec<(Col, u16)> = Col::ALL
         .iter()
@@ -266,18 +292,18 @@ fn render_table(frame: &mut Frame, area: Rect, app: &App) {
         .filter(|&(_, &col)| col != Col::Radio || show_radio)
         .map(|(i, &col)| {
             let widest = rows.iter().map(|r| text::width(&r.cells[i])).max().unwrap_or(0);
-            let w = widest.max(text::width(col.header())) as u16;
+            let w = widest.max(text::width(&col.header_shown(sort))) as u16;
             (col, if col == Col::Btn { w.min(BTN_MAX) } else { w })
         })
         .collect();
     let (columns, spacing) = choose_columns(inner.width, &content);
 
     let header = Row::new(columns.iter().map(|&(col, _)| {
-        Cell::from(col.header()).style(Style::default().add_modifier(Modifier::BOLD))
+        Cell::from(col.header_shown(sort)).style(Style::default().add_modifier(Modifier::BOLD))
     }))
     .height(1);
-    let table_rows = app.captures.iter().zip(&rows).map(|(capture, row)| {
-        Row::new(columns.iter().map(|&(col, w)| table_cell(col, row, capture, w))).height(1)
+    let table_rows = view.iter().map(|&i| {
+        Row::new(columns.iter().map(|&(col, w)| table_cell(col, &rows[i], &app.captures[i], w))).height(1)
     });
     let widths: Vec<Constraint> = columns.iter().map(|&(_, w)| Constraint::Length(w)).collect();
 
@@ -294,18 +320,23 @@ fn render_table(frame: &mut Frame, area: Rect, app: &App) {
     let offset = app
         .captures_table_offset
         .get()
-        .min(app.captures.len().saturating_sub(visible_rows));
+        .min(view.len().saturating_sub(visible_rows));
+    let selected_row = app.selected_capture.and_then(|s| view.iter().position(|&i| i == s));
     let mut state = TableState::new()
         .with_offset(offset)
-        .with_selected(app.selected_capture);
+        .with_selected(selected_row);
     frame.render_stateful_widget(table, area, &mut state);
     app.captures_table_offset.set(state.offset());
     // PgUp / PgDn move by what the table shows.
     app.list_page_rows.set(visible_rows.max(1));
 
-    if app.captures.is_empty() && inner.height >= 2 {
-        let receiving = app.radios().iter().any(|r| r.state == RadioState::Receiving);
-        let hint = empty_hint(app.radio_state() != RadioState::Disconnected, receiving);
+    if view.is_empty() && inner.height >= 2 {
+        let hint = if app.captures.is_empty() {
+            let receiving = app.radios().iter().any(|r| r.state == RadioState::Receiving);
+            empty_hint(app.radio_state() != RadioState::Disconnected, receiving)
+        } else {
+            NO_MATCH_HINT
+        };
         // Under the header, after a blank row when there is room for it.
         let y = inner.y + if inner.height >= 3 { 2 } else { 1 };
         let row = Rect::new(inner.x, y, inner.width, 1);
@@ -316,6 +347,9 @@ fn render_table(frame: &mut Frame, area: Rect, app: &App) {
         );
     }
 }
+
+/// What the list says when its filter fits no capture.
+const NO_MATCH_HINT: &str = "No capture fits the filter — press / to change it, Esc to clear it";
 
 /// What an empty list says: the way to a first capture, by what the radios do. While one
 /// receives it is the remote's turn ("press r" would stop the radio).
@@ -699,7 +733,7 @@ fn vulnerability_lines(capture: &Capture, max: usize, rows: usize) -> Vec<Line<'
 
 /// Right half: vulnerability panel (matching CVEs or prompt to set Year/Make/Model)
 fn render_vulnerability_panel(frame: &mut Frame, area: Rect, capture: &Capture) {
-    let border_color = if vuln_found(capture) { Color::Green } else { Color::Yellow };
+    let border_color = if capture.vuln_found() { Color::Green } else { Color::Yellow };
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color))
@@ -745,6 +779,48 @@ mod tests {
 
     fn total(cols: &[(Col, u16)], spacing: u16) -> u16 {
         cols.iter().map(|&(_, w)| w).sum::<u16>() + spacing * (cols.len() as u16 - 1)
+    }
+
+    #[test]
+    fn the_title_says_what_the_list_shows() {
+        let arrival = Sort::default();
+        let by_serial = Sort { column: Column::Serial, descending: true };
+        assert_eq!(list_title(15, 15, "", arrival, 80), " Captures ");
+        assert_eq!(list_title(3, 15, "acme", arrival, 80), " Captures · 3 of 15 · filter: acme ");
+        assert_eq!(list_title(15, 15, "  ", by_serial, 80), " Captures · sort: Serial ▼ ");
+        assert_eq!(
+            list_title(3, 15, " acme ", Sort { descending: false, ..by_serial }, 80),
+            " Captures · 3 of 15 · filter: acme · sort: Serial ▲ "
+        );
+        assert_eq!(list_title(15, 15, "", Sort { column: Column::Id, descending: true }, 80), " Captures · sort: ID ▼ ");
+        // A long filter is cut to the box, between its corners.
+        let long = "protocol:acme serial:0a1b2c3 !status:unknown btn:unlock";
+        let cut = list_title(1, 15, long, by_serial, 70);
+        assert_eq!(text::width(&cut), 68, "{cut}");
+        assert!(cut.starts_with(" Captures · 1 of 15 · filter: protocol:acme") && cut.ends_with("… · sort: Serial ▼ "), "{cut}");
+        // With no room for a few columns of it beside the sort, the sort goes (the header marks
+        // it), then the filter's text.
+        let narrow = list_title(1, 15, long, by_serial, 50);
+        assert_eq!(text::width(&narrow), 48, "{narrow}");
+        assert!(narrow.ends_with("… ") && !narrow.contains("sort"), "{narrow}");
+        assert_eq!(list_title(1, 15, long, by_serial, 30), " Captures · 1 of 15 ");
+        assert_eq!(list_title(1, 15, "ab", by_serial, 35), " Captures · 1 of 15 · filter: ab ");
+        assert_eq!(list_title(1, 15, "ab", by_serial, 34), " Captures · 1 of 15 ");
+    }
+
+    #[test]
+    fn the_sorted_columns_header_carries_the_direction() {
+        let by = |column, descending| Sort { column, descending };
+        assert_eq!(Col::Serial.header_shown(by(Column::Serial, false)), "Serial▲");
+        assert_eq!(Col::Serial.header_shown(by(Column::Serial, true)), "Serial▼");
+        assert_eq!(Col::Cnt.header_shown(by(Column::Serial, true)), "Cnt");
+        // The order of arrival is the list as it is: no mark. Newest first has one.
+        assert_eq!(Col::Id.header_shown(Sort::default()), "ID");
+        assert_eq!(Col::Id.header_shown(by(Column::Id, true)), "ID▼");
+        // A column the list does not have (:sort make) marks none.
+        assert!(Col::ALL.iter().all(|c| c.header_shown(by(Column::Make, false)) == c.header()));
+        // The headers are the names the filter and :sort know.
+        assert_eq!(Col::ALL.map(Col::header), ["ID", "Time", "Protocol", "MHz", "Radio", "Serial", "Btn", "Cnt", "Mod", "CRC", "Status", "Vuln"]);
     }
 
     #[test]

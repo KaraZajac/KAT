@@ -95,6 +95,7 @@ impl App {
                 _ => {}
             },
             InputMode::Analyze => self.analyze_view_key(code),
+            InputMode::Compare => self.compare_view_key(code),
             _ => {}
         }
         Ok(())
@@ -295,6 +296,7 @@ impl App {
         self.selected_capture = None;
         self.saved_fobs.forget_captures();
         self.close_analyze_view();
+        self.close_compare_view();
         match (&self.session.writer, &self.session.paths) {
             // Through the writer, so a save still queued cannot recreate the file afterwards.
             (Some(writer), _) => writer.send(WriteJob::Clear),

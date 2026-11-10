@@ -4,6 +4,7 @@ mod add_manually;
 mod analyze_overlay;
 mod app_prompts;
 mod captures_list;
+mod compare_overlay;
 mod command;
 mod layout;
 pub mod signal_menu;

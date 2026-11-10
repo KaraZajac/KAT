@@ -21,6 +21,7 @@ pub fn render_app_overlays(frame: &mut Frame, app: &App) {
         InputMode::ConfirmQuit => render_confirm_quit_prompt(frame, app),
         InputMode::ConfirmDeleteAll => render_confirm_delete_all_prompt(frame, app),
         InputMode::Analyze => super::analyze_overlay::render_analyze_overlay(frame, app),
+        InputMode::Compare => super::compare_overlay::render_compare_overlay(frame, app),
         _ => {}
     }
 }
@@ -31,6 +32,7 @@ pub fn mode_label(mode: InputMode) -> (&'static str, Style) {
         InputMode::SessionRestore => ("RESTORE", Style::default().fg(Color::Yellow)),
         InputMode::ConfirmClear => ("CLEAR", Style::default().fg(Color::Red)),
         InputMode::Analyze => ("ANALYZE", Style::default().fg(Color::Cyan)),
+        InputMode::Compare => ("COMPARE", Style::default().fg(Color::Cyan)),
         InputMode::Help => ("HELP", Style::default().fg(Color::Cyan)),
         InputMode::Radios => ("RADIOS", Style::default().fg(Color::Cyan)),
         InputMode::ConfirmQuit => ("QUIT", Style::default().fg(Color::Yellow)),
@@ -48,6 +50,11 @@ pub fn help_texts(mode: InputMode) -> &'static [&'static str] {
             "Up/Down, PgUp/PgDn, Home/End: Scroll | Left/Right: Other captures | Esc/Enter: Close",
             "Up/Down, PgUp/PgDn: Scroll | Left/Right: Other captures | Esc: Close",
             "Up/Down: Scroll | Left/Right: Other captures | Esc: Close",
+        ],
+        InputMode::Compare => &[
+            "Up/Down, PgUp/PgDn, Home/End: Scroll | Tab: Decoded data or bits as sent | Esc/Enter: Close",
+            "Up/Down, PgUp/PgDn: Scroll | Tab: Decoded data or bits as sent | Esc: Close",
+            "Up/Down: Scroll | Tab: Data or bits as sent | Esc: Close",
         ],
         InputMode::Help | InputMode::Radios => &["Up/Down, PgUp/PgDn: Scroll | Esc: Close"],
         InputMode::ConfirmQuit => &["y: Quit | n/Esc: Back"],

@@ -2,6 +2,18 @@
 
 All notable changes to KAT are documented here.
 
+## [1.12.0] - 2026-11-10
+
+**Compare** lines up the presses of one remote and says what each bit does: fixed, part of a counter, following the button, or changing with no pattern. And the captures list can be filtered and sorted.
+
+### Added
+
+- **Compare** ([compare.md](docs/compare.md)): `c` on a capture or `:compare [IDs]` lines up the frames of one remote's presses, bit under bit, and says what each bit does from press to press: it stays fixed, it is part of a counter (up or down, its step, the presses it skipped), it follows the button, it changes rarely or with every frame, or it changes with no pattern, as encrypted bits and checksums do. So a few presses of each button show where the serial, the counter and the button of a signal are, also of one no decoder knows. `c` takes the captures of the selected capture's remote that the list shows (a decoded capture's protocol and serial; for an unknown one, the unknown captures on its frequency); `:compare 3 1 2` takes any captures in the order named, and `:compare 1-5 / 6-10` compares groups in place of buttons. The report has a summary, the frame cut into fields with their values, and every frame's bits with a letter under each column. `Tab` changes between the decoded data and the bits as sent: the rows of Analyze's trial decode, which is all an unknown capture has, lined up where the receiver caught them a few bits apart. A button's name is the capture's Command (`i`) or what the decoder read. Each claim is weighed against what random bits would do in as many frames: the report says "counts" and "follow the button" with enough of them, "may count" and "may follow" below that, and what to record next. Its tests compare recordings of Kia V1, Kia V3 and Suzuki V0 and check the counter and the button's bits against what the decoders read.
+
+- **Filter the captures list** ([README](README.md#filter-and-sort)): `/` narrows the list, while you type, to the captures every word fits. A plain word is looked for in the protocol, frequency, radio, serial, button, status, make and model; `serial:1a2b` looks in one column, `!word` leaves captures out, `#7` and `id:3-9` pick by ID. `Enter` keeps the filter and `Esc` goes back to the one before; `:filter <words>` sets one, and `:filter` alone or `Esc` in the list clears it (`Esc` clears a message first, then the filter). The list's title says how many captures are shown and by which filter ("Captures · 5 of 25 · filter: kia unlock"), and the position in the status bar counts the rows shown. The keys work on what is shown: the selection is always a shown capture, Analyze's `←` / `→` go through the shown ones, and `c` compares them. A loaded file or a `:new` remote that the filter would hide clears it.
+
+- **Sort the captures list**: `s` sorts by the next column of the list (ID, Protocol, MHz, Radio, Serial, Btn, Cnt, Mod, CRC, Status, then the order of arrival again) and `S` reverses the order; `:sort serial`, `:sort cnt desc` sort by a column by name. Captures with nothing in the column come last either way, equal ones stay in the order they arrived, and the title names the sort ("sort: Serial ▲"). A capture that arrives in a list sorted by a column goes to its place without taking the selection.
+
 ## [1.11.0] - 2026-11-10
 
 KAT uses every radio it finds, each on its own frequency. **Analyze** says what a signal is, also one no decoder knows. And a pass over the interface: the settings of each kind of radio, commands, typing keys, key hints, messages and small terminals.

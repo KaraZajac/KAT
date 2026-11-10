@@ -75,20 +75,43 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(status, area);
 }
 
-/// " #07 · 3/15 " (the selected capture's ID, then its place in the list), or the number of
-/// captures when none is selected: always in view, whatever the message.
+/// " #07 · 3/15 " (the selected capture's ID, then its row in the list as shown and the rows
+/// there are), or the number of captures when none is selected: always in view, whatever the
+/// message.
 fn capture_position(app: &App) -> String {
-    let count = app.captures.len();
-    match app.selected_capture.and_then(|i| app.captures.get(i).map(|c| (i, c))) {
-        Some((i, capture)) => format!(" #{:02} · {}/{} ", capture.id, i + 1, count),
+    let view = app.visible_captures();
+    let selected = app.selected_capture.and_then(|i| Some((view.iter().position(|&v| v == i)?, app.captures.get(i)?.id)));
+    position_text(selected, view.len(), app.captures.len())
+}
+
+/// The position's text: `selected` is the selected capture's row in the list (from 0) and its
+/// ID, `shown` the rows of the list, `count` the captures there are (more, under a filter).
+fn position_text(selected: Option<(usize, u32)>, shown: usize, count: usize) -> String {
+    let captures = |n: usize| format!("{n} capture{}", if n == 1 { "" } else { "s" });
+    match selected {
+        Some((row, id)) => format!(" #{:02} · {}/{} ", id, row + 1, shown),
         None if count == 0 => " No captures ".to_string(),
-        None => format!(" {} capture{} ", count, if count == 1 { "" } else { "s" }),
+        None if shown < count => format!(" {shown} of {} ", captures(count)),
+        None => format!(" {} ", captures(count)),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_position_counts_the_rows_the_list_shows() {
+        assert_eq!(position_text(Some((2, 7)), 15, 15), " #07 · 3/15 ");
+        assert_eq!(position_text(None, 0, 0), " No captures ");
+        assert_eq!(position_text(None, 1, 1), " 1 capture ");
+        assert_eq!(position_text(None, 15, 15), " 15 captures ");
+        // Under a filter: the row among the shown ones; with nothing selected, how many are shown.
+        assert_eq!(position_text(Some((1, 7)), 3, 15), " #07 · 2/3 ");
+        assert_eq!(position_text(None, 0, 15), " 0 of 15 captures ");
+        assert_eq!(position_text(None, 1, 1), " 1 capture ");
+        assert_eq!(position_text(None, 0, 1), " 0 of 1 capture ");
+    }
 
     #[test]
     fn the_bar_asks_for_the_lines_of_its_message() {

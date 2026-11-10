@@ -57,7 +57,7 @@ impl AnalyzeView {
 
 /// The header's parts on as few lines of `width` characters as they take, two spaces between the
 /// parts (a part longer than a line is cut).
-fn header_lines(parts: &[String], width: usize) -> Vec<String> {
+pub(super) fn header_lines(parts: &[String], width: usize) -> Vec<String> {
     let room = width.saturating_sub(1).max(1);
     let mut lines: Vec<String> = Vec::new();
     for part in parts.iter().filter(|p| !p.is_empty()) {
@@ -74,17 +74,6 @@ fn header_lines(parts: &[String], width: usize) -> Vec<String> {
         }
     }
     lines
-}
-
-/// The capture the overlay moves to from the one at `at`: the nearest with recorded pulses after it
-/// (`forward`) or before it. None at the end of the list.
-fn neighbour_with_pulses(captures: &[Capture], at: usize, forward: bool) -> Option<usize> {
-    let has_pulses = |i: &usize| !captures[*i].raw_pairs.is_empty();
-    if forward {
-        (at + 1..captures.len()).find(has_pulses)
-    } else {
-        (0..at.min(captures.len())).rev().find(has_pulses)
-    }
 }
 
 /// Where the capture's own frame ends in its pulses: decode them again and take the first frame of
@@ -107,6 +96,48 @@ fn decoded_frame_end(protocols: &mut ProtocolRegistry, c: &Capture) -> Option<us
         let same = name == proto || crate::saved_fobs::canonical_name(protocols, &name) == canonical;
         (same && (c.serial.is_none() || d.serial == c.serial)).then_some(end)
     })
+}
+
+/// Timing definitions of a protocol (`ProtocolDecoder::timing()` first, then the other timings it
+/// is sent with), resolving names like the saved-fob matcher does (legacy names, display suffixes,
+/// the generic KeeLoq spelling). Empty for a name no decoder has.
+fn protocol_timings(protocols: &ProtocolRegistry, name: &str) -> Vec<ProtocolTiming> {
+    protocols
+        .get(name)
+        .or_else(|| protocols.get(&crate::saved_fobs::canonical_name(protocols, name)))
+        .map(|d| std::iter::once(d.timing()).chain(d.timing_variants()).collect())
+        .unwrap_or_default()
+}
+
+/// Where a capture's pulses came from and what is known of the RF side (its sibling on the other
+/// demodulator path is the list's to find: [`App::analysis_source`]).
+fn source_of(c: &Capture) -> Source {
+    let preset = c.rf_preset.as_ref();
+    Source {
+        frequency: c.frequency,
+        path: c.received_rf.or_else(|| preset.and_then(|p| p.rf())),
+        live: c.radio.is_some() || (c.source_file.is_none() && c.received_rf.is_some()),
+        measured: c.measured,
+        preset: preset.map(|p| p.label()),
+        preset_deviation_hz: preset.and_then(|p| match p.modulation() {
+            Some(TxModulation::Fsk { deviation_hz }) => Some(deviation_hz),
+            _ => None,
+        }),
+        sibling: None,
+    }
+}
+
+/// The signal report of a capture's pulses: against its protocol's timing when it is decoded, and
+/// from its own frame's end. `known` is for the report's list of protocols with similar widths.
+fn report_with(protocols: &mut ProtocolRegistry, c: &Capture, source: Source, known: &[KnownTiming]) -> SignalReport {
+    let references = c.protocol.as_deref().map(|p| protocol_timings(protocols, p)).unwrap_or_default();
+    let frame_end = decoded_frame_end(protocols, c);
+    signal::analyze(&c.raw_pairs, source, c.protocol.as_deref(), &references, frame_end, known)
+}
+
+/// The signal report of a capture on its own (Compare reads its rows of bits).
+pub(super) fn report_of(protocols: &mut ProtocolRegistry, c: &Capture) -> SignalReport {
+    report_with(protocols, c, source_of(c), &[])
 }
 
 impl App {
@@ -142,23 +173,12 @@ impl App {
         self.open_analysis(id);
     }
 
-    /// Timing definitions of a protocol (`ProtocolDecoder::timing()` first, then the other timings
-    /// it is sent with), resolving names like the saved-fob matcher does (legacy names, display
-    /// suffixes, the generic KeeLoq spelling). Empty for a name no decoder has.
-    fn protocol_timings(&self, name: &str) -> Vec<ProtocolTiming> {
-        self.protocols
-            .get(name)
-            .or_else(|| self.protocols.get(&crate::saved_fobs::canonical_name(&self.protocols, name)))
-            .map(|d| std::iter::once(d.timing()).chain(d.timing_variants()).collect())
-            .unwrap_or_default()
-    }
-
     /// Every registered protocol's timing, for the report's list of protocols with similar widths.
     fn known_timings(&self) -> Vec<KnownTiming> {
         let mut known = Vec::new();
         for name in self.protocols.list_protocols() {
             let info = crate::protocols::info::lookup(name);
-            for t in self.protocol_timings(name) {
+            for t in protocol_timings(&self.protocols, name) {
                 known.push(KnownTiming {
                     name,
                     te_short: t.te_short,
@@ -174,7 +194,6 @@ impl App {
 
     /// Where the capture's pulses came from and what is known of the RF side.
     fn analysis_source(&self, c: &Capture) -> Source {
-        let preset = c.rf_preset.as_ref();
         // The same burst on the other demodulator path, when it is still in the list.
         let sibling = c.on_air.and_then(|on| {
             self.captures
@@ -186,18 +205,7 @@ impl App {
                 })
                 .map(|o| o.id)
         });
-        Source {
-            frequency: c.frequency,
-            path: c.received_rf.or_else(|| preset.and_then(|p| p.rf())),
-            live: c.radio.is_some() || (c.source_file.is_none() && c.received_rf.is_some()),
-            measured: c.measured,
-            preset: preset.map(|p| p.label()),
-            preset_deviation_hz: preset.and_then(|p| match p.modulation() {
-                Some(TxModulation::Fsk { deviation_hz }) => Some(deviation_hz),
-                _ => None,
-            }),
-            sibling,
-        }
+        Source { sibling, ..source_of(c) }
     }
 
     /// Analyse capture `id` and open the overlay. The list selects that capture: the detail panel
@@ -212,10 +220,8 @@ impl App {
             self.last_error = Some(format!("Capture #{:02} has no recorded pulses to analyze", id));
             return;
         }
-        let references = c.protocol.as_deref().map(|p| self.protocol_timings(p)).unwrap_or_default();
         let (source, known) = (self.analysis_source(c), self.known_timings());
-        let frame_end = decoded_frame_end(&mut self.protocols, c);
-        let report = signal::analyze(&c.raw_pairs, source, c.protocol.as_deref(), &references, frame_end, &known);
+        let report = report_with(&mut self.protocols, c, source, &known);
         let from = match (&c.radio, &c.source_file) {
             (Some(radio), _) => radio.clone(),
             (None, Some(file)) => {
@@ -234,7 +240,8 @@ impl App {
             report,
         );
         view.capture = id;
-        self.selected_capture = Some(at);
+        // (Under a filter that hides the capture, `:analyze ID` leaves the list where it is.)
+        self.select_if_shown(at);
         self.overlay_scroll_max.set(view.lines(NOMINAL_WIDTH).len());
         self.analyze_view = Some(view);
         self.overlay_scroll = 0;
@@ -249,12 +256,14 @@ impl App {
         }
     }
 
-    /// Left / Right in the overlay: analyse the capture before / after this one in the list (the
-    /// nearest that has pulses). `open_analysis` selects it in the list.
+    /// Left / Right in the overlay: analyse the capture before / after this one in the list as
+    /// shown (its filter and sort), the nearest that has pulses. `open_analysis` selects it.
     fn analyze_neighbour(&mut self, forward: bool) {
         let Some(id) = self.analyze_view.as_ref().map(|v| v.capture) else { return };
         let Some(at) = self.captures.iter().position(|c| c.id == id) else { return };
-        if let Some(i) = neighbour_with_pulses(&self.captures, at, forward) {
+        let view = self.visible_captures();
+        let has_pulses = |i: usize| !self.captures[i].raw_pairs.is_empty();
+        if let Some(i) = super::list_view::neighbour(&view, at, forward, has_pulses) {
             self.open_analysis(self.captures[i].id);
         }
     }
@@ -276,25 +285,6 @@ impl App {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::capture::StoredLevelDuration;
-
-    fn capture(id: u32, pulses: usize) -> Capture {
-        let pairs = (0..pulses).map(|i| StoredLevelDuration { level: i % 2 == 0, duration_us: 400 }).collect();
-        Capture::from_pairs(id, 433_920_000, pairs)
-    }
-
-    /// Left / Right go to the nearest capture that can be analysed and stop at the ends of the list.
-    #[test]
-    fn left_and_right_skip_captures_without_pulses() {
-        let list = [capture(1, 8), capture(2, 0), capture(3, 0), capture(4, 8), capture(5, 0)];
-        assert_eq!(neighbour_with_pulses(&list, 0, true), Some(3));
-        assert_eq!(neighbour_with_pulses(&list, 3, false), Some(0));
-        assert_eq!(neighbour_with_pulses(&list, 3, true), None, "only a capture without pulses follows");
-        assert_eq!(neighbour_with_pulses(&list, 0, false), None, "the first capture");
-        assert_eq!(neighbour_with_pulses(&list, 4, false), Some(3));
-        assert_eq!(neighbour_with_pulses(&[], 0, true), None);
-        assert_eq!(neighbour_with_pulses(&[], 0, false), None);
-    }
 
     /// The header's parts share lines while they fit, and a long file name is cut, not wrapped.
     #[test]

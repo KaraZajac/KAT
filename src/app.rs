@@ -130,11 +130,15 @@ impl RadioDevice {
     }
 }
 
-// App features in their own files: saved session, saved-fob matching, the Analyze overlay (impl App
-// blocks).
+// App features in their own files: saved session, saved-fob matching, the Analyze and Compare
+// overlays (impl App blocks).
 mod analyze_view;
 mod command_history;
 pub use analyze_view::AnalyzeView;
+mod compare_view;
+pub use compare_view::CompareView;
+mod list_view;
+pub use list_view::{Column, ListView, Sort};
 mod fob_matching;
 mod persistence;
 
@@ -145,6 +149,8 @@ pub enum InputMode {
     Normal,
     /// Command input mode (after pressing :)
     Command,
+    /// Typing the list's filter (after pressing /; app/list_view.rs)
+    Filter,
     /// Signal action popup menu
     SignalMenu,
     /// Tab bar - selecting which radio setting
@@ -161,6 +167,8 @@ pub enum InputMode {
     ConfirmClear,
     /// Analyze overlay (the scrollable signal report)
     Analyze,
+    /// Compare overlay (the bits of several captures lined up)
+    Compare,
     /// Export: editing filename (before format-specific steps)
     ExportFilename,
     /// Fob export metadata: editing year field
@@ -409,6 +417,8 @@ pub struct App {
     pub captures: Vec<Capture>,
     /// Currently selected capture index
     pub selected_capture: Option<usize>,
+    /// The list's filter and sort: what it shows of `captures`, in which order (app/list_view.rs)
+    pub list_view: ListView,
     /// First row the captures table shows: kept by the renderer between frames (ratatui scrolls it
     /// just enough to keep the selection in view for the table's real height).
     pub captures_table_offset: std::cell::Cell<usize>,
@@ -548,6 +558,8 @@ pub struct App {
     saved_fobs: fob_matching::SavedFobState,
     /// Open Analyze overlay (app/analyze_view.rs)
     analyze_view: Option<analyze_view::AnalyzeView>,
+    /// Open Compare overlay (app/compare_view.rs)
+    compare_view: Option<compare_view::CompareView>,
     /// `:new` picker / field form and the "Send button…" list (app/add_manually.rs)
     add_manually: add_manually::AddManuallyState,
 }
@@ -616,6 +628,7 @@ impl App {
             command_history: Default::default(),
             captures,
             selected_capture: None,
+            list_view: ListView::default(),
             captures_table_offset: std::cell::Cell::new(0),
             last_error: None,
             status_message: None,
@@ -672,6 +685,7 @@ impl App {
             session: persistence::SessionState::default(),
             saved_fobs: fob_matching::SavedFobState::default(),
             analyze_view: None,
+            compare_view: None,
             radio_open_error,
             add_manually: add_manually::AddManuallyState::default(),
         };
@@ -723,26 +737,23 @@ impl App {
         fields
     }
 
-    /// Select the next capture in the list
+    /// Select the next capture in the list (as shown: its filter and sort)
     pub fn next_capture(&mut self) {
-        if self.captures.is_empty() {
-            return;
-        }
-        self.selected_capture = Some(match self.selected_capture {
-            Some(i) => (i + 1).min(self.captures.len() - 1),
-            None => 0,
-        });
+        self.step_capture(1);
     }
 
     /// Select the previous capture in the list
     pub fn previous_capture(&mut self) {
-        if self.captures.is_empty() {
-            return;
+        self.step_capture(-1);
+    }
+
+    /// One row down or up; the first row when nothing is selected.
+    fn step_capture(&mut self, delta: isize) {
+        let view = self.visible_captures();
+        let delta = if self.selected_capture.is_some() { delta } else { 0 };
+        if let Some(at) = list_view::moved(&view, self.selected_capture, delta) {
+            self.selected_capture = Some(at);
         }
-        self.selected_capture = Some(match self.selected_capture {
-            Some(i) => i.saturating_sub(1),
-            None => 0,
-        });
     }
 
     /// `r`: start or stop receiving on the selected radio.
@@ -789,6 +800,9 @@ impl App {
                 }
             }
             "iq" => self.cmd_iq(&args)?,
+            // What the list shows, and in which order (app/list_view.rs)
+            "filter" => self.filter_command(rest),
+            "sort" => self.sort_command(&args),
             "radios" => self.cmd_radios(),
             "radio" => self.cmd_radio(&args),
             "txradio" => self.cmd_txradio(&args),
@@ -829,6 +843,10 @@ impl App {
             // `:timing` is the report's old name.
             "analyze" | "analyse" | "timing" => {
                 self.analyze_command(args.first().copied());
+            }
+            // The IDs in the order given; a `/` between them makes groups (`1-5 / 6-10`).
+            "compare" | "cmp" => {
+                self.compare_command(id_spec.as_deref());
             }
             "klbf" => {
                 self.klbf_command(&args);
@@ -1884,12 +1902,11 @@ impl App {
             self.auto_bf_unchecked(frame);
         }
 
-        if self.captures.len() > first_new {
-            self.selected_capture = Some(first_new);
-        }
+        // The first new capture is selected; a filter that would hide it goes.
+        let filter_cleared = self.captures.len() > first_new && self.select_added(first_new);
         let (status, error) = files::import_summary(&results);
-        if status.is_some() {
-            self.status_message = status;
+        if let Some(status) = status {
+            self.status_message = Some(if filter_cleared { format!("{status} (filter cleared)") } else { status });
         }
         if error.is_some() {
             self.last_error = error;

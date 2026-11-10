@@ -345,6 +345,8 @@ macro_rules! report {
 
 fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> {
     loop {
+        // Under a filter the selection is a capture the list shows (app/list_view.rs).
+        app.keep_selection_shown();
         terminal.draw(|f| draw_ui(f, app))?;
 
         // Queued transmissions go out one per pass, each after a frame that shows it ("Transmitting
@@ -362,6 +364,7 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                 let code = app.key_code(&key).filter(|_| pressed && !edited);
                 if let Some(code) = code {
                     // In the list every key is a new action: the last message or error goes.
+                    let had_message = app.status_message.is_some() || app.last_error.is_some();
                     if app.input_mode == InputMode::Normal {
                         app.clear_messages();
                     }
@@ -377,6 +380,10 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                                 app.input_mode = InputMode::Command;
                                 app.command_input.clear();
                             }
+                            // What the list shows, and in which order (app/list_view.rs).
+                            KeyCode::Char('/') => app.open_filter(),
+                            KeyCode::Char('s') => app.sort_by_next_column(),
+                            KeyCode::Char('S') => app.reverse_sort(),
                             KeyCode::Char('j') | KeyCode::Down => {
                                 app.next_capture();
                             }
@@ -402,6 +409,8 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             KeyCode::Char('u') => app.undo_delete(),
                             // What the selected capture is: the Analyze report.
                             KeyCode::Char('a') => app.analyze_selected(),
+                            // What its remote's bits mean: the presses of that remote lined up.
+                            KeyCode::Char('c') => app.compare_selected(),
                             KeyCode::Enter => {
                                 // Action menu of the selected capture (it stays on that capture)
                                 app.open_signal_menu();
@@ -415,11 +424,18 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             }
                             KeyCode::Char('?') | KeyCode::F(1) => app.open_help(),
                             // Esc clears the message (above) and drops queued transmissions.
+                            // With neither there, it clears the list's filter: one thing a
+                            // press, so dismissing a message does not cost the filter.
                             KeyCode::Esc => {
-                                app.cancel_transmit_queue();
+                                if !app.cancel_transmit_queue() && !had_message {
+                                    app.clear_filter();
+                                }
                             }
                             _ => {}
                         },
+
+                        // The list's filter, typed (app/list_view.rs).
+                        InputMode::Filter => app.filter_key(code),
 
                         InputMode::Command => match code {
                             KeyCode::Enter => {
@@ -552,10 +568,12 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             report!(app, app.handle_app_mode_key(code));
                         }
 
-                        // Session restore prompt, :clear confirmation, Analyze overlay (app/persistence.rs)
+                        // Session restore prompt, :clear confirmation, Analyze and Compare overlays
+                        // (app/persistence.rs)
                         InputMode::SessionRestore
                         | InputMode::ConfirmClear
-                        | InputMode::Analyze => {
+                        | InputMode::Analyze
+                        | InputMode::Compare => {
                             report!(app, app.handle_app_mode_key(code));
                         }
 

@@ -53,7 +53,7 @@
   <div class="container hero-inner">
     <div class="hero-eyebrow">
       <span class="dot dot-pulse"></span>
-      v1.11.0 · Linux, macOS &amp; Windows · terminal
+      v1.12.0 · Linux, macOS &amp; Windows · terminal
     </div>
     <h1 class="hero-title">
       <span class="display-wordmark">KAT</span>
@@ -88,7 +88,7 @@
     </div>
 
     <div class="cta-row">
-      <a class="btn btn-primary" href="https://github.com/KaraZajac/KAT/releases/latest">↓ Download v1.11.0</a>
+      <a class="btn btn-primary" href="https://github.com/KaraZajac/KAT/releases/latest">↓ Download v1.12.0</a>
       <a class="btn" href="#protocols">Find your protocol</a>
       <a class="btn btn-ghost" href="https://github.com/KaraZajac/KAT">
         <svg height="16" viewBox="0 0 16 16" width="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -273,10 +273,11 @@
 
       <article class="bento-card">
         <div class="bento-icon">🔬</div>
-        <h3>Analyze</h3>
+        <h3>Analyze and Compare</h3>
         <p>
           What any capture is, decoded or not: OOK or FSK, the pulse widths,
           the base TE, the line coding, the frames and a trial decode of the bits.
+          And what the bits do from press to press: fixed, counter, button, encrypted.
         </p>
       </article>
 
@@ -644,6 +645,7 @@
       <a class="guide" href="transmit.html"><strong>Transmit</strong>The OOK and 2-FSK waveforms, the modulation each protocol uses, and the presets.</a>
       <a class="guide" href="session.html"><strong>Sessions and saved fobs</strong>Autosave and restore, and how a capture is matched to your <code>.fob</code> files.</a>
       <a class="guide" href="analyze.html"><strong>Analyze</strong>What a capture is: keying, pulse widths, TE, line coding, frames and bits, and its timing against the protocol's.</a>
+      <a class="guide" href="compare.html"><strong>Compare</strong>The presses of one remote lined up bit under bit: which bits stay fixed, which count, which follow the button and which have no pattern.</a>
       <a class="guide" href="flipper_key_files.html"><strong>Flipper key files</strong>The decoded <code>.sub</code> files KAT reads and writes, field by field.</a>
       <a class="guide" href="add_manually.html"><strong>Add Manually</strong>New gate and garage remotes with <code>:new</code>, to pair with a receiver.</a>
       <a class="guide" href="unidentified_captures.html"><strong>Unidentified captures</strong>Captures that nothing decodes, KAT or the references, and what is known about them.</a>
@@ -682,23 +684,23 @@ brew install hackrf             <span class="cmt"># macOS</span></pre>
           <h3>Download, check and unpack</h3>
           <p>Get the archive for your machine, and its <code>.sha256</code> file, from the <a href="https://github.com/KaraZajac/KAT/releases/latest">latest release</a>:</p>
           <ul>
-            <li><code>kat-v1.11.0-x86_64-linux.tar.gz</code>: 64-bit Intel or AMD Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and later).</li>
-            <li><code>kat-v1.11.0-aarch64-linux.tar.gz</code>: 64-bit ARM Linux, such as 64-bit Raspberry Pi OS bookworm.</li>
-            <li><code>kat-v1.11.0-aarch64-macos.tar.gz</code>: Apple Silicon Macs. It isn't notarized; <code>xattr -d com.apple.quarantine kat</code> clears the block.</li>
-            <li><code>kat-v1.11.0-x86_64-windows.zip</code>: 64-bit Windows 10 and 11. It isn't signed, so SmartScreen may stop its first start: “More info”, then “Run anyway”.</li>
+            <li><code>kat-v1.12.0-x86_64-linux.tar.gz</code>: 64-bit Intel or AMD Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and later).</li>
+            <li><code>kat-v1.12.0-aarch64-linux.tar.gz</code>: 64-bit ARM Linux, such as 64-bit Raspberry Pi OS bookworm.</li>
+            <li><code>kat-v1.12.0-aarch64-macos.tar.gz</code>: Apple Silicon Macs. It isn't notarized; <code>xattr -d com.apple.quarantine kat</code> clears the block.</li>
+            <li><code>kat-v1.12.0-x86_64-windows.zip</code>: 64-bit Windows 10 and 11. It isn't signed, so SmartScreen may stop its first start: “More info”, then “Run anyway”.</li>
             <li>Intel Macs and other platforms: build from source, below.</li>
           </ul>
           <div class="code-wrap">
-<pre class="code">sha256sum -c kat-v1.11.0-x86_64-linux.tar.gz.sha256    <span class="cmt"># macOS: shasum -a 256 -c …</span>
-tar xzf kat-v1.11.0-x86_64-linux.tar.gz
-./kat-v1.11.0-x86_64-linux/kat</pre>
+<pre class="code">sha256sum -c kat-v1.12.0-x86_64-linux.tar.gz.sha256    <span class="cmt"># macOS: shasum -a 256 -c …</span>
+tar xzf kat-v1.12.0-x86_64-linux.tar.gz
+./kat-v1.12.0-x86_64-linux/kat</pre>
           </div>
           <p>On Windows, in PowerShell (Windows Terminal):</p>
           <div class="code-wrap">
-<pre class="code">$want = (Get-Content kat-v1.11.0-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.11.0-x86_64-windows.zip).Hash -eq $want    <span class="cmt"># True</span>
-Expand-Archive kat-v1.11.0-x86_64-windows.zip .
-.\kat-v1.11.0-x86_64-windows\kat.exe</pre>
+<pre class="code">$want = (Get-Content kat-v1.12.0-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.12.0-x86_64-windows.zip).Hash -eq $want    <span class="cmt"># True</span>
+Expand-Archive kat-v1.12.0-x86_64-windows.zip .
+.\kat-v1.12.0-x86_64-windows\kat.exe</pre>
           </div>
         </div>
       </div>
@@ -714,6 +716,8 @@ Expand-Archive kat-v1.11.0-x86_64-windows.zip .
             <dt><code>:hop on</code></dt><dd>Hop the common fob frequencies</dd>
             <dt><kbd>Enter</kbd></dt><dd>A capture's actions: transmit, export, analyze, key recovery</dd>
             <dt><kbd>a</kbd></dt><dd>Analyze a capture, decoded or not: OOK or FSK, pulse widths, TE, coding, bits</dd>
+            <dt><kbd>c</kbd></dt><dd>Compare the presses of a remote: which bits are fixed, count or follow the button</dd>
+            <dt><kbd>/</kbd> · <kbd>s</kbd></dt><dd>Filter the list · sort it by a column</dd>
             <dt><kbd>Tab</kbd></dt><dd>Radio settings</dd>
             <dt><code>:radios</code></dt><dd>Your radios; <kbd>1</kbd>–<kbd>9</kbd> picks the one to tune, <kbd>R</kbd> starts them all</dd>
             <dt><code>:load</code></dt><dd>Open <code>.sub</code> files and IQ recordings</dd>
@@ -827,7 +831,7 @@ cargo build --release</pre>
   <div class="container footer-bottom">
     <p>Use KAT only on systems and vehicles you own or have explicit, written permission to test. <a href="#legal">The full notice.</a></p>
     <p class="footer-meta">
-      v1.11.0 · <a href="https://github.com/KaraZajac/KAT">github.com/KaraZajac/KAT</a> · <a href="https://github.com/KaraZajac/KAT/blob/main/LICENSE">BSD-3-Clause</a>
+      v1.12.0 · <a href="https://github.com/KaraZajac/KAT">github.com/KaraZajac/KAT</a> · <a href="https://github.com/KaraZajac/KAT/blob/main/LICENSE">BSD-3-Clause</a>
     </p>
     <div class="onion-line">
       <span class="onion-label">Also on Tor</span>

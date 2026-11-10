@@ -167,8 +167,10 @@ impl App {
                     capture.counter_str()
                 );
                 self.captures.push(capture);
-                self.selected_capture = Some(self.captures.len() - 1);
-                self.status_message = Some(summary);
+                // A filter that would hide the new remote goes.
+                let filter_cleared = self.select_added(self.captures.len() - 1);
+                self.status_message =
+                    Some(if filter_cleared { format!("{summary} (filter cleared)") } else { summary });
                 true
             }
             Err(e) => {

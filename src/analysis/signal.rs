@@ -21,7 +21,8 @@ mod tables;
 mod tests;
 
 pub use bits::Bits;
-pub use render::{Line, Span, Tone};
+pub use render::{Line, Span, Tone, MIN_WIDTH};
+pub(in crate::analysis) use render::{cut, plural, span, wrap, Out};
 pub use rows::{Repeat, Row, RowKind};
 
 /// A "TE" this long (µs) is a block of carrier, not a data width.

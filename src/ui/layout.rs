@@ -45,7 +45,8 @@ pub fn draw_ui(frame: &mut Frame, app: &App) {
     }
 
     let show_settings = matches!(app.input_mode, IM::SettingsSelect | IM::SettingsEdit);
-    let show_command = app.input_mode == IM::Command;
+    // The command line, and the list's filter while it is typed.
+    let show_command = matches!(app.input_mode, IM::Command | IM::Filter);
     let header = header_height(app, main_area.height);
     let other_rows = header + 1 + if show_settings { 3 } else { 0 } + if show_command { 3 } else { 0 };
     let status = status_height(status_bar::lines_needed(app, main_area.width), main_area.height, other_rows);
@@ -526,26 +527,53 @@ fn radios_compact_line(cols: &[RadioColumns], width: usize) -> Line<'static> {
 }
 
 /// The keys of normal mode, from the fullest list to the shortest: `?` lists every key, so the
-/// shorter ones leave some out. An 80-column terminal's bar keeps Tab (nothing else on screen
-/// says where the settings are) rather than `a`, which the Enter menu offers too.
-const NORMAL_KEYS: [&str; 6] = [
-    "?: Help | ↑↓: Select | Enter: Actions | a: Analyze | i: Info | d: Delete | r: RX | Tab: Settings | :: Command | q: Quit",
-    "?: Help | Enter: Actions | a: Analyze | i: Info | d: Delete | r: RX | Tab: Settings | :: Command | q: Quit",
-    "?: Help | Enter: Actions | a: Analyze | i: Info | r: RX | Tab: Settings | :: Command | q: Quit",
+/// shorter ones leave some out, one more each. An 80-column terminal's bar keeps Tab (nothing
+/// else on screen says where the settings are) rather than `a`, which the Enter menu offers too.
+const NORMAL_KEYS: [&str; 9] = [
+    "?: Help | ↑↓: Select | Enter: Actions | a: Analyze | c: Compare | /: Filter | s: Sort | i: Info | d: Delete | r: RX | Tab: Settings | :: Command | q: Quit",
+    "?: Help | Enter: Actions | a: Analyze | c: Compare | /: Filter | s: Sort | i: Info | d: Delete | r: RX | Tab: Settings | :: Command | q: Quit",
+    "?: Help | Enter: Actions | a: Analyze | c: Compare | /: Filter | i: Info | d: Delete | r: RX | Tab: Settings | :: Command | q: Quit",
+    "?: Help | Enter: Actions | a: Analyze | /: Filter | i: Info | d: Delete | r: RX | Tab: Settings | :: Command | q: Quit",
+    "?: Help | Enter: Actions | a: Analyze | /: Filter | i: Info | r: RX | Tab: Settings | :: Command | q: Quit",
+    "?: Help | Enter: Actions | a: Analyze | /: Filter | r: RX | Tab: Settings | :: Command | q: Quit",
     "?: Help | Enter: Actions | a: Analyze | r: RX | Tab: Settings | :: Command | q: Quit",
     "?: Help | Enter: Actions | r: RX | Tab: Settings | :: Command | q: Quit",
     "?: Help | Enter: Actions | r: RX | :: Command | q: Quit",
 ];
-/// The same with several radios: the keys that choose and start them come first. At 80 columns
-/// `1-9` goes before Tab does: the settings bar's Radio tab chooses the radio as well.
-const NORMAL_KEYS_RADIOS: [&str; 6] = [
-    "?: Help | Enter: Actions | a: Analyze | 1-9: Radio | r: RX | R: RX all | Tab: Settings | :radios | :: Command | q: Quit",
-    "?: Help | Enter: Actions | a: Analyze | 1-9: Radio | r: RX | R: RX all | Tab: Settings | :: Command | q: Quit",
+/// The same with several radios: the keys that choose and start them come first, and the list
+/// fills fast, so the filter's key stays longer than `a`. At 80 columns `1-9` goes before Tab
+/// does: the settings bar's Radio tab chooses the radio as well.
+const NORMAL_KEYS_RADIOS: [&str; 9] = [
+    "?: Help | Enter: Actions | a: Analyze | c: Compare | /: Filter | s: Sort | 1-9: Radio | r: RX | R: RX all | Tab: Settings | :radios | :: Command | q: Quit",
+    "?: Help | Enter: Actions | a: Analyze | c: Compare | /: Filter | 1-9: Radio | r: RX | R: RX all | Tab: Settings | :radios | :: Command | q: Quit",
+    "?: Help | Enter: Actions | a: Analyze | /: Filter | 1-9: Radio | r: RX | R: RX all | Tab: Settings | :radios | :: Command | q: Quit",
+    "?: Help | Enter: Actions | a: Analyze | /: Filter | 1-9: Radio | r: RX | R: RX all | Tab: Settings | :: Command | q: Quit",
+    "?: Help | Enter: Actions | /: Filter | 1-9: Radio | r: RX | R: RX all | Tab: Settings | :: Command | q: Quit",
     "?: Help | Enter: Actions | 1-9: Radio | r: RX | R: RX all | Tab: Settings | :: Command | q: Quit",
     "?: Help | Enter: Actions | 1-9: Radio | r/R: RX | Tab: Settings | :: Command | q: Quit",
     "?: Help | Enter: Actions | r/R: RX | Tab: Settings | :: Command | q: Quit",
     "?: Help | Enter: Actions | r/R: RX | :: Command | q: Quit",
 ];
+/// While the list is filtered its bar says how to see every capture again, right after `?`.
+const ESC_CLEARS_FILTER: &str = "Esc: Clear filter";
+/// The filtered list's shortest bar, for the narrowest terminal.
+const NORMAL_KEYS_FILTERED: &str = "?: Help | Esc: Clear filter | :: Command | q: Quit";
+
+/// The help bar's text in the list (normal mode): the fullest of its texts that fits `width`
+/// columns, with the key that clears the filter while one is set.
+fn normal_help(several_radios: bool, filtered: bool, width: usize) -> String {
+    let keys: &[&str] = if several_radios { &NORMAL_KEYS_RADIOS } else { &NORMAL_KEYS };
+    if !filtered {
+        return fitting(keys, width).to_string();
+    }
+    let with_esc: Vec<String> = keys
+        .iter()
+        .map(|k| k.replacen(" | ", &format!(" | {ESC_CLEARS_FILTER} | "), 1))
+        .chain([NORMAL_KEYS_FILTERED.to_string()])
+        .collect();
+    let texts: Vec<&str> = with_esc.iter().map(String::as_str).collect();
+    fitting(&texts, width).to_string()
+}
 
 /// The first of `texts` (fullest first) that fits `width` columns after the bar's leading space,
 /// else the last, which is then cut.
@@ -567,6 +595,11 @@ fn help_bar_text(
         InputMode::Command => &[
             "Enter: Execute | Up/Down: Earlier commands | Ctrl-U: Clear | Esc: Cancel",
             "Enter: Execute | Up/Down: Earlier commands | Esc: Cancel",
+        ],
+        // (What a filter can say is on the filter line's own border: ui/command.rs.)
+        InputMode::Filter => &[
+            "Enter: Keep | Ctrl-U: Clear | Ctrl-W: Delete word | Esc: Cancel",
+            "Enter: Keep | Ctrl-U: Clear | Esc: Cancel",
         ],
         InputMode::SignalMenu => &["Up/Down: Navigate | Enter: Select | Esc: Close"],
         InputMode::SettingsSelect => &["Left/Right: Select | Tab: Cycle | Enter: Edit | Esc: Back"],
@@ -600,6 +633,7 @@ fn help_bar_text(
         InputMode::SessionRestore
         | InputMode::ConfirmClear
         | InputMode::Analyze
+        | InputMode::Compare
         | InputMode::Help
         | InputMode::Radios
         | InputMode::ConfirmQuit
@@ -613,7 +647,11 @@ fn help_bar_text(
 
 /// Render the context-sensitive help bar.
 fn render_help_bar(frame: &mut Frame, area: Rect, app: &App) {
-    let help_text = help_bar_text(app.input_mode, app.export_format, app.several_radios(), area.width as usize);
+    let width = area.width as usize;
+    let help_text = match app.input_mode {
+        InputMode::Normal => normal_help(app.several_radios(), !app.list_view.filter.is_empty(), width),
+        mode => help_bar_text(mode, app.export_format, app.several_radios(), width).to_string(),
+    };
 
     // Wider than the terminal: cut with "…" so the cut shows.
     let help = Paragraph::new(Line::from(Span::styled(
@@ -1186,6 +1224,19 @@ mod tests {
             assert_eq!(fitting(&keys, 200), keys[0]);
             // An 80-column terminal's bar says where the settings are.
             assert!(fitting(&keys, 80).contains("Tab: Settings"), "{}", fitting(&keys, 80));
+            // The filter's key shows from 100 columns (120 with several radios' keys before it).
+            assert!(fitting(&keys, 120).contains("/: Filter"), "{}", fitting(&keys, 120));
+            assert!(keys[0].contains("c: Compare") && keys[0].contains("s: Sort"));
+        }
+        assert!(fitting(&NORMAL_KEYS, 100).contains("/: Filter"));
+        // While the list is filtered, every width's bar says what clears the filter.
+        for radios in [false, true] {
+            assert_eq!(normal_help(radios, false, 80), fitting(if radios { &NORMAL_KEYS_RADIOS } else { &NORMAL_KEYS }, 80));
+            for width in [MIN_WIDTH as usize, 72, 80, 100, 120, 200] {
+                let shown = normal_help(radios, true, width);
+                assert!(text::width(&shown) < width, "{width}: {shown}");
+                assert!(shown.starts_with("?: Help | Esc: Clear filter | ") && shown.ends_with("q: Quit"), "{shown}");
+            }
         }
         // Nothing fits: the shortest, which the bar then cuts.
         assert_eq!(fitting(&["a long text", "short"], 3), "short");
@@ -1196,8 +1247,8 @@ mod tests {
     fn every_modes_help_fits_the_narrowest_terminal() {
         use crate::app::ExportFormat;
         let modes = [
-            IM::Normal, IM::Command, IM::SignalMenu, IM::SettingsSelect, IM::SettingsEdit, IM::HackRfNotDetected,
-            IM::StartupImport, IM::SessionRestore, IM::ConfirmClear, IM::Analyze, IM::ExportFilename,
+            IM::Normal, IM::Command, IM::Filter, IM::SignalMenu, IM::SettingsSelect, IM::SettingsEdit, IM::HackRfNotDetected,
+            IM::StartupImport, IM::SessionRestore, IM::ConfirmClear, IM::Analyze, IM::Compare, IM::ExportFilename,
             IM::FobMetaYear, IM::FobMetaMake, IM::FobMetaModel, IM::FobMetaRegion, IM::FobMetaCommand,
             IM::FobMetaNotes, IM::CaptureMetaYear, IM::CaptureMetaMake, IM::CaptureMetaModel,
             IM::CaptureMetaRegion, IM::CaptureMetaCommand, IM::License, IM::Credits, IM::LoadFileBrowser,

@@ -297,6 +297,31 @@ impl Capture {
         }
     }
 
+    /// What KAT made of the capture, the list's Status column: "Own TX" for one of KAT's own
+    /// transmissions heard by another of its radios, else whether it was decoded and whether KAT
+    /// can encode its protocol.
+    pub fn status_label(&self) -> &'static str {
+        match self.status {
+            _ if self.own_tx.is_some() => "Own TX",
+            CaptureStatus::EncoderCapable => "Encode",
+            CaptureStatus::Decoded => "Decoded",
+            CaptureStatus::Unknown => "Unknown",
+        }
+    }
+
+    /// Whether the capture has a known vulnerability: it can be re-encoded, or its vehicle (set
+    /// with `i`) matches a CVE.
+    pub fn vuln_found(&self) -> bool {
+        self.status == CaptureStatus::EncoderCapable
+            || !crate::vuln_db::match_vulns(
+                self.year.as_deref(),
+                self.make.as_deref(),
+                self.model.as_deref(),
+                self.region.as_deref(),
+            )
+            .is_empty()
+    }
+
     /// Get button name: the protocol's own name for its button code; for a gate / garage remote
     /// whose protocol names none, "Btn 0xN"; else KAT's car commands.
     pub fn button_name(&self) -> &str {

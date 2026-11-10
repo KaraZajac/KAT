@@ -34,11 +34,11 @@ const LABEL: usize = 12;
 /// The narrowest the report is laid out for: its tables are this wide.
 pub const MIN_WIDTH: usize = 54;
 
-pub(super) fn span(text: impl Into<String>, tone: Tone) -> Span {
+pub(in crate::analysis) fn span(text: impl Into<String>, tone: Tone) -> Span {
     Span { text: text.into(), tone }
 }
 
-pub(super) fn plural(n: usize) -> &'static str {
+pub(in crate::analysis) fn plural(n: usize) -> &'static str {
     if n == 1 {
         ""
     } else {
@@ -58,7 +58,7 @@ pub(super) fn time(us: u64) -> String {
 }
 
 /// `text` cut to `max` characters, the cut marked.
-pub(super) fn cut(text: &str, max: usize) -> String {
+pub(in crate::analysis) fn cut(text: &str, max: usize) -> String {
     if text.chars().count() <= max {
         return text.to_string();
     }
@@ -68,7 +68,7 @@ pub(super) fn cut(text: &str, max: usize) -> String {
 }
 
 /// Split text into lines of at most `width` characters at spaces (a longer word is cut).
-pub(super) fn wrap(text: &str, width: usize) -> Vec<String> {
+pub(in crate::analysis) fn wrap(text: &str, width: usize) -> Vec<String> {
     let width = width.max(8);
     let mut lines: Vec<String> = Vec::new();
     let mut line = String::new();
@@ -97,7 +97,7 @@ pub(super) fn wrap(text: &str, width: usize) -> Vec<String> {
 }
 
 /// The lines being built, and the width they must fit.
-pub(super) struct Out {
+pub(in crate::analysis) struct Out {
     pub lines: Vec<Line>,
     pub width: usize,
 }

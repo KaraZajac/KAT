@@ -25,6 +25,12 @@ pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
             "COMMAND",
             Style::default().fg(Color::Yellow),
         ),
+        // The list's filter while it is typed (app/list_view.rs)
+        InputMode::Filter => (
+            format!("/{}", app.list_view.filter),
+            "FILTER",
+            Style::default().fg(Color::Yellow),
+        ),
         InputMode::SignalMenu => (
             String::new(),
             "SIGNAL",
@@ -50,7 +56,7 @@ pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
             "IMPORT",
             Style::default().fg(Color::Yellow),
         ),
-        InputMode::SessionRestore | InputMode::ConfirmClear | InputMode::Analyze => {
+        InputMode::SessionRestore | InputMode::ConfirmClear | InputMode::Analyze | InputMode::Compare => {
             let (label, style) = super::app_prompts::mode_label(app.input_mode);
             (String::new(), label, style)
         }
@@ -102,7 +108,8 @@ pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
     // A long command shows its end (where the typing happens) behind a leading "…", so the
     // cursor never leaves the line.
     let label = format!(" {} ", mode_text);
-    let cursor = if app.input_mode == InputMode::Command { theme::CURSOR } else { "" };
+    let typing = matches!(app.input_mode, InputMode::Command | InputMode::Filter);
+    let cursor = if typing { theme::CURSOR } else { "" };
     let room = (area.width.saturating_sub(2) as usize)
         .saturating_sub(text::width(&label) + 1 + text::width(cursor));
     let input_line = Line::from(vec![
@@ -112,11 +119,46 @@ pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
         Span::styled(cursor, theme::TEXT),
     ]);
 
-    let input = Paragraph::new(input_line).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title(" Command "),
-    );
+    let filtering = app.input_mode == InputMode::Filter;
+    let mut block = Block::default().borders(Borders::ALL).title(if filtering { " Filter " } else { " Command " });
+    if filtering {
+        // What a filter can say, on the lower border.
+        let hint = filter_hint(area.width.saturating_sub(2) as usize);
+        block = block.title_bottom(Line::styled(hint, Style::default().fg(Color::DarkGray)));
+    }
+    let input = Paragraph::new(input_line).block(block);
 
     frame.render_widget(input, area);
+}
+
+/// What the filter line says about itself, fullest first: a filter's words, a word for one
+/// column, a word to leave out, a capture's ID.
+const FILTER_HINTS: [&str; 3] = [
+    " every word must fit · serial:1a2b looks in one column · !word leaves out · #7 or id:3-9 by ID ",
+    " every word must fit · serial:1a2b one column · !word leaves out · #7 by ID ",
+    " every word must fit · serial:1a2b · !word · #7 ",
+];
+
+/// The fullest hint that fits the `room` between the box's corners (the shortest fits the
+/// narrowest terminal).
+fn filter_hint(room: usize) -> &'static str {
+    FILTER_HINTS.iter().copied().find(|h| text::width(h) <= room).unwrap_or("")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_filter_lines_hint_fits_its_border() {
+        assert!(FILTER_HINTS.windows(2).all(|w| text::width(w[0]) > text::width(w[1])));
+        // The narrowest terminal is 60 columns: 58 between the corners.
+        assert_eq!(filter_hint(58), FILTER_HINTS[2]);
+        assert_eq!(filter_hint(78), FILTER_HINTS[1]);
+        assert_eq!(filter_hint(118), FILTER_HINTS[0]);
+        assert_eq!(filter_hint(10), "");
+        for room in 0..130 {
+            assert!(text::width(filter_hint(room)) <= room);
+        }
+    }
 }

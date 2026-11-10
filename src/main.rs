@@ -1,7 +1,7 @@
 //! KAT - Keyfob Analysis Toolkit
 //!
 //! A terminal UI application for capturing, decoding, and transmitting
-//! keyfob signals using HackRF.
+//! keyfob signals with a HackRF, an RTL-SDR or a Flipper Zero.
 
 mod analysis;
 mod app;
@@ -28,10 +28,19 @@ use std::io::{self, IsTerminal, Write};
 use std::panic;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use app::{App, InputMode, SettingsField};
+use app::{App, InputMode};
 use ui::draw_ui;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// "s" unless there is exactly one: `format!("{n} capture{}", plural(n))`.
+fn plural(n: usize) -> &'static str {
+    if n == 1 {
+        ""
+    } else {
+        "s"
+    }
+}
 
 /// Restore the terminal to normal state (panic hook, [TerminalGuard]); harmless when it is
 /// already restored.
@@ -346,8 +355,11 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
         let had_event = event::poll(wait)?;
         if had_event {
             if let Event::Key(key) = event::read()? {
+                let pressed = key.kind == KeyEventKind::Press;
+                // Ctrl-U / Ctrl-W / Alt-Backspace in a text field: clear it, delete its last word.
+                let edited = pressed && app.line_edit_key(&key);
                 // Ctrl-C, Ctrl-H; other Ctrl / Alt characters are dropped (app/input.rs).
-                let code = app.key_code(&key).filter(|_| key.kind == KeyEventKind::Press);
+                let code = app.key_code(&key).filter(|_| pressed && !edited);
                 if let Some(code) = code {
                     // In the list every key is a new action: the last message or error goes.
                     if app.input_mode == InputMode::Normal {
@@ -378,22 +390,24 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             KeyCode::Char('r') => {
                                 report!(app, app.toggle_receiving());
                             }
+                            // Every radio at once; 1-9 select the radio the tuning keys and
+                            // commands act on (app/radios.rs).
+                            KeyCode::Char('R') => {
+                                report!(app, app.toggle_all_receiving());
+                            }
+                            KeyCode::Char(c @ '1'..='9') => app.select_radio(c as usize - '1' as usize),
                             KeyCode::Char('d') => {
-                                let _ = app.delete_selected_capture();
+                                report!(app, app.delete_selected_capture());
                             }
                             KeyCode::Char('u') => app.undo_delete(),
+                            // What the selected capture is: the Analyze report.
+                            KeyCode::Char('a') => app.analyze_selected(),
                             KeyCode::Enter => {
                                 // Action menu of the selected capture (it stays on that capture)
                                 app.open_signal_menu();
                             }
-                            KeyCode::Char('i') => {
-                                // Edit Year/Make/Model/Region for vuln lookup
-                                if let Some(idx) = app.selected_capture {
-                                    if let Some(capture) = app.captures.get(idx) {
-                                        app.open_capture_meta_form(capture.id);
-                                    }
-                                }
-                            }
+                            // Year / Make / Model / Region / Command of the selected capture
+                            KeyCode::Char('i') => app.edit_selected_metadata(),
                             KeyCode::Tab => {
                                 // Open settings selector
                                 app.input_mode = InputMode::SettingsSelect;
@@ -410,6 +424,7 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                         InputMode::Command => match code {
                             KeyCode::Enter => {
                                 let command = app.command_input.clone();
+                                app.remember_command(&command);
                                 report!(app, app.execute_command(&command));
                                 if app.quit_requested {
                                     return Ok(());
@@ -421,12 +436,23 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             }
                             KeyCode::Char(c) => {
                                 app.command_input.push(c);
+                                app.command_edited();
+                            }
+                            // Backspace on the empty line closes it, as in vi.
+                            KeyCode::Backspace if app.command_input.is_empty() => {
+                                app.command_edited();
+                                app.input_mode = InputMode::Normal;
                             }
                             KeyCode::Backspace => {
                                 app.command_input.pop();
+                                app.command_edited();
                             }
+                            // The commands run before, and back to what was being typed.
+                            KeyCode::Up => app.command_history_step(true),
+                            KeyCode::Down => app.command_history_step(false),
                             KeyCode::Esc => {
                                 app.command_input.clear();
+                                app.command_edited();
                                 app.input_mode = InputMode::Normal;
                             }
                             _ => {}
@@ -458,14 +484,15 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                                 }
                             }
                             KeyCode::Right | KeyCode::Char('l') => {
-                                if app.settings_field_index < SettingsField::ALL.len() - 1 {
+                                if app.settings_field_index + 1 < app.settings_fields().len() {
                                     app.settings_field_index += 1;
                                 }
                             }
-                            KeyCode::Tab => {
-                                // Cycle through fields
-                                app.settings_field_index =
-                                    (app.settings_field_index + 1) % SettingsField::ALL.len();
+                            // Tab / Shift-Tab go round the tabs.
+                            KeyCode::Tab | KeyCode::BackTab => {
+                                let tabs = app.settings_fields().len().max(1);
+                                let step = if code == KeyCode::Tab { 1 } else { tabs - 1 };
+                                app.settings_field_index = (app.settings_field_index + step) % tabs;
                             }
                             KeyCode::Enter => {
                                 // Enter edit mode for this field
@@ -525,10 +552,10 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                             report!(app, app.handle_app_mode_key(code));
                         }
 
-                        // Session restore prompt, :clear confirmation, timing overlay (app/persistence.rs)
+                        // Session restore prompt, :clear confirmation, Analyze overlay (app/persistence.rs)
                         InputMode::SessionRestore
                         | InputMode::ConfirmClear
-                        | InputMode::TimingAnalysis => {
+                        | InputMode::Analyze => {
                             report!(app, app.handle_app_mode_key(code));
                         }
 
@@ -566,10 +593,12 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                         }
 
                         // Folders, parent (Left / Backspace), files (app/input.rs)
-                        InputMode::LoadFileBrowser => app.load_browser_key(code)?,
+                        InputMode::LoadFileBrowser => report!(app, app.load_browser_key(code)),
 
                         // Scroll within the text, Esc / Enter / q close (app/input.rs)
-                        InputMode::License | InputMode::Credits | InputMode::Help => app.overlay_key(code),
+                        InputMode::License | InputMode::Credits | InputMode::Help | InputMode::Radios => {
+                            app.overlay_key(code)
+                        }
                     }
                 }
             }

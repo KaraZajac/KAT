@@ -4,27 +4,44 @@ layout: default
 
 # Timing analysis
 
-**Rust module:** `src/analysis/timing.rs` (overlay: `src/app/timing_view.rs`)
+**Rust module:** `src/analysis/timing.rs`  
 **Reference:** ProtoPirate's Timing Tuner, `REFERENCES/ProtoPirate/scenes/protopirate_scene_timing_tuner.c`
 and `scenes/plugins/protopirate_timing_tuner_plugin.c`
 
-ProtoPirate's Timing Tuner compares "real fob signal timing against protocol definitions". It shows
-the protocol's short/long/tolerance, the received average/min/max/count, the difference and jitter,
-and a conclusion on whether the timing matches or needs adjusting. KAT runs the same analysis on a
-capture's raw level/duration pairs. For every capture, and especially for undecoded ones, it adds
-pulse clustering, a base-TE estimate and a line-coding guess as research help.
+ProtoPirate's Timing Tuner compares "real fob signal timing against protocol definitions": the
+protocol's short and long widths and its tolerance against the average, minimum and maximum of what
+was received, with a conclusion on whether the timing matches or needs adjusting. KAT runs the same
+comparison on a decoded capture's pulses. It is the **Protocol timing** section of the
+[Analyze](analyze.html) report.
+
+The pulse widths, the TE estimate and the line-coding guess, which earlier versions of KAT showed
+under this name as well, are the other sections of that report; they are described on the
+[Analyze](analyze.html) page.
 
 ## Use
 
-- Signal menu (Enter on a capture): **Timing analysis** (after "Export .sub (Flipper)"; also on
-  receive-only devices).
-- Command: `:timing` analyses the selected capture, `:timing 7` capture 7.
+Press `a` on a decoded capture, choose **Analyze** in its Signal menu (Enter), or run `:analyze`
+(`:analyze 7` for capture 7; `:timing` still works). The section is near the end of the report. For
+`IMPORTS/FORD/2008_Focus_Lock.sub`:
 
-The report opens in a scrollable overlay (Up/Down, PgUp/PgDn, Home/End; Esc or Enter closes). Its title
-gives the coding guess and the TE estimate, e.g. `Timing analysis: #02 Ford V0 (Manchester, TE ~251 us)`.
-Captures without raw pairs (a `.fob` exported without them) cannot be analysed.
+```
+PROTOCOL TIMING   Ford V0: 250/500 us, +/-120 us
+         avg   min   max  count   diff
+short    249   100   363     94     -1  EXCELLENT
+long     508   399   691     51     +8  EXCELLENT
+Timing matches fob! No changes needed.
+Both levels count: short is under 375 us, long from there up; 100..740 us
+is read, 15 left out.
+```
 
-## Protocol comparison (decoded captures)
+The heading gives the definition: `te_short`/`te_long` and the tolerance `te_delta`. Each row is one
+class of durations: the average, the shortest and the longest, how many there were, the average's
+difference from the definition and the verdict. The last line says how the durations were sorted.
+
+A decoded capture whose protocol KAT has no definition for says so, and an undecoded capture gets
+the [Similar timing](analyze.html#similar-timing-undecoded-captures) section instead.
+
+## The comparison
 
 The definition is the decoder's `ProtocolDecoder::timing()` (`te_short`, `te_long`, `te_delta`).
 Legacy and display names resolve the way the registry does (`PSA2` → PSA, `Kia V4` → Kia V3/V4,
@@ -33,141 +50,89 @@ Legacy and display names resolve the way the registry does (`PSA2` → PSA, `Kia
 As in ProtoPirate's `calculate_timing_stats`:
 
 - Durations of **both levels** count. The valid window is `te_short − 2·te_delta` … `te_long +
-  2·te_delta`; durations outside it (gaps, noise) are ignored.
+  2·te_delta`; durations outside it (gaps, noise) are left out.
 - Valid durations below `(te_short + te_long) / 2` are **short**, the rest **long**. Each class gets
-  its average (integer), min, max and count.
-- **Diff** = average − definition; **jitter** = max − min.
-- Per class: **EXCELLENT** if |diff| ≤ 15 µs, **OK (±d)** if |diff| ≤ `te_delta`, else **HIGH by d** /
+  its average (integer), minimum, maximum and count.
+- **diff** = average − definition.
+- Per class: **EXCELLENT** if |diff| ≤ 15 µs, **OK** if |diff| ≤ `te_delta`, else **HIGH by d** /
   **LOW by d**.
-- Verdict: both EXCELLENT → "Timing matches fob! / No changes needed."; both OK → "Within tolerance. /
+- Verdict: both EXCELLENT → "Timing matches fob! No changes needed."; both OK → "Within tolerance.
   Consider fine-tuning."; otherwise "NEEDS ADJUSTMENT:" with `Set te_short=<avg>` / `Set te_long=<avg>`
   for each class out of tolerance.
 - Fewer than 10 valid durations: "Not enough samples".
 
-KAT differences, each for a reason found on real captures:
+KAT differs where real captures gave a reason:
 
 | ProtoPirate | KAT | Why |
 |---|---|---|
 | Valid window floored at 100 µs | floored at `min(100, te_short / 2)` µs (identical for every `te_short` ≥ 200 µs) | the 100 µs floor drops every short pulse of Ford V1 (65 µs), Honda Static (63 µs), BMW (62 µs) and Mercedes V1 (50 µs), leaving nothing to analyse |
-| The last 512 durations before the decode | the decoded frame: the last `2·min_count_bit + 32` pairs (at most 512) | a `.sub` file's first decoded segment can be thousands of noise pulses followed by one frame (`FORD/0000_Ford_ts_x4.sub`: 6168 pairs). With the frame window the Ford V0 comparison reads "Timing matches fob!" instead of noise averages |
-| A class without samples prints "LOW by te" and `Set te_long=0` | "NO SAMPLES" and the verdict **INCOMPLETE** ("no long durations (≥ N us) in the analysed pairs") | e.g. Honda Static's `te_long` is its 700 µs sync, which the frame does not contain |
+| The last 512 durations before the decode | the decoded frame: the last `2·min_count_bit + 32` pairs (at most 512), ending where the decoder completes the frame when the capture is decoded again | a `.sub` file's first decoded segment can be thousands of noise pulses followed by one frame (`FORD/0000_Ford_ts_x4.sub`: 6168 pairs), and a live burst goes on after the frame. With the frame window the Ford V0 comparison reads "Timing matches fob!" instead of noise averages |
+| A class without samples prints "LOW by te" and `Set te_long=0` | "NO SAMPLES" and the verdict **INCOMPLETE** ("no long durations (>= N us) in the analysed pairs") | e.g. Honda Static's `te_long` is its 700 µs sync, which the frame does not contain |
+| One definition per protocol | a protocol sent with more than one timing is compared with the one the capture fits | see below |
 
-Protocols with several timing variants report against the one definition `timing()` returns. VAG's
-is 500/1000 µs (Type 3/4), so a Type 1/2 capture (300/600 µs) has no "long" durations and comes out
-INCOMPLETE; its research view still shows TE ≈ 300 µs.
+## Protocols with more than one timing
 
-## Research view (every capture)
+Two of KAT's protocols are sent with two timings, and `timing()` returns only one of them:
 
-**Analysed pairs.** A decoded capture uses the frame window above. An undecoded capture uses all of
-its pairs if there are at most 512; otherwise it uses the most regular 512-pair window, searched in
-steps of 128. The score is the share of durations explained by one TE times how well the HIGH and LOW
-estimates agree. The first line of the report says which pairs were used.
+| Protocol | `timing()` | The other (`timing_variants()`) |
+|---|---|---|
+| VAG | 500/1000 µs ±80 (Type 3/4) | 300/600 µs ±100 (Type 1/2) |
+| Fiat V1 | 250/500 µs ±100 (variant A) | 100/200 µs ±50 (variant B) |
 
-**Clusters.** HIGH and LOW durations are clustered separately the way rtl_433's pulse analyzer does it:
-a duration joins the nearest cluster within ±20 %, otherwise it starts a new one, and neighbouring
-clusters that drift within 20 % of each other are fused. For each cluster the report shows mean,
-count, min, max, jitter (max − min) and the multiple of the TE. A cluster holding at least 8 % of its
-level's durations is a data width. The others (glitches, sync pulses, inter-frame gaps) are marked
-"(minor)", and beyond eight per level they are summarised.
-
-**Base TE.** For each level: the data-width cluster whose 1–4 multiples (within ±0.3) explain the most
-durations (the larger unit on a tie), refined by the least-squares fit `TE = Σ n·mean·k / Σ n·k²`
-over the clusters it explains. When the HIGH and LOW estimates agree (within ×1.6) the TE is their
-mean. That cancels the constant widening an AM envelope detector adds to pulses and takes from gaps,
-and the report states it ("HIGH widths stretched by ~12 us"). It also gives the share of durations
-that are 1–4 × TE.
-
-**Line coding guess.** Built from the two dominant widths per level (short S, long L) and from how each
-pulse pairs with the next gap. Both orders are tried, HIGH→LOW and LOW→HIGH, because an inverted
-capture pairs the halves of adjacent bits. Runs of 8+ identical pairs count as preamble and are skipped.
-
-| Guess | Rule |
-|---|---|
-| PWM | two widths per level, and S+L / L+S pairs while L+L is rare (≤ 5 %) in one order; the bit period is the mean pair length |
-| PWM, equal-length pairs | S+S and L+L pairs only (mixed ≤ 5 %): the pair length carries the bit (Kia V0 / Suzuki V0) |
-| Manchester / bi-phase | both widths ~1:2 on both levels, and mixed and L+L pairs ≥ 10 % in both orders (differential Manchester looks the same at this level) |
-| PWM with fixed gap | two pulse widths, one gap width |
-| PPM / pulse-distance | one pulse width, two or more gap widths (GM style) |
-| NRZ / PCM | three or more widths on a level, all multiples of the TE |
-| single width | one pulse and one gap width (preamble or carrier bursts) |
-
-Without a protocol reference the report closes with a suggested definition, `te_short ~TE` and
-`te_long ~k·TE` (the smallest data multiple ≥ 2), as a starting point for a new decoder.
+Against the wrong one a capture has no "long" durations at all and comes out INCOMPLETE: half of the
+VAG decodes in IMPORTS did. So the capture is compared with each definition and the report keeps
+the one it fits: the better verdict, and between equal verdicts the averages nearer to the
+definition. The heading shows the definition used, and a last line says there was a choice: `VAG is
+sent with 2 timings: this is the one the capture fits.`
 
 ## Results on IMPORTS
 
 `cargo test sweep_imports_timing -- --ignored --nocapture` analyses every IMPORTS decode the way
-the app stores it (the decoded segment of each `.sub`):
+the app stores it (the decoded segment of each `.sub`), 1170 decodes in all:
 
-| Protocol | Decodes | Matches | Within tol. | Incomplete | Needs adj. | Coding guess |
+| Protocol | Decodes | Matches | Within tol. | Needs adj. | Incomplete | Coding guess |
 |---|---|---|---|---|---|---|
-| Ford V0 | 141 | 135 | 6 | 0 | 0 | Manchester 141 |
-| Ford V3 | 27 | 20 | 7 | 0 | 0 | Manchester 26, NRZ 1 |
+| Chevrolet V0 | 21 | 21 | 0 | 0 | 0 | Manchester 21 |
+| Chrysler V0 | 20 | 0 | 14 | 6 | 0 | PWM 20 |
 | Fiat V0 | 11 | 0 | 11 | 0 | 0 | Manchester 11 |
-| Fiat V1 | 7 | 0 | 7 | 0 | 0 | Manchester 7 |
-| Fiat V2 | 29 | 29 | 0 | 0 | 0 | Manchester 29 |
+| Fiat V1 | 18 | 11 | 7 | 0 | 0 | Manchester 14, other 4 |
+| Fiat V2 | 76 | 76 | 0 | 0 | 0 | Manchester 76 |
+| Ford V0 | 141 | 135 | 6 | 0 | 0 | Manchester 141 |
+| Ford V3 | 27 | 20 | 7 | 0 | 0 | Manchester 27 |
+| Honda Static | 1 | 0 | 0 | 0 | 1 | Manchester 1 |
+| Honda V5 | 40 | 40 | 0 | 0 | 0 | Manchester 40 |
 | Kia V1 | 35 | 35 | 0 | 0 | 0 | Manchester 35 |
 | Kia V3 / Kia V4 | 300 | 300 | 0 | 0 | 0 | PWM 300 |
 | Kia V5 | 119 | 119 | 0 | 0 | 0 | Manchester 119 |
+| Opel V1 | 5 | 5 | 0 | 0 | 0 | Manchester 5 |
+| PSA | 15 | 0 | 15 | 0 | 0 | Manchester 15 |
+| Renault V1 | 2 | 0 | 2 | 0 | 0 | other 2 |
+| Subaru | 9 | 7 | 2 | 0 | 0 | PWM 9 |
 | Suzuki V0 | 15 | 15 | 0 | 0 | 0 | PWM 15 (equal-length pairs) |
-| Subaru | 5 | 3 | 2 | 0 | 0 | PWM 5 |
-| PSA | 4 | 0 | 4 | 0 | 0 | Manchester 4 |
-| VAG | 198 | 33 | 68 | 97 | 0 | Manchester 194, other 2, single width 1, PPM 1 |
-| Honda Static | 41 | 0 | 1 | 37 | 3 | Manchester 41 |
+| Toyota | 53 | 0 | 53 | 0 | 0 | Manchester 53 |
+| Toyota (FoxFW) | 16 | 0 | 16 | 0 | 0 | PWM 16 |
+| VAG | 198 | 89 | 109 | 0 | 0 | Manchester 196, single width 1, PPM 1 |
+| VAG Polo | 48 | 48 | 0 | 0 | 0 | Manchester 48 |
 
-The coding guess agrees with KAT's own encoding label (`Capture::modulation()`) for 927 of the 932
-decodes. The VAG INCOMPLETE rows are its Type 1/2 frames and the Honda Static rows its 700 µs sync
-definition, both explained above. A regular test (`imports_captures_match_their_protocol_timing`)
-checks Kia V1, Ford V0, Subaru and Kia V3 captures against their definitions.
+- **VAG**: 101 decodes fit the 500/1000 µs definition and 97 the 300/600 µs one. **Fiat V1**: 7 fit
+  variant A and 11 variant B.
+- **Chrysler V0**: a 1 is a 600 µs pulse and a 0 a 300 µs pulse, both below the short/long split, so
+  the "short" average sits near 450 µs, at the edge of the ±150 µs tolerance. ProtoPirate's method
+  has two classes; this protocol has four widths.
+- **Honda Static**: its `te_long` is the 700 µs sync, which the frame does not contain.
 
-## Example
-
-`IMPORTS/FORD/2008_Focus_Lock.sub`, second decode (shortened):
-
-```
-Analysed pairs 124..283 of 283 (80 HIGH, 80 LOW): the decoded frame
-
-PROTOCOL DEFINITION (Ford V0):
-  Short: 250 us
-  Long: 500 us
-  Tolerance: +/-120 us
-
-RECEIVED SIGNAL:
-  (both levels; short < 375 us <= long; valid 100..740 us; 23 ignored)
-  Short Avg: 241 us  Min: 100 us  Max: 281 us  Samples: 83
-  Long  Avg: 501 us  Min: 395 us  Max: 557 us  Samples: 54
-
-ANALYSIS:
-  Short Diff: -9 us
-  Long Diff: +1 us
-  Short Jitter: 181 us
-  Long Jitter: 162 us
-
-CONCLUSION:
-  Short: EXCELLENT
-  Long: EXCELLENT
-  Timing matches fob!
-  No changes needed.
-
-PULSE CLUSTERS (per level; jitter = max - min):
-  HIGH     256 us  x41    min    227  max    281  jitter    54    1 TE
-           515 us  x26    min    493  max    557  jitter    64    2 TE
-          6445 us  x2     min   6439  max   6451  jitter    12   25 TE  (minor)
-  LOW      242 us  x36    min    214  max    272  jitter    58    1 TE
-           493 us  x27    min    472  max    516  jitter    44    2 TE
-         15545 us  x3     min  13486  max  16966  jitter  3480  63.5 TE  (minor)
-
-Base TE estimate: 251 us (HIGH 257 us, LOW 245 us)
-  82% of durations are 1-4 x TE
-Line coding guess: Manchester / bi-phase (HIGH and LOW both 1 TE and 2 TE, long-long pairs occur)
-```
+The coding guess agrees with KAT's own encoding label (`Capture::modulation()`) for 1162 of the 1170
+decodes, counting Toyota's differential Manchester as Manchester, which it is at the pulse level.
+The other eight are Fiat V1 and Renault V1 frames of 100 µs pulses (six "other") and two VAG
+decodes. A regular test (`imports_captures_match_their_protocol_timing`) checks Kia V1, Ford V0,
+Subaru and Kia V3 captures against their definitions.
 
 ## Limits
 
-- The analysis sees what the demodulator produced. An FSK fob recorded with an OOK preset, or a
-  capture of noise, gives clusters but no meaningful TE.
-- The line-coding guess is a heuristic for research, not a decode. Differential Manchester, bi-phase
-  and Manchester are not told apart, and a capture with polarity flipped swaps "PPM" and "PWM with fixed gap".
-- Everything is computed from the stored pairs. Live-capture timing is only as good as the receive
-  path; nothing here has been checked against hardware, only against IMPORTS `.sub` files and synthetic
-  pulse trains.
+- The comparison sees what the demodulator produced: a receiver that stretches every pulse moves the
+  averages. The [Pulse widths](analyze.html#pulse-widths) section of the same report shows that as
+  a skew.
+- Two classes are all the method has. A protocol with more widths (a sync pulse as `te_long`, two
+  pulse widths below the split) reads INCOMPLETE or NEEDS ADJUSTMENT without anything being wrong.
+- Everything is computed from the stored pulses. The numbers above come from IMPORTS `.sub`
+  recordings and synthetic pulse trains, not from KAT's own receivers.

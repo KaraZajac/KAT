@@ -12,7 +12,7 @@
 //! - `:clear` (with a y/n confirmation) empties the list and deletes the session file and backup.
 //!
 //! This module also hosts the per-tick hook and the key handling of the modes added in v1.5
-//! (session restore prompt, `:clear` confirmation, timing overlay).
+//! (session restore prompt, `:clear` confirmation, Analyze overlay).
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -24,6 +24,7 @@ use crossterm::event::KeyCode;
 
 use super::{App, InputMode};
 use crate::capture::Capture;
+use crate::plural;
 use crate::session::{
     self, Autosave, LoadedSession, SessionLoad, SessionPaths, SessionSnapshot, SessionWriter, WriteJob,
 };
@@ -93,7 +94,7 @@ impl App {
                 }
                 _ => {}
             },
-            InputMode::TimingAnalysis => self.timing_view_key(code),
+            InputMode::Analyze => self.analyze_view_key(code),
             _ => {}
         }
         Ok(())
@@ -195,9 +196,8 @@ impl App {
             drop_restored_imports(&mut self.pending_fob_files, &self.captures, &import_dir);
             if added > 0 {
                 self.selected_capture = Some(self.captures.len() - 1);
-                self.ensure_selection_visible();
             }
-            let mut msg = format!("Restored {} capture(s) from the last session", added);
+            let mut msg = format!("Restored {added} capture{} from the last session", plural(added));
             if added < total {
                 msg.push_str(&format!(" (newest {} of {}: max_captures)", added, total));
             }
@@ -293,9 +293,8 @@ impl App {
         let count = self.captures.len();
         self.captures.clear();
         self.selected_capture = None;
-        self.scroll_offset = 0;
         self.saved_fobs.forget_captures();
-        self.close_timing_view();
+        self.close_analyze_view();
         match (&self.session.writer, &self.session.paths) {
             // Through the writer, so a save still queued cannot recreate the file afterwards.
             (Some(writer), _) => writer.send(WriteJob::Clear),
@@ -310,7 +309,7 @@ impl App {
             .autosave
             .set_saved(session::fingerprint(&self.captures, self.next_capture_id));
         self.input_mode = InputMode::Normal;
-        self.status_message = Some(format!("Cleared {} capture(s) and the saved session", count));
+        self.status_message = Some(format!("Cleared {count} capture{} and the saved session", plural(count)));
     }
 }
 

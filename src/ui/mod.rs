@@ -1,6 +1,7 @@
 //! Terminal UI components.
 
 mod add_manually;
+mod analyze_overlay;
 mod app_prompts;
 mod captures_list;
 mod command;

@@ -122,7 +122,7 @@ impl App {
             return;
         }
         let Some(capture) = self.captures.iter().find(|c| c.id == id) else {
-            self.last_error = Some(format!("Capture {id} not found"));
+            self.last_error = Some(format!("Capture #{id:02} not found"));
             return;
         };
         let f1 = match frame_of(capture) {
@@ -150,7 +150,7 @@ impl App {
         let worker = Arc::clone(&ctl);
         let handle = std::thread::spawn(move || hell::recover_key_any(&requests, &worker));
         self.status_message =
-            Some(format!("Recovering the HiTag2 key of remote {:08X} from captures {id} and {partner}…", f1.uid));
+            Some(format!("Recovering the HiTag2 key of remote {:08X} from #{id:02} and #{partner:02}…", f1.uid));
         self.hitag2_bf_job = Some(Hitag2BfJob {
             capture_ids: [id, partner],
             uid: f1.uid,
@@ -206,7 +206,7 @@ impl App {
                     c.key_recovery = Some(KeyRecovery::NotFound(LABEL.to_string()));
                 }
                 let mut msg =
-                    format!("No HiTag2 key fits captures {first} and {second} of remote {:08X} (searched in {took})", job.uid);
+                    format!("No HiTag2 key fits #{first:02} and #{second:02} of remote {:08X} (searched in {took})", job.uid);
                 if job.remote == Hitag2Remote::FiatV2 {
                     msg += "; Fiat V2's counter and button layout is not confirmed against a real key";
                 }
@@ -238,8 +238,9 @@ impl App {
         };
         let fresh = mark_recovered(&mut self.captures, uid);
         self.status_message = Some(format!(
-            "HiTag2 key of remote {uid:08X} recovered in {took}: {:012X} ({saved}); {fresh} capture(s) now send fresh codes",
-            found.key
+            "HiTag2 key of remote {uid:08X} recovered in {took}: {:012X} ({saved}); {fresh} capture{} can now send fresh codes",
+            found.key,
+            crate::plural(fresh)
         ));
     }
 }

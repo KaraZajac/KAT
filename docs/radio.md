@@ -6,7 +6,8 @@ layout: default
 
 **Rust modules:** `src/radio/pipeline.rs` (receive pipeline), `src/radio/dsp.rs` (filters, mixer,
 DC removal), `src/radio/rx.rs` (live-receiver glue), `src/radio/hopper.rs`, `src/radio/iq_file.rs`,
-`src/radio/recorder.rs`, `src/app/rx.rs` (commands); tests in `src/radio/sim.rs`.
+`src/radio/recorder.rs`, `src/app/rx.rs` (commands), `src/radio/devices.rs` and `src/app/radios.rs`
+(several radios); tests in `src/radio/sim.rs`.
 **References:** Flipper-ARF `lib/subghz/subghz_setting.c` (hopper list), ProtoPirate
 `helpers/protopirate_txrx.c` (`protopirate_hopper_update`).
 
@@ -264,6 +265,63 @@ and `kat.log` has the libraries' errors.
   10 ms after that point (HackRF buffers are 65 ms long, so the switch can't be seen directly).
   RTL-SDR: the reader thread retunes between 16 ms reads and tags every buffer with its frequency,
   dropping the first 6 ms after a retune. Each capture carries the frequency it was heard on.
+
+## Several radios
+
+KAT uses every HackRF, RTL-SDR and Flipper Zero it finds (config `device`: `auto`, or the kinds to
+use, such as `hackrf, rtlsdr`), each with its own receiver, frequency, gains, hop list and
+recording. They run side by side: a HackRF on 433.92 MHz and an RTL-SDR on 315 MHz miss nothing on
+either band, which hopping between them would. Two frequencies within the band one SDR already hears
+(about 1.15 MHz below to 0.65 MHz above its frequency) need no second radio.
+
+- **Finding them.** At startup KAT lists the radios without opening them: HackRFs by their serial
+  numbers (libhackrf's device list), RTL-SDRs by the serial in their EEPROM, Flippers by their USB
+  serial port. Each is opened by that identity for every receive run and transmission, so two of a
+  kind never get mixed up. Cheap RTL-SDRs often all report the serial `00000001`; those are told
+  apart by their USB order, which changes when they are replugged: `rtl_eeprom -s <serial>` gives each
+  its own. A Flipper's console is opened the first time it receives or transmits in KAT and kept
+  until KAT quits, so a Flipper you do not use stays free for qFlipper.
+- **Names.** "HackRF", "RTL-SDR", "Flipper", and "RTL-SDR 2", "RTL-SDR 3" … for more of a kind. A
+  radio keeps its name when more are found later, and every capture carries the name of the radio
+  that heard it (the captures list's Radio column, the detail panel, the saved session).
+- **Tuning.** The header has a line per radio: ▸ marks the selected one, `TX` the one that transmits.
+  `r`, `:freq`, `:lna`, `:vga`, `:amp`, `:hop`, `:record` and the `Tab` settings act on the selected
+  radio; `1`–`9`, `:radio <n|name>` or the settings' Radio tab select it, and `R` starts or stops
+  all of them. The RX meter has a column per radio, numbered at the bottom.
+- **Settings by kind.** The settings bar and the header show what the selected radio has. A HackRF:
+  LNA (0–40 dB in 8 dB steps), VGA (0–62 dB in 2 dB steps) and the RF amplifier. An RTL-SDR: one
+  tuner gain, kept as its VGA value (`:vga`, the **Gain** setting, "Gain:20" in the header); the
+  tuner takes its next step from there (an R820T has about 50 dB). A Flipper: none, its receive
+  preset sets them. `:lna`, `:vga` or `:amp` on a radio that has no such setting says so
+  ("RTL-SDR has one gain: :vga <0-62> sets it"). The TX power setting is a HackRF's and shows when
+  a HackRF transmits.
+- **Starting values.** Each radio starts on `default_frequency` with the default gains, unless a
+  section says otherwise: `[radio.<kind>]` for every radio of a kind, `[radio.<kind>.<serial>]` for
+  one radio (its serial or the serial's last digits; a Flipper also by its port). Keys: `frequency`,
+  `lna_gain`, `vga_gain`, `amp` (an RTL-SDR's gain is `vga_gain`; a Flipper takes the frequency
+  only). A radio's own section wins over its kind's.
+- **Transmitting.** One radio transmits: `tx_radio` in `config.ini` (`auto`: the first HackRF, else a
+  Flipper; `hackrf`, `flipper`, or a kind and a serial), or `:txradio <n|name>` while KAT runs. Only
+  that radio stops receiving while it transmits; the others go on listening.
+- **Own transmissions.** A capture another radio receives while the transmitting radio is on the
+  air near its frequency (within 1.2 MHz, until 2.5 s after the transmission ended, as a receiver
+  reports a burst once it is over) is KAT's own: its status says **Own TX**, the detail panel names
+  the radio that sent it, no key search runs on it, and the status line says which radio heard the
+  transmission. A replay of a capture already in the list is not added again (with
+  `ignore_duplicates`); the status line still says it was heard. A real remote pressed during a
+  transmission would be marked the same.
+- **`:radios`** lists every radio (what it does now, its serial or port, its settings, why it last
+  stopped), the frequencies each kind tunes (a Flipper's CC1101: 300–348, 387–464 and 779–928 MHz),
+  and why a kind is not in use. It also looks for radios plugged in since KAT started and adds them;
+  an unplugged radio stays in the list (its receiver says it stopped).
+- **Cost.** Each SDR runs its own receive and processing threads. On idle noise a 2 MS/s receiver
+  costs about a thirtieth of a core ([Throughput](#throughput)), more while bursts are on the air,
+  and 4 MB/s of USB. A Flipper's stream is read on its own thread.
+- **Repeats.** With `ignore_duplicates = false`, the 500 ms repeat check keeps each receive session's
+  signals apart, so radios receiving at once do not reset each other's.
+
+Not verified with several radios on hardware yet: the tests cover the logic, the header, the
+config and a Flipper connecting on first use (on a simulated console).
 
 ## Measurements (synthetic IQ)
 

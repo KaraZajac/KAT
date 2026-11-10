@@ -26,6 +26,7 @@ use anyhow::Result;
 use super::{App, RadioState};
 use crate::capture::Capture;
 use crate::protocols::{DecodedSignal, ProtocolRegistry};
+use crate::radio::devices::RadioKind;
 use crate::radio::preset::TxModulation;
 use crate::radio::tx::TxSettings;
 use crate::radio::LevelDuration;
@@ -204,22 +205,41 @@ impl App {
     ) {
         self.pending_transmit_queue.push_back(PendingTransmit { signal, frequency, modulation, advance });
         if self.pending_transmit_restore.is_none() {
-            self.pending_transmit_restore = Some(self.radio_state);
-            self.radio_state = RadioState::Transmitting;
+            if let Some(i) = self.tx_radio() {
+                self.pending_transmit_restore = Some((i, self.radios[i].state));
+                self.radios[i].state = RadioState::Transmitting;
+            }
+        }
+    }
+
+    /// Why nothing can be transmitted, if so: no radio, or none that transmits (an RTL-SDR is
+    /// receive-only).
+    pub(super) fn tx_unavailable(&self) -> Option<&'static str> {
+        if self.radios.is_empty() {
+            Some(super::radios::NO_RADIO)
+        } else if self.tx_radio().is_none() {
+            Some("Transmit not available – RTL-SDR is receive-only")
+        } else {
+            None
         }
     }
 
     /// Whether a transmission may be queued now; sets `last_error` when not: no radio, an
-    /// RTL-SDR (receive-only), or a recording running (transmitting stops RX, which used to end
-    /// the recording without the user stopping it).
+    /// RTL-SDR (receive-only), or the transmitting radio recording (transmitting stops its RX,
+    /// which used to end the recording without the user stopping it).
     pub(super) fn transmit_allowed(&mut self) -> bool {
-        let why = match &self.radio {
-            None => "No radio device connected",
-            Some(r) if !r.supports_tx() => "Transmit not available – RTL-SDR is receive-only",
-            Some(r) if r.recording_status().is_some() => "Recording in progress — :record stop first",
-            Some(_) => return true,
+        let why = match (self.tx_unavailable(), self.tx_radio().map(|i| &self.radios[i])) {
+            (Some(why), _) => why.to_string(),
+            (None, Some(r)) if r.device.recording_status().is_some() => {
+                if self.several_radios() {
+                    format!("{} is recording and transmits — :record stop first (or :txradio)", r.name)
+                } else {
+                    "Recording in progress — :record stop first".to_string()
+                }
+            }
+            (None, _) => return true,
         };
-        self.last_error = Some(why.to_string());
+        self.last_error = Some(why);
         false
     }
 
@@ -240,13 +260,22 @@ impl App {
             return Ok(());
         };
         let settings = self.tx_settings(tx.modulation);
-        let result = match self.radio.as_mut() {
-            Some(radio) => radio.transmit(&tx.signal, tx.frequency, &settings),
+        // The radio the queue started on (`:txradio` waits for the queue).
+        let radio = self.pending_transmit_restore.map(|(i, _)| i).or(self.tx_radio());
+        let start = chrono::Utc::now();
+        let result = match radio.and_then(|i| self.radios.get_mut(i)) {
+            Some(r) => r.device.transmit(&tx.signal, tx.frequency, &settings),
             None => Ok(()),
         };
+        if let Some(i) = radio {
+            // KAT's other radios hear it: their captures of it are marked (app/radios.rs).
+            self.note_transmission(i, tx.frequency, start);
+        }
         if self.pending_transmit_queue.is_empty() {
-            if let Some(prev) = self.pending_transmit_restore.take() {
-                self.radio_state = prev;
+            if let Some((i, prev)) = self.pending_transmit_restore.take() {
+                if let Some(r) = self.radios.get_mut(i) {
+                    r.state = prev;
+                }
             }
         }
         match result {
@@ -263,6 +292,26 @@ impl App {
         Ok(())
     }
 
+    /// Whether the TX power setting does anything: the radio that transmits is a HackRF (a
+    /// Flipper sends at its own power). Without radios it is kept for one plugged in later.
+    pub fn tx_power_applies(&self) -> bool {
+        match self.tx_radio() {
+            Some(i) => self.radios[i].kind() == RadioKind::HackRf,
+            None => self.radios.is_empty(),
+        }
+    }
+
+    /// "TX power: 47 dB + amp", and who it is for when the radio that transmits does not use it.
+    fn tx_power_text(&self) -> String {
+        let power = tx_power_label(self.tx_vga_gain, self.tx_amp);
+        match self.tx_radio() {
+            Some(i) if self.radios[i].kind() == RadioKind::Flipper => {
+                format!("TX power: {power} (a HackRF's: {} sends at its own power)", self.radios[i].name)
+            }
+            _ => format!("TX power: {power}"),
+        }
+    }
+
     /// Set the TX power used for every transmission (VGA 0–47 dB, RF amp on/off).
     pub(super) fn set_tx_power(&mut self, vga_gain: u32, amp: bool) {
         if vga_gain > TX_VGA_MAX {
@@ -271,15 +320,14 @@ impl App {
         }
         self.tx_vga_gain = vga_gain;
         self.tx_amp = amp;
-        self.status_message = Some(format!("TX power: {}", tx_power_label(vga_gain, amp)));
+        self.status_message = Some(self.tx_power_text());
     }
 
     /// `:txpower [<0-47>] [amp on|off]` (arguments after the command word). Without arguments it
     /// shows the current setting; `amp on|off` alone keeps the gain, a gain alone keeps the amp.
     pub(super) fn txpower_command(&mut self, args: &[&str]) {
         if args.is_empty() {
-            self.status_message =
-                Some(format!("TX power: {}", tx_power_label(self.tx_vga_gain, self.tx_amp)));
+            self.status_message = Some(self.tx_power_text());
             return;
         }
         match parse_txpower(args, self.tx_vga_gain, self.tx_amp) {
@@ -336,8 +384,10 @@ impl App {
         let done = self.input.tx_done;
         self.pending_transmit_queue.clear();
         // As run_one_pending_transmit does when the queue empties.
-        if let Some(prev) = self.pending_transmit_restore.take() {
-            self.radio_state = prev;
+        if let Some((i, prev)) = self.pending_transmit_restore.take() {
+            if let Some(r) = self.radios.get_mut(i) {
+                r.state = prev;
+            }
         }
         self.input.tx_done = 0;
         self.input.tx_summary = None;

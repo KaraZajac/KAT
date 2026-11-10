@@ -29,6 +29,7 @@ use crate::radio::dsp::IqFormat;
 use crate::radio::iq_file::IqFileSpec;
 use crate::radio::pipeline::RxPipeline;
 use crate::radio::LevelDuration;
+use crate::plural;
 
 /// Options for `--decode`.
 #[derive(Debug, Default, PartialEq)]
@@ -322,6 +323,13 @@ pub fn run(opts: &DecodeOptions) -> i32 {
     load_keystores();
     let mut reg = ProtocolRegistry::new();
     reg.set_auto_key_search(crate::storage::autobf_setting());
+    decode_paths(&mut reg, opts)
+}
+
+/// [`run`] after the user's configuration is read (the keystore, the `autobf` setting). The tests
+/// call this one: they share a process and with it the keystore, and the user's own keys in it
+/// change what the keystore-dependent tests decode.
+fn decode_paths(reg: &mut ProtocolRegistry, opts: &DecodeOptions) -> i32 {
     let mut failed = false;
     for root in &opts.paths {
         if !root.exists() {
@@ -336,7 +344,7 @@ pub fn run(opts: &DecodeOptions) -> i32 {
             failed = true;
         }
         for path in files {
-            let r = decode_file(&mut reg, &path, opts.freq, opts.rate, opts.verbose);
+            let r = decode_file(reg, &path, opts.freq, opts.rate, opts.verbose);
             failed |= r.is_err();
             for line in format_result(&r, &path, opts.all) {
                 println!("{line}");
@@ -346,7 +354,8 @@ pub fn run(opts: &DecodeOptions) -> i32 {
     i32::from(failed)
 }
 
-/// The embedded keys and the user's `keeloq_mfcodes_user`, before any decode.
+/// The embedded keys and the user's `keeloq_mfcodes_user`, before any decode. Never from a test
+/// (see [`decode_paths`]).
 fn load_keystores() {
     crate::protocols::keys::load_keystore_from_embedded();
     if let Some(msg) = crate::storage::resolve_config_dir().and_then(|d| crate::keystore::load_user_keystore(&d)) {
@@ -414,13 +423,13 @@ pub fn keeloq_bf(opts: &KeeloqBfOptions) -> i32 {
         return 1;
     };
     let group: Vec<bf::Frame> = frames.iter().filter(|(f, _)| f.serial() == serial).map(|(f, _)| *f).collect();
-    println!("Remote {serial:07X}: {} capture(s)", group.len());
+    println!("Remote {serial:07X}: {} capture{}", group.len(), plural(group.len()));
     for (f, from) in frames.iter().filter(|(f, _)| f.serial() == serial) {
         println!("  btn {:X} hop {:08X}  {from}", f.fix >> 28, f.hop);
     }
     let others = frames.len() - group.len();
     if others > 0 {
-        println!("  ({others} frame(s) of other remotes left out)");
+        println!("  ({others} frame{} of other remotes left out)", plural(others));
     }
     if let Err(e) = bf::check_input(&group, &opts.types) {
         eprintln!("Cannot search: {e}");
@@ -431,7 +440,7 @@ pub fn keeloq_bf(opts: &KeeloqBfOptions) -> i32 {
     let types = opts.types.clone();
     let job = std::thread::spawn(move || bf::search(&group, &types, &worker));
     let start = std::time::Instant::now();
-    eprintln!("Searching type(s) {:?} on {} threads…", opts.types, std::thread::available_parallelism().map_or(1, |n| n.get()));
+    eprintln!("Searching type{} {:?} on {} threads…", plural(opts.types.len()), opts.types, std::thread::available_parallelism().map_or(1, |n| n.get()));
     // The `\r` progress line only on a terminal: in a log file or a pipe it piles up as one
     // endless line.
     let progress = std::io::IsTerminal::is_terminal(&std::io::stderr());
@@ -576,7 +585,8 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("notes.fob"), "{}").unwrap();
         let opts = DecodeOptions { paths: vec![dir.clone()], ..Default::default() };
-        assert_eq!(run(&opts), 1);
+        // Not `run`: it loads the user's own keystore into the process the tests share.
+        assert_eq!(decode_paths(&mut ProtocolRegistry::new(), &opts), 1);
         assert!(nothing_to_decode(&dir).contains("nothing to decode") && nothing_to_decode(&dir).contains(":load"));
         let mut reg = ProtocolRegistry::new();
         assert_eq!(decode_file(&mut reg, &dir.join("notes.fob"), None, None, false).unwrap_err(), NO_FOB);

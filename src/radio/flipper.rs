@@ -22,7 +22,9 @@
 //!   modulations on every firmware (the region lock of stock firmware applies).
 //!
 //! One thread owns the port ([run_worker]); the controller's calls are requests to it, answered
-//! when done, so `start_receiving` and `transmit` return the Flipper's refusal as an error.
+//! when done, so `start_receiving` and `transmit` return the Flipper's refusal as an error. The
+//! port is opened on first use ([FlipperController::connect]), not when KAT starts: until then
+//! another program (qFlipper, a terminal) can have it, and KAT sends it nothing.
 
 use std::collections::VecDeque;
 use std::io::{Read, Write};
@@ -39,6 +41,7 @@ use crate::capture::{Capture, OnAir, RfModulation, StoredLevelDuration};
 use crate::protocols::{LocatedFrame, StreamLocator};
 
 use super::demodulator::LevelDuration;
+use super::devices::FoundRadio;
 use super::dsp::IqFormat;
 use super::hopper::HopPlan;
 use super::preset::{self, PresetDef, RfPreset, TxModulation};
@@ -64,41 +67,61 @@ const MAX_PREAMBLE_EXTENSION: usize = 4_000;
 
 // ---- the port ------------------------------------------------------------------------------------
 
-/// The Flipper's USB console: `configured` (config `flipper_port`), else the first serial port whose
-/// USB descriptor names a Flipper (manufacturer "Flipper Devices Inc.", product "Flipper <name>";
-/// its ST VCP id 0483:5740 where the system gives no names), else on Linux the
-/// `/dev/serial/by-id/usb-Flipper_Devices_Inc._*` link.
-pub fn find_port(configured: Option<&str>) -> Option<String> {
+/// Every Flipper's USB console, with its USB serial when the system gives it: `configured` (config
+/// `flipper_port`) alone when one is, else the serial ports whose USB descriptor names a Flipper
+/// (manufacturer "Flipper Devices Inc.", product "Flipper <name>"; its ST VCP id 0483:5740 where
+/// the system gives no names), else on Linux the `/dev/serial/by-id/usb-Flipper_Devices_Inc._*`
+/// links.
+pub fn find_ports(configured: Option<&str>) -> Vec<(String, Option<String>)> {
     if let Some(p) = configured.map(str::trim).filter(|p| !p.is_empty()) {
-        return Some(p.to_string());
+        return vec![(p.to_string(), None)];
     }
-    let mut found: Vec<String> = serialport::available_ports()
+    let mut found: Vec<(String, Option<String>)> = serialport::available_ports()
         .unwrap_or_default()
         .into_iter()
-        .filter(|p| match &p.port_type {
-            serialport::SerialPortType::UsbPort(u) => {
-                is_flipper(u.vid, u.pid, u.manufacturer.as_deref(), u.product.as_deref())
+        .filter_map(|p| match &p.port_type {
+            serialport::SerialPortType::UsbPort(u)
+                if is_flipper(u.vid, u.pid, u.manufacturer.as_deref(), u.product.as_deref()) =>
+            {
+                Some((p.port_name, u.serial_number.clone().filter(|s| !s.trim().is_empty())))
             }
-            _ => false,
+            _ => None,
         })
-        .map(|p| p.port_name)
         // macOS lists each port twice; the call-out device (cu.*) is the one to open.
-        .filter(|name| !name.starts_with("/dev/tty."))
+        .filter(|(name, _)| !name.starts_with("/dev/tty."))
         .collect();
     found.sort();
-    found.dedup();
+    found.dedup_by(|a, b| a.0 == b.0);
     #[cfg(target_os = "linux")]
     if found.is_empty() {
         if let Ok(dir) = std::fs::read_dir("/dev/serial/by-id") {
             found = dir
                 .flatten()
                 .filter(|e| e.file_name().to_string_lossy().starts_with("usb-Flipper_Devices_Inc."))
-                .map(|e| e.path().to_string_lossy().into_owned())
+                .map(|e| (e.path().to_string_lossy().into_owned(), None))
                 .collect();
             found.sort();
         }
     }
-    found.into_iter().next()
+    found
+}
+
+/// The Flipper Zeros on USB ([super::devices::discover]), not opened: KAT opens a Flipper's
+/// console when it first uses it ([FlipperController::connect]).
+pub fn find_devices(configured: Option<&str>) -> (Vec<FoundRadio>, Option<String>) {
+    // A configured port that is not there (on Windows a COM port is no file to look for).
+    #[cfg(unix)]
+    if let Some(p) = configured.map(str::trim).filter(|p| !p.is_empty() && !std::path::Path::new(p).exists()) {
+        return (Vec::new(), Some(format!("not found (flipper_port {p} does not exist)")));
+    }
+    let found: Vec<FoundRadio> =
+        find_ports(configured).into_iter().map(|(port, serial)| FoundRadio::flipper(port, serial)).collect();
+    if found.is_empty() {
+        (found, Some("not found".to_string()))
+    } else {
+        tracing::info!("Flipper(s) found: {}", found.iter().filter_map(|f| f.port.clone()).collect::<Vec<_>>().join(", "));
+        (found, None)
+    }
 }
 
 fn is_flipper(vid: u16, pid: u16, manufacturer: Option<&str>, product: Option<&str>) -> bool {
@@ -782,6 +805,14 @@ fn run_worker(mut console: Console, requests: Receiver<Request>, setup: WorkerSe
 
 /// A Flipper Zero on USB as KAT's radio (see the module docs).
 pub struct FlipperController {
+    /// The console's port; None: no Flipper found.
+    port: Option<String>,
+    /// What connecting needs: the app's events, the receive preset (config `flipper_preset`) and
+    /// whether unchecked PSA frames are reported (`autobf`).
+    events: Sender<RadioEvent>,
+    preset: Option<String>,
+    report_unchecked: bool,
+    /// To the thread that owns the open console; None until connected ([Self::connect]).
     requests: Option<Sender<Request>>,
     worker: Option<JoinHandle<()>>,
     receiving: Arc<AtomicBool>,
@@ -790,35 +821,70 @@ pub struct FlipperController {
 }
 
 impl FlipperController {
-    /// Find and open the Flipper's console (`port` when configured), check the receive `preset`
-    /// (config `flipper_preset`; doctor-firmware only) and start the thread that owns the port.
-    /// `report_unchecked`: `autobf` is on (see [StreamLocator::new]). Never fails: a Flipper that
-    /// cannot be used is [Self::is_available] false with [Self::open_error] saying why.
-    pub fn new(events: Sender<RadioEvent>, port: Option<&str>, preset: Option<&str>, report_unchecked: bool) -> Self {
-        let mut c = Self::unavailable(None);
-        let Some(path) = find_port(port) else {
-            c.open_error = Some("not found".to_string());
-            return c;
-        };
-        match Console::open(&path).and_then(|console| Self::start(console, events, preset, report_unchecked)) {
-            Ok(started) => {
-                tracing::info!("Flipper Zero console on {path}");
-                started
-            }
-            Err(e) => {
-                tracing::warn!("Flipper Zero on {path} not usable: {e:#}");
-                Self::unavailable(Some(format!("{e:#}")))
-            }
+    /// The Flipper on `port`, not connected yet: KAT opens its console when it first receives or
+    /// transmits with it ([Self::connect]), so a Flipper plugged in beside an SDR stays free for
+    /// qFlipper until it is used. `report_unchecked`: `autobf` is on (see [StreamLocator::new]).
+    pub fn on_port(events: Sender<RadioEvent>, port: String, preset: Option<&str>, report_unchecked: bool) -> Self {
+        Self {
+            port: Some(port),
+            events,
+            preset: preset.map(str::trim).filter(|p| !p.is_empty()).map(str::to_string),
+            report_unchecked,
+            requests: None,
+            worker: None,
+            receiving: Arc::new(AtomicBool::new(false)),
+            frequency: 433_920_000,
+            open_error: None,
         }
     }
 
-    fn unavailable(why: Option<String>) -> Self {
-        Self { requests: None, worker: None, receiving: Arc::new(AtomicBool::new(false)), frequency: 433_920_000, open_error: why }
+    /// Find the Flipper's console (`port` when configured) and connect to it at once. Never fails:
+    /// a Flipper that cannot be used is [Self::is_available] false with [Self::open_error] saying why.
+    #[cfg(all(test, unix))]
+    pub fn new(events: Sender<RadioEvent>, port: Option<&str>, preset: Option<&str>, report_unchecked: bool) -> Self {
+        let Some((path, _)) = find_ports(port).into_iter().next() else {
+            let mut c = Self::on_port(events, String::new(), preset, report_unchecked);
+            c.port = None;
+            c.open_error = Some("not found".to_string());
+            return c;
+        };
+        let mut c = Self::on_port(events, path, preset, report_unchecked);
+        let _ = c.connect();
+        c
     }
 
-    /// The controller on an open console session.
-    fn start(mut console: Console, events: Sender<RadioEvent>, preset: Option<&str>, report_unchecked: bool) -> Result<Self> {
-        let (preset, rf) = match preset.map(str::trim).filter(|p| !p.is_empty()) {
+    /// Open the console, check the receive preset (doctor-firmware only) and start the thread that
+    /// owns the port, unless that is done. Err: why the Flipper cannot be used (also kept as
+    /// [Self::open_error]); the next use tries again (qFlipper closed, the Flipper plugged back in).
+    pub fn connect(&mut self) -> Result<()> {
+        if self.requests.is_some() {
+            return Ok(());
+        }
+        let Some(path) = self.port.clone() else {
+            bail!("no Flipper Zero found");
+        };
+        let result = Console::open(&path).and_then(|console| self.run_on(console));
+        match &result {
+            Ok(()) => {
+                tracing::info!("Flipper Zero console on {path}");
+                self.open_error = None;
+            }
+            Err(e) => {
+                tracing::warn!("Flipper Zero on {path} not usable: {e:#}");
+                self.open_error = Some(format!("{e:#}"));
+            }
+        }
+        result
+    }
+
+    /// Whether KAT has the console open (from the first use until it quits).
+    pub fn is_connected(&self) -> bool {
+        self.requests.is_some()
+    }
+
+    /// Start the worker on an open console session.
+    fn run_on(&mut self, mut console: Console) -> Result<()> {
+        let (preset, rf) = match self.preset.as_deref() {
             None => (None, RfModulation::AM),
             Some(p) => {
                 if !console.rx_presets_supported()? {
@@ -827,13 +893,29 @@ impl FlipperController {
                 (Some(p.to_string()), preset_rf(p))
             }
         };
-        let receiving = Arc::new(AtomicBool::new(false));
         let (requests, inbox) = mpsc::channel();
-        let setup = WorkerSetup { preset, rf, report_unchecked, events, receiving: receiving.clone() };
+        let setup = WorkerSetup {
+            preset,
+            rf,
+            report_unchecked: self.report_unchecked,
+            events: self.events.clone(),
+            receiving: self.receiving.clone(),
+        };
         let worker = std::thread::Builder::new()
             .name("kat-flipper".to_string())
             .spawn(move || run_worker(console, inbox, setup))?;
-        Ok(Self { requests: Some(requests), worker: Some(worker), receiving, frequency: 433_920_000, open_error: None })
+        self.requests = Some(requests);
+        self.worker = Some(worker);
+        Ok(())
+    }
+
+    /// The controller on an open console session.
+    #[cfg(all(test, unix))]
+    fn start(console: Console, events: Sender<RadioEvent>, preset: Option<&str>, report_unchecked: bool) -> Result<Self> {
+        let mut c = Self::on_port(events, String::new(), preset, report_unchecked);
+        c.port = None;
+        c.run_on(console)?;
+        Ok(c)
     }
 
     /// One request to the worker, waiting up to `timeout` for its answer.
@@ -844,21 +926,25 @@ impl FlipperController {
         answer.recv_timeout(timeout).map_err(|_| anyhow!("the Flipper did not answer"))
     }
 
-    /// Why no Flipper could be used, in words (None when one is).
+    /// Why the Flipper could not be used, in words (None when it can, or was not tried yet).
     pub fn open_error(&self) -> Option<&str> {
         self.open_error.as_deref()
     }
 
+    /// Connected and usable.
+    #[cfg(all(test, unix))]
     pub fn is_available(&self) -> bool {
         self.requests.is_some()
     }
 
+    /// A Flipper transmits (connecting to it may still fail).
     pub fn supports_tx(&self) -> bool {
-        self.is_available()
+        self.port.is_some() || self.requests.is_some()
     }
 
     pub fn start_receiving(&mut self, frequency: u32) -> Result<()> {
         self.frequency = frequency;
+        self.connect()?;
         self.ask(|done| Request::Receive { frequency, done }, Duration::from_secs(10))?
     }
 
@@ -881,6 +967,7 @@ impl FlipperController {
     /// Transmit `signal` on the Flipper (see the module docs); its refusal as the error.
     pub fn transmit(&mut self, signal: &[LevelDuration], frequency: u32, settings: &TxSettings) -> Result<()> {
         let air_us = super::tx::check_tx_air_time(signal)?;
+        self.connect()?;
         let file = tx_sub_text(signal, frequency, settings.modulation);
         tracing::info!(
             "Transmitting {} level/duration pairs at {} Hz ({}) on the Flipper",
@@ -982,6 +1069,7 @@ mod tests {
     }
 
     /// `rx_raw`'s text for `pulses`: `+n`/`-n` words, a line break every 256 (as the firmware).
+    #[cfg(unix)]
     fn rx_raw_text(pulses: &[LevelDuration]) -> String {
         let mut t = String::new();
         for (i, p) in pulses.iter().enumerate() {
@@ -1465,6 +1553,34 @@ mod tests {
         let missing = FlipperController::new(tx, Some("/dev/kat-no-such-port"), None, true);
         assert!(!missing.is_available());
         assert!(missing.open_error().unwrap().contains("/dev/kat-no-such-port"), "{:?}", missing.open_error());
+    }
+
+    /// A Flipper found beside other radios is not opened until it is used: qFlipper can have it
+    /// until then. The first receive (or transmission) connects, and a failure says why and is
+    /// tried again on the next use.
+    #[cfg(unix)]
+    #[test]
+    fn connects_on_first_use() {
+        // The pair's own end stays open (unread), so the fake keeps running while the controller
+        // opens the terminal by its name, as it opens a Flipper's port.
+        let (_port, log, _fake) = fake::start(Vec::new(), false, false);
+        let path = _port.name().unwrap();
+        let (tx, _events) = mpsc::channel();
+        let mut flipper = FlipperController::on_port(tx.clone(), path, None, true);
+        assert!(!flipper.is_connected() && flipper.supports_tx() && flipper.open_error().is_none());
+        std::thread::sleep(Duration::from_millis(50));
+        assert!(log.lock().unwrap().commands.is_empty(), "nothing sent before it is used");
+        flipper.start_receiving(433_920_000).unwrap();
+        assert!(flipper.is_connected());
+        flipper.stop_receiving().unwrap();
+        assert!(log.lock().unwrap().commands.iter().any(|c| c == "subghz rx_raw 433920000"));
+        drop(flipper);
+
+        let mut gone = FlipperController::on_port(tx, "/dev/kat-no-such-port".to_string(), None, true);
+        let err = gone.start_receiving(433_920_000).unwrap_err().to_string();
+        assert!(err.contains("/dev/kat-no-such-port") && !gone.is_connected(), "{err}");
+        assert!(gone.open_error().is_some_and(|e| e.contains("/dev/kat-no-such-port")));
+        assert!(gone.start_receiving(433_920_000).is_err(), "tried again, still not there");
     }
 
     /// `flipper_preset` needs a firmware whose rx_raw takes one (doctor-firmware's); with one, rx_raw

@@ -1,6 +1,6 @@
 # KAT — Keyfob Analysis Toolkit
 
-KAT captures, decodes and retransmits car key fob and garage door, gate and barrier remote signals from a terminal. It works with a **HackRF One** (receive and transmit), an **RTL-SDR** dongle (receive only) or a **Flipper Zero** on USB (receive and transmit through its console), and decodes IQ recordings and Flipper Zero `.sub` files with no radio attached. It is written in Rust, with a [ratatui](https://ratatui.rs) interface.
+KAT captures, decodes and retransmits car key fob and garage door, gate and barrier remote signals from a terminal. It works with a **HackRF One** (receive and transmit), an **RTL-SDR** dongle (receive only) and a **Flipper Zero** on USB (receive and transmit through its console), several at once, each on its own frequency, and decodes IQ recordings and Flipper Zero `.sub` files with no radio attached. It is written in Rust, with a [ratatui](https://ratatui.rs) interface.
 
 Its 149 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate), [Flipper-ARF](https://github.com/D4C1-Labs/Flipper-ARF), [doctor-firmware](https://github.com/thedoctorz/doctor-firmware), [Momentum](https://github.com/Next-Flip/Momentum-Firmware), [RogueMaster](https://github.com/RogueMaster/flipperzero-firmware-wPlugins) and FoxFW, with receive-only decoders from [rtl_433](https://github.com/merbanan/rtl_433) for remotes no Flipper firmware reads, and each one is checked against the reference C code compiled on a PC.
 
@@ -24,6 +24,7 @@ Its 149 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPira
 
 - **HackRF, RTL-SDR or a recording** — one receive chain for all three, AM/OOK and FM/2-FSK. A wide-band detector finds fobs anywhere in the received band (at 2 MS/s from 1.15 MHz below to 0.65 MHz above the tuned frequency, two at once included), and each burst is filtered and sliced around its own carrier, so fobs decode up to ±325 kHz off frequency ([docs/radio.md](docs/radio.md)).
 - **A Flipper Zero as the radio** — plugged in over USB, with no app to install: KAT reads the pulses its receiver streams (`subghz rx_raw`), cuts each decoded frame out of the receiver's noise and lists it like an SDR's, and transmits its own encoders' output as a RAW `.sub` played with `subghz tx_from_file` (OOK or 2-FSK). FM reception needs doctor-firmware ([docs/flipper_radio.md](docs/flipper_radio.md)).
+- **Several radios at once** — every HackRF, RTL-SDR and Flipper Zero plugged in, each tuned on its own (frequency, gains, hopping, recording): listen on 315 and 433.92 MHz at once, or transmit with one radio while another listens and shows the transmission decodes. The header has a line per radio, each capture says which radio heard it, and `:radios` lists what is plugged in and what each can do ([docs/radio.md](docs/radio.md#several-radios)).
 - **Frequency hopping** — `:hop` cycles Flipper's hopper list (315.00, 390.00, 430.50, 433.92, 434.25, 434.42, 868.35 MHz) and stays on a frequency while a signal is on air, like ProtoPirate.
 - **IQ recordings** — decode `.cs8` (hackrf_transfer), `.cu8` (rtl_sdr / rtl_433) and `.cf32` recordings without a radio, and record the raw IQ while receiving (`:record`).
 
@@ -32,10 +33,10 @@ Its 149 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPira
 - **149 protocols** — 80 car key fob and alarm protocols and 69 garage door, gate, barrier, shutter, doorbell, sensor and key-finder remote protocols ([the full list](#supported-protocols)), and Flipper-ARF's MARELLI key files.
 - **KeeLoq keystore fallback** — a signal no protocol claims is tried as KeeLoq with every manufacturer key in the embedded keystore and in your own `keeloq_mfcodes_user` ([docs/keeloq.md](docs/keeloq.md)).
 - **Signal detail** — encoding, RF modulation, encryption, serial, button, counter, key data, CRC (OK or FAIL where the protocol has a check KAT verifies; "none" where it has not: the fixed-code gate remotes, Fiat V0/V2, Ford V2/V3, Mercedes V0, Mitsubishi V0, Subaru, a KeeLoq frame no key identifies, Faac SLH without its seed, Scher-Khan's non-PRO variants …), frequency and the raw level/duration pairs.
-- **Unknown signals** (listed by default) — unidentified signals are listed too, ready for timing analysis; `show_unknown_signals = false` lists only decoded ones.
+- **Unknown signals** (listed by default) — unidentified signals are listed too, ready to analyze (`a`); `show_unknown_signals = false` lists only decoded ones.
 - **Duplicates** — a decoded signal already in the list is not added again; with `ignore_duplicates = false` every press is listed, as a Flipper's receive history lists it ([Configuration](#configuration)).
 
-**Transmit** (HackRF)
+**Transmit** (HackRF or Flipper Zero)
 
 - **Lock, Unlock, Trunk and Panic** from a decoded capture. Rolling-code protocols re-encode the next code with the requested button wherever the references do (e.g. VAG, Subaru, Chrysler V0, Kia, Ford, Mazda, Renault V0, Sheriff CFM); protocols without an available key re-send the captured frame, as the references do.
 - **Gate and garage remotes** — **Send next code**, and **Send button…** with any of the remote's native buttons.
@@ -57,7 +58,7 @@ Its 149 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPira
 
 **Analyse**
 
-- **Timing analysis** — ProtoPirate's Timing Tuner for any capture; for unknown signals, pulse clusters, a base-TE estimate and a line-coding guess ([docs/timing_analysis.md](docs/timing_analysis.md)).
+- **Analyze** — `a` on any capture, decoded or not, works out what the signal is: OOK or FSK (measured on a HackRF or RTL-SDR: the two tones, the carrier's offset, the level), the pulse widths of each level, the base TE, the line coding (PWM, PPM, Manchester, NRZ), the frames and how they repeat, a trial decode of the bits, a drawn waveform and the raw durations ([docs/analyze.md](docs/analyze.md)). A decoded capture is also compared with its protocol's timing, as ProtoPirate's Timing Tuner does ([docs/timing_analysis.md](docs/timing_analysis.md)); an unknown one gets KAT's protocols with similar widths.
 - **Saved-fob matching** — a capture that matches one of your `.fob` files (ProtoPirate's rules: protocol, serial or key, counter within ±50) gets a ★ and shows the saved vehicle.
 - **Vulnerability database** — capture metadata (year, make, model, region) is matched against a built-in CVE list ([below](#vulnerability-database)).
 - **Session autosave** — captures are saved as they arrive and offered for restore at the next start ([docs/session.md](docs/session.md)).
@@ -89,18 +90,18 @@ On Windows there is nothing to install here: the `.zip` carries the HackRF libra
 Then check, unpack and run (with your version and platform):
 
 ```bash
-sha256sum -c kat-v1.10.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
-tar xzf kat-v1.10.0-x86_64-linux.tar.gz
-./kat-v1.10.0-x86_64-linux/kat
+sha256sum -c kat-v1.11.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.11.0-x86_64-linux.tar.gz
+./kat-v1.11.0-x86_64-linux/kat
 ```
 
 On Windows, in PowerShell (Windows Terminal):
 
 ```powershell
-$want = (Get-Content kat-v1.10.0-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.10.0-x86_64-windows.zip).Hash -eq $want    # True
-Expand-Archive kat-v1.10.0-x86_64-windows.zip .
-.\kat-v1.10.0-x86_64-windows\kat.exe
+$want = (Get-Content kat-v1.11.0-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.11.0-x86_64-windows.zip).Hash -eq $want    # True
+Expand-Archive kat-v1.11.0-x86_64-windows.zip .
+.\kat-v1.11.0-x86_64-windows\kat.exe
 ```
 
 The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. The Windows build isn't signed, so SmartScreen may stop its first start ("More info", then "Run anyway"). Intel Macs and other platforms build from source.
@@ -132,9 +133,11 @@ The binary is `target/release/kat`. Use a release build for live receive and IQ 
 - **RTL-SDR** dongle — receive only.
 - **Flipper Zero** on USB — receive and transmit through its console; decoded signals only (no signal meter, `:record` or hopping), FM reception with doctor-firmware ([docs/flipper_radio.md](docs/flipper_radio.md)). Close qFlipper first; on Linux, join the `dialout` group.
 
-KAT uses a HackRF if one is connected, otherwise the first RTL-SDR, otherwise a Flipper Zero; `device` in `config.ini` picks one. With none, it warns at startup and then runs without a radio: you can still open, decode, analyse and export captures. The warning names the reason for each device — not found, no USB permission (install the udev rules your HackRF or rtl-sdr package provides), or in use by another program — and `~/.config/KAT/kat.log` has the details. The header shows the radio in use: **HackRF**, **RTL-SDR (RX only)** or **No device** (status DISCONNECTED, in red).
+KAT uses every radio it finds; `device` in `config.ini` limits it to some kinds. Starting KAT opens none of them: an SDR is opened for each receive run and each transmission, a Flipper's console the first time you receive or transmit with it (so qFlipper or another program can keep using a Flipper you do not use in KAT). With no radio, it warns at startup and then runs without one: you can still open, decode, analyse and export captures. The warning names the reason for each kind — not found, no USB permission (install the udev rules your HackRF or rtl-sdr package provides), or in use by another program — and `~/.config/KAT/kat.log` has the details. The header shows the radio in use: **HackRF**, **RTL-SDR (RX only)**, **Flipper Zero** or **No device** (status DISCONNECTED, in red).
 
-If the receiver stops by itself (the device is busy, refuses a setting or is unplugged), the status line says "Receiver stopped: … (r restarts)" and `r` starts it again.
+**Several radios.** With more than one radio the header has a line for each, the RX meter a column for each, and the captures list a Radio column. The keys and commands that tune a radio (`r`, `:freq`, `:lna`, `:vga`, `:amp`, `:hop`, `:record`, the `Tab` settings) act on the selected one, marked ▸: pick it with `1`–`9`, `:radio <n>` or the settings' Radio tab. Each radio has the settings of its kind: a HackRF its LNA, VGA and amplifier, an RTL-SDR one gain, a Flipper Zero the frequency alone. `R` starts or stops them all. One radio transmits, marked TX: the first HackRF, else a Flipper; `:txradio <n>` or `tx_radio` in `config.ini` chooses another. It alone pauses receiving to transmit, and a capture another radio hears while it transmits nearby is KAT's own transmission, marked "Own TX". `:radios` lists every radio with its serial number or port and looks for ones plugged in since. Each radio starts on `default_frequency` with the default gains unless a `[radio.<kind>]` or `[radio.<kind>.<serial>]` section says otherwise ([Configuration](#configuration), [docs/radio.md](docs/radio.md#several-radios)).
+
+If a receiver stops by itself (the device is busy, refuses a setting or is unplugged), the status line says "Receiver stopped: … (r restarts)" and `r` starts it again; with several radios it names the radio.
 
 On Linux, the kernel's DVB-T driver can claim an RTL-SDR before KAT does; unload it with `sudo rmmod dvb_usb_rtl28xxu` or blacklist it (see [rtl-sdr-rs](https://crates.io/crates/rtl-sdr-rs)).
 
@@ -146,7 +149,7 @@ On Windows, libusb only opens a radio that has the WinUSB driver. Install it onc
 2. Press `r` to start receiving. KAT listens on 433.92 MHz by default; `:freq 315` changes the frequency and `:hop on` hops over the common key fob frequencies.
 3. Press a button on the fob. Each frame it sends appears in the captures list (a press that repeats one frame is one capture), decoded when KAT knows the protocol.
 4. Move through the list with `j` / `k` or the arrow keys; the detail panel shows the selected capture.
-5. Press `Enter` for the capture's actions: transmit, export, timing analysis, key recovery.
+5. Press `Enter` for the capture's actions: transmit, export, analyze, key recovery. `a` analyzes it straight away, also a signal no decoder knows.
 6. Press `Tab` for the radio settings, `:` for commands (`:load` opens files and recordings), and `q` to quit.
 
 ## Command line
@@ -175,10 +178,13 @@ Exit status: `0` on success; `1` when `--decode` could not read a file or found 
 | `PgUp` / `PgDn`, `Home` / `End` (or `g` / `G`) | Move a page, or to the first / last capture |
 | `Enter` | Open the selected capture's action menu (it stays on that capture while new ones arrive) |
 | `i` | Edit the capture's metadata: year, make, model, region and command (used by the CVE match and `.fob` export). `Tab` / `↓` and `Shift-Tab` / `↑` move between the fields, `Enter` goes to the next one and saves on the last (the export form works the same) |
+| `a` | Analyze the selected capture: keying, pulse widths, TE, line coding, frames and bits ([docs/analyze.md](docs/analyze.md)) |
 | `d` | Delete the selected capture |
 | `u` | Undo the last delete (`d`, `:delete`, `:delete all`) |
-| `r` | Start or stop receiving |
-| `Tab` | Radio settings: choose a setting with `←` / `→` (or `Tab`), `Enter` to change it, `↑` / `↓` to pick a value, `Enter` to apply. A value set by command that is not in the list (`:freq 433.42`) shows as the first row, "(current)" |
+| `r` | Start or stop receiving (with several radios, on the selected one) |
+| `R` | Start or stop every radio |
+| `1`–`9` | Select a radio (several radios): the one `r`, `Tab` and the radio commands tune |
+| `Tab` | Radio settings: choose a setting with `←` / `→` (or `Tab` / `Shift-Tab`), `Enter` to change it, `↑` / `↓` to pick a value, `Enter` to apply. The bar has the settings the selected radio has: LNA, VGA and AMP for a HackRF, one Gain for an RTL-SDR, the frequency alone for a Flipper Zero, and TX power when a HackRF transmits. A value set by command that is not in the list (`:freq 433.42`) shows as the first row, "(current)" |
 | `:` | Command line |
 | `?` or `F1` | Help (also `:help`) |
 | `Esc` | Close a menu, form or overlay; in the list, clear the message and cancel the transmissions still queued |
@@ -186,9 +192,11 @@ Exit status: `0` on success; `1` when `--decode` could not read a file or found 
 
 A new capture is selected only when the selection is on the last row (or nothing is selected) and no menu or form is open, so it never moves the selection you are working with.
 
+Where you type (the command line, the forms, the filter of `:new`), `Ctrl-U` clears the text and `Ctrl-W` or `Alt-Backspace` deletes its last word. The status bar shows the last message, errors in red; one too long for its line wraps, and the bar grows to three lines for it when the terminal has the rows.
+
 ### Signal actions
 
-`Enter` on a capture opens its actions. With an RTL-SDR or no radio, the transmit actions are not offered; while `:record` runs, transmitting is refused (it would stop the receiver and end the recording).
+`Enter` on a capture opens its actions. With only RTL-SDRs or no radio, the transmit actions are not offered (the menu's border says "TX: needs a HackRF or a Flipper"); while the transmitting radio records (`:record`), transmitting is refused (it would stop that receiver and end the recording).
 
 After an encoder transmission (Send next code, Send button…, TX Lock … Panic) a rolling code's capture keeps the code it sent — counter, frame and button — so the next press sends the one after and the session autosave remembers it, as Flipper-ARF, doctor-firmware and ProtoPirate keep the last code they sent ([docs/transmit.md](docs/transmit.md#after-a-transmission)). Exports never replace a file (a name in use gets `_2`, `_3`, …), end with "Exported to <full path>", and a failed one is reported in the status line.
 
@@ -205,20 +213,23 @@ After an encoder transmission (Send next code, Send button…, TX Lock … Panic
 | Export .fob | Save the capture with vehicle metadata ([below](#capture-metadata-and-fob-export)) |
 | Export .sub (Flipper) | Save the raw capture as a Flipper Zero RAW `.sub`, with the capture's preset |
 | Export Flipper key (.sub) | Save the decode as a Flipper key file (`<name>_key.sub`), as ProtoPirate and Flipper-ARF save it |
-| Timing analysis | Compare the capture's pulse timing with its protocol's definition (ProtoPirate's Timing Tuner); for unknown signals: pulse clusters, a TE estimate and a line-coding guess |
+| Analyze | What the signal is: OOK or FSK, pulse widths, TE, line coding, frames, a trial decode of the bits, the waveform; for a decoded capture also its timing against the protocol's definition (ProtoPirate's Timing Tuner). Offered for unknown captures too. In the report `←` / `→` show the captures next to this one |
 | Delete Signal | Remove the capture from the list |
 
 ### Commands
 
-Press `:` and type a command (`:help` lists them). `<ID>` is one or more capture IDs or ranges, separated by commas or spaces: `1`, `#4`, `1,3,5`, `1 3 5`, `1-5`, `5-1` (backwards). A command given several ends with a summary such as `Replayed 3 of 5 (#04, #05 not found)`. Transmit commands need a HackRF; while several transmissions run, the status bar counts them and `Esc` cancels the rest.
+Press `:` and type a command (`:help` lists them); the command word works in any case. `↑` / `↓` bring back the commands run before in this run of KAT; `Esc`, or `Backspace` on the empty line, closes the line. `<ID>` is one or more capture IDs or ranges, separated by commas or spaces: `1`, `#4`, `1,3,5`, `1 3 5`, `1-5`, `5-1` (backwards). A command given several ends with a summary such as `Replayed 3 of 5 (#04, #05 not found)`. Transmit commands need a HackRF or a Flipper Zero; while several transmissions run, the status bar counts them and `Esc` cancels the rest. With several radios, the receive commands (`:freq`, `:hop`, `:lna`, `:vga`, `:amp`, `:record`) set the selected one.
 
 | Command | Description |
 |---|---|
+| `:radios` | List the radios: what each does now, its serial number or port and settings, the frequencies each kind tunes, and why a kind is not in use; radios plugged in since KAT started are added |
+| `:radio <n\|name>` | Select a radio by its number or name (`:radio 2`, `:radio rtl-sdr`); no argument says which one is selected |
+| `:txradio <n\|name>` | Choose the radio that transmits; no argument says which one does |
 | `:freq <MHz>` | Set the receive frequency (e.g. `:freq 433.92`; `433.92M`, `433.92 MHz`, `433920000` and `433920000Hz` work too, as in `:hop` and `:iq`) |
 | `:hop on` / `:hop off` | Frequency hopping over the hop list; KAT stays on a frequency while a signal is on air |
 | `:hop <MHz> <MHz> …` | Set the hop list (`:hop default` restores Flipper's list; `:hop dwell <ms>` sets the time per quiet frequency) |
-| `:lna <0-40>` / `:vga <0-62>` / `:amp [on\|off]` | Receive gains and the RF amplifier (`:amp` alone toggles it) |
-| `:txpower <0-47> [amp on/off]` | TX VGA gain and RF amp for every transmission; no argument shows the setting |
+| `:lna <0-40>` / `:vga <0-62>` / `:amp [on\|off]` | A HackRF's receive gains and RF amplifier (`:amp` alone toggles it): LNA in 8 dB steps, VGA in 2 dB steps; a value in between goes to the step below, and the message says so. An RTL-SDR has one gain, which `:vga` sets; a Flipper Zero has none (its receive preset sets them), and the commands a radio has no use for say so |
+| `:txpower <0-47> [amp on/off]` | TX VGA gain and RF amp for every transmission of a HackRF (a Flipper Zero sends at its own power); no argument shows the setting |
 | `:iq <file> [MHz] [rate]` | Decode a `.cs8` / `.cu8` / `.cf32` IQ recording in the background (no radio needed); `:iq stop` cancels |
 | `:record [file]` / `:record stop` | Record the raw IQ as received to the export folder (`.cs8` for HackRF, `.cu8` for RTL-SDR) |
 | `:load [file\|dir]` | Import a `.fob` or `.sub` file, or decode an IQ recording; a directory, or no argument, opens the file browser there. A path is looked up as given, then in the import and export folders; quotes and `~` work (`:load "My Fob.sub"`). In the browser `←` / `Backspace` go to the parent folder and `→` opens a folder |
@@ -226,23 +237,23 @@ Press `:` and type a command (`:help` lists them). `<ID>` is one or more capture
 | `:replay <ID>` | Replay the raw capture(s) in order |
 | `:new [type…]` | Create a new gate/garage remote ("Add Manually"): opens the type picker, or creates the one type the words name (e.g. `:new princeton 433`) |
 | `:klbf [ID] [auto\|6\|7\|8]` | Recover the magic-serial KeeLoq key of a remote (default: the selected capture, Auto = types 6 and 7); `:klbf stop` cancels |
-| `:timing [ID]` | Timing analysis of a capture (default: the selected one) |
-| `:delete <ID>` / `:delete all` | Delete captures (`:delete all` asks first); `u` in the list brings back the last deleted |
+| `:analyze [ID]` | Analyze a capture (default: the selected one); `:timing` is the older name and still works |
+| `:delete <ID>` / `:delete all` | Delete captures (`:delete all` asks first); `u` in the list brings back the last deleted. `:del` is short for it |
 | `:clear` | Clear all captures and delete the saved session and its backup (`session.json`, `session.json.bak`); asks first, cannot be undone |
-| `:help` | Keys and commands (also `?` or `F1`) |
+| `:help` or `:?` | Keys and commands (also `?` or `F1`) |
 | `:license` / `:credits` | Show the license or the credits |
-| `:q` or `:quit` | Quit (asks first while work is running) |
+| `:q` or `:quit` | Quit (asks first while work is running); `:x`, `:exit` and `:wq` do the same, `:q!` quits without asking |
 
 ### Capture metadata and .fob export
 
 When exporting to `.fob`, a metadata form collects filename and optional vehicle info:
 
-- **File** — output filename (extension added by format). For unknown protocol, a unique 8-character hex suffix (e.g. `A1B2C3D4`) is shown in the field and appended to the filename so each export has a distinct file.
+- **File** — output filename (extension added by format). It starts as `Year_Make_Model_Region_Command_8HEX`: a detail that is not set reads `Unknown`, and the 8 hex digits (e.g. `A1B2C3D4`) give each export a file of its own. The name follows the vehicle details as you fill them in, until you edit the name itself.
 - **Year** — vehicle model year
 - **Make** — manufacturer (auto-suggested from protocol)
 - **Model** — vehicle model
 - **Region** — region/market
-- **Command** — button/command label (e.g. Unlock, Lock, Trunk, Panic); used in the default filename for unknown protocol and stored in the .fob vehicle section.
+- **Command** — button/command label (e.g. Unlock, Lock, Trunk, Panic); used in the default filename and stored in the .fob vehicle section.
 - **Notes** — free-form notes
 
 The exported `.fob` file is a versioned JSON document (v2.0, format `kat-fob`) containing:
@@ -285,7 +296,7 @@ The exported `.fob` file is a versioned JSON document (v2.0, format `kat-fob`) c
 }
 ```
 
-- **vehicle.command** — optional; user-editable command label (e.g. Unlock, Lock). Set in the export form or via **i** (capture metadata). Used for unknown-protocol export filenames (`Year_Make_Model_Region_Command_8HEX.fob`).
+- **vehicle.command** — optional; user-editable command label (e.g. Unlock, Lock). Set in the export form or via **i** (capture metadata). Used in the export's default filename (`Year_Make_Model_Region_Command_8HEX.fob`).
 - **rf_modulation** — AM, FM, or AM/FM per protocol (from ProtoPirate). Omitted when unknown.
 - **Optional signal fields (1.5)** — `data_extra` (encoder state for frames over 64 bits), `received_rf` (the path KAT received it on: AM or FM), `preset` with `custom_preset_module` / `custom_preset_data` (the Flipper preset the signal was recorded or will be sent with) and `tx_modulation` (informational, e.g. `2-FSK ±47.61 kHz`). Files without them still load.
 - **capture** — `raw_data_hex`, `raw_pair_count`, and optionally `raw_pairs` when config `include_raw_pairs` is true.
@@ -327,8 +338,17 @@ hop_dwell_ms = 100
 tx_vga_gain = 47
 tx_amp = true
 device = auto
+tx_radio = auto
 ; flipper_port = /dev/ttyACM0
 ; flipper_preset = FM476
+
+; Optional: how single radios, or every radio of a kind, start
+[radio.rtlsdr]
+frequency = 315
+vga_gain = 32
+
+[radio.hackrf.2e5a1f3d]
+frequency = 868.35
 
 [export]
 default_format = fob
@@ -342,14 +362,16 @@ Switches take `true`/`false`, `yes`/`no`, `on`/`off` or `1`/`0`. A value KAT can
 
 - **import_directory** — directory scanned at startup for .fob and .sub files to import (default `~/.config/KAT/import`). Exports are still saved to **export_directory**.
 - **default_frequency** — MHz (`433.92`) or Hz (`433920000`), 300–928 MHz.
-- **default_lna_gain / default_vga_gain** — fitted to what the radio takes: LNA 0–40 dB in 8 dB steps, VGA 0–62 dB in 2 dB steps (rounded down).
+- **default_lna_gain / default_vga_gain** — fitted to what the radio takes: LNA 0–40 dB in 8 dB steps, VGA 0–62 dB in 2 dB steps (rounded down). An RTL-SDR has one tuner gain and takes the VGA value for it; a Flipper Zero's gain is its receive preset's.
 - **show_unknown_signals** — when `true` (default), unknown (unidentified) signals are listed with the decoded ones; when `false`, only signals a protocol decodes appear, live, from IQ files and from imports. Older versions called it `research_mode`, which is still read when `show_unknown_signals` is absent.
 - **autobf** — when `true` (default), KAT recovers the key of every capture a brute force can crack without being asked: each undecrypted PSA (TEA) frame gets ProtoPirate's BF1/BF2 search in the background, and the frames of PSA's adaptive AM path that only the search can confirm are listed once their key is found. `false`: only the **Recover key** action runs it.
 - **ignore_duplicates** — when `true` (default), a decoded signal already in the list (same protocol, data, serial and button) is not added again. When `false`, every press is listed, as a Flipper's receive history does: a signal is only merged with the same one on the air less than 500 ms before it (one press still going, the AM and FM paths both reporting it, or both sides of a long transmission's cut). Importing a file again then adds its captures again.
 - **include_raw_pairs** — when `true`, .fob exports include raw level/duration pairs for replay.
 - **hop_frequencies / hop_dwell_ms** — the `:hop` list (MHz) and the time spent on a quiet frequency.
 - **tx_vga_gain / tx_amp** — transmit power (0–47 dB TX VGA, RF amp); the defaults are the HackRF's maximum, as in KAT ≤ 1.4.
-- **device** — which radio to open: `auto` (a HackRF, else an RTL-SDR, else a Flipper Zero), `hackrf`, `rtlsdr` or `flipper`.
+- **device** — the radios KAT uses: `auto` (every HackRF, RTL-SDR and Flipper Zero it finds), or the kinds to use, such as `hackrf, rtlsdr`.
+- **tx_radio** — the radio that transmits: `auto` (the first HackRF, else a Flipper), `hackrf` or `flipper`, followed by a serial number (or its last digits, as `:radios` shows them) when there are two of a kind: `tx_radio = hackrf 2e5a1f3d`. Also `:txradio` while KAT runs.
+- **[radio.&lt;kind&gt;] / [radio.&lt;kind&gt;.&lt;serial&gt;]** — how radios start: `frequency`, `lna_gain`, `vga_gain` and `amp` (a HackRF has them all; an RTL-SDR the frequency and `vga_gain`, its one gain; a Flipper Zero the frequency) for every radio of a kind (`hackrf`, `rtlsdr`, `flipper`), or for one radio by its serial number or the serial's last digits (a Flipper also by its port). A radio's own section wins over its kind's, and both over the general defaults. Cheap RTL-SDRs often share the serial `00000001`; give each its own with `rtl_eeprom -s` to tell them apart.
 - **flipper_port / flipper_preset** — a Flipper Zero's console port when KAT does not find it by its USB name, and the receive preset of doctor-firmware's `rx_raw` (`FM476`, `FM238`, `AM650`, …; other firmwares receive with their own AM preset only). See [docs/flipper_radio.md](docs/flipper_radio.md).
 - **session_autosave** — autosave captures to `session.json` (default on); **max_captures** also caps the saved session.
 
@@ -549,7 +571,7 @@ One receive pipeline serves the HackRF, the RTL-SDR and IQ recordings ([docs/rad
 
 ## Documentation
 
-Each protocol has its own page in [docs/](docs/README.md): how it works, the frame layout and what KAT does with it. Feature pages: [receive](docs/radio.md), [transmit](docs/transmit.md), [session autosave and saved-fob matching](docs/session.md), [timing analysis](docs/timing_analysis.md), [Add Manually](docs/add_manually.md), [Flipper key files](docs/flipper_key_files.md), [KeeLoq and key recovery](docs/keeloq.md), [HiTag2 key recovery](docs/hitag2_hell.md) and [unidentified captures](docs/unidentified_captures.md).
+Each protocol has its own page in [docs/](docs/README.md): how it works, the frame layout and what KAT does with it. Feature pages: [receive](docs/radio.md), [transmit](docs/transmit.md), [session autosave and saved-fob matching](docs/session.md), [Analyze](docs/analyze.md) and its [timing comparison](docs/timing_analysis.md), [Add Manually](docs/add_manually.md), [Flipper key files](docs/flipper_key_files.md), [KeeLoq and key recovery](docs/keeloq.md), [HiTag2 key recovery](docs/hitag2_hell.md) and [unidentified captures](docs/unidentified_captures.md).
 
 The `IMPORTS/` directory holds sample `.sub` captures by manufacturer; the test suite decodes all of them. If you see `desktop.ini` files in its subfolders (from Windows), you can delete them; git ignores them.
 
@@ -559,14 +581,16 @@ The `IMPORTS/` directory holds sample `.sub` captures by manufacturer; the test 
 src/
 ├── main.rs              # Entry point, event loop, key handling
 ├── app.rs               # Application state, radio events, signal actions
-├── app/                 # rx.rs (:iq, :record, :hop), tx.rs (transmit queue, :txpower), persistence.rs (session),
-│                        # fob_matching.rs (saved-fob ★), timing_view.rs (timing overlay), key_files.rs (Flipper key
+├── app/                 # radios.rs (the radios, selection, :radios, :txradio, own transmissions),
+│                        # rx.rs (:iq, :record, :hop), tx.rs (transmit queue, :txpower), persistence.rs (session),
+│                        # fob_matching.rs (saved-fob ★), analyze_view.rs (Analyze overlay), key_files.rs (Flipper key
 │                        # files), add_manually.rs (:new, Send button…), keeloq_bf.rs (KeeLoq key recovery),
 │                        # hitag2_bf.rs (HiTag2 key recovery), auto_bf.rs (autobf PSA searches),
 │                        # input.rs (keys, ID lists, delete/undo, quit prompt, menus), files.rs (export names,
-│                        # import results)
+│                        # import results), command_history.rs (the command line's ↑ / ↓)
 ├── headless.rs          # kat --decode / --keeloq-bf: decode files, recover KeeLoq keys without the TUI
-├── analysis/timing.rs   # Timing analysis (ProtoPirate Timing Tuner, pulse clusters, line-coding guess)
+├── analysis/timing.rs   # Pulse clusters, TE, line-coding guess; ProtoPirate's Timing Tuner comparison
+├── analysis/signal.rs   # The Analyze report (signal/: rows, trial decode of the bits, tables, layout)
 ├── session.rs           # session.json format and atomic writer
 ├── saved_fobs.rs        # Index of saved .fob files for matching
 ├── capture.rs           # Capture data (data_extra for protocol encode state), encoding/RF modulation
@@ -608,6 +632,7 @@ src/
 │   ├── gate_buttons.rs  # Native button lists for "Send button…"
 │   └── ...
 ├── radio/
+│   ├── devices.rs       # The radios plugged in, and what tells two of a kind apart (serial, port)
 │   ├── hackrf.rs        # HackRF device control (RX/TX)
 │   ├── rtlsdr.rs        # RTL-SDR device control (RX only)
 │   ├── flipper.rs       # Flipper Zero over its USB console (rx_raw stream, tx_from_file)
@@ -624,10 +649,11 @@ src/
     ├── layout.rs        # TUI layout, fob metadata form
     ├── captures_list.rs # Captures table + detail (protocol, mod, RF, enc)
     ├── signal_menu.rs   # Signal action menu
-    ├── settings_menu.rs # Radio settings (Freq, Hop, LNA, VGA, AMP, TX)
+    ├── settings_menu.rs # Radio settings (Radio, Freq, Hop, LNA, VGA or Gain, AMP, TX)
     ├── app_prompts.rs   # Session restore, clear, delete-all and quit prompts
     ├── command.rs       # VIM-style command line
-    ├── text_overlay.rs  # License, credits, help and timing-analysis overlays
+    ├── text_overlay.rs  # License, credits and help overlays
+    ├── analyze_overlay.rs # The Analyze report overlay
     ├── text.rs          # Display-width text helpers: wrapping, cutting with …
     ├── theme.rs         # Shared styles (selection highlight, dim text)
     ├── add_manually.rs  # :new type picker and field editor, Send button… list

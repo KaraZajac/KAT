@@ -12,19 +12,25 @@ is no Flipper app to install.
 
 ## Setting it up
 
-- Plug the Flipper in with a data cable, and close qFlipper and any terminal open on its console:
-  only one program at a time can use it.
+- Plug the Flipper in with a data cable. Only one program at a time can use its console: close
+  qFlipper and any terminal open on it before you receive or transmit with it in KAT. Starting KAT
+  does not open it; KAT connects the first time you press `r` (or `R`) or transmit with the
+  Flipper, and keeps the console until it quits.
 - On Linux, your user needs access to the serial port: `sudo usermod -aG dialout $USER`, then log
   in again.
 - The Flipper needs an SD card: KAT writes each transmission to it before playing it.
-- KAT picks its radio at startup (`[radio] device` in `config.ini`). With `auto` (the default) it
-  uses a HackRF if one is connected, else an RTL-SDR, else a Flipper. Set `device = flipper` to
-  use the Flipper when an SDR is plugged in too.
+- KAT uses every radio it finds (`[radio] device` in `config.ini`; `auto`, the default, takes all
+  of them), so a Flipper works beside a HackRF or an RTL-SDR, each on its own frequency: select it
+  with its number key (`1`–`9`) or `:radio flipper`, and make it the transmitter with
+  `:txradio flipper` or `tx_radio = flipper` ([several radios](radio.md#several-radios)). Without a
+  HackRF, a Flipper is the transmitter. `device = flipper` uses only Flippers.
 - KAT finds the Flipper by its USB name ("Flipper Devices Inc."; on Linux
   `/dev/serial/by-id/usb-Flipper_Devices_Inc._*`). If it does not, give the port:
   `flipper_port = /dev/ttyACM0` (macOS `/dev/cu.usbmodemflip_<name>1`, Windows `COM5`).
 
 The header shows "Flipper Zero" as the device and the receive preset in place of the SDR gains.
+The `Tab` settings have its frequency only, and `:lna`, `:vga` and `:amp` answer "Flipper has no
+gain settings (its receive preset sets them)".
 
 ## What works on which firmware
 
@@ -43,7 +49,8 @@ firmware with a region lock refuses to transmit outside its bands, and KAT shows
 `rx_raw` receives with the firmware's own AM preset. Only doctor-firmware's takes a preset
 (`subghz rx_raw <Hz> <device> <preset>`), so FM (2-FSK) remotes can only be received there:
 set `flipper_preset = FM476` (or `FM238`, `AM270`, `AM650`, …, as doctor-firmware names them).
-KAT checks the firmware's usage text at startup and refuses a preset the firmware would ignore.
+KAT checks the firmware's usage text when it connects and refuses a preset the firmware would
+ignore.
 
 ## Receiving
 
@@ -107,13 +114,14 @@ words.
 | `flipper_preset = …: this firmware's rx_raw takes no preset` | Remove the key, or use doctor-firmware. |
 | `the Flipper did not transmit: …` | The Flipper's own reason (region, frequency, SD card). |
 | `Receiver stopped: Flipper: … (r restarts)` | The console closed (unplugged); `r` tries again. |
+| `could not connect: …` in `:radios` | The last try to open the console failed (the reason follows); the next `r` or transmission tries again. |
 
 ## How it is tested
 
 - A simulated Flipper on a pseudo-terminal pair answers KAT's commands as the firmwares do: a
   Princeton press in noise reaches the app, a transmission is written and played and receiving
-  resumes, a region refusal comes back as the error, and a receive preset goes to doctor-firmware
-  only.
+  resumes, a region refusal comes back as the error, a receive preset goes to doctor-firmware
+  only, and nothing is sent to the console before the Flipper is first used.
 - The 127 AM Flipper recordings in `IMPORTS`, streamed pulse by pulse through the receive path,
   give exactly the 329 distinct frames KAT decodes from the files themselves: none missing, none
   extra (`cargo test --release imports_through_the_stream -- --ignored --nocapture`).

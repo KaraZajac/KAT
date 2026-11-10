@@ -168,7 +168,6 @@ impl App {
                 );
                 self.captures.push(capture);
                 self.selected_capture = Some(self.captures.len() - 1);
-                self.ensure_selection_visible();
                 self.status_message = Some(summary);
                 true
             }
@@ -187,6 +186,33 @@ impl App {
             InputMode::SendButton => self.send_button_key(code),
             _ => {}
         }
+    }
+
+    /// Ctrl-U / Ctrl-W ([App::line_edit_key]) in the picker's filter, the form's focused field or
+    /// the "Send button…" code.
+    pub(super) fn add_manually_kill(&mut self, what: super::input::Kill) -> bool {
+        match self.input_mode {
+            InputMode::NewRemote => {
+                let Some(p) = self.add_manually.picker.as_mut() else { return false };
+                super::input::kill(&mut p.filter, what);
+                // As after Backspace: the first match, from the top of the list.
+                p.selected = 0;
+                p.scroll = 0;
+            }
+            InputMode::NewRemoteEdit => {
+                let Some(f) = self.add_manually.form.as_mut() else { return false };
+                f.error = None;
+                if let Some(field) = f.fields.get_mut(f.focus) {
+                    super::input::kill(&mut field.1, what);
+                }
+            }
+            InputMode::SendButton => {
+                let Some(m) = self.add_manually.send_button.as_mut() else { return false };
+                super::input::kill(&mut m.custom, what);
+            }
+            _ => return false,
+        }
+        true
     }
 
     fn picker_key(&mut self, code: KeyCode) {
@@ -328,7 +354,7 @@ impl App {
     /// Open the "Send button…" list of a capture.
     pub(super) fn open_send_button_menu(&mut self, id: u32) {
         let Some(c) = self.captures.iter().find(|c| c.id == id) else {
-            self.last_error = Some(format!("Capture {id} not found"));
+            self.last_error = Some(format!("Capture #{id:02} not found"));
             return;
         };
         let protocol = c.protocol_name();

@@ -59,9 +59,12 @@ If `session.json` holds captures, KAT asks at startup:
 
 ```
 Restore 12 captures from your last session?
-saved 2026-11-04 10:31 UTC
+saved 2026-11-04 10:31
 (y/n)
 ```
+
+The time is on this computer's clock, like the times in the captures list; `session.json` and
+`.fob` files keep UTC.
 
 - **y** restores the captures with their ids. Captures that match a saved `.fob` get their ★ marker
   (see below) without a status message.

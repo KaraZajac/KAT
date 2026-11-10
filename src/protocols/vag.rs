@@ -692,6 +692,16 @@ impl ProtocolDecoder for VagDecoder {
         }
     }
 
+    /// Type 1/2 frames are 300/600 µs; `timing()` is the 500/1000 µs of Type 3/4.
+    fn timing_variants(&self) -> Vec<ProtocolTiming> {
+        vec![ProtocolTiming {
+            te_short: T12_TE_SHORT,
+            te_long: T12_TE_LONG,
+            te_delta: T12_TE_DELTA,
+            min_count_bit: MIN_COUNT_BIT,
+        }]
+    }
+
     fn supported_frequencies(&self) -> &[u32] {
         // ProtoPirate flags 433 MHz; Flipper-ARF adds 315 MHz. (The registry matches ±2%, so
         // 433.92 also covers the 434.42 MHz European fobs.)

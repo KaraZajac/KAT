@@ -1,5 +1,5 @@
 //! Prompts and overlays of the v1.5 app features: the startup session-restore prompt (styled like
-//! the startup import prompt), the `:clear` confirmation and the timing-analysis overlay; the quit
+//! the startup import prompt), the `:clear` confirmation and the Analyze overlay; the quit
 //! and `:delete all` confirmations (app/input.rs); plus the mode label and help-bar text of those
 //! modes and of the help overlay.
 
@@ -13,8 +13,6 @@ use ratatui::{
 
 use crate::app::{App, InputMode};
 
-use super::text_overlay::render_preformatted_overlay;
-
 /// Draw the overlay of the current v1.5 mode, if any (called last by `draw_ui`).
 pub fn render_app_overlays(frame: &mut Frame, app: &App) {
     match app.input_mode {
@@ -22,12 +20,7 @@ pub fn render_app_overlays(frame: &mut Frame, app: &App) {
         InputMode::ConfirmClear => render_confirm_clear_prompt(frame, app),
         InputMode::ConfirmQuit => render_confirm_quit_prompt(frame, app),
         InputMode::ConfirmDeleteAll => render_confirm_delete_all_prompt(frame, app),
-        InputMode::TimingAnalysis => {
-            if let Some(view) = app.timing_overlay() {
-                let scroll_max = render_preformatted_overlay(frame, app, &view.title, &view.text);
-                view.set_scroll_max(scroll_max);
-            }
-        }
+        InputMode::Analyze => super::analyze_overlay::render_analyze_overlay(frame, app),
         _ => {}
     }
 }
@@ -37,24 +30,29 @@ pub fn mode_label(mode: InputMode) -> (&'static str, Style) {
     match mode {
         InputMode::SessionRestore => ("RESTORE", Style::default().fg(Color::Yellow)),
         InputMode::ConfirmClear => ("CLEAR", Style::default().fg(Color::Red)),
-        InputMode::TimingAnalysis => ("TIMING", Style::default().fg(Color::Cyan)),
+        InputMode::Analyze => ("ANALYZE", Style::default().fg(Color::Cyan)),
         InputMode::Help => ("HELP", Style::default().fg(Color::Cyan)),
+        InputMode::Radios => ("RADIOS", Style::default().fg(Color::Cyan)),
         InputMode::ConfirmQuit => ("QUIT", Style::default().fg(Color::Yellow)),
         InputMode::ConfirmDeleteAll => ("DELETE", Style::default().fg(Color::Red)),
         _ => ("", Style::default()),
     }
 }
 
-/// Help-bar text (v1.5 modes).
-pub fn help_text(mode: InputMode) -> &'static str {
+/// Help-bar texts (v1.5 modes), the fullest first: the bar shows the first that fits.
+pub fn help_texts(mode: InputMode) -> &'static [&'static str] {
     match mode {
-        InputMode::SessionRestore => "y: Restore | n: Start fresh",
-        InputMode::ConfirmClear => "y: Clear everything | n: Cancel",
-        InputMode::TimingAnalysis => "Up/Down, PgUp/PgDn, Home/End: Scroll | Esc/Enter: Close",
-        InputMode::Help => "Up/Down, PgUp/PgDn: Scroll | Esc: Close",
-        InputMode::ConfirmQuit => "y: Quit | n: Back",
-        InputMode::ConfirmDeleteAll => "y: Delete all | n: Cancel",
-        _ => "",
+        InputMode::SessionRestore => &["y: Restore | n: Start fresh"],
+        InputMode::ConfirmClear => &["y: Clear everything | n/Esc: Cancel"],
+        InputMode::Analyze => &[
+            "Up/Down, PgUp/PgDn, Home/End: Scroll | Left/Right: Other captures | Esc/Enter: Close",
+            "Up/Down, PgUp/PgDn: Scroll | Left/Right: Other captures | Esc: Close",
+            "Up/Down: Scroll | Left/Right: Other captures | Esc: Close",
+        ],
+        InputMode::Help | InputMode::Radios => &["Up/Down, PgUp/PgDn: Scroll | Esc: Close"],
+        InputMode::ConfirmQuit => &["y: Quit | n/Esc: Back"],
+        InputMode::ConfirmDeleteAll => &["y: Delete all | n/Esc: Cancel"],
+        _ => &[],
     }
 }
 
@@ -69,7 +67,7 @@ fn wrapped_rows(line: &Line, width: usize) -> u16 {
     let width = width.max(1);
     let text: String = line.spans.iter().map(|s| s.content.as_ref()).collect();
     let (mut rows, mut used) = (1u16, 0usize);
-    for word in text.split_whitespace().map(|w| w.chars().count()) {
+    for word in text.split_whitespace().map(super::text::width) {
         if used > 0 && used + 1 + word > width {
             rows += 1;
             used = 0;
@@ -117,7 +115,7 @@ fn render_session_restore_prompt(frame: &mut Frame, app: &App) {
     };
     let saved = p
         .saved_at
-        .map(|t| format!("saved {}", t.format("%Y-%m-%d %H:%M UTC")))
+        .map(|t| format!("saved {}", crate::capture::local_time(t).format("%Y-%m-%d %H:%M")))
         .unwrap_or_default();
     let lines = vec![
         Line::from(""),
@@ -235,5 +233,7 @@ mod tests {
         assert_eq!(wrapped_rows(&Line::from(long), 56), 2);
         assert_eq!(wrapped_rows(&Line::from("aaaa bbbb"), 4), 2);
         assert_eq!(wrapped_rows(&Line::from("abcdefghij"), 4), 3, "a word wider than the box");
+        // Wide characters take two columns each: 6 + 1 + 6 columns do not fit 8.
+        assert_eq!(wrapped_rows(&Line::from("日本語 日本語"), 8), 2);
     }
 }

@@ -3,8 +3,8 @@ use std::{
     ffi::c_void,
     ptr, slice,
     sync::{
-        atomic::{AtomicPtr, AtomicUsize, Ordering},
-        Arc,
+        atomic::{AtomicPtr, Ordering},
+        Arc, Mutex,
     },
 };
 
@@ -23,7 +23,42 @@ pub mod exports {
     pub use num_complex;
 }
 
-static DEVICE_COUNT: AtomicUsize = AtomicUsize::new(0);
+/// Open devices (and device lists being read). libhackrf is initialised while there are any:
+/// `hackrf_init` with the first, `hackrf_exit` after the last. Opening and closing happen under
+/// this lock, so two threads opening HackRFs at once (two receivers starting) cannot race the
+/// library's set-up; a failed open no longer leaves the count up (it used to, so the library was
+/// never shut down again).
+static LIBRARY_USERS: Mutex<usize> = Mutex::new(0);
+
+fn library_users() -> std::sync::MutexGuard<'static, usize> {
+    LIBRARY_USERS.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// Run `f` with libhackrf initialised; it stays initialised if `f` returns `keep` = true (a device
+/// was opened, counted as a user until it is dropped).
+fn with_library<T>(f: impl FnOnce() -> Result<(T, bool)>) -> Result<T> {
+    let mut users = library_users();
+    if *users == 0 {
+        unsafe { HackrfError::from_id(ffi::hackrf_init())? }
+    }
+    let result = f();
+    match &result {
+        Ok((_, true)) => *users += 1,
+        _ if *users == 0 => {
+            let _ = unsafe { ffi::hackrf_exit() };
+        }
+        _ => {}
+    }
+    result.map(|(value, _)| value)
+}
+
+/// A HackRF on USB, as [HackRf::list] finds it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ListedDevice {
+    /// Its serial number (32 hex digits); None when it could not be read (libusb may not open the
+    /// device: missing USB permissions, or another program has it on Windows).
+    pub serial: Option<String>,
+}
 
 /// A HackRf device.
 #[derive(Clone)]
@@ -37,20 +72,58 @@ struct HackRfInner {
 }
 
 impl HackRf {
-    /// Connects to a HackRF device.
+    /// Connects to a HackRF device (the first one libhackrf finds).
     pub fn open() -> Result<HackRf> {
-        if DEVICE_COUNT.fetch_add(1, Ordering::Relaxed) == 0 {
-            unsafe { HackrfError::from_id(ffi::hackrf_init())? }
-        }
+        Self::open_with(|device| unsafe { ffi::hackrf_open(device) })
+    }
 
-        let mut device = std::ptr::null_mut();
-        unsafe { HackrfError::from_id(ffi::hackrf_open(&mut device))? }
+    /// Connects to the HackRF whose serial number ends with `serial` (all 32 digits, or the last
+    /// ones, as `hackrf_transfer -d` takes it).
+    pub fn open_by_serial(serial: &str) -> Result<HackRf> {
+        let wanted = std::ffi::CString::new(serial).map_err(|_| HackrfError::InvalidParam)?;
+        Self::open_with(|device| unsafe { ffi::hackrf_open_by_serial(wanted.as_ptr(), device) })
+    }
 
-        Ok(Self {
-            inner: Arc::new(HackRfInner {
-                device,
-                user_data: AtomicPtr::new(ptr::null_mut()),
-            }),
+    fn open_with(open: impl FnOnce(*mut *mut ffi::HackrfDevice) -> std::ffi::c_int) -> Result<HackRf> {
+        with_library(|| {
+            let mut device = std::ptr::null_mut();
+            HackrfError::from_id(open(&mut device))?;
+            if device.is_null() {
+                return Err(HackrfError::NotFound);
+            }
+            let hackrf = Self {
+                inner: Arc::new(HackRfInner {
+                    device,
+                    user_data: AtomicPtr::new(ptr::null_mut()),
+                }),
+            };
+            Ok((hackrf, true))
+        })
+    }
+
+    /// The HackRFs on USB, in libusb's order.
+    pub fn list() -> Result<Vec<ListedDevice>> {
+        with_library(|| {
+            let list = unsafe { ffi::hackrf_device_list() };
+            if list.is_null() {
+                return Err(HackrfError::NoMem);
+            }
+            let devices = unsafe {
+                let l = &*list;
+                let count = usize::try_from(l.devicecount).unwrap_or(0);
+                (0..count)
+                    .map(|i| {
+                        let serial = if l.serial_numbers.is_null() { ptr::null_mut() } else { *l.serial_numbers.add(i) };
+                        ListedDevice {
+                            serial: (!serial.is_null()).then(|| {
+                                std::ffi::CStr::from_ptr(serial).to_string_lossy().trim().to_string()
+                            }),
+                        }
+                    })
+                    .collect()
+            };
+            unsafe { ffi::hackrf_device_list_free(list) };
+            Ok((devices, false))
         })
     }
 
@@ -211,9 +284,10 @@ unsafe impl Sync for HackRfInner {}
 
 impl Drop for HackRf {
     fn drop(&mut self) {
+        let mut users = library_users();
         let _ = unsafe { HackrfError::from_id(ffi::hackrf_close(self.device())) };
-
-        if DEVICE_COUNT.fetch_sub(1, Ordering::Relaxed) == 1 {
+        *users = users.saturating_sub(1);
+        if *users == 0 {
             let _ = unsafe { HackrfError::from_id(ffi::hackrf_exit()) };
         }
     }

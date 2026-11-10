@@ -345,8 +345,14 @@ pub trait ProtocolDecoder: Send + Sync {
     fn name(&self) -> &'static str;
 
     /// Get timing constants
-    #[allow(dead_code)]
     fn timing(&self) -> ProtocolTiming;
+
+    /// The other timings the protocol is sent with, when `timing()` is not its only one (VAG's
+    /// Type 1/2 beside its Type 3/4, Fiat V1's variant B beside A). Analyze compares a capture with
+    /// the one it fits.
+    fn timing_variants(&self) -> Vec<ProtocolTiming> {
+        Vec::new()
+    }
 
     /// Get supported frequencies in Hz
     fn supported_frequencies(&self) -> &[u32];
@@ -1447,7 +1453,6 @@ impl ProtocolRegistry {
     }
 
     /// List all protocol names
-    #[allow(dead_code)]
     pub fn list_protocols(&self) -> Vec<&'static str> {
         self.decoders.iter().map(|d| d.name()).collect()
     }
@@ -1705,6 +1710,28 @@ mod tests {
                 "PSA must not false-match {rel}, got: {names:?}"
             );
         }
+    }
+
+    /// The protocols sent with more than one timing say so (Analyze compares a capture with the
+    /// one it fits), and every other timing is a different one for a frame of the same length.
+    #[test]
+    fn timing_variants_are_other_timings_of_the_same_frame() {
+        let reg = ProtocolRegistry::new();
+        let mut with_variants = Vec::new();
+        for name in reg.list_protocols() {
+            let decoder = reg.get(name).unwrap();
+            let (main, others) = (decoder.timing(), decoder.timing_variants());
+            for other in &others {
+                assert_ne!((other.te_short, other.te_long), (main.te_short, main.te_long), "{name}");
+                assert_eq!(other.min_count_bit, main.min_count_bit, "{name}");
+                assert!(other.te_short < other.te_long && other.te_delta > 0, "{name}");
+            }
+            if !others.is_empty() {
+                with_variants.push((name, others.iter().map(|t| (t.te_short, t.te_long)).collect::<Vec<_>>()));
+            }
+        }
+        with_variants.sort();
+        assert_eq!(with_variants, [("Fiat V1", vec![(100, 200)]), ("VAG", vec![(300, 600)])]);
     }
 
     #[test]

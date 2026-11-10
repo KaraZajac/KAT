@@ -16,12 +16,15 @@
 //! V1 50 µs) and leaves their analysis empty. KAT floors it at `min(100, te_short / 2)` µs, which
 //! is ProtoPirate's 100 µs for every protocol with `te_short` ≥ 200 µs.
 //!
-//! **Research view** (every capture, and the only view for undecoded ones): HIGH and LOW durations
+//! **Pulse widths** (every capture, and all there is for an undecoded one): HIGH and LOW durations
 //! are clustered separately the way rtl_433's pulse analyzer does it (±20 % bins, neighbours
-//! fused; count, mean, min, max and jitter = max − min per cluster), the base time element (TE) is
-//! estimated per level as the cluster whose integer multiples (1–4) explain most durations, refined
-//! by a least-squares fit, and the line coding is guessed from how pulse and gap widths pair up
-//! (PWM, PPM, Manchester / bi-phase, NRZ). See docs/timing_analysis.md.
+//! fused; count, mean, min and max per cluster). The base time element (TE) is estimated per level
+//! as the cluster whose integer multiples (1–4) explain most durations, refined by a least-squares
+//! fit; where a receiver made every HIGH longer and every LOW shorter by the same amount (or the
+//! other way round), the TE and that skew are fitted together. The line coding is guessed from how
+//! pulse and gap widths pair up (PWM, PPM, Manchester / bi-phase, NRZ).
+//!
+//! This module measures; [`super::signal`] builds the Analyze report from it. See docs/analyze.md.
 
 use crate::capture::StoredLevelDuration;
 use crate::protocols::ProtocolTiming;
@@ -40,8 +43,6 @@ const MAJOR_SHARE: f64 = 0.08;
 const MAX_TE_MULTIPLE: f64 = 4.0;
 /// How far (in TE units) a cluster mean may sit from an integer multiple of the TE.
 const MULTIPLE_SLACK: f64 = 0.3;
-/// Clusters listed per level in the report before the rest are summarised.
-const MAX_LISTED_CLUSTERS: usize = 8;
 /// ProtoPirate's ring buffer: the tuner analyses (at most) the last 512 durations before a decode.
 pub const PP_BUFFER: usize = 512;
 /// Step between the candidate windows searched in an undecoded capture.
@@ -57,13 +58,6 @@ pub struct Cluster {
     pub mean: f64,
     pub min: u32,
     pub max: u32,
-}
-
-impl Cluster {
-    /// Spread of the cluster in µs (ProtoPirate's "jitter": max − min).
-    pub fn jitter(&self) -> u32 {
-        self.max - self.min
-    }
 }
 
 #[derive(Clone, Copy)]
@@ -138,7 +132,7 @@ pub fn cluster_durations(durations: &[u32]) -> Vec<Cluster> {
 }
 
 /// Clusters holding at least [`MAJOR_SHARE`] of the level's durations (the data widths), by mean.
-fn major_clusters(clusters: &[Cluster]) -> Vec<&Cluster> {
+pub(super) fn major_clusters(clusters: &[Cluster]) -> Vec<&Cluster> {
     let total: usize = clusters.iter().map(|c| c.count).sum();
     clusters
         .iter()
@@ -147,7 +141,7 @@ fn major_clusters(clusters: &[Cluster]) -> Vec<&Cluster> {
 }
 
 /// `Some(k)` when `mean` is close to an integer multiple `k` (1..=4) of `te`.
-fn multiple_of(mean: f64, te: f64) -> Option<f64> {
+pub(super) fn multiple_of(mean: f64, te: f64) -> Option<f64> {
     if te <= 0.0 {
         return None;
     }
@@ -170,6 +164,25 @@ pub struct TeEstimate {
     pub low_us: Option<f64>,
     /// Share (0..=1) of all durations whose cluster is a 1–4 multiple of the per-level estimate.
     pub explained: f64,
+    /// µs every HIGH is longer, and every LOW shorter, than a whole number of TEs (negative: HIGH
+    /// shorter), when only such a constant skew makes the levels fit one TE (see [`estimate_skewed`]);
+    /// 0 otherwise. `high_us` and `low_us` are then the levels' 1 TE widths, `te_us ± skew_us`.
+    pub skew_us: f64,
+}
+
+impl TeEstimate {
+    /// How many TEs a duration of one level is: by the level's own TE, or with the skew taken off.
+    pub fn multiple(&self, level: bool, us: f64) -> f64 {
+        if self.skew_us != 0.0 {
+            return (us - if level { self.skew_us } else { -self.skew_us }) / self.te_us;
+        }
+        let unit = if level { self.high_us } else { self.low_us }.unwrap_or(self.te_us);
+        if unit > 0.0 {
+            us / unit
+        } else {
+            0.0
+        }
+    }
 }
 
 /// TE of one level: the major cluster whose 1..=4 multiples explain the most durations (on a tie the
@@ -203,6 +216,61 @@ fn estimate_level_te(clusters: &[Cluster]) -> Option<(f64, usize)> {
     (den > 0.0).then(|| (num / den, explained))
 }
 
+/// A constant skew between the levels smaller than this (µs) is left to the per-level estimates.
+const MIN_SKEW_US: f64 = 20.0;
+/// A skew is at most this share of the TE.
+const MAX_SKEW: f64 = 0.45;
+/// The skewed model must explain this share of the durations, and this much more of them than the
+/// per-level estimates do.
+const SKEW_EXPLAINED: f64 = 0.85;
+const SKEW_GAIN: f64 = 0.05;
+
+/// TE and skew when every pulse of one level is longer, and every pulse of the other shorter, by one
+/// constant: HIGH widths are `k·TE + skew`, LOW widths `k·TE − skew`. An FSK slicer off the centre
+/// of the two tones does this, and no TE of its own fits such a level: 235 and 575 µs HIGH with 470
+/// and 815 µs LOW are a TE of 350 µs skewed by −115 µs. The first guess takes each level's short
+/// data width as 1 TE; a least-squares fit over the clusters that explains refines it.
+/// Returns (TE, skew, durations explained).
+fn estimate_skewed(high: &[Cluster], low: &[Cluster]) -> Option<(f64, f64, usize)> {
+    let shortest = |clusters: &[Cluster]| -> Option<f64> {
+        let majors = major_clusters(clusters);
+        match two_data_widths(&majors) {
+            Some([short, _]) => Some(short.mean),
+            None if majors.len() == 1 => Some(majors[0].mean),
+            None => None,
+        }
+    };
+    let (sh, sl) = (shortest(high)?, shortest(low)?);
+    let (mut te, mut skew) = ((sh + sl) / 2.0, (sh - sl) / 2.0);
+    if skew.abs() < MIN_SKEW_US || skew.abs() > MAX_SKEW * te {
+        return None;
+    }
+    // Sums for the fit of mean = k·TE + sign·skew, weighted by the clusters' counts.
+    let sums = |te: f64, skew: f64| {
+        let (mut a, mut b, mut c, mut d, mut e, mut n) = (0.0, 0.0, 0.0, 0.0, 0.0, 0usize);
+        for (sign, clusters) in [(1.0, high), (-1.0, low)] {
+            for cl in clusters {
+                let Some(k) = multiple_of(cl.mean - sign * skew, te) else { continue };
+                let w = cl.count as f64;
+                a += w * k * k;
+                b += w * k * sign;
+                c += w;
+                d += w * k * cl.mean;
+                e += w * sign * cl.mean;
+                n += cl.count;
+            }
+        }
+        (a, b, c, d, e, n)
+    };
+    let (a, b, c, d, e, _) = sums(te, skew);
+    let det = a * c - b * b;
+    if det > 1e-9 {
+        (te, skew) = ((c * d - b * e) / det, (a * e - b * d) / det);
+    }
+    let explained = sums(te, skew).5;
+    (te > 0.0 && skew.abs() <= MAX_SKEW * te).then_some((te, skew, explained))
+}
+
 /// Estimate the base TE from the per-level clusters.
 pub fn estimate_te(high: &[Cluster], low: &[Cluster]) -> Option<TeEstimate> {
     let total: usize = high.iter().chain(low).map(|c| c.count).sum();
@@ -225,11 +293,24 @@ pub fn estimate_te(high: &[Cluster], low: &[Cluster]) -> Option<TeEstimate> {
         (None, None) => return None,
     };
     let explained = h.map_or(0, |(_, e)| e) + l.map_or(0, |(_, e)| e);
+    if let Some((te, skew, n)) = estimate_skewed(high, low) {
+        let (n, all) = (n as f64, total as f64);
+        if n >= SKEW_EXPLAINED * all && n >= explained as f64 + SKEW_GAIN * all {
+            return Some(TeEstimate {
+                te_us: te,
+                high_us: Some(te + skew),
+                low_us: Some(te - skew),
+                explained: n / all,
+                skew_us: skew,
+            });
+        }
+    }
     Some(TeEstimate {
         te_us,
         high_us: h.map(|(t, _)| t),
         low_us: l.map(|(t, _)| t),
         explained: explained as f64 / total as f64,
+        skew_us: 0.0,
     })
 }
 
@@ -312,7 +393,7 @@ fn width_class(widths: &[&Cluster; 2], d: u32) -> Option<usize> {
 
 /// The two most populous major clusters of a level, by mean, when they hold ≥ 85 % of the level's
 /// major durations (the others are then preamble/sync widths); `None` otherwise.
-fn two_data_widths<'a>(majors: &[&'a Cluster]) -> Option<[&'a Cluster; 2]> {
+pub(super) fn two_data_widths<'a>(majors: &[&'a Cluster]) -> Option<[&'a Cluster; 2]> {
     if majors.len() < 2 {
         return None;
     }
@@ -402,6 +483,64 @@ fn pair_stats(
     stats
 }
 
+/// NRZ runs longer than this many TEs are pauses, not data.
+const NRZ_MAX_RUN: f64 = 16.0;
+/// A duration within this many TEs of a whole number of them is that many bits.
+const NRZ_SLACK: f64 = 0.25;
+/// NRZ: this share of the durations are whole numbers of TEs, this share of those are three TEs or
+/// more (Manchester and PWM have next to none), and a run length counts with this share.
+const NRZ_FIT: f64 = 0.9;
+const NRZ_LONG_SHARE: f64 = 0.1;
+const NRZ_RUN_SHARE: f64 = 0.04;
+
+/// NRZ by the durations themselves: nearly all of them a whole number of TEs, with runs of one, two,
+/// three and more bits. The clusters cannot tell: runs of four and five TEs share one, and its mean
+/// is no multiple of the TE.
+fn looks_nrz(pairs: &[StoredLevelDuration], te: &TeEstimate) -> bool {
+    let mut runs = [0usize; NRZ_MAX_RUN as usize + 1];
+    let (mut data, mut whole) = (0usize, 0usize);
+    for p in pairs {
+        let r = te.multiple(p.level, f64::from(p.duration_us));
+        let k = r.round();
+        if k > NRZ_MAX_RUN {
+            continue;
+        }
+        data += 1;
+        if k >= 1.0 && (r - k).abs() <= NRZ_SLACK {
+            whole += 1;
+            runs[k as usize] += 1;
+        }
+    }
+    let long: usize = runs[3..].iter().sum();
+    let lengths = runs.iter().filter(|n| **n as f64 >= NRZ_RUN_SHARE * whole as f64 && **n > 0).count();
+    data >= MIN_SAMPLES
+        && whole as f64 >= NRZ_FIT * data as f64
+        && long as f64 >= NRZ_LONG_SHARE * whole as f64
+        && lengths >= 3
+}
+
+/// A level's major clusters, with those that are the same number of TEs made one. A recorder's
+/// timer steps are a large part of a short pulse, and split one width in two: 100 and 133 µs for
+/// the one TE of a 104 µs Manchester signal.
+pub(super) fn merged_by_te(clusters: &[Cluster], level: bool, te: &TeEstimate) -> Vec<Cluster> {
+    let mut out: Vec<(Option<i64>, Cluster)> = Vec::new();
+    for c in major_clusters(clusters) {
+        let r = te.multiple(level, c.mean);
+        let k = (r.round() >= 1.0 && (r - r.round()).abs() <= MULTIPLE_SLACK).then_some(r.round() as i64);
+        match out.iter_mut().find(|(other, _)| k.is_some() && *other == k) {
+            Some((_, m)) => {
+                let count = m.count + c.count;
+                m.mean = (m.mean * m.count as f64 + c.mean * c.count as f64) / count as f64;
+                m.min = m.min.min(c.min);
+                m.max = m.max.max(c.max);
+                m.count = count;
+            }
+            None => out.push((k, c.clone())),
+        }
+    }
+    out.into_iter().map(|(_, c)| c).collect()
+}
+
 /// Guess the line coding from the per-level clusters and how pulses and the following gaps pair up.
 pub fn guess_line_coding(
     pairs: &[StoredLevelDuration],
@@ -409,13 +548,63 @@ pub fn guess_line_coding(
     low: &[Cluster],
     te: Option<&TeEstimate>,
 ) -> LineCoding {
-    let major_h = major_clusters(high);
-    let major_l = major_clusters(low);
+    let (major_h, major_l) = (major_clusters(high), major_clusters(low));
+    let coding = guess_from(pairs, &major_h, &major_l, te);
+    // A width split in two reads as nothing, or as the three and more widths of NRZ.
+    let Some(te) = te.filter(|_| matches!(coding, LineCoding::Unknown | LineCoding::Nrz)) else {
+        return coding;
+    };
+    // Once more with the widths of the same number of TEs made one. Only Manchester is taken from
+    // that: it is the one coding whose test does not rest on how many widths a level has.
+    let (h, l) = (merged_by_te(high, true, te), merged_by_te(low, false, te));
+    if h.len() == major_h.len() && l.len() == major_l.len() {
+        return coding;
+    }
+    match guess_from(pairs, &h.iter().collect::<Vec<_>>(), &l.iter().collect::<Vec<_>>(), Some(te)) {
+        LineCoding::Manchester => LineCoding::Manchester,
+        _ => coding,
+    }
+}
+
+/// In Manchester and the other bi-phase codings a 2 TE pulse runs from the middle of one bit to the
+/// middle of the next, so the 1 TE pulses between two of them come in twos. True when nine in ten
+/// of the runs of short pulses between two long ones are even: data of any other coding with these
+/// widths gives odd runs half the time.
+fn shorts_come_in_twos(pairs: &[StoredLevelDuration], high: &[&Cluster; 2], low: &[&Cluster; 2]) -> bool {
+    let (mut even, mut runs) = (0usize, 0usize);
+    // Short pulses since the last long one; None before the first, and after a pulse of no width.
+    let mut shorts: Option<usize> = None;
+    for p in pairs {
+        match width_class(if p.level { high } else { low }, p.duration_us) {
+            Some(0) => {
+                if let Some(n) = shorts.as_mut() {
+                    *n += 1;
+                }
+            }
+            Some(_) => {
+                if let Some(n) = shorts {
+                    runs += 1;
+                    even += usize::from(n % 2 == 0);
+                }
+                shorts = Some(0);
+            }
+            None => shorts = None,
+        }
+    }
+    runs >= MIN_SAMPLES && even * 10 >= runs * 9
+}
+
+fn guess_from(
+    pairs: &[StoredLevelDuration],
+    major_h: &[&Cluster],
+    major_l: &[&Cluster],
+    te: Option<&TeEstimate>,
+) -> LineCoding {
     if major_h.is_empty() || major_l.is_empty() {
         return LineCoding::Unknown;
     }
-    let data_h = two_data_widths(&major_h);
-    let data_l = two_data_widths(&major_l);
+    let data_h = two_data_widths(major_h);
+    let data_l = two_data_widths(major_l);
     match (data_h, data_l) {
         (Some(h), Some(l)) => {
             // Pair every pulse with the following gap (and, for inverted captures, every gap with
@@ -444,12 +633,18 @@ pub fn guess_line_coding(
             if equal_pairs {
                 return LineCoding::PulseLength;
             }
+            if te.is_some_and(|te| looks_nrz(pairs, te)) {
+                return LineCoding::Nrz;
+            }
             let one_two = |r: f64| (1.6..=2.5).contains(&r);
             let manchester = orders.iter().all(|o| {
                 o.long_long_share().is_some_and(|s| s >= 0.10)
                     && o.mixed_share().is_some_and(|m| m >= 0.10)
-            });
-            if manchester && one_two(h[1].mean / h[0].mean) && one_two(l[1].mean / l[0].mean) {
+            }) || shorts_come_in_twos(pairs, &h, &l);
+            // With the levels skewed against each other the ratios hold once the skew is off.
+            let skew = te.map_or(0.0, |t| t.skew_us);
+            let ratio = |w: &[&Cluster; 2], skew: f64| (w[1].mean - skew) / (w[0].mean - skew).max(1.0);
+            if manchester && one_two(ratio(&h, skew)) && one_two(ratio(&l, -skew)) {
                 LineCoding::Manchester
             } else {
                 LineCoding::Unknown
@@ -462,15 +657,12 @@ pub fn guess_line_coding(
             let Some(te) = te else {
                 return LineCoding::Unknown;
             };
-            let fits = |c: &&Cluster, unit: f64| {
-                let r = c.mean / unit;
+            let fits = |c: &&Cluster, level: bool| {
+                let r = te.multiple(level, c.mean);
                 r.round() >= 1.0 && (r - r.round()).abs() <= MULTIPLE_SLACK
             };
-            let unit_h = te.high_us.unwrap_or(te.te_us);
-            let unit_l = te.low_us.unwrap_or(te.te_us);
-            let all_multiples =
-                major_h.iter().all(|c| fits(c, unit_h)) && major_l.iter().all(|c| fits(c, unit_l));
-            if all_multiples && (major_h.len() >= 3 || major_l.len() >= 3) {
+            let all_multiples = major_h.iter().all(|c| fits(c, true)) && major_l.iter().all(|c| fits(c, false));
+            if (all_multiples && (major_h.len() >= 3 || major_l.len() >= 3)) || looks_nrz(pairs, te) {
                 LineCoding::Nrz
             } else {
                 LineCoding::Unknown
@@ -502,11 +694,6 @@ impl WidthStats {
         }
         self.count += 1;
         *sum += i64::from(d);
-    }
-
-    /// ProtoPirate's jitter: max − min (0 without samples).
-    pub fn jitter(&self) -> u32 {
-        self.max - self.min
     }
 }
 
@@ -639,6 +826,23 @@ impl ProtocolComparison {
         Self::width_verdict(self.long.count, self.long_diff, self.long_exact, self.long_ok)
     }
 
+    /// How well the durations fit this definition, the lower the better: the verdict first, then
+    /// how far the averages are from the definition (in thousandths of the widths).
+    fn fit(&self) -> (u8, i64) {
+        let rank = match self.verdict() {
+            TimingVerdict::Matches => 0,
+            TimingVerdict::WithinTolerance => 1,
+            TimingVerdict::NeedsAdjustment => 2,
+            TimingVerdict::Incomplete => 3,
+            TimingVerdict::NotEnoughSamples => 4,
+        };
+        let off = |stats: &WidthStats, diff: i64, te: u32| match stats.count {
+            0 => 1000,
+            _ => diff.abs() * 1000 / i64::from(te.max(1)),
+        };
+        (rank, off(&self.short, self.short_diff, self.te_short) + off(&self.long, self.long_diff, self.te_long))
+    }
+
     /// Overall verdict.
     pub fn verdict(&self) -> TimingVerdict {
         if self.short.count + self.long.count < MIN_SAMPLES {
@@ -701,16 +905,6 @@ impl ProtocolComparison {
     }
 }
 
-fn verdict_text(label: &str, v: WidthVerdict) -> String {
-    match v {
-        WidthVerdict::Excellent => format!("{}: EXCELLENT", label),
-        WidthVerdict::Ok(d) => format!("{}: OK ({:+})", label, d),
-        WidthVerdict::High(d) => format!("{}: HIGH by {}", label, d),
-        WidthVerdict::Low(d) => format!("{}: LOW by {}", label, d),
-        WidthVerdict::NoSamples => format!("{}: NO SAMPLES", label),
-    }
-}
-
 // ─── Full analysis + report ──────────────────────────────────────────────────
 
 /// Which part of the capture was analysed.
@@ -724,7 +918,8 @@ pub enum AnalysisWindow {
     /// before the frame (a .sub file's first segment can be thousands of noise pulses) stays out.
     DecodedFrame,
     /// Undecoded capture: the most regular 512-pair window (highest share of durations that are
-    /// 1–4 multiples of one TE, with HIGH and LOW agreeing on it).
+    /// 1–4 multiples of one TE, with HIGH and LOW agreeing on it; a window with data in it before
+    /// one that is all preamble).
     MostRegular,
 }
 
@@ -749,6 +944,9 @@ pub struct TimingReport {
     pub coding: LineCoding,
     /// ProtoPirate-style comparison when the protocol's timing definition is known.
     pub comparison: Option<ProtocolComparison>,
+    /// Timing definitions the comparison was chosen from: 1 unless the protocol is sent with
+    /// several ([`TimingReport::compare_with_variants`]).
+    pub variants: usize,
 }
 
 fn split_levels(pairs: &[StoredLevelDuration]) -> (Vec<u32>, Vec<u32>) {
@@ -757,18 +955,26 @@ fn split_levels(pairs: &[StoredLevelDuration]) -> (Vec<u32>, Vec<u32>) {
     (highs, lows)
 }
 
+/// What a window of one width per level scores of its regularity: a preamble is as regular as
+/// pulses get, but only a window with data in it tells the coding, so that one wins.
+const PREAMBLE_SCORE: f64 = 0.8;
+
 /// Regularity score of a window (0..=1): share of durations explained by the TE estimate, scaled by
-/// how well the HIGH and LOW estimates agree.
+/// how well the HIGH and LOW estimates agree, and by [`PREAMBLE_SCORE`] when no level has two widths.
 fn regularity(pairs: &[StoredLevelDuration]) -> f64 {
     let (highs, lows) = split_levels(pairs);
-    let Some(te) = estimate_te(&cluster_durations(&highs), &cluster_durations(&lows)) else {
+    let (high, low) = (cluster_durations(&highs), cluster_durations(&lows));
+    let Some(te) = estimate_te(&high, &low) else {
         return 0.0;
     };
     let agreement = match (te.high_us, te.low_us) {
+        // One TE fitted to both levels at once: they agree by construction.
+        _ if te.skew_us != 0.0 => 1.0,
         (Some(h), Some(l)) => h.min(l) / h.max(l),
         _ => 0.5,
     };
-    te.explained * agreement
+    let data = major_clusters(&high).len() >= 2 || major_clusters(&low).len() >= 2;
+    te.explained * agreement * if data { 1.0 } else { PREAMBLE_SCORE }
 }
 
 /// Start of the most regular [`PP_BUFFER`]-pair window (stepping [`WINDOW_STEP`], plus the final
@@ -789,9 +995,6 @@ fn most_regular_window(pairs: &[StoredLevelDuration]) -> usize {
     best.0
 }
 
-/// Analyse a capture's raw pairs. `protocol` is the decoded protocol name and `timing` its timing
-/// definition (`ProtocolDecoder::timing()`), when known; see [`AnalysisWindow`] for which pairs
-/// are used.
 /// [analyze] with the decoded frame known to end at pair `frame_end` (exclusive), e.g. where the
 /// protocol's decoder completed it when the capture is decoded again: pairs received after the
 /// frame (the rest of a live burst) stay out of the window.
@@ -806,6 +1009,9 @@ pub fn analyze_frame_ending_at(
     report
 }
 
+/// Analyse a capture's raw pairs. `protocol` is the decoded protocol name and `timing` its timing
+/// definition (`ProtocolDecoder::timing()`), when known; see [`AnalysisWindow`] for which pairs
+/// are used.
 pub fn analyze(
     pairs: &[StoredLevelDuration],
     protocol: Option<&str>,
@@ -842,186 +1048,41 @@ pub fn analyze(
         te,
         coding,
         comparison: timing.map(|t| compare_with_protocol(analysed, t)),
+        variants: 1,
     }
 }
 
 impl TimingReport {
+    /// A protocol sent with more than one timing (VAG's Type 1/2 beside its Type 3/4, Fiat V1's
+    /// variant B beside A) is compared with the definition the capture fits. `others` are its
+    /// definitions beside the one the report was made with, `pairs` the capture's pairs.
+    pub fn compare_with_variants(&mut self, pairs: &[StoredLevelDuration], others: &[ProtocolTiming]) {
+        let Some(mut best) = self.comparison.take() else { return };
+        let end = (self.window_start + self.pair_count).min(pairs.len());
+        let analysed = &pairs[self.window_start.min(end)..end];
+        for other in others {
+            let comparison = compare_with_protocol(analysed, other);
+            if comparison.fit() < best.fit() {
+                best = comparison;
+            }
+        }
+        self.variants = 1 + others.len();
+        self.comparison = Some(best);
+    }
+
     /// Suggested `te_short` / `te_long` for a new decoder (no protocol reference): the TE and the
     /// smallest major multiple ≥ 2 of it.
     pub fn suggested_definition(&self) -> Option<(u32, Option<u32>)> {
         let te = self.te?;
+        let off = |skew: f64| move |c: &Cluster| multiple_of(c.mean - skew, te.te_us);
         let long_k = major_clusters(&self.high)
             .into_iter()
-            .chain(major_clusters(&self.low))
-            .filter_map(|c| multiple_of(c.mean, te.te_us))
+            .filter_map(off(te.skew_us))
+            .chain(major_clusters(&self.low).into_iter().filter_map(off(-te.skew_us)))
             .filter(|&k| k >= 2.0)
             .fold(None, |acc: Option<f64>, k| Some(acc.map_or(k, |a| a.min(k))));
         let te_short = te.te_us.round() as u32;
         Some((te_short, long_k.map(|k| (k * te.te_us).round() as u32)))
-    }
-
-    /// The report as text lines (ProtoPirate's sections first when a protocol reference exists).
-    pub fn render_lines(&self) -> Vec<String> {
-        let mut out = Vec::new();
-        let first = self.window_start + 1;
-        let last = self.window_start + self.pair_count;
-        out.push(match self.window {
-            AnalysisWindow::All => format!(
-                "Analysed all {} pairs ({} HIGH, {} LOW)",
-                self.pair_count, self.high_count, self.low_count
-            ),
-            AnalysisWindow::DecodedFrame => format!(
-                "Analysed pairs {}..{} of {} ({} HIGH, {} LOW): the decoded frame",
-                first, last, self.capture_pairs, self.high_count, self.low_count
-            ),
-            AnalysisWindow::MostRegular => format!(
-                "Analysed pairs {}..{} of {} ({} HIGH, {} LOW): the most regular {}-pair window",
-                first, last, self.capture_pairs, self.high_count, self.low_count, PP_BUFFER
-            ),
-        });
-        out.push(String::new());
-
-        match (&self.comparison, &self.protocol) {
-            (Some(cmp), proto) => {
-                out.push(format!("PROTOCOL DEFINITION ({}):", proto.as_deref().unwrap_or("?")));
-                out.push(format!("  Short: {} us", cmp.te_short));
-                out.push(format!("  Long: {} us", cmp.te_long));
-                out.push(format!("  Tolerance: +/-{} us", cmp.te_delta));
-                out.push(String::new());
-                out.push("RECEIVED SIGNAL:".to_string());
-                out.push(format!(
-                    "  (both levels; short < {} us <= long; valid {}..{} us; {} ignored)",
-                    cmp.threshold, cmp.min_valid, cmp.max_valid, cmp.ignored
-                ));
-                for (label, s) in [("Short", &cmp.short), ("Long", &cmp.long)] {
-                    out.push(format!(
-                        "  {:<5} Avg: {} us  Min: {} us  Max: {} us  Samples: {}",
-                        label, s.avg, s.min, s.max, s.count
-                    ));
-                }
-                out.push(String::new());
-                out.push("ANALYSIS:".to_string());
-                out.push(format!("  Short Diff: {:+} us", cmp.short_diff));
-                out.push(format!("  Long Diff: {:+} us", cmp.long_diff));
-                out.push(format!("  Short Jitter: {} us", cmp.short.jitter()));
-                out.push(format!("  Long Jitter: {} us", cmp.long.jitter()));
-                out.push(String::new());
-                out.push("CONCLUSION:".to_string());
-                out.push(format!("  {}", verdict_text("Short", cmp.short_verdict())));
-                out.push(format!("  {}", verdict_text("Long", cmp.long_verdict())));
-                for line in cmp.conclusion_lines() {
-                    out.push(format!("  {}", line));
-                }
-            }
-            (None, Some(proto)) => {
-                out.push(format!("NO PROTOCOL REFERENCE (no timing definition for {})", proto));
-            }
-            (None, None) => {
-                out.push("NO PROTOCOL REFERENCE (undecoded capture)".to_string());
-            }
-        }
-
-        out.push(String::new());
-        out.push("PULSE CLUSTERS (per level; jitter = max - min):".to_string());
-        let te_us = self.te.map(|t| t.te_us);
-        for (label, clusters, level_te) in [
-            ("HIGH", &self.high, self.te.and_then(|t| t.high_us)),
-            ("LOW", &self.low, self.te.and_then(|t| t.low_us)),
-        ] {
-            render_clusters(&mut out, label, clusters, level_te.or(te_us));
-        }
-        out.push(String::new());
-        match self.te {
-            Some(te) => {
-                let mut line = format!("Base TE estimate: {:.0} us", te.te_us);
-                match (te.high_us, te.low_us) {
-                    (Some(h), Some(l)) => {
-                        line.push_str(&format!(" (HIGH {:.0} us, LOW {:.0} us", h, l));
-                        let offset = h - l;
-                        if offset.abs() >= 20.0 && (h / l) < 1.6 && (l / h) < 1.6 {
-                            line.push_str(&format!(
-                                "; HIGH widths {} by ~{:.0} us",
-                                if offset > 0.0 { "stretched" } else { "shortened" },
-                                offset.abs() / 2.0
-                            ));
-                        }
-                        line.push(')');
-                    }
-                    (Some(h), None) => line.push_str(&format!(" (HIGH {:.0} us)", h)),
-                    (None, Some(l)) => line.push_str(&format!(" (LOW {:.0} us)", l)),
-                    (None, None) => {}
-                }
-                out.push(line);
-                out.push(format!(
-                    "  {:.0}% of durations are 1-4 x TE",
-                    te.explained * 100.0
-                ));
-            }
-            None => out.push("Base TE estimate: none (no dominant width)".to_string()),
-        }
-        out.push(format!("Line coding guess: {}", self.coding.describe()));
-        if self.comparison.is_none() {
-            if let Some((short, long)) = self.suggested_definition() {
-                let mut line = format!("Suggested definition: te_short ~{} us", short);
-                if let Some(long) = long {
-                    line.push_str(&format!(", te_long ~{} us", long));
-                }
-                out.push(line);
-            }
-        }
-        out
-    }
-}
-
-/// Append one level's clusters: major ones in full (with their TE multiple), then a summary of the
-/// rest (noise, sync and inter-frame gaps).
-fn render_clusters(out: &mut Vec<String>, label: &str, clusters: &[Cluster], te: Option<f64>) {
-    if clusters.is_empty() {
-        out.push(format!("  {:<4}  (none)", label));
-        return;
-    }
-    let total: usize = clusters.iter().map(|c| c.count).sum();
-    let majors = major_clusters(clusters);
-    let mut listed: Vec<&Cluster> = majors.clone();
-    // Fill up with the most frequent minor clusters (sync widths, gaps).
-    let mut minors: Vec<&Cluster> = clusters.iter().filter(|c| !majors.contains(c)).collect();
-    minors.sort_by(|a, b| b.count.cmp(&a.count).then(a.mean.total_cmp(&b.mean)));
-    let room = MAX_LISTED_CLUSTERS.saturating_sub(listed.len());
-    listed.extend(minors.iter().take(room).copied());
-    listed.sort_by(|a, b| a.mean.total_cmp(&b.mean));
-    for (i, c) in listed.iter().enumerate() {
-        let multiple = te
-            .and_then(|t| {
-                let r = c.mean / t;
-                (r >= 0.7).then(|| {
-                    if (r - r.round()).abs() <= MULTIPLE_SLACK {
-                        format!("{:.0} TE", r.round())
-                    } else {
-                        format!("{:.1} TE", r)
-                    }
-                })
-            })
-            .unwrap_or_default();
-        let tag = if majors.contains(c) { "" } else { "  (minor)" };
-        out.push(format!(
-            "  {:<4}  {:>6.0} us  x{:<5} min {:>6}  max {:>6}  jitter {:>5}  {:>6}{}",
-            if i == 0 { label } else { "" },
-            c.mean,
-            c.count,
-            c.min,
-            c.max,
-            c.jitter(),
-            multiple,
-            tag
-        ));
-    }
-    let rest = clusters.len() - listed.len();
-    if rest > 0 {
-        let rest_count: usize = total - listed.iter().map(|c| c.count).sum::<usize>();
-        out.push(format!(
-            "        + {} more width(s) ({} durations: noise, sync or gaps)",
-            rest, rest_count
-        ));
     }
 }
 
@@ -1117,7 +1178,7 @@ mod tests {
         assert_eq!(c.len(), 2, "{c:?}");
         assert_eq!(c[0].count, 5);
         assert_eq!((c[0].min, c[0].max), (240, 260));
-        assert_eq!(c[0].jitter(), 20);
+        assert_eq!(c[0].max - c[0].min, 20);
         assert_eq!(c[1].count, 4);
         assert!((c[1].mean - 501.25).abs() < 1e-9);
         assert!(cluster_durations(&[]).is_empty());
@@ -1250,8 +1311,10 @@ mod tests {
         let r = analyze(&pairs, None, None);
         let te = r.te.expect("TE");
         assert!((te.te_us - 250.0).abs() < 12.0, "TE {:.1}", te.te_us);
-        let text = r.render_lines().join("\n");
-        assert!(text.contains("(minor)"), "{text}");
+        // The glitches are a width of their own, too few to be one of the data widths.
+        let glitch = |c: &&Cluster| c.mean < 60.0;
+        assert!(r.high.iter().chain(&r.low).any(|c| glitch(&c)), "{:?} {:?}", r.high, r.low);
+        assert!(!major_clusters(&r.high).into_iter().chain(major_clusters(&r.low)).any(|c| glitch(&c)));
     }
 
     #[test]
@@ -1318,10 +1381,11 @@ mod tests {
         assert_eq!(r.comparison.as_ref().unwrap().verdict(), TimingVerdict::NotEnoughSamples);
         assert_eq!(r.coding, LineCoding::Unknown);
         assert!(r.te.is_none());
-        assert!(!r.render_lines().is_empty());
+        assert_eq!((r.pair_count, r.high_count, r.low_count), (0, 0, 0));
         let one = [pair(true, 500)];
         let r = analyze(&one, None, None);
-        assert!(r.render_lines().iter().any(|l| l.contains("NO PROTOCOL REFERENCE")));
+        assert!(r.comparison.is_none() && r.te.is_none());
+        assert_eq!(r.suggested_definition(), None);
         // No sample in one class: reported, not mistaken for a LOW verdict.
         let shorts: Vec<_> = (0..20).map(|i| pair(i % 2 == 0, 250)).collect();
         let c = compare_with_protocol(&shorts, &timing(250, 500, 100));
@@ -1370,9 +1434,8 @@ mod tests {
                 let c = r.comparison.as_ref().unwrap();
                 assert!(
                     matches!(c.verdict(), TimingVerdict::Matches | TimingVerdict::WithinTolerance),
-                    "{rel} #{i}: {:?}\n{}",
-                    c.verdict(),
-                    r.render_lines().join("\n")
+                    "{rel} #{i}: {:?}\n{r:#?}",
+                    c.verdict()
                 );
                 assert!(c.short_ok && c.long_ok, "{rel} #{i}");
                 assert_eq!(r.coding.label(), coding, "{rel} #{i}: {:?}", r.coding);
@@ -1423,11 +1486,15 @@ mod tests {
     #[ignore]
     fn sweep_imports_timing() {
         let detail = std::env::var("KAT_TIMING_DETAIL").ok();
+        let reg = crate::protocols::ProtocolRegistry::new();
         for (rel, name, pairs, timing) in imports_decodes() {
-            let r = analyze(&pairs, Some(&name), Some(&timing));
+            let mut r = analyze(&pairs, Some(&name), Some(&timing));
+            // As the app does it: a protocol sent with several timings is compared with the one
+            // the capture fits.
+            r.compare_with_variants(&pairs, &reg.get(&name).map(|d| d.timing_variants()).unwrap_or_default());
             let c = r.comparison.as_ref().unwrap();
             if detail.as_deref().is_some_and(|d| rel.contains(d)) {
-                eprintln!("==== {rel} {name}\n{}", r.render_lines().join("\n"));
+                eprintln!("==== {rel} {name}\n{r:#?}");
                 let raw: Vec<String> = pairs.iter().take(400).map(|p| format!("{}{}", if p.level { "+" } else { "-" }, p.duration_us)).collect();
                 eprintln!("RAW: {}", raw.join(" "));
             }
@@ -1449,6 +1516,38 @@ mod tests {
                 cap.modulation()
             );
         }
+    }
+
+    #[test]
+    fn a_protocol_with_two_timings_is_compared_with_the_one_the_capture_fits() {
+        // Like VAG: 500/1000 us is the definition `timing()` gives, 300/600 us its other one.
+        let (main, other) = (timing(500, 1000, 80), timing(300, 600, 100));
+        let verdict = |r: &TimingReport| r.comparison.as_ref().map(|c| (c.te_short, c.te_long, c.verdict()));
+
+        let slow = manchester_train(500, 80, 5, 31);
+        let mut r = analyze(&slow, Some("Made Up"), Some(&main));
+        assert_eq!((verdict(&r), r.variants), (Some((500, 1000, TimingVerdict::Matches)), 1));
+        r.compare_with_variants(&slow, &[other]);
+        assert_eq!((verdict(&r), r.variants), (Some((500, 1000, TimingVerdict::Matches)), 2));
+
+        // Against the main definition alone a 300/600 us frame has no long durations at all.
+        let fast = manchester_train(300, 80, 5, 32);
+        let mut r = analyze(&fast, Some("Made Up"), Some(&main));
+        assert_eq!(verdict(&r), Some((500, 1000, TimingVerdict::Incomplete)));
+        r.compare_with_variants(&fast, &[other]);
+        assert_eq!((verdict(&r), r.variants), (Some((300, 600, TimingVerdict::Matches)), 2));
+
+        // The window is the report's own, wherever the frame is in the capture.
+        let mut late = noise(3000, 9);
+        late.extend(manchester_train(300, 80, 5, 33));
+        let mut r = analyze(&late, Some("Made Up"), Some(&main));
+        r.compare_with_variants(&late, &[other]);
+        assert_eq!(verdict(&r), Some((300, 600, TimingVerdict::Matches)));
+
+        // No definition to compare with: none is made up.
+        let mut r = analyze(&fast, None, None);
+        r.compare_with_variants(&fast, &[other]);
+        assert_eq!((verdict(&r), r.variants), (None, 1));
     }
 
     /// Random 60–300 µs pulses, like a Flipper OOK recording between transmissions.
@@ -1480,7 +1579,7 @@ mod tests {
         assert!(r.window_start + 64 >= frame_start, "window at {}", r.window_start);
         assert!((r.te.unwrap().te_us - 250.0).abs() < 10.0, "{:?}", r.te);
         assert_eq!(r.coding, LineCoding::Manchester);
-        assert!(r.render_lines()[0].contains("most regular 512-pair window"));
+        assert_eq!((r.capture_pairs, r.pair_count), (long.len(), PP_BUFFER));
     }
 
     #[test]
@@ -1492,33 +1591,32 @@ mod tests {
             v.push(pair(false, if i % 2 == 0 { u32::MAX } else { u32::MAX / 2 }));
         }
         let r = analyze(&v, Some("Kia V1"), Some(&timing(800, 1600, 200)));
-        assert!(!r.render_lines().is_empty());
-        assert!(!analyze(&v, None, None).render_lines().is_empty());
+        assert_eq!(r.pair_count, v.len());
+        assert!(r.comparison.is_some());
+        let r = analyze(&v, None, None);
+        assert_eq!(r.high_count + r.low_count, v.len());
+        let _ = r.suggested_definition();
     }
 
     #[test]
-    fn report_has_protopirate_sections() {
+    fn a_decoded_capture_is_compared_and_an_undecoded_one_gets_a_suggestion() {
         let pairs = manchester_train(250, 64, 5, 11);
         let r = analyze(&pairs, Some("Ford V0"), Some(&timing(250, 500, 120)));
-        let text = r.render_lines().join("\n");
-        for section in [
-            "PROTOCOL DEFINITION (Ford V0):",
-            "  Short: 250 us",
-            "  Tolerance: +/-120 us",
-            "RECEIVED SIGNAL:",
-            "ANALYSIS:",
-            "  Short Jitter:",
-            "CONCLUSION:",
-            "PULSE CLUSTERS",
-            "Base TE estimate:",
-            "Line coding guess: Manchester",
-        ] {
-            assert!(text.contains(section), "missing {section:?} in\n{text}");
-        }
-        assert!(!text.contains("Suggested definition"));
-        let undecoded = analyze(&pairs, None, None).render_lines().join("\n");
-        assert!(undecoded.contains("NO PROTOCOL REFERENCE (undecoded capture)"));
-        assert!(undecoded.contains("Suggested definition: te_short ~"), "{undecoded}");
+        assert_eq!(r.protocol.as_deref(), Some("Ford V0"));
+        let c = r.comparison.as_ref().expect("comparison");
+        assert_eq!((c.te_short, c.te_long, c.te_delta), (250, 500, 120));
+        assert!(c.short.count > 0 && c.long.count > 0, "{c:?}");
+        assert!(c.short.max < c.threshold && c.threshold <= c.long.min, "{c:?}");
+        assert_eq!(c.verdict(), TimingVerdict::Matches);
+        assert!(!r.high.is_empty() && !r.low.is_empty());
+        assert!(r.te.is_some());
+        assert_eq!(r.coding, LineCoding::Manchester);
+
+        let undecoded = analyze(&pairs, None, None);
+        assert!(undecoded.protocol.is_none() && undecoded.comparison.is_none());
+        let (short, long) = undecoded.suggested_definition().expect("suggestion");
+        assert!((short as i64 - 250).abs() < 12, "te_short {short}");
+        assert!(long.is_some_and(|l| (l as i64 - 500).abs() < 24), "te_long {long:?}");
     }
 
     /// A frame followed by pulses that are not part of it (the rest of a live burst): with the
@@ -1539,8 +1637,7 @@ mod tests {
         assert_eq!(framed.capture_pairs, pairs.len());
         assert_eq!(framed.window_start + framed.pair_count, frame_end);
         assert!(framed.comparison.is_some());
-        let text = framed.render_lines().join("\n");
-        assert!(text.contains("Short Avg: 400 us"), "{text}");
+        assert_eq!(framed.comparison.as_ref().map(|c| c.short.avg), Some(400));
         // Without the frame end, the window ends with the capture (the trailing pulses).
         let whole = analyze(&pairs, Some("Test"), Some(&timing));
         assert_eq!(whole.window_start + whole.pair_count, pairs.len());

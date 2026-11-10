@@ -1,7 +1,12 @@
 //! Capture data structures for storing decoded signals.
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, Utc};
 use serde::{Deserialize, Serialize};
+
+/// A stored time on the user's clock, for the screen (files and sessions keep UTC).
+pub fn local_time(t: DateTime<Utc>) -> DateTime<Local> {
+    t.with_timezone(&Local)
+}
 
 /// Status of a captured signal
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -97,6 +102,48 @@ pub struct Capture {
     /// ([crate::protocols::transmission]); written back when the capture is saved as a key file.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub key_repeat: Option<u32>,
+    /// The radio that received it, by its name on screen ("HackRF", "RTL-SDR 2"); None for a file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub radio: Option<String>,
+    /// KAT's own transmission heard back: received while this radio (another of KAT's) was
+    /// transmitting near its frequency.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub own_tx: Option<String>,
+    /// What KAT's receiver measured of the burst this capture came from (a HackRF, an RTL-SDR or an
+    /// IQ file); None for a file of pulses and for a Flipper, which reports pulses only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub measured: Option<RfMeasurement>,
+}
+
+/// The RF side of a received burst, as KAT's receive pipeline measured it (`radio::pipeline`). The
+/// "Analyze" report shows it (`analysis::signal`).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct RfMeasurement {
+    /// Where the signal sat, in Hz from the capture's frequency: the carrier (OOK), or the centre
+    /// of the two tones (FSK).
+    pub offset_hz: f32,
+    /// Carrier level over the noise floor in dB.
+    pub snr_db: f32,
+    /// Half the distance between the two tones, when the burst carries two (2-FSK).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deviation_hz: Option<f32>,
+    /// From the burst's first carrier to its last, in µs.
+    pub burst_us: u64,
+    /// The burst gave pulses on both paths (AM and FM): the list holds a capture of each unless a
+    /// decoder claimed one.
+    #[serde(default)]
+    pub both_paths: bool,
+}
+
+impl RfMeasurement {
+    /// A measurement with every number finite (JSON has no NaN or infinity, and the session file
+    /// would not load again with one): None when the offset or the SNR is not a number.
+    pub fn checked(self) -> Option<Self> {
+        (self.offset_hz.is_finite() && self.snr_db.is_finite()).then_some(Self {
+            deviation_hz: self.deviation_hz.filter(|d| d.is_finite() && *d > 0.0),
+            ..self
+        })
+    }
 }
 
 /// The result of a key search for a capture.
@@ -205,6 +252,9 @@ impl Capture {
             on_air: None,
             key_recovery: None,
             key_repeat: None,
+            radio: None,
+            own_tx: None,
+            measured: None,
         }
     }
 
@@ -342,14 +392,15 @@ impl Capture {
         }
     }
 
-    /// Get the timestamp formatted for display
+    /// The time of day it was captured, on the user's clock (the list's Time column).
     pub fn timestamp_short(&self) -> String {
-        self.timestamp.format("%H:%M:%S").to_string()
+        local_time(self.timestamp).format("%H:%M:%S").to_string()
     }
 
-    /// Get full timestamp for detail display
+    /// Date and time it was captured on the user's clock, with the clock's offset from UTC:
+    /// "2026-11-04 10:31:07 UTC+01:00".
     pub fn timestamp_full(&self) -> String {
-        self.timestamp.format("%Y-%m-%d %H:%M:%S UTC").to_string()
+        local_time(self.timestamp).format("%Y-%m-%d %H:%M:%S UTC%:z").to_string()
     }
 
     /// Get button code as hex
@@ -420,6 +471,30 @@ impl ButtonCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The screen shows the user's clock: the full form carries the offset, so it reads back as
+    /// the stored instant whatever the zone of the machine running this.
+    #[test]
+    fn shown_times_are_the_stored_instant_on_the_local_clock() {
+        let mut c = Capture::from_pairs(0, 433_920_000, Vec::new());
+        c.timestamp = DateTime::parse_from_rfc3339("2026-11-04T10:31:07.123456789Z").unwrap().with_timezone(&Utc);
+        let full = c.timestamp_full();
+        let back = DateTime::parse_from_str(&full, "%Y-%m-%d %H:%M:%S UTC%:z").expect(&full);
+        assert_eq!(back.timestamp(), c.timestamp.timestamp(), "{full}");
+        assert!(full.contains(&format!(" {} UTC", c.timestamp_short())), "{full}");
+    }
+
+    /// A measurement that is not a number is dropped, and so is a deviation that is none.
+    #[test]
+    fn a_measurement_holds_numbers_only() {
+        let m = RfMeasurement { offset_hz: 1_500.0, snr_db: 22.0, deviation_hz: Some(47_600.0), burst_us: 9_000, both_paths: true };
+        assert_eq!(m.checked(), Some(m));
+        assert_eq!(RfMeasurement { offset_hz: f32::NAN, ..m }.checked(), None);
+        assert_eq!(RfMeasurement { snr_db: f32::INFINITY, ..m }.checked(), None);
+        for bad in [f32::NAN, 0.0, -3.0] {
+            assert_eq!(RfMeasurement { deviation_hz: Some(bad), ..m }.checked().map(|m| m.deviation_hz), Some(None));
+        }
+    }
 
     /// `data_hex` pads to the frame's bytes up to 8: never zeros in front of a long frame's first
     /// 64 bits (the rest of such a frame is in `data_extra`).

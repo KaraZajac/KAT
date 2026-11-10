@@ -50,11 +50,11 @@ pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
             "IMPORT",
             Style::default().fg(Color::Yellow),
         ),
-        InputMode::SessionRestore | InputMode::ConfirmClear | InputMode::TimingAnalysis => {
+        InputMode::SessionRestore | InputMode::ConfirmClear | InputMode::Analyze => {
             let (label, style) = super::app_prompts::mode_label(app.input_mode);
             (String::new(), label, style)
         }
-        InputMode::Help | InputMode::ConfirmQuit | InputMode::ConfirmDeleteAll => {
+        InputMode::Help | InputMode::Radios | InputMode::ConfirmQuit | InputMode::ConfirmDeleteAll => {
             let (label, style) = super::app_prompts::mode_label(app.input_mode);
             (String::new(), label, style)
         }
@@ -115,7 +115,7 @@ pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
     let input = Paragraph::new(input_line).block(
         Block::default()
             .borders(Borders::ALL)
-            .title("Command"),
+            .title(" Command "),
     );
 
     frame.render_widget(input, area);

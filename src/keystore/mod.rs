@@ -6,6 +6,8 @@ mod embedded;
 use std::convert::TryInto;
 use std::sync::OnceLock;
 
+use crate::plural;
+
 /// File name of the user keystore in KAT's config folder: the Flipper's plaintext user keystore
 /// (`subghz/assets/keeloq_mfcodes_user`), lines `KEY:TYPE:NAME` (16 hex digits, the learning type
 /// in Flipper numbering, the manufacturer name) after an optional `Filetype`/`Version`/`Encryption: 0`
@@ -54,16 +56,24 @@ pub fn parse_user_keystore(text: &str) -> Result<ParsedUserKeystore, String> {
 /// Load `<config dir>/keeloq_mfcodes_user` if it exists (once, at startup, before any decode).
 /// Returns a status line for the user when a file was found.
 pub fn load_user_keystore(config_dir: &std::path::Path) -> Option<String> {
+    // The keystore is one per process, and the tests share theirs. One that got here (through
+    // `headless::run`) put the developer's own keys into it for all of them: decodes changed with
+    // what the file held, and a key of a doctor-firmware learning type in it can keep
+    // `keeloq_doctor_learning_types` from ever ending.
+    if cfg!(test) {
+        panic!("a test must not load the user's keystore: the tests share one process");
+    }
     let path = config_dir.join(USER_KEYSTORE_FILE);
     let text = std::fs::read_to_string(&path).ok()?;
     let msg = match parse_user_keystore(&text) {
         Ok((entries, errors)) => {
             let n = entries.len();
             let _ = USER_ENTRIES.set(entries);
+            let loaded = format!("Loaded {n} user KeeLoq key{} from {}", plural(n), path.display());
             if errors.is_empty() {
-                format!("Loaded {n} user KeeLoq key(s) from {}", path.display())
+                loaded
             } else {
-                format!("Loaded {n} user KeeLoq key(s) from {} ({} bad line(s), first: line {})", path.display(), errors.len(), errors[0].0)
+                format!("{loaded} ({} bad line{}, first: line {})", errors.len(), plural(errors.len()), errors[0].0)
             }
         }
         Err(e) => format!("{}: {e}", path.display()),

@@ -14,8 +14,8 @@ types; Momentum's adds none). Code: `src/protocols/add_manually.rs` (types, para
 - `:new` opens the type picker: the 112 types in the references' menu order, under the headings
   Rolling code, KeeLoq manufacturers (KL:), Nice, CAME, Fixed code and Security+. Each row shows the
   protocol (KeeLoq: the manufacturer key), frequency and preset; doctor-firmware-only types say
-  "doctor", RogueMaster's nine "RM" and FoxFW's two "Fox", types KAT cannot create "✗ n/a" (the reason is shown under
-  the list); the line under the list names the menus that list the selected type.
+  "doctor", RogueMaster's nine "RM" and FoxFW's two "Fox", types KAT cannot create "✗ n/a" (the reason takes the two
+  lines under the list: what is missing and where to add it); the line under the list names the menus that list the selected type.
 - Type to filter (all words must match the name), Up/Down/PgUp/PgDn to select.
 - **Enter** creates the selected type with fresh random values (doctor-firmware's "Add Manually").
 - **Tab** first shows its fields — Key (fixed codes), Serial, Button, Counter, Seed, as Flipper-ARF's
@@ -149,7 +149,8 @@ name them (Somfy My/Up/Down/Prog, Jarolift Learn/Down/Stop/Up, Alutech buttons 1
 its encoder accepts as "Btn 0xN" (`src/protocols/gate_buttons.rs`) — or a typed hex code. Enter sends
 the next code with that button, which the capture then keeps along with the counter (as the references
 save the last code sent); the list stays open. The button column shows "Btn 0xN" for gate
-protocols without button names (KAT's car labels Lock/Unlock/Trunk/Panic are for car remotes only).
+protocols without button names (KAT's car labels Lock/Unlock/Trunk/Panic are for car remotes only);
+the detail panel, whose row is already labelled Btn, shows the code alone ("Btn: 0x09").
 
 ## Types
 

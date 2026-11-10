@@ -31,8 +31,8 @@ const SKIP = new Set(['build.mjs', 'package.json', 'package-lock.json', 'node_mo
   '_config.yml', 'og-card.html', 'README.md']);
 // Pages that explain how to use KAT rather than one protocol. Anything not
 // listed here is filed under Protocols.
-const GUIDES = new Set(['radio', 'transmit', 'session', 'timing_analysis', 'add_manually',
-  'flipper_key_files', 'unidentified_captures']);
+const GUIDES = new Set(['radio', 'flipper_radio', 'transmit', 'session', 'analyze', 'timing_analysis',
+  'add_manually', 'flipper_key_files', 'unidentified_captures']);
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 

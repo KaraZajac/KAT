@@ -23,6 +23,8 @@
 
 use anyhow::{Context, Result};
 use configparser::ini::Ini;
+
+use crate::radio::devices::{FoundRadio, RadioKind};
 use std::fs;
 use std::path::PathBuf;
 
@@ -65,8 +67,14 @@ pub struct Config {
     pub tx_vga_gain: u32,
     /// TX RF amplifier (about +11 dB) for every transmission
     pub tx_amp: bool,
-    /// Which radio KAT opens (`device`): auto (a HackRF, else an RTL-SDR, else a Flipper Zero), or one.
-    pub radio_device: RadioChoice,
+    /// The kinds of radio KAT uses (`device`): auto = every kind; KAT uses every radio of them it
+    /// finds.
+    pub radio_devices: Vec<RadioKind>,
+    /// The radio that transmits (`tx_radio`); None (auto): the first that can, a HackRF before a
+    /// Flipper.
+    pub tx_radio: Option<RadioPick>,
+    /// Start settings of single radios or kinds (`[radio.<kind>]`, `[radio.<kind>.<serial>]`).
+    pub radio_sections: Vec<RadioSection>,
     /// A Flipper Zero's console port (`flipper_port`); None: found by its USB name.
     pub flipper_port: Option<String>,
     /// The receive preset of doctor-firmware's `rx_raw` (`flipper_preset`, e.g. FM476); None: the
@@ -103,7 +111,9 @@ impl Config {
             // KAT ≤ 1.4 always transmitted at maximum power.
             tx_vga_gain: 47,
             tx_amp: true,
-            radio_device: RadioChoice::Auto,
+            radio_devices: RadioKind::ALL.to_vec(),
+            tx_radio: None,
+            radio_sections: Vec::new(),
             flipper_port: None,
             flipper_preset: None,
             default_export_format: "fob".to_string(),
@@ -158,7 +168,9 @@ impl Config {
         let default_amp = r.bool("radio", "default_amp", defaults.default_amp);
         let tx_vga_gain = r.gain("radio", "tx_vga_gain", defaults.tx_vga_gain, 47, 1);
         let tx_amp = r.bool("radio", "tx_amp", defaults.tx_amp);
-        let radio_device = r.get("radio", "device", defaults.radio_device, |d| d.name().to_string(), RadioChoice::parse);
+        let radio_devices = r.get("radio", "device", defaults.radio_devices, |d| device_list_name(d), parse_device_list);
+        let tx_radio = r.get("radio", "tx_radio", defaults.tx_radio, |_| "auto".to_string(), RadioPick::parse_setting);
+        let radio_sections = r.radio_sections();
         let flipper_port = r.text("radio", "flipper_port");
         let flipper_preset = r.text("radio", "flipper_preset");
 
@@ -197,7 +209,9 @@ impl Config {
             default_amp,
             tx_vga_gain,
             tx_amp,
-            radio_device,
+            radio_devices,
+            tx_radio,
+            radio_sections,
             flipper_port,
             flipper_preset,
             default_export_format,
@@ -238,7 +252,7 @@ import_directory = {import_dir}
 ; 0 = no limit). See [session] below.
 max_captures = {max_captures}
 
-; List unknown (undecoded) signals too, for timing analysis and research (true), or only the
+; List unknown (undecoded) signals too, to analyze (the a key) and for research (true), or only the
 ; signals a protocol decodes (false). Older versions called this research_mode.
 show_unknown_signals = {show_unknown_signals}
 
@@ -277,9 +291,23 @@ default_amp = {amp}
 tx_vga_gain = {tx_vga}
 tx_amp = {tx_amp}
 
-; Which radio KAT opens: auto (a HackRF, else an RTL-SDR, else a Flipper Zero on USB), hackrf,
-; rtlsdr or flipper.
+; The radios KAT uses: auto (every HackRF, RTL-SDR and Flipper Zero it finds; :radios lists
+; them), or the kinds to use, e.g. hackrf, rtlsdr.
 device = {device}
+
+; The radio that transmits: auto (the first that can: a HackRF, else a Flipper), hackrf or
+; flipper, followed by its serial (or the serial's last digits) when there are two of a kind.
+; Also :txradio <n> while KAT runs.
+tx_radio = {tx_radio}
+
+; Every radio starts on default_frequency with the default gains, unless a section for it says
+; otherwise: [radio.<kind>] for every radio of a kind (hackrf, rtlsdr, flipper),
+; [radio.<kind>.<serial>] for one (the serial :radios shows, or its last digits).
+; Keys: frequency, lna_gain, vga_gain, amp. A HackRF has them all; an RTL-SDR has the frequency
+; and one gain, vga_gain; a Flipper Zero only the frequency. For example:
+;   [radio.rtlsdr]
+;   frequency = 315
+;   vga_gain = 32
 
 ; A Flipper Zero is used through its USB console (transmit and receive, docs/flipper_radio.md).
 ; flipper_port: its serial port, when KAT does not find it (/dev/ttyACM0, /dev/cu.usbmodemflip_Name1,
@@ -301,7 +329,7 @@ include_raw_pairs = {raw_pairs}
 ; directory and offer to restore them at the next start. The file holds rolling codes:
 ; it is written with owner-only permissions (0600). :clear deletes it.
 session_autosave = {session_autosave}
-"#,
+{radio_sections}"#,
             path = path.display(),
             export_dir = export_str,
             import_dir = import_str,
@@ -323,7 +351,9 @@ session_autosave = {session_autosave}
             amp = self.default_amp,
             tx_vga = self.tx_vga_gain,
             tx_amp = self.tx_amp,
-            device = self.radio_device.name(),
+            device = device_list_name(&self.radio_devices),
+            tx_radio = self.tx_radio.as_ref().map_or_else(|| "auto".to_string(), RadioPick::setting),
+            radio_sections = self.radio_sections.iter().map(RadioSection::ini_text).collect::<String>(),
             flipper_port = match &self.flipper_port {
                 Some(p) => format!("flipper_port = {p}"),
                 None => "; flipper_port = /dev/ttyACM0".to_string(),
@@ -344,35 +374,129 @@ session_autosave = {session_autosave}
     }
 }
 
-/// Which radio KAT opens (`[radio] device`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RadioChoice {
-    /// A HackRF, else an RTL-SDR, else a Flipper Zero.
-    Auto,
-    HackRf,
-    RtlSdr,
-    Flipper,
+/// `device`: `auto` (or `all`) for every kind, else the kinds named (commas or spaces between
+/// them), in [RadioKind::ALL] order.
+fn parse_device_list(value: &str) -> Result<Vec<RadioKind>, String> {
+    let why = || "is not auto or a list of hackrf, rtlsdr and flipper".to_string();
+    if matches!(value.trim().to_ascii_lowercase().as_str(), "auto" | "all") {
+        return Ok(RadioKind::ALL.to_vec());
+    }
+    let mut kinds = Vec::new();
+    for item in value.split(',').map(str::trim).filter(|i| !i.is_empty()) {
+        match RadioKind::parse(item) {
+            Some(k) => kinds.push(k),
+            // "hackrf rtlsdr": one word each
+            None => {
+                for word in item.split_whitespace() {
+                    kinds.push(RadioKind::parse(word).ok_or_else(why)?);
+                }
+            }
+        }
+    }
+    if kinds.is_empty() {
+        return Err(why());
+    }
+    Ok(RadioKind::ALL.into_iter().filter(|k| kinds.contains(k)).collect())
 }
 
-impl RadioChoice {
-    fn parse(value: &str) -> Result<Self, String> {
-        match value.to_ascii_lowercase().replace(['-', '_', ' '], "").as_str() {
-            "auto" => Ok(Self::Auto),
-            "hackrf" => Ok(Self::HackRf),
-            "rtlsdr" => Ok(Self::RtlSdr),
-            "flipper" | "flipperzero" => Ok(Self::Flipper),
-            _ => Err("is not auto, hackrf, rtlsdr or flipper".to_string()),
+/// `device` as `config.ini` writes it.
+fn device_list_name(kinds: &[RadioKind]) -> String {
+    if RadioKind::ALL.iter().all(|k| kinds.contains(k)) {
+        "auto".to_string()
+    } else {
+        kinds.iter().map(|k| k.config_name()).collect::<Vec<_>>().join(", ")
+    }
+}
+
+/// One radio, or the first of a kind (`tx_radio`): `hackrf`, `flipper 2e5a1f3d`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RadioPick {
+    pub kind: RadioKind,
+    /// The radio's serial, or its last digits; None: the first radio of the kind.
+    pub serial: Option<String>,
+}
+
+impl RadioPick {
+    /// `tx_radio`: `auto` (None), a kind, or a kind and a serial; only kinds that transmit.
+    fn parse_setting(value: &str) -> Result<Option<Self>, String> {
+        let value = value.trim();
+        if value.eq_ignore_ascii_case("auto") {
+            return Ok(None);
+        }
+        let pick = match RadioKind::parse(value) {
+            Some(kind) => RadioPick { kind, serial: None },
+            None => {
+                let (kind, serial) = value.rsplit_once(char::is_whitespace).ok_or("is not auto, hackrf or flipper")?;
+                let kind = RadioKind::parse(kind).ok_or("is not auto, hackrf or flipper")?;
+                RadioPick { kind, serial: Some(serial.trim().to_string()) }
+            }
+        };
+        if !pick.kind.can_transmit() {
+            return Err(format!("names a {}, which cannot transmit", pick.kind.label()));
+        }
+        Ok(Some(pick))
+    }
+
+    fn setting(&self) -> String {
+        match &self.serial {
+            Some(s) => format!("{} {s}", self.kind.config_name()),
+            None => self.kind.config_name().to_string(),
         }
     }
 
-    /// As `config.ini` writes it.
-    pub fn name(self) -> &'static str {
-        match self {
-            Self::Auto => "auto",
-            Self::HackRf => "hackrf",
-            Self::RtlSdr => "rtlsdr",
-            Self::Flipper => "flipper",
+    /// Whether `radio` is the one this names (the first match wins).
+    pub fn matches(&self, radio: &FoundRadio) -> bool {
+        radio.kind == self.kind && self.serial.as_deref().is_none_or(|s| radio.matches_serial(s))
+    }
+}
+
+/// Start settings of the radios a `[radio.<kind>]` or `[radio.<kind>.<serial>]` section names
+/// (None: the general default, `default_frequency` and so on).
+#[derive(Debug, Clone, PartialEq)]
+pub struct RadioSection {
+    pub kind: RadioKind,
+    /// None: every radio of the kind.
+    pub serial: Option<String>,
+    pub frequency: Option<u32>,
+    pub lna_gain: Option<u32>,
+    pub vga_gain: Option<u32>,
+    pub amp: Option<bool>,
+}
+
+/// Keys of a `[radio.<kind>…]` section.
+const RADIO_SECTION_KEYS: &[&str] = &["frequency", "lna_gain", "vga_gain", "amp"];
+
+impl RadioSection {
+    /// `radio.rtlsdr` → (RTL-SDR, None); `radio.hackrf.2e5a1f3d` → (HackRF, serial); else None.
+    fn parse_name(section: &str) -> Option<(RadioKind, Option<String>)> {
+        let rest = section.strip_prefix("radio.")?;
+        let (kind, serial) = match rest.split_once('.') {
+            Some((k, s)) => (k, Some(s.trim().to_string()).filter(|s| !s.is_empty())),
+            None => (rest, None),
+        };
+        Some((RadioKind::parse(kind)?, serial))
+    }
+
+    /// Whether it applies to `radio`.
+    pub fn applies_to(&self, radio: &FoundRadio) -> bool {
+        radio.kind == self.kind && self.serial.as_deref().is_none_or(|s| radio.matches_serial(s))
+    }
+
+    fn ini_text(&self) -> String {
+        let mut t = format!("\n[radio.{}{}]\n", self.kind.config_name(), self.serial.as_ref().map(|s| format!(".{s}")).unwrap_or_default());
+        if let Some(f) = self.frequency {
+            t.push_str(&format!("frequency = {}\n", crate::radio::hopper::format_mhz(f)));
         }
+        if let Some(g) = self.lna_gain {
+            t.push_str(&format!("lna_gain = {g}\n"));
+        }
+        if let Some(g) = self.vga_gain {
+            t.push_str(&format!("vga_gain = {g}\n"));
+        }
+        if let Some(a) = self.amp {
+            t.push_str(&format!("amp = {a}\n"));
+        }
+        t
     }
 }
 
@@ -403,6 +527,7 @@ const KNOWN_KEYS: &[(&str, &[&str])] = &[
             "tx_vga_gain",
             "tx_amp",
             "device",
+            "tx_radio",
             "flipper_port",
             "flipper_preset",
         ],
@@ -445,7 +570,8 @@ impl IniReader<'_> {
     fn check_known_keys(&mut self) {
         let mut unknown = Vec::new();
         for (section, keys) in self.ini.get_map_ref() {
-            match KNOWN_KEYS.iter().find(|(name, _)| name == section) {
+            let radio_section = RadioSection::parse_name(section).map(|_| ("radio.*", RADIO_SECTION_KEYS));
+            match KNOWN_KEYS.iter().copied().find(|(name, _)| name == section).or(radio_section) {
                 Some((_, known)) => {
                     for key in keys.keys().filter(|k| !known.contains(&k.as_str())) {
                         unknown.push(format!("[{section}] {key} is not a KAT setting; ignored"));
@@ -552,6 +678,23 @@ impl IniReader<'_> {
                 Err(e) => Err(format!("cannot be used ({e})")),
             }
         })
+    }
+
+    /// The `[radio.<kind>]` and `[radio.<kind>.<serial>]` sections, in file order (sections with an
+    /// unknown kind are reported by [Self::check_known_keys]).
+    fn radio_sections(&mut self) -> Vec<RadioSection> {
+        let names: Vec<String> = self.ini.get_map_ref().keys().cloned().collect();
+        let mut sections = Vec::new();
+        for name in names {
+            let Some((kind, serial)) = RadioSection::parse_name(&name) else { continue };
+            let opt = |r: &mut Self, key: &str| r.has(&name, key).then_some(());
+            let frequency = opt(self, "frequency").map(|()| self.frequency(&name, "frequency", 433_920_000));
+            let lna_gain = opt(self, "lna_gain").map(|()| self.gain(&name, "lna_gain", 24, 40, 8));
+            let vga_gain = opt(self, "vga_gain").map(|()| self.gain(&name, "vga_gain", 20, 62, 2));
+            let amp = opt(self, "amp").map(|()| self.bool(&name, "amp", false));
+            sections.push(RadioSection { kind, serial, frequency, lna_gain, vga_gain, amp });
+        }
+        sections
     }
 
     /// Hop dwell: 20 ms to 10 s, the range the hopper keeps to.
@@ -828,38 +971,92 @@ mod config_warning_tests {
         assert!(cfg.show_unknown_signals, "the new key wins");
     }
 
-    /// `device` picks the radio (auto by default); the Flipper's port and receive preset are read
-    /// as written, and a written config with them set loads back as it was.
+    /// `device` names the kinds of radio KAT uses (all by default), `tx_radio` the one that
+    /// transmits; the Flipper's port and receive preset are read as written, and a written config
+    /// with them set loads back as it was.
     #[test]
     fn radio_device_and_flipper_settings() {
+        use RadioKind::{Flipper, HackRf, RtlSdr};
         let (cfg, warnings) = parse("[radio]\ntx_amp = true\n");
-        assert_eq!((cfg.radio_device, cfg.flipper_port.as_deref(), cfg.flipper_preset.as_deref()), (RadioChoice::Auto, None, None));
+        assert_eq!((cfg.radio_devices.clone(), cfg.flipper_port.as_deref(), cfg.flipper_preset.as_deref()), (vec![HackRf, RtlSdr, Flipper], None, None));
+        assert_eq!(cfg.tx_radio, None);
         assert!(warnings.is_empty(), "{warnings:?}");
-        for (word, want) in [("flipper", RadioChoice::Flipper), ("Flipper Zero", RadioChoice::Flipper), ("RTL-SDR", RadioChoice::RtlSdr), ("hackrf", RadioChoice::HackRf)] {
+        for (word, want) in [
+            ("flipper", vec![Flipper]),
+            ("Flipper Zero", vec![Flipper]),
+            ("RTL-SDR", vec![RtlSdr]),
+            ("hackrf", vec![HackRf]),
+            ("flipper, hackrf", vec![HackRf, Flipper]),
+            ("rtlsdr hackrf", vec![HackRf, RtlSdr]),
+            ("all", vec![HackRf, RtlSdr, Flipper]),
+        ] {
             let (cfg, warnings) = parse(&format!("[radio]\ndevice = {word}\n"));
-            assert_eq!(cfg.radio_device, want, "{word}");
+            assert_eq!(cfg.radio_devices, want, "{word}");
             assert!(warnings.is_empty(), "{warnings:?}");
         }
         let (cfg, warnings) = parse("[radio]\ndevice = bladerf\n");
-        assert_eq!(cfg.radio_device, RadioChoice::Auto);
+        assert_eq!(cfg.radio_devices, vec![HackRf, RtlSdr, Flipper]);
         assert!(warnings.iter().any(|w| w.contains("device = bladerf")), "{warnings:?}");
+
+        let pick = |kind, serial: Option<&str>| Some(RadioPick { kind, serial: serial.map(str::to_string) });
+        for (word, want) in [("auto", None), ("flipper", pick(Flipper, None)), ("HackRF 2e5a1f3d", pick(HackRf, Some("2e5a1f3d")))] {
+            let (cfg, warnings) = parse(&format!("[radio]\ntx_radio = {word}\n"));
+            assert_eq!(cfg.tx_radio, want, "{word}");
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+        let (cfg, warnings) = parse("[radio]\ntx_radio = rtlsdr\n");
+        assert_eq!(cfg.tx_radio, None);
+        assert!(warnings.iter().any(|w| w.contains("cannot transmit")), "{warnings:?}");
 
         let dir = std::env::temp_dir().join(format!("kat_cfg_flipper_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("config.ini");
         let mut want = Config::default_for(&dir);
-        want.radio_device = RadioChoice::Flipper;
+        want.radio_devices = vec![Flipper];
+        want.tx_radio = pick(Flipper, Some("ab1cd2"));
         want.flipper_port = Some("/dev/ttyACM1".to_string());
         want.flipper_preset = Some("FM476".to_string());
+        want.radio_sections = vec![RadioSection {
+            kind: Flipper,
+            serial: None,
+            frequency: Some(868_350_000),
+            lna_gain: None,
+            vga_gain: None,
+            amp: Some(false),
+        }];
         want.save_to_ini(&path).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
         let _ = std::fs::remove_dir_all(&dir);
         let (cfg, warnings) = Config::parse_ini(&text, &dir);
         assert!(warnings.is_empty(), "{warnings:?}");
         assert_eq!(
-            (cfg.radio_device, cfg.flipper_port.as_deref(), cfg.flipper_preset.as_deref()),
-            (RadioChoice::Flipper, Some("/dev/ttyACM1"), Some("FM476"))
+            (cfg.radio_devices, cfg.flipper_port.as_deref(), cfg.flipper_preset.as_deref()),
+            (vec![Flipper], Some("/dev/ttyACM1"), Some("FM476"))
         );
+        assert_eq!((cfg.tx_radio, cfg.radio_sections), (want.tx_radio, want.radio_sections));
+    }
+
+    /// `[radio.<kind>]` sets every radio of a kind, `[radio.<kind>.<serial>]` one radio, by its
+    /// serial or the serial's last digits; values are checked like the general ones, and other
+    /// keys or kinds are reported.
+    #[test]
+    fn radio_sections_set_single_radios() {
+        let (cfg, warnings) = parse(
+            "[radio.rtlsdr]\nfrequency = 315\nlna_gain = 33\n\n[radio.hackrf.2E5A1F3D]\nfrequency = 868.35\namp = on\n\n[radio.bladerf]\nfrequency = 433.92\n\n[radio.flipper]\ngain = 3\n",
+        );
+        let sections = &cfg.radio_sections;
+        assert_eq!(sections.len(), 3, "{sections:?}");
+        let rtl = sections.iter().find(|s| s.kind == RadioKind::RtlSdr).unwrap();
+        assert_eq!((rtl.serial.as_deref(), rtl.frequency, rtl.lna_gain, rtl.vga_gain, rtl.amp), (None, Some(315_000_000), Some(32), None, None));
+        let hackrf = sections.iter().find(|s| s.kind == RadioKind::HackRf).unwrap();
+        assert_eq!((hackrf.serial.as_deref(), hackrf.frequency, hackrf.amp), (Some("2e5a1f3d"), Some(868_350_000), Some(true)));
+        let mine = FoundRadio::hackrf(Some("0000000000000000457863c82e5a1f3d".to_string()));
+        let other = FoundRadio::hackrf(Some("000000000000000045786aaaaaaaaaaa".to_string()));
+        assert!(hackrf.applies_to(&mine) && !hackrf.applies_to(&other) && !rtl.applies_to(&mine));
+        for w in ["lna_gain = 33 is not a multiple of 8 dB", "[radio.bladerf] is not a KAT section", "[radio.flipper] gain is not a KAT setting"] {
+            assert!(warnings.iter().any(|x| x.contains(w)), "{w}: {warnings:?}");
+        }
+        assert_eq!(warnings.len(), 3, "{warnings:?}");
     }
 
     /// `autobf` is on unless the config says otherwise.

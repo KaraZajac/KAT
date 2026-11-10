@@ -17,7 +17,7 @@ fn char_width(c: char) -> usize {
 }
 
 /// The longest prefix of `chars` that fits in `max` columns.
-fn take_width(chars: impl Iterator<Item = char>, max: usize) -> Vec<char> {
+pub(super) fn take_width(chars: impl Iterator<Item = char>, max: usize) -> Vec<char> {
     let mut out = Vec::new();
     let mut used = 0;
     for c in chars {
@@ -141,6 +141,27 @@ pub fn wrap(text: &str, max: usize) -> Vec<String> {
     out
 }
 
+/// A message in at most `max_lines` lines of `max` columns: word-wrapped (a line break in it
+/// counts as a space), and when it needs more lines than that, the last one takes all that is
+/// left, cut in the middle, so the message keeps its start and its end (often the reason, or the
+/// file).
+pub fn wrap_within(message: &str, max: usize, max_lines: usize) -> Vec<String> {
+    let flat: String = message.trim().chars().map(|c| if c.is_whitespace() { ' ' } else { c }).collect();
+    let mut lines: Vec<String> = wrap_line(Line::raw(flat.as_str()), max, 0)
+        .iter()
+        .map(|line| line.spans.iter().map(|s| s.content.as_ref()).collect())
+        .collect();
+    let max_lines = max_lines.max(1);
+    if lines.len() > max_lines {
+        lines.truncate(max_lines - 1);
+        // Where the lines kept end in the message: a break drops its spaces, so count the rest.
+        let kept: usize = lines.iter().map(|l| l.chars().filter(|c| *c != ' ').count()).sum();
+        let rest = flat.char_indices().filter(|(_, c)| *c != ' ').nth(kept).map_or("", |(i, _)| &flat[i..]);
+        lines.push(truncate_middle(rest, max));
+    }
+    lines
+}
+
 /// Word-wrap a styled line to `max` columns. Breaks at spaces (the spaces of a break are
 /// dropped), splits words longer than a line, starts continuation lines with `indent` spaces
 /// (in the style of the line's first span) and keeps each character's style (the line's own
@@ -256,8 +277,11 @@ pub fn centered_start(selected: usize, visible: usize, len: usize) -> usize {
 /// " ↑ 2 more · ↓ 5 more " for a list that shows items `start..start + visible` of `len`
 /// (None when every item is shown).
 pub fn more_hint(start: usize, visible: usize, len: usize) -> Option<String> {
-    let above = start.min(len);
-    let below = len.saturating_sub(start + visible);
+    more_of(start.min(len), len.saturating_sub(start + visible))
+}
+
+/// The same for a list with `above` items before the ones shown and `below` after them.
+pub fn more_of(above: usize, below: usize) -> Option<String> {
     match (above, below) {
         (0, 0) => None,
         (0, b) => Some(format!(" ↓ {b} more ")),
@@ -320,6 +344,39 @@ mod tests {
         for max in 1..30 {
             assert!(wrap(text, max).iter().all(|l| width(l) <= max), "width {max}");
         }
+    }
+
+    #[test]
+    fn a_message_wraps_within_its_lines() {
+        // It fits: one line, as it is.
+        assert_eq!(wrap_within("Loaded 3 captures", 40, 3), ["Loaded 3 captures"]);
+        assert_eq!(wrap_within("", 40, 3), [""]);
+        // Longer: wrapped at spaces; a line break in the message is a space.
+        assert_eq!(
+            wrap_within("Error: could not read\nthe file: no such file", 24, 3),
+            ["Error: could not read", "the file: no such file"]
+        );
+        // More than the lines there are: the last one has the rest, with the message's end.
+        let long = "one two three four five six seven eight nine ten";
+        assert_eq!(wrap_within(long, 10, 4), ["one two", "three four", "five six", "seven… ten"]);
+        assert_eq!(wrap_within(long, 10, 3), ["one two", "three four", "five … ten"]);
+        assert_eq!(wrap_within(long, 10, 2), ["one two", "three… ten"]);
+        // One line (a bar that cannot grow): the cut in the middle alone.
+        assert_eq!(wrap_within(long, 10, 1), [truncate_middle(long, 10)]);
+        assert_eq!(wrap_within(long, 10, 0), [truncate_middle(long, 10)]);
+        // A word longer than a line is split, and no line is wider than the bar.
+        let path = "Error: /home/user/a/very/long/folder/name/with_a_file_in_it.sub: No such file or directory";
+        for (max, lines) in [(20, 1), (20, 2), (20, 3), (30, 3), (58, 3), (78, 3), (200, 3)] {
+            let wrapped = wrap_within(path, max, lines);
+            assert!(wrapped.len() <= lines && wrapped.iter().all(|l| width(l) <= max), "{max} {lines}: {wrapped:?}");
+            assert!(wrapped[0].starts_with("Error:"), "{wrapped:?}");
+            assert!(wrapped.last().unwrap().ends_with("directory"), "{wrapped:?}");
+        }
+        // The path is a word of 57 columns: it has a line of its own at 58.
+        assert_eq!(
+            wrap_within(path, 58, 3),
+            ["Error:", "/home/user/a/very/long/folder/name/with_a_file_in_it.sub:", "No such file or directory"]
+        );
     }
 
     #[test]

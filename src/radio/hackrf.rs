@@ -15,6 +15,7 @@ use std::thread::{self, JoinHandle};
 use crate::app::RadioEvent;
 
 use super::demodulator::LevelDuration;
+use super::devices::FoundRadio;
 use super::dsp::IqFormat;
 use super::hopper::HopPlan;
 use super::recorder::{RecordingStatus, RecordingSummary};
@@ -43,6 +44,8 @@ impl Default for GainSettings {
 
 /// HackRF controller for receiving and transmitting signals
 pub struct HackRfController {
+    /// Which HackRF (its serial, [HackRf::open_by_serial]); None: the first one libhackrf finds.
+    serial: Option<String>,
     /// Event sender for notifying the app
     event_tx: Sender<RadioEvent>,
     /// Whether we're currently receiving
@@ -55,47 +58,70 @@ pub struct HackRfController {
     live: Arc<LiveShared>,
     /// Whether HackRF is available
     hackrf_available: bool,
-    /// Why no HackRF could be opened at startup (for the no-device popup)
-    open_error: Option<String>,
     /// Shared gain settings (read by receiver thread)
     gain_settings: Arc<Mutex<GainSettings>>,
     /// RSSI (f32 bits) written by RX callback, read by UI - never blocks
     rssi_value: Arc<AtomicU32>,
 }
 
+/// The HackRFs on USB ([super::devices::discover]): each by its serial, so KAT opens that one for
+/// every receive run and transmission; why none can be used when there is none.
+pub fn find_devices() -> (Vec<FoundRadio>, Option<String>) {
+    let listed = libhackrf::HackRf::list().unwrap_or_else(|e| {
+        tracing::warn!("HackRF device list failed: {e:?}");
+        Vec::new()
+    });
+    let found: Vec<FoundRadio> = listed
+        .iter()
+        .filter_map(|d| d.serial.clone().filter(|s| !s.is_empty()))
+        .map(|s| FoundRadio::hackrf(Some(s)))
+        .collect();
+    let unreadable = listed.len() - found.len();
+    if found.is_empty() {
+        // None listed with a serial: what opening the first one says (a firmware without a serial
+        // number still opens), as before KAT used more than one radio.
+        return match check_hackrf_available() {
+            Ok(()) => (vec![FoundRadio::hackrf(None)], None),
+            Err(why) => (Vec::new(), Some(why)),
+        };
+    }
+    let problem = (unreadable > 0).then(|| {
+        format!(
+            "{unreadable} more found but cannot be opened (no serial number read: {})",
+            super::USB_ACCESS_HINT
+        )
+    });
+    tracing::info!("HackRF(s) found: {}", found.iter().map(FoundRadio::identity).collect::<Vec<_>>().join(", "));
+    (found, problem)
+}
+
+/// Open the HackRF a controller is for.
+fn open_hackrf(serial: Option<&str>) -> Result<libhackrf::HackRf> {
+    use anyhow::Context;
+    match serial {
+        Some(s) => libhackrf::HackRf::open_by_serial(s).with_context(|| format!("Failed to open HackRF {s}")),
+        None => libhackrf::HackRf::open().context("Failed to open HackRF device"),
+    }
+}
+
 impl HackRfController {
-    /// Create a new HackRF controller
-    pub fn new(event_tx: Sender<RadioEvent>) -> Result<Self> {
+    /// A controller for the HackRF with `serial` (None: the first one), as [find_devices] found
+    /// it. The device is opened for each receive run and each transmission, not held.
+    pub fn new(event_tx: Sender<RadioEvent>, serial: Option<String>) -> Self {
         let receiving = Arc::new(AtomicBool::new(false));
         let rssi_value = Arc::new(AtomicU32::new(0));
         let live = Arc::new(LiveShared::new(receiving.clone(), rssi_value.clone(), 433_920_000));
-
-        // Check if HackRF is available
-        let probe = check_hackrf_available();
-        let hackrf_available = probe.is_ok();
-
-        if hackrf_available {
-            tracing::info!("HackRF device detected");
-        } else {
-            tracing::warn!("HackRF not detected - running in demo mode");
-        }
-
-        Ok(Self {
+        Self {
+            serial,
             event_tx,
             receiving,
             rx_thread: None,
             frequency: Arc::new(Mutex::new(433_920_000)),
             live,
-            hackrf_available,
-            open_error: probe.err(),
+            hackrf_available: true,
             gain_settings: Arc::new(Mutex::new(GainSettings::default())),
             rssi_value,
-        })
-    }
-
-    /// Why no HackRF could be opened at startup, in words (None when one was found).
-    pub fn open_error(&self) -> Option<&str> {
-        self.open_error.as_deref()
+        }
     }
 
     /// Shared atomic for RSSI (f32::to_bits); UI reads so callback never blocks on channel.
@@ -130,10 +156,11 @@ impl HackRfController {
         let live = self.live.clone();
         let hackrf_available = self.hackrf_available;
         let gain_settings = self.gain_settings.clone();
+        let serial = self.serial.clone();
 
         self.rx_thread = Some(thread::spawn(move || {
             if hackrf_available {
-                if let Err(e) = run_receiver_hackrf(live.clone(), event_tx.clone(), gain_settings) {
+                if let Err(e) = run_receiver_hackrf(live.clone(), event_tx.clone(), gain_settings, serial.as_deref()) {
                     // RX ended on its own (open/configure failure, unplug): nothing streams any
                     // more, so its recording ends and the meter drops; the app goes back to idle.
                     live.receiving.store(false, Ordering::SeqCst);
@@ -203,7 +230,7 @@ impl HackRfController {
             if settings.amp { "on" } else { "off" }
         );
 
-        let result = transmit_signal_hackrf(signal, frequency, settings);
+        let result = transmit_signal_hackrf(signal, frequency, settings, self.serial.as_deref());
 
         // Resume receiving if we were before (also after a failed transmission)
         if was_receiving {
@@ -425,13 +452,13 @@ fn run_receiver_hackrf(
     live: Arc<LiveShared>,
     event_tx: Sender<RadioEvent>,
     gain_settings: Arc<Mutex<GainSettings>>,
+    serial: Option<&str>,
 ) -> Result<()> {
     use anyhow::Context;
 
     tracing::info!("HackRF receiver thread starting...");
 
-    let hackrf = libhackrf::HackRf::open()
-        .context("Failed to open HackRF device")?;
+    let hackrf = open_hackrf(serial)?;
 
     let freq = live.start_frequency();
     live.target.store(freq, Ordering::SeqCst);
@@ -665,6 +692,7 @@ fn transmit_signal_hackrf(
     signal: &[LevelDuration],
     frequency: u32,
     settings: &super::tx::TxSettings,
+    serial: Option<&str>,
 ) -> Result<()> {
     use super::tx::{
         generate_tx_iq, tx_lo_frequency, TxStream, LIBHACKRF_TRANSFER_COUNT, TX_LO_OFFSET_HZ,
@@ -692,7 +720,7 @@ fn transmit_signal_hackrf(
     let stream = Arc::new(TxStream::new(samples));
     tracing::debug!("Generated {} TX samples", total);
 
-    let hackrf = libhackrf::HackRf::open().context("Failed to open HackRF device")?;
+    let hackrf = open_hackrf(serial)?;
     hackrf.set_sample_rate(TX_SAMPLE_RATE).context("Failed to set sample rate")?;
     hackrf
         .set_baseband_filter_bandwidth(TX_BASEBAND_FILTER_HZ)

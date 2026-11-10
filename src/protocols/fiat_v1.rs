@@ -708,6 +708,17 @@ impl ProtocolDecoder for FiatV1Decoder {
         }
     }
 
+    /// Variant B (100/200 µs); `timing()` is variant A.
+    fn timing_variants(&self) -> Vec<ProtocolTiming> {
+        let (te_short, te_long, te_delta) = VARIANT_TIMING[VARIANT_B as usize];
+        vec![ProtocolTiming {
+            te_short,
+            te_long,
+            te_delta,
+            min_count_bit: WIRE_BITS,
+        }]
+    }
+
     fn supported_frequencies(&self) -> &[u32] {
         &[315_000_000, 433_920_000]
     }

@@ -17,7 +17,7 @@ use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 
 use crate::app::RadioEvent;
-use crate::capture::{Capture, OnAir, RfModulation, StoredLevelDuration};
+use crate::capture::{Capture, OnAir, RfMeasurement, RfModulation, StoredLevelDuration};
 
 use super::demodulator::LevelDuration;
 use super::dsp::IqFormat;
@@ -50,12 +50,22 @@ pub fn new_session() -> u64 {
 /// on-air time in `session`, whose samples come at `sample_rate`.
 pub fn burst_captures(b: &Burst, session: u64, sample_rate: f64) -> Vec<Capture> {
     let start_us = (b.start_sample as f64 * 1e6 / sample_rate) as u64;
+    // What the pipeline measured of the burst, for the "Analyze" report of each of its captures.
+    let measured = RfMeasurement {
+        offset_hz: b.offset_hz,
+        snr_db: b.snr_db,
+        deviation_hz: b.deviation_hz,
+        burst_us: b.duration_us,
+        both_paths: b.am.is_some() && b.fm.is_some(),
+    }
+    .checked();
     let mut out = Vec::new();
     for (pairs, rf) in [(&b.am, RfModulation::AM), (&b.fm, RfModulation::FM)] {
         if let Some(p) = pairs {
             let mut capture = Capture::from_pairs_with_rf(0, b.frequency, stored(p), Some(rf));
             let length: u64 = p.iter().map(|x| u64::from(x.duration_us)).sum();
             capture.on_air = Some(OnAir { session, start_us, end_us: start_us + length });
+            capture.measured = measured;
             out.push(capture);
         }
     }

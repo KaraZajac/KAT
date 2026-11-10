@@ -21,17 +21,23 @@ fn on_off(on: bool) -> String {
     if on { "ON" } else { "OFF" }.to_string()
 }
 
-/// (label, current value) of every tab, in [SettingsField::ALL] order.
+/// (label, current value) of every tab, in [App::settings_fields] order: the selected radio's
+/// settings (with several radios, the Radio tab first says which).
 fn tabs(app: &App) -> Vec<(&'static str, String)> {
-    SettingsField::ALL
+    let tuning = app.tuning();
+    app.settings_fields()
         .iter()
         .map(|field| {
             let value = match field {
-                SettingsField::Freq => format!("{} MHz", format_mhz(app.frequency)),
-                SettingsField::Hop => on_off(app.rx.hop_enabled),
-                SettingsField::Lna => format!("{} dB", app.lna_gain),
-                SettingsField::Vga => format!("{} dB", app.vga_gain),
-                SettingsField::Amp => on_off(app.amp_enabled),
+                SettingsField::Radio => app
+                    .selected_radio()
+                    .map(|i| format!("{} {}", i + 1, app.radios()[i].name))
+                    .unwrap_or_default(),
+                SettingsField::Freq => format!("{} MHz", format_mhz(tuning.frequency)),
+                SettingsField::Hop => on_off(app.hop_enabled()),
+                SettingsField::Lna => format!("{} dB", tuning.lna_gain),
+                SettingsField::Vga | SettingsField::Gain => format!("{} dB", tuning.vga_gain),
+                SettingsField::Amp => on_off(tuning.amp),
                 SettingsField::TxPower => tx_power_label(app.tx_vga_gain, app.tx_amp),
             };
             (field.label(), value)
@@ -111,7 +117,8 @@ pub fn render_settings_dropdown(frame: &mut Frame, app: &App, bar: Rect) {
     }
 
     let area = frame.area();
-    let field = SettingsField::ALL[app.settings_field_index];
+    let fields = app.settings_fields();
+    let field = fields[app.settings_field_index.min(fields.len() - 1)];
 
     // The app's rows: the presets, plus the current value first when a command set one that isn't
     // a preset ("433.42 MHz (current)"), so Enter keeps it.

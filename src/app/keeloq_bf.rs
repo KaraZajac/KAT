@@ -81,11 +81,11 @@ impl App {
             return;
         }
         let Some(capture) = self.captures.iter().find(|c| c.id == id) else {
-            self.last_error = Some(format!("Capture {id} not found"));
+            self.last_error = Some(format!("Capture #{id:02} not found"));
             return;
         };
         if !is_keeloq(capture) {
-            self.last_error = Some(format!("Capture {id} is not a KeeLoq frame"));
+            self.last_error = Some(format!("Capture #{id:02} is not a KeeLoq frame"));
             return;
         }
         let serial = Frame::from_data(capture.data).serial();
@@ -218,8 +218,10 @@ impl App {
             String::new()
         };
         self.status_message = Some(format!(
-            "KeeLoq key of remote {serial:07X} recovered (type {}, {:016X}): {saved}; {decoded} capture(s) decoded{also}",
-            best.learning, best.man_key
+            "KeeLoq key of remote {serial:07X} recovered (type {}, {:016X}): {saved}; {decoded} capture{} decoded{also}",
+            best.learning,
+            best.man_key,
+            crate::plural(decoded)
         ));
     }
 
@@ -241,7 +243,8 @@ impl App {
             }
             Some(_) => {}
         }
-        let Ok(id) = args[0].parse::<u32>() else {
+        // "3" or "#3", as the messages write capture numbers.
+        let Ok(id) = args[0].trim_start_matches('#').parse::<u32>() else {
             self.last_error = Some("Usage: :klbf [ID] [auto|6|7|8] | :klbf stop".to_string());
             return;
         };

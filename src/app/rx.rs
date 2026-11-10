@@ -1,6 +1,7 @@
 //! Receive features on the app side: IQ files (`:iq`, `kat --iq`, `.cs8`/`.cu8` in the `:load`
 //! browser), IQ recording (`:record`), frequency hopping (`:hop`, the Hop setting), and the state the
-//! header and status bar show. A child module of `app` (`mod rx;`), so it can use App's fields.
+//! header and status bar show. Recording and hopping are the selected radio's (app/radios.rs). A
+//! child module of `app` (`mod rx;`), so it can use App's fields.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -14,6 +15,7 @@ use crate::radio::hopper::{format_mhz, parse_frequency_list, HopPlan, DECODE_PAU
 use crate::radio::iq_file::{find_file, parse_frequency_arg, parse_rate_arg, IqFileJob, IqFileSpec};
 use crate::radio::recorder::{recording_file_name, resolve_record_path, RecordingStatus, RecordingSummary};
 use crate::radio::rx::lo_for;
+use crate::plural;
 
 /// App-side receive state (the `rx` field of `App`).
 pub struct RxExtras {
@@ -21,18 +23,20 @@ pub struct RxExtras {
     pub iq_job: Option<IqFileJob>,
     /// Captures in the list when the job started (to report how many it added).
     iq_captures_before: usize,
-    /// Hopping switched on (`:hop on` / the Hop setting); kept by the radio across RX restarts.
-    pub hop_enabled: bool,
-    /// Frequencies and dwell set with `:hop <MHz> ...` / `:hop dwell` (None: the config's).
-    hop_plan: Option<HopPlan>,
-    /// `App::frequency` when hopping was switched on: a `:freq` change switches hopping off.
-    hop_home: u32,
     /// Captures already looked at by the pause-after-decode logic.
     seen_captures: usize,
-    /// With duplicates kept (`ignore_duplicates = false`): when each decoded signal (protocol,
-    /// data, serial, button) was last on the air.
-    recent: HashMap<(String, u64, Option<u32>, Option<u8>), OnAir>,
+    /// With duplicates kept (`ignore_duplicates = false`): when each decoded signal was last on
+    /// the air, per receive session (each radio's receive runs and IQ files have their own, so
+    /// several radios do not wipe each other's).
+    recent: HashMap<u64, HashMap<SignalKey, OnAir>>,
 }
+
+/// A decoded signal for [RxExtras::repeat_of_recent]: protocol, data, serial, button.
+type SignalKey = (String, u64, Option<u32>, Option<u8>);
+
+/// Receive sessions [RxExtras::repeat_of_recent] remembers (the newest: several radios receive
+/// at once, and every retune starts a session).
+const RECENT_SESSIONS: usize = 16;
 
 /// Repeats of one signal closer than this on the air are one press, as in Flipper-ARF's receive
 /// history (`subghz_history_add_to_history`: 500 ms; Momentum uses 600 ms).
@@ -117,15 +121,23 @@ impl App {
     /// duplicates kept, every press is listed, and only a repeat of a signal on the air less than
     /// 500 ms before is skipped, as a Flipper's receive history does: the same press still going,
     /// or reported twice (by the AM and FM paths, or on both sides of a long transmission's cut).
-    pub(super) fn add_received_signal(&mut self, burst: Capture) {
+    ///
+    /// `radio`: the radio that received it (None: an IQ file). One heard while another of KAT's
+    /// radios was transmitting near its frequency is KAT's own transmission ([Capture::own_tx]):
+    /// listed as such, with no key search, and the status line says the transmission was heard.
+    pub(super) fn add_received_signal(&mut self, burst: Capture, radio: Option<usize>) {
         let show_unknown = self.storage.config.show_unknown_signals;
         let keep_duplicates = !self.storage.config.ignore_duplicates;
+        let own_tx = radio.and_then(|i| self.own_tx_of(&burst, i));
         let (mut added, mut duplicates) = (0, 0);
         let mut listed = Vec::new();
-        for capture in received_captures(&mut self.protocols, burst, show_unknown, keep_duplicates) {
-            // autobf: listed only if its key is found (app/auto_bf.rs).
+        for mut capture in received_captures(&mut self.protocols, burst, show_unknown, keep_duplicates) {
+            capture.own_tx = own_tx.clone();
+            // autobf: listed only if its key is found (app/auto_bf.rs); never for KAT's own.
             if capture.protocol.as_deref() == Some(crate::protocols::PSA_UNCHECKED_NAME) {
-                self.auto_bf_unchecked(capture);
+                if own_tx.is_none() {
+                    self.auto_bf_unchecked(capture);
+                }
                 continue;
             }
             match self.list_received(capture) {
@@ -135,6 +147,14 @@ impl App {
                 }
                 None => duplicates += 1,
             }
+        }
+        if let Some(tx) = &own_tx {
+            if added + duplicates > 0 {
+                let heard_by = radio.and_then(|i| self.radios.get(i)).map_or("A radio", |r| r.name.as_str());
+                let what = if listed.is_empty() { " (already listed)".to_string() } else { format!(": {}", super::input::ids_text(&listed)) };
+                self.status_message = Some(format!("{heard_by} heard {tx}'s transmission{what}"));
+            }
+            return;
         }
         self.auto_bf_listed(listed);
         match (added, duplicates) {
@@ -176,9 +196,6 @@ impl RxExtras {
         Self {
             iq_job: None,
             iq_captures_before: 0,
-            hop_enabled: false,
-            hop_plan: None,
-            hop_home: 0,
             seen_captures: 0,
             recent: HashMap::new(),
         }
@@ -190,16 +207,22 @@ impl RxExtras {
     /// without an on-air time, never repeat.
     fn repeat_of_recent(&mut self, capture: &Capture) -> bool {
         let (Some(name), Some(t)) = (&capture.protocol, capture.on_air) else { return false };
-        // Forget other sessions, and signals long gone.
-        self.recent.retain(|_, s| s.session == t.session && s.end_us + 10 * REPEAT_WINDOW_US >= t.start_us);
+        // Keep the newest sessions (their ids grow), and in this one forget signals long gone.
+        if !self.recent.contains_key(&t.session) && self.recent.len() >= RECENT_SESSIONS {
+            if let Some(&oldest) = self.recent.keys().min() {
+                self.recent.remove(&oldest);
+            }
+        }
+        let recent = self.recent.entry(t.session).or_default();
+        recent.retain(|_, s| s.end_us + 10 * REPEAT_WINDOW_US >= t.start_us);
         let key = (name.clone(), capture.data, capture.serial, capture.button);
-        match self.recent.get_mut(&key) {
+        match recent.get_mut(&key) {
             Some(s) if t.start_us <= s.end_us + REPEAT_WINDOW_US => {
                 s.end_us = s.end_us.max(t.end_us);
                 true
             }
             _ => {
-                self.recent.insert(key, t);
+                recent.insert(key, t);
                 false
             }
         }
@@ -212,13 +235,26 @@ impl Default for RxExtras {
     }
 }
 
-/// What the header shows about receiving.
+/// What the header shows about a radio's receiving.
 pub struct RxHeader {
     /// Hopping: (frequency now, position, list length).
     pub hop: Option<(u32, usize, usize)>,
     pub recording: Option<RecordingStatus>,
-    /// IQ file progress (0..=1) while one is processed.
-    pub iq_progress: Option<f32>,
+}
+
+impl super::Radio {
+    /// Its hopping and recording, for the header.
+    pub fn rx_header(&self) -> RxHeader {
+        let hop = if self.hop.enabled {
+            self.device.hop_state().map(|(plan, idx)| {
+                let f = if self.state == RadioState::Receiving { self.device.rx_frequency() } else { plan.frequencies[0] };
+                (f, idx, plan.frequencies.len())
+            })
+        } else {
+            None
+        };
+        RxHeader { hop, recording: self.device.recording_status() }
+    }
 }
 
 /// Receive-side controls, forwarded to the active device.
@@ -327,9 +363,9 @@ fn recording_summary_text(prefix: &str, s: &RecordingSummary) -> String {
 }
 
 impl App {
-    /// The hop plan in use: set by `:hop`, else `[radio] hop_frequencies` / `hop_dwell_ms`.
+    /// The selected radio's hop plan: set by `:hop`, else `[radio] hop_frequencies` / `hop_dwell_ms`.
     pub fn hop_plan(&self) -> HopPlan {
-        self.rx.hop_plan.clone().unwrap_or_else(|| {
+        self.selected().and_then(|r| r.hop.plan.clone()).unwrap_or_else(|| {
             let c = &self.storage.config;
             HopPlan::new(c.hop_frequencies.clone(), c.hop_dwell_ms)
         })
@@ -400,7 +436,7 @@ impl App {
             self.last_error = Some("An IQ file is already being processed (:iq stop)".to_string());
             return;
         }
-        let spec = match IqFileSpec::resolve(path, freq, rate, self.frequency) {
+        let spec = match IqFileSpec::resolve(path, freq, rate, self.frequency()) {
             Ok(s) => s,
             Err(e) => {
                 self.last_error = Some(e);
@@ -426,45 +462,52 @@ impl App {
         }
     }
 
-    /// `:record [path]`, `:record stop`
+    /// `:record [path]`, `:record stop`: the selected radio's IQ.
     pub(super) fn cmd_record(&mut self, args: &[&str]) -> Result<()> {
+        let Some(i) = self.selected_radio() else {
+            self.last_error = Some(if args.first().is_some_and(|a| a.eq_ignore_ascii_case("stop")) {
+                "Not recording".to_string()
+            } else {
+                super::radios::NO_RADIO.to_string()
+            });
+            return Ok(());
+        };
         if args.first().is_some_and(|a| a.eq_ignore_ascii_case("stop")) {
-            match self.radio.as_mut().and_then(|r| r.stop_recording()) {
+            // The selected radio's recording, else the one that runs.
+            let running = (0..self.radios.len()).find(|&j| self.radios[j].device.recording_status().is_some());
+            let j = if self.radios[i].device.recording_status().is_some() { Some(i) } else { running };
+            match j.and_then(|j| self.radios[j].device.stop_recording()) {
                 Some(sum) => self.status_message = Some(recording_summary_text("Recording saved", &sum)),
                 None => self.last_error = Some("Not recording".to_string()),
             }
             return Ok(());
         }
-        if self.radio.is_none() {
-            self.last_error = Some("No radio device connected".to_string());
-            return Ok(());
-        }
-        if self.radio.as_ref().is_some_and(|r| !r.supports_recording()) {
+        let radio = &self.radios[i];
+        if !radio.device.supports_recording() {
             self.last_error = Some("A Flipper gives pulses, not IQ: :record needs a HackRF or an RTL-SDR".to_string());
             return Ok(());
         }
-        if self.rx.hop_enabled {
+        if radio.hop.enabled {
             self.last_error = Some("Stop hopping first (:hop off): a recording has one centre frequency".to_string());
             return Ok(());
         }
-        if let Some(st) = self.radio.as_ref().and_then(|r| r.recording_status()) {
+        if let Some(st) = radio.device.recording_status() {
             self.last_error = Some(format!("Already recording to {} (:record stop)", st.path.display()));
             return Ok(());
         }
-        if self.radio_state == RadioState::Idle {
-            self.toggle_receiving()?;
+        if radio.state == RadioState::Idle {
+            self.toggle_radio(i)?;
         }
-        if self.radio_state != RadioState::Receiving {
+        if self.radios[i].state != RadioState::Receiving {
             if self.last_error.is_none() {
                 self.last_error = Some("Receiver is not running".to_string());
             }
             return Ok(());
         }
-        let Some(radio) = self.radio.as_mut() else {
-            return Ok(());
-        };
-        let (format, rate) = (radio.iq_format(), radio.sample_rate());
-        let target = self.frequency;
+        let several = self.several_radios();
+        let radio = &mut self.radios[i];
+        let (format, rate) = (radio.device.iq_format(), radio.device.sample_rate());
+        let target = radio.tuning.frequency;
         let dir = self.storage.export_dir().clone();
         let default_name = recording_file_name(lo_for(target, rate), rate, target, format);
         let path = match args.first() {
@@ -473,35 +516,41 @@ impl App {
         };
         // Never replace an earlier recording (`:record x` twice used to truncate the first).
         let path = crate::export::unique_path(&path);
-        match radio.start_recording(path.clone()) {
+        match radio.device.start_recording(path.clone()) {
             Ok(()) => {
+                let with = if several { format!(" from {}", radio.name) } else { String::new() };
                 self.status_message = Some(format!(
-                    "Recording raw IQ to {} (:record stop)",
+                    "Recording raw IQ{with} to {} (:record stop)",
                     path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()
                 ));
-                tracing::info!("Recording IQ to {:?}", path);
+                tracing::info!("Recording IQ from {} to {:?}", radio.name, path);
             }
             Err(e) => self.last_error = Some(format!("Cannot record to {}: {e}", path.display())),
         }
         Ok(())
     }
 
-    /// `:hop`, `:hop on|off`, `:hop <MHz> <MHz> ...`, `:hop dwell <ms>`, `:hop default`
+    /// `:hop`, `:hop on|off`, `:hop <MHz> <MHz> ...`, `:hop dwell <ms>`, `:hop default`: the
+    /// selected radio's hopping.
     pub(super) fn cmd_hop(&mut self, args: &[&str]) -> Result<()> {
+        let Some(i) = self.selected_radio() else {
+            self.last_error = Some(super::radios::NO_RADIO.to_string());
+            return Ok(());
+        };
         match args {
-            [] => self.set_hopping(!self.rx.hop_enabled),
+            [] => self.set_hopping(!self.radios[i].hop.enabled),
             [a] if a.eq_ignore_ascii_case("on") => self.set_hopping(true),
             [a] if a.eq_ignore_ascii_case("off") => self.set_hopping(false),
             [a] if a.eq_ignore_ascii_case("default") => {
-                self.rx.hop_plan = None;
+                self.radios[i].hop.plan = None;
                 self.set_hopping(true);
             }
             [a, ms] if a.eq_ignore_ascii_case("dwell") => match ms.parse::<u32>() {
                 Ok(v) => {
                     let plan = HopPlan::new(self.hop_plan().frequencies, v);
                     let dwell = plan.dwell_ms;
-                    self.rx.hop_plan = Some(plan);
-                    if self.rx.hop_enabled {
+                    self.radios[i].hop.plan = Some(plan);
+                    if self.radios[i].hop.enabled {
                         self.set_hopping(true);
                     } else {
                         self.status_message = Some(format!("Hop dwell {dwell} ms"));
@@ -511,7 +560,7 @@ impl App {
             },
             list => match parse_frequency_list(&list.join(" ")) {
                 Ok(f) if f.len() >= 2 => {
-                    self.rx.hop_plan = Some(HopPlan::new(f, self.hop_plan().dwell_ms));
+                    self.radios[i].hop.plan = Some(HopPlan::new(f, self.hop_plan().dwell_ms));
                     self.set_hopping(true);
                 }
                 Ok(_) => self.last_error = Some("Give at least two frequencies to hop between".to_string()),
@@ -521,20 +570,22 @@ impl App {
         Ok(())
     }
 
-    /// Switch frequency hopping on or off (`:hop`, the Hop setting).
+    /// Switch the selected radio's frequency hopping on or off (`:hop`, the Hop setting).
     pub fn set_hopping(&mut self, on: bool) {
         let plan = self.hop_plan();
-        let Some(radio) = self.radio.as_mut() else {
-            self.last_error = Some("No radio device connected".to_string());
+        let several = self.several_radios();
+        let Some(radio) = self.selected_mut() else {
+            self.last_error = Some(super::radios::NO_RADIO.to_string());
             return;
         };
+        let on_radio = if several { format!(" ({})", radio.name) } else { String::new() };
         if on {
-            if !radio.supports_hopping() {
+            if !radio.device.supports_hopping() {
                 self.last_error =
                     Some("Hopping needs a HackRF or an RTL-SDR (a Flipper restarts rx_raw for every frequency)".to_string());
                 return;
             }
-            if radio.recording_status().is_some() {
+            if radio.device.recording_status().is_some() {
                 self.last_error = Some("Stop recording first (:record stop)".to_string());
                 return;
             }
@@ -543,15 +594,16 @@ impl App {
                 return;
             }
             let desc = plan.describe();
-            radio.set_hopping(Some(plan));
-            self.rx.hop_enabled = true;
-            self.rx.hop_home = self.frequency;
-            let when = if self.radio_state == RadioState::Receiving { "" } else { " (starts with RX: r)" };
-            self.status_message = Some(format!("Hopping: {desc}{when}"));
+            radio.device.set_hopping(Some(plan));
+            radio.hop.enabled = true;
+            radio.hop.home = radio.tuning.frequency;
+            let when = if radio.state == RadioState::Receiving { "" } else { " (starts with RX: r)" };
+            self.status_message = Some(format!("Hopping{on_radio}: {desc}{when}"));
         } else {
-            radio.set_hopping(None);
-            self.rx.hop_enabled = false;
-            self.status_message = Some(format!("Hopping off, back on {} MHz", format_mhz(self.frequency)));
+            radio.device.set_hopping(None);
+            radio.hop.enabled = false;
+            let back = format_mhz(radio.tuning.frequency);
+            self.status_message = Some(format!("Hopping off{on_radio}, back on {back} MHz"));
         }
     }
 
@@ -568,9 +620,11 @@ impl App {
                     let added = self.captures.len().saturating_sub(self.rx.iq_captures_before);
                     let verb = if sum.cancelled { "stopped" } else { "done" };
                     self.status_message = Some(format!(
-                        "IQ file {verb}: {name}: {} burst(s), {} capture(s), {added} added to the list ({:.1} s of IQ in {:.1} s)",
+                        "IQ file {verb}: {name}: {} burst{}, {} capture{}, {added} added to the list ({:.1} s of IQ in {:.1} s)",
                         sum.bursts,
+                        plural(sum.bursts as usize),
                         sum.captures,
+                        plural(sum.captures as usize),
                         sum.seconds,
                         sum.elapsed.as_secs_f64()
                     ));
@@ -578,47 +632,36 @@ impl App {
                 Err(e) => self.last_error = Some(format!("IQ file {name}: {e}")),
             }
         }
-        if let Some(sum) = self.radio.as_mut().and_then(|r| r.take_ended_recording()) {
-            self.status_message = Some(recording_summary_text("Recording stopped with RX", &sum));
-        }
-        if self.rx.hop_enabled && self.frequency != self.rx.hop_home {
-            // `:freq` (or the Freq setting) picked one frequency: stop hopping.
-            if let Some(radio) = self.radio.as_mut() {
-                radio.set_hopping(None);
+        for r in &mut self.radios {
+            if let Some(sum) = r.device.take_ended_recording() {
+                self.status_message = Some(recording_summary_text("Recording stopped with RX", &sum));
             }
-            self.rx.hop_enabled = false;
-            self.status_message = Some(format!("Hopping off: listening on {} MHz", format_mhz(self.frequency)));
+            if r.hop.enabled && r.tuning.frequency != r.hop.home {
+                // `:freq` (or the Freq setting) picked one frequency: stop hopping.
+                r.device.set_hopping(None);
+                r.hop.enabled = false;
+                self.status_message = Some(format!("Hopping off: listening on {} MHz", format_mhz(r.tuning.frequency)));
+            }
         }
         if self.captures.len() < self.rx.seen_captures {
             self.rx.seen_captures = self.captures.len();
         }
-        if self.rx.hop_enabled && self.radio_state == RadioState::Receiving {
-            let decoded = self.captures[self.rx.seen_captures..].iter().any(|c| c.protocol.is_some());
-            if decoded {
-                if let Some(radio) = self.radio.as_mut() {
-                    radio.hop_pause(DECODE_PAUSE_DWELLS as u32);
-                }
+        // A decode holds a hopping radio on its frequency for a few dwells (ProtoPirate's pause).
+        let new = &self.captures[self.rx.seen_captures..];
+        for r in &mut self.radios {
+            if r.hop.enabled
+                && r.state == RadioState::Receiving
+                && new.iter().any(|c| c.protocol.is_some() && c.radio.as_deref() == Some(r.name.as_str()))
+            {
+                r.device.hop_pause(DECODE_PAUSE_DWELLS as u32);
             }
         }
         self.rx.seen_captures = self.captures.len();
     }
 
-    /// Hopping, recording and IQ-file state for the header.
-    pub fn rx_header(&self) -> RxHeader {
-        let hop = if self.rx.hop_enabled {
-            self.radio.as_ref().and_then(|r| {
-                let (plan, idx) = r.hop_state()?;
-                let f = if self.radio_state == RadioState::Receiving { r.rx_frequency() } else { plan.frequencies[0] };
-                Some((f, idx, plan.frequencies.len()))
-            })
-        } else {
-            None
-        };
-        RxHeader {
-            hop,
-            recording: self.radio.as_ref().and_then(|r| r.recording_status()),
-            iq_progress: self.rx.iq_job.as_ref().map(|j| j.progress()),
-        }
+    /// The running IQ file's progress (0..=1), for the status bar.
+    pub fn iq_progress(&self) -> Option<f32> {
+        self.rx.iq_job.as_ref().map(|j| j.progress())
     }
 
     /// Bursts found so far by the running IQ file (status bar).
@@ -710,6 +753,29 @@ mod tests {
         let mut rx = RxExtras::new();
         let kept: Vec<Capture> = received_captures(&mut reg, b, true, true).into_iter().filter(|c| !rx.repeat_of_recent(c)).collect();
         assert_eq!(buttons(&kept), [0xF3, 0xFC, 0x30, 0xC0, 0xF3, 0xFC, 0x30, 0xC0]);
+    }
+
+    /// Two radios receiving at once are two sessions: each keeps its own history, so a press one
+    /// radio is still hearing stays one press while the other's captures come in between (they
+    /// used to wipe it). Only the newest sessions are kept.
+    #[test]
+    fn several_radios_keep_their_own_repeats() {
+        let mut rx = RxExtras::new();
+        let at = |session: u64, start_ms: u64, end_ms: u64, data: u64| {
+            let mut c = Capture::from_pairs_with_rf(0, 433_920_000, Vec::new(), Some(RfModulation::AM));
+            c.protocol = Some("Princeton".to_string());
+            c.data = data;
+            c.on_air = Some(OnAir { session, start_us: start_ms * 1000, end_us: end_ms * 1000 });
+            c
+        };
+        assert!(!rx.repeat_of_recent(&at(1, 0, 100, 0xA)));
+        assert!(!rx.repeat_of_recent(&at(2, 90_000, 90_100, 0xB)), "the other radio's own clock");
+        assert!(rx.repeat_of_recent(&at(1, 300, 400, 0xA)), "radio 1's press, still on the air");
+        assert!(rx.repeat_of_recent(&at(2, 90_200, 90_300, 0xB)), "radio 2's");
+        for s in 3..3 + RECENT_SESSIONS as u64 {
+            rx.repeat_of_recent(&at(s, 0, 100, 0xC));
+        }
+        assert!(rx.recent.len() <= RECENT_SESSIONS && !rx.recent.contains_key(&1), "{:?}", rx.recent.keys());
     }
 
     /// With duplicates kept, a signal repeats only within 500 ms of its last sighting in the same

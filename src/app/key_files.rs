@@ -26,7 +26,7 @@ use crate::protocols::ProtocolRegistry;
 /// the `.fob` export's) when `key_file` (the protocol writes the capture as a key file).
 pub(super) fn fit_signal_actions(actions: &mut Vec<SignalAction>, has_raw: bool, key_file: bool) {
     if !has_raw {
-        actions.retain(|a| !matches!(a, SignalAction::Replay | SignalAction::ExportFlipper | SignalAction::TimingAnalysis));
+        actions.retain(|a| !matches!(a, SignalAction::Replay | SignalAction::ExportFlipper | SignalAction::Analyze));
     }
     if key_file {
         let at = actions
@@ -63,7 +63,7 @@ impl App {
     }
 
     /// Fit the signal menu to the selected capture: without raw pairs, no Replay, no RAW `.sub`
-    /// export and no timing analysis; "Export Flipper key" (after the RAW export's place) when
+    /// export and no Analyze; "Export Flipper key" (after the RAW export's place) when
     /// the protocol writes key files.
     pub(super) fn adjust_signal_actions(&self, actions: &mut Vec<SignalAction>) {
         if let Some(c) = self.selected_capture.and_then(|idx| self.captures.get(idx)) {
@@ -75,7 +75,7 @@ impl App {
     /// `_key`, so a capture's two exports do not share a name).
     pub fn export_flipper_key(&mut self, id: u32) -> Result<()> {
         let Some(capture) = self.captures.iter().find(|c| c.id == id) else {
-            self.last_error = Some(format!("Capture {} not found", id));
+            self.last_error = Some(format!("Capture #{:02} not found", id));
             return Ok(());
         };
         if !self.can_export_flipper_key(capture) {
@@ -97,7 +97,7 @@ impl App {
             return Ok(());
         };
         let Some(capture) = self.captures.iter().find(|c| c.id == id).cloned() else {
-            self.last_error = Some(format!("Capture {} not found", id));
+            self.last_error = Some(format!("Capture #{:02} not found", id));
             return Ok(());
         };
         self.export_capture_id = None;
@@ -118,7 +118,7 @@ mod tests {
     use super::*;
     use crate::capture::StoredLevelDuration;
 
-    /// Captures without raw pairs lose Replay, the RAW export and timing analysis; the key-file
+    /// Captures without raw pairs lose Replay, the RAW export and Analyze; the key-file
     /// export sits after the RAW export (or the .fob export when the RAW one is gone).
     #[test]
     fn signal_menu_fits_the_capture() {
@@ -129,15 +129,15 @@ mod tests {
         assert_eq!(a, car);
         let mut a = car.clone();
         fit_signal_actions(&mut a, true, true);
-        assert_eq!(a, [Replay, Lock, Unlock, Trunk, Panic, ExportFob, ExportFlipper, ExportFlipperKey, TimingAnalysis, Delete]);
+        assert_eq!(a, [Replay, Lock, Unlock, Trunk, Panic, ExportFob, ExportFlipper, ExportFlipperKey, Analyze, Delete]);
         let mut a = car.clone();
         fit_signal_actions(&mut a, false, true);
         assert_eq!(a, [Lock, Unlock, Trunk, Panic, ExportFob, ExportFlipperKey, Delete]);
-        let gate = vec![Replay, SendNextCode, ExportFob, ExportFlipper, TimingAnalysis, Delete];
+        let gate = vec![Replay, SendNextCode, ExportFob, ExportFlipper, Analyze, Delete];
         let mut a = gate.clone();
         fit_signal_actions(&mut a, false, true);
         assert_eq!(a, [SendNextCode, ExportFob, ExportFlipperKey, Delete]);
-        let mut a = vec![ExportFob, ExportFlipper, TimingAnalysis, Delete];
+        let mut a = vec![ExportFob, ExportFlipper, Analyze, Delete];
         fit_signal_actions(&mut a, false, false);
         assert_eq!(a, [ExportFob, Delete]);
     }
@@ -152,6 +152,12 @@ mod tests {
         assert_eq!(name, "Unknown_Kia-Hyundai_Unknown_Unknown_Unlock");
         c.make = Some("Honda/Acura".into());
         assert!(!App::default_export_filename(&c).contains('/'));
+        // What the export form builds from its fields is the same name: an empty field is Unknown.
+        assert_eq!(App::export_stem("", "Kia/Hyundai", " ", "", "Unlock"), name);
+        assert_eq!(App::export_stem("2015", "Kia", "Sportage SX", "NA", "-"), "2015_Kia_Sportage_SX_NA_Unknown");
+        // An unknown capture has nothing to name it by.
+        let unknown = Capture::from_pairs(2, 433_920_000, Vec::new());
+        assert_eq!(App::default_export_filename(&unknown), "Unknown_Unknown_Unknown_Unknown_Unknown");
     }
 
     /// A key-file capture saved as `.fob` (no raw pairs) imports EncoderCapable again: its encoder

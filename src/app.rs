@@ -16,6 +16,8 @@ use crate::storage::Storage;
 
 mod rx;
 mod files;
+mod radios;
+pub use radios::{Radio, Tuning};
 
 /// Active radio device: HackRF (full TX/RX), RTL-SDR (receive-only) or a Flipper Zero on USB (TX/RX
 /// through its console, pulses instead of IQ: see [crate::radio::flipper]).
@@ -26,14 +28,6 @@ pub enum RadioDevice {
 }
 
 impl RadioDevice {
-    pub fn is_available(&self) -> bool {
-        match self {
-            RadioDevice::HackRf(h) => h.is_available(),
-            RadioDevice::RtlSdr(r) => r.is_available(),
-            RadioDevice::Flipper(f) => f.is_available(),
-        }
-    }
-
     pub fn supports_tx(&self) -> bool {
         match self {
             RadioDevice::HackRf(h) => h.supports_tx(),
@@ -79,7 +73,9 @@ impl RadioDevice {
     pub fn set_lna_gain(&mut self, gain: u32) -> anyhow::Result<()> {
         match self {
             RadioDevice::HackRf(h) => h.set_lna_gain(gain),
-            RadioDevice::RtlSdr(r) => r.set_lna_gain(gain),
+            // An RTL-SDR has one tuner gain, the VGA setting (below): the LNA setting used to set
+            // it too, so whichever was set last won (at startup the VGA default).
+            RadioDevice::RtlSdr(_) => Ok(()),
             // The Flipper's gain is its preset's.
             RadioDevice::Flipper(_) => Ok(()),
         }
@@ -88,7 +84,7 @@ impl RadioDevice {
     pub fn set_vga_gain(&mut self, gain: u32) -> anyhow::Result<()> {
         match self {
             RadioDevice::HackRf(h) => h.set_vga_gain(gain),
-            RadioDevice::RtlSdr(r) => r.set_vga_gain(gain),
+            RadioDevice::RtlSdr(r) => r.set_gain(gain),
             RadioDevice::Flipper(_) => Ok(()),
         }
     }
@@ -96,8 +92,8 @@ impl RadioDevice {
     pub fn set_amp_enable(&mut self, enabled: bool) -> anyhow::Result<()> {
         match self {
             RadioDevice::HackRf(h) => h.set_amp_enable(enabled),
-            RadioDevice::RtlSdr(r) => r.set_amp_enable(enabled),
-            RadioDevice::Flipper(_) => Ok(()),
+            // Neither has an amplifier to switch.
+            RadioDevice::RtlSdr(_) | RadioDevice::Flipper(_) => Ok(()),
         }
     }
 
@@ -134,10 +130,13 @@ impl RadioDevice {
     }
 }
 
-// v1.5 app features: saved session, saved-fob matching, timing analysis (impl App blocks).
+// App features in their own files: saved session, saved-fob matching, the Analyze overlay (impl App
+// blocks).
+mod analyze_view;
+mod command_history;
+pub use analyze_view::AnalyzeView;
 mod fob_matching;
 mod persistence;
-mod timing_view;
 
 /// Input mode for the application
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -160,8 +159,8 @@ pub enum InputMode {
     SessionRestore,
     /// `:clear` confirmation: delete every capture and the saved session? (y/n)
     ConfirmClear,
-    /// Timing analysis overlay (scrollable text)
-    TimingAnalysis,
+    /// Analyze overlay (the scrollable signal report)
+    Analyze,
     /// Export: editing filename (before format-specific steps)
     ExportFilename,
     /// Fob export metadata: editing year field
@@ -201,6 +200,8 @@ pub enum InputMode {
     ConfirmQuit,
     /// `:delete all` confirmation (y/n); `u` undoes it afterwards
     ConfirmDeleteAll,
+    /// `:radios`: the radios KAT has and found, scrolled like the help (app/radios.rs)
+    Radios,
 }
 
 /// Export format being used
@@ -222,6 +223,7 @@ mod hitag2_bf;
 mod auto_bf;
 mod input;
 pub use add_manually::{PickerRow, PICKER_VISIBLE_ROWS};
+pub use input::LOAD_BROWSER_ROWS;
 
 /// Items available in the signal action menu
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -238,8 +240,10 @@ pub enum SignalAction {
     ExportFlipper,
     /// Flipper key file via the protocol's `to_flipper_key` (only when it writes one).
     ExportFlipperKey,
-    /// Pulse timing vs the protocol definition (ProtoPirate's Timing Tuner), clusters for unknowns.
-    TimingAnalysis,
+    /// The signal report (app/analyze_view.rs): modulation, pulse widths, coding, rows and bits of
+    /// any capture, and a decoded one's timing against its protocol definition (ProtoPirate's
+    /// Timing Tuner).
+    Analyze,
     Delete,
     /// PSA TEA frame: run ProtoPirate's key brute force on a background thread.
     RecoverKey,
@@ -261,7 +265,7 @@ impl SignalAction {
         SignalAction::Panic,
         SignalAction::ExportFob,
         SignalAction::ExportFlipper,
-        SignalAction::TimingAnalysis,
+        SignalAction::Analyze,
         SignalAction::Delete,
     ];
 
@@ -277,7 +281,7 @@ impl SignalAction {
             SignalAction::ExportFob => "Export .fob",
             SignalAction::ExportFlipper => "Export .sub (Flipper)",
             SignalAction::ExportFlipperKey => "Export Flipper key (.sub)",
-            SignalAction::TimingAnalysis => "Timing analysis",
+            SignalAction::Analyze => "Analyze",
             SignalAction::Delete => "Delete Signal",
             SignalAction::RecoverKey => "Recover key (PSA brute force)",
             SignalAction::RecoverKeeloqKey => "Recover key (KeeLoq magic serial)",
@@ -290,32 +294,29 @@ impl SignalAction {
 /// Radio settings selectable via Tab
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SettingsField {
+    /// Which radio the other tabs set (only with several radios: [App::settings_fields]).
+    Radio,
     Freq,
     /// Frequency hopping on/off
     Hop,
     Lna,
     Vga,
+    /// An RTL-SDR's one tuner gain (kept as its VGA setting): its tab instead of LNA, VGA and AMP.
+    Gain,
     Amp,
     /// TX power (TX VGA gain + RF amp) used for every transmission.
     TxPower,
 }
 
 impl SettingsField {
-    pub const ALL: &'static [SettingsField] = &[
-        SettingsField::Freq,
-        SettingsField::Hop,
-        SettingsField::Lna,
-        SettingsField::Vga,
-        SettingsField::Amp,
-        SettingsField::TxPower,
-    ];
-
     pub fn label(&self) -> &'static str {
         match self {
+            SettingsField::Radio => "Radio",
             SettingsField::Freq => "Freq",
             SettingsField::Hop => "Hop",
             SettingsField::Lna => "LNA",
             SettingsField::Vga => "VGA",
+            SettingsField::Gain => "Gain",
             SettingsField::Amp => "AMP",
             SettingsField::TxPower => "TX",
         }
@@ -402,31 +403,19 @@ pub struct App {
     pub input_mode: InputMode,
     /// Command input buffer
     pub command_input: String,
+    /// The commands run from it (Up / Down on the command line).
+    command_history: command_history::CommandHistory,
     /// List of captures
     pub captures: Vec<Capture>,
     /// Currently selected capture index
     pub selected_capture: Option<usize>,
-    /// Scroll offset for captures list
-    pub scroll_offset: usize,
     /// First row the captures table shows: kept by the renderer between frames (ratatui scrolls it
     /// just enough to keep the selection in view for the table's real height).
     pub captures_table_offset: std::cell::Cell<usize>,
-    /// Current frequency in Hz
-    pub frequency: u32,
-    /// LNA gain (0-40 dB, 8 dB steps)
-    pub lna_gain: u32,
-    /// VGA gain (0-62 dB, 2 dB steps)
-    pub vga_gain: u32,
-    /// Amplifier enabled
-    pub amp_enabled: bool,
-    /// Radio state
-    pub radio_state: RadioState,
     /// Last error message
     pub last_error: Option<String>,
     /// Last status message
     pub status_message: Option<String>,
-    /// Latest RSSI (average magnitude, 0..~1) from receiver
-    pub rssi: f32,
 
     // -- Signal action menu state --
     /// Currently selected signal menu item index
@@ -455,15 +444,23 @@ pub struct App {
     pub storage: Storage,
     /// Protocol registry
     protocols: ProtocolRegistry,
-    /// Active radio device (HackRF or RTL-SDR), if any
-    radio: Option<RadioDevice>,
-    /// Channel for radio events
+    /// The radios KAT found (HackRF, RTL-SDR, Flipper Zero), each tuned on its own (app/radios.rs)
+    radios: Vec<Radio>,
+    /// The radio `:freq`, `:lna`, `r` … act on (an index into `radios`)
+    selected_radio: usize,
+    /// The radio that transmits; None when none can
+    tx_radio: Option<usize>,
+    /// What `:freq`, `:lna` … set while there is no radio (`:iq` takes its frequency from it)
+    offline_tuning: Tuning,
+    /// Why the kinds of radio KAT has none of are not in use ("RTL-SDR: not found"; `:radios`)
+    radio_problems: Vec<String>,
+    /// The last transmissions, to tell KAT's own transmissions heard by its other radios
+    recent_tx: Vec<radios::TxWindow>,
+    /// Events of IQ files (each radio has its own channel)
     radio_event_rx: Receiver<RadioEvent>,
-    /// Sender for radio events (cloned to radio thread)
+    /// Sender for IQ file events (cloned to each job)
     #[allow(dead_code)]
     radio_event_tx: Sender<RadioEvent>,
-    /// RSSI read from radio atomic (no channel traffic, avoids RX blocking)
-    pub rssi_source: Option<Arc<AtomicU32>>,
     /// IQ files, IQ recording and frequency hopping (src/app/rx.rs)
     pub rx: rx::RxExtras,
     /// Set by :q / :quit so the main loop can exit cleanly (terminal cleanup)
@@ -481,6 +478,9 @@ pub struct App {
     pub export_capture_id: Option<u32>,
     /// Export filename input buffer (without extension)
     pub export_filename: String,
+    /// The 8 hex digits that end the suggested `.fob` name, while the name is still the suggestion:
+    /// it then follows the vehicle details typed into the form. None once the name was edited.
+    export_name_suffix: Option<String>,
     /// Which export format is in progress
     pub export_format: Option<ExportFormat>,
 
@@ -515,8 +515,9 @@ pub struct App {
     pub tx_vga_gain: u32,
     /// TX RF amplifier on/off (config `tx_amp`, `:txpower ... amp on|off`).
     pub tx_amp: bool,
-    /// State to restore when queue becomes empty (set when first item is queued).
-    pending_transmit_restore: Option<RadioState>,
+    /// The transmitting radio and the state to give it back when the queue is empty (set when the
+    /// first item is queued).
+    pending_transmit_restore: Option<(usize, RadioState)>,
 
     /// PSA key recovery running in the background (at most one key recovery at a time).
     psa_recover_job: Option<PsaRecoverJob>,
@@ -545,8 +546,8 @@ pub struct App {
     session: persistence::SessionState,
     /// Saved .fob index and per-capture matches (app/fob_matching.rs)
     saved_fobs: fob_matching::SavedFobState,
-    /// Open timing-analysis overlay (app/timing_view.rs)
-    timing_view: Option<timing_view::TimingView>,
+    /// Open Analyze overlay (app/analyze_view.rs)
+    analyze_view: Option<analyze_view::AnalyzeView>,
     /// `:new` picker / field form and the "Send button…" list (app/add_manually.rs)
     add_manually: add_manually::AddManuallyState,
 }
@@ -567,71 +568,31 @@ impl App {
         protocols.set_auto_key_search(storage.config.autobf);
         let (radio_event_tx, radio_event_rx) = mpsc::channel();
 
-        // The radio (config `device`; auto: HackRF, then RTL-SDR, then a Flipper Zero on USB); keep
-        // why each could not be opened (no-device popup).
-        use crate::storage::RadioChoice;
-        let choice = storage.config.radio_device;
-        let mut open_errors: Vec<String> = Vec::new();
-        let mut radio: Option<RadioDevice> = None;
-        if matches!(choice, RadioChoice::Auto | RadioChoice::HackRf) {
-            match HackRfController::new(radio_event_tx.clone()) {
-                Ok(mut h) if h.is_available() => {
-                    tracing::info!("HackRF initialized successfully");
-                    let _ = h.set_lna_gain(storage.config.default_lna_gain);
-                    let _ = h.set_vga_gain(storage.config.default_vga_gain);
-                    let _ = h.set_amp_enable(storage.config.default_amp);
-                    radio = Some(RadioDevice::HackRf(h));
-                }
-                hackrf => {
-                    open_errors.extend(hackrf.ok().and_then(|h| h.open_error().map(|e| format!("HackRF: {e}"))))
-                }
+        // The radios (config `device`: every HackRF, RTL-SDR and Flipper Zero found, app/radios.rs);
+        // keep why each kind could not be used (no-device popup, `:radios`).
+        let (radios, radio_problems) = radios::open_radios(&storage.config);
+        let radio_open_error = (radios.is_empty() && !radio_problems.is_empty()).then(|| radio_problems.join(" · "));
+        let tx_radio = radios::choose_tx(
+            &radios.iter().map(|r| &r.found).collect::<Vec<_>>(),
+            storage.config.tx_radio.as_ref(),
+        );
+        for r in &radios {
+            tracing::info!("Radio {}: {} ({})", r.name, r.found.identity(), crate::radio::hopper::format_mhz(r.tuning.frequency));
+        }
+        if !radios.is_empty() {
+            for p in &radio_problems {
+                tracing::info!("Not in use: {p}");
             }
         }
-        if radio.is_none() && matches!(choice, RadioChoice::Auto | RadioChoice::RtlSdr) {
-            match RtlSdrController::new(radio_event_tx.clone()) {
-                Ok(mut r) if r.is_available() => {
-                    tracing::info!("RTL-SDR initialized (receive-only)");
-                    let _ = r.set_lna_gain(storage.config.default_lna_gain);
-                    let _ = r.set_vga_gain(storage.config.default_vga_gain);
-                    radio = Some(RadioDevice::RtlSdr(r));
-                }
-                rtl => open_errors.extend(rtl.ok().and_then(|r| r.open_error().map(|e| format!("RTL-SDR: {e}")))),
-            }
-        }
-        if radio.is_none() && matches!(choice, RadioChoice::Auto | RadioChoice::Flipper) {
-            let f = FlipperController::new(
-                radio_event_tx.clone(),
-                storage.config.flipper_port.as_deref(),
-                storage.config.flipper_preset.as_deref(),
-                storage.config.autobf,
-            );
-            if f.is_available() {
-                tracing::info!("Flipper Zero initialized (TX/RX over its USB console)");
-                radio = Some(RadioDevice::Flipper(f));
-            } else {
-                open_errors.extend(f.open_error().map(|e| format!("Flipper Zero: {e}")));
-            }
-        }
-        let radio_open_error = (radio.is_none() && !open_errors.is_empty()).then(|| open_errors.join(" · "));
-
-        let device_detected = radio.as_ref().is_some_and(|r| r.is_available());
-
-        let radio_state = if device_detected {
-            RadioState::Idle
-        } else {
-            RadioState::Disconnected
-        };
+        let device_detected = !radios.is_empty();
 
         // Captures start empty; the saved session (if any) is offered for restore, then the
         // .fob/.sub files of the import folder (see app/persistence.rs).
         let captures: Vec<Capture> = Vec::new();
         let next_capture_id = 1u32;
 
-        // Use config defaults for radio settings
-        let frequency = storage.config.default_frequency;
-        let lna_gain = storage.config.default_lna_gain;
-        let vga_gain = storage.config.default_vga_gain;
-        let amp_enabled = storage.config.default_amp;
+        // Without a radio, `:freq` and the gains keep the config's defaults.
+        let offline_tuning = Tuning::defaults(&storage.config);
         let (tx_vga_gain, tx_amp) = (storage.config.tx_vga_gain.min(tx::TX_VGA_MAX), storage.config.tx_amp);
 
         // Recursively scan import directory for .fob and .sub at startup (separate from export dir)
@@ -649,23 +610,15 @@ impl App {
             InputMode::Normal
         };
 
-        let rssi_source = radio.as_ref().and_then(|r| r.rssi_source());
-
         let mut app = Self {
             input_mode: initial_mode,
             command_input: String::new(),
+            command_history: Default::default(),
             captures,
             selected_capture: None,
-            scroll_offset: 0,
             captures_table_offset: std::cell::Cell::new(0),
-            frequency,
-            lna_gain,
-            vga_gain,
-            amp_enabled,
-            radio_state,
             last_error: None,
             status_message: None,
-            rssi: 0.0,
             signal_menu_index: 0,
             overlay_scroll: 0,
             overlay_scroll_max: std::cell::Cell::new(0),
@@ -676,15 +629,20 @@ impl App {
             next_capture_id,
             storage,
             protocols,
-            radio,
+            radios,
+            selected_radio: 0,
+            tx_radio,
+            offline_tuning,
+            radio_problems,
+            recent_tx: Vec::new(),
             radio_event_rx,
             radio_event_tx,
-            rssi_source,
             rx: rx::RxExtras::new(),
             quit_requested: false,
             pending_fob_files,
             export_capture_id: None,
             export_filename: String::new(),
+            export_name_suffix: None,
             export_format: None,
             fob_meta_year: String::new(),
             fob_meta_make: String::new(),
@@ -713,7 +671,7 @@ impl App {
             load_browser_entries: Vec::new(),
             session: persistence::SessionState::default(),
             saved_fobs: fob_matching::SavedFobState::default(),
-            timing_view: None,
+            analyze_view: None,
             radio_open_error,
             add_manually: add_manually::AddManuallyState::default(),
         };
@@ -736,30 +694,33 @@ impl App {
         Ok(app)
     }
 
-    /// Display name of the active radio device, if any (e.g. "HackRF", "RTL-SDR (RX only)").
+    /// Display name of the selected radio's kind, if any (e.g. "HackRF", "RTL-SDR (RX only)"): the
+    /// header with one radio.
     pub fn radio_device_name(&self) -> Option<&'static str> {
-        self.radio.as_ref().map(|r| r.display_name())
+        self.selected().map(|r| r.device.display_name())
     }
 
-    /// The radio's settings as the header shows them: the SDR gains, or a Flipper's receive preset.
-    pub fn radio_settings_label(&self) -> String {
-        match &self.radio {
-            Some(RadioDevice::Flipper(_)) => {
-                format!("Preset: {}", self.storage.config.flipper_preset.as_deref().unwrap_or("firmware's AM"))
-            }
-            _ => format!(
-                "LNA:{} VGA:{} AMP:{}",
-                self.lna_gain,
-                self.vga_gain,
-                if self.amp_enabled { "ON" } else { "OFF" }
-            ),
-        }
-    }
-
-    /// True if the active device supports transmit (HackRF only; RTL-SDR is receive-only).
+    /// True if a radio here transmits (a HackRF or a Flipper; an RTL-SDR is receive-only).
     #[allow(dead_code)]
     pub fn can_transmit(&self) -> bool {
-        self.radio.as_ref().is_some_and(|r| r.supports_tx())
+        self.tx_radio().is_some()
+    }
+
+    /// The settings bar's tabs: with several radios a Radio tab first (which radio the others
+    /// set), then the settings the selected radio has (a Flipper has only its frequency, an
+    /// RTL-SDR one gain: the tabs used to offer a HackRF's for every radio, and setting them
+    /// reported success), and the TX power when the radio that transmits uses it.
+    pub fn settings_fields(&self) -> Vec<SettingsField> {
+        let mut fields = Vec::new();
+        if self.several_radios() {
+            fields.push(SettingsField::Radio);
+        }
+        fields.push(SettingsField::Freq);
+        fields.extend_from_slice(radios::kind_settings(self.selected().map(Radio::kind)));
+        if self.tx_power_applies() {
+            fields.push(SettingsField::TxPower);
+        }
+        fields
     }
 
     /// Select the next capture in the list
@@ -771,8 +732,6 @@ impl App {
             Some(i) => (i + 1).min(self.captures.len() - 1),
             None => 0,
         });
-        // Update scroll to keep selection visible
-        self.ensure_selection_visible();
     }
 
     /// Select the previous capture in the list
@@ -784,85 +743,61 @@ impl App {
             Some(i) => i.saturating_sub(1),
             None => 0,
         });
-        // Update scroll to keep selection visible
-        self.ensure_selection_visible();
     }
 
-    /// Ensure the selected capture is visible in the scroll view
-    fn ensure_selection_visible(&mut self) {
-        if let Some(selected) = self.selected_capture {
-            // Assume visible area is about 15 items (will be adjusted by UI)
-            let visible_rows = 15;
-            
-            if selected < self.scroll_offset {
-                self.scroll_offset = selected;
-            } else if selected >= self.scroll_offset + visible_rows {
-                self.scroll_offset = selected.saturating_sub(visible_rows - 1);
-            }
-        }
-    }
-
-    /// Toggle receiving state
+    /// `r`: start or stop receiving on the selected radio.
     pub fn toggle_receiving(&mut self) -> Result<()> {
         // Clear any previous error when user takes action
         self.last_error = None;
-        
-        match self.radio_state {
-            RadioState::Disconnected => {
-                self.last_error = Some("No radio device connected".to_string());
-            }
-            RadioState::Idle => {
-                if let Some(ref mut radio) = self.radio {
-                    radio.start_receiving(self.frequency)?;
-                    self.radio_state = RadioState::Receiving;
-                    self.status_message = Some(format!("Receiving on {} MHz", crate::radio::hopper::format_mhz(self.frequency)));
-                }
-            }
-            RadioState::Receiving => {
-                if let Some(ref mut radio) = self.radio {
-                    radio.stop_receiving()?;
-                    self.radio_state = RadioState::Idle;
-                    self.status_message = Some("Stopped receiving".to_string());
-                }
-            }
-            RadioState::Transmitting => {
-                self.last_error = Some("Cannot change state while transmitting".to_string());
+        match self.selected_radio() {
+            Some(i) => self.toggle_radio(i),
+            None => {
+                self.last_error = Some(radios::NO_RADIO.to_string());
+                Ok(())
             }
         }
-        Ok(())
     }
 
     /// Execute a command
     pub fn execute_command(&mut self, command: &str) -> Result<()> {
-        let parts: Vec<&str> = command.split_whitespace().collect();
-        if parts.is_empty() {
+        // The command word in any case (`:FREQ 315` used to be an unknown command), with or
+        // without a `:` typed after the prompt's own.
+        let (typed, rest) = input::split_command(command);
+        if typed.is_empty() {
             return Ok(());
         }
+        let word = typed.to_ascii_lowercase();
+        let args: Vec<&str> = rest.split_whitespace().collect();
+        // The ID list of `:lock`, `:replay` … ("2", "1-3, 7", "4 5"), if one was given.
+        let id_spec = (!args.is_empty()).then(|| args.join(" "));
 
         self.last_error = None;
         self.status_message = None;
 
-        match parts[0] {
-            "q" | "quit" => {
-                // Asks first while a key search, IQ file, recording or transmit queue runs.
-                self.quit_requested = self.request_quit();
-            }
+        match word.as_str() {
+            // Asks first while a key search, IQ file, recording or transmit queue runs.
+            "q" | "quit" | "exit" | "x" | "wq" => self.quit_requested = self.request_quit(),
+            // Without asking.
+            "q!" | "quit!" | "exit!" => self.quit_requested = true,
             "freq" => {
                 // "433.92", "433.92M", "433.92 MHz", "433920000", "433920000Hz" (any case)
-                match crate::radio::iq_file::parse_frequency_arg(&parts[1..].join(" ")) {
+                match crate::radio::iq_file::parse_frequency_arg(&args.join(" ")) {
                     Some(hz) => self.set_frequency(hz)?,
                     None => {
                         self.last_error = Some("Usage: :freq <MHz> (e.g. 433.92; 300–928 MHz)".to_string());
                     }
                 }
             }
-            "iq" => self.cmd_iq(&parts[1..])?,
-            "record" | "rec" => self.cmd_record(&parts[1..])?,
-            "hop" => self.cmd_hop(&parts[1..])?,
-            "unlock" => self.transmit_command(parts.get(1).map(|_| parts[1..].join(" ")), ButtonCommand::Unlock)?,
-            "lock" => self.transmit_command(parts.get(1).map(|_| parts[1..].join(" ")), ButtonCommand::Lock)?,
-            "trunk" => self.transmit_command(parts.get(1).map(|_| parts[1..].join(" ")), ButtonCommand::Trunk)?,
-            "panic" => self.transmit_command(parts.get(1).map(|_| parts[1..].join(" ")), ButtonCommand::Panic)?,
+            "iq" => self.cmd_iq(&args)?,
+            "radios" => self.cmd_radios(),
+            "radio" => self.cmd_radio(&args),
+            "txradio" => self.cmd_txradio(&args),
+            "record" | "rec" => self.cmd_record(&args)?,
+            "hop" => self.cmd_hop(&args)?,
+            "unlock" => self.transmit_command(id_spec, ButtonCommand::Unlock)?,
+            "lock" => self.transmit_command(id_spec, ButtonCommand::Lock)?,
+            "trunk" => self.transmit_command(id_spec, ButtonCommand::Trunk)?,
+            "panic" => self.transmit_command(id_spec, ButtonCommand::Panic)?,
             "license" | "licence" => {
                 self.input_mode = InputMode::License;
                 self.overlay_scroll = 0;
@@ -871,89 +806,52 @@ impl App {
                 self.input_mode = InputMode::Credits;
                 self.overlay_scroll = 0;
             }
-            "help" | "h" => self.open_help(),
+            "help" | "h" | "?" => self.open_help(),
             "load" => {
-                // The rest of the line, so file names with spaces work.
-                let arg = command.trim()[parts[0].len()..].trim();
-                if arg.is_empty() {
+                // The rest of the line as typed, so file names with spaces and capitals work.
+                if rest.is_empty() {
                     self.open_load_browser()?;
                 } else {
-                    self.load_path(arg)?;
+                    self.load_path(rest)?;
                 }
             }
-            "new" => self.new_remote_command(&parts[1..]),
-            "delete" => {
-                // An ID list like :replay's ("2", "1-3, 7", "4 5"); `all` asks first (app/input.rs).
-                let spec = parts[1..].join(" ");
-                if spec.is_empty() {
-                    self.last_error = Some("Usage: :delete <ID> (e.g. 4, 1-3, 1,5) or :delete all".to_string());
-                } else if spec.eq_ignore_ascii_case("all") {
-                    self.request_delete_all();
-                } else {
-                    self.delete_capture(&spec)?;
+            "new" => self.new_remote_command(&args),
+            "delete" | "del" => {
+                // An ID list like :replay's; `all` asks first (app/input.rs).
+                match id_spec.as_deref() {
+                    None => {
+                        self.last_error = Some("Usage: :delete <ID> (e.g. 4, 1-3, 1,5) or :delete all".to_string());
+                    }
+                    Some(spec) if spec.eq_ignore_ascii_case("all") => self.request_delete_all(),
+                    Some(spec) => self.delete_capture(spec)?,
                 }
             }
-            "timing" => {
-                self.timing_command(parts.get(1).copied());
+            // `:timing` is the report's old name.
+            "analyze" | "analyse" | "timing" => {
+                self.analyze_command(args.first().copied());
             }
             "klbf" => {
-                self.klbf_command(&parts[1..]);
+                self.klbf_command(&args);
             }
             "clear" => {
                 self.request_clear();
             }
-            "replay" => {
-                let id_spec = parts.get(1).map(|_| parts[1..].join(" "));
-                let id_spec = match id_spec.as_deref() {
-                    Some(s) if !s.is_empty() => s,
-                    _ => {
-                        self.last_error = Some("Usage: :replay <ID> (e.g. 1, 1,3,5, 1-5)".to_string());
-                        return Ok(());
-                    }
-                };
-                self.transmit_id_list(id_spec, None)?;
-            }
-            "lna" => {
-                if parts.len() < 2 {
-                    self.last_error = Some("Usage: :lna <0-40>".to_string());
-                    return Ok(());
-                }
-                match parts[1].parse::<u32>() {
-                    Ok(gain) => self.set_lna_gain(gain)?,
-                    Err(_) => {
-                        self.last_error = Some("Invalid LNA gain value".to_string());
-                    }
-                }
-            }
-            "vga" => {
-                if parts.len() < 2 {
-                    self.last_error = Some("Usage: :vga <0-62>".to_string());
-                    return Ok(());
-                }
-                match parts[1].parse::<u32>() {
-                    Ok(gain) => self.set_vga_gain(gain)?,
-                    Err(_) => {
-                        self.last_error = Some("Invalid VGA gain value".to_string());
-                    }
-                }
-            }
-            "amp" => {
-                if parts.len() < 2 {
-                    // Toggle if no argument
-                    self.toggle_amp()?;
-                } else {
-                    match parts[1].to_lowercase().as_str() {
-                        "on" | "1" | "true" => self.set_amp(true)?,
-                        "off" | "0" | "false" => self.set_amp(false)?,
-                        _ => {
-                            self.last_error = Some("Usage: :amp [on|off]".to_string());
-                        }
-                    }
-                }
-            }
-            "txpower" => self.txpower_command(&parts[1..]),
+            "replay" => match id_spec.as_deref() {
+                Some(spec) => self.transmit_id_list(spec, None)?,
+                None => self.last_error = Some("Usage: :replay <ID> (e.g. 1, 1,3,5, 1-5)".to_string()),
+            },
+            "lna" => self.gain_command(SettingsField::Lna, &args)?,
+            "vga" => self.gain_command(SettingsField::Vga, &args)?,
+            "amp" => match args.first().map(|a| a.to_ascii_lowercase()).as_deref() {
+                // Toggle if no argument
+                None => self.toggle_amp()?,
+                Some("on" | "1" | "true") => self.set_amp(true)?,
+                Some("off" | "0" | "false") => self.set_amp(false)?,
+                Some(_) => self.last_error = Some("Usage: :amp [on|off]".to_string()),
+            },
+            "txpower" => self.txpower_command(&args),
             _ => {
-                self.last_error = Some(format!("Unknown command: {} (:help lists commands)", parts[0]));
+                self.last_error = Some(format!("Unknown command: {typed} (:help lists commands)"));
             }
         }
 
@@ -971,81 +869,132 @@ impl App {
             return Ok(());
         }
 
-        self.frequency = hz;
-
+        let Some(i) = self.selected_radio() else {
+            self.offline_tuning.frequency = hz;
+            self.status_message = Some(format!("Frequency set to {} MHz", crate::radio::hopper::format_mhz(hz)));
+            return Ok(());
+        };
+        let several = self.several_radios();
+        let radio = &mut self.radios[i];
+        radio.tuning.frequency = hz;
         // If receiving, restart receiver so the new frequency takes effect
-        if let Some(ref mut radio) = self.radio {
-            if self.radio_state == RadioState::Receiving {
-                radio.stop_receiving()?;
-                // A radio may refuse the new frequency (a Flipper's CC1101 has gaps in 300–928 MHz):
-                // then it is not receiving, and the header must not say RX.
-                if let Err(e) = radio.start_receiving(hz) {
-                    self.radio_state = RadioState::Idle;
-                    return Err(e);
-                }
-            } else {
-                radio.set_frequency(hz)?;
+        if radio.state == RadioState::Receiving {
+            radio.device.stop_receiving()?;
+            // A radio may refuse the new frequency (a Flipper's CC1101 has gaps in 300–928 MHz):
+            // then it is not receiving, and the header must not say RX.
+            if let Err(e) = radio.device.start_receiving(hz) {
+                radio.state = RadioState::Idle;
+                radio.last_error = Some(format!("{e:#}"));
+                return Err(e.context(radio.name.clone()));
             }
+        } else {
+            radio.device.set_frequency(hz)?;
         }
-
-        self.status_message = Some(format!("Frequency set to {} MHz", crate::radio::hopper::format_mhz(hz)));
+        let on = if several { format!(" on {}", radio.name) } else { String::new() };
+        self.status_message = Some(format!("Frequency set to {} MHz{on}", crate::radio::hopper::format_mhz(hz)));
         Ok(())
     }
 
-    /// Set the LNA gain
+    /// " on RTL-SDR 2" with several radios: the radio a setting was changed on.
+    fn on_selected(&self) -> String {
+        match self.selected() {
+            Some(radio) if self.several_radios() => format!(" on {}", radio.name),
+            _ => String::new(),
+        }
+    }
+
+    /// Why the selected radio has no such setting (app/radios.rs); None when it has one, and
+    /// without a radio (the settings are kept as a HackRF's).
+    fn missing_setting(&self, field: SettingsField) -> Option<String> {
+        let radio = self.selected()?;
+        radios::missing_setting(radio.kind(), &radio.name, field)
+    }
+
+    /// `:lna <dB>` / `:vga <dB>` ("16", "16dB", "16 dB") on the selected radio.
+    fn gain_command(&mut self, field: SettingsField, args: &[&str]) -> Result<()> {
+        let gain = args.first().and_then(|a| a.to_ascii_lowercase().trim_end_matches("db").parse::<u32>().ok());
+        match (field, gain) {
+            (SettingsField::Lna, Some(gain)) => return self.set_lna_gain(gain),
+            (_, Some(gain)) => return self.set_vga_gain(gain),
+            _ => {}
+        }
+        // No gain given: say how, unless the radio has no such setting at all.
+        self.last_error = Some(self.missing_setting(field).unwrap_or_else(|| match field {
+            SettingsField::Lna => "Usage: :lna <0-40> (dB, in 8 dB steps)".to_string(),
+            _ => "Usage: :vga <0-62> (dB, even numbers)".to_string(),
+        }));
+        Ok(())
+    }
+
+    /// Set the LNA gain: 0-40 dB in 8 dB steps. A value in between goes down to the step below,
+    /// as libhackrf does, and the message says so ("LNA gain set to 16 dB" after `:lna 20`
+    /// looked like a typo ignored).
     fn set_lna_gain(&mut self, gain: u32) -> Result<()> {
-        // LNA gain is 0-40 dB in 8 dB steps
+        if let Some(why) = self.missing_setting(SettingsField::Lna) {
+            self.last_error = Some(why);
+            return Ok(());
+        }
         if gain > 40 {
             self.last_error = Some("LNA gain must be 0-40 dB".to_string());
             return Ok(());
         }
-        
-        // Round to nearest 8 dB step
-        let gain = (gain / 8) * 8;
-        self.lna_gain = gain;
+        let set = (gain / 8) * 8;
+        self.tuning_mut().lna_gain = set;
 
-        if let Some(ref mut radio) = self.radio {
-            radio.set_lna_gain(gain)?;
+        if let Some(radio) = self.selected_mut() {
+            radio.device.set_lna_gain(set)?;
         }
 
-        self.status_message = Some(format!("LNA gain set to {} dB", gain));
+        let steps = if set == gain { "" } else { " (8 dB steps)" };
+        self.status_message = Some(format!("LNA gain set to {set} dB{}{steps}", self.on_selected()));
         Ok(())
     }
 
-    /// Set the VGA gain
+    /// Set the VGA gain: 0-62 dB in 2 dB steps (an odd value goes down to the even one below, as
+    /// libhackrf does). It is an RTL-SDR's one gain: its tuner takes its next gain step from
+    /// there (it has about 50 dB).
     fn set_vga_gain(&mut self, gain: u32) -> Result<()> {
-        // VGA gain is 0-62 dB in 2 dB steps
-        if gain > 62 {
-            self.last_error = Some("VGA gain must be 0-62 dB".to_string());
+        if let Some(why) = self.missing_setting(SettingsField::Vga) {
+            self.last_error = Some(why);
             return Ok(());
         }
-        
-        // Round to nearest 2 dB step
-        let gain = (gain / 2) * 2;
-        self.vga_gain = gain;
+        let one_gain = self.selected().is_some_and(|r| r.kind() == crate::radio::devices::RadioKind::RtlSdr);
+        let name = if one_gain { "Gain" } else { "VGA gain" };
+        if gain > 62 {
+            self.last_error = Some(format!("{name} must be 0-62 dB"));
+            return Ok(());
+        }
+        let set = (gain / 2) * 2;
+        self.tuning_mut().vga_gain = set;
 
-        if let Some(ref mut radio) = self.radio {
-            radio.set_vga_gain(gain)?;
+        if let Some(radio) = self.selected_mut() {
+            radio.device.set_vga_gain(set)?;
         }
 
-        self.status_message = Some(format!("VGA gain set to {} dB", gain));
+        let steps = if set == gain { "" } else { " (2 dB steps)" };
+        self.status_message = Some(format!("{name} set to {set} dB{}{steps}", self.on_selected()));
         Ok(())
     }
 
     /// Toggle amplifier
     fn toggle_amp(&mut self) -> Result<()> {
-        self.set_amp(!self.amp_enabled)
+        self.set_amp(!self.tuning().amp)
     }
 
     /// Set amplifier state
     fn set_amp(&mut self, enabled: bool) -> Result<()> {
-        self.amp_enabled = enabled;
+        if let Some(why) = self.missing_setting(SettingsField::Amp) {
+            self.last_error = Some(why);
+            return Ok(());
+        }
+        self.tuning_mut().amp = enabled;
 
-        if let Some(ref mut radio) = self.radio {
-            radio.set_amp_enable(enabled)?;
+        if let Some(radio) = self.selected_mut() {
+            radio.device.set_amp_enable(enabled)?;
         }
 
-        self.status_message = Some(format!("Amp {}", if enabled { "enabled" } else { "disabled" }));
+        self.status_message =
+            Some(format!("Amp {}{}", if enabled { "enabled" } else { "disabled" }, self.on_selected()));
         Ok(())
     }
 
@@ -1074,7 +1023,7 @@ impl App {
         let capture = match self.captures.iter().find(|c| c.id == id) {
             Some(c) => c.clone(),
             None => {
-                self.last_error = Some(format!("Capture {} not found", id));
+                self.last_error = Some(format!("Capture #{:02} not found", id));
                 return Ok(());
             }
         };
@@ -1127,7 +1076,7 @@ impl App {
         let advance = self.tx_advance(id, protocol_name, &decoded, button_code, &signal);
         self.queue_transmit_advancing(signal, capture.frequency, modulation, advance);
         self.status_message = Some(format!(
-            "Transmitted {:?} for capture {} ({}, {})",
+            "Transmitted {:?} for #{:02} ({}, {})",
             command,
             id,
             modulation,
@@ -1145,7 +1094,7 @@ impl App {
         let capture = match self.captures.iter().find(|c| c.id == id) {
             Some(c) => c,
             None => {
-                self.last_error = Some(format!("Capture {} not found", id));
+                self.last_error = Some(format!("Capture #{:02} not found", id));
                 return Ok(());
             }
         };
@@ -1166,7 +1115,7 @@ impl App {
 
         self.queue_transmit(signal, frequency, modulation);
         self.status_message = Some(format!(
-            "Replayed capture {} ({} pairs, {}, {})",
+            "Replayed #{:02} ({} pairs, {}, {})",
             id,
             pair_count,
             modulation,
@@ -1193,7 +1142,7 @@ impl App {
         let capture = match self.captures.iter().find(|c| c.id == id) {
             Some(c) => c.clone(),
             None => {
-                self.last_error = Some(format!("Capture {} not found", id));
+                self.last_error = Some(format!("Capture #{:02} not found", id));
                 return Ok(());
             }
         };
@@ -1213,7 +1162,7 @@ impl App {
         };
 
         if !protocol.supports_encoding() {
-            self.last_error = Some("Protocol does not support encoding".to_string());
+            self.last_error = Some(format!("Protocol {} does not support encoding", protocol_name));
             return Ok(());
         }
 
@@ -1243,7 +1192,7 @@ impl App {
         self.queue_transmit_advancing(signal, capture.frequency, modulation, advance);
         let what = if native_button.is_some() { "Sent" } else { "Sent next code," };
         self.status_message = Some(format!(
-            "{} {} (0x{:02X}) for capture {} ({}, {})",
+            "{} {} (0x{:02X}) for #{:02} ({}, {})",
             what,
             crate::protocols::gate_buttons::button_label(protocol_name, button),
             button,
@@ -1254,13 +1203,12 @@ impl App {
         Ok(())
     }
 
-    /// Delete the currently selected capture (if any). No-op if none selected or list empty.
+    /// `d`: delete the selected capture (`u` brings it back). Without one it says so.
     pub fn delete_selected_capture(&mut self) -> Result<()> {
-        let id = match self.selected_capture {
-            Some(idx) if idx < self.captures.len() => self.captures[idx].id,
-            _ => return Ok(()),
-        };
-        self.delete_capture(&id.to_string())
+        match self.selected_id() {
+            Some(id) => self.delete_capture(&id.to_string()),
+            None => Ok(()),
+        }
     }
 
     /// True if a capture with the same protocol, data, serial, and button already exists.
@@ -1275,29 +1223,13 @@ impl App {
         self.poll_keeloq_key_recovery();
         self.poll_hitag2_key_recovery();
         self.auto_bf_tick();
-        if let Some(ref rssi_arc) = self.rssi_source {
-            self.rssi = f32::from_bits(rssi_arc.load(Ordering::Relaxed));
-        }
+        // Each radio's level, captures and stopped receivers (app/radios.rs), then the IQ files'.
+        self.poll_radios();
         while let Ok(event) = self.radio_event_rx.try_recv() {
             match event {
-                RadioEvent::SignalCaptured(capture) => self.add_received_signal(capture),
-                RadioEvent::Error(e) => {
-                    // Only a receive thread sends this, when RX ended on its own (open/configure
-                    // failure, unplug); it already stopped streaming, ended any recording and zeroed
-                    // the level. Back to idle, so one `r` restarts it (the header kept "RX" before).
-                    match self.radio_state {
-                        RadioState::Receiving => self.radio_state = RadioState::Idle,
-                        RadioState::Transmitting if self.pending_transmit_restore == Some(RadioState::Receiving) => {
-                            self.pending_transmit_restore = Some(RadioState::Idle);
-                        }
-                        _ => {}
-                    }
-                    self.rssi = 0.0;
-                    self.last_error = Some(format!("Receiver stopped: {e} (r restarts)"));
-                }
-                RadioEvent::StateChanged(state) => {
-                    self.radio_state = state;
-                }
+                RadioEvent::SignalCaptured(capture) => self.add_received_signal(capture, None),
+                RadioEvent::Error(e) => self.last_error = Some(e),
+                RadioEvent::StateChanged(_) => {}
             }
         }
         // Saved-fob matching of new captures + session autosave (app/persistence.rs).
@@ -1353,7 +1285,7 @@ impl App {
     }
 
     fn signal_actions_base(&self) -> Vec<SignalAction> {
-        let has_tx = self.radio.as_ref().is_some_and(|r| r.supports_tx());
+        let has_tx = self.tx_radio().is_some();
         let selected = self.signal_menu_capture();
         let encoder_capable = selected
             .is_some_and(|c| c.status == crate::capture::CaptureStatus::EncoderCapable);
@@ -1373,7 +1305,7 @@ impl App {
                         a,
                         SignalAction::ExportFob
                             | SignalAction::ExportFlipper
-                            | SignalAction::TimingAnalysis
+                            | SignalAction::Analyze
                             | SignalAction::Delete
                     )
                 })
@@ -1388,7 +1320,7 @@ impl App {
                 SignalAction::SendNextCode,
                 SignalAction::ExportFob,
                 SignalAction::ExportFlipper,
-                SignalAction::TimingAnalysis,
+                SignalAction::Analyze,
                 SignalAction::Delete,
             ];
         }
@@ -1461,8 +1393,8 @@ impl App {
             SignalAction::ExportFlipperKey => {
                 self.export_flipper_key(capture_id)?;
             }
-            SignalAction::TimingAnalysis => {
-                self.open_timing_analysis(capture_id);
+            SignalAction::Analyze => {
+                self.open_analysis(capture_id);
             }
             SignalAction::Delete => {
                 let id_str = capture_id.to_string();
@@ -1498,7 +1430,7 @@ impl App {
     /// beside a long KeeLoq or HiTag2 search.
     fn start_psa_key_recovery(&mut self, id: u32) {
         let Some(capture) = self.captures.iter().find(|c| c.id == id) else {
-            self.last_error = Some(format!("Capture {} not found", id));
+            self.last_error = Some(format!("Capture #{:02} not found", id));
             return;
         };
         let Some(extra) = capture.data_extra else {
@@ -1508,14 +1440,14 @@ impl App {
         };
         if self.psa_recover_job.is_some() {
             self.queue_asked_key_search(id);
-            self.status_message = Some(format!("Key recovery for capture {id} queued"));
+            self.status_message = Some(format!("Key recovery for #{id:02} queued"));
             return;
         }
         let data = capture.data;
         self.spawn_psa_job(data, extra, Some(id), None, false);
         // Its progress is job_status() (status bar title), not this line: rewriting the message
         // every tick wiped every other message.
-        self.status_message = Some(format!("Recovering PSA key for capture {}…", id));
+        self.status_message = Some(format!("Recovering PSA key for #{:02}…", id));
     }
 
     /// Run the PSA key search on (`data`, `extra`) on a background thread, for listed capture
@@ -1533,8 +1465,8 @@ impl App {
         let done = u64::from(job.ctl.progress.load(Ordering::Relaxed));
         let pct = (done * 100 / u64::from(PSA_BRUTE_FORCE_TOTAL)).min(99);
         Some(match (job.capture_id, job.auto) {
-            (Some(id), false) => format!("Recovering PSA key for capture {id}… {pct}%"),
-            (Some(id), true) => format!("Checking the PSA key of capture {id}… {pct}%"),
+            (Some(id), false) => format!("Recovering PSA key for #{id:02}… {pct}%"),
+            (Some(id), true) => format!("Checking the PSA key of #{id:02}… {pct}%"),
             (None, _) => format!("Checking a PSA frame… {pct}%"),
         })
     }
@@ -1558,7 +1490,6 @@ impl App {
         }
     }
 
-    /// Generate a default export filename (without extension) for a capture
     /// Path relative to the import directory for display; falls back to full path if not under import_dir.
     fn path_relative_to_import(path: &std::path::Path, import_dir: &std::path::Path) -> String {
         path.strip_prefix(import_dir)
@@ -1566,58 +1497,39 @@ impl App {
             .unwrap_or_else(|_| path.to_string_lossy().to_string())
     }
 
-    /// Default export filename for .fob: Year_Make_Model_Region_Command (same format for all captures).
-    /// Uses capture metadata when set; fallbacks: make from protocol for known, command from button_name(), else "Unknown".
-    fn default_export_filename(capture: &Capture) -> String {
-        let year = capture
-            .year
-            .as_deref()
-            .unwrap_or("Unknown")
-            .trim()
-            .replace(' ', "_");
-        let make = capture
-            .make
-            .as_deref()
-            .filter(|s| !s.trim().is_empty())
-            .map(|s| s.trim().replace(' ', "_"))
-            .unwrap_or_else(|| {
-                if capture.protocol_name().eq_ignore_ascii_case("unknown") {
-                    "Unknown".to_string()
-                } else {
-                    capture.protocol_make().trim().replace(' ', "_")
-                }
-            });
-        let model = capture
-            .model
-            .as_deref()
-            .unwrap_or("Unknown")
-            .trim()
-            .replace(' ', "_");
-        let region = capture
-            .region
-            .as_deref()
-            .unwrap_or("Unknown")
-            .trim()
-            .replace(' ', "_");
-        let cmd_str = capture
-            .command
-            .as_deref()
-            .unwrap_or_else(|| capture.button_name())
-            .trim();
-        let command = if cmd_str.is_empty() || cmd_str == "-" {
-            "Unknown".to_string()
-        } else {
-            cmd_str.replace(' ', "_")
+    /// `Year_Make_Model_Region_Command`, the name of a `.fob` export: a detail that is not set is
+    /// "Unknown".
+    fn export_stem(year: &str, make: &str, model: &str, region: &str, command: &str) -> String {
+        let part = |text: &str| match text.trim() {
+            "" | "-" => "Unknown".to_string(),
+            set => set.replace(' ', "_"),
         };
         // Makes such as "Kia/Hyundai" must not turn the name into a path, and metadata typed with
         // `i` may hold characters a Flipper's FAT card refuses (the export would fail).
-        files::safe_stem(&format!("{}_{}_{}_{}_{}", year, make, model, region, command))
+        files::safe_stem(&[year, make, model, region, command].map(part).join("_"))
+    }
+
+    /// Default export filename for .fob: Year_Make_Model_Region_Command (same format for all captures).
+    /// Uses capture metadata when set; fallbacks: make from protocol for known, command from button_name(), else "Unknown".
+    fn default_export_filename(capture: &Capture) -> String {
+        let make = match capture.make.as_deref().filter(|s| !s.trim().is_empty()) {
+            Some(make) => make,
+            None if capture.protocol_name().eq_ignore_ascii_case("unknown") => "",
+            None => capture.protocol_make(),
+        };
+        Self::export_stem(
+            capture.year.as_deref().unwrap_or(""),
+            make,
+            capture.model.as_deref().unwrap_or(""),
+            capture.region.as_deref().unwrap_or(""),
+            capture.command.as_deref().unwrap_or_else(|| capture.button_name()),
+        )
     }
 
     /// Start .fob export by entering filename input mode
     pub fn export_fob(&mut self, id: u32) -> Result<()> {
         if !self.captures.iter().any(|c| c.id == id) {
-            self.last_error = Some(format!("Capture {} not found", id));
+            self.last_error = Some(format!("Capture #{:02} not found", id));
             return Ok(());
         }
 
@@ -1632,6 +1544,7 @@ impl App {
             .as_nanos() as u64;
         let suffix = (suffix_nanos.wrapping_add(id as u64 * 2654435761) % 0x100_000_000) as u32;
         self.export_filename = format!("{}_{:08X}", default_name, suffix);
+        self.export_name_suffix = Some(format!("{suffix:08X}"));
 
         // Pre-fill metadata from capture if set, otherwise make from protocol
         let make = capture
@@ -1685,7 +1598,7 @@ impl App {
         let capture = match self.captures.iter().find(|c| c.id == id) {
             Some(c) => c.clone(),
             None => {
-                self.last_error = Some(format!("Capture {} not found", id));
+                self.last_error = Some(format!("Capture #{:02} not found", id));
                 return Ok(());
             }
         };
@@ -1798,7 +1711,7 @@ impl App {
             self.last_error = None;
             self.status_message = Some(format!("Saved metadata for #{:02}", id));
         } else {
-            self.last_error = Some(format!("Capture {} is no longer in the list; metadata not saved", id));
+            self.last_error = Some(format!("Capture #{:02} is no longer in the list; metadata not saved", id));
         }
         self.input_mode = InputMode::Normal;
         self.capture_meta_capture_id = None;
@@ -1879,17 +1792,9 @@ impl App {
             entries.push((name, path, false));
         }
 
-        let len = entries.len();
         self.load_browser_entries = entries;
-        self.load_browser_selected = self.load_browser_selected.min(len.saturating_sub(1));
-        const VISIBLE: usize = 16;
-        if self.load_browser_selected < self.load_browser_scroll {
-            self.load_browser_scroll = self.load_browser_selected;
-        }
-        if self.load_browser_selected >= self.load_browser_scroll + VISIBLE {
-            self.load_browser_scroll = self.load_browser_selected.saturating_sub(VISIBLE - 1);
-        }
-        self.load_browser_scroll = self.load_browser_scroll.min(len.saturating_sub(1));
+        // The selection stays (clamped to the new list) and in view (app/input.rs).
+        self.load_browser_select(self.load_browser_selected);
         Ok(())
     }
 
@@ -1981,7 +1886,6 @@ impl App {
 
         if self.captures.len() > first_new {
             self.selected_capture = Some(first_new);
-            self.ensure_selection_visible();
         }
         let (status, error) = files::import_summary(&results);
         if status.is_some() {
@@ -2002,7 +1906,7 @@ impl App {
     /// Start .sub (Flipper) export by entering filename input mode
     pub fn export_flipper(&mut self, id: u32) -> Result<()> {
         if !self.captures.iter().any(|c| c.id == id) {
-            self.last_error = Some(format!("Capture {} not found", id));
+            self.last_error = Some(format!("Capture #{:02} not found", id));
             return Ok(());
         }
 
@@ -2030,7 +1934,7 @@ impl App {
         let capture = match self.captures.iter().find(|c| c.id == id) {
             Some(c) => c.clone(),
             None => {
-                self.last_error = Some(format!("Capture {} not found", id));
+                self.last_error = Some(format!("Capture #{:02} not found", id));
                 return Ok(());
             }
         };
@@ -2069,6 +1973,7 @@ impl App {
             return Ok(());
         };
         match choice {
+            SettingChoice::Radio(i) => self.select_radio(i),
             SettingChoice::Freq(hz) => self.set_frequency(hz)?,
             SettingChoice::Hop(on) => self.set_hopping(on),
             SettingChoice::Lna(gain) => self.set_lna_gain(gain)?,
@@ -2108,6 +2013,9 @@ impl App {
             on_air: None,
             key_recovery: None,
             key_repeat: None,
+            radio: None,
+            own_tx: None,
+            measured: None,
         };
         self.next_capture_id += 1;
         self.captures.push(capture);

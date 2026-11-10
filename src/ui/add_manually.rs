@@ -37,14 +37,23 @@ pub fn mode_label(mode: InputMode) -> (&'static str, Style) {
     }
 }
 
-/// Help-bar text.
-pub fn help_text(mode: InputMode) -> &'static str {
+/// Help-bar texts of these modes, the fullest first: the bar shows the first that fits.
+pub fn help_texts(mode: InputMode) -> &'static [&'static str] {
     match mode {
-        // Under 80 columns (PgUp/PgDn also move the selection).
-        InputMode::NewRemote => "Type: filter | Up/Down: select | Enter: create | Tab: edit fields | Esc: close",
-        InputMode::NewRemoteEdit => "0-9 A-F: edit | Tab/Up/Down: field | Enter: create | Esc: back",
-        InputMode::SendButton => "Up/Down: button | 0-9 A-F: other code | Enter: send | Esc: back",
-        _ => "",
+        // PgUp/PgDn also move the selection.
+        InputMode::NewRemote => &[
+            "Type: Filter | Up/Down: Select | Enter: Create | Tab: Edit fields | Esc: Close",
+            "Type: Filter | Enter: Create | Tab: Fields | Esc: Close",
+        ],
+        InputMode::NewRemoteEdit => &[
+            "0-9 A-F: Edit | Tab/Up/Down: Field | Enter: Create | Esc: Back",
+            "0-9 A-F: Edit | Tab: Field | Enter: Create | Esc: Back",
+        ],
+        InputMode::SendButton => &[
+            "Up/Down: Button | 0-9 A-F: Other code | Enter: Send | Esc: Back",
+            "Up/Down: Button | 0-9 A-F: Code | Enter: Send | Esc: Back",
+        ],
+        _ => &[],
     }
 }
 
@@ -138,19 +147,25 @@ fn render_picker(frame: &mut Frame, app: &App) {
             let ty = &TYPES[i];
             let s = add_manually::summary(ty);
             let fields: Vec<String> = s.fields.iter().map(|&(f, v)| field_text(f, v)).collect();
-            let about = format!(" {} · {} · {} · {}", s.protocol, mhz(s.frequency), s.preset, ty.menus());
+            // The row above has the frequency and the preset: a narrow window keeps what it lacks.
+            let mut about = format!(" {} · {} · {} · {}", s.protocol, mhz(s.frequency), s.preset, ty.menus());
+            if text::width(&about) > inner {
+                about = format!(" {} · {}", s.protocol, ty.menus());
+            }
             lines.push(Line::styled(text::truncate_end(&about, inner), Style::default().fg(Color::Cyan)));
-            let detail = if fields.is_empty() { "Fixed code drawn at random (Security+ 1.0 rule)".to_string() } else { fields.join(" · ") };
-            lines.push(Line::styled(text::truncate_end(&format!(" {detail}"), inner), theme::TEXT));
             match p.availability.get(i) {
-                Some(Err(e)) => lines.push(Line::styled(
-                    text::truncate_end(&format!(" Unavailable: {e}"), inner),
-                    Style::default().fg(Color::Red),
-                )),
-                _ => lines.push(Line::styled(
-                    text::truncate_end(" Enter: create with these defaults · Tab: edit the fields first", inner),
-                    dim,
-                )),
+                // Why not, in the two lines the fields and the keys have otherwise: a reason says
+                // what to add and where, which one line cut away.
+                Some(Err(e)) => lines.extend(
+                    unavailable_lines(e, inner).into_iter().map(|l| Line::styled(l, Style::default().fg(Color::Red))),
+                ),
+                _ => {
+                    let detail = if fields.is_empty() { "Fixed code drawn at random (Security+ 1.0 rule)".to_string() } else { fields.join(" · ") };
+                    lines.push(Line::styled(text::truncate_end(&format!(" {detail}"), inner), theme::TEXT));
+                    let hints = [" Enter: create with these defaults · Tab: edit the fields first", " Enter: create with these defaults · Tab: edit them"];
+                    let hint = hints.iter().find(|h| text::width(h) <= inner).unwrap_or(&hints[1]);
+                    lines.push(Line::styled(text::truncate_end(hint, inner), dim));
+                }
             }
         }
         None => lines.push(Line::from(Span::styled(" No type matches the filter", Style::default().fg(Color::Red)))),
@@ -159,10 +174,21 @@ fn render_picker(frame: &mut Frame, app: &App) {
         .title(" New remote (Add Manually) ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Magenta));
-    if let Some(hint) = text::more_hint(start, visible, rows.len()) {
+    // The types out of view: the headings among the rows are not counted.
+    let types = |rows: &[PickerRow]| rows.iter().filter(|r| matches!(r, PickerRow::Type(_))).count();
+    let (first, end) = (start.min(rows.len()), (start + visible).min(rows.len()));
+    if let Some(hint) = text::more_of(types(&rows[..first]), types(&rows[end..])) {
         block = block.title_bottom(Line::from(hint).right_aligned());
     }
     frame.render_widget(Paragraph::new(lines).block(block), area);
+}
+
+/// The two lines under an unavailable type that say why KAT cannot create it, for a picker
+/// `inner` columns wide inside its border (the second line is empty when one is enough).
+fn unavailable_lines(reason: &str, inner: usize) -> Vec<String> {
+    let mut lines = text::wrap_within(&format!("Unavailable: {reason}"), inner.saturating_sub(1), 2);
+    lines.resize(2, String::new());
+    lines.into_iter().map(|l| format!(" {l}")).collect()
 }
 
 fn render_form(frame: &mut Frame, app: &App) {
@@ -206,17 +232,20 @@ fn render_form(frame: &mut Frame, app: &App) {
 
 fn render_send_button(frame: &mut Frame, app: &App) {
     let Some(m) = app.send_button_menu() else { return };
-    let title = app
+    let name = app
         .captures
         .iter()
         .find(|c| c.id == m.capture_id)
-        .map_or_else(String::new, |c| format!(" Send button — #{:02} {} ", c.id, c.protocol_name()));
+        .map(|c| format!("Send button — #{:02} {}", c.id, c.protocol_name()));
     // Up to 20 buttons, fewer on a short terminal; the list scrolls to keep the selection in view.
     let height = (m.buttons.len().min(20) as u16 + 6).min(frame.area().height.saturating_sub(2));
     // Borders, the blank line, "Other code" and the hint: 5 rows; the buttons get the rest.
     let visible = (height as usize).saturating_sub(5).max(1);
     let area = centered(52, height, frame.area());
     frame.render_widget(Clear, area);
+    // A protocol name longer than the box is cut with "…" (the border would cut it bare).
+    let room = usize::from(area.width).saturating_sub(4);
+    let title = name.map_or_else(String::new, |n| format!(" {} ", text::truncate_end(&n, room)));
     let first = text::centered_start(m.selected, visible, m.buttons.len());
     let mut lines: Vec<Line> = m
         .buttons
@@ -244,4 +273,35 @@ fn render_send_button(frame: &mut Frame, app: &App) {
         block = block.title_bottom(Line::from(hint).right_aligned());
     }
     frame.render_widget(Paragraph::new(lines).block(block), area);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Why a type cannot be created shows whole under it, in the narrowest terminal too: the
+    /// reasons end with what to add and where.
+    #[test]
+    fn an_unavailable_types_reason_shows_whole() {
+        let _keystore = crate::protocols::keeloq_common::KEYSTORE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let inner = usize::from(crate::ui::layout::MIN_WIDTH) - 2;
+        // The types KAT cannot create here (the O-Code ones always), and the longest of the other
+        // reasons (they depend on the keys and tables in the config folder): a missing table, and
+        // a missing key of the manufacturer with the longest name.
+        let mut reasons: Vec<String> = TYPES.iter().filter_map(|t| add_manually::availability(t).err()).collect();
+        assert!(reasons.iter().any(|r| r.contains("O-Code")), "{reasons:?}");
+        reasons.extend([
+            "needs the Alutech AT-4N rainbow table (~/.config/KAT/alutech_at_4n.bin)".to_string(),
+            "no usable Clemsa_Mutancode key in the keystore (add one to ~/.config/KAT/keeloq_mfcodes_user)".to_string(),
+        ]);
+        for reason in reasons {
+            let lines = unavailable_lines(&reason, inner);
+            assert_eq!(lines.len(), 2, "{reason}");
+            assert!(lines.iter().all(|l| text::width(l) <= inner), "{lines:?}");
+            let shown = lines.iter().map(|l| l.trim()).filter(|l| !l.is_empty()).collect::<Vec<_>>().join(" ");
+            assert_eq!(shown, format!("Unavailable: {reason}"));
+        }
+        // A short reason leaves the second line empty: the picker keeps its height.
+        assert_eq!(unavailable_lines("KAT has no X protocol", 58), [" Unavailable: KAT has no X protocol", " "]);
+    }
 }

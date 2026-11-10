@@ -575,6 +575,14 @@ mod tests {
         c.region = Some("EU".to_string());
         c.command = Some("Lock".to_string());
         c.source_file = Some("VAG/Golf4.sub".to_string());
+        c.radio = Some("HackRF".to_string());
+        c.measured = Some(crate::capture::RfMeasurement {
+            offset_hz: -12_500.0,
+            snr_db: 27.5,
+            deviation_hz: Some(47_600.0),
+            burst_us: 180_000,
+            both_paths: true,
+        });
         c
     }
 
@@ -616,6 +624,11 @@ mod tests {
         assert_eq!(c.status, CaptureStatus::EncoderCapable);
         assert_eq!(c.timestamp, captures[0].timestamp);
         assert_eq!(c.command.as_deref(), Some("Lock"));
+        assert_eq!(c.radio.as_deref(), Some("HackRF"));
+        assert_eq!(c.measured, captures[0].measured);
+        assert!(c.measured.is_some_and(|m| m.deviation_hz == Some(47_600.0) && m.both_paths));
+        // A capture without a measurement (a file, a Flipper) does not grow the key.
+        assert!(as_json(&captures[2]).get("measured").is_none());
         let _ = fs::remove_dir_all(&dir);
     }
 

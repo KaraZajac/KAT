@@ -193,7 +193,7 @@ pub fn load(config_dir: &Path) -> Option<String> {
         }
         GENERATION.fetch_add(1, Ordering::Relaxed);
     }
-    Some(format!("Loaded {keys} HiTag2 key(s) from {}", path.display()))
+    Some(format!("Loaded {keys} HiTag2 key{} from {}", crate::plural(keys), path.display()))
 }
 
 /// `hitag2_key_db_save_key`: use `key` (in the order of the remote's protocol, module doc) with

@@ -1,5 +1,5 @@
 //! Keyboard input, commands and selection for [`App`]: what a key means (Ctrl-C, Ctrl / Alt
-//! characters), capture-ID lists (`:replay 1-5`, `:delete 2 4`) and their summaries, delete with a
+//! characters), the text fields' Ctrl-U / Ctrl-W, capture-ID lists (`:replay 1-5`, `:delete 2 4`) and their summaries, delete with a
 //! one-level undo (`u`), when a new capture takes the selection, the signal menu's capture and
 //! highlighted action, list paging, the export and capture-metadata forms, the `:load` browser's
 //! keys and path resolution, the help / License / Credits overlays, the quit and `:delete all`
@@ -54,6 +54,43 @@ fn key_code_for(mode: InputMode, key: &KeyEvent) -> Option<KeyCode> {
         },
         KeyCode::Char(_) if alt && !ctrl => None,
         code => Some(code),
+    }
+}
+
+/// What a line-editing key deletes from the end of a text field.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Kill {
+    /// Ctrl-U: the whole text.
+    Line,
+    /// Ctrl-W, Alt-Backspace, Ctrl-Backspace: the last word.
+    Word,
+}
+
+/// The line-editing key of a shell's prompt that `key` is, if any. KAT's text fields had only
+/// Backspace: a mistyped command or file name was deleted a character at a time.
+fn kill_key(key: &KeyEvent) -> Option<Kill> {
+    let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+    let alt = key.modifiers.contains(KeyModifiers::ALT);
+    match key.code {
+        KeyCode::Char(c) if ctrl && !alt => match c.to_ascii_lowercase() {
+            'u' => Some(Kill::Line),
+            'w' => Some(Kill::Word),
+            _ => None,
+        },
+        KeyCode::Backspace if ctrl != alt => Some(Kill::Word),
+        _ => None,
+    }
+}
+
+/// Delete `what` from the end of `text`: all of it, or its last word with the spaces after it
+/// ("freq 433.92 " → "freq ").
+pub(super) fn kill(text: &mut String, what: Kill) {
+    match what {
+        Kill::Line => text.clear(),
+        Kill::Word => {
+            let kept = text.trim_end().trim_end_matches(|c: char| !c.is_whitespace()).len();
+            text.truncate(kept);
+        }
     }
 }
 
@@ -184,7 +221,7 @@ fn ranges_text(ranges: &[(u32, u32)]) -> String {
 }
 
 /// [ranges_text] of a list of IDs (consecutive ones become a range).
-fn ids_text(ids: &[u32]) -> String {
+pub(super) fn ids_text(ids: &[u32]) -> String {
     ranges_text(&merge_ranges(ids.iter().map(|&id| (id, id)).collect()))
 }
 
@@ -270,12 +307,12 @@ fn highlight_row(actions: &[SignalAction], remembered: Option<SignalAction>) -> 
 
 // ── Overlays, forms, paths ───────────────────────────────────────────────────
 
-/// Lines PgUp / PgDn move the License, Credits and help overlays (as the timing overlay).
+/// Lines PgUp / PgDn move the License, Credits, help and Analyze overlays.
 const OVERLAY_PAGE: usize = 10;
 
 /// The overlay scroll after a key (None: not a scroll key), never past `max`, the last useful
 /// offset the renderer reported (Down used to scroll without limit, so Up then seemed dead).
-fn overlay_scrolled(scroll: usize, max: usize, code: KeyCode) -> Option<usize> {
+pub(super) fn overlay_scrolled(scroll: usize, max: usize, code: KeyCode) -> Option<usize> {
     let scroll = scroll.min(max);
     Some(match code {
         KeyCode::Up | KeyCode::Char('k') => scroll.saturating_sub(1),
@@ -351,8 +388,20 @@ fn resolve_user_path(arg: &str, home: Option<&Path>, dirs: &[&Path]) -> PathBuf 
     candidates.into_iter().find(|p| p.is_dir()).unwrap_or(path)
 }
 
-/// Rows the `:load` browser shows at once (layout.rs draws as many).
-const BROWSER_ROWS: usize = 16;
+/// A command line's word (as typed) and the rest of the line. A `:` typed after the prompt's
+/// own is dropped: `::freq 315` used to be the unknown command ":freq".
+pub(super) fn split_command(line: &str) -> (&str, &str) {
+    let line = line.trim().trim_start_matches(':').trim_start();
+    let (word, rest) = line.split_once(char::is_whitespace).unwrap_or((line, ""));
+    (word, rest.trim_start())
+}
+
+/// Rows the `:load` browser shows at once (layout.rs draws as many; its PgUp / PgDn step and the
+/// scroll that keeps the selection in view).
+pub const LOAD_BROWSER_ROWS: usize = 16;
+
+/// Enter, `i` or `d` in the list with no capture selected.
+const NO_SELECTION: &str = "No capture selected";
 
 /// "Quit? The KeeLoq key search is still running", "… and the IQ recording are still running".
 fn quit_question(jobs: &[String]) -> String {
@@ -372,6 +421,8 @@ fn quit_question(jobs: &[String]) -> String {
 /// A value the settings dropdown applies.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) enum SettingChoice {
+    /// Select this radio (several radios: the Radio tab).
+    Radio(usize),
     Freq(u32),
     Hop(bool),
     Lna(u32),
@@ -407,6 +458,32 @@ impl App {
         key_code_for(self.input_mode, key)
     }
 
+    /// Ctrl-U (clear) / Ctrl-W, Alt-Backspace (delete the last word) in the text field of the
+    /// current mode: the command line, a field of the export or metadata form, the `:new` filter
+    /// and fields, the "Send button…" code. False when the key is none of them or the mode has no
+    /// text field (the key then means what [Self::key_code] says).
+    pub fn line_edit_key(&mut self, key: &KeyEvent) -> bool {
+        let Some(what) = kill_key(key) else { return false };
+        let mode = self.input_mode;
+        match mode {
+            InputMode::Command => {
+                kill(&mut self.command_input, what);
+                self.command_edited();
+            }
+            InputMode::NewRemote | InputMode::NewRemoteEdit | InputMode::SendButton => {
+                return self.add_manually_kill(what);
+            }
+            _ => {
+                let Some(text) = self.form_text(mode) else { return false };
+                kill(text, what);
+                // As any other key of the forms: the last message goes, a suggested file name follows.
+                self.clear_messages();
+                self.export_field_edited(mode);
+            }
+        }
+        true
+    }
+
     /// A new user action starts: the last message and error go. Errors win in the status bar, so
     /// an old one used to hide every later success.
     pub fn clear_messages(&mut self) {
@@ -429,6 +506,31 @@ impl App {
         (!jobs.is_empty()).then(|| jobs.join(" · "))
     }
 
+    // ── Command line ──
+
+    /// Up (`older`) / Down on the command line: the commands run before, and after the newest
+    /// what was being typed.
+    pub fn command_history_step(&mut self, older: bool) {
+        let line = if older {
+            self.command_history.older(&self.command_input)
+        } else {
+            self.command_history.newer()
+        };
+        if let Some(line) = line {
+            self.command_input = line.to_string();
+        }
+    }
+
+    /// The command line's text was typed in or cleared: Up starts from the newest command again.
+    pub fn command_edited(&mut self) {
+        self.command_history.leave();
+    }
+
+    /// Enter on the command line: Up brings `command` back later.
+    pub fn remember_command(&mut self, command: &str) {
+        self.command_history.push(command);
+    }
+
     // ── Quit ──
 
     /// Work that quitting would cut short, as the quit prompt names it.
@@ -447,8 +549,10 @@ impl App {
         if self.rx.iq_job.as_ref().is_some_and(|j| !j.is_finished()) {
             jobs.push("the IQ file decode".to_string());
         }
-        if self.radio.as_ref().is_some_and(|r| r.recording_status().is_some()) {
-            jobs.push("the IQ recording".to_string());
+        match self.radios.iter().filter(|r| r.device.recording_status().is_some()).count() {
+            0 => {}
+            1 => jobs.push("the IQ recording".to_string()),
+            n => jobs.push(format!("{n} IQ recordings")),
         }
         match self.queued_transmits() {
             0 => {}
@@ -501,7 +605,7 @@ impl App {
         self.overlay_scroll = 0;
     }
 
-    /// Keys of the License, Credits and help overlays: Up / Down / PgUp / PgDn / Home / End scroll,
+    /// Keys of the License, Credits, help and radios overlays: Up / Down / PgUp / PgDn / Home / End scroll,
     /// stopping at the end the renderer reports (`overlay_scroll_max`); Esc, Enter and q close, ?
     /// closes the help.
     pub fn overlay_key(&mut self, code: KeyCode) {
@@ -532,7 +636,6 @@ impl App {
     fn select_capture_row(&mut self, row: Option<usize>) {
         if row.is_some() {
             self.selected_capture = row;
-            self.ensure_selection_visible();
         }
     }
 
@@ -541,7 +644,6 @@ impl App {
         let new = self.captures.len().saturating_sub(1);
         if follows_new_capture(self.input_mode, self.selected_capture, new) {
             self.selected_capture = Some(new);
-            self.ensure_selection_visible();
         }
     }
 
@@ -595,8 +697,10 @@ impl App {
         let (removed, _) = remove_where(&mut self.captures, |_| true, None);
         self.input.undo = removed;
         self.selected_capture = None;
-        self.scroll_offset = 0;
-        self.status_message = Some(format!("Deleted all {count} captures (u: undo)"));
+        self.status_message = Some(match count {
+            1 => "Deleted the only capture (u: undo)".to_string(),
+            n => format!("Deleted all {n} captures (u: undo)"),
+        });
     }
 
     /// `u`: put the captures the last delete removed back where they were, the first one selected.
@@ -610,7 +714,6 @@ impl App {
         let ids: Vec<u32> = removed.iter().map(|(_, c)| c.id).collect();
         restore_at(&mut self.captures, removed);
         self.selected_capture = Some(at);
-        self.ensure_selection_visible();
         self.status_message = Some(format!("Restored {}", ids_text(&ids)));
     }
 
@@ -620,15 +723,6 @@ impl App {
     }
 
     // ── Transmit lists ──
-
-    /// Why nothing can be transmitted, if so (the per-capture functions say the same).
-    fn tx_unavailable(&self) -> Option<&'static str> {
-        match &self.radio {
-            None => Some("No radio device connected"),
-            Some(r) if !r.supports_tx() => Some("Transmit not available – RTL-SDR is receive-only"),
-            Some(_) => None,
-        }
-    }
 
     /// `:replay` (`command` None) and `:lock` / `:unlock` / `:trunk` / `:panic` with an ID list:
     /// queue the captures it names, in its order. One capture keeps its own message; a list says
@@ -653,7 +747,7 @@ impl App {
             None => app.replay_capture(id),
         };
         if sel.requested == 1 {
-            // One capture: its own message, or why it was not sent ("Capture 7 not found").
+            // One capture: its own message, or why it was not sent ("Capture #07 not found").
             let id = sel.found.first().copied().or_else(|| sel.missing.first().map(|r| r.0)).unwrap_or_default();
             return send(self, id);
         }
@@ -695,9 +789,26 @@ impl App {
         }
     }
 
+    /// The selected capture's ID. Without a selection (an empty list) the keys that act on it
+    /// (Enter, `i`, `d`) say so: they used to do nothing, silently.
+    pub(super) fn selected_id(&mut self) -> Option<u32> {
+        let id = self.selected_capture.and_then(|i| self.captures.get(i)).map(|c| c.id);
+        if id.is_none() {
+            self.last_error = Some(NO_SELECTION.to_string());
+        }
+        id
+    }
+
+    /// `i` in the list: the selected capture's metadata form.
+    pub fn edit_selected_metadata(&mut self) {
+        if let Some(id) = self.selected_id() {
+            self.open_capture_meta_form(id);
+        }
+    }
+
     /// Enter in the list: open the selected capture's action menu.
     pub fn open_signal_menu(&mut self) {
-        let Some(id) = self.selected_capture.and_then(|i| self.captures.get(i)).map(|c| c.id) else {
+        let Some(id) = self.selected_id() else {
             return;
         };
         self.input.menu_capture = Some(id);
@@ -782,6 +893,7 @@ impl App {
                 if let Some(text) = self.form_text(field) {
                     text.pop();
                 }
+                self.export_field_edited(field);
             }
             KeyCode::Char(c) => {
                 let c = match field {
@@ -793,6 +905,33 @@ impl App {
                     if !is_year || text.len() < 4 {
                         text.push(c);
                     }
+                }
+                self.export_field_edited(field);
+            }
+            _ => {}
+        }
+    }
+
+    /// A field of the export form was edited. The suggested `.fob` name follows the vehicle
+    /// details (`Year_Make_Model_Region_Command`) until the name itself is edited: from then on
+    /// it is the user's.
+    fn export_field_edited(&mut self, field: InputMode) {
+        match field {
+            InputMode::ExportFilename => self.export_name_suffix = None,
+            InputMode::FobMetaYear
+            | InputMode::FobMetaMake
+            | InputMode::FobMetaModel
+            | InputMode::FobMetaRegion
+            | InputMode::FobMetaCommand => {
+                if let Some(suffix) = &self.export_name_suffix {
+                    let stem = Self::export_stem(
+                        &self.fob_meta_year,
+                        &self.fob_meta_make,
+                        &self.fob_meta_model,
+                        &self.fob_meta_region,
+                        &self.fob_meta_command,
+                    );
+                    self.export_filename = format!("{stem}_{suffix}");
                 }
             }
             _ => {}
@@ -852,8 +991,8 @@ impl App {
             KeyCode::Left | KeyCode::Backspace | KeyCode::Char('h') => self.load_browser_up()?,
             KeyCode::Up | KeyCode::Char('k') => self.load_browser_select(selected.saturating_sub(1)),
             KeyCode::Down | KeyCode::Char('j') => self.load_browser_select(selected + 1),
-            KeyCode::PageUp => self.load_browser_select(selected.saturating_sub(BROWSER_ROWS)),
-            KeyCode::PageDown => self.load_browser_select(selected + BROWSER_ROWS),
+            KeyCode::PageUp => self.load_browser_select(selected.saturating_sub(LOAD_BROWSER_ROWS)),
+            KeyCode::PageDown => self.load_browser_select(selected + LOAD_BROWSER_ROWS),
             KeyCode::Home | KeyCode::Char('g') => self.load_browser_select(0),
             KeyCode::End | KeyCode::Char('G') => self.load_browser_select(usize::MAX),
             _ => {}
@@ -862,13 +1001,13 @@ impl App {
     }
 
     /// Select browser row `row` (clamped) and scroll it into view.
-    fn load_browser_select(&mut self, row: usize) {
+    pub(super) fn load_browser_select(&mut self, row: usize) {
         self.load_browser_selected = row.min(self.load_browser_entries.len().saturating_sub(1));
         let selected = self.load_browser_selected;
         if selected < self.load_browser_scroll {
             self.load_browser_scroll = selected;
-        } else if selected >= self.load_browser_scroll + BROWSER_ROWS {
-            self.load_browser_scroll = selected + 1 - BROWSER_ROWS;
+        } else if selected >= self.load_browser_scroll + LOAD_BROWSER_ROWS {
+            self.load_browser_scroll = selected + 1 - LOAD_BROWSER_ROWS;
         }
     }
 
@@ -900,7 +1039,9 @@ impl App {
     /// `:txpower 35`) is the first row, "… (current)": the first preset used to be highlighted
     /// instead, so Enter applied 300 MHz, 0 dB or the highest TX power.
     pub(super) fn settings_choices(&self) -> (Vec<(String, SettingChoice)>, usize) {
-        let field = SettingsField::ALL[self.settings_field_index.min(SettingsField::ALL.len() - 1)];
+        let fields = self.settings_fields();
+        let field = fields[self.settings_field_index.min(fields.len() - 1)];
+        let tuning = self.tuning();
         let on_off = |on: bool, choice: fn(bool) -> SettingChoice| {
             (vec![("ON".to_string(), choice(true)), ("OFF".to_string(), choice(false))], if on { 0 } else { 1 })
         };
@@ -912,15 +1053,24 @@ impl App {
             )
         };
         match field {
+            SettingsField::Radio => (
+                self.radios
+                    .iter()
+                    .enumerate()
+                    .map(|(i, r)| (format!("{} {}", i + 1, r.name), SettingChoice::Radio(i)))
+                    .collect(),
+                self.selected_radio().unwrap_or(0),
+            ),
             SettingsField::Freq => rows_with_current(
                 PRESET_FREQUENCIES.iter().map(|&(hz, label)| (label.to_string(), SettingChoice::Freq(hz))).collect(),
-                PRESET_FREQUENCIES.iter().position(|&(hz, _)| hz == self.frequency),
-                (format!("{} MHz", format_mhz(self.frequency)), SettingChoice::Freq(self.frequency)),
+                PRESET_FREQUENCIES.iter().position(|&(hz, _)| hz == tuning.frequency),
+                (format!("{} MHz", format_mhz(tuning.frequency)), SettingChoice::Freq(tuning.frequency)),
             ),
-            SettingsField::Hop => on_off(self.rx.hop_enabled, SettingChoice::Hop),
-            SettingsField::Lna => gains(&LNA_STEPS, self.lna_gain, SettingChoice::Lna),
-            SettingsField::Vga => gains(&VGA_STEPS, self.vga_gain, SettingChoice::Vga),
-            SettingsField::Amp => on_off(self.amp_enabled, SettingChoice::Amp),
+            SettingsField::Hop => on_off(self.hop_enabled(), SettingChoice::Hop),
+            SettingsField::Lna => gains(&LNA_STEPS, tuning.lna_gain, SettingChoice::Lna),
+            // An RTL-SDR's Gain is the VGA setting.
+            SettingsField::Vga | SettingsField::Gain => gains(&VGA_STEPS, tuning.vga_gain, SettingChoice::Vga),
+            SettingsField::Amp => on_off(tuning.amp, SettingChoice::Amp),
             SettingsField::TxPower => rows_with_current(
                 TX_POWER_STEPS.iter().enumerate().map(|(i, &(g, a))| (tx_power_label(g, a), SettingChoice::TxStep(i))).collect(),
                 self.tx_power_value_index(),
@@ -1050,6 +1200,47 @@ mod tests {
         assert_eq!(overlay_scrolled(5, 40, KeyCode::Char('x')), None);
     }
 
+    /// The command word comes with or without a `:` typed after the prompt's own; the rest of
+    /// the line keeps its spaces and capitals (`:load` takes a file name).
+    #[test]
+    fn command_lines_are_split_into_word_and_rest() {
+        assert_eq!(split_command("freq 433.92"), ("freq", "433.92"));
+        assert_eq!(split_command("  :FREQ   315 MHz "), ("FREQ", "315 MHz"));
+        assert_eq!(split_command("::q"), ("q", ""));
+        assert_eq!(split_command("load My Captures/Kia unlock.sub"), ("load", "My Captures/Kia unlock.sub"));
+        assert_eq!(split_command("q!"), ("q!", ""));
+        assert_eq!(split_command("?"), ("?", ""));
+        assert_eq!(split_command(" : "), ("", ""));
+        assert_eq!(split_command(""), ("", ""));
+    }
+
+    /// Ctrl-U clears a text field; Ctrl-W, Alt-Backspace and Ctrl-Backspace delete its last word.
+    #[test]
+    fn line_editing_keys() {
+        let key = |code, modifiers| KeyEvent::new(code, modifiers);
+        let (ctrl, alt, shift, none) = (KeyModifiers::CONTROL, KeyModifiers::ALT, KeyModifiers::SHIFT, KeyModifiers::NONE);
+        assert_eq!(kill_key(&key(KeyCode::Char('u'), ctrl)), Some(Kill::Line));
+        assert_eq!(kill_key(&key(KeyCode::Char('W'), ctrl | shift)), Some(Kill::Word));
+        assert_eq!(kill_key(&key(KeyCode::Backspace, alt)), Some(Kill::Word));
+        assert_eq!(kill_key(&key(KeyCode::Backspace, ctrl)), Some(Kill::Word));
+        assert_eq!(kill_key(&key(KeyCode::Backspace, none)), None, "one character, as before");
+        assert_eq!(kill_key(&key(KeyCode::Char('u'), none)), None, "a typed u");
+        assert_eq!(kill_key(&key(KeyCode::Char('w'), alt)), None);
+        assert_eq!(kill_key(&key(KeyCode::Char('u'), ctrl | alt)), None, "AltGr: a typed character");
+
+        let killed = |text: &str, what| {
+            let mut text = text.to_string();
+            kill(&mut text, what);
+            text
+        };
+        assert_eq!(killed("freq 433.92", Kill::Word), "freq ");
+        assert_eq!(killed("freq 433.92  ", Kill::Word), "freq ", "the spaces after the word go with it");
+        assert_eq!(killed("load Über Größe.sub", Kill::Word), "load Über ");
+        assert_eq!(killed("freq", Kill::Word), "");
+        assert_eq!(killed("", Kill::Word), "");
+        assert_eq!(killed("replay 1-5", Kill::Line), "");
+    }
+
     #[test]
     fn ctrl_and_alt_keys() {
         let key = |code, modifiers| KeyEvent::new(code, modifiers);
@@ -1093,8 +1284,8 @@ mod tests {
     #[test]
     fn the_menu_highlight_follows_its_action() {
         use SignalAction::*;
-        let before = [CancelKeyRecovery, Replay, ExportFob, ExportFlipper, TimingAnalysis, Delete];
-        let after = [Replay, ExportFob, ExportFlipper, TimingAnalysis, Delete];
+        let before = [CancelKeyRecovery, Replay, ExportFob, ExportFlipper, Analyze, Delete];
+        let after = [Replay, ExportFob, ExportFlipper, Analyze, Delete];
         assert_eq!(highlight_row(&before, Some(ExportFlipper)), 3);
         assert_eq!(highlight_row(&after, Some(ExportFlipper)), 2, "the row moved up with its action");
         assert_eq!(highlight_row(&after, Some(CancelKeyRecovery)), 0, "gone: the top, not a neighbour");

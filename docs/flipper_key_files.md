@@ -60,7 +60,7 @@ startup, and `kat --decode <files|dirs>` (headless; key decodes are printed with
 ## Using a loaded key
 
 Without raw pairs there is nothing to replay, so the signal menu hides **Replay**, the RAW
-**Export .sub** and **Timing analysis** for such captures (`.fob` files saved without raw pairs
+**Export .sub** and **Analyze** for such captures (`.fob` files saved without raw pairs
 behave the same). Everything that re-encodes works from the fields: **TX Lock / Unlock / Trunk /
 Panic** for car keyfobs and **Send next code** for gate / alarm remotes, with the counter step and
 button mapping of each protocol's encoder (as for any decoded capture). Sessions and `.fob`

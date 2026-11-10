@@ -22,12 +22,30 @@ pub struct SerialNumber {
     pub serial_no: [c_uint; 4],
 }
 
+/// `hackrf_device_list_t`: the HackRFs on USB (libhackrf ≥ 2015). `serial_numbers[i]` is NULL for
+/// a device libusb could not open to read it (no permission).
+#[repr(C)]
+pub struct HackrfDeviceList {
+    pub serial_numbers: *mut *mut c_char,
+    /// `enum hackrf_usb_board_id` (an int).
+    pub usb_board_ids: *mut c_int,
+    pub usb_device_index: *mut c_int,
+    pub devicecount: c_int,
+    pub usb_devices: *mut *mut c_void,
+    pub usb_devicecount: c_int,
+}
+
 #[link(name = "hackrf")]
 extern "C" {
     pub fn hackrf_init() -> c_int;
     pub fn hackrf_exit() -> c_int;
 
+    pub fn hackrf_device_list() -> *mut HackrfDeviceList;
+    pub fn hackrf_device_list_free(list: *mut HackrfDeviceList);
+
     pub fn hackrf_open(device: *mut *mut HackrfDevice) -> c_int;
+    /// Opens the HackRF whose serial ends with `desired_serial_number` (NULL: the first one).
+    pub fn hackrf_open_by_serial(desired_serial_number: *const c_char, device: *mut *mut HackrfDevice) -> c_int;
     pub fn hackrf_close(device: *mut HackrfDevice) -> c_int;
 
     pub fn hackrf_start_rx(

@@ -25,24 +25,47 @@ const TABLE_MIN_HEIGHT: u16 = 8;
 /// Detail panel height at most (room for several CVEs) and the least worth drawing.
 const DETAIL_MAX_HEIGHT: u16 = 18;
 const DETAIL_MIN_HEIGHT: u16 = 6;
+/// Height of the captures area from which the detail panel shows: a status bar that grows for a
+/// long message leaves the area that much, so the panel does not come and go with the message.
+pub(super) const DETAIL_FLOOR: u16 = TABLE_MIN_HEIGHT + DETAIL_MIN_HEIGHT;
 
 /// Render the captures area: table + detail panel
 pub fn render_captures_list(frame: &mut Frame, area: Rect, app: &App) {
-    let has_selection = app.selected_capture.is_some_and(|i| i < app.captures.len());
-    let (table_area, detail_area) = split_captures_area(area, has_selection);
+    let selected = app.selected_capture.and_then(|i| app.captures.get(i));
+    let wanted = selected.map(|c| {
+        detail_height(area.width, c, app.saved_match(c.id), app.key_search_planned(c.id))
+    });
+    let (table_area, detail_area) = split_captures_area(area, wanted);
     render_table(frame, table_area, app);
     if let Some(detail_area) = detail_area {
         render_detail_panel(frame, detail_area, app);
     }
 }
 
-/// Table on top, detail panel below: the panel shrinks (from its full height) so the table keeps
-/// a few rows, and is left out when even its smallest useful height does not fit.
-fn split_captures_area(area: Rect, has_selection: bool) -> (Rect, Option<Rect>) {
-    let detail = if has_selection {
-        area.height.saturating_sub(TABLE_MIN_HEIGHT).min(DETAIL_MAX_HEIGHT)
-    } else {
-        0
+/// Signal detail on the left, vulnerabilities on the right: half each, but the signal detail gets
+/// more of a narrow terminal so its rows fit.
+fn detail_halves(area: Rect) -> [Rect; 2] {
+    let signal_width = (area.width / 2).max(SIGNAL_PREF_WIDTH.min(area.width.saturating_sub(VULN_MIN_WIDTH)));
+    Layout::horizontal([Constraint::Length(signal_width), Constraint::Fill(1)]).areas(area)
+}
+
+/// Rows the detail panel takes to show all it has on `capture` in a list `width` columns wide: the
+/// taller of its halves and the borders. The captures of one remote take the same, so the table
+/// above keeps its height while the selection moves through them.
+fn detail_height(width: u16, capture: &Capture, saved: Option<&SavedFobMatch>, searching: bool) -> u16 {
+    let [left, right] = detail_halves(Rect::new(0, 0, width, DETAIL_MAX_HEIGHT));
+    let signal = signal_detail_lines(capture, saved, searching, left.width.saturating_sub(2) as usize).len();
+    let vulns = vulnerability_lines(capture, right.width.saturating_sub(2) as usize, usize::MAX).len();
+    (signal.max(vulns) as u16).saturating_add(2)
+}
+
+/// Table on top, detail panel below. The panel takes the `wanted` rows of the selected capture
+/// (None: nothing is selected) up to its full height, less when the table would be left with
+/// fewer than a few rows, and is left out when even its smallest useful height does not fit.
+fn split_captures_area(area: Rect, wanted: Option<u16>) -> (Rect, Option<Rect>) {
+    let detail = match wanted {
+        Some(rows) => rows.min(DETAIL_MAX_HEIGHT).min(area.height.saturating_sub(TABLE_MIN_HEIGHT)),
+        None => 0,
     };
     if detail < DETAIL_MIN_HEIGHT {
         return (area, None);
@@ -58,6 +81,8 @@ enum Col {
     Time,
     Protocol,
     Freq,
+    /// The radio that heard it (shown with several radios: [App::show_radio_column]).
+    Radio,
     Serial,
     Btn,
     Cnt,
@@ -68,11 +93,12 @@ enum Col {
 }
 
 impl Col {
-    const ALL: [Col; 11] = [
+    const ALL: [Col; 12] = [
         Col::Id,
         Col::Time,
         Col::Protocol,
         Col::Freq,
+        Col::Radio,
         Col::Serial,
         Col::Btn,
         Col::Cnt,
@@ -88,6 +114,7 @@ impl Col {
             Col::Time => "Time",
             Col::Protocol => "Protocol",
             Col::Freq => "MHz",
+            Col::Radio => "Radio",
             Col::Serial => "Serial",
             Col::Btn => "Btn",
             Col::Cnt => "Cnt",
@@ -100,7 +127,7 @@ impl Col {
 }
 
 /// Columns left out first, one at a time, when the table is too narrow for all of them.
-const DROP_ORDER: [Col; 5] = [Col::Time, Col::Vuln, Col::Mod, Col::Status, Col::Crc];
+const DROP_ORDER: [Col; 6] = [Col::Time, Col::Radio, Col::Vuln, Col::Mod, Col::Status, Col::Crc];
 /// Room the Protocol column keeps before columns are left out (less when no name is that long).
 const PROTOCOL_MIN: u16 = 20;
 /// Widest Btn column; longer button names are cut with "…".
@@ -155,7 +182,7 @@ fn vuln_found(capture: &Capture) -> bool {
 /// One capture's table row: the text of each column (in [Col::ALL] order), whether it matches a
 /// saved .fob, and whether it has a known vulnerability.
 struct RowText {
-    cells: [String; 11],
+    cells: [String; 12],
     saved: bool,
     vuln: bool,
 }
@@ -163,6 +190,8 @@ struct RowText {
 fn row_text(capture: &Capture, saved: bool) -> RowText {
     let vuln = vuln_found(capture);
     let status = match capture.status {
+        // KAT's own transmission, heard by another of its radios
+        _ if capture.own_tx.is_some() => "Own TX",
         CaptureStatus::EncoderCapable => "Encode",
         CaptureStatus::Decoded => "Decoded",
         CaptureStatus::Unknown => "Unknown",
@@ -173,6 +202,7 @@ fn row_text(capture: &Capture, saved: bool) -> RowText {
         Col::Time => capture.timestamp_short(),
         Col::Protocol => capture.protocol_name().to_string(),
         Col::Freq => format_mhz(capture.frequency),
+        Col::Radio => capture.radio.clone().unwrap_or_else(|| "-".to_string()),
         Col::Serial => capture.serial_hex(),
         Col::Btn => capture.button_name().to_string(),
         Col::Cnt => capture.counter_str(),
@@ -199,6 +229,7 @@ fn table_cell(col: Col, row: &RowText, capture: &Capture, width: u16) -> Cell<'s
         Col::Crc if capture.crc_valid => Style::default().fg(Color::Green),
         Col::Crc => Style::default().fg(Color::Red),
         Col::Status => match capture.status {
+            _ if capture.own_tx.is_some() => Style::default().fg(Color::Cyan),
             CaptureStatus::Unknown => Style::default().fg(Color::DarkGray),
             CaptureStatus::Decoded => Style::default().fg(Color::Yellow),
             CaptureStatus::EncoderCapable => Style::default().fg(Color::Green),
@@ -226,10 +257,13 @@ fn render_table(frame: &mut Frame, area: Rect, app: &App) {
         .iter()
         .map(|c| row_text(c, app.saved_match(c.id).is_some()))
         .collect();
-    // Content-sized columns: each as wide as its header and its widest value.
+    // Content-sized columns: each as wide as its header and its widest value (the Radio column
+    // only with several radios).
+    let show_radio = app.show_radio_column();
     let content: Vec<(Col, u16)> = Col::ALL
         .iter()
         .enumerate()
+        .filter(|&(_, &col)| col != Col::Radio || show_radio)
         .map(|(i, &col)| {
             let widest = rows.iter().map(|r| text::width(&r.cells[i])).max().unwrap_or(0);
             let w = widest.max(text::width(col.header())) as u16;
@@ -270,11 +304,8 @@ fn render_table(frame: &mut Frame, area: Rect, app: &App) {
     app.list_page_rows.set(visible_rows.max(1));
 
     if app.captures.is_empty() && inner.height >= 2 {
-        let hint = if app.radio_state == RadioState::Disconnected {
-            "No captures yet — :load a file, or :new to add a remote"
-        } else {
-            "No captures yet — press r to receive, or :load a file"
-        };
+        let receiving = app.radios().iter().any(|r| r.state == RadioState::Receiving);
+        let hint = empty_hint(app.radio_state() != RadioState::Disconnected, receiving);
         // Under the header, after a blank row when there is room for it.
         let y = inner.y + if inner.height >= 3 { 2 } else { 1 };
         let row = Rect::new(inner.x, y, inner.width, 1);
@@ -283,6 +314,18 @@ fn render_table(frame: &mut Frame, area: Rect, app: &App) {
                 .style(Style::default().fg(Color::DarkGray)),
             row,
         );
+    }
+}
+
+/// What an empty list says: the way to a first capture, by what the radios do. While one
+/// receives it is the remote's turn ("press r" would stop the radio).
+fn empty_hint(connected: bool, receiving: bool) -> &'static str {
+    if receiving {
+        "No captures yet — receiving: press a button on the remote"
+    } else if connected {
+        "No captures yet — press r to receive, or :load a file"
+    } else {
+        "No captures yet — :load a file, or :new to add a remote"
     }
 }
 
@@ -298,10 +341,7 @@ fn render_detail_panel(frame: &mut Frame, area: Rect, app: &App) {
         _ => return,
     };
 
-    // Half each, but the signal detail gets more of a narrow terminal so its rows fit.
-    let signal_width = (area.width / 2).max(SIGNAL_PREF_WIDTH.min(area.width.saturating_sub(VULN_MIN_WIDTH)));
-    let [left, right] =
-        Layout::horizontal([Constraint::Length(signal_width), Constraint::Fill(1)]).areas(area);
+    let [left, right] = detail_halves(area);
 
     render_signal_detail(frame, left, capture, app.saved_match(capture.id), app.key_search_planned(capture.id));
     render_vulnerability_panel(frame, right, capture);
@@ -371,15 +411,14 @@ fn vehicle_fields(capture: &Capture) -> Option<Vec<Field>> {
     Some(fields)
 }
 
-/// The button's name with its code, unless the name already is the code ("Btn 0x3" of a gate
-/// remote whose protocol does not name its buttons).
+/// The button's name with its code; the code alone where the name is the code ("Btn 0x3" of a
+/// gate remote whose protocol does not name its buttons: the row already says "Btn:").
 fn button_label(capture: &Capture) -> String {
     let name = capture.button_name();
     match capture.button {
-        Some(code) if name != crate::protocols::gate_buttons::hex_label(code) => {
-            format!("{name} ({})", capture.button_hex())
-        }
-        _ => name.to_string(),
+        Some(code) if name == crate::protocols::gate_buttons::hex_label(code) => capture.button_hex(),
+        Some(_) => format!("{name} ({})", capture.button_hex()),
+        None => name.to_string(),
     }
 }
 
@@ -402,21 +441,32 @@ fn signal_detail_lines(capture: &Capture, saved: Option<&SavedFobMatch>, searchi
         lines.extend(detail_row(fields, max));
     }
 
-    lines.extend(detail_row(
-        vec![
-            ("Freq:", value(format!("{} MHz", format_mhz(capture.frequency)))),
-            ("Mod:", value(capture.modulation().to_string())),
-        ],
-        max,
-    ));
+    let mut freq = vec![
+        ("Freq:", value(format!("{} MHz", format_mhz(capture.frequency)))),
+        ("Mod:", value(capture.modulation().to_string())),
+    ];
+    if let Some(radio) = &capture.radio {
+        freq.push(("Radio:", value(radio.clone())));
+    }
+    lines.extend(detail_row(freq, max));
+    if let Some(tx) = &capture.own_tx {
+        lines.extend(detail_row(
+            vec![("Own TX:", vec![Span::styled(format!("KAT's transmission from {tx}, heard back"), Style::default().fg(Color::Cyan))])],
+            max,
+        ));
+    }
 
-    // Enc + RF (the protocol's AM/FM) + Rx (the demodulator path that received it, when known)
+    // Enc + RF (the protocol's AM/FM) + Rx (the demodulator path that received it) or, for a
+    // recording, its preset
     let mut enc = vec![
         ("Enc:", value(capture.encryption_type())),
         ("RF:", value(capture.rf_modulation().to_string())),
     ];
     if let Some(rf) = capture.received_rf {
         enc.push(("Rx:", value(rf.to_string())));
+    } else if let Some(preset) = &capture.rf_preset {
+        // A recording: the preset it was made with, which is all that says how it was demodulated.
+        enc.push(("Preset:", value(preset.label())));
     }
     lines.extend(detail_row(enc, max));
 
@@ -590,6 +640,15 @@ fn vulnerability_lines(capture: &Capture, max: usize, rows: usize) -> Vec<Line<'
         lines.push(Line::default());
     }
 
+    // An unknown signal: no protocol to judge yet. Analyze is how to work one out.
+    if capture.protocol.is_none() && capture.has_raw_data() {
+        lines.extend(wrap(Line::styled(
+            " Not decoded. Press a to analyze it.",
+            Style::default().fg(Color::Cyan),
+        )));
+        lines.push(Line::default());
+    }
+
     // Line where each CVE starts, to count the ones a cut hides.
     let mut starts = Vec::new();
     if vulns.is_empty() {
@@ -654,13 +713,21 @@ fn render_vulnerability_panel(frame: &mut Frame, area: Rect, capture: &Capture) 
 mod tests {
     use super::*;
 
+    /// The columns with one radio (no Radio column).
     fn content(protocol: u16) -> Vec<(Col, u16)> {
-        // ID "01", Time, MHz "433.92", Serial, Btn "Unlock", Cnt, Mod "PWM", CRC "FAIL", Status, Vuln
+        content_radios(protocol).into_iter().filter(|&(c, _)| c != Col::Radio).collect()
+    }
+
+    /// The columns with several radios.
+    fn content_radios(protocol: u16) -> Vec<(Col, u16)> {
+        // ID "01", Time, MHz "433.92", Radio "RTL-SDR", Serial, Btn "Unlock", Cnt, Mod "PWM",
+        // CRC "FAIL", Status, Vuln
         let w = |c: Col| match c {
             Col::Id => 2,
             Col::Time => 8,
             Col::Protocol => protocol,
             Col::Freq => 6,
+            Col::Radio => 7,
             Col::Serial => 7,
             Col::Btn => 6,
             Col::Cnt => 4,
@@ -682,17 +749,35 @@ mod tests {
 
     #[test]
     fn wide_tables_show_every_column_with_room_to_spare() {
+        let one_radio: Vec<Col> = Col::ALL.into_iter().filter(|&c| c != Col::Radio).collect();
         let (cols, spacing) = choose_columns(113, &content(9));
-        assert_eq!(names(&cols), Col::ALL);
+        assert_eq!(names(&cols), one_radio);
         assert_eq!(spacing, 3);
         assert_eq!(total(&cols, spacing), 113);
+        let (cols, spacing) = choose_columns(140, &content_radios(9));
+        assert_eq!((names(&cols), spacing), (Col::ALL.to_vec(), 3));
+    }
+
+    /// With several radios the Radio column goes right after Time when the table is narrow.
+    #[test]
+    fn the_radio_column_goes_early() {
+        let (cols, _) = choose_columns(73, &content_radios(31));
+        let names = names(&cols);
+        assert!(!names.contains(&Col::Time) && !names.contains(&Col::Radio), "{names:?}");
+        assert!(names.contains(&Col::Vuln), "{names:?}");
+        let (cols, _) = choose_columns(90, &content_radios(9));
+        assert!(names_of(&cols).contains(&Col::Radio));
+    }
+
+    fn names_of(cols: &[(Col, u16)]) -> Vec<Col> {
+        cols.iter().map(|&(c, _)| c).collect()
     }
 
     #[test]
     fn narrow_tables_drop_columns_in_order_and_protocol_takes_the_rest() {
         // 80-column terminal: 73 columns inside the table.
         let (cols, spacing) = choose_columns(73, &content(9));
-        assert_eq!((names(&cols), spacing), (Col::ALL.to_vec(), 1));
+        assert_eq!((names(&cols), spacing), (names(&content(9)), 1));
         assert_eq!(total(&cols, 1), 73);
 
         // A long protocol name: Time goes first, the name gets the rest.
@@ -712,15 +797,68 @@ mod tests {
     #[test]
     fn detail_panel_shrinks_then_hides() {
         let area = |h| Rect::new(0, 0, 75, h);
-        // Tall: full-height panel, the rest for the table.
-        let (table, detail) = split_captures_area(area(40), true);
+        // Tall, and a capture with much to show: full-height panel, the rest for the table.
+        let (table, detail) = split_captures_area(area(40), Some(30));
         assert_eq!((table.height, detail.map(|d| d.height)), (22, Some(DETAIL_MAX_HEIGHT)));
+        // The panel is no taller than what it shows: the table gets the rows it leaves.
+        let (table, detail) = split_captures_area(area(40), Some(11));
+        assert_eq!((table.height, detail.map(|d| d.height)), (29, Some(11)));
         // 80×24 terminal (17-row middle): the table keeps 5 captures, the panel gets the rest.
-        let (table, detail) = split_captures_area(area(17), true);
+        let (table, detail) = split_captures_area(area(17), Some(11));
         assert_eq!((table.height, detail.map(|d| d.height)), (TABLE_MIN_HEIGHT, Some(9)));
         // No room for a useful panel, or nothing selected: the table gets everything.
-        assert_eq!(split_captures_area(area(12), true), (area(12), None));
-        assert_eq!(split_captures_area(area(40), false), (area(40), None));
+        assert_eq!(split_captures_area(area(12), Some(11)), (area(12), None));
+        assert_eq!(split_captures_area(area(40), None), (area(40), None));
+    }
+
+    /// The panel asks for the rows of its taller half and its borders, so the table gets the rest;
+    /// captures alike ask for the same, so the table does not jump while the selection moves.
+    #[test]
+    fn the_detail_panel_asks_for_what_it_shows() {
+        let unknown = Capture::from_pairs(1, 433_920_000, Vec::new());
+        // Protocol, Freq, Enc, Serial, Counter, Key/Data, Captured, Raw Data, File.
+        assert_eq!(detail_height(98, &unknown, None, false), 9 + 2);
+        let mut other = Capture::from_pairs(2, 315_000_000, Vec::new());
+        other.source_file = Some("a/folder/with/a/long/name/and_a_recording_in_it.sub".to_string());
+        assert_eq!(detail_height(98, &other, None, false), 9 + 2);
+        // A key search under way has a row of its own.
+        assert_eq!(detail_height(98, &unknown, None, true), 10 + 2);
+        // At the narrowest the vulnerability hint wraps over more rows, never past the full height
+        // once the area is split.
+        let narrow = detail_height(58, &unknown, None, false);
+        assert!(narrow >= 11, "{narrow}");
+        let (_, panel) = split_captures_area(Rect::new(0, 0, 58, 60), Some(u16::MAX));
+        assert_eq!(panel.map(|p| p.height), Some(DETAIL_MAX_HEIGHT));
+    }
+
+    /// The detail's button: its name and its code; the code alone when the name is the code.
+    #[test]
+    fn the_button_shows_its_name_and_code() {
+        let mut capture = Capture::from_pairs(1, 433_920_000, Vec::new());
+        assert_eq!(button_label(&capture), "-");
+        capture.protocol = Some("Kia V3/V4".to_string());
+        capture.button = Some(0x01);
+        assert_eq!(button_label(&capture), "Lock (0x01)");
+        // A gate remote's button without a name: "Btn 0x9" in the table, "Btn: 0x09" here.
+        capture.protocol = Some("KeeLoq (NICE_MHOUSE)".to_string());
+        capture.button = Some(0x09);
+        assert_eq!((capture.button_name(), button_label(&capture).as_str()), ("Btn 0x9", "0x09"));
+    }
+
+    /// An empty list says what to do next, and every hint fits the narrowest terminal's list.
+    #[test]
+    fn an_empty_list_says_what_to_do_next() {
+        assert!(empty_hint(false, false).contains(":load a file, or :new"));
+        assert!(empty_hint(true, false).contains("press r to receive"));
+        // While a radio receives, `r` would stop it: the hint is about the remote.
+        for connected in [false, true] {
+            let hint = empty_hint(connected, true);
+            assert!(hint.contains("receiving") && !hint.contains("press r"), "{hint}");
+        }
+        // 60 columns: 58 inside the border, one of them the leading space.
+        for (connected, receiving) in [(false, false), (true, false), (true, true)] {
+            assert!(text::width(empty_hint(connected, receiving)) <= 57);
+        }
     }
 
     #[test]

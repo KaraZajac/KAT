@@ -9,7 +9,9 @@ layout: default
 presets), `src/app/tx.rs` (queue, TX power)
 
 KAT transmits with a HackRF (or a Flipper Zero, which plays the same transmission from a RAW `.sub`
-with the preset of its modulation: [flipper_radio.md](flipper_radio.md)). Since v1.5 it keys the carrier the way the protocol (or the capture) calls for:
+with the preset of its modulation: [flipper_radio.md](flipper_radio.md)). With several radios, one
+transmits (`:txradio`, config `tx_radio`) while the others go on receiving, and their captures of
+the transmission are marked as KAT's own ([several radios](radio.md#several-radios)). Since v1.5 it keys the carrier the way the protocol (or the capture) calls for:
 on-off keying for AM protocols, continuous-phase 2-FSK with the right deviation for FM protocols. Up to v1.4
 every transmission was OOK at full power, so FM protocols went out as OOK.
 
@@ -50,7 +52,7 @@ the deviation (`radio::preset::choose_tx_preset`):
    gets FM476.
 3. **The protocol's primary preset** (first in the table below), or AM650 for an unknown protocol.
 
-The status line names the choice, e.g. `Transmitted Unlock for capture 3 (2-FSK ±14.28 kHz, F4)`.
+The status line names the choice, e.g. `Transmitted Unlock for #03 (2-FSK ±14.28 kHz, F4)`.
 
 ## Presets
 

@@ -727,8 +727,7 @@ fn availability_of(info: &GenInfo, tables: &Tables) -> Result<(), String> {
         // RogueMaster creates these with its O-Code key maker (installer code; the certificate type
         // walks its receiver-enrolment chain); KAT only re-sends captured O-Code keys with their IC.
         GenInfo::NiceOCode { .. } => Err(
-            "RogueMaster's Nice O-Code remote creation (installer code / receiver certificate) is not ported; KAT re-sends captured O-Code keys"
-                .to_string(),
+            "RogueMaster's Nice O-Code remote creation is not ported; KAT re-sends captured O-Code keys".to_string(),
         ),
         GenInfo::Data { protocol, .. } if super::info::lookup(protocol).is_none() => {
             Err(format!("KAT has no {protocol} protocol"))

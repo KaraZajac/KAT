@@ -120,7 +120,7 @@ impl App {
                 if let Some(c) = self.captures.iter_mut().find(|c| c.id == id) {
                     apply_psa_hit(c, &hit);
                     self.status_message = Some(format!(
-                        "PSA key recovered for capture {id} ({}): serial {:06X}, counter {:X}",
+                        "PSA key recovered for #{id:02} ({}): serial {:06X}, counter {:X}",
                         psa_search_label(&hit),
                         hit.fields.serial,
                         hit.fields.counter
@@ -131,7 +131,7 @@ impl App {
                 if let Some(c) = self.captures.iter_mut().find(|c| c.id == id) {
                     c.key_recovery = Some(KeyRecovery::NotFound(PSA_SEARCH_LABEL_ALL.to_string()));
                 }
-                let msg = format!("No PSA key found for capture {id} (BF1 and BF2 searched)");
+                let msg = format!("No PSA key found for #{id:02} (BF1 and BF2 searched)");
                 if auto {
                     self.status_message = Some(msg);
                 } else {
@@ -139,7 +139,7 @@ impl App {
                 }
             }
             Ok(PsaBruteForceOutcome::Cancelled) => {
-                self.status_message = Some(format!("Key recovery for capture {id} cancelled"));
+                self.status_message = Some(format!("Key recovery for #{id:02} cancelled"));
             }
             Err(_) => self.last_error = Some("Key recovery thread failed".to_string()),
         }
@@ -153,7 +153,7 @@ impl App {
                 apply_psa_hit(&mut frame, &hit);
                 if let Some(id) = self.list_received(frame) {
                     self.status_message = Some(format!(
-                        "New signal captured: PSA #{id}, key recovered ({}): serial {:06X}",
+                        "New signal captured: PSA #{id:02}, key recovered ({}): serial {:06X}",
                         psa_search_label(&hit),
                         hit.fields.serial
                     ));

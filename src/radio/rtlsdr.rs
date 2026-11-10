@@ -16,6 +16,7 @@ use std::thread::{self, JoinHandle};
 use crate::app::RadioEvent;
 
 use super::demodulator::LevelDuration;
+use super::devices::FoundRadio;
 use super::dsp::IqFormat;
 use super::hopper::HopPlan;
 use super::recorder::{RecordingStatus, RecordingSummary};
@@ -33,8 +34,59 @@ struct TunerGainSetting {
     gain_tenths_db: Option<i32>,
 }
 
+/// Which dongle a controller opens: by its serial when no other dongle has it, else by its place
+/// among the RTL-SDRs on USB.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RtlDevice {
+    Serial(String),
+    Index(usize),
+}
+
+impl RtlDevice {
+    /// How to open the dongle discovery found.
+    pub fn of(found: &FoundRadio) -> Self {
+        match found.serial.as_deref().map(str::trim) {
+            Some(s) if found.serial_unique && !s.is_empty() => RtlDevice::Serial(s.to_string()),
+            _ => RtlDevice::Index(found.index),
+        }
+    }
+
+    fn id(&self) -> DeviceId<'_> {
+        match self {
+            RtlDevice::Serial(s) => DeviceId::Serial(s),
+            RtlDevice::Index(i) => DeviceId::Index(*i),
+        }
+    }
+}
+
+/// The RTL-SDRs on USB ([super::devices::discover]); why none can be used when there is none.
+pub fn find_devices() -> (Vec<FoundRadio>, Option<String>) {
+    match RtlSdr::list_devices() {
+        Ok(list) if !list.is_empty() => {
+            let serials: Vec<Option<String>> =
+                list.iter().map(|d| Some(d.serial.trim().to_string()).filter(|s| !s.is_empty())).collect();
+            let unique = super::devices::unique_serials(&serials);
+            let found: Vec<FoundRadio> = list
+                .iter()
+                .zip(serials)
+                .zip(unique)
+                .map(|((d, serial), unique)| FoundRadio::rtlsdr(d.index, serial, unique))
+                .collect();
+            tracing::info!("RTL-SDR(s) found: {}", found.iter().map(FoundRadio::identity).collect::<Vec<_>>().join(", "));
+            (found, None)
+        }
+        // None listed (it leaves out a dongle it may not open): what opening the first one says.
+        _ => match check_rtlsdr_available() {
+            Ok(()) => (vec![FoundRadio::rtlsdr(0, None, false)], None),
+            Err(why) => (Vec::new(), Some(why)),
+        },
+    }
+}
+
 /// RTL-SDR controller: receive-only, no transmit.
 pub struct RtlSdrController {
+    /// The dongle this controller opens for each receive run.
+    device: RtlDevice,
     event_tx: Sender<RadioEvent>,
     receiving: Arc<AtomicBool>,
     rx_thread: Option<JoinHandle<()>>,
@@ -42,8 +94,6 @@ pub struct RtlSdrController {
     /// State shared with the receive threads: pipeline control, hopping, recording
     live: Arc<LiveShared>,
     rtlsdr_available: bool,
-    /// Why no RTL-SDR could be opened at startup (for the no-device popup)
-    open_error: Option<String>,
     gain_settings: Arc<Mutex<TunerGainSetting>>,
     /// RSSI (f32 bits) written by RX thread, read by UI - never blocks
     rssi_value: Arc<AtomicU32>,
@@ -51,46 +101,27 @@ pub struct RtlSdrController {
 
 impl RtlSdrController {
     /// Create a new RTL-SDR controller (receive-only).
-    pub fn new(event_tx: Sender<RadioEvent>) -> Result<Self> {
+    /// A controller for `device`, as [find_devices] found it; opened for each receive run.
+    pub fn new(event_tx: Sender<RadioEvent>, device: RtlDevice) -> Self {
         let receiving = Arc::new(AtomicBool::new(false));
         let rssi_value = Arc::new(AtomicU32::new(0));
         let live = Arc::new(LiveShared::new(receiving.clone(), rssi_value.clone(), 433_920_000));
-
-        let probe = check_rtlsdr_available();
-        let rtlsdr_available = probe.is_ok();
-
-        if rtlsdr_available {
-            tracing::info!("RTL-SDR device detected (receive-only)");
-        } else {
-            tracing::debug!("RTL-SDR not detected");
-        }
-
-        Ok(Self {
+        Self {
+            device,
             event_tx,
             receiving,
             rx_thread: None,
             frequency: Arc::new(Mutex::new(433_920_000)),
             live,
-            rtlsdr_available,
-            open_error: probe.err(),
+            rtlsdr_available: true,
             gain_settings: Arc::new(Mutex::new(TunerGainSetting::default())),
             rssi_value,
-        })
-    }
-
-    /// Why no RTL-SDR could be opened at startup, in words (None when one was found).
-    pub fn open_error(&self) -> Option<&str> {
-        self.open_error.as_deref()
+        }
     }
 
     /// Shared atomic for RSSI (f32::to_bits); UI reads so RX thread never blocks on channel.
     pub fn rssi_source(&self) -> Arc<AtomicU32> {
         self.rssi_value.clone()
-    }
-
-    /// Returns true if an RTL-SDR device was found.
-    pub fn is_available(&self) -> bool {
-        self.rtlsdr_available
     }
 
     /// RTL-SDR is receive-only; transmit is never supported.
@@ -114,10 +145,11 @@ impl RtlSdrController {
         let live = self.live.clone();
         let rtlsdr_available = self.rtlsdr_available;
         let gain_settings = self.gain_settings.clone();
+        let device = self.device.clone();
 
         self.rx_thread = Some(thread::spawn(move || {
             if rtlsdr_available {
-                if let Err(e) = run_receiver_rtlsdr(live.clone(), event_tx.clone(), gain_settings) {
+                if let Err(e) = run_receiver_rtlsdr(live.clone(), event_tx.clone(), gain_settings, &device) {
                     // RX ended on its own (open failure, unplug): its recording ends and the meter
                     // drops; the app goes back to idle.
                     live.receiving.store(false, Ordering::SeqCst);
@@ -165,8 +197,7 @@ impl RtlSdrController {
         Ok(())
     }
 
-    /// Set tuner gain. For RTL-SDR we use a single gain; map LNA-style (0–40 dB) to tuner gain.
-    /// Pass None for auto gain.
+    /// Set the tuner gain (an RTL-SDR has this one gain), in tenths of a dB; None for auto gain.
     pub fn set_tuner_gain_tenths_db(&mut self, gain_tenths_db: Option<i32>) -> Result<()> {
         tracing::info!(
             "Set RTL-SDR tuner gain to {}",
@@ -180,19 +211,10 @@ impl RtlSdrController {
         Ok(())
     }
 
-    /// Set gain from a 0–40 dB value (e.g. LNA-style); stored as tenths of dB for RTL-SDR.
-    pub fn set_lna_gain(&mut self, gain: u32) -> Result<()> {
+    /// The tuner gain in dB: KAT's VGA setting (`:vga`, `vga_gain`, the Gain tab). The tuner takes
+    /// its next gain step from there (an R820T has about 50 dB).
+    pub fn set_gain(&mut self, gain: u32) -> Result<()> {
         self.set_tuner_gain_tenths_db(Some((gain * 10) as i32))
-    }
-
-    /// RTL-SDR has a single tuner gain; VGA change maps to same tuner gain.
-    pub fn set_vga_gain(&mut self, gain: u32) -> Result<()> {
-        self.set_tuner_gain_tenths_db(Some((gain * 10) as i32))
-    }
-
-    /// RTL-SDR has no separate amp enable; no-op for UI compatibility.
-    pub fn set_amp_enable(&mut self, _enabled: bool) -> Result<()> {
-        Ok(())
     }
 }
 
@@ -266,12 +288,16 @@ fn run_receiver_rtlsdr(
     live: Arc<LiveShared>,
     event_tx: Sender<RadioEvent>,
     gain_settings: Arc<Mutex<TunerGainSetting>>,
+    device: &RtlDevice,
 ) -> Result<()> {
     use anyhow::Context;
 
-    tracing::info!("RTL-SDR receiver thread starting...");
+    tracing::info!("RTL-SDR receiver thread starting ({device:?})...");
 
-    let mut sdr = RtlSdr::open(DeviceId::Index(0)).context("Failed to open RTL-SDR device")?;
+    let mut sdr = RtlSdr::open(device.id()).with_context(|| match device {
+        RtlDevice::Serial(s) => format!("Failed to open RTL-SDR {s}"),
+        RtlDevice::Index(i) => format!("Failed to open RTL-SDR #{i}"),
+    })?;
 
     let freq = live.start_frequency();
     live.target.store(freq, Ordering::SeqCst);

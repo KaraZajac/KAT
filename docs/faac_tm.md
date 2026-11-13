@@ -6,7 +6,7 @@ layout: default
 
 **Rust module:** `src/protocols/faac_tm.rs`
 **Reference:** `REFERENCES/RogueMaster/lib/subghz/protocols/faac_tm.c`, added in November 2026 with RogueMaster's
-merge of Unleashed's dev branch. No other reference has it. RogueMaster registers it last, after Freezer, and its
+merge of Unleashed's dev branch. No other reference has it. RogueMaster registers it after Freezer, before Proteco, and its
 CAME decoder leaves Faac TM frames alone (see [came.md](came.md)).
 
 ## Overview

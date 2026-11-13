@@ -15,8 +15,8 @@ see every pulse, in the C's order:
 
 - **US variant:** a half-bit-cell decoder for frames that start with a `0xFF` header. It is gated on the header,
   the serial, the button and a flag bit.
-- **EU variant:** the original Manchester decoder (≥30-short preamble, then 104 bits). As in the C, it has no
-  further checks.
+- **EU variant:** the original Manchester decoder (≥30-short preamble, then 104 bits). The C has no further
+  checks; KAT has one, for the stream of a Revers RB2 gate remote (Decoder Steps).
 
 Decode-only: the ProtoPirate encoder is NULL, so KAT does not transmit Ford V3 (Replay still works on the raw
 capture).
@@ -79,6 +79,12 @@ reports nothing (no reference has an inverted pass).
    fed as `level ? LongHigh : LongLow`, and enters Data.
 3. **Data**: events are `level ? ShortHigh/LongHigh : ShortLow/LongLow` (exactly as `ford_v3.c`). Bits are
    packed MSB-first. At 104 bits the frame is committed; a gap pulse ends the frame.
+4. **KAT:** a frame that is the stream of a [Revers RB2](revers_rb2.md) remote is dropped. Such a remote sends
+   one 64-bit message over and over without a gap, Manchester coded at 250/500 µs: 32 ones, a 22-bit id, the
+   stop code `0x200`. Its ones are this path's preamble and the 104 bits behind them its frame. The frame is
+   dropped when its bits repeat after 64 and those 64, begun at the right bit, are 32 ones, 22 bits and the
+   stop code (a Ford frame would need 40 bits that repeat its first 40, and 42 more of a fixed value). See
+   Validation.
 
 The Manchester machine is Flipper's `manchester_advance`, ported literally: states Start1=0, Mid1=1, Mid0=2,
 Start0=3; events ShortLow=0, ShortHigh=2, LongLow=4, LongHigh=6; transitions `{0x01, 0x91, 0x9B, 0xFB}`. An
@@ -121,9 +127,14 @@ own decoder reads them as another frame with another serial, and so does KAT's.
   cells, at most one unpaired cell after bit 104, while the Giulia's carry 16 cells more (Fiat V2's last
   byte). KAT now rejects a US frame that a whole bit follows, and the Giulia decodes as Fiat V2 only. Over the air (Flipper Zero → HackRF, a made-up remote
   with the same layout), 1.8.5 listed all three unlock transmissions as Ford V3 and now lists Fiat V2.
+- **EU frames of a Revers RB2 remote (KAT).** rtl_433's two recordings of such a remote
+  (`rtl_433_tests/tests/revers/rb2/01`, pulses within 60 µs of 240 and 480 µs) are Ford V3 in ProtoPirate's
+  and doctor-firmware's C, three frames each; up to 1.12.0 KAT listed them the same way. They are Revers_RB2 now, 7 messages each, and never Ford V3
+  (`rtl433_recordings_decode`). Flipper's capture of a real remote (`revers_rb2_raw.sub`) was never taken: its
+  pulses are wider apart. The LDV captures, the only real EU frames, decode as before.
 - **C oracle:** on the LDV captures every frame (fields and all 13 bytes) equals the compiled ProtoPirate and
   Flipper-ARF decoders; on 2000 randomized EU/US bursts the only differences are frames admitted by the US
   relaxation above. No reference has a Ford V3 encoder (all three register `.encoder` with NULL alloc).
 - **Unit tests:** cover the Flipper transition table, synthetic EU and US frames with variant-specific fields,
   the preamble requirement, the US gate (including the Escape's 0x08 flag), a Fiat V2 burst whose first 13
-  bytes pass that gate, dedup, and the LDV fields above.
+  bytes pass that gate, a Revers RB2 stream left alone by the EU path, dedup, and the LDV fields above.

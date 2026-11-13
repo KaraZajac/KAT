@@ -123,13 +123,13 @@ doc comment has the details.
 | Fiat V2 (PP) | `Fiat V2` / 112 | Serial, Btn, Cnt, Hop, Raw | Raw required |
 | Scher-Khan (PP) | `Scher-Khan` / 35–64, word | Serial, Btn, Cnt | frames over 64 bits are not written (the C keeps only 64) |
 | Star Line (PP) | `Star Line` / 64, word | Serial, Btn, Cnt, Manufacture | Manufacture restricts the key search, as in the C |
-| PSA (PP) | `PSA` / 128, word | Key_2 (word), ValidationField; when decrypted Serial, Btn, Cnt, Type, CRC, Seed | a TEA frame with its Serial loads recovered; ARF's `PSA GROUP` files load |
+| PSA (PP) | `PSA` / 128, word | Key_2 (word), ValidationField; when decrypted Serial, Btn, Cnt, Type, CRC, Seed | a TEA frame with its Serial loads recovered; ARF's `PSA GROUP` files and doctor-firmware's `Bit: 80` files load |
 | Chrysler V0 (PP) | `Chrysler V0` / 80 | Key_2, Plain_A or Plain_B, Serial, Btn, Cnt | |
 | Mazda V0 (PP) | `Mazda V0` / 64 | Checksum, Serial, Btn, Cnt, Disp | |
 | Renault V0 (PP) | `Renault V0` / 82 | Serial, Btn, Cnt, Key2, Disp | checksum required |
 | Renault V1 (PP) | `Renault V1` / 88 | Key_2, Recovered, Seed, Serial, Btn, Cnt, Hop | the seed search reruns on load; `Bit: 82` keys go to Renault V1 (ARF) |
 | Sheriff CFM (ARF) | `Sheriff CFM` / 64 | Model, Serial, Btn, Cnt | must decrypt |
-| KeeLoq (ARF) | `KeeLoq` / 64 | Seed (BFT), Manufacture | the named manufacturer's keys validate the frame (TX then uses that manufacturer, as ARF); `Unknown`, no line, a name KAT's keystore lacks (doctor-firmware's brand names) or a key that does not validate: identified as on air, as the references load such a file |
+| KeeLoq (ARF) | `KeeLoq` / 64 | Seed (the seed types: BFT, Erreka, Monarch, Phantom/Hiland, Dea_Mio; see [keeloq.md](keeloq.md)), Manufacture | the named manufacturer's keys validate the frame (TX then uses that manufacturer, as ARF); `Unknown`, no line, a name KAT's keystore lacks (doctor-firmware's brand names) or a key that does not validate: identified as on air, as the references load such a file |
 | Mazda Siemens (ARF) | `MazdaSiemens` / 64 | Serial, Btn, Cnt | |
 | Mitsubishi V0 96-bit (ARF) | `Mitsubishi V0` / 96 | Serial, Cnt, Btn, Raw_Frame | Key is all zero, as ARF writes it; 61-bit keys load as Kia V0 type 4 |
 | Porsche Cayenne (ARF) | `Porsche AG` / 64 | Serial, Btn, Counter, Cnt | |

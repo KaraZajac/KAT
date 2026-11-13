@@ -86,6 +86,7 @@ const TABLE: &[(&[&str], TxCopies)] = &[
     (&["Allstar Firefly", "KeyFinder", "KeyFinder2", "Tesla Charge"], copies(5, 5, true)),
     (&["Fiat V1", "Fiat V2"], copies(6, 6, true)),
     (&["Scher-Khan"], copies(7, 7, true)),
+    (&["Proteco"], copies(10, 10, true)),
     (&["Star Line"], copies(40, 40, true)),
 ];
 
@@ -354,5 +355,12 @@ mod tests {
         let three = one("Princeton", &pr);
         assert_eq!(len("Princeton", &pr, None), Some(three));
         assert_eq!(len("Princeton", &pr, Some(5)), Some(three / 3 * 5));
+        // Proteco: 10 copies (RogueMaster's count), `Repeat: 1` and `Repeat: 3` as its encoder reads them
+        let mut pt = DecodedSignal::new(0xDF_2396, 24);
+        pt.encoder_capable = true;
+        let ten = one("Proteco", &pt);
+        assert_eq!(len("Proteco", &pt, None), Some(ten));
+        assert_eq!(len("Proteco", &pt, Some(1)), Some(ten / 10));
+        assert_eq!(len("Proteco", &pt, Some(3)), Some(ten / 10 * 3));
     }
 }

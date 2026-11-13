@@ -8,8 +8,9 @@ layout: default
 **Reference:** `REFERENCES/ProtoPirate/protocols/fiat_v1.c` (current version — rewritten upstream in
 62b31bf "Fix Fiat V1 decoder and add HITAG2 key TX support" and 1287d10 "fix Fiat V1 encoder"; later
 commits only drop `furi_check`s). Also compared: Flipper-ARF `lib/subghz/protocols/fiat_v1.c` + its
-"Hitag2 BF" cascade (`applications/main/subghz/helpers/subghz_hitag2_bf*.c`), and doctor-firmware
-`lib/subghz/protocols/fiat_v1.c`.
+"Hitag2 BF" cascade (`applications/main/subghz/helpers/subghz_hitag2_bf*.c`), and doctor-firmware's
+`lib/subghz/protocols/hitag2.c` (since 2026-11 one decoder for Fiat V1, Fiat V2 and Renault V1; before
+that `fiat_v1.c`, ProtoPirate's file with firmware glue).
 
 ## Overview
 
@@ -20,8 +21,9 @@ HITAG2 authenticator ("hop"), protected by an XOR byte. It is a different protoc
 
 KAT follows the current ProtoPirate decoder: no sync detection at all, both TE variants decoded in
 parallel from half-bit cells, strict frame validation, and verification of the hop against HITAG2
-keys. All three references share this decoder (ARF's and doctor-firmware's files are ProtoPirate's
-with firmware glue). What they add, and KAT therefore also does:
+keys. All three references have this decoder (ARF's file is ProtoPirate's with firmware glue;
+doctor-firmware's merged decoder keeps it and reads type-B frames a second way, the adaptive path
+below, which KAT also has). What they add, and KAT therefore also does:
 
 | Capability | ProtoPirate | Flipper-ARF | doctor-firmware | KAT |
 |---|---|---|---|---|
@@ -97,6 +99,24 @@ embedded keys use epoch 0). See `hitag2.rs` for the shared cipher core.
    `00000000`/`FFFFFFFF`. A frame identical to the previous one is suppressed until `reset()` (KAT's
    registry resets every decoder after a hit, so each repeat is reported).
 
+**Adaptive path** (doctor-firmware `hitag2.c`, `adaptive_feed`). A type-B frame comes behind the gap of
+the copy before it (1230 µs) and its 850 µs lead, and that is a header [Renault V1](renault_v1.md)'s
+reader takes (LOW 1150–2200 µs, HIGH 800–1150 µs). The reader follows the remote's own half-bit length,
+so it reads frames with pulses that are no cell: a long pulse of 251 µs is outside 200 ± 50. The frame
+is Fiat V1's, type B, when the header's HIGH is at most 949 µs, the header is not Renault's narrow one
+(LOW of 1400 µs or more with a HIGH of 920 µs or more) and the frame passes the validation of step 4;
+otherwise it is Renault V1's. It is reported at the middle of its last bit, as in the C, which leaves
+the gap after it to be the next copy's header. Cells that took every pulse of the frame so far get one
+more pulse to report it themselves, so a frame the cells read is reported as before.
+
+Three things of doctor-firmware's merged decoder are not taken:
+- its cells start only behind a lead of 2033 or 850 µs ± 100; KAT's start anywhere (ProtoPirate's rule,
+  which reads a frame whose lead was cut);
+- its wide-header path drops every frame whose UID has the hex digit 3 in the second-lowest place
+  (`((key >> 32) & 0xF0) != 0x30`, no reason given); KAT reports those;
+- behind the narrow Renault header it reports Renault V1 one pulse before its cells complete; in KAT
+  the cells still go first.
+
 ## Encoder
 
 **Key resolution** (`resolve_key`, run by `encode()`): (a) ProtoPirate: each of the 9 embedded keys
@@ -147,6 +167,12 @@ a loaded file): KAT has no key entry; a key can be added to `hitag2_keys.txt` by
   hop `299BD53E`, 7 repeats, all the same frame). Its hop is signed by none of ProtoPirate's keys
   (`KEY:??`) nor any ARF L2/L4 candidate, and it is not a Renault serial-derived-key frame either (the
   Renault V1 seed search reports not found). ProtoPirate cannot transmit it; KAT, like ARF, replays it.
+- `IMPORTS/OPEL/Opel Vectra 2008.sub` (type B, UID `468F5D25`, six presses, control `0x053` to `0x059`):
+  all six are Fiat V1, as in doctor-firmware's merged decoder. Up to 1.12.0 the press with control
+  `0x057` was listed as Renault V1: each of its copies has one pulse of 251–253 µs, which no cell
+  takes, and only Renault V1's reader read it (ProtoPirate's C names that press Renault V1 alone).
+- On 262 real RAW files (IMPORTS, the Flipper unit-test folders, rtl_433's recordings) KAT and
+  doctor-firmware's merged decoder name the same presses Fiat V1: the Panda's one and the Opel's six.
 - `IMPORTS/VAG/Test_55_unlock_and_55_lock_suran.sub` (a VW Suran) was decoded twice as Fiat V1 by the
   old, checksum-less decoder; both were false matches and it no longer decodes as Fiat V1.
 - `IMPORTS/FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub` still decodes as nothing: its ~175-200 µs /

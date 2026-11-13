@@ -1,12 +1,13 @@
 //! Security+ 1.0 (Chamberlain / LiftMaster / Craftsman garage door openers with a purple, red or
 //! orange learn button, their remotes and keypads): ternary rolling code.
 //!
-//! Port of `secplus_v1.c` from Flipper-ARF's garage app
-//! (`applications/system/subghz_garage/protocols/`, the primary reference), which is
-//! doctor-firmware's `lib/subghz/protocols/secplus_v1.c` with the same decoder and encoder.
-//! Flipper-ARF's `lib/subghz/protocols/secplus_v1.c` adds a D-pad button switch to the encoder;
-//! KAT takes that union (see Encoder). The references cite argilo/secplus and rtl_433's
-//! `secplus_v1.c`.
+//! Port of `secplus_v1.c`: the encoder and the frame from Flipper-ARF's garage app
+//! (`applications/system/subghz_garage/protocols/`), the decoder from doctor-firmware's
+//! `lib/subghz/protocols/secplus_v1.c` as of 2026-11 (98d1fc10a), which reads a symbol by its
+//! period and pairs the packets anew for every frame (see Decoder; the garage app, Flipper-ARF's
+//! `lib`, Momentum, RogueMaster and FoxFW have the older decoder). Flipper-ARF's
+//! `lib/subghz/protocols/secplus_v1.c` adds a D-pad button switch to the encoder; KAT takes that
+//! union (see Encoder). The references cite argilo/secplus and rtl_433's `secplus_v1.c`.
 //!
 //! **Air format** (AM/OOK): ternary symbols of 2 ms, LOW then HIGH: `0` = LOW 1500 + HIGH 500,
 //! `1` = LOW 1000 + HIGH 1000, `2` = LOW 500 + HIGH 1500 (te_short 500, te_long 1500, te_delta 100,
@@ -15,12 +16,20 @@
 //!
 //! **Decoder** (`subghz_protocol_decoder_secplus_v1_feed`): a LOW of 60000 ± 12000 µs arms it;
 //! the first HIGH (500 → packet 1, 1500 → packet 2) is symbol 0 of the packet, then (LOW, HIGH)
-//! symbol pairs; a packet counts once 21 symbols are followed by the next 60 ms gap. When both
-//! packets have been seen the 40 data symbols are decoded and the C calls back — and since its
-//! `reset` is empty ("you need to get 2 parts of the package") and the decode path then continues in
-//! `SearchStartBit` with both packets still marked, every following packet completes another decode
-//! (mixing the new packet with the previous one), until a pulse out of tolerance sends it back to
-//! the gap search. KAT's `reset()` is equally empty.
+//! symbol pairs; a packet counts once 21 symbols are followed by the next 60 ms gap. A symbol is
+//! read by its period: LOW + HIGH within 2000 ± 300 µs, each part at least 250 µs, and the HIGH
+//! says which symbol (under 750 → `0`, under 1250 → `1`, else `2`). When both packets have been
+//! seen the 40 data symbols are decoded, the C calls back and forgets both packets: the next frame
+//! needs a packet 1 and a packet 2 again, in either order. A packet's first symbol also unmarks the
+//! packet of its kind that was kept, so a packet that breaks off cannot pair an older one. The C's
+//! `reset` is empty ("you need to get 2 parts of the package"), and so is KAT's.
+//!
+//! The older decoder (before 2026-11, still in the other references) took each part of a symbol
+//! by its own window (LOW 1500 ± 300 + HIGH 500 ± 100, LOW 1000 ± 200 + HIGH 1000 ± 200, LOW 500 ±
+//! 100 + HIGH 1500 ± 300) and kept both packets marked after a frame, so every further packet
+//! gave another frame with the packet before it. On Flipper's `security_pls_1_0_raw.sub` it reads
+//! 25 frames of 8 codes; this one reads 20 frames of 10 codes, the two more with counters that
+//! fit between their neighbours.
 //!
 //! **Frame** (`subghz_protocol_secplus_v1_decode`): per packet, the 20 symbols after the header
 //! alternate rolling digit / `(60 + symbol - acc) % 3` fixed digit (`acc` = running sum of both
@@ -297,9 +306,11 @@ impl ProtocolDecoder for SecPlusV1Decoder {
             Step::SearchStartBit => {
                 if level && duration_diff!(duration, TE_SHORT) < TE_DELTA {
                     self.base_packet_index = PACKET_1_INDEX_BASE;
+                    self.packet_accepted &= !PACKET_1_ACCEPTED;
                     self.store(BIT_0);
                 } else if level && duration_diff!(duration, TE_LONG) < TE_DELTA {
                     self.base_packet_index = PACKET_2_INDEX_BASE;
+                    self.packet_accepted &= !PACKET_2_ACCEPTED;
                     self.store(BIT_2);
                 } else {
                     self.step = Step::Reset;
@@ -320,6 +331,7 @@ impl ProtocolDecoder for SecPlusV1Decoder {
                         if self.packet_accepted == PACKET_1_ACCEPTED | PACKET_2_ACCEPTED {
                             let (fixed, rolling) = decode_symbols(&self.data_array);
                             result = Some(decoded_from_data((fixed as u64) << 32 | rolling as u64));
+                            self.packet_accepted = 0;
                         }
                     }
                     // The C sets Reset after its callback, then SearchStartBit unconditionally.
@@ -333,19 +345,19 @@ impl ProtocolDecoder for SecPlusV1Decoder {
             }
             Step::DecoderData => {
                 if level && self.decode_count_bit <= PACKET_SYMBOLS {
-                    let last = self.te_last;
-                    if duration_diff!(last, TE_SHORT * 3) < TE_DELTA * 3
-                        && duration_diff!(duration, TE_SHORT) < TE_DELTA
+                    // A symbol is LOW + HIGH of 4·te together; the HIGH's share says which.
+                    let period = self.te_last.saturating_add(duration);
+                    if duration_diff!(period, TE_SHORT * 4) < TE_DELTA * 3
+                        && self.te_last >= TE_SHORT / 2
+                        && duration >= TE_SHORT / 2
                     {
-                        self.store(BIT_0);
-                    } else if duration_diff!(last, TE_SHORT * 2) < TE_DELTA * 2
-                        && duration_diff!(duration, TE_SHORT * 2) < TE_DELTA * 2
-                    {
-                        self.store(BIT_1);
-                    } else if duration_diff!(last, TE_SHORT) < TE_DELTA
-                        && duration_diff!(duration, TE_SHORT * 3) < TE_DELTA * 3
-                    {
-                        self.store(BIT_2);
+                        self.store(if duration < TE_SHORT * 3 / 2 {
+                            BIT_0
+                        } else if duration < TE_SHORT * 5 / 2 {
+                            BIT_1
+                        } else {
+                            BIT_2
+                        });
                     } else {
                         self.step = Step::Reset;
                     }
@@ -444,15 +456,15 @@ mod tests {
         }
     }
 
-    /// Synthetic upload → decoder: the C completes a decode at every packet after the first pair
-    /// (packets 1, 2, 1, 2, 1 + gaps → 4 decodes; the last packet has no trailing gap).
+    /// Synthetic upload → decoder: one decode for each pair of packets (3 copies → 2 decodes; the
+    /// last packet has no trailing gap).
     #[test]
     fn decodes_synthetic_frames_like_the_c() {
         let (fixed, rolling) = (0x6E15_6A21u32, 0xE8A5_1F09u32);
         let mut dec = SecPlusV1Decoder::new();
         let mut wire = upload_for(fixed, rolling, 3);
         let got = feed_all(&mut dec, &wire);
-        assert_eq!(got.len(), 4);
+        assert_eq!(got.len(), 2);
         for d in &got {
             assert_eq!(d.data, (fixed as u64) << 32 | rolling as u64);
             assert_eq!(d.data_count_bit, 42);
@@ -464,7 +476,66 @@ mod tests {
         assert_eq!(got[0].serial, Some(fixed / 27));
         // A trailing gap completes the last packet too.
         wire.push(LevelDuration::new(false, 60_000));
-        assert_eq!(feed_all(&mut SecPlusV1Decoder::new(), &wire).len(), 5);
+        assert_eq!(feed_all(&mut SecPlusV1Decoder::new(), &wire).len(), 3);
+        // A capture that starts with a packet 2: it pairs with the packet 1 after it, and so on.
+        let from_packet_2 = &wire[42..];
+        let got = feed_all(&mut SecPlusV1Decoder::new(), from_packet_2);
+        assert_eq!(got.len(), 2);
+        assert!(got.iter().all(|d| d.data == (fixed as u64) << 32 | rolling as u64));
+    }
+
+    /// A symbol is read by its period (2000 ± 300 µs, each part ≥ 250) and the HIGH's share of it.
+    #[test]
+    fn symbols_are_read_by_their_period() {
+        let (fixed, rolling) = (0x6E15_6A21u32, 0xE8A5_1F09u32);
+        // Symbol 5 of packet 1 (LOW at 10, HIGH at 11) of the first copy.
+        let symbol = encode_symbols(fixed, rolling)[5];
+        let decodes = |low: u32, high: u32| {
+            let mut wire = upload_for(fixed, rolling, 2);
+            wire.push(LevelDuration::new(false, 60_000));
+            wire[10].duration_us = low;
+            wire[11].duration_us = high;
+            feed_all(&mut SecPlusV1Decoder::new(), &wire)
+        };
+        let nominal = decodes(wire_low(symbol), wire_high(symbol));
+        assert_eq!(nominal.len(), 2);
+        let data = nominal[0].data;
+        // The HIGH's limits for each symbol, with the LOW taking the rest of 2000 µs.
+        let (from, to) = [(250u32, 749u32), (750, 1249), (1250, 1750)][symbol as usize];
+        for high in [from, to] {
+            let got = decodes(2000 - high, high);
+            assert_eq!((got.len(), got[0].data), (2, data), "HIGH {high}");
+        }
+        // One step outside is another symbol (the first frame differs), or, with a part under
+        // 250 µs, none: packet 1 of the first copy is lost, and its packet 2 pairs with the
+        // second copy's packet 1.
+        for high in [from - 1, to + 1] {
+            let got = decodes(2000 - high, high);
+            if (250..=1750).contains(&high) {
+                assert_eq!(got.len(), 2, "HIGH {high}");
+                assert_ne!(got[0].data, data, "HIGH {high}");
+                assert_eq!(got[1].data, data, "HIGH {high}");
+            } else {
+                assert_eq!(got.iter().map(|d| d.data).collect::<Vec<_>>(), [data], "HIGH {high}");
+            }
+        }
+        // The period: 1701..=2299 µs.
+        let h = wire_high(symbol);
+        for (low, ok) in [(1701 - h, true), (1700 - h, false), (2299 - h, true), (2300 - h, false)] {
+            if low >= 250 {
+                let got = decodes(low, h);
+                assert_eq!(got.len(), if ok { 2 } else { 1 }, "LOW {low}");
+                assert!(got.iter().all(|d| d.data == data), "LOW {low}");
+            }
+        }
+    }
+
+    fn wire_low(symbol: u8) -> u32 {
+        [1500, 1000, 500][symbol as usize]
+    }
+
+    fn wire_high(symbol: u8) -> u32 {
+        [500, 1000, 1500][symbol as usize]
     }
 
     #[test]
@@ -473,16 +544,25 @@ mod tests {
         // One pair only: packet 1 completes at packet 2's gap, packet 2 has no trailing gap.
         assert!(feed_all(&mut SecPlusV1Decoder::new(), &wire).is_empty());
         // Symbol out of tolerance in packet 2 of the second copy: that packet completes nothing
-        // (copy 1's packet 2 and copy 2's packet 1 each complete a pair).
+        // (copy 1 is a pair; copy 2's packet 1 stays alone).
         let mut wire = upload_for(0x6E15_6A21, 0xE8A5_1F09, 2);
         let n = wire.len();
         wire[n - 10].duration_us += 400;
         wire.push(LevelDuration::new(false, 60_000));
         let got = feed_all(&mut SecPlusV1Decoder::new(), &wire);
-        assert_eq!(got.len(), 2);
+        assert_eq!(got.len(), 1);
         let mut intact = upload_for(0x6E15_6A21, 0xE8A5_1F09, 2);
         intact.push(LevelDuration::new(false, 60_000));
-        assert_eq!(feed_all(&mut SecPlusV1Decoder::new(), &intact).len(), 3);
+        assert_eq!(feed_all(&mut SecPlusV1Decoder::new(), &intact).len(), 2);
+        // A packet 1, then a packet 1 that a gap cuts short after 6 symbols, then a packet 2: the
+        // cut one has written over the first and unmarked it, so the packet 2 has no partner (the
+        // older decoder gave a frame of the mixed symbols).
+        let one = upload_for(0x6E15_6A21, 0xE8A5_1F09, 1);
+        let mut wire = one[..42].to_vec();
+        wire.extend_from_slice(&one[..12]);
+        wire.extend_from_slice(&one[42..]);
+        wire.push(LevelDuration::new(false, 60_000));
+        assert!(feed_all(&mut SecPlusV1Decoder::new(), &wire).is_empty());
         // Gaps outside 60000 ± 12000 never arm it.
         let stretched: Vec<LevelDuration> = upload_for(0x6E15_6A21, 0xE8A5_1F09, 3)
             .into_iter()
@@ -514,7 +594,7 @@ mod tests {
             let wire = SecPlusV1Decoder::new().encode(&d, button).unwrap();
             let mut dec = SecPlusV1Decoder::new();
             let mut got = feed_all(&mut dec, &wire);
-            assert_eq!(got.len(), 4, "button {button}");
+            assert_eq!(got.len(), 2, "button {button}");
             let g = got.remove(0);
             assert_eq!(g.button, Some(want_btn as u8), "button {button}");
             assert_eq!(
@@ -619,7 +699,16 @@ mod tests {
             .collect();
         let mut dec = SecPlusV1Decoder::new();
         let own: Vec<DecodedSignal> = feed_all(&mut dec, &pairs);
-        assert!(!own.is_empty(), "no Security+ 1.0 frame");
+        // As doctor-firmware (98d1fc10a): 20 frames of 10 codes, one remote, the counter going up.
+        assert_eq!(own.len(), 20);
+        let mut codes: Vec<u64> = own.iter().map(|d| d.data).collect();
+        assert!(codes.windows(2).all(|w| w[0] <= w[1]), "{codes:X?}");
+        codes.dedup();
+        assert_eq!(
+            codes.iter().map(|c| c & 0xFF).collect::<Vec<_>>(),
+            [0xCC, 0xD0, 0xD2, 0xD6, 0xD8, 0xDC, 0xDE, 0xE2, 0xE4, 0xE8]
+        );
+        assert!(codes.iter().all(|c| c >> 8 == 0x1C_41D2_39E6_A38B));
         let mut reg = ProtocolRegistry::new();
         let hits = reg.process_signal_stream(&pairs, freq);
         assert!(

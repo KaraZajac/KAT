@@ -57,13 +57,17 @@ encoder and the key file.
    TELCOMA_TABLE_HI, UNKNOWN
    (simple, normal, secure, magic-xor, each with the key and its byte-mirrored copy). Check: plaintext
    button = fix button and plaintext[23:16] = serial[7:0] or 0.
-   doctor-firmware's and RogueMaster's per-manufacturer rules replace that check for four names, the
+   doctor-firmware's and RogueMaster's per-manufacturer rules replace that check for five names, the
    union with Flipper-ARF, which has none of them:
    - **KEY** (SIMPLE): the 12-bit discriminator is 0x2FF.
    - **Monarch** (NORMAL): the discriminator is 0x100 or 0x280 (Dorcas), kept as the seed.
    - **Phantom/Hiland** (NORMAL, RogueMaster; `Phantom_Hiland` in the keystore): the discriminator's low 10
      bits are the serial's, and the whole 12-bit field is kept as the seed. Its top 2 bits differ per remote
      and the receiver ignores them.
+   - **Dea_Mio** (SIMPLE, RogueMaster): the discriminator's low 8 bits are the serial's (a low byte of 0 is
+     not taken for any serial, as the generic check would), and the whole 12-bit field is kept as the seed.
+     Bits 8 and 9 are the serial's too; the top 2 are the HCS300's OVR flags, which the chip sets as its
+     counter wraps and never clears, so they differ per remote and the receiver ignores them.
 
 The first match names the manufacturer. A random 64-bit frame is identified ≈6% of the time, so strongly
 gated KeeLoq-PWM protocols (Sheriff CFM) are registered before KeeLoq.
@@ -197,7 +201,8 @@ FAAC_RC,XT, Mutanco/Clemsa, Came_Space, Genius_Bravo, GSN, Rosh, Rossi, Pecinin,
 Stilmatic, …; 8-bit for NICE_Smilo/MHOUSE, JCM_Tech, Pujol, Erreka; 0 Beninca/Merlin; 0x1CE Centurion; 0x2FF
 KEY; Monarch's received discriminator (0x100 or 0x280, the seed; 0x100 when the seed holds neither, Flipper-ARF's
 fixed value); Phantom/Hiland's received discriminator (the seed when its low 10 bits are the serial's, else
-serial & 0x3FF); Dea_Mio's C19 form). Hop by the entry's learning type; UNKNOWN entries per matched mode with the key
+serial & 0x3FF); Dea_Mio's received discriminator (the seed when its low 8 bits are the serial's, else
+serial & 0x3FF with both OVR bits set, which is the other firmwares' fixed form)). Hop by the entry's learning type; UNKNOWN entries per matched mode with the key
 as stored (reference quirk). MAGIC_SERIAL_2/3 have no encode case in the C → the captured frame is
 re-sent. AN-Motors/HCS101 rebuild their plaintext hop; unidentified → the
 captured hop is replayed. Programming mode (button 0xF): BFT sends its seed as hop, Aprimatic 0x1A2B3C4D,
@@ -209,7 +214,7 @@ file with `TE: 200`) is sent at Te 200 µs, every pulse and the gap halved, as R
 other counter modes (7 and up: DoorHan forced-resync packs) are not ported.
 
 **Key files.** `Bit: 64`, `Key`, then `Seed` (4 hex bytes) for BFT (Flipper-ARF) and, as doctor-firmware and
-RogueMaster write it, for Erreka, Monarch and Phantom/Hiland. Then `Manufacture`, then RogueMaster's `TE: 200`
+RogueMaster write it, for Erreka, Monarch and Phantom/Hiland, and as RogueMaster does for Dea_Mio. Then `Manufacture`, then RogueMaster's `TE: 200`
 for a half-rate frame only, so standard files keep the layout older builds read. On load, a `TE` other than 200
 is the standard rate. An Erreka file's `Seed` decrypts its frame, as doctor-firmware's / RogueMaster's: their
 "Add Manually" draws one, while the decode flow tries seed 0.
@@ -229,3 +234,10 @@ The half rate and the four manufacturer rules (November 2026) are checked by the
 `keeloq_discriminator_rules`: frames at Te 185, 200 and 215 µs decode and are sent back at 200 µs. KEY, Monarch A
 and B, and Phantom/Hiland (a made-up key, all four top-bit values) are identified, re-sent with their
 discriminator and round-trip through key files. No real half-rate or Phantom/Hiland recording is in the corpus.
+
+Dea_Mio's discriminator (RogueMaster at 0cfd4bf) is checked by the same test and against RogueMaster's C: a
+made-up remote with each of the four values of the two OVR bits is identified with its 12 bits as the seed, and
+the next code KAT sends for each is the one RogueMaster's encoder sends from KAT's key file (four different
+hops; Momentum's encoder sends the both-set form for all four, as KAT did up to 1.12.0). A key file without a
+`Seed`, or with one that is not this serial's, is sent in the both-set form. No real DEA Mio recording is in the
+corpus.

@@ -704,8 +704,9 @@ OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D251150/104 extra=1
 OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D25115A/104 extra=1FACCD31609 sn=468F5D25 btn=1 cnt=56 crc=1 tx=1
 OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D25115A/104 extra=1FACCD31609 sn=468F5D25 btn=1 cnt=56 crc=1 tx=1
 OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D25115A/104 extra=1FACCD31609 sn=468F5D25 btn=1 cnt=56 crc=1 tx=1
-OPEL/Opel Vectra 2008.sub | 433920000 | Renault V1 | data=1468F5D25115E/104 extra=FA649B36CD sn=468F5D25 btn=1 cnt=57 crc=1 tx=1
-OPEL/Opel Vectra 2008.sub | 433920000 | Renault V1 | data=1468F5D25115E/104 extra=FA649B36CD sn=468F5D25 btn=1 cnt=57 crc=1 tx=1
+OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D25115E/104 extra=1FA649B36CD sn=468F5D25 btn=1 cnt=57 crc=1 tx=1
+OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D25115E/104 extra=1FA649B36CD sn=468F5D25 btn=1 cnt=57 crc=1 tx=1
+OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D25115E/104 extra=1FA649B36CD sn=468F5D25 btn=1 cnt=57 crc=1 tx=1
 OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D251160/104 extra=1E288DC5E28 sn=468F5D25 btn=1 cnt=58 crc=1 tx=1
 OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D251160/104 extra=1E288DC5E28 sn=468F5D25 btn=1 cnt=58 crc=1 tx=1
 OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D251160/104 extra=1E288DC5E28 sn=468F5D25 btn=1 cnt=58 crc=1 tx=1

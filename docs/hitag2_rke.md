@@ -55,8 +55,8 @@ encrypted with a per-remote key, so there is no roundtrip encoder". The host ora
 
 ## Validation
 
-- No capture decodes as FoxFW "Hitag2": the one corpus file in the same family (an Opel Vectra) is read by KAT's Fiat V1 /
-  Renault V1 and by the older "Hitag-2" decoder of FoxFW, never by this one.
+- No capture decodes as FoxFW "Hitag2": the one corpus file in the same family (an Opel Vectra) is read by KAT's Fiat V1
+  and by the older "Hitag-2" decoder of FoxFW, never by this one.
 - Synthetic bursts (made-up UID, counter and keystream at te 90, 160 and 240 µs, both polarities) decode identically in
   the FoxFW C decoder (host oracle) and in KAT. A wrong check byte, a different marker, a 1 before the check, a zero UID,
   a zero counter with a zero keystream, and a short burst are rejected by both.

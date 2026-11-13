@@ -525,7 +525,9 @@ Still missed (11 of 250):
   like ProtoPirate's, doesn't read as a bit (a real fob repeats its frame, so only the last copy of
   a press is lost).
 - `Opel Vectra 2008.sub`: two of its Fiat V1 frames come out as Renault V1 (same serial and
-  counter, both HITAG2), two are missed.
+  counter, both HITAG2), two are missed. (Since then Fiat V1 reads a frame behind its own header
+  that way too and Renault V1 leaves it alone, see [Fiat V1](fiat_v1.md); this test was not run
+  again.)
 - One frame each of Fiat V0 (`Fiat Bravo 2010`), VAG (`Skoda_Fabia_2007`) and Princeton
   (`gate_tx_raw.sub`: received with two bits flipped, which Princeton, having no checksum, decodes
   as another serial).

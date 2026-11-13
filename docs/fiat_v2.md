@@ -7,7 +7,8 @@ layout: default
 **Rust module:** `src/protocols/fiat_v2.rs`
 **Reference:** `REFERENCES/ProtoPirate/protocols/fiat_v2.c` (decoder; decode-only there). The encoder
 combines Flipper-ARF's `lib/subghz/protocols/fiat_v2.c` known-key hop recompute with doctor-firmware's
-`lib/subghz/protocols/fiat_v2.c` replay waveform.
+replay waveform (`lib/subghz/protocols/hitag2.c`, which since November 2026 holds its Fiat V1, Fiat V2 and
+Renault V1 code; `fiat_v2.c` before).
 
 ## Overview
 
@@ -104,4 +105,7 @@ ending HIGH and LOW), and rejection of bad markers, UID, selector and Manchester
 longer burst, and the known-key forward encoding (both layouts, all 4 IV combos). C oracle: the real captures
 decode to the same frames as ProtoPirate's and Flipper-ARF's decoders (KAT's end-of-burst gate only drops
 their LDV false positive); on 1200 encodes of randomized frames (840 with a known-key hop) the transmitted
-frame equals the `Raw` Flipper-ARF's encoder writes back, byte for byte.
+frame equals the `Raw` Flipper-ARF's encoder writes back, byte for byte. doctor-firmware's merged file
+(98d1fc1) builds from KAT's key files the upload KAT sends, pulse for pulse (the Pacifica frame and a frame
+with the FCA layout), and the key files its build writes for the Pacifica capture (11 distinct frames) load
+in KAT with its serial, button and counter.

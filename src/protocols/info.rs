@@ -185,6 +185,7 @@ pub static ALL: &[&ProtocolInfo] = &[
     &super::cardin_s508::INFO,
     &super::freezer::INFO,
     &super::faac_tm::INFO,
+    &super::proteco::INFO,
     // Home / sensor / key-finder remotes.
     &super::honeywell::INFO,
     &super::magellan::INFO,
@@ -306,6 +307,7 @@ pub(super) const NO_CHECKSUM: &[&str] = &[
     "Doitrand", "Dooya", "Elplast", "GateTX", "Holtek", "Holtek_HT12X", "Hormann HSM", "Linear",
     "LinearDelta3", "Marantec24", "Mastercode", "MegaCode", "Nero Radio", "Nero Sketch", "Nice FLO",
     "Princeton", "Revers_RB2", "Roger", "SMC5326", "Telcoma/Cardin EDGE", "Urmet", "Freezer", "Faac TM",
+    "Proteco",
     // Home / key-finder remotes without a check (Magellan has a CRC-8, X10 complement bytes).
     "Legrand", "Doorbell32", "Intertechno_V3", "KeyFinder", "Feron", "KeyFinder2", "Treadmill37", "Nord ICE",
     // Rolling codes the references decode without a check.

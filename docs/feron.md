@@ -23,7 +23,7 @@ colours `708F` / `1AE5` / `40BF`). No checksum.
 |-----------|-------|-------|
 | Bit 0 | HIGH 350 + LOW 750 µs | ± 150 µs each |
 | Bit 1 | HIGH 750 + LOW 350 µs | ± 150 µs each |
-| End marker | LOW 500 + HIGH 500 µs | replaces the last bit's LOW; LOW window 351..649 µs |
+| End marker | LOW 500 + HIGH 500 µs | replaces the last bit's LOW; LOW window 351..649 µs. KAT also takes a marker whose LOW fits the last bit's cell (below) |
 | Gap | LOW 4500 µs (6·te_long) | window 3901..5099 µs |
 | Bits | 32 | MSB first |
 
@@ -44,9 +44,16 @@ AM (OOK), 433.92 MHz (`SubGhzProtocolFlag_433 | AM`, Sensors).
    frame of exactly 32 bits is reported. Anything else resets.
 4. Back to Reset: the marker's HIGH and the gap after it open the next frame, so every copy after the first decodes.
 
-The marker is tried after the two bit cells: after a last HIGH of 750 µs a marker LOW under 500 µs is read as a
-1 cell (the frame then misses its end, and the gap goes to the cell check, so the next copy loses its sync too), and
-after a last HIGH of 350 µs a LOW over 600 µs is read as a 0 cell — as in the C.
+The marker is tried after the two bit cells, as in the C: after a last HIGH of 750 µs a marker LOW under 500 µs is
+read as a 1 cell, and after a last HIGH of 350 µs a LOW over 600 µs is read as a 0 cell. In the C the frame is then
+lost, and the one after it too (the gap goes to the cell check, so the next copy has no sync).
+
+**KAT's addition (not in the C).** With 32 whole cells read, a HIGH of 500 ± 150 µs followed by a LOW of 3901 µs or
+more is the marker's HIGH and the gap: the frame is reported. A gap of the usual length (within 600 µs of 4500)
+opens the next frame; a longer LOW ends this one and opens none. A marker of exactly 500 µs sits on the edge of the
+1 cell's LOW window (350 ± 150): a real remote sends 516 to 556 µs (`feron_raw.sub`), but one copy of that capture
+measures 498 µs, and rtl_433's recordings (`rtl_433_tests/tests/feron/01`) measure 492 to 496 µs. A longer frame of
+such cells (KeeLoq's 66 bits) has no such end and is not read.
 
 ## Field mapping
 
@@ -70,14 +77,19 @@ None of the references offers a Feron type.
 ## Validation
 
 Host builds of the references' C (`REFERENCES/tools/oracle/bin/subghz_oracle_{doctor,arf,momentum,roguemaster,foxfw}`):
-- `feron_raw.sub` (ARF, Momentum and RogueMaster unit-test folders): 102 Feron frames through KAT's whole registry,
-  all 0x6338847B (serial 0x6338), and nothing else; `feron.sub` loads and its upload decodes back twice.
+- `feron_raw.sub` (ARF, Momentum and RogueMaster unit-test folders): 103 Feron frames through KAT's whole registry,
+  all 0x6338847B (serial 0x6338), and nothing else; the five references read 102 (the copy with the 498 µs marker
+  is the one they lose). `feron.sub` loads and its upload decodes back twice.
+- rtl_433's recordings (`rtl_433_tests/tests/feron/01`, three presses of two remotes): KAT reads all three with
+  rtl_433's id and command (`1A2B` ON ×3, `1A2B` OFF ×2, `C0DE` brighter ×2). The references read the ON press
+  alone: the other two codes end in a 1 bit.
 - Encoder: 60 random key files give the same upload, pulse for pulse, in KAT and in doctor's, ARF's, Momentum's
   and RogueMaster's C.
-- Decoder: 200 fuzz files (repeats, mixed codes, wrong lengths, other protocols' frames, noise; jitter, dropped,
-  split and stretched pulses, timing scaled ±15 %) give the same 141 frames in KAT's decoder and in all five
-  references; on the 304 real RAW files (IMPORTS and the unit-test folders) and the other protocols' fuzz files
-  Feron decodes only its own captures, as the C.
-- Registry: the fuzz streams decode the same through KAT's whole registry as through doctor's.
+- Decoder: 400 fuzz files (1 to 3 codes of 1 to 5 copies; marker LOW 340 to 800 µs, marker HIGH 300 to 700 µs, gap
+  3800 to 20000 µs; wrong lengths; jitter, dropped, split and stretched pulses, timing scaled ±15 %) through the
+  decoder alone: the five references read the same 435 frames; KAT reads those 435 and 141 more, each a code that
+  was sent in that file, and no frame is read by the C alone.
+- Real recordings: on 262 RAW files (IMPORTS, the unit-test folders, rtl_433's recordings) KAT's registry and
+  doctor's give the same Feron frames but for the ones above (KAT 110, doctor 105).
 
 Parity tools: `src/protocols/f_common.rs` (`F_FILES`, `F_KEYS`).

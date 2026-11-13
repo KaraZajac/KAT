@@ -47,7 +47,9 @@
 //! disc << 16 | counter` with disc = serial & 0x3FF, or the manufacturer's rule (Aprimatic parity
 //! form, 12-bit for DTM_Neo/FAAC_RC,XT/Mutanco/Came_Space/Genius_Bravo/GSN/Rosh/Rossi/Pecinin/
 //! Steelmate/Cardin_S449/Stilmatic/…, 8-bit for NICE_Smilo/NICE_MHOUSE/JCM_Tech/Pujol/Erreka,
-//! 0 for Beninca/Merlin, 0x1CE Centurion, 0x100 Monarch, Dea_Mio's C19-style form). Hop by the first
+//! 0 for Beninca/Merlin, 0x1CE Centurion, 0x100 Monarch; Dea_Mio as RogueMaster: the 12 bits the
+//! remote sent, kept as the decode's seed, so that a copy sends the original's two OVR bits, and
+//! `serial & 0x3FF` with both set for a remote made from nothing). Hop by the first
 //! keystore entry with that name: SIMPLE, NORMAL, SECURE (seed), MAGIC_XOR (serial), MAGIC_SERIAL_1,
 //! AERF, ERREKA, PUJOL, SIMPLE_JCM (8-bit disc), doctor-firmware's JCM_GEN2 (the decode's seed byte is
 //! the learning byte), STAGNOLI and TELCOMA_TABLE_HI (no hop when the LO half is missing), UNKNOWN per matched mode with the key as stored
@@ -130,6 +132,15 @@ const KEY_DISC: u32 = 0x2FF;
 /// and the receiver ignores them.
 const PHANTOM_DISC_MASK: u32 = 0xFFF;
 const PHANTOM_SERIAL_MASK: u32 = 0x3FF;
+/// RogueMaster `KEELOQ_DEA_MIO_*` (DEA Mio, HCS300): the 12-bit discriminator carries `serial &
+/// 0x3FF` in its low 10 bits and the chip's two OVR flags above them. The chip sets an OVR bit
+/// each time its counter wraps and never clears it, so remotes send them both set and both clear;
+/// a receiver ignores them. The decoder matches the low 8 bits alone (as the generic check does),
+/// and a remote made from nothing gets both OVR bits set.
+const DEA_MIO_DISC_MASK: u32 = 0xFFF;
+const DEA_MIO_SERIAL_MASK: u32 = 0x3FF;
+const DEA_MIO_MATCH_MASK: u32 = 0x0FF;
+const DEA_MIO_OVR_SET: u32 = 0xC00;
 
 /// `subghz_protocol_keeloq_te_delta`: the tolerance scaled with the locked Te (400 → 180, 200 → 90).
 fn te_delta(te: u32) -> u32 {
@@ -194,6 +205,18 @@ fn phantom_hiland_disc(serial: u32, seed: u32) -> u32 {
     }
 }
 
+/// RogueMaster `subghz_protocol_keeloq_dea_mio_disc`: the seed (the discriminator as received)
+/// when it is not 0 and its low 8 bits belong to this serial, else `serial & 0x3FF` with both OVR
+/// bits set.
+fn dea_mio_disc(serial: u32, seed: u32) -> u32 {
+    let disc = seed & DEA_MIO_DISC_MASK;
+    if seed == 0 || disc & DEA_MIO_MATCH_MASK != serial & DEA_MIO_MATCH_MASK {
+        (serial & DEA_MIO_SERIAL_MASK) | DEA_MIO_OVR_SET
+    } else {
+        disc
+    }
+}
+
 /// `subghz_protocol_keeloq_check_decrypt_monarch`: the plaintext's discriminator is A or B (kept as
 /// the seed).
 fn check_decrypt_monarch(decrypt: u32, btn: u32) -> Option<u32> {
@@ -206,6 +229,14 @@ fn check_decrypt_monarch(decrypt: u32, btn: u32) -> Option<u32> {
 fn check_decrypt_phantom_hiland(decrypt: u32, btn: u32, fix: u32) -> Option<u32> {
     let disc = (decrypt >> 16) & PHANTOM_DISC_MASK;
     (decrypt >> 28 == btn && disc & PHANTOM_SERIAL_MASK == fix & PHANTOM_SERIAL_MASK).then_some(disc)
+}
+
+/// RogueMaster `subghz_protocol_keeloq_check_decrypt_dea_mio`: the discriminator's low 8 bits are
+/// the serial's (the whole 12-bit field, OVR bits included, is kept as the seed). Unlike the
+/// generic check, a low byte of 0 is not taken for any serial.
+fn check_decrypt_dea_mio(decrypt: u32, btn: u32, end_serial: u32) -> Option<u32> {
+    let disc = (decrypt >> 16) & DEA_MIO_DISC_MASK;
+    (decrypt >> 28 == btn && disc & DEA_MIO_MATCH_MASK == end_serial & DEA_MIO_MATCH_MASK).then_some(disc)
 }
 
 /// `subghz_protocol_keeloq_check_decrypt_key`: the constant discriminator 0x2FF.
@@ -319,6 +350,11 @@ fn select_key(fix: u32, hop: u32, keys: &'static [MfKey]) -> Option<KeyMatch> {
                     // doctor-firmware / RogueMaster: discriminator 0x2FF.
                     if check_decrypt_key(d, btn) {
                         return hit(entry, 0, d, seed);
+                    }
+                } else if entry.name == "Dea_Mio" {
+                    // RogueMaster: the serial's low 8 bits, the 12-bit field kept as the seed.
+                    if let Some(disc) = check_decrypt_dea_mio(d, btn, end_serial) {
+                        return hit(entry, 0, d, disc);
                     }
                 } else if check_decrypt(d, btn, end_serial) {
                     return hit(entry, 0, d, seed);
@@ -502,7 +538,8 @@ fn fields(fix: u32, hop: u32, ident: &Ident) -> (u32, u8, u16) {
 }
 
 /// Plaintext discriminator (bits 27..16 of the hop plaintext) per manufacturer (`gen_data`); `seed`
-/// is the decode's or key file's (Monarch's and Phantom/Hiland's discriminator lives there).
+/// is the decode's or key file's (Monarch's, Phantom/Hiland's and Dea_Mio's discriminator lives
+/// there).
 fn discriminator(mf: &str, serial: u32, seed: u32) -> u32 {
     match mf {
         "Aprimatic" => {
@@ -529,10 +566,10 @@ fn discriminator(mf: &str, serial: u32, seed: u32) -> u32 {
         },
         "Phantom_Hiland" => phantom_hiland_disc(serial, seed),
         "KEY" => KEY_DISC,
-        "Dea_Mio" => {
-            let first = (serial >> 8) & 0xF;
-            ((serial & 0xFF) | ((0xC + first % 4) << 8)) & 0xFFF
-        }
+        // RogueMaster: the received discriminator (kept in the seed) when it belongs to this
+        // serial, else both OVR bits set (what the other firmwares always send: their
+        // `0xC + (serial >> 8) % 4` above the serial's low byte is the same value).
+        "Dea_Mio" => dea_mio_disc(serial, seed),
         _ => serial & 0x3FF,
     }
 }
@@ -1055,10 +1092,10 @@ impl super::ProtocolDecoder for KeeloqDecoder {
     }
 
     /// Key files: Flipper-ARF `subghz_protocol_decoder_keeloq_serialize`: Protocol "KeeLoq", Bit
-    /// 64, Key, then — for BFT, and as doctor-firmware / RogueMaster also for Erreka, Monarch and
-    /// Phantom/Hiland (whose discriminator is the seed) — `Seed` (4 hex bytes, the seed the decrypt
-    /// used) and `Manufacture` (the decode's `(<manufacturer>)`, re-checked against the key as the C
-    /// re-runs its check; "Unknown" when nothing validates); RogueMaster's `TE: 200` after it for a
+    /// 64, Key, then — for BFT, and as doctor-firmware / RogueMaster also for Erreka, Monarch,
+    /// Phantom/Hiland and (RogueMaster) Dea_Mio (whose discriminator is the seed) — `Seed` (4 hex
+    /// bytes, the seed the decrypt used) and `Manufacture` (the decode's `(<manufacturer>)`,
+    /// re-checked against the key as the C re-runs its check; "Unknown" when nothing validates); RogueMaster's `TE: 200` after it for a
     /// half-rate frame only (standard frames keep the layout older builds read).
     fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<super::FlipperKey> {
         if decoded.data_count_bit != MIN_COUNT_BIT {
@@ -1077,7 +1114,7 @@ impl super::ProtocolDecoder for KeeloqDecoder {
         };
         let mut key = super::FlipperKey::for_protocol("KeeLoq", MIN_COUNT_BIT, decoded.data);
         if let Some(Ident::Key(m)) = &ident {
-            if matches!(m.entry.name.as_str(), "BFT" | "Erreka" | "Monarch" | "Phantom_Hiland") {
+            if matches!(m.entry.name.as_str(), "BFT" | "Erreka" | "Monarch" | "Phantom_Hiland" | "Dea_Mio") {
                 key.push_hex("Seed", u64::from(m.seed), 4);
             }
         }
@@ -2016,26 +2053,32 @@ mod tests {
     }
 
     /// doctor-firmware / RogueMaster discriminator rules: Phantom/Hiland (made-up key: the serial's
-    /// low 10 bits, top 2 bits per remote, kept as the seed), Monarch A / B (kept as the seed) and
-    /// KEY (0x2FF), each identified, re-sent with its discriminator (counter + 1, another button),
-    /// and written with its Seed (Monarch, Phantom/Hiland); an Erreka key file's seed (made-up key).
+    /// low 10 bits, top 2 bits per remote, kept as the seed), Dea_Mio (the same with the chip's two
+    /// OVR bits on top), Monarch A / B (kept as the seed) and KEY (0x2FF), each identified, re-sent
+    /// with its discriminator (counter + 1, another button), and written with its Seed (all but
+    /// KEY); an Erreka key file's seed (made-up key).
     #[test]
     fn keeloq_discriminator_rules() {
         let _keys = RuleKeys::add();
         let dec = KeeloqDecoder::new();
         assert_eq!(entry("Monarch").learning, lt::NORMAL);
         assert_eq!(entry("KEY").learning, lt::SIMPLE);
-        let cases: [(&str, u32); 7] = [
+        assert_eq!(entry("Dea_Mio").learning, lt::SIMPLE);
+        let cases: [(&str, u32); 11] = [
             ("Phantom_Hiland", 0 << 10),
             ("Phantom_Hiland", 1 << 10),
             ("Phantom_Hiland", 2 << 10),
             ("Phantom_Hiland", 3 << 10),
+            ("Dea_Mio", 0 << 10),
+            ("Dea_Mio", 1 << 10),
+            ("Dea_Mio", 2 << 10),
+            ("Dea_Mio", 3 << 10),
             ("Monarch", MONARCH_DISC_A),
             ("Monarch", MONARCH_DISC_B),
             ("KEY", KEY_DISC),
         ];
         for (name, top) in cases {
-            let disc = |serial: u32| if name == "Phantom_Hiland" { top | (serial & 0x3FF) } else { top };
+            let disc = |serial: u32| if matches!(name, "Phantom_Hiland" | "Dea_Mio") { top | (serial & 0x3FF) } else { top };
             let (serial, data) = named_frame(name, 0x0A5C_3E17, disc);
             let want = disc(serial);
             let src = decode_all(&capture(data)).pop().unwrap();
@@ -2063,9 +2106,32 @@ mod tests {
         // serial & 0x3FF = 0x217: a seed with those low bits is kept whole, any other gives way.
         assert_eq!(phantom_hiland_disc(0x0A5C_3E17, 0xA17), 0xA17);
         assert_eq!(phantom_hiland_disc(0x0A5C_3E17, 0xA18), 0x217);
-        // Add Manually: Phantom/Hiland and Dorcas with their seeds, KEY with its constant.
+        // Dea_Mio: the low 8 bits must be the serial's (a low byte of 0 is not taken for any serial,
+        // as the generic check takes it), and bits 9..8 are not looked at.
+        let dm = entry("Dea_Mio");
+        for (disc, found) in [(0x000, false), (0xC00, false), (0x018, false), (0x117, true), (0xE17, true)] {
+            let hop = keeloq_encrypt((0x2u32 << 28) | (disc << 16) | 0x0123, dm.key);
+            let m = select_key(fix, hop, std::slice::from_ref(dm));
+            assert_eq!(m.map(|m| m.seed), found.then_some(disc), "{disc:03X}");
+        }
+        // serial & 0x3FF = 0x217. A seed with the serial's low byte is kept whole; no seed, or one
+        // of another serial, gives the form the other firmwares send (both OVR bits set).
+        assert_eq!(dea_mio_disc(0x0A5C_3E17, 0x217), 0x217);
+        assert_eq!(dea_mio_disc(0x0A5C_3E17, 0x817), 0x817);
+        assert_eq!(dea_mio_disc(0x0A5C_3E17, 0x117), 0x117);
+        assert_eq!(dea_mio_disc(0x0A5C_3E17, 0), 0xE17);
+        assert_eq!(dea_mio_disc(0x0A5C_3E17, 0x218), 0xE17);
+        for serial in [0x0A5C_3E17u32, 0x0000_0869, 0x0FFF_F100, 0x0123_42FF] {
+            let first = (serial >> 8) & 0xF;
+            assert_eq!(dea_mio_disc(serial, 0), ((serial & 0xFF) | ((0xC + first % 4) << 8)) & 0xFFF, "{serial:07X}");
+        }
+        // Add Manually: Phantom/Hiland, Dea_Mio and Dorcas with their seeds, KEY with its constant.
         for (mf, seed, want) in [
             ("Phantom_Hiland", Some(0x817u32), 0x817u32),
+            ("Dea_Mio", Some(0x017), 0x017),
+            ("Dea_Mio", Some(0x417), 0x417),
+            ("Dea_Mio", Some(0xC18), 0xC17),
+            ("Dea_Mio", None, 0xC17),
             ("Monarch", Some(MONARCH_DISC_B), MONARCH_DISC_B),
             ("Monarch", None, MONARCH_DISC_A),
             ("KEY", None, KEY_DISC),
@@ -2136,6 +2202,21 @@ mod tests {
             let key = dec.to_flipper_key(&d).unwrap();
             n += 1;
             super::super::star_line::write_oracle_vector(&dir, &format!("keeloq_{n}"), 433_920_000, "FuriHalSubGhzPresetOok650Async", once, &key);
+        }
+        // RogueMaster's Dea_Mio: a remote with each form of the two OVR bits, as received (the
+        // vector's upload) and as KAT sends its next code (printed, for the oracle's `encode` of
+        // the key file).
+        let e = entry("Dea_Mio");
+        let serial = 0x0ABC_DE17u32;
+        for top in 0..4u32 {
+            let disc = (top << 10) | (serial & 0x3FF);
+            let data = frame(0x2, serial, (0x2u32 << 28) | (disc << 16) | 0x0100, e.key);
+            let upload = capture(data);
+            let src = decode_all(&upload).pop().unwrap();
+            let key = dec.to_flipper_key(&src).unwrap();
+            let next = decode_all(&dec.encode(&src, 0x2).unwrap()).remove(0);
+            println!("keeloq_dea_mio_{top}: disc {disc:03X}, KAT sends next {:016X}", next.data);
+            super::super::star_line::write_oracle_vector(&dir, &format!("keeloq_dea_mio_{top}"), 433_920_000, "FuriHalSubGhzPresetOok650Async", &upload, &key);
         }
     }
 }

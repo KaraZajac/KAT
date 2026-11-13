@@ -185,6 +185,7 @@ mod cardin_s508;
 // RogueMaster ports (November 2026, from Unleashed): Freezer and Faac TM.
 mod freezer;
 mod faac_tm;
+mod proteco;
 // Home / sensor / key-finder remotes the Flipper firmwares register (Flipper-ARF's garage app,
 // doctor-firmware, Momentum, RogueMaster, FoxFW).
 mod honeywell;
@@ -832,8 +833,8 @@ impl ProtocolRegistry {
             // Princeton (PT2262/EV1527-style 24 bits, confirmed by a repeat): the loosest of the
             // stock fixed codes.
             Box::new(princeton::PrincetonDecoder::new()),
-            // RogueMaster's two newer fixed codes, after the stock ones as RogueMaster registers
-            // them (last, Freezer then Faac TM). Freezer: 24 bits in 250/500 µs cells between gaps
+            // RogueMaster's newer fixed codes, after the stock ones as RogueMaster registers them
+            // (last: Freezer, Faac TM, then Proteco below). Freezer: 24 bits in 250/500 µs cells between gaps
             // ≥ 7.5 ms, reported only when a frame repeats; symbols over 700 µs are refused, so
             // Princeton frames never complete it. Faac TM: 12 DIP bits in CAME's grammar at a
             // measured Te (nominally 400 µs) behind a 35-Te header; it must stay AFTER CAME, which
@@ -841,6 +842,13 @@ impl ProtocolRegistry {
             // another gap to Faac TM (RogueMaster's foreign-frame rule, see came.rs).
             Box::new(freezer::FreezerDecoder::new()),
             Box::new(faac_tm::FaacTmDecoder::new()),
+            // Proteco (RogueMaster's newest, registered last there too): 24 bits in CAME's grammar
+            // at a Te of about 440 µs, behind a guard of 20.5 Te measured against the frame's own
+            // clock (18.5..=22.5 Te). CAME drops these frames at their first long pulse (880 µs).
+            // The other 24-bit fixed codes fail its cell windows (short 440 ± 150, long 880 ± 150:
+            // Princeton's long is three shorts, CAME's, GateTX's and Freezer's longs are 640, 700
+            // and 500 µs) or its guard measure (CAME's header is 76 Te, GateTX's 49).
+            Box::new(proteco::ProtecoDecoder::new()),
             // Home / sensor / key-finder remotes (Flipper-ARF's garage app registers X10, Doorbell32,
             // KeyFinder, KeyFinder2 and Nord ICE; doctor-firmware, Momentum, RogueMaster and FoxFW the
             // stock Honeywell, Honeywell Sec, Magellan, Legrand, Intertechno V3, Feron and Treadmill37

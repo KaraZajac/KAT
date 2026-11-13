@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KAT — Keyfob Analysis Toolkit</title>
-<meta name="description" content="KAT captures, decodes and retransmits car key fob and garage door, gate, barrier and shutter remote signals from a terminal, with a HackRF One or an RTL-SDR, and decodes IQ recordings and Flipper Zero .sub files with no radio attached. 149 protocol decoders. BSD-3-Clause.">
+<meta name="description" content="KAT captures, decodes and retransmits car key fob and garage door, gate, barrier and shutter remote signals from a terminal, with a HackRF One or an RTL-SDR, and decodes IQ recordings and Flipper Zero .sub files with no radio attached. 150 protocol decoders. BSD-3-Clause.">
 <link rel="canonical" href="https://kat.karazajac.io/">
 <meta property="og:title" content="KAT — Keyfob Analysis Toolkit">
-<meta property="og:description" content="Capture, decode and retransmit car key fob and gate remote signals from a terminal, with a HackRF One or an RTL-SDR, or from recordings and Flipper .sub files. 149 protocol decoders.">
+<meta property="og:description" content="Capture, decode and retransmit car key fob and gate remote signals from a terminal, with a HackRF One or an RTL-SDR, or from recordings and Flipper .sub files. 150 protocol decoders.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://kat.karazajac.io/">
 <meta property="og:image" content="https://kat.karazajac.io/og.png">
@@ -53,7 +53,7 @@
   <div class="container hero-inner">
     <div class="hero-eyebrow">
       <span class="dot dot-pulse"></span>
-      v1.12.0 · Linux, macOS &amp; Windows · terminal
+      v1.13.0 · Linux, macOS &amp; Windows · terminal
     </div>
     <h1 class="hero-title">
       <span class="display-wordmark">KAT</span>
@@ -66,7 +66,7 @@
       <strong>RTL-SDR</strong> (receive only) and a <strong>Flipper Zero</strong> on USB
       (receive and transmit), several at once, each on its own frequency, and decodes IQ
       recordings and Flipper Zero <code>.sub</code> files with no radio attached.
-      <span class="hero-tag-pop">149 protocol decoders, each checked against the reference C code.</span>
+      <span class="hero-tag-pop">150 protocol decoders, each checked against the reference C code.</span>
     </p>
 
     <figure class="term-shot">
@@ -81,14 +81,14 @@
     </figure>
 
     <div class="stats-row" id="stats-row">
-      <div class="stat-chip"><span class="num" data-target="149">149</span><span>protocol decoders</span></div>
+      <div class="stat-chip"><span class="num" data-target="150">150</span><span>protocol decoders</span></div>
       <div class="stat-chip"><span class="num" data-target="80">80</span><span>car key fobs &amp; alarms</span></div>
-      <div class="stat-chip"><span class="num" data-target="69">69</span><span>garage, gate, home &amp; sensor remotes</span></div>
+      <div class="stat-chip"><span class="num" data-target="70">70</span><span>garage, gate, home &amp; sensor remotes</span></div>
       <div class="stat-chip stat-vfy"><span class="num" data-target="239">239</span><span>of 250 frames caught over the air</span></div>
     </div>
 
     <div class="cta-row">
-      <a class="btn btn-primary" href="https://github.com/KaraZajac/KAT/releases/latest">↓ Download v1.12.0</a>
+      <a class="btn btn-primary" href="https://github.com/KaraZajac/KAT/releases/latest">↓ Download v1.13.0</a>
       <a class="btn" href="#protocols">Find your protocol</a>
       <a class="btn btn-ghost" href="https://github.com/KaraZajac/KAT">
         <svg height="16" viewBox="0 0 16 16" width="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -244,7 +244,7 @@
         <p>
           <strong>Send next code</strong>, or <strong>Send button…</strong>
           with any of the remote's native buttons. <code>:new</code> makes a new
-          remote of any of 81 types, with a fresh serial and the manufacturer
+          remote of any of 87 types, with a fresh serial and the manufacturer
           key, to pair with a receiver.
         </p>
       </article>
@@ -391,9 +391,9 @@
   <div class="container">
     <div class="section-head">
       <span class="section-tag">protocols</span>
-      <h2>149 decoders. Every one has a page.</h2>
+      <h2>150 decoders. Every one has a page.</h2>
       <p class="lead">
-        80 car key fob and alarm protocols and 69 garage door, gate, barrier,
+        80 car key fob and alarm protocols and 70 garage door, gate, barrier,
         shutter, doorbell, sensor and key-finder protocols. They follow ProtoPirate where it has the
         protocol, then Flipper-ARF and doctor-firmware, then Momentum,
         RogueMaster and FoxFW; remotes no Flipper firmware reads are decoded with
@@ -573,6 +573,7 @@
           <a class="pill" href="hollarm.html" title="GSM alarm remotes, 433.92 MHz">Hollarm</a>
           <a class="pill" href="freezer.html" title="RogueMaster, 433.92 MHz">Freezer</a>
           <a class="pill" href="faac_tm.html" title="DIP-switch remotes, 433.92 / 868 MHz">Faac TM</a>
+          <a class="pill" href="proteco.html" title="RogueMaster, 433.92 MHz">Proteco</a>
           <a class="pill" href="magellan.html" title="Paradox security sensors">Magellan</a>
           <a class="pill" href="x10.html" title="home automation, 315 MHz">X10</a>
           <a class="pill" href="legrand.html">Legrand</a>
@@ -684,23 +685,23 @@ brew install hackrf             <span class="cmt"># macOS</span></pre>
           <h3>Download, check and unpack</h3>
           <p>Get the archive for your machine, and its <code>.sha256</code> file, from the <a href="https://github.com/KaraZajac/KAT/releases/latest">latest release</a>:</p>
           <ul>
-            <li><code>kat-v1.12.0-x86_64-linux.tar.gz</code>: 64-bit Intel or AMD Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and later).</li>
-            <li><code>kat-v1.12.0-aarch64-linux.tar.gz</code>: 64-bit ARM Linux, such as 64-bit Raspberry Pi OS bookworm.</li>
-            <li><code>kat-v1.12.0-aarch64-macos.tar.gz</code>: Apple Silicon Macs. It isn't notarized; <code>xattr -d com.apple.quarantine kat</code> clears the block.</li>
-            <li><code>kat-v1.12.0-x86_64-windows.zip</code>: 64-bit Windows 10 and 11. It isn't signed, so SmartScreen may stop its first start: “More info”, then “Run anyway”.</li>
+            <li><code>kat-v1.13.0-x86_64-linux.tar.gz</code>: 64-bit Intel or AMD Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and later).</li>
+            <li><code>kat-v1.13.0-aarch64-linux.tar.gz</code>: 64-bit ARM Linux, such as 64-bit Raspberry Pi OS bookworm.</li>
+            <li><code>kat-v1.13.0-aarch64-macos.tar.gz</code>: Apple Silicon Macs. It isn't notarized; <code>xattr -d com.apple.quarantine kat</code> clears the block.</li>
+            <li><code>kat-v1.13.0-x86_64-windows.zip</code>: 64-bit Windows 10 and 11. It isn't signed, so SmartScreen may stop its first start: “More info”, then “Run anyway”.</li>
             <li>Intel Macs and other platforms: build from source, below.</li>
           </ul>
           <div class="code-wrap">
-<pre class="code">sha256sum -c kat-v1.12.0-x86_64-linux.tar.gz.sha256    <span class="cmt"># macOS: shasum -a 256 -c …</span>
-tar xzf kat-v1.12.0-x86_64-linux.tar.gz
-./kat-v1.12.0-x86_64-linux/kat</pre>
+<pre class="code">sha256sum -c kat-v1.13.0-x86_64-linux.tar.gz.sha256    <span class="cmt"># macOS: shasum -a 256 -c …</span>
+tar xzf kat-v1.13.0-x86_64-linux.tar.gz
+./kat-v1.13.0-x86_64-linux/kat</pre>
           </div>
           <p>On Windows, in PowerShell (Windows Terminal):</p>
           <div class="code-wrap">
-<pre class="code">$want = (Get-Content kat-v1.12.0-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.12.0-x86_64-windows.zip).Hash -eq $want    <span class="cmt"># True</span>
-Expand-Archive kat-v1.12.0-x86_64-windows.zip .
-.\kat-v1.12.0-x86_64-windows\kat.exe</pre>
+<pre class="code">$want = (Get-Content kat-v1.13.0-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.13.0-x86_64-windows.zip).Hash -eq $want    <span class="cmt"># True</span>
+Expand-Archive kat-v1.13.0-x86_64-windows.zip .
+.\kat-v1.13.0-x86_64-windows\kat.exe</pre>
           </div>
         </div>
       </div>
@@ -831,7 +832,7 @@ cargo build --release</pre>
   <div class="container footer-bottom">
     <p>Use KAT only on systems and vehicles you own or have explicit, written permission to test. <a href="#legal">The full notice.</a></p>
     <p class="footer-meta">
-      v1.12.0 · <a href="https://github.com/KaraZajac/KAT">github.com/KaraZajac/KAT</a> · <a href="https://github.com/KaraZajac/KAT/blob/main/LICENSE">BSD-3-Clause</a>
+      v1.13.0 · <a href="https://github.com/KaraZajac/KAT">github.com/KaraZajac/KAT</a> · <a href="https://github.com/KaraZajac/KAT/blob/main/LICENSE">BSD-3-Clause</a>
     </p>
     <div class="onion-line">
       <span class="onion-label">Also on Tor</span>

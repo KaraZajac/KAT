@@ -3,9 +3,11 @@
 //! Aligned with the CURRENT ProtoPirate `REFERENCES/ProtoPirate/protocols/renault_v1.c` (added in
 //! 1287d10 "move newer Renault variants into Renault V1"; later upstream commits only refactor it),
 //! the primary reference for the decoder, the seed brute force and the seed-path encoder.
-//! doctor-firmware `lib/subghz/protocols/renault_v1.c` is the same decoder (narrower header windows
-//! 1400-2200 / 920-1150 µs, which ProtoPirate's windows contain) plus a key-less REPLAY, ported
-//! here as the fallback TX path (see Encoder). Flipper-ARF ships ProtoPirate's file unchanged in
+//! doctor-firmware's Renault V1 (`lib/subghz/protocols/hitag2.c` since 2026-11, 98d1fc10a, which
+//! merged its `renault_v1.c`, `fiat_v1.c` and `fiat_v2.c`) is the same reader, run behind its older
+//! narrow header windows (1400-2200 / 920-1150 µs) and behind ProtoPirate's, plus a key-less
+//! REPLAY, ported here as the fallback TX path (see Encoder), and a rule for which frames are
+//! Fiat V1's (see Decoder). Flipper-ARF ships ProtoPirate's file unchanged in
 //! its bundled ProtoPirate app; ARF's own firmware `renault_v1.c` is a different decoder for the
 //! same name (the old 82-bit type-table frames that ProtoPirate retired in 1287d10), ported
 //! separately as "Renault V1 (ARF)" (`renault_v1_arf.rs`).
@@ -24,6 +26,16 @@
 //! Flipper `manchester_advance` (transitions `[0x01, 0x91, 0x9B, 0xFB]`, events 0/2/4/6, entry
 //! state `Start1`, reset → `Mid1`; same machine as `common.rs`). The accumulated words are inverted
 //! (`~`), so on air bit 1 = HIGH then LOW.
+//!
+//! **Fiat V1's frames** (doctor-firmware `hitag2.c`, `adaptive_feed`). Fiat V1 type B sends the
+//! same 13 bytes behind a 1230 µs gap and an 850 µs lead, a header the windows above take. A frame
+//! is Fiat V1's, and this decoder leaves it to `fiat_v1.rs` (which runs the same reader,
+//! [`AdaptiveReader`]), when the header's HIGH is at most 949 µs, the header is not the narrow one
+//! (LOW of 1400 µs or more with a HIGH of 920 µs or more) and the frame passes Fiat V1's gates
+//! (button 1, 2, 4 or 8, a UID that is not all zeros or all ones). Every other frame is Renault
+//! V1's. The C's wide-header path also drops every frame whose UID has the hex digit 3 in the
+//! second-lowest place (`((key >> 32) & 0xF0) != 0x30`, no reason given); KAT keeps those, as
+//! ProtoPirate does.
 //!
 //! ## Frame (104 Manchester bits, MSB first)
 //!   bits 0..16   header, must invert to 0x0001
@@ -91,9 +103,9 @@
 //! - Emission is delayed by exactly one pulse: the C fires at the mid-bit of the 104th bit, KAT
 //!   returns the frame on the next pulse (the one carrying that bit's second half). Fiat V1 —
 //!   same frame format, earlier in the registry — completes its window on exactly that pulse, so
-//!   when both decode a frame Fiat V1 keeps first-match priority. Without this, Renault V1 (whose
-//!   1150-2200 / 800-1150 µs header window also accepts Fiat V1 type-B's 1230 µs gap + 850 µs
-//!   lead) would steal repeats 2..6 of Fiat V1 type-B bursts.
+//!   when both decode a frame Fiat V1 keeps first-match priority. That is for a frame Fiat V1's
+//!   cells read behind a header that is Renault's by the rule above (a lead longer than 949 µs,
+//!   or the narrow header); behind Fiat V1's own header this decoder reports nothing.
 //! - UID sanity gate and dedup cleared on reset (above). The short 26-bit frames the C encoder
 //!   appends are ignored by the C decoder too (they never reach 104 bits).
 //! - The seed brute force runs at decode time instead of on user request (same result).
@@ -152,6 +164,15 @@ const DATA_IGNORE_US: u32 = 49;
 const DATA_RESET_US: u32 = 520;
 const TE_HIGH_INIT_US: u16 = 120;
 const TE_LOW_INIT_US: u16 = 150;
+
+/// doctor-firmware's merged decoder (`hitag2.c`, `adaptive_feed`): behind a header whose HIGH is
+/// at most this long, a frame that passes Fiat V1's gates is Fiat V1's (type B sends a 1230 µs
+/// gap and an 850 µs lead; Renault's header is LOW 1500, HIGH 1000).
+const FIAT_HEADER_HIGH_MAX_US: u32 = 949;
+/// Its narrow header (doctor-firmware's Renault V1 windows before the merge), Renault's whatever
+/// the frame holds.
+const NARROW_HEADER_LOW_MIN_US: u32 = 1400;
+const NARROW_HEADER_HIGH_MIN_US: u32 = 920;
 
 const HEADER_BITS: u8 = 16;
 const KEY_END_BITS: u8 = 80;
@@ -216,40 +237,73 @@ enum DecoderStep {
     Data,
 }
 
-pub struct RenaultV1Decoder {
+/// A frame read by [`AdaptiveReader`]: the header's two pulses and the 104 bits behind them.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct AdaptiveFrame {
+    /// The header's LOW and HIGH in µs.
+    pub(super) header_low: u32,
+    pub(super) header_high: u32,
+    /// Bits 0..16, inverted as the C keeps them: 0x0001 in a frame.
+    pub(super) header: u16,
+    /// Bits 16..80 ("Key") and 80..104 ("Key_2").
+    pub(super) key: u64,
+    pub(super) key_2: u32,
+}
+
+impl AdaptiveFrame {
+    /// The 13 wire bytes, header ‖ Key ‖ Key_2: the frame as Fiat V1 keeps it.
+    pub(super) fn wire(&self) -> [u8; 13] {
+        let mut raw = [0u8; 13];
+        raw[..2].copy_from_slice(&self.header.to_be_bytes());
+        raw[2..10].copy_from_slice(&self.key.to_be_bytes());
+        raw[10..].copy_from_slice(&self.key_2.to_be_bytes()[1..]);
+        raw
+    }
+
+    /// doctor-firmware `adaptive_feed`: the header is Fiat V1's when its HIGH is at most 949 µs
+    /// and it is not the narrow Renault header (LOW of 1400 µs or more with a HIGH of 920 µs or
+    /// more, which the C's narrow path reports as Renault V1 first).
+    fn fiat_v1_header(&self) -> bool {
+        self.header_high <= FIAT_HEADER_HIGH_MAX_US
+            && !(self.header_low >= NARROW_HEADER_LOW_MIN_US
+                && self.header_high >= NARROW_HEADER_HIGH_MIN_US)
+    }
+
+    /// The frame is Fiat V1's to report (`fiat_v1.rs` does), not Renault V1's: Fiat V1's header
+    /// and a frame that passes Fiat V1's gates (`queue_frame(instance, HitagFiat1, 1, raw)`).
+    pub(super) fn is_fiat_v1(&self) -> bool {
+        self.fiat_v1_header() && super::fiat_v1::FiatV1Decoder::frame_valid(&self.wire())
+    }
+}
+
+/// The header detection and the adaptive-TE Manchester reader (the C's `parser_step` machine).
+/// Fiat V1 (`fiat_v1.rs`) runs one too, for the type-B frames its cells do not take.
+pub(super) struct AdaptiveReader {
     step: DecoderStep,
     manchester_state: ManchesterState,
-    te_last: u32,
+    header_low: u32,
+    header_high: u32,
     te_high: u16,
     te_low: u16,
     decode_data: u64,
     decode_count_bit: u8,
     header: u16,
     key: u64,
-    /// Last accepted (Key, Key_2) — `last_data` / `last_data_2`.
-    last_frame: Option<(u64, u32)>,
-    /// Accepted frame waiting for the next pulse (see "Deviations from C").
-    pending: Option<DecodedSignal>,
-    /// Last seed brute-force result (payload → recovered IV). Pure memo of a deterministic
-    /// function; kept across `reset()` so a burst's repeated long frames search once.
-    seed_cache: Option<([u8; 11], Option<[u8; 4]>)>,
 }
 
-impl RenaultV1Decoder {
-    pub fn new() -> Self {
+impl AdaptiveReader {
+    pub(super) fn new() -> Self {
         Self {
             step: DecoderStep::Reset,
             manchester_state: ManchesterState::Mid1,
-            te_last: 0,
+            header_low: 0,
+            header_high: 0,
             te_high: TE_HIGH_INIT_US,
             te_low: TE_LOW_INIT_US,
             decode_data: 0,
             decode_count_bit: 0,
             header: 0,
             key: 0,
-            last_frame: None,
-            pending: None,
-            seed_cache: None,
         }
     }
 
@@ -303,6 +357,119 @@ impl RenaultV1Decoder {
         }
     }
 
+    /// One pulse through the C state machine (`while(true) switch(parser_step)`). Returns the
+    /// frame the pulse completes: 104 bits, whatever they hold.
+    pub(super) fn feed(&mut self, level: bool, duration: u32) -> Option<AdaptiveFrame> {
+        loop {
+            match self.step {
+                DecoderStep::Reset => {
+                    if !level && Self::is_header_low(duration) {
+                        self.header_low = duration;
+                        self.step = DecoderStep::CheckSync;
+                    }
+                    return None;
+                }
+                DecoderStep::CheckSync => {
+                    if level {
+                        if !(HEADER_HIGH_MIN_US..=HEADER_HIGH_MAX_US).contains(&duration)
+                            || !Self::is_header_low(self.header_low)
+                        {
+                            self.step = DecoderStep::Reset;
+                            return None;
+                        }
+                        self.header_high = duration;
+                        self.decode_data = 0;
+                        self.decode_count_bit = 0;
+                        self.manchester_state = ManchesterState::Start1;
+                        self.te_high = TE_HIGH_INIT_US;
+                        self.te_low = TE_LOW_INIT_US;
+                        self.step = DecoderStep::Data;
+                        return None;
+                    }
+                    self.step = DecoderStep::Reset;
+                    if Self::is_header_low(duration) {
+                        self.header_low = duration;
+                        self.step = DecoderStep::CheckSync;
+                    }
+                    return None;
+                }
+                DecoderStep::Data => {
+                    if duration <= DATA_IGNORE_US {
+                        return None;
+                    }
+                    if duration > DATA_RESET_US {
+                        self.step = DecoderStep::Reset;
+                        continue;
+                    }
+                    let te = if level {
+                        &mut self.te_high
+                    } else {
+                        &mut self.te_low
+                    };
+                    let event = if duration > Self::data_threshold(*te) {
+                        if level {
+                            EVENT_LONG_HIGH
+                        } else {
+                            EVENT_LONG_LOW
+                        }
+                    } else {
+                        *te = Self::adapt_te(*te, duration);
+                        if level {
+                            EVENT_SHORT_HIGH
+                        } else {
+                            EVENT_SHORT_LOW
+                        }
+                    };
+                    let bit = self.manchester_advance(event)?;
+                    self.decode_data = (self.decode_data << 1) | bit as u64;
+                    self.decode_count_bit += 1;
+
+                    if self.decode_count_bit == HEADER_BITS {
+                        self.header = !(self.decode_data as u16);
+                        self.decode_data = 0;
+                    } else if self.decode_count_bit == KEY_END_BITS {
+                        self.key = !self.decode_data;
+                        self.decode_data = 0;
+                    } else if self.decode_count_bit == LONG_FRAME_BITS {
+                        let key_2 = (!self.decode_data & 0xFF_FFFF) as u32;
+                        self.decode_data = 0;
+                        self.decode_count_bit = 0;
+                        return Some(AdaptiveFrame {
+                            header_low: self.header_low,
+                            header_high: self.header_high,
+                            header: self.header,
+                            key: self.key,
+                            key_2,
+                        });
+                    }
+                    return None;
+                }
+            }
+        }
+    }
+}
+
+pub struct RenaultV1Decoder {
+    reader: AdaptiveReader,
+    /// Last accepted (Key, Key_2) — `last_data` / `last_data_2`.
+    last_frame: Option<(u64, u32)>,
+    /// Accepted frame waiting for the next pulse (see "Deviations from C").
+    pending: Option<DecodedSignal>,
+    /// Last seed brute-force result (payload → recovered IV). Pure memo of a deterministic
+    /// function; kept across `reset()` so a burst's repeated long frames search once.
+    seed_cache: Option<([u8; 11], Option<[u8; 4]>)>,
+}
+
+impl RenaultV1Decoder {
+    pub fn new() -> Self {
+        Self {
+            reader: AdaptiveReader::new(),
+            last_frame: None,
+            pending: None,
+            seed_cache: None,
+        }
+    }
+
     /// `hitag2_pack_key_bytes`: Key (8 bytes) ‖ Key_2 (3 bytes).
     fn payload(key: u64, key_2: u32) -> [u8; 11] {
         let mut raw = [0u8; 11];
@@ -350,25 +517,30 @@ impl RenaultV1Decoder {
         Self::payload_valid(&raw).then_some(raw)
     }
 
-    /// `hitag2_accept_frame` (+ KAT UID sanity gate). Returns the frame to emit.
-    fn accept_frame(&mut self, key_2: u32) -> Option<DecodedSignal> {
-        if self.header != 1 {
+    /// `hitag2_accept_frame` (+ KAT UID sanity gate, + doctor-firmware's hand-over of Fiat V1's
+    /// frames). Returns the frame to emit.
+    fn accept_frame(&mut self, frame: &AdaptiveFrame) -> Option<DecodedSignal> {
+        if frame.header != 1 {
             return None;
         }
-        let raw = Self::payload(self.key, key_2);
+        let (key, key_2) = (frame.key, frame.key_2);
+        let raw = Self::payload(key, key_2);
         if Self::payload_xor(&raw) != raw[10] {
             return None;
         }
-        if self.last_frame == Some((self.key, key_2)) {
+        if frame.is_fiat_v1() {
             return None;
         }
-        let uid = (self.key >> 32) as u32;
+        if self.last_frame == Some((key, key_2)) {
+            return None;
+        }
+        let uid = (key >> 32) as u32;
         if uid == 0 || uid == u32::MAX {
             return None;
         }
-        self.last_frame = Some((self.key, key_2));
+        self.last_frame = Some((key, key_2));
         let iv = self.recover_seed(&raw);
-        Some(Self::frame_signal(self.key, key_2, iv))
+        Some(Self::frame_signal(key, key_2, iv))
     }
 
     /// The reported signal for an accepted frame (Key, Key_2) and its seed search result:
@@ -526,93 +698,6 @@ impl RenaultV1Decoder {
         Self::payload_from_signal(decoded)
             .is_some_and(|raw| hitag2::renault_seed_recover(&raw).is_some() || Self::saved_key(&raw).is_some())
     }
-
-    /// One pass of the C state machine (`while(true) switch(parser_step)`).
-    fn step_machine(&mut self, level: bool, duration: u32) {
-        loop {
-            match self.step {
-                DecoderStep::Reset => {
-                    if !level && Self::is_header_low(duration) {
-                        self.te_last = duration;
-                        self.step = DecoderStep::CheckSync;
-                    }
-                    return;
-                }
-                DecoderStep::CheckSync => {
-                    if level {
-                        if !(HEADER_HIGH_MIN_US..=HEADER_HIGH_MAX_US).contains(&duration)
-                            || !Self::is_header_low(self.te_last)
-                        {
-                            self.step = DecoderStep::Reset;
-                            return;
-                        }
-                        self.decode_data = 0;
-                        self.decode_count_bit = 0;
-                        self.manchester_state = ManchesterState::Start1;
-                        self.te_high = TE_HIGH_INIT_US;
-                        self.te_low = TE_LOW_INIT_US;
-                        self.step = DecoderStep::Data;
-                        return;
-                    }
-                    self.step = DecoderStep::Reset;
-                    if Self::is_header_low(duration) {
-                        self.te_last = duration;
-                        self.step = DecoderStep::CheckSync;
-                    }
-                    return;
-                }
-                DecoderStep::Data => {
-                    if duration <= DATA_IGNORE_US {
-                        return;
-                    }
-                    if duration > DATA_RESET_US {
-                        self.step = DecoderStep::Reset;
-                        continue;
-                    }
-                    let te = if level {
-                        &mut self.te_high
-                    } else {
-                        &mut self.te_low
-                    };
-                    let event = if duration > Self::data_threshold(*te) {
-                        if level {
-                            EVENT_LONG_HIGH
-                        } else {
-                            EVENT_LONG_LOW
-                        }
-                    } else {
-                        *te = Self::adapt_te(*te, duration);
-                        if level {
-                            EVENT_SHORT_HIGH
-                        } else {
-                            EVENT_SHORT_LOW
-                        }
-                    };
-                    let Some(bit) = self.manchester_advance(event) else {
-                        return;
-                    };
-                    self.decode_data = (self.decode_data << 1) | bit as u64;
-                    self.decode_count_bit += 1;
-
-                    if self.decode_count_bit == HEADER_BITS {
-                        self.header = !(self.decode_data as u16);
-                        self.decode_data = 0;
-                    } else if self.decode_count_bit == KEY_END_BITS {
-                        self.key = !self.decode_data;
-                        self.decode_data = 0;
-                    } else if self.decode_count_bit == LONG_FRAME_BITS {
-                        let key_2 = (!self.decode_data & 0xFF_FFFF) as u32;
-                        if let Some(frame) = self.accept_frame(key_2) {
-                            self.pending = Some(frame);
-                        }
-                        self.decode_data = 0;
-                        self.decode_count_bit = 0;
-                    }
-                    return;
-                }
-            }
-        }
-    }
 }
 
 impl ProtocolDecoder for RenaultV1Decoder {
@@ -649,7 +734,11 @@ impl ProtocolDecoder for RenaultV1Decoder {
         // A frame completed on the previous pulse is reported now (one-pulse delay, see module
         // doc); this pulse still runs through the state machine.
         let ready = self.pending.take();
-        self.step_machine(level, duration);
+        if let Some(frame) = self.reader.feed(level, duration) {
+            if let Some(signal) = self.accept_frame(&frame) {
+                self.pending = Some(signal);
+            }
+        }
         ready
     }
 
@@ -1010,9 +1099,69 @@ mod tests {
                 names.iter().all(|n| n == "Fiat V1"),
                 "hop {hop:08X}: {names:?}"
             );
-            // Standalone, Renault V1 does recognise the repeats — only ordering keeps them Fiat's.
+            // Standalone, Renault V1 leaves them alone: behind Fiat V1's header (a HIGH of 949 µs
+            // or less) a frame that passes Fiat V1's gates is Fiat V1's.
             let mut dec = RenaultV1Decoder::new();
-            assert!(!decode_all(&mut dec, &signal).is_empty(), "hop {hop:08X}");
+            assert!(decode_all(&mut dec, &signal).is_empty(), "hop {hop:08X}");
+        }
+    }
+
+    /// doctor-firmware's merged decoder (`hitag2.c`, `adaptive_feed`): the header decides whose
+    /// frame it is. The frames below have 125 µs half-bits, which keeps Fiat V1's cells out (a
+    /// 250 µs long is outside 200 ± 50), so every name is the adaptive reader's.
+    #[test]
+    fn header_decides_between_fiat_v1_and_renault_v1() {
+        let burst = |raw: &[u8; 11], low: u32, high: u32| {
+            // The last bit is 0 = (LOW, HIGH), so the next copy's header LOW is `low` exactly.
+            assert_eq!(raw[10] & 1, 0);
+            let key = u64::from_be_bytes(raw[..8].try_into().unwrap());
+            let key_2 = ((raw[8] as u64) << 16) | ((raw[9] as u64) << 8) | raw[10] as u64;
+            let mut s = Vec::new();
+            for _ in 0..3 {
+                add(&mut s, false, low);
+                add(&mut s, true, high);
+                add_bits(&mut s, 1, 16, TE_US);
+                add_bits(&mut s, key, 64, TE_US);
+                add_bits(&mut s, key_2, 24, TE_US);
+            }
+            add(&mut s, false, 20_000);
+            s
+        };
+        let decodes = |signal: &[LevelDuration]| {
+            let mut reg = ProtocolRegistry::new();
+            reg.process_signal_stream(signal, 433_920_000)
+        };
+        // Button 4 (Fiat V1's Lock, Renault's Trunk): a frame both decoders would take.
+        let both = pack(0x12345678, 0x4, 0x101, 0x9DAB8C6A, 3);
+        for (low, high, name) in [
+            (1230, 850, "Fiat V1"), // Fiat V1 type B: a gap of 1230 µs, a lead of 850 µs
+            (1150, 800, "Fiat V1"),
+            (1399, 949, "Fiat V1"),
+            (2200, 919, "Fiat V1"),
+            (1230, 950, "Renault V1"),
+            (1150, 1150, "Renault V1"),
+            (1400, 920, "Renault V1"), // the narrow header: Renault's whatever the HIGH
+            (1400, 949, "Renault V1"),
+            (1500, 1000, "Renault V1"), // Renault's own header
+        ] {
+            let got = decodes(&burst(&both, low, high));
+            let names: Vec<&str> = got.iter().map(|r| r.0.as_str()).collect();
+            assert_eq!(names, vec![name; 3], "header {low}/{high}");
+            for (_, d, _) in &got {
+                assert_eq!((d.serial, d.button, d.counter), (Some(0x12345678), Some(0x4), Some(0x101)));
+                assert_eq!(d.data, 0x0001_1234_5678_4406, "header {low}/{high}");
+                // Fiat V1 keeps the TE variant above the 40 tail bits: type B.
+                let variant = if name == "Fiat V1" { 1 } else { 0 };
+                assert_eq!(d.extra.map(|e| e >> 40), Some(variant), "header {low}/{high}");
+            }
+        }
+        // Behind Fiat V1's header, a frame Fiat V1's gates refuse stays Renault V1's: buttons 0
+        // (Renault's Sync) and 3 are none of Fiat V1's 1, 2, 4 and 8.
+        for button in [0x0u8, 0x3] {
+            let renault = pack(0x12345678, button, 0x101, 0x9DAB8C6A, 3);
+            let got = decodes(&burst(&renault, 1230, 850));
+            let names: Vec<&str> = got.iter().map(|r| r.0.as_str()).collect();
+            assert_eq!(names, vec!["Renault V1"; 3], "button {button}");
         }
     }
 

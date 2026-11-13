@@ -121,10 +121,10 @@ emulate scene falls back to AM650, then FM476). The first preset is the primary 
 | Mazda V2 | AM/FM | AM650 + FM476 | ±47.61 kHz | ARF `mazda_v2.c` flags AM + FM; doctor "AM/FM" | no named FM preset → FM476 |
 | Mercedes V0 | FM | FM20K | ±12.70 kHz | ARF / doctor `mercedes_v0.c` flag FM (433 MHz); doctor's built-in "mercedes" preset (`subghz_device_cc1101_preset_mercedes_async_regs`, registered as FM20K) | |
 | Mercedes V1 | FM | FM20K | ±12.70 kHz | ARF / doctor `mercedes_v1.c` flag FM (433 MHz); doctor's "mercedes" preset | FM20K's 20 kBaud matches V1's 50 µs chips |
-| Fiat V1 | AM/FM | AM650 + FM476 | ±47.61 kHz | PP flags AM; ARF and doctor `fiat_v1.c` flag AM + FM | no named FM preset → FM476; every capture so far is AM |
+| Fiat V1 | AM/FM | AM650 + FM476 | ±47.61 kHz | PP flags AM; ARF `fiat_v1.c` and doctor `hitag2.c` flag AM + FM | no named FM preset → FM476; every capture so far is AM |
 | MARELLI | FM | FM476 | ±47.61 kHz | Flipper-ARF `fiat_marelli.c` flags 433 + FM (FoxFW the same, without Decodable) | key files only (no decoder): replays the saved frame; no named FM preset → FM476, a file's own preset first |
 | Subaru | AM/FM | AM650 + FM476 | ±47.61 kHz | PP flags AM; Flipper-ARF and FoxFW `subaru.c` flag AM + FM | no named FM preset → FM476; every capture so far is AM (an FM-preset `.sub` now reaches the decoder) |
-| Renault V1 | AM/FM | AM650 + FM476 | ±47.61 kHz | PP flags AM + FM, catalog by modulation, README AM650; doctor `renault_v1.c` (HITAG2) flags AM + FM | no named FM preset → FM476 |
+| Renault V1 | AM/FM | AM650 + FM476 | ±47.61 kHz | PP flags AM + FM, catalog by modulation, README AM650; doctor `hitag2.c` flags AM + FM | no named FM preset → FM476 |
 | Renault V1 (ARF) | AM/FM | AM650 + FM476 | ±47.61 kHz | ARF `renault_v1.c` flags AM + FM | no named FM preset → FM476 |
 | Renault V3 | AM/FM | AM650 + FM476 | ±47.61 kHz | FoxFW `renault_v3.c` flags AM + FM (2-FSK NRZ, 52 µs bits) | FoxFW decoder, receive only and not registered (it takes BMW frames); no named FM preset → FM476 |
 | Datsun Lada | FM | FM476 | ±47.61 kHz | doctor `datsun_lada.c` flag FM (433 MHz) | no named preset → FM476 (doctor's default FM receive preset) |
@@ -171,6 +171,7 @@ the reference reads it (`src/protocols/tx_copies.rs`):
 | 5 | Allstar Firefly, KeyFinder, KeyFinder2, Tesla Charge, GM |
 | 6 | Fiat V1, Fiat V2, Kia V5 |
 | 7 | Scher-Khan |
+| 10 | Proteco |
 | 16 | Kia V3/V4 (ProtoPirate's 16 bursts, each with another CRC nibble) |
 | 40 | Star Line |
 

@@ -18,6 +18,16 @@
 //! e.g. serial DF56FD7D, where the C and a direct half-bit decode both give 43A88F90.) Bits are
 //! packed MSB-first; at 104 bits the frame is committed as EU. No other check exists in the C.
 //!
+//! **KAT deviation (EU frames of a Revers RB2 remote).** A Revers RB2 gate remote sends one 64-bit
+//! message over and over without a gap, Manchester coded at 250/500 µs: 32 ones, a 22-bit id, the
+//! stop code 0x200. Its ones are this path's preamble and the 104 bits behind them its frame, so
+//! with pulses within 60 µs of 240 and 480 µs the C names the remote Ford V3 (both recordings of
+//! `rtl_433_tests/tests/revers/rb2/01`; Flipper's own capture of a real remote escapes only
+//! because its pulses are wider apart). KAT drops an EU frame that is such a stream: its bits
+//! repeat after 64 and those 64, begun at the right bit, are 32 ones, 22 bits and the stop code
+//! (`revers_rb2::is_stream`). A Ford frame would need 40 bits that repeat its first 40 and 42
+//! more of a fixed value.
+//!
 //! **US path** (`ford_v3_cell_feed/cell_process/cell_decode`, te_delta=120µs): every short pulse
 //! appends one half-bit cell of its level, every long pulse two (capacity 320 cells, extra cells
 //! dropped). Any other pulse ends the burst: with ≥200 cells the burst is decoded from its first
@@ -355,9 +365,12 @@ impl FordV3Decoder {
         None
     }
 
-    /// ford_v3_manchester_emit_if_ready
+    /// ford_v3_manchester_emit_if_ready, and KAT's one check of an EU frame (see the module doc).
     fn manchester_emit_if_ready(&mut self) -> Option<DecodedSignal> {
         if self.manchester_bit_count < DATA_BITS {
+            return None;
+        }
+        if super::revers_rb2::is_stream(&self.manchester_raw, DATA_BITS) {
             return None;
         }
         self.commit_frame(self.manchester_raw, Variant::Eu)
@@ -624,6 +637,22 @@ mod tests {
         let d = &decode(&eu_pulses(&unlock))[0];
         assert_eq!(d.button, Some(BTN_UNLOCK));
         assert_eq!(d.counter, Some(0xEDFF));
+    }
+
+    /// The 104 bits behind the ones of a Revers RB2 remote's stream are no Ford V3 frame (the two
+    /// frames are what the C reads from rtl_433_tests' recordings `tests/revers/rb2/01`).
+    #[test]
+    fn eu_leaves_a_revers_rb2_stream_alone() {
+        for raw in [
+            [0x04, 0x8D, 0x16, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x04, 0x8D, 0x16, 0x00, 0xFF],
+            [0x57, 0x9B, 0xD0, 0x07, 0xFF, 0xFF, 0xFF, 0xFF, 0x57, 0x9B, 0xD0, 0x07, 0xFF],
+        ] {
+            assert!(decode(&eu_pulses(&raw)).is_empty(), "{raw:02X?}");
+            // One bit changed: it does not repeat, and the C's rule holds.
+            let mut other = raw;
+            other[12] ^= 0x10;
+            assert_eq!(decode(&eu_pulses(&other)).len(), 1, "{other:02X?}");
+        }
     }
 
     #[test]

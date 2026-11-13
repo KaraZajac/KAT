@@ -19,6 +19,14 @@
 //! decoder is back in Reset, and the marker's HIGH and the gap that follows open the next frame,
 //! so every repeat decodes (each copy after the first: the first has no gap before it). No check.
 //!
+//! **KAT's addition (not in the C):** the marker's LOW of 500 µs lies at the edge of a 1 cell's
+//! LOW (350 ± 150). After a last bit of 1 a marker measured a few µs short is read as that cell's
+//! LOW, and in the C the frame is lost with the one after it (the gap goes to the cell check); a
+//! real remote sends 516 to 556 µs (`feron_raw.sub`), a marker of exactly 500 µs lands at 492 to
+//! 496 (rtl_433_tests `feron/01`, the frames that end in a 1). The same holds for a last bit of 0
+//! and a marker over 600 µs. So 32 whole cells, then a HIGH of 500 ± 150 and a LOW of the gap's
+//! length or more, are a frame too. A longer frame of such cells (KeeLoq's 66) has no such end.
+//!
 //! **Fields** (`subghz_protocol_feron_check_remote_controller`): serial = data >> 16; the C shows
 //! the low 16 bits as the command (a command byte and its complement in the C's samples) but stores
 //! no button: KAT reports serial only. `data` = the 32 bits.
@@ -192,6 +200,21 @@ impl ProtocolDecoder for FeronDecoder {
                     self.decode_count_bit = 0;
                     self.step = Step::Reset;
                     return out;
+                } else if usize::from(self.decode_count_bit) == MIN_COUNT_BIT
+                    && duration_diff!(self.te_last, MARK) < TE_DELTA
+                    && duration > GAP - TE_DELTA * 4
+                {
+                    // KAT's addition: the marker's LOW went into the 32nd cell, this is the gap
+                    // after the marker's HIGH. A gap of the usual length opens the next frame.
+                    let out = decoded(self.decode_data);
+                    self.decode_data = 0;
+                    self.decode_count_bit = 0;
+                    self.step = if duration_diff!(duration, GAP) < TE_DELTA * 4 {
+                        Step::SaveDuration
+                    } else {
+                        Step::Reset
+                    };
+                    return Some(out);
                 } else {
                     self.step = Step::Reset;
                 }
@@ -288,24 +311,61 @@ mod tests {
             assert_eq!(feed_all(&mut FeronDecoder::new(), &w).len(), if ok { 3 } else { 2 }, "gap {g}");
         }
         // The end marker's LOW (351..=649 µs) is tried after the two bit cells: after a last HIGH of
-        // 750 a LOW under 500 is a 1 cell (the frame then misses its end, and the gap after the
-        // marker's HIGH goes to the cell check: the next copy loses its sync too), after a HIGH of 350
-        // a LOW over 600 is a 0 cell. A LOW in neither window resets, and the gap still opens the
-        // next copy.
+        // 750 a LOW under 500 is a 1 cell, after a HIGH of 350 a LOW over 600 is a 0 cell. The C
+        // loses such a frame and the copy after it (1 of 3 decodes); KAT takes the 32 cells, the
+        // marker's HIGH and the gap as the frame. A LOW in neither window resets, and the gap still
+        // opens the next copy.
         for (data, m, decodes) in [
             (0x6338_847Bu64, 500u32, 3usize),
             (0x6338_847B, 649, 3),
             (0x6338_847B, 650, 2),
-            (0x6338_847B, 499, 1),
+            (0x6338_847B, 499, 3),
+            (0x6338_847B, 201, 3),
+            (0x6338_847B, 200, 2),
             (0x6338_847A, 351, 3),
             (0x6338_847A, 600, 3),
             (0x6338_847A, 350, 2),
-            (0x6338_847A, 601, 1),
+            (0x6338_847A, 601, 3),
+            (0x6338_847A, 899, 3),
+            (0x6338_847A, 900, 2),
         ] {
             let mut w = on_air(data);
             w[64].duration_us = m;
-            assert_eq!(feed_all(&mut FeronDecoder::new(), &w).len(), decodes, "{data:08X}, marker {m}");
+            let got = feed_all(&mut FeronDecoder::new(), &w);
+            assert_eq!(got.len(), decodes, "{data:08X}, marker {m}");
+            assert!(got.iter().all(|d| d.data == data), "{data:08X}, marker {m}");
         }
+    }
+
+    /// The marker's LOW read as the 32nd cell's: the frame needs the marker's HIGH (351..=649 µs)
+    /// and a LOW of the gap's length or more after it. A longer LOW (the end of a transmission)
+    /// ends the frame as well but opens no further one; 33 cells are no frame.
+    #[test]
+    fn marker_read_as_a_cell() {
+        let data = 0x1A2B_847Bu64;
+        let short_marker = || {
+            let mut w = on_air(data);
+            for copy in 0..3 {
+                w[64 + 66 * copy].duration_us = 494;
+            }
+            w
+        };
+        assert_eq!(feed_all(&mut FeronDecoder::new(), &short_marker()).len(), 3);
+        for (high, decodes) in [(351u32, 3usize), (649, 3), (350, 1), (650, 1)] {
+            let mut w = short_marker();
+            w[65].duration_us = high;
+            assert_eq!(feed_all(&mut FeronDecoder::new(), &w).len(), decodes, "marker HIGH {high}");
+        }
+        for (gap, decodes) in [(3901u32, 3usize), (3900, 1), (5099, 3), (5100, 2), (60_000, 2)] {
+            let mut w = short_marker();
+            w[66].duration_us = gap;
+            assert_eq!(feed_all(&mut FeronDecoder::new(), &w).len(), decodes, "gap {gap}");
+        }
+        // A 33rd cell in place of the marker's HIGH and the gap: the first two copies run together
+        // (65 cells), and the gap after them goes to the cell check.
+        let mut w = short_marker();
+        w.splice(65..67, [LevelDuration::new(true, 750), LevelDuration::new(false, 350)]);
+        assert_eq!(feed_all(&mut FeronDecoder::new(), &w).len(), 0);
     }
 
     #[test]
@@ -318,8 +378,9 @@ mod tests {
         assert!(dec.from_flipper_key(&FlipperKey::parse(&UNIT_TEST_KEY.replace("Bit: 32", "Bit: 24")).unwrap()).is_none());
     }
 
-    /// Flipper's `subghz_decoder_feron_test` capture through the whole registry: 102 Feron frames (as
-    /// doctor / ARF / Momentum / RogueMaster / FoxFW), all the unit-test key, nothing else.
+    /// Flipper's `subghz_decoder_feron_test` capture through the whole registry: 103 Feron frames,
+    /// all the unit-test key, nothing else. doctor / ARF / Momentum / RogueMaster / FoxFW read 102:
+    /// one copy's marker LOW measures 498 µs after a last HIGH of 769 (see the module's notes).
     #[test]
     fn unit_test_capture_decodes() {
         let Some(path) = reference_file(ARF_UNIT_TESTS, "feron_raw.sub") else {
@@ -327,7 +388,7 @@ mod tests {
         };
         let got = registry_decodes(&path);
         let ours: Vec<&DecodedSignal> = got.iter().filter(|(n, _)| n == NAME).map(|(_, d)| d).collect();
-        assert_eq!(ours.len(), 102);
+        assert_eq!(ours.len(), 103);
         assert!(ours.iter().all(|d| d.data == 0x6338_847B && d.serial == Some(0x6338)));
         assert_eq!(got.len(), ours.len(), "another protocol took a frame");
     }
@@ -346,13 +407,13 @@ mod tests {
         assert!(back.iter().all(|(n, x, _)| n == NAME && x.data == 0x6338_847B), "{back:?}");
     }
 
-    /// Jitter ±100 µs. The last bit is 0 here: after a last HIGH of 750 the C reads a marker LOW
-    /// under 500 as a 1 cell (see `rejects_wrong_length_and_timing`).
+    /// Jitter ±100 µs, with either last bit (a marker LOW under 500 after a last HIGH of 750 is
+    /// read as a 1 cell: see `marker_read_as_a_cell`).
     #[test]
     fn jittered_frames_decode() {
         let mut rng = Rng(0xFE40_0001);
         for _ in 0..50 {
-            let data = rng.below(1 << 32) & !1;
+            let data = rng.below(1 << 32);
             let wire = jitter(&on_air(data), &mut rng, 100);
             let got = feed_all(&mut FeronDecoder::new(), &wire);
             assert!(!got.is_empty(), "{data:08X}");

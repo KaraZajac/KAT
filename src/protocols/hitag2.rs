@@ -10,7 +10,7 @@
 //!   `hitag2_encrypt_from_iv`, `hitag2_encrypt_frame`, `hitag2_apply_check_remote`, and the seed
 //!   brute force `hitag2_bf_rearrange_dest` / `hitag2_bf_prepare` / `hitag2_bf_hop_matches` /
 //!   `hitag2_brute_force_run` / `hitag2_seed_from_iv`. Flipper-ARF's `hitag2_seed.c` is a verbatim
-//!   C-to-C copy of this seed model; doctor-firmware's renault_v1.c carries the same code.
+//!   C-to-C copy of this seed model; doctor-firmware's Renault V1 (hitag2.c) carries the same code.
 //!
 //! ## Register and core
 //!

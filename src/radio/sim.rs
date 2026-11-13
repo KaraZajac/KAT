@@ -1348,6 +1348,20 @@ fn rtl433_recordings_decode() {
         ("compustar/1wg3r/01/secondary_mode_433.92M_250k.cu8", "Compustar-1WG3R", "4F5A77D82"),
         ("compustar/1wg3r/01/trunk_433.92M_250k.cu8", "Compustar-1WG3R", "4F5A7FD02"),
         ("compustar/1wg3r/01/unlock_433.92M_250k.cu8", "Compustar-1WG3R", "4F5A7F807"),
+        // The end marker's LOW measures 492–496 µs here: after a last bit 1 the references' C
+        // reads it as that bit's LOW and loses the frame (`off`, `brighter`).
+        ("feron/01/feron_1a2b_off_433.92M_250k.cu8", "Feron", "1A2B847B"),
+        ("feron/01/feron_1a2b_on_433.92M_250k.cu8", "Feron", "1A2B857A"),
+        ("feron/01/feron_c0de_brighter_433.92M_250k.cu8", "Feron", "C0DE8679"),
+        // A stream without the C's header (the stream reader); not Ford V3, below.
+        ("revers/rb2/01/revers_rb2_012345_433.92M_250k.cu8", "Revers_RB2", "FFFFFFFF048D1600"),
+        ("revers/rb2/01/revers_rb2_3abcde_433.92M_250k.cu8", "Revers_RB2", "FFFFFFFFEAF37A00"),
+        ("secplus/v1/g008_315.05M_250k.cu8", "Security+ 1.0", "6E1634218A51C798"),
+    ];
+    // (file, protocol): a name the recording must not get.
+    let never: &[(&str, &str)] = &[
+        ("revers/rb2/01/revers_rb2_012345_433.92M_250k.cu8", "Ford V3"),
+        ("revers/rb2/01/revers_rb2_3abcde_433.92M_250k.cu8", "Ford V3"),
     ];
     // (file, protocol, decodes): as many as rtl_433's .json has.
     let counts: &[(&str, &str, usize)] = &[
@@ -1357,8 +1371,8 @@ fn rtl433_recordings_decode() {
     ];
     let mut reg = ProtocolRegistry::new();
     let mut missing = Vec::new();
-    // The corpus may be a subset (KAT's REFERENCES copy has 20 of the folders): absent files are
-    // skipped.
+    // The corpus may be a subset (KAT's REFERENCES copy has some of the folders): absent files
+    // are skipped.
     let have = |f: &str| root.join(f).is_file();
     for &(file, proto, n) in counts.iter().filter(|c| have(c.0)) {
         let r = crate::headless::decode_file(&mut reg, &root.join(file), None, rate_of(file), false).expect(file);
@@ -1371,6 +1385,12 @@ fn rtl433_recordings_decode() {
         let r = crate::headless::decode_file(&mut reg, &root.join(file), None, rate_of(file), false).expect(file);
         if !r.decodes.iter().any(|d| d.protocol == proto && d.fields.starts_with(&format!("data={data}/"))) {
             missing.push(format!("{file}: {proto} {data} (got {:?})", r.decodes.iter().map(|d| &d.protocol).collect::<Vec<_>>()));
+        }
+    }
+    for &(file, proto) in never.iter().filter(|e| have(e.0)) {
+        let r = crate::headless::decode_file(&mut reg, &root.join(file), None, rate_of(file), false).expect(file);
+        if r.decodes.iter().any(|d| d.protocol == proto) {
+            missing.push(format!("{file}: decoded as {proto}"));
         }
     }
     // The burst at the carrier's offset, every pulse as rtl_433 measures it (`-A`): the Chrysler

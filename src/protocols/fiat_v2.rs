@@ -1,8 +1,9 @@
 //! Fiat V2 protocol decoder/encoder (FCA: Fiat / Chrysler / Jeep)
 //!
 //! Decoder aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/fiat_v2.c` and
-//! `fiat_v2.h` (primary; decode-only there). The encoder is doctor-firmware's
-//! `lib/subghz/protocols/fiat_v2.c` replay encoder (see Encoder). Flipper-ARF's
+//! `fiat_v2.h` (primary; decode-only there). The encoder is doctor-firmware's replay encoder (see
+//! Encoder): `lib/subghz/protocols/hitag2.c`, which holds its Fiat V2 code since 2026-11
+//! (`fiat_v2.c` before). Flipper-ARF's
 //! `lib/subghz/protocols/fiat_v2.c` has the same decoder as ProtoPirate; its encoder was not used
 //! (HITAG2 hop recompute with Fiat V1 known keys that KAT does not carry, and its wire polarity is
 //! the opposite of what real fobs send). AM (OOK), 315 / 433.92 MHz (C flags 315|433).
@@ -120,7 +121,7 @@ const FCA_TYPE_NIBBLE: u8 = 0xD0;
 /// (doctor-firmware's encoder appends a one-cell stop pulse after a frame ending low).
 const MAX_TRAILING_CELLS: usize = 1;
 
-// Encoder (doctor-firmware fiat_v2.c).
+// Encoder (doctor-firmware hitag2.c, `fiat_v2.c` before 2026-11).
 const ENC_GAP_US: u32 = 2000;
 const ENC_REPEAT: usize = 6;
 

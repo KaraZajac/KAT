@@ -7,6 +7,7 @@ layout: default
 **Rust module:** `src/protocols/psa.rs`
 **References:** `REFERENCES/ProtoPirate/protocols/psa.c` + `psa_crypto.c` + `psa_crypto_bf.c` (primary),
 `REFERENCES/Flipper-ARF/lib/subghz/protocols/psa.c` ("PSA GROUP"), `REFERENCES/doctor-firmware/lib/subghz/protocols/psa.c`
+(two versions, both ported: the first one, e7e788a, and the decoder as rewritten in 98d1fc1, November 2026)
 
 ## Overview
 
@@ -45,8 +46,9 @@ and a TEA fob (serial 0x014590 recovered by the BF1 brute force, counters 0x9158
 | Short            | 250 µs           | 151..349 µs (State2 also takes 350 µs)           |
 | Long             | 500 µs           | 351..599 µs                                      |
 | Preamble         | > 0x46 short LOWs | then a 401..599 µs LOW (the sync)               |
-| End marker       | 1000 µs HIGH     | 801..1199 µs, and (KAT) 1051..1449 µs: a Flipper's 1000 µs end after a final 0 bit; only at exactly 80 bits. doctor-firmware needs none (frame complete at the 80th bit) |
-| 125 µs path (doctor) | 125 / 250 µs | ≥ 0x45 short pulses, then a 250 µs one; complete at the 80th bit (or on a 500 ± 99 µs end) |
+| End marker       | 1000 µs HIGH     | 801..1199 µs, and (KAT) 1051..1449 µs: a Flipper's 1000 µs end after a final 0 bit; only at exactly 80 bits. doctor-firmware's first file needs none (frame complete at the 80th bit); its current one takes any HIGH of 3.2 half-bits or more |
+| 125 µs path (doctor's first file) | 125 / 250 µs | ≥ 0x45 short pulses, then a 250 µs one; complete at the 80th bit (or on a 500 ± 99 µs end) |
+| Adaptive path (doctor's current file) | the half-bit the preamble has | first HIGH 250 ± 99 µs or 125 ± 49 µs; more than 15 preamble LOWs in that window, the first 32 averaged into te; data at te ± 40 % and 2·te ± 40 % of te; end HIGH ≥ 3.2·te |
 | AM path (ARF)    | 60..200 µs half-bit | adaptive te, ≥ 8 preamble cells               |
 | Encoder          | 250 / 500 µs, end HIGH 900 µs | 80 preamble pairs, 10 repeats (references: end HIGH 1000 µs) |
 
@@ -75,7 +77,7 @@ decrypted. Buttons (Flipper-ARF): 0 = Lock, 1 = Unlock, 2 = Trunk.
 
 ## Decoder
 
-KAT runs three state machines side by side on every pulse, each exactly as in its C file:
+KAT runs four state machines side by side on every pulse, each exactly as in its C file:
 
 1. **ProtoPirate machine** — State0 picks the path from the first HIGH (151..349 µs → State1,
    85..150 µs → State3). State1 counts 250 µs LOWs; a 500 µs LOW after more than 0x46 of them
@@ -84,7 +86,7 @@ KAT runs three state machines side by side on every pulse, each exactly as in it
    the Manchester decoder, which then only emits 0 bits, so that path never reports a frame; it is
    ported because it holds the machine like the C does. **Every frame this machine reports is
    reported by KAT.**
-2. **doctor-firmware machine** (since 1.8.5) — the same States 0..2 with a `>=` 0x46 preamble
+2. **doctor-firmware's first machine** (e7e788a; since 1.8.5) — the same States 0..2 with a `>=` 0x46 preamble
    threshold, and the frame complete as its 80th bit arrives (`psa_try_complete_at_key2`), whatever
    follows: no end pulse, or one of any length. Its States 3/4 are a working 125/250 µs path (State0
    takes a 76..150 µs first HIGH; at least 0x45 short pulses, then a 250 µs one; Manchester on both
@@ -99,10 +101,22 @@ KAT runs three state machines side by side on every pulse, each exactly as in it
    terminator an 80- or 88-bit window realigned to the offset with the 0xA nibble, ≥ 4 distinct key1
    bytes and the most leading 1s. **Only these AM-path frames are taken from this machine**, and
    only when they decrypt.
+4. **doctor-firmware's current machine** (98d1fc1, a rewritten decoder) — one machine for both
+   clocks. The first HIGH picks the nominal half-bit (250 ± 99 µs or 125 ± 49 µs); the preamble's LOWs
+   within that window are counted and the first 32 averaged into te; a LOW of two half-bits ends the
+   preamble, and after more than 15 preamble LOWs (ProtoPirate: 71) the data follows, Manchester on
+   both levels at te ± 40 %. Two pulses outside both windows are let through, the third starts over.
+   A HIGH of 3.2 te or more, with no upper limit, ends the frame, which counts when it has exactly 80
+   bits and the 0xA sync. It completes on the end HIGH as ProtoPirate's machine does: a frame both
+   read is ProtoPirate's; one only this machine reads (a preamble of 16 to 70 LOWs, a clock away
+   from 250 µs, a long end HIGH) **must decrypt**. Against ProtoPirate's machine its windows are
+   tighter where the fob's clock is fast (at 220 µs a 310 µs pulse is neither a half-bit nor a full
+   bit), and it wants the end HIGH the first doctor-firmware machine does without, so it replaces
+   neither.
 
 "Must decrypt": an XOR frame is reported when the fast path decrypts it; a TEA frame, with `autobf`,
 as `PSA [unchecked]`, kept out of the list until the key search finds its key (dropped if none
-fits); without `autobf` it is dropped. After a reported frame all three machines start again, as
+fits); without `autobf` it is dropped. After a reported frame all four machines start again, as
 the registry restarts every decoder, so a frame is reported once.
 
 Separate machines matter: once ARF's AM State4 overruns to 121 bits with a non-80/88 window its C
@@ -163,18 +177,27 @@ Deviations).
   misdecodes the genuine TEA frame `F47A2EA11A4C7CAF/2927` as serial E3ED81, button 9 (ProtoPirate's
   brute force finds the fob's serial 0x014590), and accepts 7 frames of
   `VAG/Test_55_unlock_and_55_lock_suran.sub` / `VAG/Vw pasat B7.sub` (no 0xA sync).
-- **doctor-firmware's publish gate not used.** It reports an undecrypted frame only when key2 fails
-  the XOR filter, which drops the genuine TEA frame `F47A25DEC980F0DE/1621` (and would hide 2 of
-  the 10 key files a tester's doctor-firmware build saved).
+- **The publish gate of doctor-firmware's first file not used.** It reports an undecrypted frame only
+  when key2 fails the XOR filter, which drops the genuine TEA frame `F47A25DEC980F0DE/1621` (and would
+  hide 2 of the 10 key files a tester's doctor-firmware build saved). Its current file has dropped the
+  gate and routes frames as ProtoPirate does.
 - **Frames only doctor-firmware's 80th-bit rule reads must decrypt (KAT gate).** The rule alone
   also reads the first 80 bits of longer Manchester frames at similar timing whose bits 12–15
   happen to be 0xA: on `VAG/VW Polo 5 2017 lock x5.sub` it reports `FCFA7B0B8272C8FF/9020`, which
-  decrypts neither by XOR nor by BF1/BF2 (doctor-firmware's own publish gate hides that one; KAT
-  does not use the gate, above). A frame ProtoPirate's end-pulse rule also takes is reported as
+  decrypts neither by XOR nor by BF1/BF2 (the publish gate of doctor-firmware's first file hides that
+  one; KAT does not use the gate, above). A frame ProtoPirate's end-pulse rule also takes is reported as
   before; the others are checked like AM-path frames. The IMPORTS decodes are unchanged without
   `autobf`; with it, two all-ones frames 1.8.4 listed with no key (`Peugeot 307 open.sub`
   `FF5A7C3F9F960FFF/FFFF`, `VW Polo 5 2017 unlock2.sub` `737AD61FFFFFFFFF/FFFF`, an end pulse after
   a long gap) are no longer listed.
+- **Frames only doctor-firmware's current machine reads must decrypt (KAT gate).** Sixteen preamble
+  LOWs and a clock taken from them are a weaker entry than ProtoPirate's 71 LOWs at 250 µs, and
+  KAT's registry restarts the machine after every frame any decoder reports, so such a frame is
+  checked like an AM-path frame: an XOR frame at once, a TEA frame through the key search
+  (`autobf`; without it the frame is dropped). The real one found so far passes: the sixth press of
+  `Peugeot 307 open.sub`, recorded with 61 of its preamble's LOWs (`FF5A2D9518BC2522/F28A`, the
+  file's TEA fob, serial 0x02F0AB by BF1, its counter two on from the fifth press's). Up to 1.12.0
+  KAT listed five of that file's presses.
 - **AM-path frames must decrypt (KAT gate).** ARF's AM completion is weak (8 preamble cells, then any
   80/88-bit window with the 0xA nibble at one of up to 9 offsets) and KAT's registry resets re-arm
   it: on `honda/Lock_honda.sub` it accepts Honda Static chips plus inter-frame noise as
@@ -253,6 +276,19 @@ for decoder pulses, uploads, `encode()` calls and brute forces, KAT additions sw
   - `IMPORTS` replays: every frame of the four GROUPE PSA recordings, with its key (as from the
     files); `honda/Lock_honda.sub` and two VW Polo 5 files give no PSA frame and the same Honda
     Static frames as from the file.
+- **doctor-firmware's current machine:** that machine alone
+  (`F_FILES=<list> cargo test adaptive_machine_dump -- --ignored --nocapture`) against the host build
+  of doctor-firmware 98d1fc1 (`subghz_oracle_doctor decode --protocol PSA`) on 862 RAW files: 600
+  generated ones (half-bits of 76–349 µs, preambles of 6–80 pairs, end HIGHs from none to 5 ms and
+  around 3.2 half-bits, frames of 64–130 bits among the 80-bit ones, jitter, clock drift, dropped,
+  split and stretched pulses) and 262 real recordings (`IMPORTS`, the
+  references' unit-test captures, rtl_433's test recordings). The same frames in every file: 170 in
+  127 files. Through the whole registry the 262 real recordings give 15 PSA frames in KAT and 14 in
+  doctor-firmware's build: KAT also lists `FF5AA7401F1A5EF2` of `Peugeot 307 close.sub`, which the
+  rewritten decoder does not read. Key files both ways: doctor-firmware's `Bit: 80` files (an XOR
+  and a TEA frame; `Seed` holds key2's low 12 bits for mode 0x23) load in KAT with the same fields,
+  and KAT's `Bit: 128` files (XOR, TEA, TEA with a recovered key) load in doctor-firmware's and
+  ProtoPirate's builds.
 - **Simulator (1.8.5):** the tester's ten key files through the receive pipeline (`radio/sim.rs`
   `sweep_psa_key_files`), now also sent without an end pulse at 250 and 125 µs: 2880/2880. Without
   an end pulse at 250 µs, 1.8.4 decodes 0 of those 360 presses (OOK and both FSK deviations).

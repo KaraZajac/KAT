@@ -4,11 +4,14 @@
 //! (rewritten upstream in 62b31bf "Fix Fiat V1 decoder and add HITAG2 key TX support" and
 //! 1287d10 "fix Fiat V1 encoder"; later commits only drop `furi_check`s). Original C
 //! implementation by @lupettohf. Found on Fiat Panda, Grande Punto and other Fiat/Lancia/Alfa BCM
-//! keys (~2003-2012). The other references carry the same decoder and add two capabilities that
+//! keys (~2003-2012). The other references carry the same decoder and add three capabilities that
 //! KAT takes from them (union of capabilities):
+//! - doctor-firmware's merged decoder (`lib/subghz/protocols/hitag2.c`, 2026-11, 98d1fc10a: Fiat
+//!   V1, Fiat V2 and Renault V1 in one) reads type-B frames a second way, with Renault V1's
+//!   adaptive reader behind the frame's header: see "Adaptive path".
 //! - Flipper-ARF `lib/subghz/protocols/fiat_v1.c` (ProtoPirate's file with ARF glue): with no
 //!   verifying key the encoder REPLAYS the captured frame byte-for-byte (ProtoPirate refuses);
-//!   doctor-firmware's `fiat_v1.c` does the same under its "Hitag2 replay only" setting. ARF's
+//!   doctor-firmware's Fiat V1 does the same under its "Hitag2 replay only" setting. ARF's
 //!   "Hitag2 BF" scene (`applications/main/subghz/helpers/subghz_hitag2_bf.c`) also searches
 //!   keys beyond the embedded list: L2 = its flash dictionary (`subghz_hitag2_bf_dict.c`; the L3
 //!   SD file it ships, `assets/hitag2`, holds the same keys) and L4 = UID/known-key heuristics.
@@ -32,6 +35,26 @@
 //! last half-bit merged into the inter-frame gap). Whenever a window holds 208 cells it is read as
 //! 104 Manchester bits (cell pair `(first, second)` must differ; bit = `first`, then retried with
 //! the bit inverted) and the 13-byte frame is validated.
+//!
+//! ## Adaptive path (doctor-firmware `hitag2.c`, `adaptive_feed`)
+//! A type-B frame comes behind the gap of the copy before it (1230 µs) and its 850 µs lead, and
+//! that is a header Renault V1's reader takes (LOW 1150-2200 µs, HIGH 800-1150 µs; `renault_v1.rs`,
+//! [`AdaptiveReader`]). The reader follows the remote's own half-bit length, so it reads frames
+//! with pulses that are no cell: a long of 251 µs is outside 200 ± 50. doctor-firmware's merged
+//! decoder gives such a frame to Fiat V1, as type B, when the header's HIGH is at most 949 µs and
+//! the frame passes `fiat_v1_frame_valid`, and to Renault V1 otherwise. KAT does the same. The
+//! frame is reported at the middle of its last bit, as in the C, which leaves the gap after it to
+//! be the next copy's header. Cells that took every pulse of the frame so far are left one more
+//! pulse to report it themselves, so a frame the cells read is reported as before. Before this
+//! path, a press the cells missed was listed as Renault V1 (`IMPORTS/OPEL/Opel Vectra 2008.sub`:
+//! one press of six, each of its copies has one pulse of 251-253 µs).
+//!
+//! Three things of the merged decoder are not taken. Its cells start only behind a lead of 2033 or
+//! 850 µs ± 100; KAT's start anywhere (ProtoPirate's rule, which reads a frame whose lead was cut).
+//! Its wide-header path drops every frame whose UID has the hex digit 3 in the second-lowest place
+//! (`((key >> 32) & 0xF0) != 0x30`, no reason given); KAT reports those. And behind the narrow
+//! Renault header (LOW of 1400 µs or more, HIGH of 920 µs or more) it reports Renault V1 one pulse
+//! before its cells complete; in KAT the cells still go first.
 //!
 //! ## Frame (104 wire bits = 13 bytes, MSB first; the C's "102 logical bits" omit the 2 tail bits)
 //!   raw[0..2]   0x00 0x01 (sync/family)
@@ -82,7 +105,8 @@
 //! level then `!bit` level), LOW gap (A 3252 / B 1230 µs), adjacent levels merged; repeated 6×
 //! (`FIAT_V1_ENC_DEFAULT_REPEAT`, all three references).
 //!
-//! Deviations from C: none in accepted frames. Only the first frame per pulse is returned (the C
+//! Deviations from C: none in the frames ProtoPirate's decoder accepts (for doctor-firmware's
+//! merged decoder see "Adaptive path"). Only the first frame per pulse is returned (the C
 //! can fire one callback per variant on the same pulse); the window is a ring buffer instead of a
 //! `memmove`, and the window read bails out once the 16-bit 0x0001 prefix mismatches (the C
 //! rejects the same windows in `fiat_v1_frame_valid`).
@@ -104,6 +128,7 @@
 
 use super::hitag2;
 use super::hitag2_keys::{self, KeyOrder};
+use super::renault_v1::AdaptiveReader;
 use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
@@ -395,6 +420,11 @@ pub struct FiatV1Decoder {
     step: DecoderStep,
     windows: [CellWindow; VARIANT_COUNT],
     last_raw: Option<[u8; WIRE_BYTES]>,
+    /// The second way in (module doc, "Adaptive path"): Renault V1's reader, behind a header.
+    adaptive: AdaptiveReader,
+    /// Its frame, kept for one pulse when the cells are about to complete the same frame and
+    /// report it themselves.
+    adaptive_frame: Option<[u8; WIRE_BYTES]>,
 }
 
 impl FiatV1Decoder {
@@ -403,6 +433,8 @@ impl FiatV1Decoder {
             step: DecoderStep::Reset,
             windows: [CellWindow::new(), CellWindow::new()],
             last_raw: None,
+            adaptive: AdaptiveReader::new(),
+            adaptive_frame: None,
         }
     }
 
@@ -445,7 +477,7 @@ impl FiatV1Decoder {
     }
 
     /// `fiat_v1_frame_valid`.
-    fn frame_valid(raw: &[u8; WIRE_BYTES]) -> bool {
+    pub(super) fn frame_valid(raw: &[u8; WIRE_BYTES]) -> bool {
         if raw[0] != 0x00 || raw[1] != 0x01 {
             return false;
         }
@@ -727,17 +759,33 @@ impl ProtocolDecoder for FiatV1Decoder {
         self.step = DecoderStep::Reset;
         self.clear_all_cells();
         self.last_raw = None;
+        self.adaptive = AdaptiveReader::new();
+        self.adaptive_frame = None;
+    }
+
+    /// The input ended on the pulse that completed the adaptive path's frame: report it now.
+    fn flush(&mut self) -> Option<DecodedSignal> {
+        let raw = self.adaptive_frame.take()?;
+        self.commit(raw, VARIANT_B).ok().flatten()
     }
 
     fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
-        match self.step {
+        // The adaptive path's frame of the pulse before; the cells go first on this pulse.
+        let waiting = self.adaptive_frame.take();
+        let read = self
+            .adaptive
+            .feed(level, duration)
+            .filter(|frame| frame.is_fiat_v1())
+            .map(|frame| frame.wire());
+        let cells = match self.step {
             DecoderStep::Reset => {
                 if Self::is_pulse(duration) {
                     self.clear_all_cells();
                     self.step = DecoderStep::Data;
-                    return self.feed_data_pulse(level, duration).1;
+                    self.feed_data_pulse(level, duration).1
+                } else {
+                    None
                 }
-                None
             }
             DecoderStep::Data => {
                 let (matched, result) = self.feed_data_pulse(level, duration);
@@ -746,7 +794,23 @@ impl ProtocolDecoder for FiatV1Decoder {
                 }
                 result
             }
+        };
+        if cells.is_some() {
+            return cells;
         }
+        if let Some(raw) = waiting {
+            return self.commit(raw, VARIANT_B).ok().flatten();
+        }
+        let raw = read?;
+        // The adaptive path completes a frame at the middle of its last bit, the cells with the
+        // pulse after it. Cells that took every pulse of the frame so far (all but the last
+        // cell) are left that pulse to report it; otherwise the frame is reported now, as the C
+        // does, which leaves the gap that follows to be the next copy's header.
+        if self.windows[VARIANT_B as usize].count == WIRE_CELLS - 1 {
+            self.adaptive_frame = Some(raw);
+            return None;
+        }
+        self.commit(raw, VARIANT_B).ok().flatten()
     }
 
     fn supports_encoding(&self) -> bool {
@@ -1325,6 +1389,101 @@ mod tests {
                 Some((raw, variant))
             );
         }
+    }
+
+    /// The adaptive path (doctor-firmware `hitag2.c`): a type-B frame with a long pulse of
+    /// 252 µs, which is neither a short nor a long cell (200 ± 50), is read behind its header.
+    #[test]
+    fn adaptive_path_reads_what_the_cells_miss() {
+        let d = signed_frame(0x468F5D25, BUTTON_LOCK, 0x057, 0, VARIANT_B);
+        let (raw, _) = FiatV1Decoder::raw_from_signal(&d).unwrap();
+        let clean = upload(&raw, VARIANT_B);
+        assert_eq!(decode_all(&mut FiatV1Decoder::new(), &clean), vec![d.clone()]);
+        // Stretch the first long pulse of the data.
+        let at = 1 + clean[1..].iter().position(|ld| ld.duration_us == 200).unwrap();
+        let mut stretched = clean.clone();
+        stretched[at] = LevelDuration::new(clean[at].level, 252);
+        // Alone, the frame has no header before its lead: nothing reads it.
+        assert!(decode_all(&mut FiatV1Decoder::new(), &stretched).is_empty());
+        // A burst: every copy but the first comes behind the gap of the copy before. Each is
+        // reported at the middle of its last bit, so the gap after it is the next one's header.
+        let burst: Vec<LevelDuration> = (0..3).flat_map(|_| stretched.clone()).collect();
+        let hits = |signal: &[LevelDuration]| {
+            let mut dec = FiatV1Decoder::new();
+            let mut at = Vec::new();
+            for (i, ld) in signal.iter().enumerate() {
+                if let Some(got) = dec.feed(ld.level, ld.duration_us) {
+                    assert_eq!(got, d);
+                    at.push(i);
+                    dec.reset(); // as the registry does after a hit
+                }
+            }
+            at
+        };
+        let n = stretched.len();
+        let last_bit_one = raw[WIRE_BYTES - 1] & 1 == 1;
+        // The pulse the last bit's first half is in: the last pulse when its second half (LOW)
+        // went into the gap, the one before the last two otherwise.
+        let mid = if last_bit_one { n - 2 } else { n - 3 };
+        assert_eq!(hits(&burst), [n + mid, 2 * n + mid]);
+        // A gap before the first copy makes it three, and through the registry they are Fiat V1.
+        let mut led = vec![LevelDuration::new(true, 100), LevelDuration::new(false, ENC_GAP_US[1])];
+        led.extend(burst.iter().cloned());
+        assert_eq!(hits(&led), [2 + mid, 2 + n + mid, 2 + 2 * n + mid]);
+        let mut reg = crate::protocols::ProtocolRegistry::new();
+        let names: Vec<String> =
+            reg.process_signal_stream(&led, 433_920_000).into_iter().map(|r| r.0).collect();
+        assert_eq!(names, vec!["Fiat V1"; 3]);
+
+        // A clean frame behind a header: the cells report it with its last pulse, as before, and
+        // the adaptive path's copy of it is not a second report.
+        let mut led = vec![LevelDuration::new(true, 100), LevelDuration::new(false, ENC_GAP_US[1])];
+        led.extend(clean.iter().cloned());
+        let mut dec = FiatV1Decoder::new();
+        let at: Vec<usize> = led
+            .iter()
+            .enumerate()
+            .filter_map(|(i, ld)| dec.feed(ld.level, ld.duration_us).map(|_| i))
+            .collect();
+        assert_eq!(at, [if last_bit_one { led.len() - 1 } else { led.len() - 2 }]);
+        // The input ends at the middle of the last bit: the frame held for the cells is reported
+        // when the input ends.
+        let mut dec = FiatV1Decoder::new();
+        let cut = 2 + mid + 1;
+        assert!(led[..cut].iter().all(|ld| dec.feed(ld.level, ld.duration_us).is_none()));
+        assert_eq!(dec.flush(), Some(d.clone()));
+        assert!(dec.flush().is_none());
+    }
+
+    /// `IMPORTS/OPEL/Opel Vectra 2008.sub`: six presses of one remote, type-B timing. Every copy
+    /// of the fourth press (control 0x057) has a pulse of 251 to 253 µs, so the cells miss it and
+    /// the adaptive path reads it. Before that path the press was reported as Renault V1.
+    #[test]
+    fn opel_vectra_capture_is_fiat_v1_throughout() {
+        use crate::export::flipper::import_sub_raw;
+        use crate::protocols::ProtocolRegistry;
+        let path = std::path::Path::new("IMPORTS/OPEL/Opel Vectra 2008.sub");
+        if !path.exists() {
+            eprintln!("Skip: {:?} not found (run from crate root)", path);
+            return;
+        }
+        let (freq, raw_pairs) = import_sub_raw(path).unwrap();
+        let pairs: Vec<LevelDuration> = raw_pairs
+            .iter()
+            .map(|p| LevelDuration::new(p.level, p.duration_us))
+            .collect();
+        let mut reg = ProtocolRegistry::new();
+        let results = reg.process_signal_stream(&pairs, freq);
+        let mut controls = Vec::new();
+        for (name, d, _) in &results {
+            assert_eq!(name, "Fiat V1");
+            assert_eq!(d.serial, Some(0x468F5D25));
+            assert_eq!(d.extra.map(|e| e >> EXTRA_VARIANT_SHIFT), Some(VARIANT_B as u64));
+            if controls.last() != d.counter.as_ref() {
+                controls.push(d.counter.unwrap());
+            }
+        }
+        assert_eq!(controls, [0x053, 0x054, 0x056, 0x057, 0x058, 0x059]);
     }
 
     /// The old preamble/sync decoder false-matched this VW Suran capture twice; the gated decoder

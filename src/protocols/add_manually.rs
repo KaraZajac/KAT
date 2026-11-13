@@ -8,10 +8,11 @@
 //!
 //! **Types** ([TYPES]): the union of the menus — ARF's 78 entries in ARF's order with
 //! doctor-firmware's 23 extra ones where doctor's menu puts them (doctor's order is ARF's with
-//! insertions) and RogueMaster's 9 extra ones where RogueMaster's puts them (its two O-Code
+//! insertions) and RogueMaster's 10 extra ones where RogueMaster's puts them (its two O-Code
 //! variants that its enum appends after Security+ are kept with the Nice group, after its first
 //! O-Code type; its two FAAC TM types, which its enum puts after FAAC SLH, close the fixed-code
-//! group, since they are fixed codes) and FoxFW's 2 extra ones (plain KeeLoq "KL: Erreka 433/868MHz",
+//! group, since they are fixed codes; its Proteco follows the Princeton types, as in its enum)
+//! and FoxFW's 2 extra ones (plain KeeLoq "KL: Erreka 433/868MHz",
 //! after Aprimatic as in FoxFW's menu); ARF's name and parameters where several have a type (ARF and doctor differ only in
 //! "KL: Genius Bravo": ARF button 0x06, doctor 0x09 and the name "KL: Genius TX4RC 433M.";
 //! Momentum's and RogueMaster's menus list the same types with doctor's or ARF's parameters, except
@@ -51,7 +52,8 @@
 //! Clemsa Mutancode, Doormatic, Elvox and Verex, and RogueMaster's Phantom/Hiland, unless the user
 //! keystore adds them. doctor's KEY and Dorcas are made with doctor-firmware's / RogueMaster's
 //! discriminators (KEY 0x2FF; Dorcas' Monarch 0x280, kept in the seed), which KAT's KeeLoq codec
-//! has since November 2026.
+//! has since November 2026. DEA Mio is made as RogueMaster makes it, with its discriminator as the
+//! seed (0xC69: the other firmwares' frame, with a `Seed` line in the key file).
 
 use std::collections::VecDeque;
 
@@ -277,6 +279,7 @@ pub static TYPES: &[RemoteType] = &[
     RemoteType { id: "Pricenton315", name: "Princeton 315MHz", source: Source::Both, group: Group::Fixed },
     RemoteType { id: "Pricenton433", name: "Princeton 433MHz", source: Source::Both, group: Group::Fixed },
     RemoteType { id: "ZKTeco430", name: "ZKTeco 430MHz", source: Source::Both, group: Group::Fixed },
+    RemoteType { id: "Proteco_433", name: "Proteco 433MHz", source: Source::RogueMaster, group: Group::Fixed },
     RemoteType { id: "BETT_433", name: "BETT 433MHz", source: Source::Both, group: Group::Fixed },
     RemoteType { id: "GangQi_433", name: "GangQi 433MHz", source: Source::Both, group: Group::Fixed },
     RemoteType { id: "Hollarm_433", name: "Hollarm 433MHz", source: Source::Both, group: Group::Fixed },
@@ -454,7 +457,9 @@ fn gen_info(id: &str, key: u64, gangqi_key: u64, marantec_key: u64) -> Option<Ge
         "Stilmatic" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: (key & 0x0FFFFFFF) as u32, btn: 0x01, cnt: 0x03, manuf: "Stilmatic" }),
         "IronLogic" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: (key & 0x00FFFFF0) as u32, btn: 0x04, cnt: 0x05, manuf: "IronLogic" }),
         "IronLogicSmart" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: (key & 0x00FFFFF0) as u32, btn: 0x04, cnt: 0x05, manuf: "IL-100(Smart)" }),
-        "DeaMio433" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: ((key & 0x0FFFF000) | 0x00000869) as u32, btn: 0x02, cnt: 0x03, manuf: "Dea_Mio" }),
+        // RogueMaster: the seed is the 12-bit discriminator (the serial's low 10 bits under the two OVR
+        // bits, both set here as in the other firmwares' form), so that an original remote's bits can be entered.
+        "DeaMio433" => gen("AM650", 433_920_000, GenInfo::KeeloqSeed { serial: ((key & 0x0FFFF000) | 0x00000869) as u32, btn: 0x02, cnt: 0x03, seed: 0xC69, manuf: "Dea_Mio" }),
         "DTMNeo433" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: (key & 0x000FFFFF) as u32, btn: 0x02, cnt: 0x05, manuf: "DTM_Neo" }),
         "Gibidi433" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: (key & 0x00FFFFFF) as u32, btn: 0x02, cnt: 0x03, manuf: "Gibidi" }),
         "GSN" => gen("AM650", 433_920_000, GenInfo::Keeloq { serial: (key & 0x0FFFFFFF) as u32, btn: 0x02, cnt: 0x03, manuf: "GSN" }),
@@ -503,6 +508,8 @@ fn gen_info(id: &str, key: u64, gangqi_key: u64, marantec_key: u64) -> Option<Ge
         "Pricenton315" => gen("AM650", 315_000_000, GenInfo::Data { protocol: "Princeton", key: (key & 0x00FFFFF0) | 0x4, bits: 24, te: 400 }),
         "Pricenton433" => gen("AM650", 433_920_000, GenInfo::Data { protocol: "Princeton", key: (key & 0x00FFFFF0) | 0x4, bits: 24, te: 400 }),
         "ZKTeco430" => gen("AM650", 430_500_000, GenInfo::Data { protocol: "Princeton", key: (key & 0x00FFFF00) | 0x30, bits: 24, te: 357 }),
+        // RogueMaster: "TX3: low 2 bits are the button, A (gate) = 0x2, B = 0x0, C = 0x1".
+        "Proteco_433" => gen("AM650", 433_920_000, GenInfo::Data { protocol: "Proteco", key: (key & 0x00FFFFFC) | 0x2, bits: 24, te: 0 }),
         "BETT_433" => gen("AM650", 433_920_000, GenInfo::Data { protocol: "BETT", key: key & 0x0000FFF0, bits: 18, te: 0 }),
         "GangQi_433" => gen("AM650", 433_920_000, GenInfo::Data { protocol: "GangQi", key: gangqi_key, bits: 34, te: 0 }),
         "Hollarm_433" => gen("AM650", 433_920_000, GenInfo::Data { protocol: "Hollarm", key: (key & 0x000FFF0000) | 0xF0B0002200 | ((((((key & 0x000FFF0000) | 0xF0B0002200) >> 32) & 0xFF) + ((((key & 0x000FFF0000) | 0xF0B0002200) >> 24) & 0xFF) + ((((key & 0x000FFF0000) | 0xF0B0002200) >> 16) & 0xFF) + ((((key & 0x000FFF0000) | 0xF0B0002200) >> 8) & 0xFF)) & 0xFF), bits: 42, te: 0 }),
@@ -933,9 +940,9 @@ mod tests {
 
     #[test]
     fn type_list_is_the_union_of_the_references() {
-        assert_eq!(TYPES.len(), 112);
+        assert_eq!(TYPES.len(), 113);
         assert_eq!(TYPES.iter().filter(|t| t.source == Source::Both).count(), 78);
-        assert_eq!(TYPES.iter().filter(|t| t.source == Source::RogueMaster).count(), 9);
+        assert_eq!(TYPES.iter().filter(|t| t.source == Source::RogueMaster).count(), 10);
         assert_eq!(TYPES.iter().filter(|t| t.source == Source::FoxFW).count(), 2);
         assert_eq!(TYPES[find("Prastel")[0]].menus(), "RogueMaster");
         assert_eq!(TYPES[find("GangQi")[0]].menus(), "Flipper-ARF + doctor-firmware");

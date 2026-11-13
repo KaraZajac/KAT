@@ -6,8 +6,10 @@ layout: default
 
 **Rust module:** `src/protocols/renault_v1.rs` (cipher and seed search: `src/protocols/hitag2.rs`)
 **Reference:** `REFERENCES/ProtoPirate/protocols/renault_v1.c` (added upstream in 1287d10 "move newer
-Renault variants into Renault V1"; later commits only refactor it). Also compared: doctor-firmware
-`lib/subghz/protocols/renault_v1.c` (same decoder, plus a key-less replay) and Flipper-ARF (see below).
+Renault variants into Renault V1"; later commits only refactor it). Also compared: doctor-firmware's
+`lib/subghz/protocols/hitag2.c` (since 2026-11 one decoder for Renault V1, Fiat V1 and Fiat V2, before that
+`renault_v1.c`: the same reader, a key-less replay, and a rule for which frames are Fiat V1's) and
+Flipper-ARF (see below).
 
 ## Overview
 
@@ -26,7 +28,8 @@ frame is replayed byte-for-byte as doctor-firmware does.
 
 | Capability | ProtoPirate | doctor-firmware | KAT |
 |---|---|---|---|
-| Decode | yes | yes (narrower header windows) | yes (ProtoPirate windows) |
+| Decode | yes | yes (its older narrower header windows, and ProtoPirate's) | yes (ProtoPirate windows) |
+| Fiat V1 type-B frames behind this header | also listed as Renault V1 | Fiat V1 (by the header's HIGH) | Fiat V1 (doctor-firmware's rule) |
 | Serial-derived seed search (2^18) | on demand (minutes on a Flipper) | on demand | automatic (~10 ms) |
 | TX with recovered seed | fresh frame | fresh frame | fresh frame (ProtoPirate upload) |
 | TX with typed-in "Hitag2 Key" (+ epoch, key DB) | yes (epoch 0) | yes (8-epoch search, UID key DB) | UID key DB (`hitag2_keys.txt`, 8-epoch search); no key entry |
@@ -113,13 +116,22 @@ re-runs the deterministic seed search on the frame, so `.fob` files exported by 
    classify long/short against the level's TE threshold (short pulses also update the TE estimate) and
    run the canonical Flipper Manchester state machine. After 16 bits the inverted word is the header,
    after 80 bits the inverted 64-bit Key, after 104 bits the inverted 24-bit Key_2.
-4. **Accept** — header `0x0001`, XOR byte, UID not `00000000`/`FFFFFFFF` (KAT addition), and not identical
-   to the previous accepted frame (memory cleared by `reset()`). Counting restarts for the next frame.
+4. **Accept** — header `0x0001`, XOR byte, not a Fiat V1 frame (below), UID not `00000000`/`FFFFFFFF` (KAT
+   addition), and not identical to the previous accepted frame (memory cleared by `reset()`). Counting
+   restarts for the next frame.
 5. **Seed search** — ProtoPirate's 2^18 brute force on the payload (same order, same first match; the
    init rounds of shared IV prefixes are computed once and each keystream stops at its first wrong
    bit: ≈10 ms in a release build, ≈65 ms unoptimised, cached per frame so a burst searches once).
    On success `counter` becomes the 16-bit counter.
 6. **Emit** — on the pulse after the frame's last mid-bit (see Validation for why).
+
+**Fiat V1's frames** (doctor-firmware `hitag2.c`, `adaptive_feed`). [Fiat V1](fiat_v1.md) type B sends the
+same 13 bytes behind a 1230 µs gap and an 850 µs lead, a header the windows of steps 1 and 2 take. A frame is
+Fiat V1's, and this decoder leaves it to Fiat V1's (which runs the same reader), when the header's HIGH is at
+most 949 µs, the header is not the narrow one (LOW of 1400 µs or more with a HIGH of 920 µs or more) and the
+frame passes Fiat V1's checks (button 1, 2, 4 or 8, a UID that is not all zeros or all ones). Every other
+frame is Renault V1's. The C's wide-header path also drops every frame whose UID has the hex digit 3 in the
+second-lowest place (`((key >> 32) & 0xF0) != 0x30`, no reason given); KAT keeps those, as ProtoPirate does.
 
 ## Encoder
 
@@ -161,15 +173,23 @@ re-runs the deterministic seed search on the frame, so `.fob` files exported by 
 - Encoder: equal, frame and merged pulse list, to ProtoPirate's encoder after its BF patch + emulate press
   on 600 seed-scheme frames (random buttons incl. non-Renault codes), and to doctor-firmware's encoder on
   600 frames without a seed (replay). The two references build the same seed-path frame.
-- **Ordering vs Fiat V1:** Renault's header window also accepts the 1230 µs gap + 850 µs lead of Fiat V1
-  type-B bursts, and the frames are identical, so Renault V1 decodes Fiat V1 type-B repeats when run on
-  its own. The C would fire one pulse before Fiat V1 completes the same frame; KAT delays Renault V1's
-  emission by exactly that pulse so both fire together and Fiat V1, earlier in the registry, wins.
-  A recording that ends on the pulse the C fires on still gives the frame: it is reported when the input
-  ends.
-  A Renault remote fast enough for Fiat V1's 100/200 µs window would likewise be labelled Fiat V1.
+- **Fiat V1 or Renault V1:** Renault's header window also accepts the 1230 µs gap + 850 µs lead of Fiat V1
+  type-B bursts, and the frames are identical. Behind Fiat V1's header (above) this decoder reports
+  nothing, also when run on its own. Up to 1.12.0 it reported every such frame and relied on Fiat V1's
+  cells, earlier in the registry, to name it first, so a frame the cells missed was listed as Renault V1
+  (`IMPORTS/OPEL/Opel Vectra 2008.sub`: one press of six; all six are Fiat V1 now, as in
+  doctor-firmware's merged decoder). On 262 real RAW files (IMPORTS, the Flipper unit-test folders,
+  rtl_433's recordings) no frame is Renault V1, in KAT as in doctor-firmware's C; ProtoPirate's C lists
+  all six Opel presses as Renault V1 as well.
+- **One pulse later than the C:** the C fires at the mid-bit of the 104th bit; KAT reports the frame on the
+  next pulse. Behind a header that is Renault's by the rule above (a lead longer than 949 µs, or the narrow
+  header) Fiat V1's cells may still read the same frame and complete on exactly that pulse, so both fire
+  together and Fiat V1, earlier in the registry, wins: a Renault remote fast enough for Fiat V1's
+  100/200 µs window is labelled Fiat V1. (doctor-firmware's merged decoder reports Renault V1 behind the
+  narrow header before its cells complete.) A recording that ends on the pulse the C fires on still gives
+  the frame: it is reported when the input ends.
 - Unit tests: synthetic bursts, adaptive TE from 100 to 150 µs, gate rejection (XOR, header word, UID),
   duplicate memory and reset, emission timing, registry decode at 315/433/868 MHz, Fiat V1 type-B bursts
-  staying Fiat V1, seed recovery on C vectors, seed-path TX frames per button and the ProtoPirate upload
+  staying Fiat V1, the header deciding between the two names at each edge of the rule, seed recovery on C vectors, seed-path TX frames per button and the ProtoPirate upload
   against the C, the doctor-firmware replay upload against the C, invalid signals not encoding, and
   encoder output round-tripping through the registry on all three bands.

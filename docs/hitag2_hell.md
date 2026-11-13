@@ -56,8 +56,8 @@ The attack needs a frame's UID, counter, button and 32-bit hop, as qDoctor reads
 | [Renault V1](renault_v1.md) | same 13-byte frame | same | same | a frame whose serial-derived seed KAT recovers is not offered: KAT already transmits it |
 | [Fiat V2](fiat_v2.md) | frame bytes 2–5 | Flipper-ARF's 10-bit counter, with both of ARF's button readings in one search | 32 bits | no reference has confirmed this IV against a real key; a wrong one finds nothing |
 
-Fiat V1 and Renault V1 share frame and cipher, so their captures pair: `IMPORTS/OPEL/Opel Vectra
-2008.sub` holds one remote that KAT decodes under both names. Not offered: [Renault V1
+Fiat V1 and Renault V1 share frame and cipher, so their captures pair: the header alone decides which
+name a frame gets ([Renault V1](renault_v1.md)), and one remote can come out under both. Not offered: [Renault V1
 (ARF)](renault_v1_arf.md) (Flipper-ARF's type-table frames have no fixed 32-bit hop and a 24-bit serial
 instead of a UID) and [Datsun Lada](datsun_lada.md), whose key is fixed (`0x4606` and the serial).
 
@@ -106,8 +106,8 @@ Full recoveries on the same machine:
 
 - qDoctor's own sample ("Load Hell sample", two presses of one remote): qDoctor's key `E99BDE9C2813`, in
   17.5 minutes; its candidate lies 91 % into the search.
-- `IMPORTS/OPEL/Opel Vectra 2008.sub`, a real remote (KAT decodes five of its six presses as Fiat V1
-  and one as Renault V1): the key found from its first two presses signs all six, in 17.3 minutes
+- `IMPORTS/OPEL/Opel Vectra 2008.sub`, a real remote (six presses, all Fiat V1; one of them was listed
+  as Renault V1 up to 1.12.0): the key found from its first two presses signs all six, in 17.3 minutes
   (81 % into the search).
 
 ## Is a GPU worth it?

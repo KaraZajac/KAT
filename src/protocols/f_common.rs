@@ -154,8 +154,8 @@ mod parity {
     use super::test_support::*;
     use crate::radio::demodulator::LevelDuration;
 
-    const NAMES: [&str; 14] = [
-        "Hormann BiSecur", "Cardin S508", "GangQi", "Hollarm", "Freezer", "Faac TM", "Magellan", "X10", "Legrand",
+    const NAMES: [&str; 15] = [
+        "Hormann BiSecur", "Cardin S508", "GangQi", "Hollarm", "Freezer", "Faac TM", "Proteco", "Magellan", "X10", "Legrand",
         "Doorbell32", "Intertechno_V3", "KeyFinder", "Feron", "KeyFinder2",
     ];
 
@@ -169,6 +169,7 @@ mod parity {
             "Cardin S508" => Box::new(super::super::cardin_s508::CardinS508Decoder::new()),
             "Freezer" => Box::new(super::super::freezer::FreezerDecoder::new()),
             "Faac TM" => Box::new(super::super::faac_tm::FaacTmDecoder::new()),
+            "Proteco" => Box::new(super::super::proteco::ProtecoDecoder::new()),
             "Magellan" => Box::new(super::super::magellan::MagellanDecoder::new()),
             "X10" => Box::new(super::super::x10::X10Decoder::new()),
             "Legrand" => Box::new(super::super::legrand::LegrandDecoder::new()),

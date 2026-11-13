@@ -56,8 +56,9 @@ ignore.
 
 `subghz rx_raw <Hz>` streams the CC1101's demodulated output: `+350 -700 …` (HIGH and LOW
 durations in µs; `.` where the Flipper's buffer overran) until Ctrl+C. Unlike an SDR's, this stream
-never goes quiet: between transmissions the receiver's AGC turns up the noise, thousands of pulses
-a second (the Flipper recordings in `IMPORTS` made without a threshold show 3,000–7,000 a second).
+never goes quiet: between transmissions the receiver's AGC turns up the noise, tens to thousands of
+pulses a second (a Flipper with Momentum gave roughly 60 a second at 433.92 MHz and 650 at 315 MHz;
+the Flipper recordings in `IMPORTS` made without a threshold show 3,000–7,000 a second).
 There are no bursts to cut it into, so KAT reads it the way a Flipper's own Sub-GHz "Read" does:
 
 1. **The decoders read the stream as it comes.** Every pulse goes once to the decoders flagged for
@@ -88,7 +89,10 @@ What this means in use:
 KAT builds the transmission exactly as it does for a HackRF (its own encoders, copies per press
 and rolling-code advance), writes it as a RAW `.sub` to `/ext/apps_data/kat/tx.sub` (with
 `storage write_chunk`, out of the Sub-GHz app's list of saved signals) and plays it once with
-`subghz tx_from_file /ext/apps_data/kat/tx.sub 1 0`. Receiving pauses for it and resumes.
+`subghz tx_from_file /ext/apps_data/kat/tx.sub 1 0`. Receiving pauses for it and resumes. It counts
+as sent once the Flipper prints the line every firmware starts sending with ("Listening at …" and
+"Press CTRL+C to stop"); without it KAT reports what the Flipper said instead. (Up to 1.13.0 any
+answer without a known error counted as sent.)
 
 The file's preset sets the modulation:
 
@@ -101,7 +105,9 @@ The file's preset sets the modulation:
 
 The transmit power is the Flipper's (its preset's PA table); `:txpower` does not apply. When the
 Flipper refuses ("Frequency not supported", a region lock, no SD card), the status line shows its
-words.
+words. The command line of current firmwares (official 1.x, Momentum, RogueMaster) also refuses
+`subghz` while an app is open on the Flipper, and when it cannot load that command from the SD card;
+KAT says so in words (see Troubleshooting).
 
 ## Troubleshooting
 
@@ -112,11 +118,22 @@ words.
 | `… is not accessible` | Linux: the `dialout` group (above). |
 | `no answer from its console` | Not a Flipper's console, or it hangs: unplug it and plug it in again. |
 | `flipper_preset = …: this firmware's rx_raw takes no preset` | Remove the key, or use doctor-firmware. |
-| `the Flipper did not transmit: …` | The Flipper's own reason (region, frequency, SD card). |
+| `the Flipper did not transmit: …` | The Flipper's own reason (region, frequency, SD card, one of the two below), or `it did not start sending` when it gave no sign of sending. |
+| `… an app is open on the Flipper; close it …` | Leave the app on the Flipper's screen: its console runs no Sub-GHz command while an app is open. |
+| `… its subghz command did not load from the SD card …` | Current firmwares load `subghz` from `/ext/apps_data/cli/plugins` on the SD card, and refuse files built for another firmware version (after flashing the firmware alone, for instance). Install the firmware together with its SD card files: qFlipper, the firmware's web updater or its update package. |
 | `Receiver stopped: Flipper: … (r restarts)` | The console closed (unplugged); `r` tries again. |
 | `could not connect: …` in `:radios` | The last try to open the console failed (the reason follows); the next `r` or transmission tries again. |
 
 ## How it is tested
+
+- On a real Flipper Zero (Momentum dev `d3f89dfe`, US region, 2026-11-13): KAT opens it on the first
+  `r`, receives at 433.92 MHz and at 315 MHz (retuned while receiving), cuts a car key fob's presses
+  out of the stream as whole frames (decoded, CRC valid; repeats inside a press are recognized),
+  replays one (the file read back off the SD card decodes as the captured frame) and resumes
+  receiving, and on quitting leaves the console free at once. Before that the same Flipper ran an
+  Unleashed build whose SD card held console commands for another firmware version: `subghz` did
+  not load, receiving failed with the console's words, and a transmission would have counted as
+  sent (fixed: see Transmitting).
 
 - A simulated Flipper on a pseudo-terminal pair answers KAT's commands as the firmwares do: a
   Princeton press in noise reaches the app, a transmission is written and played and receiving

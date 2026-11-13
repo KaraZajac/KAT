@@ -526,10 +526,11 @@ impl ProtocolRegistry {
             Box::new(ford_v3::FordV3Decoder::new()),
             Box::new(ford_v2::FordV2Decoder::new()),
             // Honda V5 (FoxFW honda_v5.c): the same 63µs Manchester as Honda Static, CRC-8-gated.
-            // It goes BEFORE Honda Static: Honda Static's unchecksummed bit-reversed fallback
-            // misreads V5 frames (Lock_honda.sub / Unlock_honda.sub), see honda_v5.rs.
+            // It goes BEFORE Honda Static: the unchecked bit-reversed fallback of ProtoPirate's
+            // Honda Static misreads V5 frames (Lock_honda.sub / Unlock_honda.sub), see honda_v5.rs.
             Box::new(honda_v5::HondaV5Decoder::new()),
-            // Honda Static after the Kia/Ford block; checksum-gated emission makes order safe.
+            // Honda Static after the Kia/Ford block; its emission is checksum-gated on every path
+            // (KAT's bit-reversed fallback too, see honda_static.rs), which makes order safe.
             Box::new(honda_static::HondaStaticDecoder::new()),
             // Honda V1: distinct 1000/2000µs PWM (vs Honda Static's 63µs Manchester). Button-gated
             // emission makes order safe.
@@ -1545,8 +1546,9 @@ mod tests {
 
     #[test]
     fn unlock_honda_sub_is_honda_v5_not_static() {
-        // Genuine Honda keyfob capture (CC1101 custom preset). Honda Static's unchecksummed
-        // reverse path used to misread it; Honda V5 (CRC-8-checked) reads it (honda_v5.rs).
+        // Genuine Honda keyfob capture (CC1101 custom preset). ProtoPirate's Honda Static misreads
+        // it through its unchecked reverse path (KAT's misread it too until that path checked the
+        // checksum); Honda V5 (CRC-8-checked) reads it (honda_v5.rs).
         let path = Path::new("IMPORTS/honda/Unlock_honda.sub");
         if !path.exists() {
             eprintln!("Skip: {:?} not found (run from crate root)", path);

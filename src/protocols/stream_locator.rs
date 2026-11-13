@@ -3,7 +3,7 @@
 //! KAT's SDR receivers hand the decoders bursts: a squelch opens on a carrier and closes after it,
 //! and [ProtocolRegistry::process_signal_stream] decodes one burst at a time. A Flipper Zero
 //! streaming its CC1101's demodulator over USB (`subghz rx_raw`, [crate::radio::flipper]) never
-//! goes quiet: its AGC turns every pause into noise pulses, thousands a second, so there are no
+//! goes quiet: its AGC turns every pause into noise pulses, tens to thousands a second, so there are no
 //! bursts to take. As on the Flipper itself, the decoders read the stream as it comes:
 //! [StreamLocator::feed] gives every pulse once to the decoders flagged for the receive modulation
 //! that support the frequency, in registry order; the first to complete a frame wins and the

@@ -9,14 +9,20 @@
 //!   OOK with a 270 kHz filter (official, Momentum, RogueMaster) or 650 kHz (Flipper-ARF, FoxFW).
 //!   doctor-firmware's takes `<Hz> <device> <preset>`, FM presets included (config
 //!   `flipper_preset`; KAT checks the firmware's usage text before using it). The stream never
-//!   goes quiet: the AGC turns every pause into noise pulses, thousands a second. So the decoders
+//!   goes quiet: the AGC turns every pause into noise pulses, tens to thousands a second. So the decoders
 //!   read it as it comes ([StreamLocator]), each frame they find is cut out of the noise
 //!   ([RxStream::frame_start]: the shortest stretch its decoder still reads, extended back over a
 //!   regular preamble) and handed to the app as a burst, which decodes and lists it like a HackRF's.
 //! - **Transmit:** KAT writes the transmission (its own encoders, copies and timing) as a RAW
 //!   `.sub` on the SD card (`storage write_chunk`, into `/ext/apps_data/kat`, out of the Sub-GHz
 //!   app's list) and plays it with `subghz tx_from_file <file> 1 0`. The file's preset sets the
-//!   modulation ([tx_preset]): OOK, or 2-FSK at the transmission's deviation. Receiving pauses.
+//!   modulation ([tx_preset]): OOK, or 2-FSK at the transmission's deviation. Receiving pauses. It
+//!   counts as sent only once the Flipper prints the line every firmware starts sending with
+//!   ([tx_refusal]).
+//! - **Refusals:** the command line of current firmwares (official 1.x, Momentum, RogueMaster) runs
+//!   no `subghz` command while an app is open on the Flipper, and loads `subghz` from the SD card,
+//!   which fails when the card's files are for another firmware version; KAT says so in words
+//!   ([console_refusal]).
 //! - **Not available:** a signal level (the meter stays empty), IQ (`:record`) and hopping (each
 //!   retune restarts `rx_raw`). FM reception needs doctor-firmware; transmitting works in both
 //!   modulations on every firmware (the region lock of stock firmware applies).
@@ -278,7 +284,11 @@ impl Console {
     /// Whether this firmware's `rx_raw` takes a preset (doctor-firmware's). Not a frequency, so it
     /// prints its usage line and receives nothing.
     fn rx_presets_supported(&mut self) -> Result<bool> {
-        Ok(self.command("subghz rx_raw kat", Duration::from_secs(3))?.contains("Preset"))
+        let out = self.command("subghz rx_raw kat", Duration::from_secs(3))?;
+        if let Some(why) = console_refusal(&out) {
+            bail!("the Flipper refused `subghz rx_raw`: {why}");
+        }
+        Ok(out.contains("Preset"))
     }
 
     /// Start `rx_raw`: Ok once the Flipper says it listens; its answer as the error when it refuses.
@@ -295,8 +305,10 @@ impl Console {
                 Ok(())
             }
             Some((_, out)) => {
-                let why = clean_output(&out, &line);
-                bail!("the Flipper refused `{line}`: {}", if why.is_empty() { "no reason given".to_string() } else { why })
+                let text = clean_output(&out, &line);
+                let why = console_refusal(&text)
+                    .unwrap_or_else(|| if text.is_empty() { "no reason given".to_string() } else { text });
+                bail!("the Flipper refused `{line}`: {why}")
             }
             None => bail!("no answer to `{line}`"),
         }
@@ -358,9 +370,16 @@ impl Console {
     }
 }
 
-/// `tx_from_file`'s output when it did not transmit: its error line (`subghz tx_from_file: …`), the
-/// region lock, or the usage text of a firmware without the command.
+/// Why `tx_from_file` did not transmit, from its output: its error line (`subghz tx_from_file: …`),
+/// the region lock, a refusal of the console ([console_refusal]), the usage text of a firmware
+/// without the command. Every firmware KAT follows (official, Momentum, RogueMaster,
+/// doctor-firmware, Flipper-ARF, FoxFW) prints "Listening at <file>. Frequency=…, Protocol=…" and
+/// "Press CTRL+C to stop" when it starts sending (the region lock speaks after that line): output
+/// without it is no transmission either, whatever it says.
 fn tx_refusal(out: &str) -> Option<String> {
+    if let Some(why) = console_refusal(out) {
+        return Some(why);
+    }
     for line in out.lines().map(str::trim) {
         if let Some(why) = line.strip_prefix("subghz tx_from_file:") {
             return Some(why.trim().to_string());
@@ -368,11 +387,36 @@ fn tx_refusal(out: &str) -> Option<String> {
         if line.contains("restricted") {
             return Some(line.to_string());
         }
-        if line.contains("command not found") || line.starts_with("Usage") || line.contains("Cmd list") {
+        if line.starts_with("Usage") || line.contains("Cmd list") {
             return Some("this firmware has no `subghz tx_from_file`".to_string());
         }
     }
-    None
+    if out.contains("Press CTRL+C to stop") {
+        return None;
+    }
+    Some(match out.lines().map(str::trim).find(|l| !l.is_empty()) {
+        Some(line) => format!("it did not start sending (it answered \"{line}\")"),
+        None => "it did not start sending (no answer)".to_string(),
+    })
+}
+
+/// What the command line of current firmwares (official 1.x, Momentum, RogueMaster) answers when it
+/// does not run a command, in words: it runs no `subghz` command while an app is open on the
+/// Flipper (`storage` it does), and loads `subghz` from the SD card, which fails when the card's
+/// files are for another firmware version (a Flipper whose firmware was flashed without them).
+/// Older firmwares say "`…` command not found" for a command they lack. None: no such answer.
+fn console_refusal(text: &str) -> Option<String> {
+    let why = if text.contains("cannot be run while an application is open") {
+        "an app is open on the Flipper; close it (the console runs no Sub-GHz command while one is open)"
+    } else if text.contains("failed to load external command") {
+        "its `subghz` command did not load from the SD card, whose files are for another firmware \
+         version; install the firmware together with its SD card files (qFlipper or the firmware's updater)"
+    } else if text.contains("could not find command") || text.contains("command not found") {
+        "this firmware has no `subghz` command"
+    } else {
+        return None;
+    };
+    Some(why.to_string())
 }
 
 // ---- receive ---------------------------------------------------------------------------------------
@@ -1278,6 +1322,20 @@ mod tests {
         );
         assert!(tx_refusal("Transmission on this frequency is restricted in your settings/region").is_some());
         assert!(tx_refusal("`subghz tx_from_file` command not found").is_some());
+        // The region lock speaks after the line that starts every transmission.
+        let region = "Listening at /ext/a.sub. Frequency=315000000, Protocol=RAW\n\nPress CTRL+C to stop\n\n\
+                      Transmission on this frequency is restricted in your settings/region";
+        assert!(tx_refusal(region).is_some_and(|w| w.contains("restricted")));
+        // Without that line nothing was sent, whatever the console said instead.
+        assert_eq!(tx_refusal("").as_deref(), Some("it did not start sending (no answer)"));
+        assert_eq!(tx_refusal("\n...\n").as_deref(), Some("it did not start sending (it answered \"...\")"));
+        let app = tx_refusal("this command cannot be run while an application is open").unwrap();
+        assert!(app.starts_with("an app is open on the Flipper"), "{app}");
+        let sd = tx_refusal("failed to load external command").unwrap();
+        assert!(sd.contains("SD card") && sd.contains("firmware version"), "{sd}");
+        let none = tx_refusal("could not find command `subghz`, try `help`").unwrap();
+        assert_eq!(none, "this firmware has no `subghz` command");
+        assert_eq!(console_refusal("Listening at 433920000. Press CTRL+C to stop"), None);
         assert_eq!(
             clean_output(b"\r\nsubghz tx_from_file x 1 0\r\nsubghz tx_from_file: \x1b[0;31mMissing Preset\x1b[0m\r\n", "subghz tx_from_file x 1 0"),
             "subghz tx_from_file: Missing Preset"
@@ -1310,6 +1368,9 @@ mod tests {
             rx_script: Vec<u8>,
             refuse_tx: bool,
             presets: bool,
+            /// The console's answer to every `subghz` command (current firmwares: an app is open,
+            /// the command did not load from the SD card), as it prints it: red, no line break.
+            subghz_refusal: Option<&'static str>,
             pub log: Arc<Mutex<Log>>,
         }
 
@@ -1327,11 +1388,21 @@ mod tests {
 
         /// The console end for KAT, and the fake running on the other end.
         pub fn start(rx_script: Vec<u8>, refuse_tx: bool, presets: bool) -> (Box<dyn SerialPort>, Arc<Mutex<Log>>, std::thread::JoinHandle<()>) {
+            start_with(rx_script, refuse_tx, presets, None)
+        }
+
+        /// [start], with `subghz_refusal` as the answer to every `subghz` command.
+        pub fn start_with(
+            rx_script: Vec<u8>,
+            refuse_tx: bool,
+            presets: bool,
+            subghz_refusal: Option<&'static str>,
+        ) -> (Box<dyn SerialPort>, Arc<Mutex<Log>>, std::thread::JoinHandle<()>) {
             let (mut ours, mut theirs) = TTYPort::pair().unwrap();
             ours.set_timeout(Duration::from_millis(10)).unwrap();
             theirs.set_timeout(READ_TIMEOUT).unwrap();
             let log = Arc::new(Mutex::new(Log { commands: Vec::new(), transmitted: Vec::new(), files: HashMap::new() }));
-            let fake = Fake { port: ours, rx_script, refuse_tx, presets, log: log.clone() };
+            let fake = Fake { port: ours, rx_script, refuse_tx, presets, subghz_refusal, log: log.clone() };
             let handle = std::thread::spawn(move || fake.run());
             (Box::new(theirs), log, handle)
         }
@@ -1388,6 +1459,9 @@ mod tests {
                     self.log.lock().unwrap().commands.push(cmd.to_string());
                 }
                 let words: Vec<&str> = cmd.split_whitespace().collect();
+                if let (Some(text), ["subghz", ..]) = (self.subghz_refusal, words.as_slice()) {
+                    return self.out(format!("\x1b[31m{text}\x1b[0m").as_bytes()) && self.out(b"\r\n>: ");
+                }
                 let reply: Vec<u8> = match words.as_slice() {
                     [] => Vec::new(),
                     ["subghz", "rx_raw", f, rest @ ..] => {
@@ -1514,6 +1588,32 @@ mod tests {
         let mut flipper = FlipperController::start(Console::with_port(port).unwrap(), tx, None, true).unwrap();
         let err = flipper.transmit(&signal, 433_920_000, &settings).unwrap_err().to_string();
         assert!(err.contains("restricted"), "{err}");
+    }
+
+    /// The command line of current firmwares answers `subghz` with a refusal (seen on a real Flipper
+    /// whose SD card's console commands were for another firmware version; an app open on the
+    /// Flipper gives another), while `storage` still works: receiving fails and so does
+    /// transmitting, though the file is written, each saying why. (KAT 1.13.0 and earlier took the
+    /// refused `tx_from_file` for a transmission.)
+    #[cfg(unix)]
+    #[test]
+    fn a_console_that_refuses_subghz() {
+        let signal = upload(PRINCETON);
+        let settings = TxSettings { modulation: TxModulation::Ook, vga_gain: 47, amp: true };
+        for (answer, says) in [
+            ("this command cannot be run while an application is open", "an app is open on the Flipper"),
+            ("failed to load external command", "did not load from the SD card"),
+        ] {
+            let (port, log, _fake) = fake::start_with(Vec::new(), false, false, Some(answer));
+            let (tx, _events) = mpsc::channel();
+            let mut flipper = FlipperController::start(Console::with_port(port).unwrap(), tx, None, true).unwrap();
+            let err = format!("{:#}", flipper.start_receiving(433_920_000).unwrap_err());
+            assert!(err.contains("refused `subghz rx_raw 433920000`") && err.contains(says), "{err}");
+            let err = format!("{:#}", flipper.transmit(&signal, 433_920_000, &settings).unwrap_err());
+            assert!(err.starts_with("the Flipper did not transmit: ") && err.contains(says), "{err}");
+            let log = log.lock().unwrap();
+            assert!(log.files.contains_key(TX_FILE) && log.transmitted.is_empty());
+        }
     }
 
     /// A configured port is opened by its name (as config `flipper_port` gives it); one that does

@@ -2,6 +2,13 @@
 
 All notable changes to KAT are documented here.
 
+## [Unreleased]
+
+### Fixed
+
+- **Flipper Zero as the radio**: a transmission counts as sent only once the Flipper says it started sending. KAT took any answer without a known error for a transmission, so it reported one as done when the Flipper's console had refused it: current firmwares (official 1.x, Momentum, RogueMaster) refuse `subghz` while an app is open on the Flipper, and cannot load it when the SD card's files are for another firmware version. KAT now explains those refusals, when receiving too. First tried on a real Flipper (Momentum): receiving at 433.92 and 315 MHz, retuning, a key fob's presses decoded, a replay, quitting. See [flipper_radio.md](docs/flipper_radio.md).
+- **Honda Static** no longer lists frames whose checksum fails. Its bit-reversed reading checked only the button and the serial, as ProtoPirate's and Flipper-ARF's decoders do, and about a third of any 64 bits pass that: a user's captures of a 2025 Kia were listed as Honda Static with a failed CRC, and so were 27 of 120 generated files of a fob sending fast Manchester. It now checks the checksum there as doctor-firmware's decoder does; a frame with a valid checksum passes it in either bit order. See [honda_static.md](docs/honda_static.md).
+
 ## [1.13.0] - 2026-11-13
 
 **Proteco** gate remotes, from RogueMaster. Security+ 1.0, PSA and the line between Fiat V1 and Renault V1 follow doctor-firmware's new decoders, KeeLoq Dea_Mio keeps its seed as RogueMaster now does, and Feron and Revers RB2 read frames the Flipper firmwares' decoders lose.

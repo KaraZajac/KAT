@@ -3,14 +3,22 @@
 //! Aligned with ProtoPirate reference: `REFERENCES/ProtoPirate/protocols/honda_static.c` and
 //! `honda_static.h`. Honda/Acura fixed-code keyfobs. FM, 315 MHz + 433.92 MHz, 64-bit frame.
 //!
-//! **Deviation from the reference (real-capture evidence).** The C's bit-reversed fallback does
-//! not verify the checksum, so Honda V5 frames (FoxFW `honda_v5.c`, same 63µs Manchester, 135 bits,
-//! CRC-8) pass its button / serial gates: `IMPORTS/honda/Lock_honda.sub` and `Unlock_honda.sub`
-//! (40 frames, 41 decodes) read here as button 1 in both files, a counter of 0x56BE7F in 40 of 41
-//! and a serial taking three values within one file. Honda V5 reads them with a valid CRC-8,
-//! one serial, buttons 0x21 / 0x22 and a rising counter, so the registry puts Honda V5 first and
-//! those frames are no longer Honda Static's (see `honda_v5.rs`). This decoder itself is
-//! unchanged; its checksum-verified forward frames are unaffected.
+//! **Deviations from ProtoPirate.**
+//! - The bit-reversed fallback checks the checksum, as doctor-firmware's copy does. ProtoPirate's
+//!   and Flipper-ARF's check only the button and the serial there, which about a third of any 64
+//!   bits pass (6 button codes of 16). Their fallback only runs after the forward check failed, and
+//!   the XOR checksum holds on the bit-reversed bytes exactly when it holds on the bytes as read, so
+//!   every frame it reports on a failed checksum is a wrong one. A KAT user's captures of a 2025 Kia
+//!   were listed as Honda Static with a failed CRC. Another fob's fast Manchester (half-bits of
+//!   45–80 µs) gives such frames: 36 in 27 of 120 generated files, file for file the frames
+//!   ProtoPirate's C reports when given each file in the polarity KAT read it in; ARF's C reports
+//!   such frames too, doctor-firmware's none. Every frame this decoder reports now has a valid
+//!   checksum.
+//! - Honda V5 frames (FoxFW `honda_v5.c`, same 63µs Manchester, 135 bits, CRC-8) passed the C's
+//!   unchecked fallback: `IMPORTS/honda/Lock_honda.sub` and `Unlock_honda.sub` (40 frames, 41
+//!   decodes) read as button 1 in both files, a counter of 0x56BE7F in 40 of 41 and a serial taking
+//!   three values within one file. Honda V5 reads them with a valid CRC-8, one serial, buttons
+//!   0x21 / 0x22 and a rising counter, so the registry puts Honda V5 first (see `honda_v5.rs`).
 //!
 //! Unlike most KAT decoders, Honda Static does NOT use the Flipper manchester_decoder.h transition
 //! table. It buffers a per-element *symbol stream* (one bit per ~63µs element) and then performs a
@@ -21,9 +29,9 @@
 //!
 //! Frame (64 bits, MSB-first into 8 bytes): button (4b) | serial (28b) | counter (24b) |
 //! checksum (8b). The checksum is an XOR of bytes[0..7] (the first 7 bytes). Emission is gated on
-//! the checksum validating, so Honda Static will not false-match. The parser tries the
-//! inverted-Manchester interpretation first (which is what the encoder emits), then non-inverted
-//! forward, then a bit-reversed-bytes pass — matching the C.
+//! the checksum validating, on every path. The parser tries the inverted-Manchester interpretation
+//! first (which is what the encoder emits), then non-inverted forward, then a bit-reversed-bytes
+//! pass — matching the C.
 //!
 //! The exported `data` (Key) word is the C `generic.data`: a compact nibble-packed layout
 //! (`honda_static_pack_compact`), NOT the raw decoded packet bytes.
@@ -33,12 +41,13 @@
 //! Btn, Cnt (the 24-bit counter) and Checksum (the XOR of the 7 packet bytes, i.e. the checksum
 //! a forward packet carries), all decimal. Loading needs Bit 64, unpacks the Key, lets the file's
 //! Serial / Btn / Cnt override it and repacks it (as the C does; repacking unedited fields gives
-//! the same Key). KAT's `crc_valid` (true only for frames read through the checksum-verified
-//! forward path; the C's unverified bit-reversed path gives false) has no line of its own in the
-//! format, so KAT carries it in the Checksum line: it is written only for a verified frame, and
-//! on load `crc_valid` = "the file has a Checksum line equal to the fields' checksum". Every
-//! reference writes Checksum (and none reads it back), so their files load as verified unless
-//! Serial/Btn/Cnt were edited; a KAT file of an unverified frame simply has no Checksum line.
+//! the same Key). KAT's `crc_valid` (true for every received frame; false for a loaded key whose
+//! fields do not match its Checksum line, or that has none) has no line of its own in the format,
+//! so KAT carries it in the Checksum line: it is written only for a verified frame, and on load
+//! `crc_valid` = "the file has a Checksum line equal to the fields' checksum". Every reference
+//! writes Checksum (and none reads it back), so their files load as verified unless
+//! Serial/Btn/Cnt were edited; a KAT file of an unverified frame (an older KAT's bit-reversed
+//! frames, a key with edited fields) has no Checksum line.
 
 use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
@@ -231,9 +240,9 @@ impl HondaStaticDecoder {
         })
     }
 
-    /// Validate a bit-reversed packet (matches honda_static_validate_reverse_packet). Note: the C
-    /// does NOT re-check the checksum here (it reverses bytes then validates button/serial only),
-    /// so this path is not checksum-gated. We mirror that, but the caller flags crc_valid=false.
+    /// Validate a bit-reversed packet: doctor-firmware's honda_static_validate_reverse_packet, which
+    /// checks the checksum like the forward path. ProtoPirate's and Flipper-ARF's check only the
+    /// button and the serial here (see the module doc).
     fn validate_reverse_packet(packet: &[u8; 8]) -> Option<HondaStaticFields> {
         let mut reversed = [0u8; 8];
         for (i, b) in packet.iter().enumerate() {
@@ -243,8 +252,11 @@ impl HondaStaticDecoder {
         let button = Self::get_bits(&reversed, 0, 4) as u8;
         let serial = Self::get_bits(&reversed, 4, 28);
         let counter = Self::get_bits(&reversed, 32, 24);
-        let checksum = Self::packet_checksum(&reversed);
+        let checksum = Self::get_bits(&reversed, 56, 8) as u8;
 
+        if checksum != Self::packet_checksum(&reversed) {
+            return None;
+        }
         if !Self::is_valid_button(button) {
             return None;
         }
@@ -297,9 +309,9 @@ impl HondaStaticDecoder {
     }
 
     /// Locate the data start (after the alternating preamble + sync run) and unpack/validate.
-    /// Matches honda_static_parse_symbols. Returns the validated fields and whether the checksum
-    /// path validated it (forward = true; reverse = false).
-    fn parse_symbols(symbols: &[bool], inverted: bool) -> Option<(HondaStaticFields, bool)> {
+    /// Matches honda_static_parse_symbols. Returns the validated fields: forward, else (on the
+    /// non-inverted reading) bit-reversed; both with their checksum verified.
+    fn parse_symbols(symbols: &[bool], inverted: bool) -> Option<HondaStaticFields> {
         let count = symbols.len();
         if count == 0 {
             return None;
@@ -336,22 +348,18 @@ impl HondaStaticDecoder {
         }
 
         if let Some(fields) = Self::validate_forward_packet(&packet) {
-            return Some((fields, true));
+            return Some(fields);
         }
 
         if inverted {
             return None;
         }
 
-        if let Some(fields) = Self::validate_reverse_packet(&packet) {
-            return Some((fields, false));
-        }
-
-        None
+        Self::validate_reverse_packet(&packet)
     }
 
-    /// Build a DecodedSignal from validated fields. `crc_valid` reflects whether the forward
-    /// (checksum-validated) path matched.
+    /// Build a DecodedSignal from validated fields. `crc_valid`: the checksum holds (true for
+    /// every received frame; a loaded key, see `from_flipper_key`).
     fn build_signal(fields: &HondaStaticFields, crc_valid: bool) -> DecodedSignal {
         DecodedSignal {
             serial: Some(fields.serial),
@@ -409,6 +417,34 @@ impl HondaStaticDecoder {
         }
         signal.push(LevelDuration::new(level, duration));
     }
+
+    /// One frame on air (matches honda_static_build_upload): the sync, the alternating preamble,
+    /// `packet` in inverted Manchester and the trailing sync.
+    fn build_upload(packet: &[u8; 8]) -> Vec<LevelDuration> {
+        let mut signal = Vec::with_capacity(1 + PREAMBLE_ALTERNATING_COUNT + 2 * BIT_COUNT + 1);
+
+        // Sync: HIGH 700µs.
+        Self::enc_add_level(&mut signal, true, SYNC_TIME_US);
+
+        // Alternating preamble: 160 elements at 63µs, level = (i & 1) (starts LOW).
+        for i in 0..PREAMBLE_ALTERNATING_COUNT {
+            Self::enc_add_level(&mut signal, (i & 1) != 0, ELEMENT_TIME_US);
+        }
+
+        // Data, MSB-first: bit → (!value 63µs, value 63µs).
+        for bit in 0..BIT_COUNT {
+            let shift = (!bit) & 0x07;
+            let value = ((packet[bit >> 3] >> shift) & 1) != 0;
+            Self::enc_add_level(&mut signal, !value, ELEMENT_TIME_US);
+            Self::enc_add_level(&mut signal, value, ELEMENT_TIME_US);
+        }
+
+        // Trailing sync: !last_bit for 700µs.
+        let last_bit = (packet[7] & 1) != 0;
+        Self::enc_add_level(&mut signal, !last_bit, SYNC_TIME_US);
+
+        signal
+    }
 }
 
 impl ProtocolDecoder for HondaStaticDecoder {
@@ -459,13 +495,9 @@ impl ProtocolDecoder for HondaStaticDecoder {
         if self.symbols.len() >= MIN_SYMBOLS {
             let parsed = Self::parse_symbols(&self.symbols, true)
                 .or_else(|| Self::parse_symbols(&self.symbols, false));
-            if let Some((fields, crc_valid)) = parsed {
-                // Faithful to the C: both the forward (checksum-validated) and reverse
-                // (button+serial-validated) packets commit a decode. The strong button/serial
-                // gates keep this from false-matching (verified: zero false matches across the
-                // IMPORTS sweep). `crc_valid` reflects whether the checksum-validated forward path
-                // matched (true) vs. the reverse path (false).
-                result = Some(Self::build_signal(&fields, crc_valid));
+            if let Some(fields) = parsed {
+                // Forward or bit-reversed, its checksum held (see validate_reverse_packet).
+                result = Some(Self::build_signal(&fields, true));
             }
         }
 
@@ -492,33 +524,7 @@ impl ProtocolDecoder for HondaStaticDecoder {
             counter: counter.wrapping_add(1) & 0x00FF_FFFF,
             checksum: 0,
         };
-        let packet = Self::build_packet_bytes(&fields);
-
-        // Matches honda_static_build_upload.
-        let mut signal =
-            Vec::with_capacity(1 + PREAMBLE_ALTERNATING_COUNT + 2 * BIT_COUNT + 1);
-
-        // Sync: HIGH 700µs.
-        Self::enc_add_level(&mut signal, true, SYNC_TIME_US);
-
-        // Alternating preamble: 160 elements at 63µs, level = (i & 1) (starts LOW).
-        for i in 0..PREAMBLE_ALTERNATING_COUNT {
-            Self::enc_add_level(&mut signal, (i & 1) != 0, ELEMENT_TIME_US);
-        }
-
-        // Data, MSB-first: bit → (!value 63µs, value 63µs).
-        for bit in 0..BIT_COUNT {
-            let shift = (!bit) & 0x07;
-            let value = ((packet[bit >> 3] >> shift) & 1) != 0;
-            Self::enc_add_level(&mut signal, !value, ELEMENT_TIME_US);
-            Self::enc_add_level(&mut signal, value, ELEMENT_TIME_US);
-        }
-
-        // Trailing sync: !last_bit for 700µs.
-        let last_bit = (packet[7] & 1) != 0;
-        Self::enc_add_level(&mut signal, !last_bit, SYNC_TIME_US);
-
-        Some(signal)
+        Some(Self::build_upload(&Self::build_packet_bytes(&fields)))
     }
 
     /// `subghz_protocol_decoder_honda_static_deserialize` (see the module doc, Key files).
@@ -600,9 +606,9 @@ mod tests {
         assert!(decode_wave(&signal).is_none());
     }
 
-    /// Key files: a verified (forward-path) decode round-trips with ProtoPirate's lines, an
-    /// unverified (reverse-path) one without the Checksum line; a reference file loads as
-    /// verified, edited fields repack the Key as the C does, and a loaded key transmits.
+    /// Key files: a verified decode round-trips with ProtoPirate's lines, an unverified one (a key
+    /// whose fields do not match its checksum) without the Checksum line; a reference file loads
+    /// as verified, edited fields repack the Key as the C does, and a loaded key transmits.
     #[test]
     fn flipper_key_files() {
         use crate::protocols::flipper_key::testing::{assert_round_trip, key};
@@ -648,6 +654,29 @@ mod tests {
         let loaded = dec.from_flipper_key(&file).unwrap();
         let again = decode_wave(&dec.encode(&loaded, 0x01).unwrap()).unwrap();
         assert_eq!((again.serial, again.button, again.counter), (Some(0x0123456), Some(0x1), Some(0x3458)));
+    }
+
+    /// The bit-reversed reading checks the checksum (doctor-firmware's fallback, see the module
+    /// doc): a frame sent with LSB-first bytes decodes, verified; the same frame with a wrong
+    /// checksum byte, which ProtoPirate's and Flipper-ARF's fallback (button and serial only)
+    /// report, does not. Serial 0x3456789 makes both straight readings fail on their button (3
+    /// and 12), so only the bit-reversed one can read either frame.
+    #[test]
+    fn reversed_frames_need_their_checksum() {
+        let fields = HondaStaticFields { button: 0x1, serial: 0x3456789, counter: 0x00_ABCD, checksum: 0 };
+        let good = HondaStaticDecoder::build_packet_bytes(&fields);
+        let mut bad = good;
+        bad[7] ^= 0x5A;
+        // On air, the encoder's layout carrying the complement of the bit-reversed bytes: the
+        // non-inverted reading turns it back into the bit-reversed bytes.
+        let on_air = |packet: [u8; 8]| {
+            HondaStaticDecoder::build_upload(&packet.map(|b| !HondaStaticDecoder::reverse_bits8(b)))
+        };
+        let decoded = decode_wave(&on_air(good)).expect("a bit-reversed frame with its checksum decodes");
+        assert!(decoded.crc_valid);
+        assert_eq!((decoded.serial, decoded.button, decoded.counter), (Some(0x3456789), Some(0x1), Some(0xABCD)));
+        assert!(HondaStaticDecoder::is_valid_button(0x1) && HondaStaticDecoder::is_valid_serial(0x3456789));
+        assert!(decode_wave(&on_air(bad)).is_none(), "a wrong checksum is no frame, bit-reversed or not");
     }
 
     /// Oracle vectors (see `fiat_v0::write_oracle_vector`): two forward (checksum-verified)

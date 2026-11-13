@@ -1195,7 +1195,6 @@ honda/Lock_honda.sub | 433657070 | Honda V5 | data=6C0F6208B53EFF72/135 extra=21
 honda/Lock_honda.sub | 433657070 | Honda V5 | data=6C0F620AB53EFF72/135 extra=21001C0DDB86B8F2 sn=B53EFF72 btn=21 cnt=1C0D crc=1 tx=0
 honda/Lock_honda.sub | 433657070 | Honda V5 | data=6C0F6208B53EFF72/135 extra=21001C0EB212CBF3 sn=B53EFF72 btn=21 cnt=1C0E crc=1 tx=0
 honda/Lock_honda.sub | 433657070 | Honda V5 | data=6C0F6208B53EFF72/135 extra=21001C0FAA65FA2B sn=B53EFF72 btn=21 cnt=1C0F crc=1 tx=0
-honda/Lock_honda.sub | 433657070 | Honda Static | data=1B7823A8056FE21/64 sn=B7823A8 btn=1 cnt=FE21 crc=0 tx=1
 honda/Lock_honda.sub | 433657070 | Honda V5 | data=6C0F6209B53EFF72/135 extra=21001C107E12A29D sn=B53EFF72 btn=21 cnt=1C10 crc=1 tx=0
 honda/Lock_honda.sub | 433657070 | Honda V5 | data=6C0F6209B53EFF72/135 extra=21001C11598C6F95 sn=B53EFF72 btn=21 cnt=1C11 crc=1 tx=0
 honda/Lock_honda.sub | 433657070 | Honda V5 | data=6C0F6208B53EFF72/135 extra=21001C12485807DD sn=B53EFF72 btn=21 cnt=1C12 crc=1 tx=0

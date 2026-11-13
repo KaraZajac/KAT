@@ -2715,12 +2715,9 @@ mod tests {
             return;
         };
         let names: Vec<&str> = results.iter().map(|(n, _)| n.as_str()).collect();
-        // 23 Honda V5 frames; the one frame V5's CRC rejects (counter 0x56FE21 in the Honda Static
-        // reading) still comes through Honda Static's unchecked path, between the 11th and 12th.
-        let mut want = vec!["Honda V5"; 11];
-        want.push("Honda Static");
-        want.extend(vec!["Honda V5"; 12]);
-        assert_eq!(names, want);
+        // 23 Honda V5 frames. The one frame V5's CRC rejects (between the 11th and 12th; counter
+        // 0x56FE21 in ProtoPirate's Honda Static reading) fails Honda Static's checksum too.
+        assert_eq!(names, vec!["Honda V5"; 23]);
         let mut c_like = PsaDecoder { kat_extensions: false, ..PsaDecoder::new() };
         let (freq, raw) = import_sub_raw(Path::new("IMPORTS/honda/Lock_honda.sub")).unwrap();
         assert_eq!(freq, 433_657_070);
@@ -2774,7 +2771,8 @@ mod tests {
         assert_eq!((unchecked[0].data, unchecked[0].extra), (0x4CDA_57A6_0039_A20E, Some(0x4FF4)));
         assert_eq!(auto_key_search(UNCHECKED_NAME, unchecked[0]), AutoKeySearch::Dropped);
         assert_eq!(got.iter().filter(|(n, _, _)| n == "Honda V5").count(), 23);
-        assert_eq!(got.iter().filter(|(n, _, _)| n == "Honda Static").count(), 1);
+        // The frame Honda V5's CRC rejects fails Honda Static's checksum too.
+        assert_eq!(got.iter().filter(|(n, _, _)| n == "Honda Static").count(), 0);
         // An undecrypted listed frame keeps its decode, marked as searched.
         let tea = DecodedSignal { serial: None, ..unchecked[0].clone() };
         assert_eq!(auto_key_search("PSA", &tea), AutoKeySearch::NotFound(SEARCH_LABEL_ALL.to_string()));

@@ -263,6 +263,24 @@ fn case(path: &str, proto: &'static str) -> Case {
 fn kia_v5() -> Case {
     case("IMPORTS/KIA/KIA V5 N1 RAW.sub", "Kia V5")
 }
+/// Honda Static: no IMPORTS capture holds a frame of it, so the fields come from the one decode
+/// `Lock_honda.sub` gave until Honda Static's bit-reversed pass checked the checksum (a Honda V5
+/// frame that fails V5's CRC). The upload, a genuine frame with them, is the same as before.
+fn honda_static() -> Case {
+    let d = DecodedSignal {
+        serial: Some(0xB7823A8),
+        button: Some(1),
+        counter: Some(0xFE21),
+        crc_valid: true,
+        data: 0x01B7_823A_8056_FE21,
+        data_count_bit: 64,
+        encoder_capable: true,
+        extra: None,
+        protocol_display_name: None,
+    };
+    let truth = ProtocolRegistry::new().get("Honda Static").unwrap().encode(&d, 0x01).expect("encode");
+    Case { proto: "Honda Static", freq: 433_657_070, truth, serial: 0xB7823A8 }
+}
 fn kia_v3() -> Case {
     case("IMPORTS/KIA/KIA V3 N1 RAW.sub", "Kia V3")
 }
@@ -1714,7 +1732,7 @@ fn tx_as_received(
 /// the receiver measures the deviation that was sent.
 #[test]
 fn tx_loopback_decodes_through_the_rx_pipeline() {
-    let honda = case("IMPORTS/honda/Lock_honda.sub", "Honda Static");
+    let honda = honda_static();
     let cases = [short(&kia_v5()), short(&kia_v3()), short(&kia_v1()), short(&ford_v0()), short(&honda)];
     let spec = Spec::live(Modu::Ook, 0.0, 6.0); // run_pipeline uses only fs and tune
     for c in &cases {

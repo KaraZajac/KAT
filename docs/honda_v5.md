@@ -54,7 +54,7 @@ CRC-gated), `encoder_capable` false. Key file: `Protocol: Honda V5`, `Bit`, `Key
 ## Evidence and deviation
 
 `IMPORTS/honda/Lock_honda.sub` and `Unlock_honda.sub` (Honda1 custom preset, 433.657 MHz) decoded as Honda Static in
-every reference C and in KAT up to 1.8.7 (see [honda_static.md](honda_static.md)). Compared on the same pulses:
+ProtoPirate's and Flipper-ARF's C and in KAT up to 1.8.7 (see [honda_static.md](honda_static.md)). Compared on the same pulses:
 
 | | Honda Static (ProtoPirate C) | Honda V5 (FoxFW C and KAT) |
 |---|---|---|
@@ -65,12 +65,13 @@ every reference C and in KAT up to 1.8.7 (see [honda_static.md](honda_static.md)
 | Counter | 0x56BE7F in 40 of 41 | Unlock 7154..7162, Lock 7175..7191, rising by 1 per press |
 
 Honda Static's three "serials" differ exactly as V5's byte-3 retransmit marker (0x08 / 0x0A / 0x09) does: header bits
-misread. The registry therefore places Honda V5 before Honda Static. This deviates from ProtoPirate (the reference of
-Honda Static) only on these captures; Honda Static's checksum-verified frames are unchanged. KAT also differs from the C
-in the RF flag (AM/FM instead of AM).
+misread. The registry therefore places Honda V5 before Honda Static. KAT's Honda Static has since also stopped reporting
+frames whose checksum fails, which these are (see [honda_static.md](honda_static.md)). KAT also differs from the C in the
+RF flag (AM/FM instead of AM).
 
-One frame of the Lock capture (Honda Static's counter 0x56FE21) fails Honda V5's CRC and still comes through Honda Static's
-unchecked path, as a lone `crc` false decode.
+One frame of the Lock capture (counter 0x56FE21 as ProtoPirate's Honda Static reads it) fails Honda V5's CRC. KAT listed
+it as a lone Honda Static decode with `crc` false until Honda Static's bit-reversed pass checked the checksum; now nothing
+reads it.
 
 rtl_433's `Honda-KR5V2X1X` port reads the same frames (event 0x21 Lock, 0x22 Unlock, same CRC-8); since the registry
 reports an rtl_433 port only when no Flipper decoder reads the signal, they are reported as Honda V5.

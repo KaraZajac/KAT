@@ -41,6 +41,45 @@ Rolling-code keyfobs from FCA (Fiat / Chrysler / Jeep). Each burst carries one 1
 
 **KAT packing:** `data` = raw[0..8], `data_count_bit` = 112, `extra` = raw[8..14] (48 bits, right-aligned).
 
+### The Chrysler / Jeep fobs' layout (KAT's, from the captures)
+
+The two real fobs in IMPORTS, a 2019 Chrysler Pacifica (type nibble `0x5`) and a 2022 Jeep Renegade (type `0x7`),
+fit neither layout above. Read with the non-FCA layout, as ProtoPirate, Flipper-ARF and doctor-firmware read
+them, their counter is one value for the whole recording (`0x09B`, `0x080`), and their Panic and Remote start
+presses carry Unlock's selector. Bit-inverted, their bytes 6..9 are a flag word and a 16-bit counter:
+
+| Bytes (inverted) | Field |
+|---|---|
+| `!raw[6..8]` | type nibble (`0xA` Pacifica, `0x8` Renegade), then the button flags (one of bits 11..5), then `0b00100` |
+| `!raw[8..10]` | counter, 16 bits: up with every press, across all buttons |
+| `raw[10..14]` | hop |
+
+| Flag bit | Button | KAT button code |
+|---|---|---|
+| 5 (`0x020`) | Panic | 1 |
+| 6 (`0x040`) | Lock | 2 |
+| 7 (`0x080`) | Trunk | 3 |
+| 8 (`0x100`) | Unlock | 4 |
+| 9 (`0x200`) | Sliding door 1 | 5 |
+| 10 (`0x400`) | Sliding door 2 | 6 |
+| 11 (`0x800`) | Remote start | 7 |
+
+Both recordings are named after the buttons pressed, and the flags follow the names press for press:
+
+| Recording | Presses (flag, counter) |
+|---|---|
+| `chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub` | Unlock `DFDC` `DFE2`, Lock `DFE6` `DFEA`, Trunk `DFED` `DFF1`, Remote start `DFF5` `DFFB`, Sliding door 1 `DFFF` `E001`, Sliding door 2 `E006` `E00B`, Panic `E00F`, Trunk `E011` `E017` |
+| `jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub` | Unlock `07D7` `07D8`, Lock `07DD` `07E3`, Remote start `07E5` `07EA`, Panic `07EC` `07F0` |
+
+A frame with type `0x5` or `0x7` whose flag word has that shape (low five bits `00100`, exactly one button bit) is
+read so: `counter` = the 16 bits, `button` = the code in the table (a selector byte is never below `0x40`, so the
+two kinds of code do not meet). `serial`, `data`, `extra`, the key file and the replay are unchanged, and such a
+frame is never forward-encoded with the other layouts' fields.
+
+FoxFW's Jeep V0 (`jeep_v0.c`) reads the Renegade's frames this way, inverted, with the four codes that fob has
+(`0x8104` Unlock, `0x8044` Lock, `0x8804` Remote start, `0x8024` Panic); it takes the counter's high byte for a
+constant `0x07`, and so reads no other fob (not the Pacifica).
+
 On air, a bit b is sent as half-bits (!b, b) (LOW/HIGH = 1). Every genuine frame in IMPORTS uses this polarity,
 which the C reaches through its inverted try.
 
@@ -93,9 +132,9 @@ Frame content from Flipper-ARF, waveform from doctor-firmware:
 ## Validation
 
 Decodes REAL IMPORTS captures: the Chrysler Pacifica (UID `0xD737A2C3`, 47 frames, 434.075 MHz) and the Jeep
-Renegade (UID `0xD08BE613`, 29 frames, 433.889 MHz). The UID is stable, the selector follows the recorded
-button order (Unlock → Lock → Trunk …), and `raw[8..9]` counts down from press to press. The LDV / Ford V3
-captures do not match. A volunteer's Alfa Romeo Giulia (2015–2026, 433.92 MHz, not in `IMPORTS`) uses Fiat V2
+Renegade (UID `0xD08BE613`, 29 frames, 433.889 MHz). The UID is stable, and the button flags and the 16-bit
+counter follow the recordings' names press for press (the table under "The Chrysler / Jeep fobs' layout";
+`chrysler_and_jeep_presses_follow_their_recordings_names`). The LDV / Ford V3 captures do not match. A volunteer's Alfa Romeo Giulia (2015–2026, 433.92 MHz, not in `IMPORTS`) uses Fiat V2
 too: 5 lock and 5 unlock codes, the frames doctor-firmware, ProtoPirate and Flipper-ARF read. Its unlock
 frames also form a valid Ford V3 US frame in the opposite polarity; KAT 1.8.5 listed 28 of those 30 frames as
 Ford V3 ([ford_v3.md](ford_v3.md)). The Fiat Bravo capture (`FIAT/Fiat Bravo 2010 …`) is not Fiat V2: its

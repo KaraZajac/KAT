@@ -55,9 +55,11 @@ mod honda_v5;
 mod honda_v1;
 mod honda_v2_v3;
 mod honda_v4;
-// Honda V6 (FoxFW): ported, not registered (no check; its only evidence is noise, see honda_v6.rs).
-#[allow(dead_code)]
+// Honda V6: KAT's own reader of the Miller-coded frame (honda_v6.rs). FoxFW's three paths, which
+// read that frame as trits, are ported and not registered (no check; honda_v6_foxfw.rs).
 mod honda_v6;
+#[allow(dead_code)]
+mod honda_v6_foxfw;
 mod honda_v7;
 // Honda V8 (FoxFW): ported, not registered (its KeeLoq decrypt match passes about 0.5% of random
 // frames and completes before longer frames end: it read a Nice One upload), see honda_v8.rs.
@@ -368,10 +370,18 @@ pub trait ProtocolDecoder: Send + Sync {
     /// The input ended (the end of a recording, or of a burst the receiver handed over): the
     /// frame this decoder holds back for a pulse that will not come now. Only decoders that report
     /// a complete frame later than their reference does (a KAT deviation, to give an earlier
-    /// decoder priority or to see the burst end) hold one: Mazda V1, Mercedes V1, Renault V1, Fiat
-    /// V2 and PSA's doctor-firmware path. A decoder whose reference also waits for the pulse after
+    /// decoder priority or to see the burst end) hold one: Mercedes V1, Renault V1, Fiat V2 and
+    /// PSA's doctor-firmware path. A decoder whose reference also waits for the pulse after
     /// the frame keeps None, as on a Flipper.
     fn flush(&mut self) -> Option<DecodedSignal> {
+        None
+    }
+
+    /// The registered decoder whose frames this decoder also reads. A decode it reports under
+    /// that name (`protocol_display_name`) is that decoder's own decode, field for field, so the
+    /// registry lists it as one: under the name, and without the display name that carried it
+    /// ([listed]). Mazda V1's reader finds Mazda V2 frames which Mazda V2's own reader cannot.
+    fn reads_frames_of(&self) -> Option<&'static str> {
         None
     }
 
@@ -490,6 +500,50 @@ const NO_INVERTED_PASS: &[&str] = &["Ford V3", "LDV V0"];
 /// them before the ungated pass reached Kia V3/V4 (FM-flagged, KeeLoq-checked), which reads them
 /// first there, as in FoxFW's own registry.
 const NOT_FINAL_ON_GATED_PASS: &[&str] = &["Toyota (FoxFW)"];
+
+/// The pause (µs) that makes two frames of a recording two transmissions: a frame an rtl_433
+/// port holds back, with this much time to the Flipper decoders' frames before and behind it, is
+/// not their signal read again, and is listed ([ProtocolRegistry::process_signal_stream_inner]).
+/// The copies and repeats of one press follow each other within about 100 ms.
+const SEPARATE_US: u64 = 250_000;
+
+/// A frame an rtl_433 port read, held back until it is clear that no Flipper decoder reads the
+/// signal ([ProtocolRegistry::process_signal_stream_inner]).
+struct Held {
+    /// The port's index, the frame's first and last pulse.
+    port: usize,
+    start: usize,
+    end: usize,
+    name: String,
+    decoded: DecodedSignal,
+    /// The pulses the last Flipper frame and the last port frame before it completed on.
+    after: (Option<usize>, Option<usize>),
+}
+
+/// The first pulse from `behind` on by whose end [SEPARATE_US] have passed since `behind`'s
+/// start, if that is `at` or earlier: where a frame that is a transmission of its own, behind
+/// the frame completed on `behind`, can start.
+fn apart(pairs: &[LevelDuration], behind: usize, at: usize) -> Option<usize> {
+    let mut since = 0_u64;
+    (behind..=at).find(|&j| {
+        since += u64::from(pairs[j].duration_us);
+        since >= SEPARATE_US
+    })
+}
+
+/// The name a decode is listed under and the decode as listed: the decoder's display name for
+/// it, else the decoder's own name. A decode of another decoder's frame
+/// ([ProtocolDecoder::reads_frames_of]) takes that decoder's name and loses the display name.
+fn listed(decoder: &dyn ProtocolDecoder, mut decoded: DecodedSignal) -> (String, DecodedSignal) {
+    match decoded.protocol_display_name.take() {
+        Some(name) if decoder.reads_frames_of() == Some(name.as_str()) => (name, decoded),
+        Some(name) => {
+            decoded.protocol_display_name = Some(name.clone());
+            (name, decoded)
+        }
+        None => (decoder.name().to_string(), decoded),
+    }
+}
 
 impl ProtocolRegistry {
     /// Every decoder, in registry order (which decides first-match priority; the comments say why).
@@ -908,19 +962,23 @@ impl ProtocolRegistry {
             Box::new(opel_v0::OpelV0Decoder::new()),
             // FoxFW's Honda decoders (decode only), after every other Flipper decoder, checked ones
             // first: V4 (inverse-byte invariant), V7 (XOR checksum), V9 (XOR checksum, Hamming <= 1),
-            // HondaV2&V3 (V3: CRC; V2: button pair), then V10 (flags / button gate only). Honda V6
-            // (no check, matches noise in Toyota / Opel / Subaru captures and would take a Fiat V1
-            // frame) and Honda V8 (a KeeLoq decrypt match under 21 keys that about 0.5% of random
-            // frames pass, and that completes before a Nice One frame ends: it read one) are ported
-            // but not registered, see honda_v6.rs and honda_v8.rs.
+            // HondaV2&V3 (V3: CRC; V2: button pair), then V10 (flags / button gate only). FoxFW's
+            // Honda V6 (no check, matches noise in Toyota / Opel / Subaru captures and would take a
+            // Fiat V1 frame) and Honda V8 (a KeeLoq decrypt match under 21 keys that about 0.5% of
+            // random frames pass, and that completes before a Nice One frame ends: it read one) are
+            // ported but not registered, see honda_v6_foxfw.rs and honda_v8.rs.
+            // Honda V6 here is KAT's own reader of the frame FoxFW's "313" path takes for trits:
+            // Miller code, 40+ zero cells, a 67-cell block twice, both copies alike.
+            Box::new(honda_v6::HondaV6Decoder::new()),
             Box::new(honda_v4::HondaV4Decoder::new()),
             Box::new(honda_v7::HondaV7Decoder::new()),
             Box::new(honda_v9::HondaV9Decoder::new()),
             Box::new(honda_v2_v3::HondaV2V3Decoder::new()),
             Box::new(honda_v10::HondaV10Decoder::new()),
             // FoxFW decoders (decode-only, no checksum), after every Flipper reference's decoders,
-            // strongest gate first. Mitsubishi V1: 200/400 µs FSK Manchester, 32-bit sync 0x1E4C11A7 +
-            // fix byte 0xE0.
+            // strongest gate first. Mitsubishi V1: 200/400 µs FSK Manchester; FoxFW's 32-bit word
+            // 0x1E4C11A7, or any id `0001…` behind 10 zeros with the frame ending at the gap; fix
+            // byte 0xE0. (Replays its frame; the others here are decode-only.)
             Box::new(mitsubishi_v1::MitsubishiV1Decoder::new()),
             // LDV V0: 250/500 µs Manchester, >= 48-bit preamble, 128 bits with fixed 0xFF 0xFF bytes
             // and a duplicated button. Behind Ford V3, which reads the same fob's frames first.
@@ -1191,12 +1249,15 @@ impl ProtocolRegistry {
         let mut out: Vec<(usize, String, DecodedSignal, Vec<LevelDuration>)> = Vec::new();
         let mut segment_start = 0_usize;
         // A frame an rtl_433 port read, held back until it is clear that no Flipper decoder reads
-        // the signal: (port, first pulse, last pulse, name, decode). Once a Flipper decoder has
-        // read the signal a port held a frame of, that port's later frames of this stream are
-        // dropped too (the frames the Flipper decoder cannot take, e.g. the last of a press whose
-        // header it needs first, would otherwise be listed under the port's name).
-        let mut pending: Option<(usize, usize, usize, String, DecodedSignal)> = None;
+        // the signal. Once a Flipper decoder has read the signal a port held a frame of, that
+        // port's later frames of this stream are dropped too (the frames the Flipper decoder
+        // cannot take, e.g. the last of a press whose header it needs first, would otherwise be
+        // listed under the port's name). A held frame [SEPARATE_US] away from the Flipper
+        // decoders' frames on both sides is not their signal.
+        let mut pending: Option<Held> = None;
         let mut shadowed = vec![false; self.decoders.len()];
+        // The pulses the last Flipper decoder's and the last rtl_433 port's frame completed on.
+        let (mut last_flipper, mut last_port) = (None, None);
         // `autobf`'s unchecked PSA frames ([PSA_UNCHECKED_NAME]: frames that count only if the key
         // search finds their key, and are dropped otherwise) are reported for that search but are
         // no hit: they reset no decoder, leave a held rtl_433 frame alone and take no pulses from
@@ -1241,11 +1302,7 @@ impl ProtocolRegistry {
                 if hit.is_some() {
                     continue;
                 }
-                let name = decoded
-                    .protocol_display_name
-                    .as_deref()
-                    .unwrap_or_else(|| self.decoders[k].name())
-                    .to_string();
+                let (name, decoded) = listed(self.decoders[k].as_ref(), decoded);
                 if name == PSA_UNCHECKED_NAME {
                     unchecked.get_or_insert((k, name, decoded));
                     continue;
@@ -1266,22 +1323,34 @@ impl ProtocolRegistry {
             }
             let Some((k, name, decoded)) = hit else { continue };
             if self.rtl[k] {
+                let after = (last_flipper, last_port);
+                last_port = Some(at);
                 if shadowed[k] {
                     continue;
                 }
                 // Report the frame held before it; hold this one.
-                if let Some((_, s, e, n, d)) = pending.take() {
-                    out.push((e, n, d, segment(pairs, s, e)));
-                    segment_start = e + 1;
+                if let Some(held) = pending.take() {
+                    out.push((held.end, held.name, held.decoded, segment(pairs, held.start, held.end)));
+                    segment_start = held.end + 1;
                 }
-                pending = Some((k, segment_start.min(at), at, name, decoded));
+                pending = Some(Held { port: k, start: segment_start.min(at), end: at, name, decoded, after });
                 continue;
             }
-            // A Flipper decoder reads the signal: a held rtl_433 frame of it is dropped.
-            if let Some((pk, s, _, _, _)) = pending.take() {
-                shadowed[pk] = true;
-                segment_start = s;
+            // A Flipper decoder reads the signal: a held rtl_433 frame of it is dropped. A held
+            // frame with a pause of [SEPARATE_US] on both sides, behind the Flipper frame before
+            // it and in front of this one, is another transmission (a second remote in the
+            // recording, say), and stands.
+            if let Some(held) = pending.take() {
+                let flushed = pulse.is_none();
+                if self.starts_apart(&held, pairs, invert_level) && self.reads_apart(k, pairs, held.end, at, invert_level, flushed) {
+                    out.push((held.end, held.name, held.decoded, segment(pairs, held.start, held.end)));
+                    segment_start = held.end + 1;
+                } else {
+                    shadowed[held.port] = true;
+                    segment_start = held.start;
+                }
             }
+            last_flipper = Some(at);
             // The frame's pulses end on the one that completed it — unless the decoder reported at
             // the middle of its last bit (Flipper's Manchester table emits a bit on its first half):
             // then that bit's second half, the next pulse, is the frame's too. Replay sends the
@@ -1292,8 +1361,8 @@ impl ProtocolRegistry {
             out.push((i, name, decoded, segment(pairs, start, end)));
             segment_start = end + 1;
         }
-        if let Some((_, s, e, n, d)) = pending {
-            out.push((e, n, d, segment(pairs, s, e)));
+        if let Some(held) = pending {
+            out.push((held.end, held.name, held.decoded, segment(pairs, held.start, held.end)));
         }
 
         out.sort_by_key(|f| f.0);
@@ -1315,6 +1384,32 @@ impl ProtocolRegistry {
             }
         }
         i
+    }
+
+    /// Whether the frame decoder `k` completed on pulse `at` (`flushed`: at the end of the input)
+    /// starts [SEPARATE_US] or more behind pulse `behind`, the pulse another frame was completed
+    /// on: the decoder, started anew [SEPARATE_US] behind that pulse's start ([apart]), reads a
+    /// frame by `at`. Run on the probe copy.
+    fn reads_apart(&mut self, k: usize, pairs: &[LevelDuration], behind: usize, at: usize, invert: bool, flushed: bool) -> bool {
+        let Some(from) = apart(pairs, behind, at) else { return false };
+        let dec = &mut self.probe[k];
+        dec.reset();
+        let hit = pairs[from..=at].iter().any(|p| dec.feed(p.level ^ invert, p.duration_us).is_some())
+            || (flushed && dec.flush().is_some());
+        dec.reset();
+        hit
+    }
+
+    /// Whether a held rtl_433 frame starts [SEPARATE_US] or more behind the Flipper frame before
+    /// it (true when there is none). A port's hit resets the ports, so a frame that follows a
+    /// port's hit which is itself that far behind starts there or later.
+    fn starts_apart(&mut self, held: &Held, pairs: &[LevelDuration], invert: bool) -> bool {
+        let (Some(flipper), port) = held.after else { return true };
+        match apart(pairs, flipper, held.end) {
+            None => false,
+            Some(from) if port.is_some_and(|p| p >= from) => true,
+            Some(_) => self.reads_apart(held.port, pairs, flipper, held.end, invert, false),
+        }
     }
 
     /// Whether decoder `k` reads a frame from `pulses` sent as Replay sends them: adjacent pulses
@@ -1376,11 +1471,7 @@ impl ProtocolRegistry {
                 }
 
                 if let Some(decoded) = decoder.feed(level, duration_us) {
-                    let name = decoded
-                        .protocol_display_name
-                        .as_deref()
-                        .unwrap_or_else(|| decoder.name());
-                    hits.push((name.to_string(), decoded));
+                    hits.push(listed(decoder.as_ref(), decoded));
                 }
             }
             if let Some((name, decoded)) = hits.into_iter().next() {
@@ -1434,6 +1525,20 @@ impl ProtocolRegistry {
         let d = decoder.from_flipper_key(key)?;
         let name = d.protocol_display_name.clone().unwrap_or_else(|| decoder.name().to_string());
         Some((name, d))
+    }
+
+    /// Why [Self::decode_key] gave nothing for `key`, for a message: no decoder has key files of
+    /// that name, or the protocol's decoder does not take this key.
+    pub fn key_refusal(&self, key: &FlipperKey) -> String {
+        match self.get(flipper_key::registry_name(&key.protocol)) {
+            Some(decoder) => format!(
+                "the {} decoder does not take this {:?} key file ({} bits): it holds no valid frame of the protocol",
+                decoder.name(),
+                key.protocol,
+                key.bits
+            ),
+            None => format!("no decoder reads {:?} key files ({} bits)", key.protocol, key.bits),
+        }
     }
 
     /// Feed `pairs` to the decoder `name` resolves to, alone (reset first): every frame it reports.
@@ -1852,7 +1957,8 @@ mod tests {
         path.strip_prefix("IMPORTS").unwrap_or(path).to_string_lossy().replace('\\', "/")
     }
 
-    /// Every `IMPORTS/<make>/*.sub` capture, sorted (None when IMPORTS is absent).
+    /// Every `IMPORTS/<make>/*.sub` capture, sorted (None when IMPORTS is absent): the test
+    /// corpus. The captures in `IMPORTS/<make>/more/` are not among them ([imports_more_subs]).
     fn imports_subs() -> Option<Vec<std::path::PathBuf>> {
         let root = Path::new("IMPORTS");
         if !root.exists() {
@@ -2019,6 +2125,102 @@ mod tests {
             panic!(
                 "IMPORTS decodes changed (- expected, + now). If intended, regenerate with \
                  KAT_UPDATE_GOLDEN=1 cargo test imports_decode_golden and review the diff:\n{}",
+                diff.join("\n")
+            );
+        }
+    }
+
+    /// Every `IMPORTS/<make>/more/*.sub` capture, sorted: the captures outside the test corpus
+    /// (308 files, 80 MB, since 2026-11; among them sessions of hundreds of presses). The tests
+    /// that walk [imports_subs] leave them out for their number and size: one pass over them
+    /// takes a quarter of an hour in a debug build, and those tests pin every file they read.
+    fn imports_more_subs() -> Option<Vec<std::path::PathBuf>> {
+        let root = Path::new("IMPORTS");
+        if !root.exists() {
+            return None;
+        }
+        let mut subs: Vec<std::path::PathBuf> = std::fs::read_dir(root)
+            .ok()?
+            .flatten()
+            .filter_map(|make| std::fs::read_dir(make.path().join("more")).ok())
+            .flat_map(|files| files.flatten().map(|f| f.path()))
+            .filter(|p| p.extension().map(|e| e == "sub").unwrap_or(false))
+            .collect();
+        subs.sort();
+        Some(subs)
+    }
+
+    /// Regression guard for the captures in `more/` ([imports_more_subs]): per file and protocol,
+    /// the number of frames, of distinct frames, and a hash (FNV-1a) of every decode's fields in
+    /// order, against `testdata/imports_more_decodes.txt`; a key file gives its one decode, a file
+    /// KAT does not read its error. Ignored for its run time; run it in a release build after a
+    /// decoder change and before a release:
+    /// `cargo test --release --bin kat imports_more_decode_golden -- --ignored` (about three
+    /// minutes). After an intended change, regenerate with `KAT_UPDATE_GOLDEN=1` and review the diff.
+    #[test]
+    #[ignore = "decodes 80 MB of captures: three minutes in a release build, a quarter of an hour in debug"]
+    fn imports_more_decode_golden() {
+        let _keystore = keeloq_common::KEYSTORE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        crate::protocols::keys::load_keystore_from_embedded();
+        let Some(subs) = imports_more_subs().filter(|subs| !subs.is_empty()) else {
+            eprintln!("Skip: no IMPORTS/<make>/more captures (run from crate root)");
+            return;
+        };
+        let mut reg = ProtocolRegistry::new();
+        let mut lines = Vec::new();
+        for path in &subs {
+            let rel = imports_rel(path);
+            if let Ok(crate::export::flipper::SubContent::Key(key)) = crate::export::flipper::read_sub(path) {
+                lines.push(match reg.decode_key(&key) {
+                    Some((name, d)) => format!("{rel} | {} | key | {name} | {}", key.frequency, golden_fields(&d)),
+                    None => format!("{rel} | {} | key | refused: {}", key.frequency, reg.key_refusal(&key)),
+                });
+                continue;
+            }
+            match decode_import(&mut reg, path) {
+                Ok((freq, decodes)) if decodes.is_empty() => lines.push(format!("{rel} | {freq} | (none)")),
+                Ok((freq, decodes)) => {
+                    // Protocols in order of first appearance: (frames, distinct frames, hash).
+                    let mut order: Vec<&str> = Vec::new();
+                    let mut per: std::collections::HashMap<&str, (usize, std::collections::HashSet<String>, u64)> =
+                        Default::default();
+                    for (name, d) in &decodes {
+                        let fields = golden_fields(d);
+                        let entry = per.entry(name.as_str()).or_insert_with(|| {
+                            order.push(name.as_str());
+                            (0, Default::default(), 0xCBF2_9CE4_8422_2325)
+                        });
+                        entry.0 += 1;
+                        for b in fields.bytes().chain([b'\n']) {
+                            entry.2 = (entry.2 ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01B3);
+                        }
+                        entry.1.insert(fields);
+                    }
+                    for name in order {
+                        let (frames, distinct, hash) = &per[name];
+                        lines.push(format!("{rel} | {freq} | {name} | x{frames} | {} distinct | fnv={hash:016X}", distinct.len()));
+                    }
+                }
+                Err(e) => lines.push(format!("{rel} | ERR {e}")),
+            }
+        }
+        let actual = lines.join("\n") + "\n";
+        let golden = Path::new("testdata/imports_more_decodes.txt");
+        if std::env::var_os("KAT_UPDATE_GOLDEN").is_some() {
+            std::fs::write(golden, &actual).unwrap();
+            return;
+        }
+        let expected = std::fs::read_to_string(golden)
+            .expect("testdata/imports_more_decodes.txt missing; create it with KAT_UPDATE_GOLDEN=1");
+        if expected != actual {
+            let exp: std::collections::HashSet<&str> = expected.lines().collect();
+            let act: std::collections::HashSet<&str> = actual.lines().collect();
+            let mut diff: Vec<String> = expected.lines().filter(|l| !act.contains(l)).map(|l| format!("- {l}")).collect();
+            diff.extend(actual.lines().filter(|l| !exp.contains(l)).map(|l| format!("+ {l}")));
+            diff.truncate(60);
+            panic!(
+                "The decodes of the captures in more/ changed (- expected, + now). If intended, regenerate with \
+                 KAT_UPDATE_GOLDEN=1 and review the diff:\n{}",
                 diff.join("\n")
             );
         }
@@ -2204,6 +2406,8 @@ mod tests {
             // registered).
             ("Audi V3", "Audi V3"), ("BMW V2", "BMW V2"),
             ("BMW/Mini V3", "BMW/Mini V3"), ("BMW CAS3", "BMW CAS3"),
+            // FoxFW's key file; KAT replays the frame (FoxFW has no encoder).
+            ("Mitsubishi V1", "Mitsubishi V1"),
             // Names other references write for the same protocols.
             ("KIA/HYU V3/V4", "Kia V3/V4"), ("VAG GROUP", "VAG"), ("PSA GROUP", "PSA"), ("FORD V0", "Ford V0"),
             ("SUBARU", "Subaru"), ("Chrysler", "Chrysler V0"), ("Toyota Lexus", "Toyota"),
@@ -2243,7 +2447,9 @@ mod tests {
             }
             // FoxFW's HondaV2&V3 keeps a 12-byte payload in its key file that a decode cannot hold;
             // FoxFW's decode-only decoders below write no key files (extra Serial/Hop lines not ported).
-            let foxfw = ["Mitsubishi V1", "LDV V0", "Lexus V0", "Mazda V1", "Nissan V0"].contains(&name);
+            // Honda V6 (KAT's own reader) writes none either: FoxFW's file of that name holds 32
+            // pulse widths, less than the frame's block.
+            let foxfw = ["LDV V0", "Lexus V0", "Mazda V1", "Nissan V0", "Honda V6"].contains(&name);
             let listed = written.iter().any(|&(_, dec)| dec == name) || name == "Renault V1 (ARF)" || name == "Toyota (FoxFW)" || name == "HondaV2&V3" || foxfw;
             assert!(listed, "{name}: no key-file name listed");
         }

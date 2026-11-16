@@ -271,6 +271,7 @@ fn imported(file: &str) -> Option<(ProtocolRegistry, Vec<Capture>)> {
         ignore_duplicates: false,
         unchecked: Vec::new(),
         import_dir: Path::new("IMPORTS"),
+        notes: Vec::new(),
     };
     importer.import(&path);
     Some((protocols, captures))

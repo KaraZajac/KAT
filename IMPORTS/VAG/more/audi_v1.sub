@@ -1,0 +1,10 @@
+Filetype: Flipper SubGhz Key File
+Version: 1
+Frequency: 433920000
+Preset: FuriHalSubGhzPresetOok650Async
+Protocol: Audi V1
+Bit: 64
+Key: 12 34 56 78 9A BC DE F0
+Serial: 74565
+Btn: 1
+Cnt: 7

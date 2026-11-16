@@ -59,9 +59,7 @@ pub fn parse_sub_content(s: &str) -> Result<SubContent> {
 /// the capture's recording (`ProtocolDecoder::key_file_pulses`), so Replay sends it.
 /// Err when the protocol is unknown to KAT or the key does not load (wrong Bit, failed check …).
 pub fn capture_from_key(key: &FlipperKey, registry: &ProtocolRegistry, id: u32) -> Result<Capture> {
-    let (name, decoded) = registry.decode_key(key).ok_or_else(|| {
-        anyhow::anyhow!("{} key file ({} bits) is not supported or does not validate", key.protocol, key.bits)
-    })?;
+    let (name, decoded) = registry.decode_key(key).ok_or_else(|| anyhow::anyhow!(registry.key_refusal(key)))?;
     let pairs: Vec<StoredLevelDuration> = registry
         .get(&name)
         .and_then(|p| p.key_file_pulses(key))
@@ -185,6 +183,91 @@ pub struct SubFile {
     pub frequency: u32,
     pub preset: Option<RfPreset>,
     pub pairs: Vec<StoredLevelDuration>,
+    /// `RAW_Data` lines that were cut short at text that is not a number ([RawDamage]); None for a
+    /// clean file.
+    pub damage: Option<RawDamage>,
+}
+
+/// Damage in a RAW file's `RAW_Data` lines: text that is not a number where a pulse should be,
+/// e.g. the Flipper's log lines in a file captured from its console (`\x1b[0;32m[I][Dolphin]…`,
+/// `#SUBGHZ_RAW_DATA:`) or a last value cut off after its sign. The Flipper keeps the values in
+/// front of such a spot and drops the rest of that line; so does KAT ([parse_raw_values]), and
+/// says so, because the pulses lost there can cost a frame.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RawDamage {
+    /// How many `RAW_Data` lines were cut short.
+    pub lines: usize,
+    /// The first of them: its line number in the file (from 1) and the text it was cut at.
+    pub first_line: usize,
+    pub first_text: String,
+}
+
+impl std::fmt::Display for RawDamage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let lines = if self.lines == 1 { "1 RAW_Data line".to_string() } else { format!("{} RAW_Data lines", self.lines) };
+        write!(
+            f,
+            "damaged file: {lines} cut short at text that is not a pulse (first: line {}, at \"{}\")",
+            self.first_line,
+            self.first_text.escape_debug()
+        )
+    }
+}
+
+/// The longest pulse the Flipper's file reader passes to its decoders (µs,
+/// `SUBGHZ_FILE_ENCODER_DURATION_MAX`): a longer value is cut to it. In the files this matters for
+/// a pulse and a log line's tick count ran together into one number (`-134385011`).
+const RAW_DURATION_MAX: i64 = 1_000_000;
+
+/// The values of one `RAW_Data` line (`rest` = the text after the key), read the way the Flipper's
+/// file worker reads them (`subghz_file_encoder_worker_data_parse`, one `strint_to_int32(…, 10)`
+/// per value): white space, an optional sign, decimal digits up to the first other character, and
+/// one `,` skipped after a value (some unit-test files write `1718, -32700,`). `strint`'s prefixes
+/// are skipped as it skips them (`0x`, `0b`, one leading `0`; the digits are read in base 10 all
+/// the same). A value past ±[RAW_DURATION_MAX] is cut to it. Reading stops at the first text that
+/// is not such a value (or does not fit an `int32`): the values before it are kept and the text is
+/// returned (None: the whole line was read).
+///
+/// **Deviation.** When a line gives no value at all the Flipper stops reading the file; KAT goes
+/// on with the next line.
+fn parse_raw_values<'a>(rest: &'a str, out: &mut Vec<i64>) -> Option<&'a str> {
+    let b = rest.as_bytes();
+    let mut i = 0;
+    loop {
+        while i < b.len() && (matches!(b[i], b'\t'..=b'\r') || b[i] == b' ') {
+            i += 1;
+        }
+        if i >= b.len() {
+            return None;
+        }
+        let start = i;
+        let negative = b[i] == b'-';
+        if b[i] == b'+' || b[i] == b'-' {
+            i += 1;
+        }
+        let mut lone_zero = false;
+        if i + 1 < b.len() && b[i] == b'0' && matches!(b[i + 1], b'x' | b'X' | b'b' | b'B') {
+            i += 2;
+        } else if i < b.len() && b[i] == b'0' {
+            i += 1;
+            lone_zero = true;
+        }
+        let limit = i64::from(i32::MAX) + i64::from(negative);
+        let digits = i;
+        let mut value: i64 = 0;
+        while i < b.len() && b[i].is_ascii_digit() && value <= limit {
+            value = value * 10 + i64::from(b[i] - b'0');
+            i += 1;
+        }
+        if value > limit || (i == digits && !lone_zero) {
+            return Some(&rest[start..]);
+        }
+        let value = value.min(RAW_DURATION_MAX);
+        out.push(if negative { -value } else { value });
+        if i < b.len() && b[i] == b',' {
+            i += 1;
+        }
+    }
 }
 
 /// Parse a Flipper SubGhz RAW .sub file into frequency and raw pairs (no splitting).
@@ -210,8 +293,9 @@ pub fn parse_sub(s: &str) -> Result<SubFile> {
     let mut preset_module: Option<String> = None;
     let mut preset_data: Option<Vec<u8>> = None;
     let mut raw_data = Vec::new();
+    let mut damage: Option<RawDamage> = None;
 
-    for line in s.lines() {
+    for (number, line) in s.lines().enumerate() {
         let line = line.trim();
         if line.is_empty() {
             continue;
@@ -235,10 +319,13 @@ pub fn parse_sub(s: &str) -> Result<SubFile> {
             continue;
         }
         if let Some(rest) = line.strip_prefix("RAW_Data:") {
-            // Flipper reads each value with sscanf, so "1718, -32700," (some unit-test files) parses.
-            for word in rest.split(|c: char| c.is_whitespace() || c == ',').filter(|w| !w.is_empty()) {
-                let value: i64 = word.parse().with_context(|| format!("Parse RAW_Data value: {:?}", word))?;
-                raw_data.push(value);
+            if let Some(bad) = parse_raw_values(rest, &mut raw_data) {
+                let d = damage.get_or_insert_with(|| RawDamage {
+                    lines: 0,
+                    first_line: number + 1,
+                    first_text: bad.chars().take(24).collect(),
+                });
+                d.lines += 1;
             }
         }
     }
@@ -259,12 +346,15 @@ pub fn parse_sub(s: &str) -> Result<SubFile> {
     if pairs.is_empty() {
         // A Flipper BinRAW file carries bit blocks instead of RAW_Data.
         if let Some(pairs) = super::binraw::binraw_pairs(s) {
-            return Ok(SubFile { frequency, preset, pairs });
+            return Ok(SubFile { frequency, preset, pairs, damage: None });
+        }
+        if let Some(d) = damage {
+            anyhow::bail!("No RAW_Data in .sub file ({d})");
         }
         anyhow::bail!("No RAW_Data in .sub file");
     }
 
-    Ok(SubFile { frequency, preset, pairs })
+    Ok(SubFile { frequency, preset, pairs, damage })
 }
 
 #[cfg(test)]
@@ -369,9 +459,10 @@ mod tests {
             }
         }
         // 10 FM476 RAW captures (Kia V3/V4/V5, Suzuki V0, the undecoded Lexus UX 250 pair) + 3
-        // with the Honda1 custom preset (two Honda Static, one Ford Escape); the 9 FM476 key files
-        // have no RAW_Data.
-        assert_eq!(fsk, 10 + 3);
+        // with the Honda1 custom preset (two Honda Static, one Ford Escape) + the 7 FM476 captures
+        // added 2026-11 (Mitsubishi 2, Mazda 2, Honda 3); the 9 FM476 key files have no RAW_Data.
+        // The captures in `<make>/more/` are not walked.
+        assert_eq!(fsk, 10 + 3 + 7);
     }
 
     /// `.sub` export writes the capture's own preset back verbatim (stock name, or custom module +
@@ -562,5 +653,51 @@ mod tests {
         // An unknown signal received as FM: FM476.
         let (text, _) = roundtrip(&capture(None, Some(RfModulation::FM)));
         assert!(text.contains("Preset: FuriHalSubGhzPreset2FSKDev476Async\n"), "{text}");
+    }
+    /// A damaged RAW file is read as the Flipper reads it: the values in front of text that is not
+    /// a pulse are kept, the rest of that line is dropped, the next line is read again; the file
+    /// says what was skipped. (It used to be refused whole: "Parse RAW_Data value".)
+    #[test]
+    fn damaged_raw_lines_are_cut_short_not_refused() {
+        let values = |text: &str| {
+            let mut out = Vec::new();
+            let bad = parse_raw_values(text, &mut out);
+            (out, bad.map(str::to_string))
+        };
+        assert_eq!(values(" 1718, -32700, 32700,"), (vec![1718, -32700, 32700], None));
+        assert_eq!(values("54 -192\t322 -130"), (vec![54, -192, 322, -130], None));
+        // A file cut off after a sign (the 300 KB captures in IMPORTS).
+        assert_eq!(values(" 508 -488 504 -"), (vec![508, -488, 504], Some("-".to_string())));
+        // The Flipper's own log in a console capture: a tick count run into a pulse (cut to the
+        // reader's longest pulse), then the log text.
+        let (v, bad) = values(" 34849 -134385011 \x1b[0;32m[I][Dolphi1 134 -552 204");
+        assert_eq!(v, vec![34849, -RAW_DURATION_MAX]);
+        assert!(bad.unwrap().starts_with("\x1b[0;32m[I]"));
+        assert_eq!(values(" 106 -661 5#SUBGHZ_RAW_DATA: 515 -509"), (vec![106, -661, 5], Some("#SUBGHZ_RAW_DATA: 515 -509".to_string())));
+        // strint's prefixes, a second sign, a value past int32.
+        assert_eq!(values("0x10 0b11 007 0 +5 -0"), (vec![10, 11, 7, 0, 5, 0], None));
+        assert_eq!(values("1 --2 3"), (vec![1], Some("--2 3".to_string())));
+        assert_eq!(values("1 2147483647 -2147483648 2147483648 3").0, vec![1, RAW_DURATION_MAX, -RAW_DURATION_MAX]);
+        assert_eq!(values("1 0x 3"), (vec![1], Some("0x 3".to_string())));
+
+        let text = "Filetype: Flipper SubGhz RAW File\nVersion: 1\nFrequency: 433920000\n\
+                    Preset: FuriHalSubGhzPresetOok650Async\nProtocol: RAW\n\
+                    RAW_Data: 100 -200 300\n\
+                    RAW_Data: 400 -500 104385040 \x1b[0;32m[I][DolphinState] \x1b[0mState saved\n\
+                    RAW_Data: 600 -700\n\
+                    RAW_Data: 800 -";
+        let sub = parse_sub(text).unwrap();
+        let read: Vec<i64> = sub.pairs.iter().map(|p| if p.level { i64::from(p.duration_us) } else { -i64::from(p.duration_us) }).collect();
+        assert_eq!(read, vec![100, -200, 300, 400, -500, RAW_DURATION_MAX, 600, -700, 800]);
+        let damage = sub.damage.unwrap();
+        assert_eq!((damage.lines, damage.first_line), (2, 7));
+        assert_eq!(
+            damage.to_string(),
+            "damaged file: 2 RAW_Data lines cut short at text that is not a pulse (first: line 7, at \"\\u{1b}[0;32m[I][DolphinState]\")"
+        );
+        assert!(parse_sub("RAW_Data: 1 -2\n").unwrap().damage.is_none());
+        // Nothing readable at all is still an error, and says why.
+        let e = parse_sub("Protocol: RAW\nRAW_Data: x1 2\n").unwrap_err().to_string();
+        assert!(e.starts_with("No RAW_Data in .sub file (damaged file: 1 RAW_Data line cut short"), "{e}");
     }
 }

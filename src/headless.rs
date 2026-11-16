@@ -15,6 +15,9 @@
 //! `<source>` is `raw` for a RAW (or BinRAW) `.sub`, `key` for a Flipper key file (Protocol/Key, no
 //! RAW_Data), and `am`/`fm` for IQ recordings (which demodulated path decoded).
 //!
+//! A RAW file with damaged `RAW_Data` lines (`export::flipper::RawDamage`) is decoded as far as the
+//! Flipper reads it; `kat: <file>: damaged file: …` on stderr says what was skipped.
+//!
 //! With `autobf` (config, on by default) an undecrypted PSA frame gets its key search here, in line:
 //! the line ends ` key=BF1` / ` key=BF2` with the fields the key decrypts, or ` key=none` when no
 //! key fits; a `PSA [unchecked]` frame (PSA's adaptive AM path) is printed only if its key is found.
@@ -172,6 +175,11 @@ pub fn decode_sub(reg: &mut ProtocolRegistry, path: &Path) -> Result<FileResult,
     let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
     let key: FlipperKey = match crate::export::flipper::parse_sub_content(&text).map_err(|e| format!("{e:#}"))? {
         crate::export::flipper::SubContent::Raw(sub) => {
+            // A damaged file is still decoded (what the Flipper reads of it); the note goes to
+            // stderr, so the decode lines keep their format.
+            if let Some(damage) = &sub.damage {
+                eprintln!("kat: {}: {damage}", path.display());
+            }
             let pairs: Vec<LevelDuration> = sub.pairs.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
             let mut decodes = Vec::new();
             let rf = sub.preset.as_ref().and_then(|p| p.rf());
@@ -184,12 +192,7 @@ pub fn decode_sub(reg: &mut ProtocolRegistry, path: &Path) -> Result<FileResult,
     let auto = reg.auto_key_search();
     match reg.decode_key(&key) {
         Some((name, d)) => decodes.extend(line(auto, "key", name, &d)),
-        None => {
-            return Err(format!(
-                "key file for protocol {:?} ({} bits) is not supported",
-                key.protocol, key.bits
-            ))
-        }
+        None => return Err(reg.key_refusal(&key)),
     }
     Ok(FileResult { frequency: key.frequency, decodes })
 }
@@ -571,7 +574,20 @@ mod tests {
             "{lines:?}"
         );
         let e = decode_file(&mut reg, &unknown, None, None, false).unwrap_err();
-        assert!(e.contains("\"Nope\"") && e.contains("not supported"), "{e}");
+        assert_eq!(e, "no decoder reads \"Nope\" key files (8 bits)");
+        // A protocol KAT knows, with a key its decoder does not take (FoxFW's all-zero template).
+        let zeros = dir.join("zeros.sub");
+        std::fs::write(
+            &zeros,
+            "Filetype: Flipper SubGhz Key File\nVersion: 1\nFrequency: 433920000\n\
+             Preset: FuriHalSubGhzPresetOok650Async\nProtocol: Audiovox PRO\nBit: 25\nKey: 00 00 00 00 00 00 00 00\n",
+        )
+        .unwrap();
+        let e = decode_file(&mut reg, &zeros, None, None, false).unwrap_err();
+        assert_eq!(
+            e,
+            "the Audiovox-PROOE3B decoder does not take this \"Audiovox PRO\" key file (25 bits): it holds no valid frame of the protocol"
+        );
         let e = decode_file(&mut reg, &empty_raw, None, None, false).unwrap_err();
         assert!(e.contains("No RAW_Data"), "{e}");
         std::fs::remove_dir_all(&dir).unwrap();

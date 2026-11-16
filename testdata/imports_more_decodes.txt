@@ -1,0 +1,347 @@
+ALFA ROMEO/more/Giulietta_Close.sub | 433920000 | Fiat V1 | x50 | 20 distinct | fnv=07731A97A8D07FEE
+ALFA ROMEO/more/Giulietta_Open.sub | 433920000 | Fiat V1 | x50 | 20 distinct | fnv=43F921206FBCA2C9
+ALFA ROMEO/more/Giulietta_Trunk.sub | 433920000 | Fiat V1 | x55 | 20 distinct | fnv=B42276E86F601617
+ALFA ROMEO/more/Giulietta_Trunk.sub | 433920000 | Renault/xHorse V4 | x1 | 1 distinct | fnv=C7EC4D98C112F8CC
+BMW/more/BmwE60_2004_868_FM_cl.sub | 868350000 | BMW/Mini V3 | x57 | 6 distinct | fnv=C43AD88DD5928A10
+FIAT/more/1 Raw Fca Fiat 2017-2024.sub | 433920000 | Fiat V1 | x56 | 21 distinct | fnv=0F10CFDB557A04EC
+FIAT/more/2 Raw Fca Fiat 2017-2024.sub | 433920000 | Fiat V1 | x39 | 15 distinct | fnv=3131E98E168D48A8
+FIAT/more/Big_sidorovich.sub | 433920000 | key | Fiat V1 | data=175E1D628456F/104 extra=183D2463A6D sn=75E1D628 btn=4 cnt=15B crc=1 tx=1
+FIAT/more/Fiat Panda 2022 Close.sub | 433920000 | Fiat V1 | x24 | 14 distinct | fnv=CFFF75366EC280BB
+FIAT/more/Fiat Panda 2022 Open.sub | 433920000 | Fiat V1 | x37 | 15 distinct | fnv=F434D1E4F780169E
+FIAT/more/Fiat Panda 2022 Trunk.sub | 433920000 | Fiat V1 | x35 | 15 distinct | fnv=0AD018A542FBACAC
+FIAT/more/Fiat V1_kurwa_aptechka.sub | 433920000 | key | Fiat V1 | data=175E1D6282393/104 extra=18089C6B2A7 sn=75E1D628 btn=2 cnt=E4 crc=1 tx=1
+FIAT/more/Fiat V1_quantum_artefact.sub | 433889000 | key | Fiat V1 | data=175E1D628238F/104 extra=1899E3546A2 sn=75E1D628 btn=2 cnt=E3 crc=1 tx=1
+FIAT/more/Fiat V1_quantum_breeky.sub | 433920000 | key | Fiat V1 | data=175E1D628239B/104 extra=1839AA0462D sn=75E1D628 btn=2 cnt=E6 crc=1 tx=1
+FIAT/more/Great_kot.sub | 433920000 | key | Fiat V1 | data=175E1D6282567/104 extra=184DC58567E sn=75E1D628 btn=2 cnt=159 crc=1 tx=1
+FIAT/more/Liquid_juzyk.sub | 433920000 | key | Fiat V1 | data=175E1D628156B/104 extra=18FD926C6A2 sn=75E1D628 btn=1 cnt=15A crc=1 tx=1
+FIAT/more/Ooo.sub | 433920000 | key | Fiat V1 | data=175E1D628255F/104 extra=1878E9CD653 sn=75E1D628 btn=2 cnt=157 crc=1 tx=1
+FIAT/more/RAW_fiat_open.sub | 433920000 | Fiat V1 | x37 | 3 distinct | fnv=CF3F6198CED6427C
+FIAT/more/RAW_fiat_open_4taps.sub | 433920000 | Fiat V1 | x26 | 4 distinct | fnv=701CE755C8FD5E71
+FIAT/more/RAW_fiat_trunk.sub | 433920000 | Fiat V1 | x41 | 2 distinct | fnv=AE390075B70AF9CE
+FIAT/more/RAW_fiat_trunk_3holds.sub | 433920000 | Fiat V1 | x40 | 3 distinct | fnv=09F2CA7EF49FADBE
+FIAT/more/RAW_panda_open_3holds.sub | 433920000 | Fiat V1 | x41 | 3 distinct | fnv=BA209B43BB7211B3
+FIAT/more/RAW_panda_trunk_4taps.sub | 433920000 | Fiat V1 | x25 | 4 distinct | fnv=FA85C8FADBB5D676
+FIAT/more/Unstable_Fiat_v1.sub | 433920000 | Fiat V1 | x287 | 17 distinct | fnv=8845BE293EE8D50C
+FIAT/more/Unstable_Fiat_v1_2.sub | 433920000 | Fiat V1 | x190 | 11 distinct | fnv=CAA175498E3E0669
+FIAT/more/Unstable_Fiat_v1_3.sub | 433920000 | Fiat V1 | x149 | 5 distinct | fnv=E483D2D399F43E8F
+FIAT/more/Unstable_Fiat_v1_3.sub | 433920000 | Ford V0 | x1 | 1 distinct | fnv=17D678BD94BC47CF
+FIAT/more/fiat panda RAW trunk.sub | 433920000 | Fiat V1 | x27 | 3 distinct | fnv=8F30EF5850F025CC
+FORD/more/Ford2011_2015_f3.sub | 433920000 | Ford V1 | x3 | 3 distinct | fnv=C104EE500346D4EE
+FORD/more/FordV1_orig1_10US_10LS_TS.sub | 433920000 | Ford V1 | x113 | 113 distinct | fnv=D327F8FAC4FA0AA5
+FORD/more/FordV1_orig2_10UL_10LL_10TL.sub | 433920000 | Ford V1 | x82 | 16 distinct | fnv=0DEBB90BE2720420
+FORD/more/Ford_ka_2010_open.sub | 433920000 | Fiat V1 | x52 | 20 distinct | fnv=CF65B8AC8CC63F69
+FORD/more/Ford_ka_2010_open.sub | 433920000 | Renault/xHorse V4 | x1 | 1 distinct | fnv=7F96556959142A88
+FORD/more/RAW-2026_02_23-20_14_50.sub | 433920000 | Ford V1 | x6 | 6 distinct | fnv=3638E8CF3C743FA8
+FORD/more/RAW-2026_03_16-14_55_14.sub | 434258000 | Ford V1 | x8 | 8 distinct | fnv=1CBE0331B2A13EA1
+FORD/more/RAW-2026_03_16-15_55_25.sub | 434258000 | Ford V1 | x16 | 16 distinct | fnv=8D5C5C0952EBD56A
+FORD/more/RAW-2026_03_16-16_04_00.sub | 434258000 | Ford V1 | x20 | 20 distinct | fnv=11C6483E19247A65
+FORD/more/RAW-2026_03_16-16_04_31.sub | 434258000 | Ford V1 | x8 | 8 distinct | fnv=AEC6883BEBA32B93
+FORD/more/RAW-2026_03_16-16_04_49.sub | 434258000 | Ford V1 | x14 | 14 distinct | fnv=35C7CC041CA81508
+GATES/more/2668A_315.sub | 315000000 | Security+ 2.0 | x20 | 10 distinct | fnv=69E89BCC91ABBEE1
+GATES/more/891LM_7359_raw.sub | 390000000 | Security+ 2.0 | x20 | 10 distinct | fnv=94B1776D948F4B59
+GATES/more/893LM_7359_r_1.1.sub | 390000000 | Security+ 2.0 | x22 | 11 distinct | fnv=811150FD17E3EAA5
+GATES/more/893LM_7359_r_1.2.sub | 390000000 | Security+ 2.0 | x29 | 15 distinct | fnv=EDCF3658A0A617D3
+GATES/more/893LM_7359_r_1.3.sub | 390000000 | Security+ 2.0 | x24 | 12 distinct | fnv=EEB67434CF7404E5
+GATES/more/893LM_7359_raw2.sub | 390000000 | Security+ 2.0 | x36 | 6 distinct | fnv=7A7099D02CD785BD
+GATES/more/893MAX_7964_raw.sub | 390000000 | Security+ 2.0 | x30 | 15 distinct | fnv=99D930BCBF95D03B
+GATES/more/Beninca.sub | 433920000 | KeeLoq (Beninca) | x27 | 4 distinct | fnv=CCE2D6F9A11A5AC7
+GATES/more/Beninca.sub | 433920000 | Feron | x1 | 1 distinct | fnv=5587757DC9944E52
+GATES/more/Beninca.sub | 433920000 | Microchip-HCS361 [KeeLoq (Unknown)] | x1 | 1 distinct | fnv=DF26BBF717DB9E45
+GATES/more/Bft.sub | 433920000 | KeeLoq (BFT) | x41 | 4 distinct | fnv=7DDD39072DFD9F50
+GATES/more/Bft_raw_3_sends.sub | 433920000 | KeeLoq (BFT) | x23 | 3 distinct | fnv=D5A069D419A76D79
+GATES/more/Doorhan_13.sub | 433920000 | KeeLoq (DoorHan) | x7 | 4 distinct | fnv=95AD2D06427EB467
+GATES/more/Fan_high.sub | 433920000 | KeeLoq (Unknown) | x2 | 1 distinct | fnv=004B5D9477905857
+GATES/more/Fan_medium.sub | 433920000 | KeeLoq (Faraon) | x2 | 1 distinct | fnv=DE5C12C9CF007535
+GATES/more/Federal.sub | 434176948 | key | KeeLoq (Stilmatic) | data=E6E4F939A5400001/64 sn=2A5 btn=8 cnt=A635 crc=1 tx=1
+GATES/more/Genius_bravo (2).sub | 433920000 | KeeLoq (Genius_Bravo) | x8 | 4 distinct | fnv=22D94B4FE7575D0A
+GATES/more/Light_Dn.sub | 433920000 | key | KeeLoq (Unknown) | data=3B0E8CCD5CF7B084/64 sn=10DEF3A btn=2 cnt=- crc=0 tx=0
+GATES/more/Light_toggle.sub | 433920000 | KeeLoq (Unknown) | x4 | 2 distinct | fnv=A8A1D0102CF699C5
+GATES/more/Nice_mhouse.sub | 433920000 | KeeLoq (NICE_MHOUSE) | x11 | 4 distinct | fnv=AA7AB1D53921EB61
+GATES/more/ORLEN_OFF.sub | 433920000 | key | KeeLoq (Elmes_Poland) | data=8D9518A73848ED42/64 sn=2B7121C btn=4 cnt=48 crc=1 tx=1
+GATES/more/ORLEN_ON.sub | 433920000 | key | KeeLoq (Elmes_Poland) | data=DA8FF0433848ED44/64 sn=2B7121C btn=2 cnt=50 crc=1 tx=1
+GATES/more/Pp0.sub | 433920000 | key | KeeLoq (Unknown) | data=33AE6CA610CAD004/64 sn=B5308 btn=2 cnt=- crc=0 tx=0
+GATES/more/Somfy_Telis_electronic_shades.sub | 433500000 | key | Somfy Telis | data=8DC3D58AC2EACC/56 sn=482826 btn=4 cnt=165F crc=1 tx=1
+GATES/more/Ultra_kit.sub | 433920000 | key | KeeLoq (Beninca) | data=D43590BC5CF9B302/64 sn=CD9F3A btn=4 cnt=2BAA crc=1 tx=1
+GATES/more/Wolsvagen Golf .sub | 433920000 | key | KeeLoq (Normstahl) | data=5DDC62C27129462/64 sn=62948E4 btn=4 cnt=45E crc=1 tx=1
+GATES/more/aerf_motorgate.sub | 433920000 | key | KeeLoq (Cenmax_St-5) | data=A863EBBBA3CD4588/64 sn=1A2B3C5 btn=1 cnt=4386 crc=1 tx=1
+GATES/more/came_atomo_raw.sub | 433920000 | CAME Atomo | x6 | 6 distinct | fnv=9FEE53F9B089A8F0
+GATES/more/cigarettemachine.sub | 433920000 | key | KeeLoq (JCM_Tech) | data=3B5DBD838C154684/64 sn=162A831 btn=2 cnt=7578 crc=1 tx=1
+GATES/more/doorhan.sub | 433920000 | key | KeeLoq (DoorHan) | data=4850F07233789514/64 sn=8A91ECC btn=2 cnt=4 crc=1 tx=1
+GATES/more/doorhan_raw.sub | 433920000 | KeeLoq (DoorHan) | x13 | 3 distinct | fnv=1A51EEF15A203081
+GATES/more/jcm1g_norton.sub | 433920000 | key | KeeLoq (Unknown) | data=4F3286D85A30C484/64 sn=1230C5A btn=2 cnt=- crc=0 tx=0
+GATES/more/k-dh-enc00-cnt3DC9.sub | 433920000 | key | KeeLoq (DoorHan) | data=C0000BD4AB977214/64 sn=84EE9D5 btn=2 cnt=3DC9 crc=1 tx=1
+GATES/more/k-dh-enc00-cnt3DCA.sub | 433920000 | key | KeeLoq (DoorHan) | data=C0028A33AB977214/64 sn=84EE9D5 btn=2 cnt=3DCA crc=1 tx=1
+GATES/more/k-dh-enc00-cntA247.sub | 433920000 | key | KeeLoq (DoorHan) | data=C0046A34AB977214/64 sn=84EE9D5 btn=2 cnt=A247 crc=1 tx=1
+GATES/more/k-dh-enc00-cntA248.sub | 433920000 | key | KeeLoq (DoorHan) | data=C00389ECAB977214/64 sn=84EE9D5 btn=2 cnt=A248 crc=1 tx=1
+GATES/more/k-dh-enc00-cntFD75.sub | 433920000 | key | KeeLoq (Reff) | data=C003E4C9AB977214/64 sn=84EE9D5 btn=2 cnt=6A1C crc=1 tx=1
+GATES/more/k-dh-enc00-cntFD76.sub | 433920000 | key | KeeLoq (DoorHan) | data=C00EBE3BAB977214/64 sn=84EE9D5 btn=2 cnt=FD76 crc=1 tx=1
+GATES/more/k-dh-sn0000000.sub | 433920000 | key | KeeLoq (Rosh) | data=BE2B2DF900000004/64 sn=0 btn=2 cnt=3334 crc=1 tx=1
+GATES/more/k-dh-sn01EA8D8-cnt0004.sub | 433920000 | key | KeeLoq (DoorHan) | data=BD9292F31B157804/64 sn=1EA8D8 btn=2 cnt=4 crc=1 tx=1
+GATES/more/k-dh-sn84EE9D5-cnt0004.sub | 433920000 | key | KeeLoq (DoorHan) | data=AD045814AB977214/64 sn=84EE9D5 btn=2 cnt=4 crc=1 tx=1
+GATES/more/k-dh-sn84EE9D5-cnt000B.sub | 433920000 | key | KeeLoq (DoorHan) | data=9F5EC1A4AB977214/64 sn=84EE9D5 btn=2 cnt=B crc=1 tx=1
+GATES/more/k-dh-sn84EE9D5-cnt0042.sub | 433920000 | key | KeeLoq (DoorHan) | data=176AED5FAB977214/64 sn=84EE9D5 btn=2 cnt=42 crc=1 tx=1
+GATES/more/k-dh-sn84EE9D5-cnt0043.sub | 433920000 | key | KeeLoq (DoorHan) | data=8270AD05AB977214/64 sn=84EE9D5 btn=2 cnt=43 crc=1 tx=1
+GATES/more/k-dh-sn84EE9D5-cnt3E90.sub | 433920000 | key | KeeLoq (DoorHan) | data=D760F678AB977214/64 sn=84EE9D5 btn=2 cnt=3E90 crc=1 tx=1
+GATES/more/k-dh-sn84EE9D5-cntEC01.sub | 433920000 | key | KeeLoq (DoorHan) | data=A4F2F4F7AB977214/64 sn=84EE9D5 btn=2 cnt=EC01 crc=1 tx=1
+GATES/more/k-dh-sn84EE9D5-cntEC02.sub | 433920000 | key | KeeLoq (DoorHan) | data=B92602C7AB977214/64 sn=84EE9D5 btn=2 cnt=EC02 crc=1 tx=1
+GATES/more/k-dh-sn84EE9D5-cntEC03.sub | 433920000 | key | KeeLoq (DoorHan) | data=19A12AD9AB977214/64 sn=84EE9D5 btn=2 cnt=EC03 crc=1 tx=1
+GATES/more/k-kgb-sn84E9D5-cntEC0D.sub | 433920000 | key | KeeLoq (KGB/Subaru) | data=AD04587AAB977214/64 sn=84EE9D5 btn=2 cnt=EC0D crc=1 tx=1
+GATES/more/keeloq_seed.sub | 433920000 | key | KeeLoq (Unknown) | data=33AE6CA610CAD004/64 sn=B5308 btn=2 cnt=- crc=0 tx=0
+GATES/more/somfy_keytis_raw.sub | 433920000 | Somfy Keytis | x5 | 5 distinct | fnv=6FDE1CDE00768BCC
+GATES/more/somfy_telis_raw.sub | 433920000 | Somfy Telis | x20 | 8 distinct | fnv=E6C4477B0431FAB7
+HYUNDAI/more/HYU V0 N1_2.sub | 433920000 | key | Kia V0 | data=F738B67BD75B2CD/61 sn=67BD75B btn=2 cnt=738B crc=1 tx=1
+HYUNDAI/more/HYU V0_great_konserva_4.sub | 433920000 | key | Kia V0 | data=F6F4667BD75B2BF/61 sn=67BD75B btn=2 cnt=6F46 crc=1 tx=1
+HYUNDAI/more/HYU V0_kurwa_door.sub | 433920000 | key | Kia V0 | data=F3145B11554C382/61 sn=B11554C btn=3 cnt=3145 crc=1 tx=1
+HYUNDAI/more/HYU V0_little_breeky.sub | 433920000 | key | Kia V0 | data=F7CA437BA08C171/61 sn=37BA08C btn=1 cnt=7CA4 crc=1 tx=1
+HYUNDAI/more/HYU V5_great_juzyk.sub | 433920000 | key | Kia V5 | data=9CAF491D68030228/67 extra=1 sn=440C016 btn=1 cnt=5360 crc=1 tx=1
+HYUNDAI/more/HYU V6_small_breeky.sub | 433920000 | key | Kia V6 | data=ED0331A6D1CE8E66/144 extra=D3 sn=61F622 btn=2 cnt=4074 crc=1 tx=1
+HYUNDAI/more/Tucson2.sub | 433920000 | Kia V6 | x2 | 2 distinct | fnv=B21199625F41867D
+Isuzu/more/Isuzu Gm 2011 (1).sub | 433920000 | key | KeeLoq (ZX-730-750-1055) | data=E7E7F948D3D50802/64 sn=10ABCB btn=4 cnt=2FED crc=1 tx=1
+Isuzu/more/Isuzu Gm 2011.sub | 433920000 | key | KeeLoq (ZX-730-750-1055) | data=9F3E3582D3D50802/64 sn=10ABCB btn=4 cnt=2FF8 crc=1 tx=1
+KIA/more/Kia V1_great_kot.sub | 315000000 | key | Kia V1 | data=B444706E026F0C/57 sn=B444706E btn=2 cnt=6F crc=1 tx=1
+KIA/more/Kia3_30TS.sub | 315000000 | Kia V3 | x150 | 30 distinct | fnv=4116EFB685FE8B2D
+KIA/more/Kia4_30TS.sub | 315000000 | Kia V4 | x150 | 30 distinct | fnv=D916FC90495FC878
+KIA/more/Kia_0_orig.sub | 433920000 | Kia V0 | x30 | 15 distinct | fnv=64C71CDFF85A0DF9
+KIA/more/kia_seed_raw.sub | 433920000 | Kia V0 | x12 | 4 distinct | fnv=2FE2C0D3D7B05622
+KIA/more/kia_v3_b.sub | 315000000 | Kia V3 | x45 | 9 distinct | fnv=D230CBC1CBAFDCB0
+KIA/more/kia_v4_1.sub | 433920000 | key | Kia V4 | data=D82D5BD5A2C48008/68 extra=0 sn=12345 btn=1 cnt=7 crc=1 tx=1
+KIA/more/kia_v6.sub | 433920000 | Kia V6 | x20 | 20 distinct | fnv=575A41EE0A44199C
+KIA/more/kia_v6_DXL_2_10.sub | 433920000 | Kia V6 | x8 | 8 distinct | fnv=88102B3457BBE740
+KIA/more/kia_v6_KD_2_10.sub | 433920000 | Kia V6 | x10 | 10 distinct | fnv=88E703F6F515E395
+KIA/more/kia_v7_Korea_H6_DXL.sub | 433920000 | Kia V7 | x20 | 10 distinct | fnv=ACA07AB6A5A1A5E9
+MISC/more/36 Audiovox PRO.sub | 433920000 | key | refused: the Audiovox-PROOE3B decoder does not take this "Audiovox PRO" key file (25 bits): it holds no valid frame of the protocol
+MISC/more/vag_1_2_3_4__kia_0_1_3_4_5.sub | 434420000 | VAG | x4 | 4 distinct | fnv=DC1B61BA6C1B16FB
+MISC/more/vag_1_2_3_4__kia_0_1_3_4_5.sub | 434420000 | Toyota (FoxFW) | x1 | 1 distinct | fnv=85DC58A3B1F9336A
+MISC/more/vag_1_2_3_4__kia_0_1_3_4_5.sub | 434420000 | Kia V1 | x1 | 1 distinct | fnv=AC8DA9970B9D1B93
+MISC/more/vag_1_2_3_4__kia_0_1_3_4_5.sub | 434420000 | Kia V0 | x1 | 1 distinct | fnv=1A2318A899634B91
+MITSUBISHI/more/KeyFob1_1.sub | 433920000 | Mitsubishi V1 | x68 | 17 distinct | fnv=30DE34170C6FB26D
+MITSUBISHI/more/KeyFob1_2.sub | 433920000 | Mitsubishi V1 | x80 | 20 distinct | fnv=DBE1F048141C1C35
+MITSUBISHI/more/KeyFob1_3.sub | 433920000 | Mitsubishi V1 | x80 | 20 distinct | fnv=EC3824EEF255850D
+MITSUBISHI/more/KeyFob1_4.sub | 433920000 | Mitsubishi V1 | x109 | 13 distinct | fnv=CA477BD66372F5FD
+MITSUBISHI/more/KeyFob1_5.sub | 433920000 | Mitsubishi V1 | x194 | 19 distinct | fnv=09619363C1912DC0
+MITSUBISHI/more/KeyFob1_6.sub | 433920000 | Mitsubishi V1 | x203 | 20 distinct | fnv=7A5E16D88F754A18
+MITSUBISHI/more/Mitsh_btn3_x20_f3.sub | 433920000 | Mitsubishi V1 | x72 | 20 distinct | fnv=2CB647FB2799605D
+MITSUBISHI/more/Mitsh_lock_x20_f3.sub | 433920000 | Mitsubishi V1 | x80 | 20 distinct | fnv=B72227D1E9B1A185
+MITSUBISHI/more/Mitsh_unlock_x20_f3.sub | 433920000 | Mitsubishi V1 | x64 | 18 distinct | fnv=B4618C423970EE81
+Mazda/more/20x_Long_Lock-B.sub | 433920000 | Mazda V2 | x43 | 40 distinct | fnv=0884A4EFEDB78A4C
+Mazda/more/20x_Long_Lock.sub | 433920000 | Mazda V2 | x52 | 48 distinct | fnv=DE71B84E5CFC91F3
+Mazda/more/20x_Long_Unlock-B.sub | 433920000 | Mazda V2 | x59 | 55 distinct | fnv=2E5F2B6BDBA6BEC9
+Mazda/more/20x_Long_Unlock.sub | 433920000 | Mazda V2 | x404 | 384 distinct | fnv=6CEF9FD590192FE0
+Mazda/more/300x_Short_Lock-B.sub | 433920000 | Mazda V2 | x47 | 24 distinct | fnv=64D662CACF44962A
+Mazda/more/300x_Short_Lock.sub | 433920000 | Mazda V2 | x47 | 24 distinct | fnv=0BBDF7FA2D8AF1DE
+Mazda/more/300x_Short_Unlock-B.sub | 433920000 | Mazda V2 | x44 | 22 distinct | fnv=87C258880A21821F
+Mazda/more/300x_Short_Unlock.sub | 433920000 | Mazda V2 | x68 | 34 distinct | fnv=033B94F59DBE8D7B
+Mazda/more/MazdaF4V1_OEM_20lck_long.sub | 433920000 | Mazda V2 | x120 | 115 distinct | fnv=5673213BD11AE8F2
+Mazda/more/MazdaF4V1_OEM_20ulk_long.sub | 433920000 | Mazda V2 | x64 | 62 distinct | fnv=7CB41A15F9662A8D
+Mazda/more/MazdaF4_OEM_300lck.sub | 433920000 | Mazda V2 | x599 | 300 distinct | fnv=B063124358BB3CD3
+Mazda/more/MazdaF4_OEM_300ulk.sub | 433920000 | Mazda V2 | x630 | 317 distinct | fnv=45E7ABD0DADC5CA8
+Mazda/more/MazdaV1F4_OEM2_300lck.sub | 433920000 | Mazda V2 | x616 | 310 distinct | fnv=8B4CB99EBA9E7DE3
+Mazda/more/MazdaV1F4_OEM2_300ulk.sub | 433920000 | Mazda V2 | x597 | 300 distinct | fnv=9D41A0E6DA33CF73
+Mazda/more/MazdaV1F4_OEM2_5lck_hold30s.sub | 433920000 | Mazda V2 | x285 | 275 distinct | fnv=6ADB1ED06798978F
+Mazda/more/MazdaV1F4_OEM2_5ulk_hold30s.sub | 433920000 | Mazda V2 | x298 | 288 distinct | fnv=E38241806CF238C2
+Mazda/more/Mazda_F2.sub | 433920000 | Mazda V0 | x27 | 23 distinct | fnv=2095808AAE50A681
+Mazda/more/Mazda_F2.sub | 433920000 | Mazda Siemens | x54 | 17 distinct | fnv=F4E1D7AD803C00B3
+Mazda/more/Mazda_F4.sub | 433920000 | Mazda V2 | x46 | 46 distinct | fnv=0FBD6F463A861CB0
+Mazda/more/Mazda_Visteon_TS.sub | 433920000 | Mazda V0 | x75 | 31 distinct | fnv=6A2EB3750BC1E497
+Mazda/more/mazda_key0_1665x_btn5.sub | 433920000 | Mazda V1 | x216 | 108 distinct | fnv=E199593B6379F6BB
+Mazda/more/mazda_key0_524x_btn5.sub | 433920000 | Mazda V1 | x1047 | 524 distinct | fnv=5676B804D3B788E9
+Mazda/more/mazda_key1_145x_lock.sub | 433920000 | Mazda V2 | x290 | 145 distinct | fnv=5C81285A5FD3B525
+Mazda/more/mazda_key3_10x_lock.sub | 433920000 | Mazda V2 | x20 | 10 distinct | fnv=BE982C8B6ACF6F0D
+Mazda/more/mazda_key3_10x_unlock.sub | 433920000 | Mazda V2 | x20 | 10 distinct | fnv=ADB9190A42E29C49
+Mazda/more/mazda_key5_10x_lock.sub | 433920000 | Mazda V2 | x20 | 10 distinct | fnv=F3444DA38201FC65
+Mazda/more/mazda_key5_10x_trunk.sub | 433920000 | Mazda V1 | x20 | 10 distinct | fnv=B6838BDC2279C5A3
+Mazda/more/mazda_key5_10x_unlock.sub | 433920000 | Mazda V2 | x20 | 10 distinct | fnv=7781A65A7B505E85
+Mazda/more/mazda_visteon_6xl_5xu_5xa.sub | 433920000 | Mazda V2 | x24 | 12 distinct | fnv=CD0135D740034B2B
+Mazda/more/mazda_visteon_6xl_5xu_5xa.sub | 433920000 | Mazda V1 | x10 | 5 distinct | fnv=CC1287CB0E4D5FC5
+RENAULT/more/Renault_Duster_2010_KD_300ulk.sub | 433920000 | Renault V1 | x437 | 299 distinct | fnv=D759FC733C8B1703
+RENAULT/more/Renault_Duster_2010_KD_300ulk.sub | 433920000 | Renault/xHorse V4 | x56 | 55 distinct | fnv=F185A7E15336D7B6
+RENAULT/more/Renault_Duster_2010_KD_300ulk.sub | 433920000 | Hitag2 | x1 | 1 distinct | fnv=0E03DB533624568B
+RENAULT/more/Renault_v1_000R3X.sub | 434176948 | Renault V0 | x59 | 6 distinct | fnv=FB75340FAA1F41D6
+RENAULT/more/Renault_v1_000R3X.sub | 434176948 | Renault V1 (ARF) [Dynamic 0x10] | x13 | 3 distinct | fnv=63CE4C4C21206E7A
+RENAULT/more/Renault_v1_PSA_A5_1_1U1L.sub | 433920000 | Renault V1 | x5 | 2 distinct | fnv=0EB4393A01ED1274
+RENAULT/more/Renault_v1_PSA_A5_1_20U20L.sub | 433920000 | Renault V1 | x78 | 40 distinct | fnv=474CD973C3CD0213
+RENAULT/more/Renault_v1_PSA_A5_1_20U20L.sub | 433920000 | Renault/xHorse V4 | x17 | 12 distinct | fnv=F5C7F292D75AC157
+RENAULT/more/Renault_v1_PSA_A5_3_1U1L.sub | 433920000 | Renault V1 | x4 | 2 distinct | fnv=30F57A4350CC2255
+RENAULT/more/Renault_v1_PSA_A5_3_1U1L.sub | 433920000 | Renault/xHorse V4 | x2 | 1 distinct | fnv=C327BB6808BC9F45
+RENAULT/more/Renault_v1_PSA_A5_3_20U20L.sub | 433920000 | Renault V1 | x81 | 40 distinct | fnv=BF04481C0C7CA62D
+RENAULT/more/Renault_v1_PSA_A5_3_20U20L.sub | 433920000 | Renault/xHorse V4 | x26 | 16 distinct | fnv=C1850018E528213C
+RENAULT/more/Renault_v1_PSA_A5_4_1U1L.sub | 433920000 | Renault V1 | x4 | 2 distinct | fnv=AF5E139A9E575A35
+RENAULT/more/Renault_v1_PSA_A5_4_1U1L.sub | 433920000 | Renault/xHorse V4 | x1 | 1 distinct | fnv=0DD3F1181EE5E724
+RENAULT/more/Renault_v1_PSA_A5_4_20U20L.sub | 433920000 | Renault V1 | x81 | 40 distinct | fnv=FFF0ACC6CC7E8DED
+RENAULT/more/Renault_v1_PSA_A5_4_20U20L.sub | 433920000 | Renault/xHorse V4 | x11 | 9 distinct | fnv=225CC33DA5519A3D
+RENAULT/more/kangoo_1.sub | 434176948 | Renault V1 | x14 | 7 distinct | fnv=7F92044712084F09
+RENAULT/more/kangoo_1.sub | 434176948 | Renault V0 | x4 | 3 distinct | fnv=77BA8144EDC25A58
+RENAULT/more/kangoo_2.sub | 433920000 | Renault V1 | x24 | 14 distinct | fnv=4E0310BEA3B36023
+RENAULT/more/kangoo_2.sub | 433920000 | Renault V0 | x8 | 4 distinct | fnv=BFB093716A81403D
+RENAULT/more/kangoo_3.sub | 433920000 | Renault V1 | x12 | 7 distinct | fnv=FC001AF990E8CF91
+RENAULT/more/kangoo_3.sub | 433920000 | Renault V0 | x6 | 4 distinct | fnv=536B8761AC4BB73F
+RENAULT/more/kangoo_4_2x_close.sub | 434176948 | Renault V1 | x7 | 4 distinct | fnv=9A9F0FB0620CC8CF
+RENAULT/more/kangoo_4_2x_close.sub | 434176948 | Renault V0 | x4 | 2 distinct | fnv=56ACFDFFF9913865
+RENAULT/more/lock_20_longpress.sub | 433920000 | Renault V1 | x42 | 21 distinct | fnv=E1D846E3771479D9
+RENAULT/more/lock_20_longpress.sub | 433920000 | Renault/xHorse V4 | x6 | 5 distinct | fnv=DC11E88B07CF0A30
+RENAULT/more/trunk_300.sub | 433920000 | Renault V1 | x60 | 30 distinct | fnv=FF9CE67DFA03271C
+RENAULT/more/trunk_300.sub | 433920000 | Renault/xHorse V4 | x9 | 6 distinct | fnv=5692E6F81C4F1A1C
+RENAULT/more/unlock_20_longpress.sub | 433920000 | Renault V1 | x44 | 22 distinct | fnv=430E3F9A83C0FA7E
+RENAULT/more/unlock_20_longpress.sub | 433920000 | Renault/xHorse V4 | x9 | 6 distinct | fnv=04F668F33C34C19A
+RENAULT/more/unlock_300_1.sub | 433920000 | Renault V1 | x559 | 300 distinct | fnv=ABC61CE6A11C9AB8
+RENAULT/more/unlock_300_1.sub | 433920000 | Renault/xHorse V4 | x30 | 24 distinct | fnv=ADA7B74967F0B485
+SKODA/more/Skoda_lock.sub | 434420000 | VAG | x25 | 5 distinct | fnv=5BFA1BA3E4D0DA8A
+SKODA/more/Skoda_trunk.sub | 434420000 | VAG | x25 | 5 distinct | fnv=1C81FEDB63460C44
+SKODA/more/Skoda_unlock.sub | 434420000 | VAG | x25 | 5 distinct | fnv=9698CF67CC6AEC79
+SUBARU/more/Subaru_impreza_full_fob.sub | 433920000 | key | Subaru | data=E1CB715EFDC30287/64 sn=CB715E btn=1 cnt=C910 crc=0 tx=1
+VAG/more/1.sub | 434420000 | key | VAG | data=C06BAC39D8F9F360/80 extra=800000000204732B sn=7C8F963 btn=2 cnt=4E84 crc=1 tx=1
+VAG/more/1_2.sub | 434420000 | key | VAG | data=C0A4801786138067/80 extra=8000000002042C2B sn=7C8F963 btn=2 cnt=4EFD crc=1 tx=1
+VAG/more/2.sub | 434420000 | key | VAG | data=C0D5C8CF0B83C733/80 extra=800000000204571D sn=7C8F963 btn=1 cnt=4E88 crc=1 tx=1
+VAG/more/2_2.sub | 434420000 | key | VAG | data=C0F61F121EF99164/80 extra=800000000204001D sn=7C8F963 btn=1 cnt=4E92 crc=1 tx=1
+VAG/more/32 Audi V1.sub | 433920000 | key | refused: no decoder reads "Audi V1" key files (88 bits)
+VAG/more/A120LL.sub | 434420000 | VAG | x80 | 20 distinct | fnv=61261DDF0EC5AD21
+VAG/more/A120LS.sub | 434420000 | VAG | x39 | 20 distinct | fnv=1D24C87F190D2572
+VAG/more/A120TL.sub | 434420000 | VAG | x84 | 21 distinct | fnv=C5409D61C4DCE8B9
+VAG/more/A120TS.sub | 434420000 | VAG | x29 | 20 distinct | fnv=27AB32145C8FEF28
+VAG/more/A120UL.sub | 434420000 | VAG | x80 | 20 distinct | fnv=A2F763B96DEDB3CD
+VAG/more/A120US.sub | 434420000 | VAG | x42 | 21 distinct | fnv=7097E5EA0D0237D3
+VAG/more/A1_5L_5T_5U.sub | 434420000 | VAG | x30 | 15 distinct | fnv=A97BED8B71ED7651
+VAG/more/A220LL.sub | 434420000 | VAG | x80 | 20 distinct | fnv=6B9C8065A54AC559
+VAG/more/A220LS.sub | 434420000 | VAG | x40 | 20 distinct | fnv=8A803BB33A50D6CB
+VAG/more/A220TL.sub | 434420000 | VAG | x80 | 20 distinct | fnv=DD4265B4C54F063D
+VAG/more/A220TS.sub | 434420000 | VAG | x40 | 20 distinct | fnv=B54AE88549304D6D
+VAG/more/A220UL.sub | 434420000 | VAG | x80 | 20 distinct | fnv=A93EAD87A7AF6249
+VAG/more/A220US.sub | 434420000 | VAG | x40 | 20 distinct | fnv=9D5E2EEF35D97BBB
+VAG/more/A2_5L_5T_5U.sub | 434420000 | VAG | x30 | 15 distinct | fnv=2853A693E3298887
+VAG/more/A3_5L_5T_5U.sub | 434420000 | VAG | x30 | 15 distinct | fnv=72D7A971E1D4C7E3
+VAG/more/AM650_5L_5T_5U.sub | 434420000 | VAG | x32 | 15 distinct | fnv=80B396F1350D56C8
+VAG/more/AM650_mix_1l_2t_3u.sub | 434420000 | VAG | x31 | 15 distinct | fnv=BD79C682022D0E68
+VAG/more/Audi_A3_P8.sub | 434390000 | VAG | x46 | 15 distinct | fnv=50E99F35EDD44B57
+VAG/more/Audi_A3_P8_20LL.sub | 434390000 | VAG | x96 | 24 distinct | fnv=82918313A9474FD5
+VAG/more/Audi_A3_P8_20LS.sub | 434390000 | VAG | x40 | 20 distinct | fnv=47B1D5E777EAC459
+VAG/more/Audi_A3_P8_20TL.sub | 434390000 | VAG | x84 | 21 distinct | fnv=E3EFCFEDF48E8D41
+VAG/more/Audi_A3_P8_20TS.sub | 434390000 | VAG | x40 | 20 distinct | fnv=4C73C509EC39A9E5
+VAG/more/Audi_A3_P8_20US.sub | 434390000 | VAG | x60 | 30 distinct | fnv=530BA19A09DC5151
+VAG/more/Audi_A3_P8_30UL.sub | 434390000 | VAG | x96 | 25 distinct | fnv=DB91F7E5B08A422E
+VAG/more/Audi_a3_2010_full.sub | 434420000 | key | VAG | data=C15F5CB3B0CA3345/80 extra=800000060103372B sn=3C0E23BF btn=2 cnt=76CE crc=1 tx=1
+VAG/more/Audi_a3_2012_unlock_5times.sub | 434420000 | VAG | x7 | 5 distinct | fnv=FE06BCBDAF70DA38
+VAG/more/Audi_v1_100x_close.sub | 433920000 | Fiat V1 | x365 | 101 distinct | fnv=9B970426C30F04AC
+VAG/more/Audi_v1_100x_trunk.sub | 433920000 | Fiat V1 | x363 | 100 distinct | fnv=6562B0B2AC51FA12
+VAG/more/Audi_v1_105x_close.sub | 433920000 | Fiat V1 | x269 | 37 distinct | fnv=EA273BEFC34FAD40
+VAG/more/Audi_v1_299x_close.sub | 433920000 | Fiat V1 | x253 | 63 distinct | fnv=465C746BE3F1E687
+VAG/more/Audi_v1_309x_close.sub | 433920000 | Fiat V1 | x253 | 65 distinct | fnv=3B201AE0ACFBEF2B
+VAG/more/Audi_v1_30x_close.sub | 433920000 | Fiat V1 | x148 | 30 distinct | fnv=9F2AABD7D9A1DE32
+VAG/more/Audi_v1_30x_trunk.sub | 433920000 | Fiat V1 | x147 | 30 distinct | fnv=C7837965FB08BAE6
+VAG/more/Audi_v1_344x_close.sub | 433920000 | Fiat V1 | x1418 | 361 distinct | fnv=BF52B97475E14C49
+VAG/more/Audi_v1_Touareg.sub | 433920000 | Fiat V1 | x96 | 20 distinct | fnv=4D5C0F70180C0ADE
+VAG/more/Audi_v1_TouaregLock.sub | 433920000 | Fiat V1 | x276 | 61 distinct | fnv=69E14AF27F75519C
+VAG/more/Audi_v1_TouaregLock_long.sub | 433920000 | Fiat V1 | x82 | 17 distinct | fnv=F668B544D8D21D80
+VAG/more/Audi_v1_only_close.sub | 433920000 | Fiat V1 | x61 | 13 distinct | fnv=46E728F0104924D9
+VAG/more/Audi_v1_only_open.sub | 433920000 | Fiat V1 | x44 | 9 distinct | fnv=F7986D89146F1E2D
+VAG/more/Audi_v1_only_trunk.sub | 433920000 | Fiat V1 | x50 | 11 distinct | fnv=59D6BBF649F4771A
+VAG/more/Lock_vw.sub | 434420000 | VAG | x4 | 3 distinct | fnv=4CAC70A31F85AF48
+VAG/more/Unlock_vw.sub | 434420000 | VAG | x3 | 2 distinct | fnv=DCD6522503590A81
+VAG/more/VAG_032.sub | 434420000 | key | refused: the VAG decoder does not take this "VAG" key file (0 bits): it holds no valid frame of the protocol
+VAG/more/VAG_big_sidorovich.sub | 434190000 | key | VAG | data=F851A7077A0AB9/80 extra=80000002FF020946 sn=E3097F45 btn=4 cnt=1347 crc=1 tx=1
+VAG/more/VAG_great_kot.sub | 434190000 | key | VAG | data=335CFE47F269C0/80 extra=80000002FF02D346 sn=E3097F45 btn=4 cnt=1338 crc=1 tx=1
+VAG/more/VAG_liquid_juzyk.sub | 434190000 | key | VAG | data=26D114D7F11B6A/80 extra=80000002FF02302A sn=E3097F45 btn=2 cnt=1337 crc=1 tx=1
+VAG/more/VAG_little_zalaz.sub | 434190000 | key | VAG | data=4EC6DBDF4236BA/80 extra=80000002FF02AE1C sn=E3097F45 btn=1 cnt=1339 crc=1 tx=1
+VAG/more/VW_07C8F963.sub | 434420000 | key | VAG | data=C09CEFB357ABD724/80 extra=800000010204BC2B sn=7C8F963 btn=2 cnt=4E58 crc=1 tx=1
+VAG/more/VW_VAG_2.roundtrip.sub | 434420000 | VAG | x10 | 1 distinct | fnv=1DC80D83A7BA739B
+VAG/more/Vag.sub | 434420000 | VAG | x5 | 3 distinct | fnv=8882CE9B234173BA
+VAG/more/Vag_v4.sub | 434420000 | VAG | x50 | 15 distinct | fnv=68875FBB60E96AD7
+VAG/more/audi_v1.sub | 433920000 | key | refused: no decoder reads "Audi V1" key files (64 bits)
+VAG/more/audi_v1_19641x_unlock.sub | 433920000 | Fiat V1 | x197 | 48 distinct | fnv=F88EEA02B9128A66
+VAG/more/audi_v1_2128x_unlock.sub | 433920000 | Fiat V1 | x178 | 53 distinct | fnv=B327596D09FB657A
+VAG/more/audi_v1_3233x_unlock.sub | 433920000 | Fiat V1 | x190 | 45 distinct | fnv=DD172A50EF3D4983
+VAG/more/audi_v1_4412x_unlock.sub | 433920000 | Fiat V1 | x193 | 60 distinct | fnv=FEBA4043AB045996
+VAG/more/fftr.sub | 434420000 | key | VAG | data=C01E87B3D168B438/80 extra=800000010204FD2B sn=7C8F963 btn=2 cnt=4E50 crc=1 tx=1
+VAG/more/jjjhf.sub | 434420000 | key | VAG | data=C00E8D59ECC90538/80 extra=800000DB01037A47 sn=B4EFE282 btn=4 cnt=5527 crc=1 tx=1
+VAG/more/passatb6.roundtrip.sub | 434420000 | VAG | x10 | 1 distinct | fnv=7764C32D6B5A9281
+VAG/more/passatb6.sub | 434420000 | VAG | x94 | 11 distinct | fnv=2C6EF81208DC34B7
+VAG/more/test.sub | 434420000 | key | VAG | data=C0D70BCE2153F384/80 extra=8000000102041C2B sn=7C8F963 btn=2 cnt=4E44 crc=1 tx=1
+VAG/more/ttttt.sub | 434420000 | key | VAG | data=C0FE56E3EC9A0AE9/80 extra=8000000002044B1D sn=7C8F963 btn=1 cnt=4EA5 crc=1 tx=1
+VAG/more/vw.sub | 434420000 | key | VAG | data=C0446B3BDD5EE13B/80 extra=800000000204001D sn=7C8F963 btn=1 cnt=4EAD crc=1 tx=1
+VAG/more/vw2.sub | 434420000 | key | VAG | data=C04BD2912006F9DB/80 extra=800000000204D02B sn=7C8F963 btn=2 cnt=4EA2 crc=1 tx=1
+VAG/more/yyyy.sub | 434420000 | key | VAG | data=C0A85B55AD5465B9/80 extra=8000000002040B1D sn=7C8F963 btn=1 cnt=4EA8 crc=1 tx=1
+chrysler/more/PT_300xLCK.sub | 433889000 | Chrysler V0 | x308 | 308 distinct | fnv=258A746587518C26
+chrysler/more/PT_300xUNL.sub | 433889000 | Chrysler V0 | x28 | 28 distinct | fnv=837103B8201799D6
+chrysler/more/PT_LCK100.sub | 433889000 | Chrysler V0 | x105 | 105 distinct | fnv=6A22593629EDCC4A
+chrysler/more/PT_LCK250.sub | 433889000 | Chrysler V0 | x271 | 271 distinct | fnv=8511477EB82BB145
+honda/more/0 (2).sub | 433920000 | Honda V1 | x343 | 44 distinct | fnv=3F758EC51C84575A
+honda/more/05 Honda V5.sub | 433920000 | Honda V5 | x6 | 2 distinct | fnv=96878947D46C9C70
+honda/more/Fz_10l_10u_10t_10p.sub | 433920000 | Honda V1 | x158 | 40 distinct | fnv=46879C1F9820EDDC
+honda/more/HondaCivic2008.sub | 433920000 | Continental-KR5V2X | x2 | 1 distinct | fnv=38D6B17DB323687F
+honda/more/HondaCivic2008.sub | 433920000 | Honda V5 | x4 | 2 distinct | fnv=58AC532959124A3D
+honda/more/HondaH1_OEM2_20lck_hold.sub | 433920000 | Honda V6 | x42 | 42 distinct | fnv=B62F16D321D127C4
+honda/more/HondaH1_OEM2_300lck.sub | 433920000 | Honda V6 | x300 | 300 distinct | fnv=5D82C7FB10EF85BA
+honda/more/HondaH1_OEM2_300trk.sub | 433920000 | Honda V6 | x300 | 300 distinct | fnv=E5EDAB0674957E87
+honda/more/HondaH1_OEM2_300ulk.sub | 433920000 | Honda V6 | x300 | 300 distinct | fnv=EACEE6265AC94E6B
+honda/more/HondaV0_72D9E4CA_300lck.sub | 433920000 | Honda V0 | x41 | 41 distinct | fnv=6C06BD1D48F5A13F
+honda/more/HondaV0_72D9E4CA_300trk.sub | 433920000 | Honda V0 | x35 | 35 distinct | fnv=34F1BB25111E9AD3
+honda/more/HondaV0_72D9E4CA_300ulk.sub | 433920000 | Honda V0 | x42 | 42 distinct | fnv=772382A093224913
+honda/more/HondaV0_755D1FCA_300trk.sub | 433920000 | Honda V0 | x34 | 34 distinct | fnv=F190B11E1955902C
+honda/more/HondaV0_B25199CA_300trk.sub | 433920000 | Honda V0 | x38 | 38 distinct | fnv=AE0B3C5752702981
+honda/more/HondaV0_B25199CA_300ulk.sub | 433920000 | Honda V0 | x40 | 40 distinct | fnv=DB66058A37876D3E
+honda/more/HondaV0_BD061DCA_300lck.sub | 433920000 | Honda V0 | x38 | 38 distinct | fnv=E9717DE2AEA08D2C
+honda/more/HondaV0_BD661FCA_300lck.sub | 433920000 | Honda V0 | x299 | 299 distinct | fnv=7EE9AEC7E1DC005E
+honda/more/HondaV0_BD661FCA_300lck.sub | 433920000 | Nidec RKE | x1 | 1 distinct | fnv=E85EF98A613E7578
+honda/more/HondaV0_BD661FCA_300ulk.sub | 433920000 | Honda V0 | x308 | 308 distinct | fnv=ABC48AE071E41449
+honda/more/HondaV0_FA94E9CA_300trk.sub | 433920000 | Honda V0 | x23 | 23 distinct | fnv=7EE20C130BA30B94
+honda/more/HondaV0_FA94E9CA_300trk.sub | 433920000 | Nidec RKE | x2 | 2 distinct | fnv=163B6F0043AB65A9
+honda/more/HondaV0_FA94E9CA_300ulk.sub | 433920000 | Honda V0 | x300 | 300 distinct | fnv=48A56FDA20B01E6D
+honda/more/HondaV0_xHorse_20lck.sub | 313850000 | Honda V0 | x16 | 16 distinct | fnv=8093FDBDA64D08EE
+honda/more/HondaV0_xHorse_20lck.sub | 313850000 | Ford V3 | x3 | 3 distinct | fnv=C3486E83E3414BE9
+honda/more/HondaV0_xHorse_20trk.sub | 313850000 | Honda V0 | x15 | 15 distinct | fnv=9A5A0BD250882894
+honda/more/HondaV0_xHorse_20trk.sub | 313850000 | Ford V3 | x3 | 3 distinct | fnv=091216B952A75F0A
+honda/more/HondaV0_xHorse_LUTP.sub | 313850000 | Honda V0 | x3 | 3 distinct | fnv=79AFB7C7F5834782
+honda/more/HondaV0_xHorse_LUTP.sub | 313850000 | Ford V3 | x1 | 1 distinct | fnv=CAE578735C54AB19
+honda/more/HondaV2H4_OEM2_300lck.sub | 433920000 | Continental-KR5V2X | x30 | 17 distinct | fnv=60EEE50627EA2834
+honda/more/HondaV2H4_OEM2_300ulk.sub | 433920000 | Continental-KR5V2X | x51 | 27 distinct | fnv=CEDF88A4AF5C61F3
+honda/more/HondaV2_3lck.sub | 433920000 | Continental-KR5V2X | x6 | 3 distinct | fnv=A484A0FD9D3F6241
+honda/more/HondaV2_PandoraTS_cell0_300btn1.sub | 433920000 | Continental-KR5V2X | x70 | 35 distinct | fnv=C0E1165727732A1B
+honda/more/HondaV2_PandoraTS_cell0_300btn2.sub | 433920000 | Continental-KR5V2X | x52 | 26 distinct | fnv=5C42B59E80ED0D33
+honda/more/HondaV2_PandoraTS_cell0_300btn3.sub | 433920000 | Continental-KR5V2X | x48 | 24 distinct | fnv=0931F6039AB32237
+honda/more/HondaV2_PandoraTS_cell2_300btn1.sub | 433920000 | Continental-KR5V2X | x60 | 30 distinct | fnv=2684A214CAA31605
+honda/more/HondaV2_PandoraTS_cell2_300btn3.sub | 433920000 | Continental-KR5V2X | x39 | 20 distinct | fnv=B0D1283D1714E326
+honda/more/HondaV2_PandoraTS_cell2_btn123.sub | 433920000 | Continental-KR5V2X | x4 | 2 distinct | fnv=8B6D3C2E3F0E65F5
+honda/more/HondaV2_synthetic_testvector.sub | 433920000 | Honda V2 | x16 | 16 distinct | fnv=479C54402275FA75
+honda/more/Honda_313_lock_long_20.sub | 313850000 | Honda V6 | x40 | 40 distinct | fnv=6B71B6BEFF78446D
+honda/more/Honda_313_unlock_long_20.sub | 313850000 | Honda V6 | x40 | 40 distinct | fnv=2187E6FCFF239EEF
+honda/more/Honda_433AM_20LL.sub | 433920000 | Honda V1 | x358 | 9 distinct | fnv=903524736CFCFB37
+honda/more/Honda_433AM_20PL.sub | 433920000 | Honda V1 | x418 | 11 distinct | fnv=E4D886BCBEB8B937
+honda/more/Honda_433AM_20PS.sub | 433920000 | Honda V1 | x37 | 10 distinct | fnv=3CA4DD10D0BE29C8
+honda/more/Honda_433AM_20TL.sub | 433920000 | Honda V1 | x399 | 10 distinct | fnv=74CD54382C4AB051
+honda/more/Honda_433AM_20TS.sub | 433920000 | Honda V1 | x39 | 10 distinct | fnv=5129D0B8F5ACB4F3
+honda/more/Honda_433AM_20UL.sub | 433920000 | Honda V1 | x397 | 10 distinct | fnv=EB8CE9AC2B665A14
+honda/more/Honda_433AM_20US.sub | 433920000 | Honda V1 | x39 | 10 distinct | fnv=77A3EA856E36557E
+honda/more/Honda_433AM_TS20_new.sub | 433920000 | Honda V1 | x40 | 11 distinct | fnv=9B68ABA5B654E9A5
+honda/more/Honda_V0_kd_10_10_10.sub | 433920000 | Honda V0 | x40 | 40 distinct | fnv=D84954C704E64AAF
+honda/more/Honda_V1_kd_5_5_5.sub | 433920000 | Honda V6 | x30 | 30 distinct | fnv=3B67209856E4433C
+honda/more/Honda_V1_orig_320_locks.sub | 433920000 | Honda V1 | x629 | 128 distinct | fnv=19B6C14882767E7A
+honda/more/Honda_civic_fm476.sub | 433920000 | Continental-KR5V2X | x12 | 8 distinct | fnv=05C2A178235CE6AD
+honda/more/Honda_v0_1tr_kd_hnd.sub | 433920000 | Honda V0 | x2 | 2 distinct | fnv=87B67313ADEEB70A
+honda/more/Honda_v0_Invalid_Chk_Honda_TS_sn1_300.sub | 433920000 | Honda V0 | x36 | 36 distinct | fnv=B02EC8440EE98D83
+honda/more/Honda_v0_Invalid_Chk_Honda_TS_sn3_300.sub | 433920000 | Honda V0 | x26 | 26 distinct | fnv=757EA7718FBBDCF4
+honda/more/Honda_v0_Invalid_Chk_Honda_V0_TS_10_10_10.sub | 433920000 | Honda V0 | x30 | 30 distinct | fnv=6EFFC1B24004F569
+honda/more/Honda_v0_RAW_oh_no_sus.sub | 433920000 | Honda V0 | x6 | 4 distinct | fnv=A308EA0AE8D56A79
+honda/more/Honda_v2_v3_Ferrari_10_10.sub | 433920000 | HondaV2&V3 | x20 | 20 distinct | fnv=DFC3581A9680EDE8
+honda/more/Honda_v6_TS_10_10_10.sub | 433920000 | Continental-KR5V2X | x44 | 24 distinct | fnv=410DB1E81E986501
+honda/more/Honda_v6_kd_10_10_10.sub | 433920000 | Continental-KR5V2X | x45 | 40 distinct | fnv=2A6A302B7E5EBD5D
+honda/more/Long.sub | 433920000 | Honda V1 | x399 | 12 distinct | fnv=CC320207C146B554
+honda/more/Orig_10l_10u_10t_10p.sub | 433920000 | Honda V1 | x76 | 20 distinct | fnv=4BBD031733CA2557
+honda/more/RAW_super_door000.sub | 433920000 | Honda V2 | x1 | 1 distinct | fnv=53C9A7F4749AAC08
+honda/more/Short.sub | 433920000 | Honda V1 | x39 | 12 distinct | fnv=C854B7C440A2864E
+honda/more/honda_civic_2005_27.sub | 433920000 | Honda V0 | x21 | 21 distinct | fnv=66B323DA0BBBE045
+honda/more/honda_civic_2005_28.sub | 433920000 | Honda V0 | x20 | 20 distinct | fnv=36C030E2FAB77B5D
+honda/more/honda_civic_2005_29.sub | 433920000 | Honda V0 | x20 | 20 distinct | fnv=0033B0FCA7643B87
+honda/more/honda_civic_2005_30.sub | 433920000 | Honda V0 | x20 | 20 distinct | fnv=063A3E1F53CEB501
+nissan/more/Nissan_Almera_2014_xHorse_300lck.sub | 433920000 | Renault V1 | x53 | 29 distinct | fnv=2A377775267DBFCB
+nissan/more/Nissan_Almera_2014_xHorse_300lck.sub | 433920000 | Renault/xHorse V4 | x34 | 17 distinct | fnv=3F048A31717E96F5
+nissan/more/Nissan_Almera_2014_xHorse_5lck_hold10s.sub | 433920000 | Renault V1 | x11 | 5 distinct | fnv=DBB1E6D6B1E2BCA1
+nissan/more/Nissan_Almera_2014_xHorse_5lck_hold10s.sub | 433920000 | Renault/xHorse V4 | x4 | 2 distinct | fnv=60B7E43E7EE61925
+nissan/more/Nissan_Almera_2014_xHorse_5pnc_hold10s.sub | 433920000 | Renault V1 | x11 | 5 distinct | fnv=3E0E3C09B0E9B35F
+nissan/more/Nissan_Almera_2014_xHorse_5pnc_hold10s.sub | 433920000 | Renault/xHorse V4 | x4 | 2 distinct | fnv=EB724DE687A8964D
+nissan/more/Nissan_Almera_2014_xHorse_5trk_hold10s.sub | 433920000 | Renault V1 | x9 | 5 distinct | fnv=6785E98D46A9D645
+nissan/more/Nissan_Almera_2014_xHorse_5trk_hold10s.sub | 433920000 | Renault/xHorse V4 | x6 | 3 distinct | fnv=3F054F429AE6952D
+nissan/more/Nissan_Almera_2014_xHorse_5ulk_hold10s.sub | 433920000 | Renault V1 | x11 | 5 distinct | fnv=D93828640FD00F00
+nissan/more/Nissan_Almera_2014_xHorse_5ulk_hold10s.sub | 433920000 | Renault/xHorse V4 | x4 | 2 distinct | fnv=D9924016C75F60A5
+nissan/more/Nissan_Almera_2014_xHorse_LUTP.sub | 433920000 | Renault V1 | x10 | 4 distinct | fnv=7A0E58554850313A
+nissan/more/Nissan_Almera_2014_xHorse_LUTP.sub | 433920000 | Renault/xHorse V4 | x2 | 1 distinct | fnv=B8741AC88D772C6D
+nissan/more/Nissan_Almera_2014_xHorse_LUTP_hold10s.sub | 433920000 | Renault V1 | x8 | 4 distinct | fnv=9146D9D502BDE33A
+nissan/more/Nissan_Almera_2014_xHorse_LUTP_hold10s.sub | 433920000 | Renault/xHorse V4 | x4 | 2 distinct | fnv=3CF952C63E460219

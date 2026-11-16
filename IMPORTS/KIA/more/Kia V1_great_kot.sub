@@ -1,0 +1,10 @@
+Filetype: Flipper SubGhz Key File
+Version: 1
+Frequency: 315000000
+Preset: FuriHalSubGhzPresetOok650Async
+Protocol: Kia V1
+Bit: 57
+Key: 00 B4 44 70 6E 02 6F 0C
+Serial: 3024384110
+Btn: 2
+Cnt: 111

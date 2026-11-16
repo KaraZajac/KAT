@@ -1892,9 +1892,11 @@ impl App {
             ignore_duplicates: self.storage.config.ignore_duplicates,
             import_dir: &import_dir,
             unchecked: Vec::new(),
+            notes: Vec::new(),
         };
         let results: Vec<(String, files::FileImport)> = paths.iter().map(|path| importer.import(path)).collect();
         let unchecked = std::mem::take(&mut importer.unchecked);
+        let damaged = files::damage_note(&importer.notes);
         // autobf: the new undecrypted PSA captures, and the frames listed only if their key is found.
         let new_ids: Vec<u32> = self.captures[first_new..].iter().map(|c| c.id).collect();
         self.auto_bf_listed(new_ids);
@@ -1906,10 +1908,11 @@ impl App {
         let filter_cleared = self.captures.len() > first_new && self.select_added(first_new);
         let (status, error) = files::import_summary(&results);
         if let Some(status) = status {
-            self.status_message = Some(if filter_cleared { format!("{status} (filter cleared)") } else { status });
+            let status = if filter_cleared { format!("{status} (filter cleared)") } else { status };
+            self.status_message = Some(status + damaged.as_deref().unwrap_or(""));
         }
         if error.is_some() {
-            self.last_error = error;
+            self.last_error = error.map(|e| e + damaged.as_deref().unwrap_or(""));
         }
         Ok(())
     }

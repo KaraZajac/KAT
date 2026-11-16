@@ -758,7 +758,9 @@ impl MazdaV2Decoder {
         }
     }
 
-    fn signal_from_value(value: u64) -> DecodedSignal {
+    /// The decode of a 63-bit payload (left-aligned in `value`). Also used by Mazda V1's reader
+    /// for the frames it reads of this protocol ([frame_without_preamble]).
+    pub(super) fn signal_from_value(value: u64) -> DecodedSignal {
         let (_hop, idx, _hdr, button) = Self::extract(value);
         DecodedSignal {
             // No plaintext serial in this frame (the C's `serial = idx` is a placeholder).
@@ -969,6 +971,38 @@ impl Default for MazdaV2Decoder {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// A frame Mazda V1's reader found (FoxFW's `mazda_v1.c`: the sync at any bit position, no
+/// preamble needed) whose button is one of this protocol's "alt" codes: the same frame as this
+/// decoder reads behind a preamble, so it is reported with this protocol's fields and under its
+/// name, and can be sent again. `payload` = the 63 bits after the sync. None: not such a button
+/// (0x26, which only Mazda V1 knows; 0x04 / 0x08 / 0x10 never pass Mazda V1's gate).
+///
+/// This is what lets KAT list every frame of a press. A fob sends each frame twice back to back
+/// and, while the button is held, a new frame every ~100 ms behind a preamble of about 90 bits;
+/// [MazdaV2Decoder::try_parse] wants more than 99 preamble samples in front of the sync, so it
+/// reads the first frame of a press only (as Flipper-ARF and doctor-firmware do).
+pub(super) fn frame_without_preamble(payload: u64) -> Option<DecodedSignal> {
+    let value = payload << 1;
+    let button = (value >> 56) as u8;
+    if !matches!(MazdaV2Decoder::btn7(button), BTN_LOCK_ALT | BTN_UNLOCK_ALT | BTN_TRUNK_ALT) {
+        return None;
+    }
+    let mut signal = MazdaV2Decoder::signal_from_value(value);
+    signal.protocol_display_name = Some("Mazda V2".to_string());
+    Some(signal)
+}
+
+/// This protocol's transmission (three copies of [MazdaV2Decoder::append_upload]) with `payload`,
+/// the 63 bits after the sync, sent as they are: Mazda V1's replay of a frame whose button this
+/// protocol's code generator does not know (0x26).
+pub(super) fn replay_upload(payload: u64) -> Vec<LevelDuration> {
+    let mut signal = Vec::with_capacity(REPEAT_DEFAULT * (PREAMBLE_PAIRS * 2 + PAYLOAD_BITS * 2 + 3));
+    for _ in 0..REPEAT_DEFAULT {
+        MazdaV2Decoder::append_upload(&mut signal, payload << 1);
+    }
+    signal
 }
 
 #[cfg(test)]

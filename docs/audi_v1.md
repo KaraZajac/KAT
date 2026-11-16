@@ -50,9 +50,21 @@ so the false match is in the reference gate, not the port. The IMPORTS and Flipp
 (`kat_diff` shows no file changed), but a decoder that duplicates a registered protocol's frames does not belong in the
 registry. The module is kept like `audi.rs` and `hyundai.rs`.
 
+## Captures (2026-11): the frames are Fiat V1's
+
+`IMPORTS/VAG/more/` has 18 recordings named after this protocol (`Audi_v1_*`, `audi_v1_*x_unlock.sub`: two fobs,
+one of them a Touareg's). FoxFW's C lists 4323 of their frames as Audi V1 and 265 as Fiat V1. KAT lists 4583, all
+as [Fiat V1](fiat_v1.md), the same count as ProtoPirate's and Flipper-ARF's C in every one of the 18 files.
+
+They are one frame format: FoxFW's Audi V1 serial is KAT's Fiat V1 serial with every bit inverted (`F96F98D4` and
+`0690672B` on the first fob). FoxFW's C also lists most frames of the Fiat Panda recordings in `IMPORTS/FIAT/more/`
+as Audi V1 (673 against 194 as Fiat V1). The decoder stays out of the registry: it would give the frames of a
+protocol KAT reads, checks (HITAG2) and sends a second name with no check.
+
 ## Validation
 
 - Reference oracle `subghz_oracle_foxfw`: synthetic Lock and Unlock frames (made-up serials and hops) give identical
   key and hop; a bad button, a zero serial, a 19-short preamble, a wrong sync, a wrong header and a frame 14 pulses
-  short are rejected by both. No IMPORTS capture decodes in either.
+  short are rejected by both. (Written before the captures above were added; at the time no IMPORTS capture
+  decoded in either.)
 - Unit tests: the frames above, key-file round trip, the Fiat V1 false match (documented in a test), decode-only.

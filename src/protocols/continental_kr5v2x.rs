@@ -6,11 +6,20 @@
 //! rolling code with an unencrypted sequence number.
 //!
 //! **Modulation** — FSK, rtl_433's Manchester zero-bit slicer (`FSK_PULSE_MANCHESTER_ZEROBIT`,
-//! short 100 µs, long 200 µs, reset limit 1500 µs, no tolerance), see [super::rtl433]: the upper
-//! tone is HIGH, a falling data edge is `1`, a rising one `0`, every message starts with the
-//! slicer's hard-coded `0`, and a lower-tone stretch over 1.5 ms (or the end of the carrier) ends
-//! the message. A press sends a long wake-up (`0x87` repeated, ~1000 bits) with the frame, then the
-//! frame again after a ~1.6 ms gap; Trunk/Panic long presses repeat that every ~95 ms.
+//! short 100 µs, long 200 µs, reset limit 1500 µs in the C, no tolerance), see [super::rtl433]: the
+//! upper tone is HIGH, a falling data edge is `1`, a rising one `0`, every message starts with the
+//! slicer's hard-coded `0`, and a lower-tone stretch over the reset limit (or the end of the
+//! carrier) ends the message. A press sends a long wake-up (`0x87` repeated, ~1000 bits) with the
+//! frame, then the frame again after a gap; Trunk/Panic long presses repeat that every ~95 ms.
+//!
+//! **Deviation: a message ends at a gap of 1000 µs.** The gap between the two copies is about
+//! 1.65 ms on the OEM fobs (1628..1678 µs in the Flipper recordings of IMPORTS) and about 1.45 ms
+//! on the aftermarket remotes there (1416..1476 µs: two cells of a Pandora remote and a KeyDIY
+//! clone). With rtl_433's limit of 1500 µs the shorter gap does not end the message: the slicer
+//! takes it for one more bit, both copies sit in one row, and the decoder, which reads the first
+//! preamble pattern of a row, lists one frame for a press where the OEM fob gets two. No symbol of
+//! a message is longer than 200 µs, so KAT ends the message at 1000 µs and lists both copies on
+//! every remote, as FoxFW's port does.
 //!
 //! **Frame** — the decoder looks for the last 20 bits of the preamble, `0xF0F06`, in row 0 and reads
 //! the 112 bits after it (14 bytes, MSB first):
@@ -27,9 +36,23 @@
 //! **Gating** (the C's checks, in order; a frame failing one is dropped, as rtl_433 returns
 //! `DECODE_ABORT_*` / `DECODE_FAIL_SANITY` / `DECODE_FAIL_MIC`): row 0 has ≥ 132 bits; ≥ 112 bits
 //! follow the pattern (when it is missing `bitbuffer_search` returns the row length, which fails
-//! this too); ID, button and sequence non-zero, ID and encrypted ≠ `0x0FFFFFFF` (the C compares the
+//! this too); ID and sequence non-zero, ID and encrypted ≠ `0x0FFFFFFF` (the C compares the
 //! 32-bit values with seven F's; kept as is, so an all-ones ID passes) and sequence ≠ `0xFFFFFF`;
 //! then the XOR checksum. rtl_433 outputs `mic: CHECKSUM`.
+//!
+//! **Deviation: button 0 is a button.** The C also drops a frame whose button nibble is 0 (one of
+//! its sanity checks). Two aftermarket remotes in IMPORTS send it for their third button
+//! (`honda/HondaV2_PandoraTS_cell0_btn123.sub`, `honda/more/Honda_v6_TS_10_10_10.sub`): the frames carry the
+//! remote's ID, the next sequence number after the Lock and Unlock presses before them and a
+//! checksum that holds. FoxFW's port of the decoder lists them (it has no such check); KAT does
+//! too, as button 0 ("Other"). An OEM fob and a KeyDIY clone send 9 / 0xA for that button.
+//!
+//! **Honda V10** (FoxFW's `honda_v10.c`) is another reading of this frame: the same Manchester
+//! bits inverted and one bit further on, with no check. On a fob whose bits happen to pass its
+//! gate it reports every frame, on the pulse that ends the burst, where this port (which KAT
+//! holds back for the Flipper decoders) lost the frame to it: `honda/more/HondaV2_3lck.sub` was
+//! listed as "Honda V10" with a serial of its own. Honda V10 now asks [frame_in_half_bits] first
+//! and leaves a burst with a frame whose checksum holds to this decoder (`honda_v10.rs`).
 //!
 //! **Field mapping** — `serial` = ID (rtl_433 `id`, printed `%08X`), `button` = the button nibble
 //! (`button_code`: 1 Lock, 3 Unlock, 9 Trunk Long Press, 0xA Trunk/Panic Short Press, 0xB Panic
@@ -104,10 +127,12 @@ fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
     })
 }
 
-/// r_device timing: `short_width` (half-bit), `long_width`, `reset_limit` (µs).
+/// r_device timing: `short_width` (half-bit), `long_width` (µs).
 const SHORT_US: u32 = 100;
 const LONG_US: u32 = 200;
-const RESET_US: u32 = 1500;
+/// The gap that ends a message (µs). rtl_433's `reset_limit` is 1500; KAT's is lower so that the
+/// second copy of a press is a message of its own on every remote (module doc).
+const RESET_US: u32 = 1000;
 const FRAME_BITS: usize = 112;
 
 /// The `r_device`; a burst's FM pairs are one package, consecutive LOWs one gap (see `rtl433`).
@@ -145,8 +170,8 @@ fn check(b: &[u8; 14]) -> Option<DecodedSignal> {
     let button = b[5] >> 4;
     let sequence = u32::from_be_bytes([0, b[6], b[7], b[8]]);
     let encrypted = u32::from_be_bytes([b[9], b[10], b[11], b[12]]);
+    // The C also fails `button == 0` here; real remotes send it (module docs).
     if id == 0
-        || button == 0
         || sequence == 0
         || id == 0x0FFF_FFFF
         || encrypted == 0x0FFF_FFFF
@@ -163,6 +188,38 @@ fn check(b: &[u8; 14]) -> Option<DecodedSignal> {
     d.counter = Some(sequence as u16);
     d.crc_valid = true;
     Some(d)
+}
+
+/// The last 20 preamble bits the C searches for, `0xF0F06`.
+const PATTERN: [u8; 20] = [1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0];
+
+/// A frame of this remote in a burst given as half-bit levels (one entry per 100 µs half bit,
+/// 1 = the upper tone), for Honda V10, which collects a burst that way: Manchester pairs at
+/// either phase (HIGH then LOW = 1, as the zero-bit slicer reads them), the first [PATTERN] in a
+/// run of valid pairs, and the C's checks ([check]) on the 112 bits behind it.
+pub(super) fn frame_in_half_bits(hb: &[u8]) -> Option<DecodedSignal> {
+    let in_run = |run: &[u8]| -> Option<DecodedSignal> {
+        let at = run.windows(PATTERN.len()).position(|w| w == PATTERN)? + PATTERN.len();
+        let frame = run.get(at..at + FRAME_BITS)?;
+        let mut b = [0u8; 14];
+        for (i, &bit) in frame.iter().enumerate() {
+            b[i / 8] |= bit << (7 - i % 8);
+        }
+        check(&b)
+    };
+    (0..2).find_map(|phase| {
+        let mut run: Vec<u8> = Vec::new();
+        let mut found = None;
+        for pair in hb.get(phase..)?.chunks(2) {
+            if pair.len() == 2 && pair[0] != pair[1] {
+                run.push(pair[0]);
+                continue;
+            }
+            found = found.or_else(|| in_run(&run));
+            run.clear();
+        }
+        found.or_else(|| in_run(&run))
+    })
 }
 
 /// Continental KR5V2X decoder: rtl_433's zero-bit slicer + `continental_car_remote_decode`.
@@ -207,6 +264,12 @@ impl ProtocolDecoder for ContinentalKr5v2xDecoder {
 
     fn feed(&mut self, level: bool, duration_us: u32) -> Option<DecodedSignal> {
         self.rx.feed(&mut Decode(decode), level, duration_us)
+    }
+
+    /// The input ended inside a message (a recording cut behind the frame's last bit, where the
+    /// gap that ends the message was never recorded): the message ends there.
+    fn flush(&mut self) -> Option<DecodedSignal> {
+        self.rx.feed(&mut Decode(decode), false, RESET_US + 1)
     }
 
     fn supports_encoding(&self) -> bool {
@@ -360,18 +423,103 @@ mod tests {
         .is_empty());
     }
 
+    /// The two copies of a press are two frames whatever the remote's gap between them (OEM
+    /// about 1650 µs, aftermarket about 1450 µs: under rtl_433's reset limit), and a recording
+    /// that ends with the frame's last bit still gives the frame.
+    #[test]
+    fn both_copies_of_a_press_are_listed() {
+        let f = frame(0x5804_6885, 0x1, 0xAA48, 0x0B90_4056);
+        let copy = |wake: usize| wire(&manchester_zerobit(&message(&f, wake), SHORT_US, 0));
+        for gap in [1416, 1476, 1628, 1678] {
+            let mut air = copy(90);
+            air.push(LevelDuration::new(false, gap));
+            air.extend(copy(0));
+            let mut dec = ContinentalKr5v2xDecoder::new();
+            let mut got = Vec::new();
+            for p in &air {
+                if let Some(d) = dec.feed(p.level, p.duration_us) {
+                    got.push(d);
+                    dec.reset();
+                }
+            }
+            // The first copy is reported at the gap; the second has no gap behind it.
+            assert_eq!(got.len(), 1, "gap {gap}");
+            got.extend(dec.flush());
+            assert_eq!(got.len(), 2, "gap {gap}");
+            assert!(got.iter().all(|d| d.serial == Some(0x5804_6885) && d.counter == Some(0xAA48) && d.crc_valid));
+            assert_eq!(dec.flush(), None, "nothing is held after the report");
+        }
+    }
+
+    /// A frame held back for the Flipper decoders is dropped when one of them reads the signal,
+    /// and listed when what that decoder reads is another transmission, a pause behind it
+    /// (`IMPORTS/honda/more/HondaCivic2008.sub`: this remote, then a Honda V5 fob 0.6 s later).
+    #[test]
+    fn a_later_transmission_does_not_drop_the_press() {
+        let f = frame(0x5804_6885, 0x1, 0xAA48, 0x0B90_4056);
+        let copy = |wake: usize| wire(&manchester_zerobit(&message(&f, wake), SHORT_US, 0));
+        let mut press = copy(90);
+        press.push(LevelDuration::new(false, 1650));
+        press.extend(copy(0));
+        let block = DecodedSignal {
+            serial: None,
+            button: None,
+            counter: None,
+            crc_valid: true,
+            data: 0xA5C3_0F1E_2D4B_6978,
+            data_count_bit: 64,
+            encoder_capable: true,
+            extra: None,
+            protocol_display_name: None,
+        };
+        let other = crate::protocols::ProtocolRegistry::new().get("Honda V6").unwrap().encode(&block, 0).unwrap();
+        let names = |pause: u32, noise: bool| {
+            let mut air = press.clone();
+            if noise {
+                // A pause of receiver noise instead of one long LOW.
+                air.push(LevelDuration::new(false, 1570));
+                for i in 0..pause / 1000 {
+                    air.push(LevelDuration::new(i % 2 == 0, 700 + (i * 37) % 600));
+                }
+            } else {
+                air.push(LevelDuration::new(false, pause));
+            }
+            air.extend(other.iter().copied());
+            air.push(LevelDuration::new(false, 20_000));
+            let listed = crate::protocols::ProtocolRegistry::new().process_signal_stream(&air, 433_920_000);
+            listed.into_iter().map(|(name, ..)| name).collect::<Vec<_>>()
+        };
+        assert_eq!(names(600_000, false), [NAME, NAME, "Honda V6"]);
+        assert_eq!(names(600_000, true), [NAME, NAME, "Honda V6"]);
+        // Closer than a quarter of a second it may be the port's own signal that the Flipper
+        // decoder reads: the held frame goes.
+        assert_eq!(names(100_000, false), [NAME, "Honda V6"]);
+        // A frame of this port right behind a frame a Flipper decoder read is held as part of
+        // that signal: the next Flipper frame drops it, however long the pause in front of it.
+        let mut air = other.clone();
+        air.push(LevelDuration::new(false, 20_000));
+        air.extend(copy(90));
+        air.push(LevelDuration::new(false, 600_000));
+        air.extend(other.iter().copied());
+        air.push(LevelDuration::new(false, 20_000));
+        let listed = crate::protocols::ProtocolRegistry::new().process_signal_stream(&air, 433_920_000);
+        assert_eq!(listed.into_iter().map(|(name, ..)| name).collect::<Vec<_>>(), ["Honda V6", "Honda V6"]);
+    }
+
     #[test]
     fn rejects_bad_frames() {
         let good = frame(0xF42E_6789, 1, 1522, 0x9391_771C);
         let mut dec = ContinentalKr5v2xDecoder::new();
         assert_eq!(decode_all(&mut dec, &air(&good, 0)).len(), 1);
-        // Checksum, sanity (zero ID / button / sequence, seven-F encrypted, all-ones sequence).
+        // Checksum, sanity (zero ID / sequence, seven-F encrypted, all-ones sequence).
         let mut bad = good;
         bad[7] ^= 0x04;
         assert!(decode_all(&mut dec, &air(&bad, 0)).is_empty(), "checksum");
+        // Button 0 is a frame (rtl_433 drops it; two remotes in IMPORTS send it).
+        let zero = decode_all(&mut dec, &air(&frame(0xF42E_6789, 0, 1522, 1), 0));
+        assert_eq!(zero.iter().map(|d| (d.serial, d.button, d.crc_valid)).collect::<Vec<_>>(), [(Some(0xF42E_6789), Some(0), true)]);
         for f in [
             frame(0, 1, 1522, 1),
-            frame(0xF42E_6789, 0, 1522, 1),
             frame(0xF42E_6789, 1, 0, 1),
             frame(0xF42E_6789, 1, 1522, 0x0FFF_FFFF),
             frame(0xF42E_6789, 1, 0xFF_FFFF, 1),
@@ -430,6 +578,43 @@ mod tests {
             [NAME]
         );
         assert_eq!(got[0].1.serial, Some(0x2A79_1780));
+    }
+
+    /// The first frame of `IMPORTS/honda/more/HondaV2_3lck.sub`: Honda V10's gate passes on its own
+    /// reading of the same bits, but the burst is this remote's, checksum and all. Honda V10 leaves
+    /// it to this decoder (it used to be listed as "Honda V10", serial 7BBE4F); with a wrong
+    /// checksum the frame is Honda V10's as before.
+    #[test]
+    fn honda_v10_leaves_frames_whose_checksum_holds() {
+        const REAL: [u8; 14] = [0x30, 0x01, 0x08, 0x83, 0x60, 0x10, 0x00, 0x22, 0xBC, 0xDB, 0xC2, 0xFF, 0x92, 0x20];
+        assert_eq!(xor_bytes(&REAL), 0);
+        let v10 = |pulses: &[LevelDuration]| {
+            let mut d = super::super::honda_v10::HondaV10Decoder::new();
+            pulses.iter().filter_map(|p| d.feed(p.level, p.duration_us)).collect::<Vec<_>>()
+        };
+        // A wake-up as long as the capture's (Honda V10 collects at most 2048 half bits).
+        const WAKE: usize = 90;
+        let pulses = air(&REAL, WAKE);
+        assert!(v10(&pulses).is_empty());
+        let got = registry(&pulses, 433_920_000, Some(crate::capture::RfModulation::FM));
+        assert_eq!(got.iter().map(|(n, d)| (n.as_str(), d.serial, d.button, d.counter)).collect::<Vec<_>>(), [(
+            NAME,
+            Some(0x3001_0883),
+            Some(1),
+            Some(0x22BC)
+        )]);
+        // The burst as half-bit levels, which is what Honda V10 hands over.
+        let halves: Vec<u8> =
+            pulses[1..pulses.len() - 1].iter().flat_map(|p| vec![u8::from(p.level); (p.duration_us / SHORT_US) as usize]).collect();
+        assert_eq!(frame_in_half_bits(&halves).map(|d| d.serial), Some(Some(0x3001_0883)));
+        assert_eq!(frame_in_half_bits(&halves[1..]).map(|d| d.serial), Some(Some(0x3001_0883)), "the other phase");
+        // One bit of the checksum byte wrong: not this decoder's frame, and Honda V10 reads it.
+        let mut bad = REAL;
+        bad[13] ^= 0x01;
+        let pulses = air(&bad, WAKE);
+        assert_eq!(v10(&pulses).iter().map(|d| d.serial).collect::<Vec<_>>(), [Some(0x7B_BE4F)]);
+        let got = registry(&pulses, 433_920_000, Some(crate::capture::RfModulation::FM));
+        assert_eq!(got.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(), ["Honda V10"]);
     }
 
     /// A made-up frame whose RAW file (written to `$KAT_SYNTH_DIR` when set) FoxFW's decoder read with

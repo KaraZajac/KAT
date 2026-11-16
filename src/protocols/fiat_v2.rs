@@ -27,6 +27,29 @@
 //! **Packing**: `data` = raw[0..8] (first 64 wire bits), `data_count_bit` = 112, `extra` =
 //! raw[8..14] (48 bits, right-aligned). `counter` holds the C's 11/14-bit counter.
 //!
+//! **Deviation: the Chrysler / Jeep fobs' own layout.** The two real fobs in IMPORTS (a 2019
+//! Chrysler Pacifica, type nibble 0x5, and a 2022 Jeep Renegade, type 0x7; both recordings are
+//! named after the buttons pressed) fit neither of the C's layouts. Read with the C's non-FCA
+//! layout, as all three references do, their counter is one value for the whole recording (0x09B,
+//! 0x080) and their Panic and Remote start presses carry Unlock's selector. Their bytes 6..9 are,
+//! bit-inverted, a flag word and a 16-bit counter:
+//! ```text
+//! !raw[6..8]   type4 (0xA Pacifica, 0x8 Renegade) | button flags, one of bits 11..5 | 0b00100
+//! !raw[8..10]  counter: up with every press, across all buttons (0xDFDC … 0xE017 over the
+//!              Pacifica's 15 presses, with the carry at 0xDFFF; 0x07D7 … 0x07F0 on the Renegade)
+//! raw[10..14]  hop
+//! ```
+//! The flags follow the recordings' names press for press: bit 8 Unlock, 6 Lock, 7 Trunk, 11
+//! Remote start, 9 and 10 the two sliding doors, 5 Panic. (FoxFW's Jeep V0, `jeep_v0.c`, reads the
+//! Renegade's frames this way, inverted, with the four codes that fob has; it takes the counter's
+//! high byte for a constant 0x07 and so reads no other fob.) A frame with type 0x5 or 0x7 whose
+//! flag word has that shape (low five bits `00100`, exactly one button bit) is read so: `counter`
+//! = the 16 bits, `button` = the number of the flag (1 Panic, 2 Lock, 3 Trunk, 4 Unlock, 5 and 6
+//! Sliding door, 7 Remote start; a selector byte is never below 0x40, so the two kinds of code do
+//! not meet). `serial`, `data`, `extra`, the key file (ProtoPirate's lines, from the frame's
+//! bytes) and the replay are as before; such a frame is never forward-encoded with the other
+//! layouts' fields.
+//!
 //! **Validation / gating**: the C's `fiat_v2_frame_valid` (both markers, selector ∈ {1,2,3}, UID ≠
 //! 0 / 0xFFFFFFFF) plus one KAT-specific structural gate: the valid window must end at the end of
 //! the burst (at most one trailing cell, i.e. doctor-firmware's stop pulse, before the terminating
@@ -93,12 +116,20 @@ pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     presets: &[&AM650],
 };
 
-/// Button selector = top two bits of the raw button byte.
+/// Button selector = top two bits of the raw button byte; below 0x40, the number of the flag a
+/// Chrysler / Jeep frame carries ([FiatV2Decoder::fca_fields]).
 fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
-    Some(match code >> 6 {
-        2 => "Lock",
-        3 => "Unlock",
-        1 => "Trunk",
+    Some(match (code, code >> 6) {
+        (1, _) => "Panic",
+        (2, _) => "Lock",
+        (3, _) => "Trunk",
+        (4, _) => "Unlock",
+        (5, _) => "Sliding door 1",
+        (6, _) => "Sliding door 2",
+        (7, _) => "Remote start",
+        (_, 2) => "Lock",
+        (_, 3) => "Unlock",
+        (_, 1) => "Trunk",
         _ => "Other",
     })
 }
@@ -181,6 +212,21 @@ impl FiatV2Decoder {
 
     fn is_fca(raw: &[u8; WIRE_BYTES]) -> bool {
         raw[6] & 0xF0 == FCA_TYPE_NIBBLE
+    }
+
+    /// The fields of a frame in the layout the Chrysler / Jeep fobs in IMPORTS send (module doc):
+    /// (button = the number of its one flag, 1..=7 for bits 5..=11; the 16-bit counter). None for
+    /// any other frame.
+    fn fca_fields(raw: &[u8; WIRE_BYTES]) -> Option<(u8, u16)> {
+        if !matches!(raw[6] >> 4, 0x5 | 0x7) {
+            return None;
+        }
+        let flags = !u16::from_be_bytes([raw[6], raw[7]]);
+        let buttons = (flags >> 5) & 0x7F;
+        if flags & 0x1F != 0x04 || buttons.count_ones() != 1 {
+            return None;
+        }
+        Some((buttons.trailing_zeros() as u8 + 1, !u16::from_be_bytes([raw[8], raw[9]])))
     }
 
     /// fiat_v2_hop: raw[10..=13] for FCA frames, raw[9..=12] otherwise.
@@ -382,10 +428,12 @@ impl FiatV2Decoder {
         data_bytes.copy_from_slice(&raw[..8]);
         let mut extra_bytes = [0u8; 8];
         extra_bytes[2..].copy_from_slice(&raw[8..]);
+        // The C's fields, or the Chrysler / Jeep layout's (KAT deviation, module doc).
+        let (button, counter) = Self::fca_fields(raw).unwrap_or((raw[7], Self::counter(raw)));
         DecodedSignal {
             serial: Some(Self::uid(raw)),
-            button: Some(raw[7]),
-            counter: Some(Self::counter(raw)),
+            button: Some(button),
+            counter: Some(counter),
             // No CRC in this frame; emission is gated on markers / selector / UID / structure.
             crc_valid: false,
             data: u64::from_be_bytes(data_bytes),
@@ -502,8 +550,9 @@ impl ProtocolDecoder for FiatV2Decoder {
             return None;
         }
         // Flipper-ARF hop recompute when a known or saved key reproduces the captured hop;
-        // otherwise the captured frame is replayed unchanged.
-        if let Some((key, combo)) = Self::find_key(&raw) {
+        // otherwise the captured frame is replayed unchanged. A frame in the Chrysler / Jeep
+        // layout is always replayed: the recompute's fields are the other layouts'.
+        if let Some((key, combo)) = Self::find_key(&raw).filter(|_| Self::fca_fields(&raw).is_none()) {
             let selector = match button {
                 0x01 => SEL_LOCK,
                 0x02 => SEL_UNLOCK,
@@ -610,9 +659,11 @@ mod tests {
         assert_eq!(decoded.len(), 1);
         let d = &decoded[0];
         assert_eq!(d.serial, Some(0xD737_A2C3));
-        assert_eq!(d.button, Some(0xFB));
-        assert_eq!(d.button.map(|b| b >> BTN_SHIFT), Some(SEL_UNLOCK));
-        assert_eq!(d.counter, Some(0x09B)); // ~((0x3B << 5) | (0x20 >> 3)) & 0x7FF
+        // The Chrysler / Jeep layout: flag word !0x5EFB = 0xA104 (Unlock), counter !0x2023.
+        assert_eq!((d.button, d.counter), (Some(4), Some(0xDFDC)));
+        // The C's fields for the same bytes (its non-FCA layout), which the key file keeps.
+        assert_eq!(RAW_PACIFICA[7] >> BTN_SHIFT, SEL_UNLOCK);
+        assert_eq!(FiatV2Decoder::counter(&RAW_PACIFICA), 0x09B); // ~((0x3B << 5) | (0x20 >> 3)) & 0x7FF
         assert_eq!(d.data, 0x0001_D737_A2C3_5EFB);
         assert_eq!(d.extra, Some(0x2023_5C16_7DE9));
         assert_eq!(d.data_count_bit, 112);
@@ -769,11 +820,11 @@ mod tests {
     /// the hop recomputed with the same key/combo; other fields are kept.
     #[test]
     fn known_key_frames_are_forward_encoded() {
-        for (fca, key_idx, combo) in [(true, 0usize, 0u8), (true, 3, 1), (false, 5, 2), (false, 7, 3)] {
+        for (type_byte, key_idx, combo) in [(0x3E, 0usize, 0u8), (0x3E, 3, 1), (0x1A, 5, 2), (0x1A, 7, 3)] {
+            // The C's non-FCA layout, on a type nibble the Chrysler / Jeep fobs do not send
+            // (their frames are replayed, below).
             let mut raw = RAW_PACIFICA;
-            if !fca {
-                raw[6] = 0x7A; // non-FCA layout (type nibble 0x7, as on the Jeep Renegade)
-            }
+            raw[6] = type_byte;
             let key = &ARF_KNOWN_KEYS[key_idx];
             let hop = FiatV2Decoder::compute_hop(&raw, key, combo);
             FiatV2Decoder::patch_hop(&mut raw, hop);
@@ -790,6 +841,16 @@ mod tests {
                 assert_eq!(got[..7], raw[..7], "markers, UID and type kept");
             }
         }
+        // A frame in the Chrysler / Jeep layout is replayed as it is even when a key fits its hop
+        // under the C's layout: the selector and the 11-bit counter the recompute would write are
+        // not where that fob keeps its button and counter.
+        let mut raw = RAW_PACIFICA;
+        let hop = FiatV2Decoder::compute_hop(&raw, &ARF_KNOWN_KEYS[0], 0);
+        FiatV2Decoder::patch_hop(&mut raw, hop);
+        assert!(FiatV2Decoder::find_known_key(&raw).is_some() && FiatV2Decoder::fca_fields(&raw).is_some());
+        let original = FiatV2Decoder::build_signal(&raw);
+        let out = decode(&FiatV2Decoder::new().encode(&original, 0x01).unwrap());
+        assert_eq!(out, vec![original]);
     }
 
     /// A key saved for the remote (`hitag2_keys.txt`, Fiat V1's byte order, e.g. by "Recover key
@@ -801,6 +862,7 @@ mod tests {
         let key = [0x54, 0x31, 0x2E, 0x38, 0x4B, 0x41];
         let mut raw = RAW_PACIFICA;
         raw[2..6].copy_from_slice(&uid.to_be_bytes());
+        raw[6] = 0x3E; // not a Chrysler / Jeep type nibble: those frames are replayed
         let hop = FiatV2Decoder::compute_hop(&raw, &key, 1);
         FiatV2Decoder::patch_hop(&mut raw, hop);
         let original = FiatV2Decoder::build_signal(&raw);
@@ -900,9 +962,61 @@ mod tests {
                 fiat.iter().all(|(_, d)| d.serial == Some(uid)),
                 "{rel}: stable UID"
             );
-            let first = fiat[0].1.button.unwrap() >> BTN_SHIFT;
-            assert_eq!(first, SEL_UNLOCK, "{rel}: recording starts with Unlock");
+            assert_eq!(fiat[0].1.button, Some(4), "{rel}: recording starts with Unlock");
         }
+    }
+
+    /// The two real fobs' presses, as their recordings are named: the button flags follow the
+    /// names, the 16-bit counter goes up with every press (module doc). Read with the C's layout
+    /// the counter was one value per recording and Panic / Remote start were "Unlock".
+    #[test]
+    fn chrysler_and_jeep_presses_follow_their_recordings_names() {
+        const PANIC: u8 = 1;
+        const LOCK: u8 = 2;
+        const TRUNK: u8 = 3;
+        const UNLOCK: u8 = 4;
+        const DOOR_1: u8 = 5;
+        const DOOR_2: u8 = 6;
+        const START: u8 = 7;
+        let cases: [(&str, &[(u8, u16)]); 2] = [
+            (
+                // ul2 l2 t2 rs2 sd2 sd2 p2 t2 (the second Panic press is not in the recording)
+                "chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub",
+                &[
+                    (UNLOCK, 0xDFDC), (UNLOCK, 0xDFE2), (LOCK, 0xDFE6), (LOCK, 0xDFEA), (TRUNK, 0xDFED),
+                    (TRUNK, 0xDFF1), (START, 0xDFF5), (START, 0xDFFB), (DOOR_1, 0xDFFF), (DOOR_1, 0xE001),
+                    (DOOR_2, 0xE006), (DOOR_2, 0xE00B), (PANIC, 0xE00F), (TRUNK, 0xE011), (TRUNK, 0xE017),
+                ],
+            ),
+            (
+                // ul2 l2 rs2 p2
+                "jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub",
+                &[
+                    (UNLOCK, 0x07D7), (UNLOCK, 0x07D8), (LOCK, 0x07DD), (LOCK, 0x07E3), (START, 0x07E5),
+                    (START, 0x07EA), (PANIC, 0x07EC), (PANIC, 0x07F0),
+                ],
+            ),
+        ];
+        for (rel, want) in cases {
+            let Some(results) = registry_decodes(rel) else { continue };
+            let mut presses: Vec<(u8, u16)> = results.iter().map(|(_, d)| (d.button.unwrap(), d.counter.unwrap())).collect();
+            presses.dedup();
+            assert_eq!(presses, want, "{rel}");
+            for (name, d) in &results {
+                assert_eq!(crate::protocols::native_button_name(name, d.button.unwrap()).is_some(), true);
+            }
+        }
+        let name = |code| native_buttons("Fiat V2", code);
+        assert_eq!([name(1), name(4), name(7)], [Some("Panic"), Some("Unlock"), Some("Remote start")]);
+        assert_eq!([name(0x40), name(0x80), name(0xFB)], [Some("Trunk"), Some("Lock"), Some("Unlock")]);
+        // Another type nibble, or a flag word of another shape: the C's fields.
+        let mut other = RAW_PACIFICA;
+        other[6] = 0x3E;
+        assert_eq!(FiatV2Decoder::fca_fields(&other), None);
+        let mut two_flags = RAW_PACIFICA;
+        two_flags[7] = 0xBB & !0x80; // Lock's and Trunk's flags
+        assert_eq!(FiatV2Decoder::fca_fields(&two_flags), None);
+        assert_eq!(FiatV2Decoder::build_signal(&other).button, Some(0xFB));
     }
 
     #[test]

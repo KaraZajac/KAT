@@ -65,10 +65,11 @@ This folder describes how each keyfob and gate/garage remote protocol supported 
 | Honda V9 (FoxFW, decode only) | `honda_v9.rs` | [honda_v9.md](honda_v9.md) |
 | HondaV2&V3 (FoxFW, decode only) | `honda_v2_v3.rs` | [honda_v2_v3.md](honda_v2_v3.md) |
 | Honda V10 (FoxFW, decode only) | `honda_v10.rs` | [honda_v10.md](honda_v10.md) |
-| Mitsubishi V1 (FoxFW, decode only) | `mitsubishi_v1.rs` | [mitsubishi_v1.md](mitsubishi_v1.md) |
+| Honda V6 (KAT's own decoder and replay encoder; the name is FoxFW's) | `honda_v6.rs` | [honda_v6.md](honda_v6.md) |
+| Mitsubishi V1 (FoxFW; any fob, replay encoder) | `mitsubishi_v1.rs` | [mitsubishi_v1.md](mitsubishi_v1.md) |
 | LDV V0 (FoxFW, decode only) | `ldv_v0.rs` | [ldv_v0.md](ldv_v0.md) |
 | Lexus V0 (FoxFW, decode only) | `lexus_v0.rs` | [lexus_v0.md](lexus_v0.md) |
-| Mazda V1 (FoxFW, decode only) | `mazda_v1.rs` | [mazda_v1.md](mazda_v1.md) |
+| Mazda V1 (FoxFW; replay encoder) | `mazda_v1.rs` | [mazda_v1.md](mazda_v1.md) |
 | Nissan V0 (FoxFW, decode only) | `nissan_v0.rs` | [nissan_v0.md](nissan_v0.md) |
 | Toyota (FoxFW, decode only) | `toyota_foxfw.rs` | [toyota_foxfw.md](toyota_foxfw.md) |
 | BMW V2 (FoxFW, decode only) | `bmw_v2.rs` | [bmw_v2.md](bmw_v2.md) |

@@ -65,4 +65,15 @@ for 414 entries but writes 582 (a heap overflow on the device); the intended upl
 
 C oracle (ARF `mitsubishi_v0.c` on the host): 2000 random frames (raw replay and field fallback) — KAT's
 upload equals ARF's pulse for pulse and KAT's decoder reports the same 2000 frames (fields and raw bytes).
-No IMPORTS capture contains this format (0 decodes in both C and KAT, both polarities).
+No IMPORTS capture contains the 96-bit format (0 decodes in both C and KAT, both polarities).
+
+The 61-bit format has a real capture since 2026-11: `IMPORTS/MITSUBISHI/Mitsubishi pajero 2011.sub` (FM476,
+433.92 MHz), four presses of one fob (serial `DF8ABA0`, counters 7 to 0xA). Each press is the Kia V0 frame and
+the same frame again behind the 80-pair preamble: KAT lists the first as Kia V0 and the second as Mitsubishi V0,
+both with a valid CRC-8. The references' host builds (ProtoPirate, doctor-firmware, Flipper-ARF, FoxFW) list the
+same eight frames, all as Kia V0: that harness resets the receiver after every decode, as the stock Sub-GHz app
+does, and the C's reset forgets the first copy (`last_kia_data`). ProtoPirate's own app does not reset there
+(`protopirate_scene_receiver.c`), which is the case KAT follows ([kia_v0.md](kia_v0.md)).
+
+**CRC column.** A 61-bit frame carries Kia V0's CRC-8 and shows OK or FAIL; a 96-bit frame has no check and shows
+"-". Up to 1.13.0 both showed "-".

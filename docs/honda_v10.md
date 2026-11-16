@@ -43,9 +43,21 @@ of a burst is reported (the FoxFW oracle shows the same).
 counter, `extra` = the tail, `crc_valid` false. Key file: `Protocol: Honda V10`, `Bit: 96`, `Key`, `Serial`, `Btn`, `Cnt`
 (24 bits), `Flags`, `Status`, `Tail`.
 
+## Deviation: a Continental KR5V2X frame is not a Honda V10 frame
+
+This decoder's frame is another reading of the [Continental KR5V2X](continental_kr5v2x.md) frame: the same
+Manchester bits inverted and one bit further on (FoxFW's bytes are `!(x >> 1)` of that frame's), with no check where
+that frame has an XOR checksum. The frames of one remote in IMPORTS pass this decoder's gate (flags 7, button
+`0xE` / `0xF`): `honda/more/HondaV2_3lck.sub`, six frames. FoxFW's receiver lists them as Continental RKE, its
+decoder for that frame reporting first. In KAT, where the Continental decoder is an rtl_433 port whose frames are
+held back for the Flipper decoders, Honda V10 took them: six "Honda V10" frames with a serial of their own. Before
+a report, KAT now looks for a Continental frame in the burst's half-bits (`continental_kr5v2x::frame_in_half_bits`:
+the preamble pattern, 112 bits, the sanity checks, the checksum) and reports nothing when there is one.
+
 ## Evidence
 
-None: no capture of this protocol exists in the test corpus, so the port is validated on synthetic pulse sequences only:
+No capture of a remote that only this decoder reads exists in the test corpus (the one IMPORTS capture that passes its
+gate is the Continental remote above), so the port is validated on synthetic pulse sequences only:
 the FoxFW oracle and KAT give the same Key, serial, button and counter in both polarities, for a 90-bit zero-padded frame
 and for two frames in one burst (one reported); flags other than 7, buttons other than 0xE / 0xF, serials 0 and 0xFFFFFF,
 a short frame and a short preamble are rejected. The IMPORTS sweep shows no change.

@@ -10,7 +10,8 @@
 //!   (key file or RAW, any case of the extension) or `.fob` file, and [import_summary] says what
 //!   came of it: "Imported 15 captures from Kia3.sub", "Nothing imported from notes.fob: <why>",
 //!   "Imported 12 captures from 3 files (1 failed: x.sub: <why>)". Read errors used to go to the
-//!   log only, under an "Imported" message.
+//!   log only, under an "Imported" message. A RAW file with damaged `RAW_Data` lines is imported as
+//!   far as it reads, and the status line ends with what was skipped ([damage_note]).
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -125,6 +126,8 @@ pub(super) struct Importer<'a> {
     pub unchecked: Vec<Capture>,
     /// For each capture's `source_file` (the path relative to it).
     pub import_dir: &'a Path,
+    /// Notes on files that were read only in part ("x.sub: damaged file: …"), for the status line.
+    pub notes: Vec<String>,
 }
 
 impl Importer<'_> {
@@ -135,7 +138,13 @@ impl Importer<'_> {
             Err(e) => FileImport::Failed(format!("cannot read it ({e})")),
             Ok(text) if crate::export::has_extension(path, "sub") => match flipper::parse_sub_content(&text) {
                 Ok(SubContent::Key(key)) => self.import_key(path, &key),
-                Ok(SubContent::Raw(sub)) => self.import_raw(path, sub),
+                Ok(SubContent::Raw(sub)) => {
+                    if let Some(damage) = &sub.damage {
+                        tracing::warn!("Import {:?}: {damage}", path);
+                        self.notes.push(format!("{name}: {damage}"));
+                    }
+                    self.import_raw(path, sub)
+                }
                 Err(e) => FileImport::Failed(format!("{e:#}")),
             },
             Ok(text) => self.import_fob(path, &text),
@@ -312,6 +321,16 @@ pub(super) fn import_summary(results: &[(String, FileImport)]) -> (Option<String
     }
 }
 
+/// What the status line adds for files that were read only in part ([Importer::notes]): the first
+/// file's note, and how many more there are (all of them are in kat.log).
+pub(super) fn damage_note(notes: &[String]) -> Option<String> {
+    match notes {
+        [] => None,
+        [one] => Some(format!(" [{one}]")),
+        [first, rest @ ..] => Some(format!(" [{first}; {} more damaged in kat.log]", rest.len())),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -355,6 +374,7 @@ mod tests {
             ignore_duplicates: true,
             import_dir: Path::new("IMPORTS"),
             unchecked: Vec::new(),
+            notes: Vec::new(),
         }
     }
 

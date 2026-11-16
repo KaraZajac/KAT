@@ -1,0 +1,13 @@
+Filetype: Flipper SubGhz Key File
+Version: 1
+Frequency: 434420000
+Preset: FuriHalSubGhzPresetOok650Async
+Protocol: VAG
+Bit: 80
+Key: C0 4B D2 91 20 06 F9 DB
+Key2: 00 00 00 00 00 00 D0 2B
+Type: 4
+Serial: 130611555
+Btn: 2
+Cnt: 20130
+KeyIdx: 2

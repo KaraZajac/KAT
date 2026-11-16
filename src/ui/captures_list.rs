@@ -210,6 +210,7 @@ fn table_cell(col: Col, row: &RowText, capture: &Capture, width: u16) -> Cell<'s
             ModulationType::Manchester => Style::default().fg(Color::Cyan),
             ModulationType::DifferentialManchester => Style::default().fg(Color::Blue),
             ModulationType::Nrz => Style::default().fg(Color::Green),
+            ModulationType::Miller => Style::default().fg(Color::Yellow),
             ModulationType::Unknown => Style::default().fg(Color::DarkGray),
         },
         Col::Crc if !capture.crc_checked() => Style::default().fg(Color::DarkGray),

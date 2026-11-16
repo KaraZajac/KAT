@@ -20,6 +20,15 @@
 //! complete frames in IMPORTS do). (KAT's earlier port used a hand-written Manchester table and
 //! decoded garbage: serials changing between presses of the same fob.)
 //!
+//! **Deviation: a square wave is not a frame.** A run of 800 µs pulses counts as preamble (every
+//! LOW behind a long HIGH counts) and then, in the data step, as 67 Manchester bits `0101…`: the
+//! key 0x5555555555555555 (serial 0xAAAAAAA, button 0xA), whose CRC field comes out right. Honda
+//! V6's preamble is such a wave (about 200 cells of 800 µs), and ProtoPirate, doctor-firmware,
+//! Flipper-ARF and FoxFW all list "Kia V5" frames with that key in the Honda captures of IMPORTS
+//! (`honda/more/HondaH1_OEM2_300*.sub`: nine in the three recordings, six of them in one). KAT
+//! drops a key of alternating bits (either phase): no fob has that key, and its decode would
+//! reset the registry in the middle of a Honda V6 frame.
+//!
 //! Encoder (`kia_protocol_encoder_v5_deserialize` + `get_upload`): hop = `mixer_encode(serial,
 //! counter, button)`, key = reverse(yek), CRC recomputed; 200 × (HIGH 400, LOW 400), LOW 400,
 //! HIGH 800, LOW 400, HIGH 400, the 64 key bits + `0` + 2 CRC bits as Manchester (1 → LOW, HIGH;
@@ -224,11 +233,18 @@ impl KiaV5Decoder {
         }
     }
 
-    /// The C's emission (with KAT's CRC flag, see the module docs).
-    fn report(&self) -> DecodedSignal {
-        frame_signal(self.saved_key, self.bit_count.min(MAX_BITS), self.decoded_data & 0x07)
+    /// The C's emission (with KAT's CRC flag, see the module docs). None for a key that is one
+    /// alternating pattern (KAT deviation, see the module docs).
+    fn report(&self) -> Option<DecodedSignal> {
+        if self.saved_key == ALTERNATING || self.saved_key == !ALTERNATING {
+            return None;
+        }
+        Some(frame_signal(self.saved_key, self.bit_count.min(MAX_BITS), self.decoded_data & 0x07))
     }
 }
+
+/// A key of alternating bits: what a square wave of 800 µs pulses reads as (see the module docs).
+const ALTERNATING: u64 = 0x5555_5555_5555_5555;
 
 /// The decode of a `bits`-bit frame (64..=67): the 64 key bits and the CRC-field bits that
 /// followed them (`received`, right-aligned).
@@ -326,7 +342,7 @@ impl ProtocolDecoder for KiaV5Decoder {
                     ManchesterEvent::from_half_bit(level, true)
                 } else {
                     self.step = DecoderStep::Reset;
-                    return (self.bit_count as usize >= MIN_COUNT_BIT).then(|| self.report());
+                    return if self.bit_count as usize >= MIN_COUNT_BIT { self.report() } else { None };
                 };
                 if self.bit_count <= 66 {
                     if let Some(bit) = self.manchester.advance(event) {
@@ -586,6 +602,26 @@ mod tests {
         let e = dec.from_flipper_key(&key(&text.replace("Cnt: 21344", "Cnt: 21400"))).unwrap();
         assert_eq!((e.serial, e.button, e.counter, e.crc_valid, e.data_count_bit), (d.serial, d.button, Some(21400), true, 67));
         assert!(dec.from_flipper_key(&key(&text.replace("Bit: 67", "Bit: 68"))).is_none());
+    }
+
+    /// A square wave of 800 µs pulses behind a short HIGH (Honda V6's preamble behind a noise
+    /// pulse) reads as preamble, sync and 67 bits `0101…` with a matching CRC field; the references
+    /// report that as a frame, KAT does not. A key one bit off the pattern is still a frame.
+    #[test]
+    fn a_square_wave_is_not_a_frame() {
+        let mut wave = vec![LevelDuration::new(true, 400)];
+        for i in 0..300 {
+            wave.push(LevelDuration::new(i % 2 == 1, 800));
+        }
+        // What ends it in a Honda V6 frame: a run of one and a half cells.
+        wave.push(LevelDuration::new(false, 1200));
+        assert!(feed_all(&wave).is_empty());
+        // The decode it would have been (the references' line: Sn AAAAAAA, Btn A, CRC 2).
+        let d = frame_signal(ALTERNATING, 67, 2);
+        assert_eq!((d.serial, d.button, d.crc_valid), (Some(0xAAA_AAAA), Some(0xA), true));
+        keys::load_keystore_from_embedded();
+        let near = ALTERNATING ^ 0x10;
+        assert_eq!(feed_all(&build_upload(near)).iter().map(|d| d.data).collect::<Vec<_>>(), [near]);
     }
 
     /// Oracle vectors (`#[ignore]`d): `KAT_KEY_VECTORS=<dir> cargo test kia_v5::tests::key_vectors

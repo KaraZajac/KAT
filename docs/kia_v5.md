@@ -46,6 +46,14 @@ The C only displays the CRC; KAT sets `crc_valid` when the received CRC bits mat
 all 117 complete frames in IMPORTS). KAT's earlier port used a hand-written Manchester table: its serials
 changed between presses of the same fob, and it matched none of the C's frames.
 
+**Deviation: a square wave is not a frame.** A run of 800 µs pulses counts as this decoder's preamble and then,
+in the data step, as 67 Manchester bits `0101…`: the key `5555555555555555` (serial `AAAAAAA`, button `A`), with
+a CRC field that comes out right. The preamble of a [Honda V6](honda_v6.md) frame is such a wave (about 200 cells
+of 800 µs). ProtoPirate's, doctor-firmware's, Flipper-ARF's and FoxFW's C each list nine "Kia V5" frames with
+that key in the three 300-press Honda recordings of IMPORTS (`honda/more/HondaH1_OEM2_300*.sub`). KAT drops a key
+of alternating bits, in either phase: no fob has it, and in KAT's registry the decode would end the Honda V6
+frame it sits in.
+
 ## Encoder
 
 Supported (new; `kia_protocol_encoder_v5_deserialize` + `get_upload`): hop = `mixer_encode(serial,
@@ -56,8 +64,8 @@ Lock 0x2, Unlock 0x1, Trunk 0x4, Panic 0x8 (Horn); anything else keeps the captu
 
 ## Validation
 
-C oracle: on every IMPORTS capture (both polarities) KAT reports the C's 119 frames (serial, button,
-counter, CRC field); 600 random C-encoded frames — uploads identical, all decode identically. The encoder's
+C oracle: on every IMPORTS capture of the test corpus (both polarities) KAT reports the C's 119 frames
+(serial, button, counter, CRC field), and on the captures in `more/` every frame but the nine above; 600 random C-encoded frames — uploads identical, all decode identically. The encoder's
 `mixer_encode` inverts the decoder's `mixer_decode` on the real frames (re-encoding a captured frame's fields
 gives its exact key). Flipper-ARF only reports 67-bit frames (117 of the 119).
 

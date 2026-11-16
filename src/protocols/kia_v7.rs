@@ -16,6 +16,15 @@
 //! 508). With the on-air 1 = HIGH,LOW encoding the decoded bits are the inverse of the key, hence
 //! the `~data` and the inverted seed nibble.
 //!
+//! **Deviation: the all-zero frame is not reported.** The CRC starts from the header's value, so
+//! the header followed by seven zero bytes (serial 0, button 0, counter 0) checks: CRC 0. A square
+//! wave of short pulses is this decoder's preamble, and where one ends in a way that passes the
+//! sync, the constant bits behind it are that frame. The 99 ms wake-up of a Mitsubishi V1 fob
+//! (200 µs pulses) did it once in 80 presses (`IMPORTS/MITSUBISHI/more/Mitsh_btn3_x20_f3.sub`), and
+//! ProtoPirate, doctor-firmware, Flipper-ARF and FoxFW all list a "Kia V7" with key
+//! 4C00000000000000 there. KAT's decoder drops that key when it receives it (a key file with it
+//! still loads, as in the C).
+//!
 //! **Encoder** (kia_v7_encoder_get_upload): two copies of the frame, the first behind a 319-pair
 //! (0x13F) short preamble and the second behind a 15-pair (0x0F) one; each frame is preamble, a
 //! short HIGH, 64 Manchester bits (1 = HIGH,LOW) MSB first, a short HIGH and a 2000µs LOW tail.
@@ -70,6 +79,8 @@ const TE_LONG: u32 = 500;
 const TE_DELTA: u32 = 100;
 const KEY_BITS: usize = 64;
 const HEADER: u8 = 0x4C;
+/// The header and seven zero bytes: serial 0, button 0, counter 0, and a CRC that is 0 too.
+const EMPTY_FRAME: u64 = (HEADER as u64) << 56;
 const PREAMBLE_MIN_PAIRS: u16 = 16;
 const TAIL_GAP_US: u32 = 2000;
 /// Preamble pairs of the two frames in the C upload (KIA_V7_PREAMBLE_PAIRS, KIA_V7_TAIL_PREAMBLE_PAIRS).
@@ -287,7 +298,8 @@ impl ProtocolDecoder for KiaV7Decoder {
                     self.step = DecoderStep::Reset;
                     self.manchester_state.advance(ManchesterEvent::Reset);
 
-                    if hdr == HEADER {
+                    // Not the all-zero frame a square wave reads as (KAT deviation, module docs).
+                    if hdr == HEADER && candidate != EMPTY_FRAME {
                         return Self::frame_signal(candidate);
                     }
                 }
@@ -402,6 +414,22 @@ mod tests {
     fn feed_all(signal: &[LevelDuration]) -> Vec<DecodedSignal> {
         let mut dec = KiaV7Decoder::new();
         signal.iter().filter_map(|p| dec.feed(p.level, p.duration_us)).collect()
+    }
+
+    /// Serial 0, button 0, counter 0 is the frame a square wave reads as: its CRC checks, the C
+    /// reports it, KAT's decoder does not. One count up and it is a frame.
+    #[test]
+    fn the_all_zero_frame_is_not_reported() {
+        let empty = KiaV7Decoder::encode_key(0, 0, 0);
+        assert_eq!(empty, EMPTY_FRAME);
+        assert!(KiaV7Decoder::decode_key(empty).3, "its CRC checks");
+        assert!(feed_all(&KiaV7Decoder::build_upload(empty)).is_empty());
+        let one = KiaV7Decoder::encode_key(0, 0, 1);
+        assert!(feed_all(&KiaV7Decoder::build_upload(one)).iter().all(|d| d.data == one));
+        assert!(!feed_all(&KiaV7Decoder::build_upload(one)).is_empty());
+        // A key file with it loads, as in the C.
+        let key = FlipperKey::for_protocol("Kia V7", 64, empty);
+        assert!(KiaV7Decoder::new().from_flipper_key(&key).is_some());
     }
 
     fn sample() -> DecodedSignal {

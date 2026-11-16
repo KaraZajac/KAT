@@ -107,18 +107,19 @@ emulate scene falls back to AM650, then FM476). The first preset is the primary 
 | Ford V2 | FM | F4 | ±14.28 kHz | PP help "V2 [F4 434]", catalog FM F4; ARF flag FM | |
 | Ford V3 | AM/FM | AM650 + F4 | ±14.28 kHz | PP help "V3 [AM650+F4 434]", PP flags AM + FM, catalog FM F4; ARF flags AM + FM | |
 | Honda V5 | AM/FM | Honda1 + AM650 | ±15.87 kHz | FoxFW flag AM (decode only: no TX); `honda/Lock_honda.sub` / `Unlock_honda.sub` were received with Honda1 | KAT declares AM/FM for the real FSK captures |
-| Mitsubishi V1 | AM/FM | FM476 + AM650 | ±47.61 kHz | FoxFW `mitsubishi_v1.c` flags AM + FM | decode-only: no transmit |
+| Mitsubishi V1 | AM/FM | FM476 + AM650 | ±47.61 kHz | FoxFW `mitsubishi_v1.c` flags AM + FM; both fobs in IMPORTS (`MITSUBISHI/`) are 2-FSK, received with FM476 and with a custom 2-FSK preset | KAT's own encoder (FoxFW has none): the captured frame again, in the fob's press |
 | Honda Static | FM | Honda1 | ±15.87 kHz | PP help "Static [Honda1 315/433]", catalog FM Honda1; ARF flag FM | IMPORTS `honda/*_honda.sub` were recorded with exactly Honda1's registers |
 | Honda V2 | FM | F4 | ±14.28 kHz | PP help "V2 [F4 315/433]", catalog FM F4; ARF flag FM | formerly "Land Rover V0" |
 | HondaV2&V3 | FM | FM476 | ±47.61 kHz | FoxFW `honda_v2_v3.c` header ("Modulation: 2-FSK (FuriHalSubGhzPreset2FSKDev476Async)", flag FM) | decode only (the C's encoder is an SD plugin, not ported): Replay only |
-| Honda V6 | AM/FM | FM476 + AM650 | ±47.61 kHz | FoxFW `honda_v6.c` flags AM + FM | ported, not registered; no recording, deviation unknown → FM476 |
+| Honda V6 | FM | FM476 | ±47.61 kHz | KAT's own decoder (the name is FoxFW's); every recording in IMPORTS (`honda/more/HondaH1_*`, `Honda_313_*`, `Honda_V1_kd_*`) was received with FM476 | KAT's own encoder: the captured block again, in the fob's frame |
 | Honda V9 | AM/FM | Honda1 + AM650 | ±15.87 kHz | FoxFW `honda_v9.c` flags AM + FM; Manchester te 63/126 µs, as the IMPORTS `honda/*_honda.sub` recorded with Honda1 | decode only; no recording of V9 itself, Honda1 by its timing |
 | Honda V10 | AM/FM | FM476 + AM650 | ±47.61 kHz | FoxFW `honda_v10.c` flags AM + FM ("native 2-FSK") | decode only; no recording, deviation unknown → FM476 |
 | Scher-Khan | AM/FM | FM476 + AM650 | ±47.61 kHz | PP help "Scher-Khan [FM 315/433]", PP flag FM, catalog FM default; ARF flags FM + AM | no named FM preset → FM476 |
 | PSA | AM/FM | AM650 + F3 | ±31.74 kHz | PP help "[AM650+F3]", PP flags AM + FM, catalog by modulation; ARF flags AM + FM | IMPORTS `GROUPE PSA` captures are OOK |
 | Mazda V0 | AM/FM | AM650 + F2 | ±19.04 kHz | PP help "Mazda V0 [AM650+F2 315/433]", PP flags AM + FM; ARF flag FM | F2 from doctor-firmware's `setting_user.example` (PP's README: "FM (F2?)") |
 | Mazda Siemens | FM | FM476 | ±47.61 kHz | ARF `mazda_siemens.c` flag FM | no named preset → FM476 |
-| Mazda V2 | AM/FM | AM650 + FM476 | ±47.61 kHz | ARF `mazda_v2.c` flags AM + FM; doctor "AM/FM" | no named FM preset → FM476 |
+| Mazda V1 | AM/FM | AM650 + FM476 | ±47.61 kHz | FoxFW `mazda_v1.c` flag AM (decode only: no TX); the IMPORTS `Mazda/` recordings of real fobs were received with FM476 | KAT declares AM/FM for the real FSK captures; KAT's own encoder: the captured frame again, in Mazda V2's upload |
+| Mazda V2 | AM/FM | AM650 + FM476 | ±47.61 kHz | ARF `mazda_v2.c` flags AM + FM; doctor "AM/FM" | no named FM preset → FM476; the IMPORTS `Mazda/` recordings were received with FM476 |
 | Mercedes V0 | FM | FM20K | ±12.70 kHz | ARF / doctor `mercedes_v0.c` flag FM (433 MHz); doctor's built-in "mercedes" preset (`subghz_device_cc1101_preset_mercedes_async_regs`, registered as FM20K) | |
 | Mercedes V1 | FM | FM20K | ±12.70 kHz | ARF / doctor `mercedes_v1.c` flag FM (433 MHz); doctor's "mercedes" preset | FM20K's 20 kBaud matches V1's 50 µs chips |
 | Fiat V1 | AM/FM | AM650 + FM476 | ±47.61 kHz | PP flags AM; ARF `fiat_v1.c` and doctor `hitag2.c` flag AM + FM | no named FM preset → FM476; every capture so far is AM |
@@ -164,9 +165,9 @@ the reference reads it (`src/protocols/tx_copies.rs`):
 
 | Copies | Encoders |
 |---|---|
-| 1 | CAME Atomo, Hormann HSM / BiSecur, Honda V1, Mercedes V0, Renault V0, Renault V1, Datsun Lada |
+| 1 | CAME Atomo, Hormann HSM / BiSecur, Honda V1, Mercedes V0, Renault V0, Renault V1, Datsun Lada; and KAT's own encoders, which send the fob's press once: Honda V6 (the block twice in one frame), Mitsubishi V1 (the wake-up and four copies of the frame) |
 | 2 | Chrysler V0 |
-| 3 | the gate and home remotes (CAME, Nice FLO, Princeton, Security+ …), BMW, BMW CAS3, Hyundai/Kia RIO, SantaFe 13-16, Sheriff CFM, Mazda V2; and Kia V0 (Suzuki, Honda, Mitsubishi types), Honda Static, Kia V7, Fiat V0, Ford V0 / V1 / V2, Honda V2, Kia V1 / V2 / V6, Mazda V0, Subaru, VAG |
+| 3 | the gate and home remotes (CAME, Nice FLO, Princeton, Security+ …), BMW, BMW CAS3, Hyundai/Kia RIO, SantaFe 13-16, Sheriff CFM, Mazda V2, Mazda V1 (Mazda V2's upload); and Kia V0 (Suzuki, Honda, Mitsubishi types), Honda Static, Kia V7, Fiat V0, Ford V0 / V1 / V2, Honda V2, Kia V1 / V2 / V6, Mazda V0, Subaru, VAG |
 | 4 | Ditec GOL4, Mercedes V1, Mazda Siemens |
 | 5 | Allstar Firefly, KeyFinder, KeyFinder2, Tesla Charge, GM |
 | 6 | Fiat V1, Fiat V2, Kia V5 |

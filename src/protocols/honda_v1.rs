@@ -24,10 +24,25 @@
 //! high nibble. Fields (matches `honda_v1_decode_fields`): serial = data[63:36] (28b),
 //! button = data[31:28] (nibble), counter = data[15:0] (16b).
 //!
-//! **Validation / gating**: a button-code table (Unlock=0, Lock=8, Trunk=9, Panic=10) plus a
-//! CRC-fold checksum (`honda_v1_checksum*`). Emission is gated on the button being valid (matches
-//! the C `commit`); `crc_valid` reflects whether the received CRC nibble matches either wire-order
-//! checksum (`honda_v1_crc_valid`). The strong button gate keeps Honda V1 from false-matching.
+//! **Validation / gating**: a button-code table (Unlock=0, Lock=8, Trunk=9, Panic=10) plus the
+//! check nibble. Emission is gated on the button being valid (matches the C `commit`);
+//! `crc_valid` reflects whether the received nibble is one of the two the key has
+//! (`honda_v1_crc_valid`, with KAT's nibbles, below). The strong button gate keeps Honda V1 from
+//! false-matching.
+//!
+//! **Deviation: the check nibble.** A press sends the frame with two check nibbles, each twice
+//! (each 20 times while the button is held). ProtoPirate computes them from the counter and one
+//! byte of the serial (`honda_v1_crc_fold` / `_checksum_base` / `_checksum_alternate`; Flipper-ARF,
+//! doctor-firmware and FoxFW carry the same code). On the fob in IMPORTS (`honda/` and
+//! `honda/more/`: `Honda_433AM_*` and six more captures of it; serial 4119B5A, all four buttons,
+//! 249 codes, 3254 frames) that holds for a quarter of the frames (803), and a Flipper sends the
+//! fob's codes with nibbles the fob never sends (`honda/more/Fz_10l_10u_10t_10p.sub` has such
+//! transmissions, recorded: 46 of its 158 frames). The fob's rule, which every one of its 3254 frames follows: with N the XOR of the
+//! key's 16 nibbles, one nibble is `N ^ 4`; the other has the opposite top bit and the low three
+//! bits one higher (mod 8); the one whose top bit is clear is sent first. ProtoPirate's alternate
+//! nibble is the same step backwards; only its base, fitted to part of the key, differs. KAT
+//! checks and sends the fob's nibbles. A key file a reference wrote with its own nibble
+//! (`Crc` / `Key_2`) loads with the check failed unless the two rules agree on it.
 //!
 //! **Encoder** (`subghz_protocol_encoder_honda_v1_deserialize` + ProtoPirate's emulate scene;
 //! Flipper-ARF's copy does the same with the counter bump inline): the Key's fields, overridden by
@@ -43,7 +58,7 @@
 //! three references): Protocol "Honda V1", Bit 68, Key = the 64 data bits, then Serial, Btn, Cnt,
 //! Crc and Key_2 (both the received CRC nibble, decimal) and `Disp: Honda V1 - <button>`. Loading
 //! needs Bit 68; the fields come from the Key (the C ignores Serial/Btn/Cnt here), the nibble from
-//! Key_2, else Crc, else the first wire-order checksum, and `crc_valid` is the C's check of it.
+//! Key_2, else Crc, else the first wire-order checksum, and `crc_valid` is the check of it.
 //! KAT does not keep the received nibble, only whether it matched, so it writes the first
 //! wire-order checksum (the one the encoder sends first) for a CRC-valid frame and, for a frame
 //! that failed, the lowest nibble that fails the check — the reload reports the same status.
@@ -175,51 +190,22 @@ impl HondaV1Decoder {
         }
     }
 
-    /// honda_v1_crc_fold.
-    fn crc_fold(v: u16) -> u8 {
-        let lo = (v & (NIBBLE_MASK as u16)) as u8;
-        let hi = v >> 4;
-        let s: i32 = if (hi & 1) != 0 {
-            lo as i32
-        } else {
-            -(lo as i32)
-        };
-        let mut out = ((s - (hi as i32)) & 7) as u8;
-        out |= (((v >> 3) & 1) as u8) << 3;
-        if ((v >> 1) & 1) != 0 && (((v >> 4) ^ (v >> 5)) & 1) != 0 {
-            out ^= 0x04;
-        }
-        out & NIBBLE_MASK
-    }
-
-    /// honda_v1_checksum_base.
-    fn checksum_base(data: u64) -> u8 {
-        let a = Self::crc_fold((data & (COUNTER_MASK as u64)) as u16);
-        let b = Self::crc_fold(((data >> 40) & 0xFF) as u16);
-        (a ^ b ^ 1) & NIBBLE_MASK
-    }
-
-    /// honda_v1_checksum_alternate.
-    fn checksum_alternate(checksum: u8) -> u8 {
-        let mut mask = 0x09u8;
-        if (checksum & 1) == 0 {
-            mask = if (checksum & 2) != 0 { 0x0B } else { NIBBLE_MASK };
-        }
-        (checksum ^ mask) & NIBBLE_MASK
-    }
-
-    /// honda_v1_checksum_wire_order → (first, second).
+    /// The two check nibbles of a key, in the order the fob sends them (KAT's rule, from the
+    /// fob in IMPORTS; see the module doc). With N the XOR of the key's 16 nibbles: one is
+    /// `N ^ 4`, the other has the opposite top bit and the low three bits one higher (mod 8); the
+    /// nibble whose top bit is clear goes first.
     fn checksum_wire_order(data: u64) -> (u8, u8) {
-        let checksum = Self::checksum_base(data);
-        let other = Self::checksum_alternate(checksum);
-        if (checksum & 0x08) != 0 {
-            (other, checksum)
+        let n = (0..16).fold(0u8, |acc, i| acc ^ ((data >> (4 * i)) as u8 & NIBBLE_MASK));
+        let exact = n ^ 0x04;
+        let other = ((exact ^ 0x08) & 0x08) | ((exact & 0x07) + 1) & 0x07;
+        if exact & 0x08 != 0 {
+            (other, exact)
         } else {
-            (checksum, other)
+            (exact, other)
         }
     }
 
-    /// honda_v1_crc_valid: received nibble matches either wire-order checksum.
+    /// honda_v1_crc_valid: received nibble matches either wire-order checksum (KAT's, above).
     fn crc_valid(data: u64, crc: u8) -> bool {
         let (first, second) = Self::checksum_wire_order(data);
         let crc = crc & NIBBLE_MASK;
@@ -642,6 +628,42 @@ mod tests {
             HondaV1Decoder::crc_valid(data, first),
             "wire-order checksum should validate"
         );
+    }
+
+    /// The check nibbles of the fob in IMPORTS (`honda/Honda_433AM_*`), as it sent them: (key,
+    /// first, second) for each button and for keys on both sides of every case of the rule.
+    #[test]
+    fn check_nibbles_are_the_fobs() {
+        const FOB: &[(u64, u8, u8)] = &[
+            // Lock
+            (0x4119_B5A8_8888_0014, 0x0, 0x9),
+            (0x4119_B5A8_8888_0018, 0x5, 0xC),
+            (0x4119_B5A8_8888_001B, 0x0, 0xF),
+            (0x4119_B5A8_8888_0020, 0x7, 0x8),
+            (0x4119_B5A8_8888_0023, 0x4, 0xD),
+            (0x4119_B5A8_8888_0031, 0x7, 0x8),
+            (0x4119_B5A8_8888_0032, 0x4, 0xD),
+            (0x4119_B5A8_8888_005F, 0x0, 0xF),
+            // Unlock, Trunk, Panic
+            (0x4119_B5A8_0808_003B, 0x6, 0xD),
+            (0x4119_B5A8_0808_0064, 0x7, 0x8),
+            (0x4119_B5A9_9190_0045, 0x4, 0xD),
+            (0x4119_B5A9_9190_004E, 0x0, 0xF),
+            (0x4119_B5AF_A7A0_004F, 0x7, 0xE),
+            (0x4119_B5AF_A7A0_0058, 0x1, 0x8),
+        ];
+        for &(key, first, second) in FOB {
+            assert_eq!(HondaV1Decoder::checksum_wire_order(key), (first, second), "{key:016X}");
+            for n in 0..16 {
+                assert_eq!(HondaV1Decoder::crc_valid(key, n), n == first || n == second, "{key:016X} {n:X}");
+            }
+        }
+        // Every key has two nibbles, one with the top bit clear (sent first), three bits one apart.
+        for key in [0u64, u64::MAX, 0x0123_4567_89AB_CDEF, 0x4119_B5A8_8888_FFFF] {
+            let (first, second) = HondaV1Decoder::checksum_wire_order(key);
+            assert!(first < 8 && second >= 8, "{key:016X}");
+            assert_eq!((first.abs_diff(second & 7)) % 6, 1, "{key:016X}: {first:X} {second:X}");
+        }
     }
 
     /// Full encode → decode round-trip as ProtoPirate transmits (encoder deserialize + emulate

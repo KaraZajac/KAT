@@ -16,6 +16,10 @@ rolling code with an unencrypted sequence number. A press sends a long wake-up (
 then the frame again ~1.6 ms later; Trunk and Panic long presses repeat every ~95 ms. Receive only, as rtl_433 and
 FoxFW; KAT writes and loads FoxFW's key files.
 
+The same frame comes from 433.92 MHz remotes: `IMPORTS/honda/` (2026-11) has an OEM fob, a KeyDIY clone and two
+cells of an aftermarket (Pandora) remote, all recorded with a Flipper (FM476). The fork firmwares call the
+protocol "Honda V2" (the recordings' names) or, FoxFW, "Continental RKE".
+
 rtl_433 also has an alternate decoding of the same FCC ID, [Honda-KR5V2X1X](honda_kr5v2x1x.md) (60 µs, other
 layout and CRC); it decodes none of these recordings.
 
@@ -26,7 +30,7 @@ layout and CRC); it decodes none of these recordings.
 | Modulation | FSK, `FSK_PULSE_MANCHESTER_ZEROBIT` | upper tone = HIGH |
 | Short (half-bit) | 100 µs | an edge > 150 µs after the last data edge is a data edge |
 | Long | 200 µs | (not used by this slicer) |
-| Reset limit | 1500 µs | a lower-tone stretch longer than this ends the message |
+| Reset limit | 1000 µs (rtl_433: 1500 µs) | a lower-tone stretch longer than this ends the message; see "Deviations" |
 | Tolerance | none | no row splits |
 
 The zero-bit slicer (rtl_433 `pulse_slicer_manchester_zerobit`): every message starts with a hard-coded `0`; a
@@ -46,15 +50,41 @@ The decoder searches row 0 for the last 20 bits of the preamble, `0xF0F06`, and 
 | 9..12 | encrypted code (32 bits) |
 | 13 | checksum: the 14 bytes XOR to 0 |
 
-Buttons: 1 Lock, 3 Unlock, 9 Trunk Long Press, 0xA Trunk/Panic Short Press, 0xB Panic Long Press.
+Buttons: 1 Lock, 3 Unlock, 9 Trunk Long Press, 0xA Trunk/Panic Short Press, 0xB Panic Long Press; 0 is the third
+button of the aftermarket remotes in IMPORTS (shown as "Other").
 
 ## Decoder Steps
 
 1. Slice the stream into messages (zero-bit Manchester, end at a gap > 1500 µs).
 2. Row 0 must have ≥ 132 bits; find `0xF0F06`; ≥ 112 bits must follow it.
-3. Sanity (rtl_433 `DECODE_FAIL_SANITY`): ID, button and sequence non-zero; ID and encrypted ≠ `0x0FFFFFFF`
-   (rtl_433 compares the 32-bit values with seven F's; kept as is); sequence ≠ `0xFFFFFF`.
+3. Sanity (rtl_433 `DECODE_FAIL_SANITY`): ID and sequence non-zero; ID and encrypted ≠ `0x0FFFFFFF`
+   (rtl_433 compares the 32-bit values with seven F's; kept as is); sequence ≠ `0xFFFFFF`. rtl_433 also drops a
+   frame whose button is 0; KAT does not (below).
 4. XOR checksum (`DECODE_FAIL_MIC`). Frames failing any check are dropped.
+
+## Deviations from rtl_433 (from the captures)
+
+- **Button 0 is a button.** The aftermarket remotes send it for their third button
+  (`honda/HondaV2_PandoraTS_cell0_btn123.sub`, `honda/more/Honda_v6_TS_10_10_10.sub`): the frames carry the
+  remote's ID, the next sequence number after the Lock and Unlock presses before them, and a checksum that holds.
+  FoxFW's port lists them too. The OEM fob and the KeyDIY clone send 9 / 0xA for that button.
+- **A message ends at a gap of 1000 µs.** The gap between the two copies of a press measures 1628 to 1678 µs on the
+  OEM fobs and 1416 to 1476 µs on the aftermarket remotes and the clone. Under rtl_433's limit of 1500 µs the
+  shorter gap does not end the message: the slicer takes it for one more bit, both copies sit in one row, and the
+  decoder, which reads the first preamble pattern of a row, lists one frame where an OEM fob gets two. No symbol
+  of a message is longer than 200 µs, so KAT ends the message at 1000 µs.
+- **The end of the input ends a message.** A recording cut behind the frame's last bit has no gap there
+  (`honda/HondaV2H4_OEM2_LU.sub` ends so): the frame is reported when the input ends.
+- **Honda V10 leaves these frames alone.** FoxFW's `honda_v10.c` is another reading of the same Manchester bits
+  (inverted and one bit further on, with no check). On a fob whose bits pass its gate it reported every frame,
+  and KAT, which holds an rtl_433 port's frame back for the Flipper decoders, listed `honda/more/HondaV2_3lck.sub`
+  as "Honda V10" with a serial of its own. Honda V10 now leaves a burst that holds a frame whose checksum checks
+  to this decoder ([honda_v10.md](honda_v10.md)).
+
+A frame of this decoder is held back until it is clear that no Flipper decoder reads the signal, as for every
+rtl_433 port. Since 2026-11 a frame with a pause of 250 ms or more on both sides, to the Flipper decoders' frames
+before and behind it, counts as a transmission of its own and is listed: `honda/more/HondaCivic2008.sub` holds a
+press of this remote and, 0.6 s later, a Honda V5 fob, and the press's second copy used to be dropped for it.
 
 ## Field mapping
 
@@ -105,12 +135,20 @@ pulses and export.
 
 ## Validation
 
+- **Flipper recordings** (`IMPORTS/honda/` and `honda/more/`, 15 files, 433.92 MHz, FM476 or a custom 2-FSK
+  preset): 473 frames, every one with a valid checksum; FoxFW's C (`Continental RKE`) lists 459. The counts are
+  equal in 11 files; KAT lists more in four (`Honda_civic_fm476.sub` 12 / 9, `Honda_v6_kd_10_10_10.sub` 45 / 38,
+  `HondaV2H4_OEM2_300ulk.sub` 51 / 49, `HondaV2_PandoraTS_cell2_300btn3.sub` 39 / 37). Five IDs: `442F9A85`
+  (the OEM fob), `58046885` and `B6204B82` (the two cells of the Pandora remote; `HondaCivic2008.sub` has the
+  first, the KeyDIY clone sends the second), `664E6485` (`Honda_civic_fm476.sub`) and `30010883`
+  (`HondaV2_3lck.sub`).
+
 - **Recordings** (`rtl_433_tests/tests/continental/72147-SNA-A01`, 7 files at 1024 kS/s): all decode through KAT's
   IQ pipeline with rtl_433's fields (ID, encrypted, sequence, button) — 22 frames in KAT, 21 in rtl_433: in
   `panic_long_press` rtl_433's demodulator keeps only 127 bits of one package's first message (it needs 132),
   KAT's keeps 150. Before this port no KAT decoder read them at their real rate (KAT 1.7's "Kia V5" decodes came
   from `--rate 250k` stretching the 1024 kS/s files 4×).
-- **Oracle parity** (rtl_433 patched to run its FSK decoders on pulse files: `src/rtl_433.c` treats a file with a `;freq2` header
+- **Oracle parity**, measured with rtl_433's reset limit of 1500 µs, before the deviations above (rtl_433 patched to run its FSK decoders on pulse files: `src/rtl_433.c` treats a file with a `;freq2` header
   line as FSK): 8000 fuzzed packages (frames from
   the C with random fields, bit flips, jitter, glitches, truncations, extra gaps, random trains) give identical
   decodes (643 frames); the slicer gives identical rows for every message (10 658 messages, with and without a

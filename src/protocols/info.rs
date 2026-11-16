@@ -52,7 +52,7 @@ pub struct ProtocolInfo {
     pub aliases: &'static [&'static str],
     /// Display names starting with this (ASCII case-insensitive) belong to this entry.
     pub name_prefix: Option<&'static str>,
-    /// Line coding (PWM / Manchester / differential Manchester).
+    /// Line coding (PWM / Manchester / differential Manchester / Miller / NRZ).
     pub encoding: Coding,
     /// RF modulation the references flag the protocol with (AM, FM or both).
     pub rf: Rf,
@@ -214,6 +214,7 @@ pub static ALL: &[&ProtocolInfo] = &[
     &super::renault_v2::INFO,
     &super::opel_v0::INFO,
     // FoxFW Honda decoders (decode only).
+    &super::honda_v6::INFO,
     &super::honda_v4::INFO,
     &super::honda_v7::INFO,
     &super::honda_v9::INFO,
@@ -264,8 +265,8 @@ pub static ALL: &[&ProtocolInfo] = &[
     &super::fiat_multi::INFO,
     &super::renault_v3::INFO,
     &super::markisol::INFO,
-    // Ported from FoxFW, not registered (honda_v6.rs, honda_v8.rs).
-    &super::honda_v6::INFO,
+    // Ported from FoxFW, not registered (honda_v8.rs; honda_v6_foxfw.rs has no entry: the name is
+    // the registered Honda V6's).
     &super::honda_v8::INFO,
 ];
 
@@ -315,7 +316,7 @@ pub(super) const NO_CHECKSUM: &[&str] = &[
     "Security+ 1.0",
     // Car protocols whose frames carry no checksum: structural gates decide emission.
     // (Hyundai, unregistered, verifies nothing either: list it here when it is registered.)
-    "Fiat V0", "Fiat V2", "Ford V2", "Ford V3", "Mercedes V0", "Mitsubishi V0", "Subaru",
+    "Fiat V0", "Fiat V2", "Ford V2", "Ford V3", "Mercedes V0", "Subaru",
     // Key files only: the file never holds the frame's CRC byte (see fiat_marelli.rs).
     "MARELLI",
     // FoxFW decoders whose C has no integrity check (structural gates, button whitelists, framing bytes).
@@ -351,6 +352,9 @@ const PARTIAL_CHECK: &[(&str, Checked)] = &[
     // Continental KR5V2X: a received frame (112 bits) has its XOR checksum; a FoxFW key file keeps
     // bytes 0..7 only (64 bits), without it.
     ("Continental-KR5V2X", |_, bits, _| bits == 112),
+    // Mitsubishi V0: ProtoPirate's 61-bit frame is a Kia V0 frame with its CRC-8 (read by
+    // `kia_v0.rs`); Flipper-ARF's 96-bit frame has no check.
+    ("Mitsubishi V0", |_, bits, _| bits == 61),
 ];
 
 /// Whether `name`'s protocol has a checksum (or another check) KAT verifies, so that a frame
@@ -538,6 +542,13 @@ mod tests {
         // Flipper-ARF and FoxFW flag Subaru AM + FM (ProtoPirate AM; November 2026).
         ("Subaru", "rf", "AM/FM"),
         ("Hyundai", "buttons", "0=Other,1=Lock,2=Unlock,3-8=Other,9=Trunk,10-255=Other"),
+        // 2026-11: the Chrysler / Jeep fobs' own layout has button codes 1..7 (fiat_v2.rs); a
+        // selector byte, the other layouts' button, is never below 0x40.
+        (
+            "Fiat V2",
+            "buttons",
+            "0=Other,1=Panic,2=Lock,3=Trunk,4=Unlock,5=Sliding door 1,6=Sliding door 2,7=Remote start,8-63=Other,64-127=Trunk,128-191=Lock,192-255=Unlock",
+        ),
         // Prefix arms that matched names no protocol has: a bare "Ford" / "Fiat" / "Kia".
         ("Ford", "coding", "Unknown"),
         ("Ford", "rf", "—"),
@@ -597,7 +608,7 @@ mod tests {
         }
         let unregistered = [
             "Land Rover RKE", "Audi", "Hyundai", "Mazda Infinity", "Markisol", "Fiat Multi", "Renault V3",
-            "Honda V6", "Honda V8", "Audi V1", "Audi V2",
+            "Honda V8", "Audi V1", "Audi V2",
         ];
         for info in ALL {
             assert!(

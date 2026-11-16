@@ -21,6 +21,16 @@ KAT loads and saves key files for every car protocol it registers, following the
 module is ported from (the module's doc comment names it). A `.sub` with `RAW_Data` lines (or
 `Protocol: RAW`) is a RAW capture and is decoded from its pulses as before.
 
+**Damaged RAW files.** A `RAW_Data` line is read as the Flipper's own reader reads it: numbers,
+up to the first thing that is not one. A file with another program's text in the middle of a line
+(a log line of the firmware that wrote it, an escape sequence) or a line cut off at a minus sign
+therefore still loads: the line ends at the damage, the next line is read from its start, and KAT
+says how many lines it cut short and where the first one is (in the status line after an import;
+on stderr, `kat: <file>: damaged file: …`, for `kat --decode`). A value beyond ±1 000 000 µs is
+cut to that (a pulse and a log line's number run together). Where a line gives no value at all the
+Flipper stops reading the file; KAT goes on with the next line. The pulses on either side of the
+damage then follow each other directly, so a frame that spans it is usually lost.
+
 ## Loading
 
 Key files load wherever RAW `.sub` files do: the `:load` browser, the import folder offered at
@@ -55,7 +65,9 @@ startup, and `kat --decode <files|dirs>` (headless; key decodes are printed with
   (custom CC1101 registers included), and **no raw pairs** (the detail panel shows
   `Raw Data: None (key file)`). It is EncoderCapable when the protocol's encoder can transmit it.
 - A key file whose protocol KAT does not know, or that does not validate, is not imported; the
-  status line says why.
+  status line says which: `no decoder reads "X" key files (N bits)`, or `the X decoder does not
+  take this "Y" key file (N bits): it holds no valid frame of the protocol` (a template with an
+  all-zero key, a key whose check fails where the protocol's decoder would not report it).
 
 ## Using a loaded key
 

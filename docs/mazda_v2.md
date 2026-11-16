@@ -116,11 +116,34 @@ lead-in is the pulse that arms it.
 - **Debounce.** The C's 149-tick same-key debounce is omitted: KAT resets every decoder after each
   emission (which in the C also clears the remembered key), so it could never fire.
 
+## Frames without a preamble
+
+What a fob sends (the captures below): a press is a preamble of 180 bits and the frame **twice**, back to back.
+While the button is held it goes on with a new frame every 100 ms or so, each behind a preamble of about 90 bits
+and with bit 7 of the button byte set (`0x86`, `0x8A`). On the fobs with buttons `0x04 / 0x08 / 0x10` the second
+copy starts 74 bits after the first instead of 71.
+
+The C's parser wants more than 99 identical preamble samples directly in front of the sync, so it reads the first
+frame of a press and nothing after it: not the second copy, and none of a held button's frames. FoxFW's Mazda V1
+decoder (`mazda_v1.rs`) reads the same 71 bits without a preamble, behind a structural gate of its own (the sync
+at either polarity, button `0x06 / 0x0A / 0x0E / 0x26`, frame bit 70 set, a marker rule). KAT runs both: a frame
+Mazda V1's reader accepts with one of this protocol's buttons is reported **as Mazda V2**, with the fields above,
+and can be sent again like any other. On the 300-press recording `more/MazdaV1F4_OEM2_300lck.sub` that is 616
+frames instead of 293.
+
+Not covered: the second copy of a frame with button `0x04 / 0x08 / 0x10` (Mazda V1's gate rejects those buttons;
+the copies are identical, so no code is missed).
+
 ## Validation
 
-No local capture decodes as Mazda V2. The `IMPORTS/Mazda` RX-8 (433.889 MHz) and CX-50 (314.98 MHz)
-captures contain no usable burst at any timing — the longest run of in-window pulses is ≤12, against the
->100 preamble samples this protocol needs.
+Captures (`IMPORTS/Mazda/` and `IMPORTS/Mazda/more/`, added 2026-11): 28 recordings of several fobs (FM476,
+433.92 MHz), single presses, 300-press sessions and held buttons. KAT lists 5730 frames on them: 4417 as Mazda V2
+(3126 of them only through the frames-without-a-preamble rule above) and 1313 as Mazda V1 (button `0x26`). The
+C this decoder is ported from (doctor-firmware's build, the same as Flipper-ARF's) lists 1291; FoxFW's C lists
+5679, all as its Mazda V1. Two recordings differ from FoxFW: `more/Mazda_F4.sub` (buttons `0x04 / 0x08 / 0x10`,
+which FoxFW's gate rejects: 46 frames, as in the C) and `more/MazdaF4V1_OEM_20ulk_long.sub` (64 against 59).
+The older `IMPORTS/Mazda` RX-8 (433.889 MHz) and CX-50 (314.98 MHz) captures contain no usable burst at any
+timing: the longest run of in-window pulses is ≤12.
 
 The lookup tables were generated from the C source by a script, and a unit test checks their byte sums and
 FNV-1a hashes against values computed from the C text. Golden vectors from the compiled C reference

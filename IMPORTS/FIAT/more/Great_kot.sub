@@ -1,0 +1,15 @@
+Filetype: Flipper SubGhz Key File
+Version: 1
+Frequency: 433920000
+Preset: FuriHalSubGhzPresetOok650Async
+Protocol: Fiat V1
+Bit: 102
+Key: 75 E1 D6 28 E1 37 16 15
+Raw: 00 01 75 E1 D6 28 25 67 84 DC 58 56 7E
+Hop: 3778483733
+XOR: 126
+Tail Bits: 2
+Serial: 1977734696
+Btn: 2
+Cnt: 345
+Disp: Fiat V1 - Trunk

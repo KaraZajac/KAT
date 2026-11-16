@@ -177,6 +177,9 @@ pub enum ModulationType {
     DifferentialManchester,
     /// Non-return-to-zero: one level per bit period (rtl_433's PCM slicer).
     Nrz,
+    /// Miller (delay modulation): a transition in the middle of a 1 and between two 0s, so pulses
+    /// of one, one and a half and two bit periods (Honda V6).
+    Miller,
 }
 
 impl std::fmt::Display for ModulationType {
@@ -187,6 +190,7 @@ impl std::fmt::Display for ModulationType {
             ModulationType::Manchester => write!(f, "Manchester"),
             ModulationType::DifferentialManchester => write!(f, "Diff. Manchester"),
             ModulationType::Nrz => write!(f, "NRZ"),
+            ModulationType::Miller => write!(f, "Miller"),
         }
     }
 }

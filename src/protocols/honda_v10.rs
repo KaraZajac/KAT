@@ -30,8 +30,19 @@
 //! value is `0xFFFFFF ^ data[31:8]`), `extra` = the tail, `crc_valid` false. Key files: Protocol
 //! "Honda V10", Bit 96, Key, Serial, Btn, Cnt (24 bits), Flags, Status, Tail.
 //!
-//! No capture of this protocol exists in the test corpus: the port is validated against the C
-//! with synthetic pulse sequences only.
+//! **This is the Continental KR5V2X frame, read another way** (KAT deviation). On the capture in
+//! IMPORTS that passes this gate (`honda/more/HondaV2_3lck.sub`) the bytes read here are that frame's
+//! bits inverted and taken one bit further on: its `08 83 60 10 00 22 BC` is this decoder's
+//! `7B BE 4F F7 FF EE A1` (`!(x >> 1)`). The Continental frame has a checksum over its 14 bytes and
+//! a plain sequence number, this reading has neither; and it reports on the pulse that ends the
+//! burst, where it took the frame from the Continental decoder, which KAT holds back for the
+//! Flipper decoders. So a burst that holds a Continental frame whose checksum holds
+//! ([super::continental_kr5v2x::frame_in_half_bits]) is left to that decoder, as it comes out on
+//! FoxFW itself, whose Continental RKE decoder reports first. Honda V10 keeps the bursts whose
+//! Continental checksum fails.
+//!
+//! The port is validated against the C with synthetic pulse sequences (the C's own gate and
+//! fields); no capture in the test corpus is listed as Honda V10.
 
 use super::info::prelude::*;
 use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
@@ -219,6 +230,8 @@ impl ProtocolDecoder for HondaV10Decoder {
             }
             _ => {
                 let out = if self.hb.len() >= MIN_PRE + 16 { self.try_decode() } else { None };
+                // Not a burst that is a Continental KR5V2X frame (KAT deviation, module doc).
+                let out = out.filter(|_| super::continental_kr5v2x::frame_in_half_bits(&self.hb).is_none());
                 self.hb.clear();
                 return out;
             }

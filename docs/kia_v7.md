@@ -49,6 +49,14 @@ Kia V7 uses Manchester encoding at 250/500 µs. 64 bits. The decoded 64-bit word
    from the preamble reset.
 4. **Data** — Manchester-decode the remaining 60 bits (out-of-range pulses are skipped). At 64 bits, invert the word, check the header equals `0x4C` and the CRC8 validates, then emit; the Manchester state is reset after every 64-bit candidate.
 
+**Deviation: the all-zero frame is not reported.** The CRC starts from the header's value, so the header followed
+by seven zero bytes (serial 0, button 0, counter 0) checks: its CRC is 0. A square wave of short pulses is this
+decoder's preamble, and where one ends in a way that passes the sync, the constant bits behind it are that frame.
+The 99 ms wake-up of a [Mitsubishi V1](mitsubishi_v1.md) fob (200 µs pulses) did it once in 80 presses
+(`IMPORTS/MITSUBISHI/more/Mitsh_btn3_x20_f3.sub`): ProtoPirate's, doctor-firmware's, Flipper-ARF's and FoxFW's C
+all list a "Kia V7" with key `4C00000000000000` there. KAT's decoder drops that key when it receives it; a key
+file with it still loads, as in the C.
+
 ## Encoder
 
 Supported (matches `kia_v7_encode_key` and `kia_v7_encoder_get_upload`). Rebuilds the 64-bit key from
@@ -62,7 +70,7 @@ else keeps the captured button. Flipper-ARF's encoder is ProtoPirate's pre-2026-
 ## Validation
 
 C oracle (`kia_v7.c` on the host): 600 random frames — uploads identical pulse for pulse, the decoder
-reports the C's 1200 frames (both copies); Flipper-ARF's decoder gives the same. No IMPORTS capture
-contains Kia V7. Unit tests: key/field round trip; encode→decode through the full waveform
+reports the C's 1200 frames (both copies); Flipper-ARF's decoder gives the same. IMPORTS has one fob
+(`KIA/more/kia_v7_Korea_H6_DXL.sub`, added 2026-11): 20 frames, the same as in the four references that have the protocol. Unit tests: key/field round trip; encode→decode through the full waveform
 (both frames decode, for each button); the upload's two preamble lengths; a CRC-mismatched key and a
 header-0x4D key are rejected.

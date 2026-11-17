@@ -535,7 +535,7 @@
   }
  ],
  "catalogue": {
-  "fcc_ids_known": 1300,
+  "fcc_ids_known": 1297,
   "fcc_ids_with_cars": 285,
   "filings_read": 90,
   "model_years": 4067
@@ -543,6 +543,7 @@
  "gaps": [
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "CWTWB1U345",
    "keying": "",
@@ -560,6 +561,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "",
    "id": "CWTWB1U733",
    "keying": "ASK",
@@ -574,6 +576,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "HYQ14AEM",
    "keying": "ASK",
@@ -590,6 +593,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "CWTWB1U415",
    "keying": "unknown",
@@ -605,6 +609,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "433 MHz, 434 MHz",
    "id": "KR55WK49264",
    "keying": "FSK",
@@ -619,6 +624,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "KOBUT1BT",
    "keying": "unknown",
@@ -638,6 +644,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "434 MHz, 433 MHz",
    "id": "KR55WK49266",
    "keying": "FSK",
@@ -652,6 +659,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "N5F-A08TDA",
    "keying": "FSK",
@@ -666,6 +674,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "LHJ011",
    "keying": "unknown",
@@ -685,6 +694,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "HYQ12BAN",
    "keying": "ASK",
@@ -700,6 +710,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz, 314 MHz",
    "id": "OHT692713AA",
    "keying": "both",
@@ -715,6 +726,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "",
    "id": "M3N-A2C931426",
    "keying": "FSK",
@@ -730,6 +742,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "KOBJTF10A",
    "keying": "both",
@@ -745,7 +758,8 @@
   },
   {
    "expect": "",
-   "frequency": "315 MHz, 314.35 MHz, 314.3 MHz",
+   "filing_read": true,
+   "frequency": "312.10 and 314.35 MHz",
    "id": "HYQ14FBA",
    "keying": "FSK",
    "maker": "Denso Corporation",
@@ -760,6 +774,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "NBG010180T",
    "keying": "unknown",
@@ -774,6 +789,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "KOBLEAR1XT",
    "keying": "ASK",
@@ -793,6 +809,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "WAZSKE13D02",
    "keying": "FSK",
@@ -809,6 +826,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "433 MHz, 434 MHz, 315 MHz",
    "id": "CWTWBU766",
    "keying": "ASK",
@@ -823,7 +841,8 @@
   },
   {
    "expect": "",
-   "frequency": "315 MHz, 314.3 MHz",
+   "filing_read": true,
+   "frequency": "312.10 and 314.35 MHz",
    "id": "HYQ14FBB",
    "keying": "FSK",
    "maker": "Denso Corporation",
@@ -839,6 +858,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "KOBDT04A",
    "keying": "unknown",
@@ -856,6 +876,7 @@
   },
   {
    "expect": "blind: assumed like the Denso keys above",
+   "filing_read": false,
    "frequency": "314 MHz, 315 MHz, 433 MHz",
    "id": "HYQ14FBZ",
    "keying": "both",
@@ -870,7 +891,8 @@
   },
   {
    "expect": "",
-   "frequency": "315 MHz",
+   "filing_read": true,
+   "frequency": "312.10 and 314.35 MHz",
    "id": "HYQ14FLB",
    "keying": "FSK",
    "maker": "Denso Corporation",
@@ -884,6 +906,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "434 MHz, 433 MHz",
    "id": "HYQ14AHK",
    "keying": "both",
@@ -899,6 +922,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "434 MHz, 433 MHz, 433.92 MHz, 315 MHz",
    "id": "M3N-A3C108397",
    "keying": "FSK",
@@ -914,6 +938,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "NBG010206T",
    "keying": "unknown",
@@ -928,7 +953,8 @@
   },
   {
    "expect": "",
-   "frequency": "314.35 MHz, 312.11 MHz, 315 MHz",
+   "filing_read": true,
+   "frequency": "312.10 and 314.35 MHz",
    "id": "HYQ14FBX",
    "keying": "FSK",
    "maker": "Denso Corporation",
@@ -943,6 +969,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "CWTWB1U722",
    "keying": "unknown",
@@ -959,6 +986,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "CWTWBU735",
    "keying": "both",
@@ -974,6 +1002,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "433 MHz, 434 MHz",
    "id": "A269ZUA101",
    "keying": "unknown",
@@ -988,6 +1017,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "HYQ4AA",
    "keying": "both",
@@ -1003,6 +1033,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "433 MHz, 315 MHz",
    "id": "NHVWB1U711",
    "keying": "ASK",
@@ -1017,6 +1048,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz, 314 MHz, 433 MHz",
    "id": "GQ43VT20T",
    "keying": "ASK",
@@ -1031,6 +1063,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz, 314 MHz",
    "id": "GQ43VT9T",
    "keying": "unknown",
@@ -1047,6 +1080,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "433 MHz, 315 MHz",
    "id": "HYQ2EB",
    "keying": "both",
@@ -1061,6 +1095,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz, 433 MHz, 344 MHz",
    "id": "IYZFBSB802",
    "keying": "FSK",
@@ -1075,6 +1110,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "KR55WK48903",
    "keying": "both",
@@ -1090,6 +1126,7 @@
   },
   {
    "expect": "blind: assumed like the Denso keys above",
+   "filing_read": false,
    "frequency": "314 MHz, 315 MHz",
    "id": "HYQ14FBF",
    "keying": "both",
@@ -1104,6 +1141,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "CWTWB1U551",
    "keying": "unknown",
@@ -1118,6 +1156,7 @@
   },
   {
    "expect": "filed: 315 or 433.92 MHz FSK, one 0.44..0.46 s block",
+   "filing_read": true,
    "frequency": "315 MHz",
    "id": "SY5HMFNA04",
    "keying": "FSK",
@@ -1133,7 +1172,8 @@
   },
   {
    "expect": "",
-   "frequency": "315 MHz, 314 MHz, 314.3 MHz",
+   "filing_read": true,
+   "frequency": "312.10 and 314.35 MHz",
    "id": "HYQ12BDM",
    "keying": "FSK",
    "maker": "Denso Corporation",
@@ -1147,6 +1187,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "WAZSKE13D03",
    "keying": "FSK",
@@ -1161,6 +1202,7 @@
   },
   {
    "expect": "",
+   "filing_read": true,
    "frequency": "315 MHz",
    "id": "BGBX1T478SKE12501",
    "keying": "FSK",
@@ -1175,6 +1217,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "HYQ14ABB",
    "keying": "unknown",
@@ -1189,7 +1232,8 @@
   },
   {
    "expect": "",
-   "frequency": "315 MHz",
+   "filing_read": true,
+   "frequency": "314.9 MHz",
    "id": "KR55WK50073",
    "keying": "ASK",
    "maker": "AUMOVIO Germany GmbH",
@@ -1204,6 +1248,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "NBG009066T",
    "keying": "ASK",
@@ -1219,6 +1264,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "WAZSKE11D01",
    "keying": "FSK",
@@ -1233,6 +1279,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "433 MHz, 434 MHz, 433.92 MHz",
    "id": "KR5S180144014",
    "keying": "FSK",
@@ -1248,6 +1295,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "434 MHz, 433 MHz",
    "id": "N5F-A08TBLP",
    "keying": "FSK",
@@ -1262,6 +1310,7 @@
   },
   {
    "expect": "",
+   "filing_read": true,
    "frequency": "315 MHz",
    "id": "WAZSKE13D01",
    "keying": "FSK",
@@ -1276,6 +1325,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "KR55WK50138",
    "keying": "ASK",
@@ -1290,6 +1340,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "",
    "id": "M3N-A2C940780",
    "keying": "FSK",
@@ -1304,6 +1355,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz, 433 MHz",
    "id": "YGOHUF5662",
    "keying": "FSK",
@@ -1318,6 +1370,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "ABO0204T",
    "keying": "unknown",
@@ -1335,6 +1388,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "CWTWB1U808",
    "keying": "both",
@@ -1349,6 +1403,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "CWTWBU624",
    "keying": "FSK",
@@ -1364,6 +1419,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz, 314 MHz",
    "id": "HYQ12BBT",
    "keying": "ASK",
@@ -1380,6 +1436,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz",
    "id": "HYQ12BBX",
    "keying": "ASK",
@@ -1395,6 +1452,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "433 MHz, 434 MHz",
    "id": "CWTWB1U787",
    "keying": "both",
@@ -1410,6 +1468,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz, 314 MHz",
    "id": "GQ4-29T",
    "keying": "ASK",
@@ -1424,6 +1483,7 @@
   },
   {
    "expect": "",
+   "filing_read": false,
    "frequency": "315 MHz, 433 MHz",
    "id": "KR55WK49622",
    "keying": "FSK",

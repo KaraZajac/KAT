@@ -26,7 +26,7 @@
     let index = null, loading = null, shown = [], sel = -1;
     const WEIGHT = { Protocol: 9, Make: 7, Index: 6, 'FCC ID': 4, Guide: 5, Reference: 5, Glossary: 4, Recording: 0, Page: 3 };
     const load = () => loading || (loading = fetch(here.dataset.search).then((r) => r.json()).then((rows) => {
-      index = rows.map((r) => ({ r, t: norm(r.t), all: norm(`${r.t} ${r.x || ''} ${r.d || ''} ${r.k}`) }));
+      index = rows.map((r) => ({ r, t: norm(r.t), x: ` ${norm(r.x || '')} `, all: norm(`${r.t} ${r.x || ''} ${r.d || ''} ${r.k}`) }));
     }).catch(() => { index = []; }));
     const score = (e, words, q) => {
       let s = 0;
@@ -39,6 +39,8 @@
         else s += 4;
       }
       if (e.t === q) s += 80; else if (e.t.startsWith(q)) s += 30;
+      // A make's own name ("honda", "vw") finds the make's page ahead of the protocols named after it.
+      if (e.r.k === 'Make' && (e.x.includes(` ${q} `) || ` ${e.t} `.includes(` ${q} `))) s += 100;
       return s + (WEIGHT[e.r.k] || 0) - Math.min(8, e.t.length / 8);
     };
     const close = () => { list.hidden = true; box.setAttribute('aria-expanded', 'false'); sel = -1; };

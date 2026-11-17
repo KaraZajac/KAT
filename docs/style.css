@@ -1344,9 +1344,15 @@ figure.term-shot { margin-left: auto; margin-right: auto; }
   .nav-links a { padding: 0.6rem 0.4rem; border-bottom: 1px solid var(--border-soft); font-size: 1rem; }
   .nav-links a.nav-github { width: auto; height: auto; border: 0; justify-content: flex-start; padding: 0.7rem 0.4rem 0.2rem; }
 }
+/* On a phone the search box ends short of the screen's edge, so the list hangs from the bar, not from the box. */
+@media (max-width: 600px) {
+  .nav-search { position: static; }
+  #search-results { left: 1rem; right: 1rem; width: auto; }
+}
 
 /* ---- the page: sections beside it, the article, and tables as wide as they need ---- */
 .wiki > .container { max-width: 1320px; }
+.wiki.wiki-wide > .container { max-width: 1400px; }
 .wiki-grid { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 2.6rem; align-items: start; }
 .wiki-main { min-width: 0; max-width: 900px; }
 .wiki-wide .wiki-main { max-width: none; }
@@ -1433,7 +1439,9 @@ figure.term-shot { margin-left: auto; margin-right: auto; }
 .prose table.data th { position: sticky; top: 0; }
 .prose table.data td.num, .prose table.data th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .prose table.data td.file { font-family: var(--mono); font-size: 0.76rem; max-width: 24rem; overflow-wrap: anywhere; }
+.prose table.data td.fccid { font-family: var(--mono); font-size: 0.76rem; white-space: nowrap; }
 .prose table.data td.ids { max-width: 22rem; }
+.prose table.data td.ids code, .infobox a[href^="fcc.html"] > code { white-space: nowrap; }
 .prose table.data td.nw { white-space: nowrap; }
 .prose table.data td.ids code, .prose table.data td.file code { font-size: 0.74rem; }
 .prose table.data a { border-bottom: 0; }

@@ -127,7 +127,18 @@ const STATUS = {
   read: ['read', 'ok'], likely: ['likely read', 'warn'], known: ['signal known', 'warn'], blind: ['recorded, no data', 'bad'],
   unread: ['recorded, not read', 'bad'], filed: ['filing read', 'dim'], maybe: ['maybe', 'dim'],
 };
-const status = (s) => `<span class="tag tag-${STATUS[s]?.[1] ?? 'dim'}">${STATUS[s]?.[0] ?? esc(s)}</span>`;
+/** A status tag. `row`: the FCC ID it stands beside. "Filing read" is a family's status; beside an ID whose
+ *  own filing was not read it says so. */
+const status = (s, row) => (s === 'filed' && row && !row.filing_read
+  ? '<span class="tag tag-dim" title="The filing of another remote of this family was read; this one’s was not">family’s filing read</span>'
+  : `<span class="tag tag-${STATUS[s]?.[1] ?? 'dim'}">${STATUS[s]?.[0] ?? esc(s)}</span>`);
+/** Names joined by slashes ("Chevrolet/Buick/GMC/Holden") may break after one. Chromium takes such a string for
+ *  one word, and one long make label set the width of its whole column. */
+const slashes = (s) => esc(s).replace(/\//g, '/<wbr>');
+/** A cell's text, or a dash where there is none. */
+const orDash = (s) => (s ? esc(s) : '<span class="dim">–</span>');
+/** The cell of an FCC ID: a link to its filing. The ID never breaks across lines. */
+const fccCell = (id) => `<td class="fccid"><a href="https://fccid.io/${encodeURIComponent(id)}" rel="noopener" title="The filing at fccid.io">${esc(id)}</a></td>`;
 
 // The numbers the pages quote. A decoder counts once, whatever names it shows; an entry that only
 // replays saved frames (MARELLI) is no decoder.
@@ -195,7 +206,7 @@ function protocolTable(list, { make = true } = {}) {
     const caps = (capsOfPage.get(p.page) ?? []).filter((c) => c.reads.some((r) => r.entry === p)).length;
     return `<tr data-q="${esc(`${p.name} ${p.aliases.join(' ')} ${p.make} ${CODING[p.coding] ?? p.coding} ${RF_SHORT[p.rf]} ${p.encryption} ${p.category === 'Vehicle' ? 'car vehicle' : 'gate garage'} ${p.encoder ? 'encode' : ''} ${p.rtl433 ? 'rtl_433' : ''}`.toLowerCase())}">
 <td>${pageLink(p)}</td>
-${make ? `<td>${esc(p.make)}</td>` : ''}<td>${p.category === 'Vehicle' ? 'Car' : 'Gate'}</td>
+${make ? `<td>${slashes(p.make)}</td>` : ''}<td>${p.category === 'Vehicle' ? 'Car' : 'Gate'}</td>
 <td>${esc(CODING[p.coding] ?? p.coding)}</td>
 <td class="nw">${RF_SHORT[p.rf] ?? esc(p.rf)}</td>
 <td class="num" data-v="${p.te_short ?? 0}">${timing(p)}</td>
@@ -216,13 +227,13 @@ function fccTable(list, { cars = true } = {}) {
     const fam = famByKey.get(i.family);
     const protos = i.protocols.map((n) => byName.get(n)).filter(Boolean);
     return `<tr id="fcc-${anchor(i.id)}" data-q="${esc(`${i.id} ${i.maker} ${i.makes.join(' ')} ${i.models} ${i.protocols.join(' ')} ${fam?.title ?? ''}`.toLowerCase())}">
-<td class="file"><a href="https://fccid.io/${encodeURIComponent(i.id)}" rel="noopener" title="The filing at fccid.io">${esc(i.id)}</a></td>
-<td>${esc(titleCase(i.maker))}</td>
-<td class="num">${esc(i.granted.slice(0, 4))}</td>
-<td>${esc(i.frequency)}</td>
+${fccCell(i.id)}
+<td>${orDash(titleCase(i.maker))}</td>
+<td class="num" data-v="${i.granted.slice(0, 4) || 0}">${orDash(i.granted.slice(0, 4))}</td>
+<td>${orDash(i.frequency)}</td>
 ${cars ? `<td title="${esc(i.models)}">${i.makes.length ? `${esc(i.makes.join(', '))}${i.years ? ` <span class="dim">${esc(i.years)}</span>` : ''}` : '<span class="dim">–</span>'}</td>` : ''}<td>${fam ? `<a href="fcc.html#fam-${fam.key}">${esc(fam.title)}</a>` : '<span class="dim">–</span>'}</td>
 <td>${protos.length ? protos.map((p) => pageLink(p)).join(', ') : '<span class="dim">–</span>'}</td>
-<td>${status(i.status)} ${i.status === 'read' || i.status === 'likely' ? evidence(i.evidence) : ''}</td></tr>`;
+<td>${status(i.status, i)} ${i.status === 'read' || i.status === 'likely' ? evidence(i.evidence) : ''}</td></tr>`;
   }).join('\n');
   return `<div class="table-wrap"><table class="data sortable">
 <thead><tr><th>FCC ID</th><th>Maker</th><th class="num">Year</th><th>Band</th>${cars ? '<th>Cars</th>' : ''}<th>Remote family</th><th>Protocol</th><th>Status</th></tr></thead>
@@ -337,7 +348,7 @@ function render(name, src) {
       },
       link({ href, title: t, tokens: toks }) {
         // A link to this site's own address (the pages this script writes have no .md) stays on the site.
-        const own = href?.startsWith(`${ORIGIN}/`) ? href.slice(ORIGIN.length + 1) : null;
+        const own = href === ORIGIN ? '' : href?.startsWith(`${ORIGIN}/`) ? href.slice(ORIGIN.length + 1) : null;
         const to = pageHref(own == null ? href : own === '' || own.startsWith('#') ? `./${own}` : own);
         const out = /^https?:/.test(to ?? '') ? ' rel="noopener"' : '';
         return `<a href="${esc(to)}"${t ? ` title="${esc(t)}"` : ''}${out}>${this.parser.parseInline(toks)}</a>`;
@@ -377,7 +388,7 @@ function borrow(index, re) {
 }
 
 const crumbs = (trail) => `<nav class="crumbs" aria-label="Breadcrumb">${trail.map(([href, text], i) =>
-  `${i ? '<span aria-hidden="true">/</span>' : ''}${href ? `<a href="${href}">${esc(text)}</a>` : `<span>${esc(text)}</span>`}`).join('')}</nav>`;
+  `${i ? '<span aria-hidden="true">›</span>' : ''}${href ? `<a href="${href}">${esc(text)}</a>` : `<span>${esc(text)}</span>`}`).join('')}</nav>`;
 
 function shell({ file, title, description, main, type = 'article' }, parts) {
   const url = `${ORIGIN}/${file}`;
@@ -503,7 +514,7 @@ ${captureTable(rest, { own, folder: true })}</details>` : ''}`);
   const fcc = fccOfPage(page);
   if (fcc.length) {
     out.push(`<h2 id="fcc-ids">FCC IDs<a class="h-anchor" href="#fcc-ids" aria-label="Link to this section">#</a></h2>
-<p>Remotes whose FCC filings are tied to this protocol, and how sure the tie is. The <a href="fcc.html">FCC ID table</a> has every filing that was read.</p>
+<p>Remotes whose FCC IDs are tied to this protocol, and how sure the tie is. The <a href="fcc.html">FCC ID table</a> has them all, with the remotes of other protocols.</p>
 ${fccTable(fcc)}`);
     toc.push({ depth: 2, id: 'fcc-ids', text: 'FCC IDs' });
   }
@@ -586,7 +597,10 @@ function redirectPage(to) {
 // Static files go across as they are.
 for (const f of files) if (!f.endsWith('.md')) cpSync(join(HERE, f), join(OUT, f), { recursive: true });
 
-const index = readFileSync(join(HERE, 'index.html'), 'utf8');
+// The landing page links the changelog page. Built without the repository beside this folder there is
+// none, and the links go to the file in the repository.
+const index = ((src) => (made.includes('changelog') ? src : src.replaceAll('href="changelog.html"', `href="${REPO}/blob/main/CHANGELOG.md"`)))(
+  readFileSync(join(HERE, 'index.html'), 'utf8'));
 const parts = {
   mesh: borrow(index, /<div class="bg-mesh"[\s\S]*?<\/div>\s*<\/div>/),
   nav: borrow(index, /<nav class="nav">[\s\S]*?<\/nav>/),
@@ -703,7 +717,7 @@ ${g.captures.length ? `${h2('recordings', 'Recordings')}
 <p>${plural(g.captures.length, 'file')} in the library, ${read} of which KAT reads. A file name opens the recording in the repository; the arrow downloads it.</p>
 ${captureTable(g.captures.slice().sort((a, b) => a.path.localeCompare(b.path)), { folder: g.folders.length > 1 || g.captures.some((c) => c.more) })}` : ''}
 ${g.fcc.length ? `${h2('fcc-ids', 'FCC IDs')}
-<p>Filings of this make's remotes that were read, the family of remotes each belongs to, and whether KAT reads it. How the ties were made is on the <a href="fcc.html">FCC ID page</a>.</p>
+<p>FCC IDs that parts catalogues list for this make's cars, the family of remotes each belongs to, and whether KAT reads it. How the ties were made is on the <a href="fcc.html">FCC ID page</a>.</p>
 ${fccTable(g.fcc.slice().sort((a, b) => b.model_years - a.model_years))}` : ''}
 ${cov ? `${h2('coverage', 'Coverage')}
 <p>North American parts catalogues list ${plural(cov.model_years, 'model-year')} of ${esc(g.short)} cars with a remote that has an FCC ID. By the best-known remote of each:</p>
@@ -765,7 +779,7 @@ ${captureTable(s.list.slice().sort((a, b) => a.path.localeCompare(b.path)), { fo
 <td class="ids">${ids.slice(0, 8).map((i) => `<a href="#fcc-${anchor(i.id)}"><code>${esc(i.id)}</code></a>`).join(' ')}${ids.length > 8 ? ` <span class="dim">+${ids.length - 8}</span>` : ''}</td></tr>`;
   }).join('\n');
   const body = `<p class="lead">Every remote sold in the United States has an FCC ID, and behind the ID is a public filing with the remote's test report: its frequency, its modulation, often the length and timing of its transmission, and photos of its circuit board. This page ties those filings to KAT's protocols.</p>
-<p>Of ${COV.catalogue.fcc_ids_known.toLocaleString('en-US')} car-remote FCC IDs collected from the remotes' makers, ${FCC.ids.length} are listed here: those whose filing was read (${FCC.ids.filter((i) => i.filing_read).length}) and those of cars with a recording in the library. ${tied.length} are tied to a protocol. How sure a tie is, is said beside it:</p>
+<p>Of ${COV.catalogue.fcc_ids_known.toLocaleString('en-US')} car-remote FCC IDs collected from the remotes' makers, ${FCC.ids.length} are listed here: the ${FCC.ids.filter((i) => i.filing_read).length} whose filing was read, the other remotes of their families, and those a recording in the library or a protocol's source points to. ${tied.length} are tied to a protocol. How sure a tie is, is said beside it:</p>
 <ul>
 <li>${evidence('recording')} KAT reads a recording of a remote with this FCC ID.</li>
 <li>${evidence('recording (the only remote listed for that car)')} KAT reads a recording of a car for which parts catalogues list this remote alone. Nobody has confirmed the remote's FCC ID.</li>
@@ -801,7 +815,7 @@ ${fccTable(FCC.ids)}
     ['KAT probably reads it', t.likely_read, 'The filing’s figures match a protocol; no recording confirms it'],
     ['Recorded, but the recordings hold no data', t.recorded_no_data, 'The preset the recording was made with could not hold the signal'],
     ['Recorded, nothing read', t.recorded_unread, 'A recording exists and no decoder reads it'],
-    ['FCC filing read, no usable recording', t.filing_only, ''],
+    ['FCC filing read, no usable recording', t.filing_only, 'The filing of the remote, or of another remote of its family, was read'],
     ['Nothing yet', t.nothing, '']];
   const makes = COV.by_make.filter((m) => m.model_years >= 8).map((m) => {
     const g = TAX.groups.find((x) => x.catalogue.includes(m.make));
@@ -810,10 +824,10 @@ ${fccTable(FCC.ids)}
 <td class="num" data-v="${m.recorded_no_data / m.model_years}">${pct(m.recorded_no_data, m.model_years)}</td><td class="num" data-v="${m.recorded_unread / m.model_years}">${pct(m.recorded_unread, m.model_years)}</td>
 <td class="num" data-v="${m.filing_only / m.model_years}">${pct(m.filing_only, m.model_years)}</td><td class="num" data-v="${m.nothing / m.model_years}">${pct(m.nothing, m.model_years)}</td></tr>`;
   }).join('\n');
-  const gaps = COV.gaps.slice(0, 40).map((g) => `<tr data-q="${esc(`${g.id} ${g.maker} ${g.makes.join(' ')} ${g.models}`.toLowerCase())}"><td class="file"><a href="https://fccid.io/${encodeURIComponent(g.id)}" rel="noopener">${esc(g.id)}</a></td>
-<td>${esc(titleCase(g.maker))}</td><td>${esc(g.frequency)}</td>
+  const gaps = COV.gaps.slice(0, 40).map((g) => `<tr data-q="${esc(`${g.id} ${g.maker} ${g.makes.join(' ')} ${g.models}`.toLowerCase())}">${fccCell(g.id)}
+<td>${orDash(titleCase(g.maker))}</td><td>${orDash(g.frequency)}</td>
 <td title="${esc(g.models)}">${esc(g.makes.join(', '))} <span class="dim">${esc(g.years)}</span></td>
-<td class="num">${g.model_years}</td><td>${status(g.status)}</td></tr>`).join('\n');
+<td class="num">${g.model_years}</td><td>${status(g.status, g)}</td></tr>`).join('\n');
   const body = `<p class="lead">How much of what is on the road does KAT read? This page counts it for North America, where every remote has an FCC ID and parts catalogues say which cars each remote fits: ${COV.catalogue.fcc_ids_with_cars} remotes, ${t.model_years.toLocaleString('en-US')} model-years (a make, a model and a year).</p>
 <h2 id="headline">By model-year<a class="h-anchor" href="#headline" aria-label="Link to this section">#</a></h2>
 <p>Each model-year counts once, by the best-known of the remotes listed for it.</p>

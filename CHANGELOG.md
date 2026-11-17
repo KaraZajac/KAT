@@ -2,6 +2,22 @@
 
 All notable changes to KAT are documented here.
 
+## [1.15.0] - 2026-11-17
+
+Six decoders of KAT's own, worked out from recordings no reference reads: **Kia Mobis**, **Kia Denso**, **Kia Forte**, **GM RFA**, **Isuzu Rolling** and **Isuzu Static**. Chevrolet V0 reads the whole GM 433 MHz family, also from recordings with stretched pulses, and VAG Polo reads the 2020 VW Atlas.
+
+### Added
+
+- **Six decoders of KAT's own, worked out from recordings** (decode and display; no reference reads these signals). None has a checksum KAT knows, so each wants a whole burst of the right shape: a lead, a sync word or a second copy, an exact length, and the frame ending where the burst ends.
+  - **Kia Mobis** ([kia_mobis.md](docs/kia_mobis.md)): Kia smart keys by Hyundai Mobis (a Niro, a K7 and a Sportage QL in the recordings). 2-FSK Manchester, 104-bit bursts with the press counter and the button in the clear. FoxFW's Ford V3 took a clipped burst of two of these recordings for a frame of its own; that line is gone.
+  - **Kia Denso** ([kia_denso.md](docs/kia_denso.md)): Kia smart keys by DENSO Korea (an EV6). A 112-bit frame five times back to back, a 28-bit fob ID in the clear.
+  - **Kia Forte** ([kia_forte.md](docs/kia_forte.md)): a 315 MHz Kia remote. An 88-bit frame four times a press, the button in the clear.
+  - **GM RFA** ([gm_rfa.md](docs/gm_rfa.md)): the 315 MHz remotes Omron built for GM (a Cadillac CTS and a 2015 GMC Acadia). An 84-bit frame behind 51 zero bits, a 16-bit fob ID in the clear. The signal is faster than the Flipper's AM650 preset filters for, and its carrier pulses come out up to 50 µs too long: the decoder takes each burst's skew out before it counts half bits.
+  - **Isuzu Rolling** ([isuzu_rolling.md](docs/isuzu_rolling.md)): 105 bits of differential Manchester, eight copies at a time. A 64-bit code, a 28-bit fob ID, the button, and a frame without a button when the press ends.
+  - **Isuzu Static** ([isuzu_static.md](docs/isuzu_static.md)): the remote of an Isuzu FTS truck. A fixed 64-bit frame for as long as the button is held; one bit changes from press to press.
+- **The whole GM 433 MHz family** ([chevrolet_v0.md](docs/chevrolet_v0.md)). FoxFW's Chevrolet V0 reads a fob only when the nibble behind its serial is A or B ("Open", "Close"). That nibble is no button: the frame is the one Opel V1 frames as 5 bits, a 24-bit serial and a 64-bit block, and the nibble is the serial's last three bits and the block's first, so the gate lets one fob in eight through and the nibble is the same whatever is pressed. KAT has the C's own switch for "the whole GM 434 MHz remote family" on: a 2018 Malibu, a 2024 Buick Encore, a 2024 Buick Envista, a 2020 GMC Acadia and the 2016 Holden Barina decode, each with one serial. A burst the C's fixed pulse windows lose is read once more with its skew taken out (a Flipper's AM650 preset is slow for this 8.3 kBaud signal and stretches the carrier pulses by 30 to 40 µs): the Acadia capture gives 25 frames instead of 1, and a 2015 Buick LaCrosse at 315 MHz its first. That reading also wants the burst to end where a frame ends, which is what catches a slipped bit in a frame without a checksum. (The block is not Opel V1's XTEA: of 285 different frames none has its tail byte. The one Holden frame Opel V1 lists is one of 168 there, which an 8-bit check passes by chance.)
+- **The 2020 VW Atlas** ([vag_polo.md](docs/vag_polo.md)): VAG Polo's frame behind another sync word (`0x3FCD`), at 315 MHz, with two more buttons (Trunk, Remote start).
+
 ## [1.14.0] - 2026-11-16
 
 **Honda V6**, a decoder of KAT's own, and whole presses from Mitsubishi and Mazda fobs, worked out from 317 new capture files. Chrysler and Jeep fobs show their buttons and counter, Honda V1's check nibble follows the fob, the Honda OEM remote's aftermarket copies are read in full, and damaged `.sub` files load.

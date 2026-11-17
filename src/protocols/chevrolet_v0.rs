@@ -22,21 +22,52 @@
 //! event drops the frame. At 96 bits the frame is dropped when `gdata` is 0 or all ones or the
 //! button nibble (bits 39..36 of `gdata`) is not `0xA` (Open) or `0xB` (Close); otherwise it is
 //! reported and the decoder returns to reset. The C's optional `CHEVROLET_V0_GM_ACCEPT_ANY`
-//! (accept any button nibble for the wider GM family) is off in FoxFW and in KAT.
+//! (accept any button nibble for the wider GM family) is off in FoxFW and on in KAT (Deviations).
 //!
 //! **KAT fields**: `data` = `gdata` (64 bits), `data_count_bit` = 96, `serial` = 24 bits,
-//! `button` = the nibble (0xA / 0xB), `extra` = the 32-bit seed, `counter` None, `crc_valid`
+//! `button` = the nibble, `extra` = the 32-bit seed, `counter` None, `crc_valid`
 //! false, `encoder_capable` false.
 //!
 //! **Key file** (`serialize` / `deserialize`): `Protocol: Chevrolet V0`, `Bit: 96`, `Key` = `gdata`,
 //! then `Serial`, `Btn`, `HopHi` (the hop's 4 high bits), `HopLo` (its low 32), `Seed`; loading
 //! needs `Bit: 96` and reads `Seed` when present.
 //!
-//! **Deviations**: none. **Evidence**: `IMPORTS/chevy/22_chevy_trail_blazer_l2_u2_rs_p_t.sub`
-//! (433.92 MHz OOK270; 21 frames with the constant serial 0xB809C5, button 0xA or 0xB; matched
-//! frame for frame with the host build of FoxFW's C). The other GM captures in IMPORTS (Malibu,
-//! Buick, GMC) decode in neither FoxFW nor KAT.
+//! **Deviations**: two. First, KAT has the C's own `CHEVROLET_V0_GM_ACCEPT_ANY` on, which the C's comment
+//! describes as generalizing "to the whole GM 434 MHz remote family (Buick/Cadillac/GMC/newer
+//! Chevrolet), whose fobs carry a per-remote type/toggle nibble instead of Open/Close": any
+//! nibble is taken. The nibble is not a button. The frame is the one Opel V1 reads as `00010`, a
+//! 24-bit serial and a 64-bit block (opel_v1.rs); this decoder sees it from its third bit on and
+//! inverted, so its `Serial` is `010` and that serial's first 21 bits, complemented, its `Button`
+//! the serial's last three bits and the block's first, complemented, and its `Hop` and `Seed` the
+//! rest of the block and the 5 bits behind the frame. Three bits of the nibble are the fob's (with
+//! the gate, one fob in eight is read), the fourth changes from frame to frame, and in the Trail
+//! Blazer capture it is A or B whichever of five buttons is pressed. (The block does not open
+//! with Opel V1's XTEA key: none of the 285 different frames of the six captures below has its
+//! tail byte.)
+//!
+//! Second, a burst the C's reading drops is read again whole (`burst.rs`). The frame is 8.3 kBaud,
+//! more than twice what a Flipper's AM650 preset filters for, and a recording can have its carrier
+//! pulses 30 to 40 µs too long and its pauses as much too short: a long pause is then as long as
+//! a short carrier pulse, and the C's fixed windows (`diff < 71` around 120 and 240 µs) lose the
+//! frame. The second reading takes the burst's skew out, then wants what the C wants (the 32-bit
+//! preamble word, 96 bits) and one thing more: the burst ending 3 bits behind the 96. (A burst is
+//! the preamble and 101 bits: Opel V1's 93 and 8 more that change with every frame and are no
+//! CRC-8, sum or XOR of it. The C reads 96 from the third on.) Without a checksum that length is
+//! what catches a bit lost or gained inside the frame: the first version, without it, read one
+//! frame in 30 of the 2020 Acadia capture with another serial. A burst the C's reading takes is
+//! not read twice.
+//!
+//! **Evidence**: `IMPORTS/chevy/22_chevy_trail_blazer_l2_u2_rs_p_t.sub` (433.92 MHz OOK270; 21
+//! frames with the constant serial 0xB809C5, nibble 0xA or 0xB; matched frame for frame with the
+//! host build of FoxFW's C). With the switch on, five more captures decode, each with one serial
+//! and a nibble whose last bit alone changes: a 2018 Malibu (36 frames, serial A8936E, nibble
+//! 8/9), a 2024 Buick Encore (34, AA67D0, 4/5), a 2024 Buick Envista (38, B6EC9C, C/D), the
+//! 2016 Holden Barina (358, B61B30, C/D) and a 2020 GMC Acadia (one frame, BBC6E9). The second
+//! reading adds: the Acadia 25 frames instead of 1 (skew 27 to 41 µs), the Trail Blazer 22
+//! instead of 21, and one frame of a 2015 Buick LaCrosse at 315 MHz (the rest of that capture is
+//! broken up beyond it). No other file in IMPORTS changes.
 
+use super::burst::{self, BurstReader};
 use super::common::{ManchesterEvent, ManchesterState};
 use super::info::prelude::*;
 use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
@@ -51,7 +82,7 @@ pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     encoding: Coding::Manchester,
     rf: Rf::AM,
     encryption: "Rolling code (encrypted hop)",
-    make: "Chevrolet",
+    make: "Chevrolet/Buick/GMC/Holden",
     category: Category::Vehicle,
     buttons: Some(button_name),
     presets: &[&AM650],
@@ -64,6 +95,10 @@ const TE_DELTA: u32 = 71;
 const DATA_BITS: u16 = 96;
 const PREAMBLE_WORD: u32 = 0xAAAA_AAAB;
 const PREAMBLE_MIN: u16 = 32;
+/// The C's `CHEVROLET_V0_GM_ACCEPT_ANY`: on in KAT (see the module doc's Deviations).
+const ACCEPT_ANY: bool = true;
+/// Bits of a burst behind the 96 the C reads (KAT's second reading wants the burst to end there).
+const TAIL_BITS: usize = 3;
 
 fn button_name(_name: &str, code: u8) -> Option<&'static str> {
     match code {
@@ -88,6 +123,10 @@ pub struct ChevroletV0Decoder {
     bit_count: u16,
     data_count: u16,
     decode_data: u64,
+    /// KAT's second reading (Deviations): the burst whole, its skew taken out.
+    burst: BurstReader,
+    /// The C's reading gave a frame in the burst that is running.
+    reported: bool,
 }
 
 /// `chevrolet_v0_event`: `level ? ShortLow : ShortHigh` (and the long forms).
@@ -133,44 +172,13 @@ impl ChevroletV0Decoder {
             bit_count: 0,
             data_count: 0,
             decode_data: 0,
-        }
-    }
-}
-
-impl Default for ChevroletV0Decoder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl ProtocolDecoder for ChevroletV0Decoder {
-    fn name(&self) -> &'static str {
-        NAME
-    }
-
-    fn timing(&self) -> ProtocolTiming {
-        ProtocolTiming {
-            te_short: TE_SHORT,
-            te_long: TE_LONG,
-            te_delta: TE_DELTA,
-            min_count_bit: usize::from(DATA_BITS),
+            burst: BurstReader::skewed(TE_SHORT, 2, 2048),
+            reported: false,
         }
     }
 
-    fn supported_frequencies(&self) -> &[u32] {
-        super::ANY_FREQUENCY
-    }
-
-    fn reset(&mut self) {
-        self.step = Step::Reset;
-        self.manchester = ManchesterState::Mid1;
-        self.data_header = 0;
-        self.bit_count = 0;
-        self.data_count = 0;
-        self.decode_data = 0;
-    }
-
-    fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
+    /// The C's `subghz_protocol_decoder_chevrolet_v0_feed`.
+    fn feed_c(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
         let ev = event(level, duration);
         if self.step == Step::Reset {
             if ev == ManchesterEvent::Reset {
@@ -211,15 +219,102 @@ impl ProtocolDecoder for ChevroletV0Decoder {
                     let gdata = (u64::from(self.data_header) << 32) | (self.decode_data >> 32);
                     let seed = (self.decode_data & 0xFFFF_FFFF) as u32;
                     self.step = Step::Reset;
-                    let btn = button_of(gdata);
-                    if gdata == 0 || gdata == u64::MAX || !(btn == 0xA || btn == 0xB) {
-                        return None;
-                    }
-                    return Some(signal(gdata, seed));
+                    return gated(gdata, seed);
                 }
             }
         }
         None
+    }
+
+    /// A burst is over: KAT's second reading, unless the C's reading took a frame from it.
+    fn burst_ended(&mut self, halves: &[bool]) -> Option<DecodedSignal> {
+        if std::mem::take(&mut self.reported) {
+            return None;
+        }
+        read_burst(halves)
+    }
+}
+
+/// The C's gate on a frame: not degenerate and, without the GM switch, the nibble A or B.
+fn gated(gdata: u64, seed: u32) -> Option<DecodedSignal> {
+    let btn = button_of(gdata);
+    if gdata == 0 || gdata == u64::MAX || !(ACCEPT_ANY || btn == 0xA || btn == 0xB) {
+        return None;
+    }
+    Some(signal(gdata, seed))
+}
+
+/// KAT's second reading: a whole burst with its skew taken out. The preamble word, the C's 96
+/// bits and 3 more, and the burst ends (at most two half bits behind them).
+fn read_burst(halves: &[bool]) -> Option<DecodedSignal> {
+    let word = burst::pattern(u64::from(PREAMBLE_WORD), 32);
+    let frame_bits = usize::from(DATA_BITS) + TAIL_BITS;
+    for phase in 0..2 {
+        // the C inverts every bit: HIGH then LOW is its 0
+        let bits = burst::bits(halves, phase, true);
+        for end in (32 + frame_bits..=bits.len()).rev() {
+            if burst::spare(halves.len(), phase, end) > 2 {
+                break;
+            }
+            let at = end - frame_bits;
+            if !burst::matches(&bits, at - 32, &word) {
+                continue;
+            }
+            if let Some(frame) = burst::take(&bits, at, frame_bits) {
+                return gated(burst::number(&frame[..64]), burst::number(&frame[64..96]) as u32);
+            }
+        }
+    }
+    None
+}
+
+impl Default for ChevroletV0Decoder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ProtocolDecoder for ChevroletV0Decoder {
+    fn name(&self) -> &'static str {
+        NAME
+    }
+
+    fn timing(&self) -> ProtocolTiming {
+        ProtocolTiming {
+            te_short: TE_SHORT,
+            te_long: TE_LONG,
+            te_delta: TE_DELTA,
+            min_count_bit: usize::from(DATA_BITS),
+        }
+    }
+
+    fn supported_frequencies(&self) -> &[u32] {
+        super::ANY_FREQUENCY
+    }
+
+    fn reset(&mut self) {
+        self.step = Step::Reset;
+        self.manchester = ManchesterState::Mid1;
+        self.data_header = 0;
+        self.bit_count = 0;
+        self.data_count = 0;
+        self.decode_data = 0;
+        self.burst.reset();
+        self.reported = false;
+    }
+
+    fn feed(&mut self, level: bool, duration: u32) -> Option<DecodedSignal> {
+        let ended = self.burst.feed(level, duration);
+        if let Some(frame) = self.feed_c(level, duration) {
+            self.reported = true;
+            return Some(frame);
+        }
+        self.burst_ended(&ended?)
+    }
+
+    fn flush(&mut self) -> Option<DecodedSignal> {
+        let halves = self.burst.flush()?;
+        self.burst_ended(&halves)
     }
 
     fn supports_encoding(&self) -> bool {
@@ -265,10 +360,16 @@ pub(super) mod testing {
     /// payload bits (`gdata` then `seed`), then a long LOW. Bits are on-air (inverted from the
     /// decoded value): a decoded `1` is a LOW-then-HIGH pair.
     pub fn frame(pre: usize, gdata: u64, seed: u32) -> Vec<LevelDuration> {
+        burst(pre, gdata, seed, &[])
+    }
+
+    /// The same with `tail` bits behind the payload (a remote sends three).
+    pub fn burst(pre: usize, gdata: u64, seed: u32, tail: &[bool]) -> Vec<LevelDuration> {
         let mut bits: Vec<bool> = (0..pre.saturating_sub(32)).map(|i| i % 2 == 1).collect();
         bits.extend((0..32).rev().map(|i| (PREAMBLE_WORD >> i) & 1 == 1));
         bits.extend((0..64).rev().map(|i| (gdata >> i) & 1 == 1));
         bits.extend((0..32).rev().map(|i| (seed >> i) & 1 == 1));
+        bits.extend(tail);
         let mut halves = Vec::new();
         for b in bits {
             halves.extend([!b, b]);
@@ -306,13 +407,15 @@ mod tests {
 
     #[test]
     fn gates_match_the_c() {
-        // Open is accepted, any other button nibble dropped
+        // Open is accepted, and with the C's GM switch on so is any other nibble
         let open = (GDATA & !(0xF << 36)) | (0xA << 36);
         assert_eq!(feed_resetting(&mut ChevroletV0Decoder::new(), &testing::frame(40, open, SEED)).len(), 1);
         let other = (GDATA & !(0xF << 36)) | (0x3 << 36);
-        assert!(feed_resetting(&mut ChevroletV0Decoder::new(), &testing::frame(40, other, SEED)).is_empty());
-        // all-ones / zero payloads are dropped (the nibble gate already would, 0xF / 0x0)
+        let got = feed_resetting(&mut ChevroletV0Decoder::new(), &testing::frame(40, other, SEED));
+        assert_eq!(got.iter().map(|d| d.button).collect::<Vec<_>>(), [Some(0x3)]);
+        // all-ones / zero payloads are dropped
         assert!(feed_resetting(&mut ChevroletV0Decoder::new(), &testing::frame(40, 0, 0)).is_empty());
+        assert!(feed_resetting(&mut ChevroletV0Decoder::new(), &testing::frame(40, u64::MAX, SEED)).is_empty());
         // an out-of-tolerance pulse inside the data drops the frame
         let mut wire = testing::frame(40, GDATA, SEED);
         let mid = wire.len() * 3 / 4;
@@ -336,6 +439,82 @@ mod tests {
         );
     }
 
+    /// KAT's second reading: a burst whose carrier pulses are 55 µs too long and whose pauses are
+    /// 55 µs too short, which the C's windows lose (a long pause of 185 µs is its "short").
+    #[test]
+    fn a_skewed_burst_is_read_whole() {
+        let skewed = |wire: &[LevelDuration]| -> Vec<LevelDuration> {
+            let last = wire.len() - 1;
+            wire.iter()
+                .enumerate()
+                .map(|(i, p)| match (i == last, p.level) {
+                    (true, _) => *p,
+                    (_, true) => LevelDuration::new(true, p.duration_us + 55),
+                    (_, false) => LevelDuration::new(false, p.duration_us - 55),
+                })
+                .collect()
+        };
+        let clean = testing::burst(42, GDATA, SEED, &[true, false, true]);
+        let wire = skewed(&clean);
+        let mut c_only = ChevroletV0Decoder::new();
+        assert!(wire.iter().all(|p| c_only.feed_c(p.level, p.duration_us).is_none()), "the C's reading loses it");
+        for feed in [feed_all, feed_resetting] {
+            let got = feed(&mut ChevroletV0Decoder::new(), &wire);
+            assert_eq!(got.len(), 1, "{got:?}");
+            assert_eq!((got[0].data, got[0].extra, got[0].serial), (GDATA, Some(u64::from(SEED)), Some(0xB8_09C5)));
+            // a clean burst is read once, by the C's reading
+            assert_eq!(feed(&mut ChevroletV0Decoder::new(), &clean).len(), 1);
+        }
+        // the burst must end 3 bits behind the 96: 2 or 4 bits there are another length
+        for tail in [&[true, false][..], &[true, false, true, true][..], &[][..]] {
+            let wire = skewed(&testing::burst(42, GDATA, SEED, tail));
+            assert!(feed_all(&mut ChevroletV0Decoder::new(), &wire).is_empty(), "{} tail bits", tail.len());
+        }
+        // the preamble word is wanted whole, and a degenerate frame is dropped as in the C
+        let mut wire = skewed(&testing::burst(42, GDATA, SEED, &[true, false, true]));
+        wire.drain(..14);
+        assert!(feed_all(&mut ChevroletV0Decoder::new(), &wire).is_empty());
+        let wire = skewed(&testing::burst(42, u64::MAX, SEED, &[true, false, true]));
+        assert!(feed_all(&mut ChevroletV0Decoder::new(), &wire).is_empty());
+        // two skewed bursts, two frames; the end of the input counts as the end of a burst
+        let mut two = skewed(&testing::burst(42, GDATA, SEED, &[false, false, true]));
+        let mut second = skewed(&testing::burst(42, GDATA ^ 0xFF, SEED, &[true, true, false]));
+        second.pop();
+        two.extend(second);
+        let mut dec = ChevroletV0Decoder::new();
+        let mut got = feed_all(&mut dec, &two);
+        got.extend(dec.flush());
+        assert_eq!(got.iter().map(|d| d.data).collect::<Vec<_>>(), [GDATA, GDATA ^ 0xFF]);
+    }
+
+    /// The wider GM family (the C's switch): a 2018 Malibu, a 2024 Encore and a 2024 Envista. Each
+    /// has one serial and a nibble whose last bit alone changes, whatever button is pressed.
+    #[test]
+    fn imports_gm_family() {
+        for (path, serial, nibbles, frames) in [
+            ("IMPORTS/chevy/18_chevy_malibu_l2_u2_rs2_t2_p2.sub", 0xA8_936E, [0x8, 0x9], 36),
+            ("IMPORTS/buick/24_buick_encore_ul2_t2_l2_rs2_p2.sub", 0xAA_67D0, [0x4, 0x5], 34),
+            ("IMPORTS/buick/24_buick_envista_ul2_l2_t2_rs2_p2.sub", 0xB6_EC9C, [0xC, 0xD], 38),
+            // the second reading: 25 frames where the C's reading gives 1
+            ("IMPORTS/gmc/20_gmc_acadia_l2_u2_rs2_t2_p2.sub", 0xBB_C6E9, [0xC, 0xD], 25),
+        ] {
+            let path = std::path::Path::new(path);
+            if !path.is_file() {
+                eprintln!("Skip: IMPORTS not found (run from crate root)");
+                return;
+            }
+            let (_, wire) = sub_pulses(path);
+            let got = feed_resetting(&mut ChevroletV0Decoder::new(), &wire);
+            let mut seen: Vec<u8> = got.iter().map(|d| d.button.unwrap()).collect();
+            seen.sort_unstable();
+            seen.dedup();
+            eprintln!("CHEVY {}: {} frames, nibbles {seen:X?}", path.display(), got.len());
+            assert_eq!(got.len(), frames, "{}", path.display());
+            assert!(got.iter().all(|d| d.serial == Some(serial)), "{}", path.display());
+            assert_eq!(seen, nibbles, "{}", path.display());
+        }
+    }
+
     /// FoxFW's C on the Trail Blazer capture: 21 frames, constant serial 0xB809C5, button 0xA or
     /// 0xB; the first frames' `Key`, `HopHi`, `HopLo` and `Seed`.
     #[test]
@@ -346,9 +525,16 @@ mod tests {
             return;
         }
         let (_, wire) = sub_pulses(path);
-        let got = feed_resetting(&mut ChevroletV0Decoder::new(), &wire);
+        // the C's reading alone, as the reference ran it
+        let mut c = ChevroletV0Decoder::new();
+        let got: Vec<DecodedSignal> = wire.iter().filter_map(|p| c.feed_c(p.level, p.duration_us)).collect();
         assert_eq!(got.len(), 21);
         assert!(got.iter().all(|d| d.serial == Some(12_061_125) && matches!(d.button, Some(0xA | 0xB))));
+        // with KAT's second reading, one burst more of the same fob
+        let all = feed_resetting(&mut ChevroletV0Decoder::new(), &wire);
+        assert_eq!(all.len(), 22);
+        assert!(all.iter().all(|d| d.serial == Some(12_061_125)));
+        assert!(got.iter().all(|d| all.contains(d)));
         let first: Vec<(u64, u64)> = got.iter().take(3).map(|d| (d.data, d.extra.unwrap())).collect();
         assert_eq!(
             first,

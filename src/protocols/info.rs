@@ -215,6 +215,12 @@ pub static ALL: &[&ProtocolInfo] = &[
     &super::opel_v0::INFO,
     // FoxFW Honda decoders (decode only).
     &super::honda_v6::INFO,
+    &super::kia_mobis::INFO,
+    &super::kia_denso::INFO,
+    &super::kia_forte::INFO,
+    &super::gm_rfa::INFO,
+    &super::isuzu_rolling::INFO,
+    &super::isuzu_static::INFO,
     &super::honda_v4::INFO,
     &super::honda_v7::INFO,
     &super::honda_v9::INFO,

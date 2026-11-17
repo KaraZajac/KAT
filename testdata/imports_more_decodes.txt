@@ -98,10 +98,20 @@ HYUNDAI/more/HYU V6_small_breeky.sub | 433920000 | key | Kia V6 | data=ED0331A6D
 HYUNDAI/more/Tucson2.sub | 433920000 | Kia V6 | x2 | 2 distinct | fnv=B21199625F41867D
 Isuzu/more/Isuzu Gm 2011 (1).sub | 433920000 | key | KeeLoq (ZX-730-750-1055) | data=E7E7F948D3D50802/64 sn=10ABCB btn=4 cnt=2FED crc=1 tx=1
 Isuzu/more/Isuzu Gm 2011.sub | 433920000 | key | KeeLoq (ZX-730-750-1055) | data=9F3E3582D3D50802/64 sn=10ABCB btn=4 cnt=2FF8 crc=1 tx=1
+KIA/more/2019-2022_KIA_Soul_433.92_FM.sub | 433920000 | (none)
+KIA/more/2019-2022_Kia_Sportage_QL__433.92_FM.sub | 433920000 | Kia Mobis | x16 | 9 distinct | fnv=DBB4BF6C26329B38
+KIA/more/2020-2022_Kia_Sorento_433.92_FM.sub | 433920000 | (none)
+KIA/more/2023__Kia_Soul_433.92_FM.sub | 433920000 | (none)
+KIA/more/22-26_Kia_EV6_433.92mhz_FM476.sub | 433920000 | Kia Denso | x10 | 10 distinct | fnv=A8E5ADEEE0E3AE5F
+KIA/more/Forte_315mhz_FM.sub | 315000000 | Kia Forte | x20 | 10 distinct | fnv=6ADE5388EEAE2C85
+KIA/more/KIA_Niro_late_model_433.92_FM.sub | 433920000 | Kia Mobis | x12 | 9 distinct | fnv=44F03AFE1388BA6E
 KIA/more/Kia V1_great_kot.sub | 315000000 | key | Kia V1 | data=B444706E026F0C/57 sn=B444706E btn=2 cnt=6F crc=1 tx=1
 KIA/more/Kia3_30TS.sub | 315000000 | Kia V3 | x150 | 30 distinct | fnv=4116EFB685FE8B2D
 KIA/more/Kia4_30TS.sub | 315000000 | Kia V4 | x150 | 30 distinct | fnv=D916FC90495FC878
 KIA/more/Kia_0_orig.sub | 433920000 | Kia V0 | x30 | 15 distinct | fnv=64C71CDFF85A0DF9
+KIA/more/Kia_Carnival_433.92_FM.sub | 433920000 | (none)
+KIA/more/Kia_K7_433.92_FM.sub | 433920000 | Kia Mobis | x12 | 7 distinct | fnv=6A6C51D708973F9C
+KIA/more/Random_late_model_KIA_remote_433.92mhz_FM476.sub | 433920000 | Kia Denso | x10 | 10 distinct | fnv=54B4B4897BD5EB55
 KIA/more/kia_seed_raw.sub | 433920000 | Kia V0 | x12 | 4 distinct | fnv=2FE2C0D3D7B05622
 KIA/more/kia_v3_b.sub | 315000000 | Kia V3 | x45 | 9 distinct | fnv=D230CBC1CBAFDCB0
 KIA/more/kia_v4_1.sub | 433920000 | key | Kia V4 | data=D82D5BD5A2C48008/68 extra=0 sn=12345 btn=1 cnt=7 crc=1 tx=1
@@ -189,6 +199,10 @@ SKODA/more/Skoda_lock.sub | 434420000 | VAG | x25 | 5 distinct | fnv=5BFA1BA3E4D
 SKODA/more/Skoda_trunk.sub | 434420000 | VAG | x25 | 5 distinct | fnv=1C81FEDB63460C44
 SKODA/more/Skoda_unlock.sub | 434420000 | VAG | x25 | 5 distinct | fnv=9698CF67CC6AEC79
 SUBARU/more/Subaru_impreza_full_fob.sub | 433920000 | key | Subaru | data=E1CB715EFDC30287/64 sn=CB715E btn=1 cnt=C910 crc=0 tx=1
+Toyota + Lexus/more/Tundra19_lock.sub | 312100000 | (none)
+Toyota + Lexus/more/Tundra19_lock2.sub | 314350000 | (none)
+Toyota + Lexus/more/Tundra19_unlock.sub | 314350000 | (none)
+Toyota + Lexus/more/Tundra19_unlock2.sub | 312100000 | (none)
 VAG/more/1.sub | 434420000 | key | VAG | data=C06BAC39D8F9F360/80 extra=800000000204732B sn=7C8F963 btn=2 cnt=4E84 crc=1 tx=1
 VAG/more/1_2.sub | 434420000 | key | VAG | data=C0A4801786138067/80 extra=8000000002042C2B sn=7C8F963 btn=2 cnt=4EFD crc=1 tx=1
 VAG/more/2.sub | 434420000 | key | VAG | data=C0D5C8CF0B83C733/80 extra=800000000204571D sn=7C8F963 btn=1 cnt=4E88 crc=1 tx=1
@@ -259,12 +273,14 @@ VAG/more/ttttt.sub | 434420000 | key | VAG | data=C0FE56E3EC9A0AE9/80 extra=8000
 VAG/more/vw.sub | 434420000 | key | VAG | data=C0446B3BDD5EE13B/80 extra=800000000204001D sn=7C8F963 btn=1 cnt=4EAD crc=1 tx=1
 VAG/more/vw2.sub | 434420000 | key | VAG | data=C04BD2912006F9DB/80 extra=800000000204D02B sn=7C8F963 btn=2 cnt=4EA2 crc=1 tx=1
 VAG/more/yyyy.sub | 434420000 | key | VAG | data=C0A85B55AD5465B9/80 extra=8000000002040B1D sn=7C8F963 btn=1 cnt=4EA8 crc=1 tx=1
+cadillac/more/2008-2012_Cadilla_CTS_315mhz_AM650.sub | 315000000 | GM RFA | x25 | 15 distinct | fnv=12F7E2BAA100F656
 chrysler/more/PT_300xLCK.sub | 433889000 | Chrysler V0 | x308 | 308 distinct | fnv=258A746587518C26
 chrysler/more/PT_300xUNL.sub | 433889000 | Chrysler V0 | x28 | 28 distinct | fnv=837103B8201799D6
 chrysler/more/PT_LCK100.sub | 433889000 | Chrysler V0 | x105 | 105 distinct | fnv=6A22593629EDCC4A
 chrysler/more/PT_LCK250.sub | 433889000 | Chrysler V0 | x271 | 271 distinct | fnv=8511477EB82BB145
 honda/more/0 (2).sub | 433920000 | Honda V1 | x343 | 44 distinct | fnv=3F758EC51C84575A
 honda/more/05 Honda V5.sub | 433920000 | Honda V5 | x6 | 2 distinct | fnv=96878947D46C9C70
+honda/more/2022-2024_Honda_CR-V_433.66_FM476.sub | 433657070 | (none)
 honda/more/Fz_10l_10u_10t_10p.sub | 433920000 | Honda V1 | x158 | 40 distinct | fnv=46879C1F9820EDDC
 honda/more/HondaCivic2008.sub | 433920000 | Continental-KR5V2X | x2 | 1 distinct | fnv=38D6B17DB323687F
 honda/more/HondaCivic2008.sub | 433920000 | Honda V5 | x4 | 2 distinct | fnv=58AC532959124A3D

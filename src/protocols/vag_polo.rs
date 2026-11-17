@@ -22,6 +22,10 @@
 //! payload is collected MSB first into 10 bytes. After 80 bits the frame is reported if the first
 //! byte's high nibble is `0x7` or `0xB`; either way the decoder re-arms (reset step).
 //!
+//! **The C's `Serial` is no serial.** In the 48 frames of the Polo captures and the 23 of the
+//! Atlas capture bytes 1..4 are another value in every frame, like bytes 5..9: only the button
+//! byte is in the clear. KAT keeps the C's field (and its key file).
+//!
 //! **KAT fields**: `data` = payload bytes 2..9 (the C's `generic.data`, 64 bits),
 //! `data_count_bit` = 80, `serial` = bytes 1..4, `button` = 1 for a high nibble of 7 (Unlock), 2
 //! otherwise (Lock), `extra` = the C's `Hdr` (payload bytes 0..1; its high byte is `ButtonRaw`),
@@ -30,7 +34,13 @@
 //! **Key file** (`serialize` / `deserialize`): `Protocol: VAG Polo`, `Bit: 80`, `Key` = `data`,
 //! then `Serial`, `Btn`, `ButtonRaw`, `Hdr`.
 //!
-//! **Deviations**: none. **Evidence**: the eight "VW Polo 5 2017 lock/unlock" captures in
+//! **Deviations**: one, an addition. KAT also locks on the sync `0x3FCD`, which a 2020 VW Atlas
+//! (North America, 315 MHz) sends in front of the same 80-bit payload, and for that sync takes the
+//! button nibbles `0xD` and `0xF` as well: its one recording (`IMPORTS/VAG/20_vw_atlas_l2_u2_t2_rs2.sub`,
+//! named lock, unlock, trunk, remote start, two presses each) sends 0xBD/0xBF, 0x7D/0x7F, 0xDD/0xDF
+//! and 0xF5/0xF7 in that order, three frames a press, preamble and timing as the Polo's. `Trunk` (3)
+//! and `Remote start` (4) are read off that order, not confirmed otherwise. The C reads none of
+//! it. **Evidence**: the eight "VW Polo 5 2017 lock/unlock" captures in
 //! IMPORTS (48 frames, three per press; fifteen for the x5 files); the button's high nibble is constant
 //! per action (the byte alternates between two values from press to press) and the rest changes
 //! every frame. Decodes match the host build of FoxFW's C frame
@@ -61,6 +71,8 @@ const TE_SHORT: u32 = 300;
 const TE_LONG: u32 = 590;
 const EVENT_TOL: u32 = 150;
 const SYNC: u16 = 0x3F91;
+/// The 2020 VW Atlas (North America): same frame, another sync (KAT's addition, see the module doc).
+const SYNC_ATLAS: u16 = 0x3FCD;
 const PRE_ONES: u16 = 32;
 const DATA_BITS: u16 = 80;
 const BYTES: usize = 10;
@@ -69,6 +81,8 @@ fn button_name(_name: &str, code: u8) -> Option<&'static str> {
     match code {
         1 => Some("Unlock"),
         2 => Some("Lock"),
+        3 => Some("Trunk"),
+        4 => Some("Remote start"),
         _ => None,
     }
 }
@@ -88,6 +102,8 @@ pub struct VagPoloDecoder {
     pre_ones: u16,
     payload: [u8; BYTES],
     pbits: u16,
+    /// The frame being collected follows `SYNC_ATLAS`.
+    atlas: bool,
 }
 
 /// `vag_polo_event`: the C's "core" polarity.
@@ -108,7 +124,12 @@ fn signal(p: &[u8; BYTES]) -> DecodedSignal {
     let hdr16 = (u16::from(p[0]) << 8) | u16::from(p[1]);
     DecodedSignal {
         serial: Some(serial),
-        button: Some(if (p[0] >> 4) & 0x0F == 0x7 { 1 } else { 2 }),
+        button: Some(match p[0] >> 4 {
+            0x7 => 1,
+            0xD => 3,
+            0xF => 4,
+            _ => 2,
+        }),
         counter: None,
         crc_valid: false,
         data,
@@ -128,6 +149,7 @@ impl VagPoloDecoder {
             pre_ones: 0,
             payload: [0; BYTES],
             pbits: 0,
+            atlas: false,
         }
     }
 
@@ -195,7 +217,8 @@ impl ProtocolDecoder for VagPoloDecoder {
                         self.sync_reg = 0;
                         return None;
                     }
-                    if self.sync_reg == SYNC && self.pre_ones >= PRE_ONES {
+                    if (self.sync_reg == SYNC || self.sync_reg == SYNC_ATLAS) && self.pre_ones >= PRE_ONES {
+                        self.atlas = self.sync_reg == SYNC_ATLAS;
                         self.pbits = 0;
                         self.payload = [0; BYTES];
                         self.step = Step::Data;
@@ -216,7 +239,8 @@ impl ProtocolDecoder for VagPoloDecoder {
                     self.pbits += 1;
                     if self.pbits >= DATA_BITS {
                         let hi = (self.payload[0] >> 4) & 0x0F;
-                        let out = (hi == 0x7 || hi == 0xB).then(|| signal(&self.payload));
+                        let known = hi == 0x7 || hi == 0xB || (self.atlas && (hi == 0xD || hi == 0xF));
+                        let out = known.then(|| signal(&self.payload));
                         self.rearm();
                         return out;
                     }
@@ -276,8 +300,13 @@ pub(super) mod testing {
     /// Pulses of a frame: `ones` preamble ones, the sync, then the 10 payload bytes, in the C's
     /// polarity (a `1` is HIGH then LOW), ending with a long LOW.
     pub fn frame(ones: usize, payload: &[u8; BYTES]) -> Vec<LevelDuration> {
+        frame_with_sync(ones, SYNC, payload)
+    }
+
+    /// The same with another sync word.
+    pub fn frame_with_sync(ones: usize, sync: u16, payload: &[u8; BYTES]) -> Vec<LevelDuration> {
         let mut bits = vec![true; ones];
-        bits.extend((0..16).rev().map(|i| (SYNC >> i) & 1 == 1));
+        bits.extend((0..16).rev().map(|i| (sync >> i) & 1 == 1));
         for b in payload {
             bits.extend((0..8).rev().map(|i| (b >> i) & 1 == 1));
         }
@@ -334,6 +363,57 @@ mod tests {
         wire[mid].duration_us = 1_000;
         assert!(feed_all(&mut VagPoloDecoder::new(), &wire).is_empty());
         assert!(VagPoloDecoder::new().encode(&DecodedSignal::new(0, 80), 1).is_none());
+    }
+
+    /// KAT's addition: the Atlas sync, and its two extra button nibbles only behind that sync.
+    #[test]
+    fn atlas_sync_and_buttons() {
+        for (first, button) in [(0xBD, 2), (0x7F, 1), (0xDD, 3), (0xF5, 4)] {
+            let mut p = P;
+            p[0] = first;
+            let got = feed_all(&mut VagPoloDecoder::new(), &testing::frame_with_sync(40, SYNC_ATLAS, &p));
+            assert_eq!(got.len(), 1, "{first:02X}");
+            assert_eq!((got[0].button, got[0].extra), (Some(button), Some((u64::from(first) << 8) | 0x48)));
+        }
+        let mut trunk = P;
+        trunk[0] = 0xDD;
+        assert!(feed_all(&mut VagPoloDecoder::new(), &testing::frame(40, &trunk)).is_empty(), "Polo sync keeps the C's gate");
+        let mut bad = P;
+        bad[0] = 0x5D;
+        assert!(feed_all(&mut VagPoloDecoder::new(), &testing::frame_with_sync(40, SYNC_ATLAS, &bad)).is_empty());
+        assert!(feed_all(&mut VagPoloDecoder::new(), &testing::frame_with_sync(40, 0x3FCC, &P)).is_empty());
+    }
+
+    /// The one Atlas recording: lock, unlock, trunk, remote start, two presses each.
+    #[test]
+    fn imports_atlas_capture() {
+        let path = std::path::Path::new("IMPORTS/VAG/20_vw_atlas_l2_u2_t2_rs2.sub");
+        if !path.is_file() {
+            eprintln!("Skip: IMPORTS not found (run from crate root)");
+            return;
+        }
+        let (_, pairs) = crate::export::flipper::import_sub_raw(path).unwrap();
+        let wire: Vec<LevelDuration> = pairs.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
+        let got = feed_resetting(&mut VagPoloDecoder::new(), &wire);
+        let seq: Vec<(u8, u8)> = got.iter().map(|d| (d.button.unwrap(), (d.extra.unwrap() >> 8) as u8)).collect();
+        eprintln!("ATLAS {seq:02X?}");
+        let buttons: Vec<u8> = seq.iter().map(|s| s.0).collect();
+        let mut order = buttons.clone();
+        order.dedup();
+        assert_eq!(order, [2, 1, 3, 4], "{seq:02X?}");
+        assert!(seq.iter().all(|&(b, raw)| match b {
+            2 => raw == 0xBD || raw == 0xBF,
+            1 => raw == 0x7D || raw == 0x7F,
+            3 => raw == 0xDD || raw == 0xDF,
+            _ => raw == 0xF5 || raw == 0xF7,
+        }), "{seq:02X?}");
+        let count = |b: u8| buttons.iter().filter(|x| **x == b).count();
+        assert_eq!((got.len(), count(2), count(1), count(3), count(4)), (23, 5, 6, 6, 6));
+        // the four bytes the C calls Serial are another value in every frame (as in the Polo captures)
+        let mut serials: Vec<u32> = got.iter().map(|d| d.serial.unwrap()).collect();
+        serials.sort_unstable();
+        serials.dedup();
+        assert_eq!(serials.len(), 23, "{serials:X?}");
     }
 
     #[test]

@@ -38,7 +38,10 @@
 //! Any button is reported; the C names Trunk `0x20`, Lock `0x04` and Unlock `0x08` and shows other
 //! values as "Unknown". (KAT used to drop the other values; a real 2016 Holden Barina fob sends
 //! button 0x73 with a valid tail, which Flipper-ARF and doctor-firmware decode — serial 4F2679 —
-//! so the whitelist was removed.) `crc_valid` = true means the XTEA tail validated.
+//! so the whitelist was removed. That capture holds 168 different frames of the GM family, which
+//! Chevrolet V0 reads (chevrolet_v0.rs); this one alone has the tail byte, as one frame in 256
+//! does by chance, and its button, burst and count are no fob's values. The references list it
+//! all the same, and so does KAT.) `crc_valid` = true means the XTEA tail validated.
 //!
 //! # Encoder
 //! None — the C encoder is a NULL stub (decode-only). `supports_encoding()` is false.

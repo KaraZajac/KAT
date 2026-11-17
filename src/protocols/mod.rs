@@ -55,6 +55,14 @@ mod honda_v5;
 mod honda_v1;
 mod honda_v2_v3;
 mod honda_v4;
+// Whole-burst reading for KAT's own Manchester decoders, and the first of them.
+mod burst;
+mod gm_rfa;
+mod isuzu_rolling;
+mod isuzu_static;
+mod kia_denso;
+mod kia_forte;
+mod kia_mobis;
 // Honda V6: KAT's own reader of the Miller-coded frame (honda_v6.rs). FoxFW's three paths, which
 // read that frame as trits, are ported and not registered (no check; honda_v6_foxfw.rs).
 mod honda_v6;
@@ -980,6 +988,21 @@ impl ProtocolRegistry {
             // 0x1E4C11A7, or any id `0001…` behind 10 zeros with the frame ending at the gap; fix
             // byte 0xE0. (Replays its frame; the others here are decode-only.)
             Box::new(mitsubishi_v1::MitsubishiV1Decoder::new()),
+            // KAT's own decoders from recordings (decode-only, no checksum known): each reads a whole
+            // burst when it ends and wants a lead, a sync and an exact length up to the burst's end.
+            // Kia Mobis: 195/390 µs FSK Manchester, 6+ ones, 0x6AC2, 72 bits.
+            Box::new(kia_mobis::KiaMobisDecoder::new()),
+            // Kia Denso: 175/350 µs FSK Manchester, the lead 0xFF935, 112 bits, and the same again.
+            Box::new(kia_denso::KiaDensoDecoder::new()),
+            // Kia Forte: 490/980 µs FSK Manchester, 88 bits behind zeros, the same in two bursts.
+            Box::new(kia_forte::KiaForteDecoder::new()),
+            // GM RFA: 118/235 µs OOK Manchester, 20+ zeros, 1101, 80 bits.
+            Box::new(gm_rfa::GmRfaDecoder::new()),
+            // Isuzu Rolling: 406/811 µs OOK differential Manchester, 105 cells and a half of carrier,
+            // the same in two bursts. Isuzu Static: 523/1047 µs OOK Manchester, 64 bits and two 1 bits,
+            // the same in two bursts.
+            Box::new(isuzu_rolling::IsuzuRollingDecoder::new()),
+            Box::new(isuzu_static::IsuzuStaticDecoder::new()),
             // LDV V0: 250/500 µs Manchester, >= 48-bit preamble, 128 bits with fixed 0xFF 0xFF bytes
             // and a duplicated button. Behind Ford V3, which reads the same fob's frames first.
             Box::new(ldv_v0::LdvV0Decoder::new()),
@@ -2450,7 +2473,9 @@ mod tests {
             // Honda V6 (KAT's own reader) writes none either: FoxFW's file of that name holds 32
             // pulse widths, less than the frame's block.
             let foxfw = ["LDV V0", "Lexus V0", "Mazda V1", "Nissan V0", "Honda V6"].contains(&name);
-            let listed = written.iter().any(|&(_, dec)| dec == name) || name == "Renault V1 (ARF)" || name == "Toyota (FoxFW)" || name == "HondaV2&V3" || foxfw;
+            // KAT's own decoders from recordings write none either: no firmware has a key format for them.
+            let own = ["Kia Mobis", "Kia Denso", "Kia Forte", "GM RFA", "Isuzu Rolling", "Isuzu Static"].contains(&name);
+            let listed = written.iter().any(|&(_, dec)| dec == name) || name == "Renault V1 (ARF)" || name == "Toyota (FoxFW)" || name == "HondaV2&V3" || foxfw || own;
             assert!(listed, "{name}: no key-file name listed");
         }
     }

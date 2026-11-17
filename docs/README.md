@@ -49,8 +49,8 @@ This folder describes how each keyfob and gate/garage remote protocol supported 
 | Mercedes V1 | `mercedes_v1.rs` | [mercedes_v1.md](mercedes_v1.md) |
 | Opel V1 | `opel_v1.rs` | [opel_v1.md](opel_v1.md) |
 | Datsun Lada | `datsun_lada.rs` | [datsun_lada.md](datsun_lada.md) |
-| VAG Polo (FoxFW, decode only) | `vag_polo.rs` | [vag_polo.md](vag_polo.md) |
-| Chevrolet V0 (FoxFW, decode only) | `chevrolet_v0.rs` | [chevrolet_v0.md](chevrolet_v0.md) |
+| VAG Polo (FoxFW, decode only; the VW Atlas 2020 is KAT's addition) | `vag_polo.rs` | [vag_polo.md](vag_polo.md) |
+| Chevrolet V0 (FoxFW, decode only; the whole GM 433 MHz family) | `chevrolet_v0.rs` | [chevrolet_v0.md](chevrolet_v0.md) |
 | Tesla Charge (FoxFW) | `tesla_charge.rs` | [tesla_charge.md](tesla_charge.md) |
 | Hyundai/Kia RIO (FoxFW) | `hyundai_kia_rio.rs` | [hyundai_kia_rio.md](hyundai_kia_rio.md) |
 | SantaFe 13-16 (FoxFW) | `santa_fe.rs` | [santa_fe.md](santa_fe.md) |
@@ -66,6 +66,12 @@ This folder describes how each keyfob and gate/garage remote protocol supported 
 | HondaV2&V3 (FoxFW, decode only) | `honda_v2_v3.rs` | [honda_v2_v3.md](honda_v2_v3.md) |
 | Honda V10 (FoxFW, decode only) | `honda_v10.rs` | [honda_v10.md](honda_v10.md) |
 | Honda V6 (KAT's own decoder and replay encoder; the name is FoxFW's) | `honda_v6.rs` | [honda_v6.md](honda_v6.md) |
+| Kia Mobis (KAT's own decoder, decode only) | `kia_mobis.rs` | [kia_mobis.md](kia_mobis.md) |
+| Kia Denso (KAT's own decoder, decode only) | `kia_denso.rs` | [kia_denso.md](kia_denso.md) |
+| Kia Forte (KAT's own decoder, decode only) | `kia_forte.rs` | [kia_forte.md](kia_forte.md) |
+| GM RFA (KAT's own decoder, decode only) | `gm_rfa.rs` | [gm_rfa.md](gm_rfa.md) |
+| Isuzu Rolling (KAT's own decoder, decode only) | `isuzu_rolling.rs` | [isuzu_rolling.md](isuzu_rolling.md) |
+| Isuzu Static (KAT's own decoder, decode only) | `isuzu_static.rs` | [isuzu_static.md](isuzu_static.md) |
 | Mitsubishi V1 (FoxFW; any fob, replay encoder) | `mitsubishi_v1.rs` | [mitsubishi_v1.md](mitsubishi_v1.md) |
 | LDV V0 (FoxFW, decode only) | `ldv_v0.rs` | [ldv_v0.md](ldv_v0.md) |
 | Lexus V0 (FoxFW, decode only) | `lexus_v0.rs` | [lexus_v0.md](lexus_v0.md) |

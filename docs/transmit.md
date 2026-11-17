@@ -102,6 +102,9 @@ emulate scene falls back to AM650, then FM476). The first preset is the primary 
 | Kia V5 | FM | FM476 | ±47.61 kHz | PP help "V5 [FM476]", PP flag FM; ARF flag FM | IMPORTS `KIA V5 N1/N2 RAW`, `KIA_V5_x20` recorded with FM476 |
 | Kia V6 | FM | FM476 | ±47.61 kHz | PP help "V6 [FM476]", PP flag FM; ARF flag FM | IMPORTS Kia V6 key files received with FM476 |
 | Kia V7 | FM | FM476 | ±47.61 kHz | PP help "V7 [FM476]", PP flag FM; ARF flag FM | |
+| Kia Mobis | FM | FM476 | ±47.61 kHz | KAT's own decoder; the three recordings in IMPORTS (`KIA/more/`: Niro, K7, Sportage QL) were received with FM476. The FCC filing of the K7's remote, `TQ8-FOB-4F34`, has the lower tone 40.5 kHz under 433.92 MHz; those of `TQ8-FOB-4F17` to `-4F26` show the two tones 80 kHz apart (±40 kHz) | decode only |
+| Kia Denso | FM | FM476 | ±47.61 kHz | KAT's own decoder; both recordings in IMPORTS (`KIA/more/`: EV6, a late-model Kia) were received with FM476. The FCC filings of `CQOFD00790`, `CQOFD01340`, `CQOFN01050` show the two tones 60 kHz apart (±30 kHz) | decode only |
+| Kia Forte | FM | FM476 | ±47.61 kHz | KAT's own decoder; the one recording in IMPORTS (`KIA/more/Forte_315mhz_FM.sub`) was received with FM476 | decode only; the remote's deviation is not known |
 | Mitsubishi V0 | FM | FM476 | ±47.61 kHz | PP help "Mitsubishi V0 [FM476]"; ARF `mitsubishi_v0.c` flag FM | both the 61-bit (Kia V0 type) and 96-bit formats |
 | Ford V1 | FM | F4 | ±14.28 kHz | PP help "V1 [F4 315/433]", catalog FM F4; ARF flag FM | |
 | Ford V2 | FM | F4 | ±14.28 kHz | PP help "V2 [F4 434]", catalog FM F4; ARF flag FM | |

@@ -225,6 +225,9 @@ mod tx_copies;
 mod stream_locator;
 #[cfg(test)]
 mod dd_testutil;
+// The protocol facts kat.karazajac.io's pages are built from (docs/data/protocols.json).
+#[cfg(test)]
+mod site_data;
 // FoxFW decoders (decode only but BMW CAS3, which FoxFW's enc_bmw_cas3.c replays): Audi V1/V2/V3,
 // BMW V2, BMW/Mini V3, BMW CAS3. Shared: foxfw_common.
 mod foxfw_common;

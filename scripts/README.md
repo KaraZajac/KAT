@@ -1,5 +1,24 @@
 # KAT scripts
 
+## site_data.py
+
+Writes the data kat.karazajac.io's pages are built from, into `docs/data/`:
+
+- `protocols.json`: KAT's own facts about every protocol (name, make, line coding, RF, pulse widths, frame length,
+  encoder), the page of each, and which entry reads each display name and key-file name. A cargo test writes it
+  from the program (`src/protocols/site_data.rs`), so the site cannot say something else than KAT does.
+- `captures.json`: every recording in `IMPORTS` (type, frequency, preset, length) and what KAT reads from it, from
+  the files' headers and the two pinned lists in `testdata/`.
+
+```bash
+python3 scripts/site_data.py              # both files (runs the cargo test)
+python3 scripts/site_data.py --captures   # captures.json only
+```
+
+Run it from the repository root on the tree that is published, after the pinned lists were regenerated, and
+commit the result: `docs/build.mjs` reads only `docs/`, so the site builds without the rest of the repository.
+`docs/data/fcc.json`, `coverage.json` and `taxonomy.json` are not written by this script.
+
 ## demod_sub_to_bits.py
 
 Demodulate Flipper SubGhz RAW `.sub` files into a stream of `1` and `0` bits using duration-based on-off keying (OOK). The script parses level+duration pulses, classifies each as **short** or **long** against configurable timing, then outputs bits according to the chosen encoding.

@@ -1,0 +1,3820 @@
+{
+ "families": [
+  {
+   "evidence": "signal",
+   "kat": "",
+   "key": "mazda-ske",
+   "note": "none of KAT's Mazda decoders has this timing",
+   "protocols": [],
+   "signal": "315 MHz FSK; SKE13D unit 124 µs, 0.35 s; SKE125 300 µs, 0.28 s",
+   "status": "filed",
+   "title": "Mazda keys (Mitsubishi Electric SKE13D, SKE125)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "",
+   "key": "hk-denso-other",
+   "note": "",
+   "protocols": [],
+   "signal": "433.92 or 314.35 MHz FSK ±30 kHz, 0.38 to 0.39 s",
+   "status": "filed",
+   "title": "Kia / Hyundai keys (Denso Korea, 2012-2018)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "Kia Denso (175 µs Manchester, 112 bits x5, FM)",
+   "key": "hk-denso-112",
+   "note": "CQOFD00790 (five buttons) and CQOFD01340 (seven) are the same remote by its owner's list; one more unnamed Kia recording reads",
+   "protocols": [
+    "Kia Denso"
+   ],
+   "signal": "433.92 MHz FSK ±30 kHz, Manchester, half bit 174.8 µs, 112-bit frame x5 (0.196 s)",
+   "status": "likely",
+   "title": "Kia / Hyundai smart keys (Denso Korea, 2019 on)"
+  },
+  {
+   "evidence": "recording",
+   "kat": "Kia Denso (175 µs Manchester, 112 bits x5, FM)",
+   "key": "hk-denso-ev6",
+   "note": "the EV6 recording (FCC ID given by its owner, 2026-11-16)",
+   "protocols": [
+    "Kia Denso"
+   ],
+   "signal": "433.92 MHz FSK ±30 kHz, Manchester, half bit 174.8 µs, 112-bit frame x5 (0.196 s)",
+   "status": "read",
+   "title": "Kia EV6 smart key, four buttons (Denso Korea FN01050, 2021)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "Ford V0",
+   "key": "ford-ask-315",
+   "note": "tie by timing; a 2016 Escape recording at 315 MHz reads as Ford V0, but the catalogue does not list that car under these IDs",
+   "protocols": [
+    "Ford V0"
+   ],
+   "signal": "315 MHz ASK, Manchester, half bit 247.5 to 250 µs, four words 100 ms apart",
+   "status": "likely",
+   "title": "Ford remotes and integrated keys (Alps, Omron)"
+  },
+  {
+   "evidence": "reference",
+   "kat": "Alps-FWB1U545",
+   "key": "honda-alps",
+   "note": "",
+   "protocols": [
+    "Alps-FWB1U545"
+   ],
+   "signal": "433.92 MHz FSK, Manchester, 500 µs half bit",
+   "status": "read",
+   "title": "Honda remote (Alps 72147-S9V)"
+  },
+  {
+   "evidence": "reference",
+   "kat": "Nidec RKE, Honda V0",
+   "key": "honda-omron",
+   "note": "",
+   "protocols": [
+    "Honda V0",
+    "Nidec RKE"
+   ],
+   "signal": "313.85 MHz FSK, 1000 or 2000 bps, 324 sync bits + 64 data bits, one ~205 ms burst",
+   "status": "read",
+   "title": "Honda remotes (Omron G8D)"
+  },
+  {
+   "evidence": "recording",
+   "kat": "",
+   "key": "toyota-2ch-trw",
+   "note": "Tundra 2019 recordings made with a +-2.38 kHz preset",
+   "protocols": [],
+   "signal": "312.10 / 314.35 MHz FSK ±30 kHz, one 700 ms frame, channel alternates per press",
+   "status": "blind",
+   "title": "Toyota remote-head key, two channels (TRW)"
+  },
+  {
+   "evidence": "recording",
+   "kat": "Fiat V2",
+   "key": "fca-fobik",
+   "note": "2019 Pacifica and 2022 Renegade recordings read as Fiat V2",
+   "protocols": [
+    "Fiat V2"
+   ],
+   "signal": "433.92 MHz ASK, Manchester, 2.4 kbps, 112-bit packet every 125 to 135 ms",
+   "status": "read",
+   "title": "Chrysler / Dodge / Jeep FOBIK (TRW, Continental)"
+  },
+  {
+   "evidence": "reference",
+   "kat": "Microchip-HCS361, Chrysler-CarRemote, Chrysler V0",
+   "key": "fca-keeloq",
+   "note": "",
+   "protocols": [
+    "Chrysler V0",
+    "Chrysler-CarRemote",
+    "Microchip-HCS361"
+   ],
+   "signal": "315 MHz ASK, KeeLoq, 195 µs",
+   "status": "read",
+   "title": "Chrysler JR/KJ remote (TRW, HCS361)"
+  },
+  {
+   "evidence": "recording",
+   "kat": "",
+   "key": "toyota-2ch-denso",
+   "note": "eight older recordings made with AM presets show only the carrier",
+   "protocols": [],
+   "signal": "312.10 / 314.35 MHz FSK, tones 30 or 50 kHz apart, one 0.71 to 0.77 s frame, unit 0.347 to 0.350 ms",
+   "status": "blind",
+   "title": "Toyota / Lexus smart and remote-head keys, two channels (Denso)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "Lexus V0 (350 µs Manchester, AM)",
+   "key": "toyota-ask",
+   "note": "match by unit and keying only; no named recording",
+   "protocols": [
+    "Lexus V0"
+   ],
+   "signal": "314.35 MHz ASK, unit 0.347 ms, 0.535 s per press",
+   "status": "likely",
+   "title": "Toyota remote-head key, on-off keyed (Denso 12BDP)"
+  },
+  {
+   "evidence": "assumed",
+   "kat": "",
+   "key": "toyota-2ch-assumed",
+   "note": "",
+   "protocols": [],
+   "signal": "assumed like the Denso keys above",
+   "status": "blind",
+   "title": "Toyota / Lexus two-channel keys, filings not read"
+  },
+  {
+   "evidence": "signal",
+   "kat": "Mazda V0 / Mazda Siemens (not confirmed)",
+   "key": "mazda-visteon",
+   "note": "",
+   "protocols": [
+    "Mazda Siemens",
+    "Mazda V0"
+   ],
+   "signal": "313.85 MHz, 314 ms per press",
+   "status": "filed",
+   "title": "Mazda remote (Visteon 41788)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "BMW/Mini V3 (95 µs)",
+   "key": "bmw-e60",
+   "note": "a European 2004 E60 recording at 868.35 MHz reads; the US 315 MHz keys are 10 % slower than the decoder nominal, not tested",
+   "protocols": [
+    "BMW/Mini V3"
+   ],
+   "signal": "315 MHz FSK 4.807 kBit/s; 434.2 / 868.4 MHz 5.3 kBit/s",
+   "status": "likely",
+   "title": "BMW keys (Siemens E60 / PL2)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "Ford V1 (65 µs)",
+   "key": "ford-eu-pase",
+   "note": "recordings on 434.258 MHz read as Ford V1",
+   "protocols": [
+    "Ford V1"
+   ],
+   "signal": "433.589 / 433.920 / 434.251 MHz FSK, 126 ms then 26 ms bursts",
+   "status": "likely",
+   "title": "Ford smart key, three channels (Continental 5WK48801)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "",
+   "key": "honda-other",
+   "note": "",
+   "protocols": [],
+   "signal": "313.85 MHz FSK (Siemens: ±30 kHz; Valeo: tones 96 kHz apart, one 245 ms burst)",
+   "status": "filed",
+   "title": "Honda remotes (Valeo, Siemens)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "Chevrolet V0, Opel V1 (120 µs)",
+   "key": "gm-global-a",
+   "note": "tie by bit rate; a 2015 Buick LaCrosse recording listed for this ID reads nothing",
+   "protocols": [
+    "Chevrolet V0",
+    "Opel V1"
+   ],
+   "signal": "314.9 or 433.92 MHz ASK, Manchester, 4.2 kBit/s, start pulse + 34 ms word every 100 ms",
+   "status": "likely",
+   "title": "GM flip keys (Continental Global A, Strattec Bosch flap key)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "Honda V5 (63 µs Manchester)",
+   "key": "honda-conti-tp",
+   "note": "two recordings made with the Honda1 preset read as Honda V5; FM476 recordings of the same family hold no data",
+   "protocols": [
+    "Honda V5"
+   ],
+   "signal": "433.66 + 434.18 MHz FSK ±15 kHz, 64 µs symbols, 24.4 to 24.8 ms bursts",
+   "status": "likely",
+   "title": "Honda / Acura smart keys (Continental TP, T4x)"
+  },
+  {
+   "evidence": "reference",
+   "kat": "Continental-KR5V2X, Honda-KR5V2X1X",
+   "key": "honda-conti-v2x",
+   "note": "",
+   "protocols": [
+    "Continental-KR5V2X",
+    "Honda-KR5V2X1X"
+   ],
+   "signal": "313.55/314.15 or 433.66/434.18 MHz FSK, 24.5 ms burst every 100 ms",
+   "status": "read",
+   "title": "Honda remotes (Continental V1x, V2x)"
+  },
+  {
+   "evidence": "recording",
+   "kat": "Chevrolet V0, Opel V1 (120 µs)",
+   "key": "gm-flip-bosch",
+   "note": "2022 Trailblazer recording reads as Chevrolet V0; the car has three remotes listed, the read one is on-off keyed",
+   "protocols": [
+    "Chevrolet V0",
+    "Opel V1"
+   ],
+   "signal": "314.9 or 433.92 MHz, ASK and FSK both filed, ~39 ms bursts every ~100 ms",
+   "status": "read",
+   "title": "GM flip keys (Bosch D2XX)"
+  },
+  {
+   "evidence": "reference",
+   "kat": "Siemens-5WY72XX",
+   "key": "fca-siemens-315",
+   "note": "",
+   "protocols": [
+    "Siemens-5WY72XX"
+   ],
+   "signal": "315 MHz ASK, Manchester, bit 435 to 450 µs, 113 bits",
+   "status": "read",
+   "title": "Chrysler / Dodge keys (Siemens 5WY72xx)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "",
+   "key": "gm-smart",
+   "note": "",
+   "protocols": [],
+   "signal": "315 MHz ASK 2.84 or 9.6 kb/s Manchester, word every 100 ms; FSK reply to the car",
+   "status": "filed",
+   "title": "GM smart keys (Siemens 5WY8xxx)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "Siemens-5WY72XX or Fiat V2 (not checked)",
+   "key": "fca-siemens-433",
+   "note": "",
+   "protocols": [
+    "Fiat V2",
+    "Siemens-5WY72XX"
+   ],
+   "signal": "433.92 or 315 MHz ASK, Manchester, bit 430 to 440 µs, 48 to 49 ms word",
+   "status": "filed",
+   "title": "Chrysler / Dodge / Jeep FOBIK (Siemens 5WY783x), Strattec key"
+  },
+  {
+   "evidence": "signal",
+   "kat": "Ford V0 (not checked)",
+   "key": "ford-peps",
+   "note": "",
+   "protocols": [
+    "Ford V0"
+   ],
+   "signal": "315 MHz ASK, Manchester, half bit 255 µs, wake + 36 ms word",
+   "status": "filed",
+   "title": "Ford / Lincoln smart key (Continental PEPS)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "Honda V6",
+   "key": "honda-lock-1ta",
+   "note": "",
+   "protocols": [
+    "Honda V6"
+   ],
+   "signal": "313.85 MHz FSK, preamble 163.2 ms + 2 x 59.2 ms, 281.6 ms",
+   "status": "likely",
+   "title": "Honda remote (Honda Lock HLIK-1TA)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "",
+   "key": "honda-lock-6",
+   "note": "not tied to a KAT decoder yet",
+   "protocols": [],
+   "signal": "313.85 or 433.92 MHz FSK, Manchester 400 µs half bit, 0.24 to 0.34 s",
+   "status": "filed",
+   "title": "Honda remotes (Honda Lock HLIK6)"
+  },
+  {
+   "evidence": "recording",
+   "kat": "GM RFA (118 µs Manchester, 84 bits, AM)",
+   "key": "gm-omron-066",
+   "note": "the Cadillac CTS recording (FCC ID given by its owner, 2026-11-16); rolling part not understood",
+   "protocols": [
+    "GM RFA"
+   ],
+   "signal": "315 MHz on-off keyed, Manchester, half bit 117.5 µs, 135-bit word every 100 ms",
+   "status": "read",
+   "title": "GM remotes (Omron RFA D6 000066, 2006 on)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "GM RFA (118 µs Manchester, 84 bits, AM)",
+   "key": "gm-omron",
+   "note": "the GMC Acadia 2015 recording reads, its FCC ID is not known; OUC60221 files 58 µs pulses (open)",
+   "protocols": [
+    "GM RFA"
+   ],
+   "signal": "315 MHz on-off keyed, Manchester, half bit 117.5 µs, 135-bit word every 100 ms",
+   "status": "likely",
+   "title": "GM remotes (Omron RFA, 2004-2017)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "Mitsubishi V1 (200 µs)",
+   "key": "mitsu-kos",
+   "note": "",
+   "protocols": [
+    "Mitsubishi V1"
+   ],
+   "signal": "315 MHz FSK, cycle 413 µs, four bursts (181 + 3 x 55 ms)",
+   "status": "likely",
+   "title": "Mitsubishi keyless operation key (Omron G8D-644M, J166N)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "Mitsubishi V0 (250 µs)",
+   "key": "mitsu-620",
+   "note": "",
+   "protocols": [
+    "Mitsubishi V0"
+   ],
+   "signal": "313.85 MHz FSK, cycle 497 µs, 0.30 s",
+   "status": "likely",
+   "title": "Mitsubishi remote (Omron G8D-620M-A)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "Fiat V1 (not confirmed)",
+   "key": "fca-marelli",
+   "note": "",
+   "protocols": [
+    "Fiat V1"
+   ],
+   "signal": "433.92 MHz ASK, 2.145 s per press",
+   "status": "filed",
+   "title": "Fiat / Alfa Romeo remote (Magneti Marelli TRF198)"
+  },
+  {
+   "evidence": "assumed",
+   "kat": "SantaFe 13-16 (not confirmed)",
+   "key": "hk-santafe",
+   "note": "",
+   "protocols": [
+    "SantaFe 13-16"
+   ],
+   "signal": "315 or 433.92 MHz FSK, one 0.44 to 0.46 s block",
+   "status": "filed",
+   "title": "Hyundai Santa Fe / Azera / Genesis smart keys (Continental Korea, 2012-2018)"
+  },
+  {
+   "evidence": "recording",
+   "kat": "",
+   "key": "hk-conti-sy5",
+   "note": "Soul, Sorento and Carnival recordings made with FM476",
+   "protocols": [],
+   "signal": "433.92 MHz FSK ±15 kHz, 7.8 kbaud, bursts 32.8 and 21.8 ms twice",
+   "status": "blind",
+   "title": "Kia / Hyundai smart keys and remotes (Continental Korea, 2017 on)"
+  },
+  {
+   "evidence": "assumed",
+   "kat": "",
+   "key": "hk-mobis-other",
+   "note": "",
+   "protocols": [],
+   "signal": "433.92 MHz FSK, bursts 43.5 or 44.9 ms, or one 0.38 to 0.40 s block",
+   "status": "filed",
+   "title": "Kia / Hyundai smart keys and remotes (Mobis, other years)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "Kia Mobis (195 µs Manchester, 104-bit burst, FM)",
+   "key": "hk-mobis-6ac2",
+   "note": "the Niro and Sportage QL recordings read; their FCC IDs are not known",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "signal": "433.92 MHz FSK ±40 kHz, Manchester, half bit 194.8 µs, 104-bit burst (41.5 to 42 ms) three times",
+   "status": "likely",
+   "title": "Kia / Hyundai smart keys (Mobis, 2017-2019)"
+  },
+  {
+   "evidence": "recording",
+   "kat": "Kia Mobis (195 µs Manchester, 104-bit burst, FM)",
+   "key": "hk-mobis-4f34",
+   "note": "the K7 recording (FCC ID given by its owner, 2026-11-16); five buttons",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "signal": "433.92 MHz FSK ±40 kHz, Manchester, half bit 194.8 µs, 104-bit burst (41.0 ms) three times, 167.4 ms apart",
+   "status": "read",
+   "title": "Kia K7 smart key (Mobis FOB-4F34, 2019)"
+  },
+  {
+   "evidence": "signal",
+   "kat": "Kia V2 (500 µs Manchester, 53 bits)",
+   "key": "hk-mobis-3f04",
+   "note": "",
+   "protocols": [
+    "Kia V2"
+   ],
+   "signal": "315 MHz FSK, 1 kbps Manchester, 260-bit header + two 52-bit frames",
+   "status": "likely",
+   "title": "Hyundai / Kia remote (Mobis RKE-3F04)"
+  }
+ ],
+ "ids": [
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "",
+   "id": "BGBX1T478SKE125",
+   "maker": "",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2009-07-15",
+   "id": "BGBX1T478SKE12501",
+   "maker": "Mitsubishi Electric Corp",
+   "makes": [
+    "Mazda"
+   ],
+   "model_years": 35,
+   "models": "Mazda CX-7, Mazda CX-9, Mazda MX-5, Mazda Miata",
+   "product": "Vehicle Door Lock Transmitter",
+   "protocols": [],
+   "status": "filed",
+   "years": "2006-2015"
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-other",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2018-01-18",
+   "id": "CQOEG06330",
+   "maker": "DENSO Korea Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "IBU KEYLESS",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-other",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2017-03-08",
+   "id": "CQOFC00460",
+   "maker": "DENSO Korea Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Key FOB",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-other",
+   "filing_read": false,
+   "frequency": "434 MHz, 433 MHz",
+   "granted": "2014-02-19",
+   "id": "CQOFD00120",
+   "maker": "DENSO Korea Corporation",
+   "makes": [
+    "Hyundai"
+   ],
+   "model_years": 10,
+   "models": "Hyundai Elantra, Hyundai Sonata",
+   "product": "Smart Key FOB",
+   "protocols": [],
+   "status": "filed",
+   "years": "2015-2020"
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-other",
+   "filing_read": true,
+   "frequency": "434 MHz, 433 MHz",
+   "granted": "2019-09-09",
+   "id": "CQOFD00430",
+   "maker": "DENSO Korea Corporation",
+   "makes": [
+    "Kia"
+   ],
+   "model_years": 7,
+   "models": "Kia FORTE5, Kia Forte",
+   "product": "IBU FoB",
+   "protocols": [],
+   "status": "filed",
+   "years": "2018-2023"
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-112",
+   "filing_read": true,
+   "frequency": "433 MHz, 434 MHz",
+   "granted": "2019-11-07",
+   "id": "CQOFD00790",
+   "maker": "DENSO Korea Corporation",
+   "makes": [
+    "Kia"
+   ],
+   "model_years": 13,
+   "models": "Kia EV6, Kia Forte, Kia K3, Kia K5, Kia NIRO",
+   "product": "Smart Key FOB",
+   "protocols": [
+    "Kia Denso"
+   ],
+   "status": "likely",
+   "years": "2020-2025"
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-112",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2021-09-14",
+   "id": "CQOFD00840",
+   "maker": "DENSO Korea Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Key FOB",
+   "protocols": [
+    "Kia Denso"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-112",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2021-03-25",
+   "id": "CQOFD01210",
+   "maker": "DENSO Korea Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Key FOB",
+   "protocols": [
+    "Kia Denso"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-112",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2021-03-18",
+   "id": "CQOFD01240",
+   "maker": "DENSO Korea Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Key FOB",
+   "protocols": [
+    "Kia Denso"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-112",
+   "filing_read": true,
+   "frequency": "434 MHz, 433 MHz",
+   "granted": "2021-03-08",
+   "id": "CQOFD01340",
+   "maker": "DENSO Korea Corporation",
+   "makes": [
+    "Kia"
+   ],
+   "model_years": 4,
+   "models": "Kia EV6, Kia NIRO",
+   "product": "Smart Key FOB",
+   "protocols": [
+    "Kia Denso"
+   ],
+   "status": "likely",
+   "years": "2022-2025"
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-112",
+   "filing_read": false,
+   "frequency": "433 MHz",
+   "granted": "2021-09-28",
+   "id": "CQOFD01470",
+   "maker": "DENSO Korea Corporation",
+   "makes": [
+    "Hyundai"
+   ],
+   "model_years": 4,
+   "models": "Hyundai Ioniq 5",
+   "product": "Smart Key FOB",
+   "protocols": [
+    "Kia Denso"
+   ],
+   "status": "likely",
+   "years": "2021-2024"
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-112",
+   "filing_read": false,
+   "frequency": "433 MHz",
+   "granted": "2021-10-01",
+   "id": "CQOFD01480",
+   "maker": "DENSO Korea Corporation",
+   "makes": [
+    "Hyundai"
+   ],
+   "model_years": 3,
+   "models": "Hyundai Ioniq 5",
+   "product": "Smart Key FOB",
+   "protocols": [
+    "Kia Denso"
+   ],
+   "status": "likely",
+   "years": "2022-2024"
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-other",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2017-07-11",
+   "id": "CQOFG00300",
+   "maker": "DENSO Korea Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Key FOB",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-other",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2015-04-06",
+   "id": "CQOFN00040",
+   "maker": "DENSO Korea Corporation",
+   "makes": [
+    "Kia"
+   ],
+   "model_years": 15,
+   "models": "Kia Cerato, Kia Forte, Kia HYN14R",
+   "product": "Smart key FOB",
+   "protocols": [],
+   "status": "filed",
+   "years": "2014-2018"
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-other",
+   "filing_read": true,
+   "frequency": "433 MHz, 315 MHz",
+   "granted": "2015-03-09",
+   "id": "CQOFN00100",
+   "maker": "DENSO Korea Corporation",
+   "makes": [
+    "Kia"
+   ],
+   "model_years": 8,
+   "models": "Kia Forte, Kia SOUL",
+   "product": "Smart Key FOB",
+   "protocols": [],
+   "status": "filed",
+   "years": "2014-2019"
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-denso-ev6",
+   "filing_read": true,
+   "frequency": "433 MHz",
+   "granted": "2021-03-03",
+   "id": "CQOFN01050",
+   "maker": "DENSO Korea Corporation",
+   "makes": [
+    "Kia"
+   ],
+   "model_years": 3,
+   "models": "Kia EV6, Kia Forte, Kia NIRO",
+   "product": "Smart Key FOB",
+   "protocols": [
+    "Kia Denso"
+   ],
+   "status": "read",
+   "years": "2022-2024"
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-112",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2021-03-17",
+   "id": "CQOFN01060",
+   "maker": "DENSO Korea Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Key FOB",
+   "protocols": [
+    "Kia Denso"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-112",
+   "filing_read": false,
+   "frequency": "434 MHz",
+   "granted": "2021-03-25",
+   "id": "CQOFN01200",
+   "maker": "DENSO Korea Corporation",
+   "makes": [
+    "Hyundai"
+   ],
+   "model_years": 4,
+   "models": "Hyundai Ioniq, Hyundai Ioniq 5",
+   "product": "Smart Key FOB",
+   "protocols": [
+    "Kia Denso"
+   ],
+   "status": "likely",
+   "years": "2022-2024"
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-112",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2021-03-24",
+   "id": "CQOFN01230",
+   "maker": "DENSO Korea Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Key FOB",
+   "protocols": [
+    "Kia Denso"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-other",
+   "filing_read": true,
+   "frequency": "433 MHz, 434 MHz",
+   "granted": "2018-01-11",
+   "id": "CQOTD00660",
+   "maker": "DENSO Korea Corporation",
+   "makes": [
+    "Kia"
+   ],
+   "model_years": 9,
+   "models": "Kia Forte, Kia K5",
+   "product": "IBU TX",
+   "protocols": [],
+   "status": "filed",
+   "years": "2019-2024"
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-denso-other",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2024-06-14",
+   "id": "CQOTG00520",
+   "maker": "DENSO Korea Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Key FOB",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "recording of a car this ID is listed for",
+   "filing_read": false,
+   "frequency": "433 MHz, 434 MHz",
+   "granted": "2015-08-25",
+   "id": "CWTB1G077",
+   "maker": "ALPS ALPINE CO., LTD.",
+   "makes": [
+    "Subaru"
+   ],
+   "model_years": 28,
+   "models": "Subaru Ascent, Subaru Crosstrek, Subaru Forester, Subaru Impreza, Subaru Legacy, Subaru Outback, Subaru WRX, Subaru XV",
+   "product": "KEYLESS ENTRY SYSTEM (Hand Unit)",
+   "protocols": [],
+   "status": "unread",
+   "years": "2017-2023"
+  },
+  {
+   "evidence": "recording of a car this ID is listed for",
+   "filing_read": false,
+   "frequency": "433 MHz, 434 MHz",
+   "granted": "2013-03-26",
+   "id": "CWTWB1G767",
+   "maker": "ALPS ALPINE CO., LTD.",
+   "makes": [
+    "Nissan"
+   ],
+   "model_years": 11,
+   "models": "Nissan Rogue, Nissan Rogue Sport",
+   "product": "Remote Keyless Entry (Hand Unit)",
+   "protocols": [],
+   "status": "unread",
+   "years": "2014-2022"
+  },
+  {
+   "evidence": "signal",
+   "family": "ford-ask-315",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2001-09-18",
+   "id": "CWTWB1U331",
+   "maker": "ALPS ALPINE CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Automobile Security System",
+   "protocols": [
+    "Ford V0"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "ford-ask-315",
+   "filing_read": false,
+   "frequency": "315 MHz",
+   "granted": "2006-12-11",
+   "id": "CWTWB1U345",
+   "maker": "ALPS ALPINE CO., LTD.",
+   "makes": [
+    "Ford",
+    "Lincoln",
+    "Mazda",
+    "Mercury"
+   ],
+   "model_years": 154,
+   "models": "Ford E-Series, Ford EDGE, Ford Econoline, Ford Escape, Ford Excursion, Ford Expedition, Ford Explorer, Ford F-150, Ford F-250, Ford F-350, Ford Freestar, Ford Freestyle, Ford Ranger, Ford Sport Trac, Ford Windstar, Lincoln Mark LT, Lincoln Navigator, Mazda B-Series, Mazda Tribute, Mercury Monterey, ",
+   "product": "Vehicle remote keyless entry transmitter",
+   "protocols": [
+    "Ford V0"
+   ],
+   "status": "likely",
+   "years": "1998-2017"
+  },
+  {
+   "evidence": "reference",
+   "family": "honda-alps",
+   "filing_read": true,
+   "frequency": "433 MHz",
+   "granted": "2004-09-10",
+   "id": "CWTWB1U545",
+   "maker": "ALPS ALPINE CO., LTD.",
+   "makes": [
+    "Honda"
+   ],
+   "model_years": 6,
+   "models": "Honda Odyssey, Honda Pilot, Honda Ridgeline",
+   "product": "Honda remote keyless entry transmitter",
+   "protocols": [
+    "Alps-FWB1U545"
+   ],
+   "status": "read",
+   "years": "2005-2014"
+  },
+  {
+   "evidence": "signal",
+   "family": "ford-ask-315",
+   "filing_read": true,
+   "frequency": "315 MHz, 314 MHz",
+   "granted": "2009-10-23",
+   "id": "CWTWB1U793",
+   "maker": "ALPS ALPINE CO., LTD.",
+   "makes": [
+    "Ford"
+   ],
+   "model_years": 8,
+   "models": "Ford Fiesta",
+   "product": "Key Fob",
+   "protocols": [
+    "Ford V0"
+   ],
+   "status": "likely",
+   "years": "2012-2019"
+  },
+  {
+   "evidence": "reference",
+   "family": "honda-omron",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "1999-04-06",
+   "id": "E4EG8D-320A-A",
+   "maker": "Omron Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Transmitter, RF Keyless Entry System",
+   "protocols": [
+    "Honda V0",
+    "Nidec RKE"
+   ],
+   "status": "read",
+   "years": ""
+  },
+  {
+   "evidence": "reference",
+   "family": "honda-omron",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2000-11-02",
+   "id": "E4EG8D-443H-A",
+   "maker": "Omron Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Keyless Entry System Transmitter",
+   "protocols": [
+    "Honda V0",
+    "Nidec RKE"
+   ],
+   "status": "read",
+   "years": ""
+  },
+  {
+   "evidence": "reference",
+   "family": "honda-omron",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "1995-04-11",
+   "id": "E4EG8DA",
+   "maker": "Omron Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "R/C Door Lock System Transmitter",
+   "protocols": [
+    "Honda V0",
+    "Nidec RKE"
+   ],
+   "status": "read",
+   "years": ""
+  },
+  {
+   "evidence": "recording",
+   "family": "toyota-2ch-trw",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2012-02-25",
+   "id": "GQ4-52T",
+   "maker": "BCS Access Systems US LLC",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Automobile Entry/Security Transmitter",
+   "protocols": [],
+   "status": "blind",
+   "years": ""
+  },
+  {
+   "evidence": "recording",
+   "family": "fca-fobik",
+   "filing_read": true,
+   "frequency": "433 MHz, 434 MHz",
+   "granted": "2013-04-17",
+   "id": "GQ4-53T",
+   "maker": "BCS Access Systems US LLC",
+   "makes": [
+    "Jeep"
+   ],
+   "model_years": 7,
+   "models": "Jeep Cherokee",
+   "product": "Vehicle Keyfob",
+   "protocols": [
+    "Fiat V2"
+   ],
+   "status": "read",
+   "years": "2014-2020"
+  },
+  {
+   "evidence": "recording",
+   "family": "fca-fobik",
+   "filing_read": false,
+   "frequency": "433 MHz, 434 MHz",
+   "granted": "2012-07-27",
+   "id": "GQ4-54T",
+   "maker": "BCS Access Systems US LLC",
+   "makes": [
+    "Jeep"
+   ],
+   "model_years": 17,
+   "models": "Jeep Cherokee, Jeep Grand Cherokee",
+   "product": "Keyfob",
+   "protocols": [
+    "Fiat V2"
+   ],
+   "status": "read",
+   "years": "2014-2022"
+  },
+  {
+   "evidence": "recording",
+   "family": "toyota-2ch-trw",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2018-02-06",
+   "id": "GQ4-73T",
+   "maker": "BCS Access Systems US LLC",
+   "makes": [
+    "Toyota"
+   ],
+   "model_years": 6,
+   "models": "Toyota RAV4",
+   "product": "RKE Transmitter",
+   "protocols": [],
+   "status": "blind",
+   "years": "2019-2024"
+  },
+  {
+   "evidence": "reference",
+   "family": "fca-keeloq",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "1999-02-10",
+   "id": "GQ43VT17T",
+   "maker": "BCS Access Systems US LLC",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "",
+   "protocols": [
+    "Chrysler V0",
+    "Chrysler-CarRemote",
+    "Microchip-HCS361"
+   ],
+   "status": "read",
+   "years": ""
+  },
+  {
+   "evidence": "reference",
+   "family": "fca-keeloq",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "1993-12-15",
+   "id": "GQ43VT7T",
+   "maker": "BCS Access Systems US LLC",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Automotive Security System Transmitter",
+   "protocols": [
+    "Chrysler V0",
+    "Chrysler-CarRemote",
+    "Microchip-HCS361"
+   ],
+   "status": "read",
+   "years": ""
+  },
+  {
+   "evidence": "recording",
+   "family": "toyota-2ch-denso",
+   "filing_read": true,
+   "frequency": "315 MHz, 314 MHz, 314.3 MHz",
+   "granted": "2010-08-10",
+   "id": "HYQ12BDM",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Toyota"
+   ],
+   "model_years": 36,
+   "models": "Toyota Camry, Toyota Corolla, Toyota Prius, Toyota Prius C, Toyota RAV4",
+   "product": "Remote Keyless Entry System (Transmitter)",
+   "protocols": [],
+   "status": "blind",
+   "years": "2012-2019"
+  },
+  {
+   "evidence": "signal",
+   "family": "toyota-ask",
+   "filing_read": true,
+   "frequency": "315 MHz, 314 MHz",
+   "granted": "2012-02-12",
+   "id": "HYQ12BDP",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Toyota"
+   ],
+   "model_years": 27,
+   "models": "Toyota Camry, Toyota Corolla, Toyota Highlander, Toyota RAV4, Toyota Tacoma",
+   "product": "Remote Keyless Entry System (Transmitter)",
+   "protocols": [
+    "Lexus V0"
+   ],
+   "status": "likely",
+   "years": "2013-2021"
+  },
+  {
+   "evidence": "recording",
+   "family": "toyota-2ch-denso",
+   "filing_read": true,
+   "frequency": "315 MHz, 314.3 MHz",
+   "granted": "2012-01-15",
+   "id": "HYQ12BEL",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Scion",
+    "Toyota"
+   ],
+   "model_years": 20,
+   "models": "Scion FR-S, Toyota 4RUNNER, Toyota Camry, Toyota Corolla, Toyota Prius C",
+   "product": "Remote Keyless Entry System (Transmitter)",
+   "protocols": [],
+   "status": "blind",
+   "years": "2014-2021"
+  },
+  {
+   "evidence": "recording",
+   "family": "toyota-2ch-denso",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2016-04-01",
+   "id": "HYQ12BFB",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Scion",
+    "Toyota"
+   ],
+   "model_years": 18,
+   "models": "Scion IM, Toyota Camry, Toyota Corolla, Toyota Corolla iM",
+   "product": "Remote Keyless Entry System (Transmitter)",
+   "protocols": [],
+   "status": "blind",
+   "years": "2016-2023"
+  },
+  {
+   "evidence": "recording of a car this ID is listed for",
+   "expect": "blind: assumed like the Denso keys above",
+   "family": "toyota-2ch-assumed",
+   "filing_read": false,
+   "frequency": "315 MHz",
+   "granted": "2017-07-20",
+   "id": "HYQ12BFW",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Toyota"
+   ],
+   "model_years": 5,
+   "models": "Toyota RAV4",
+   "product": "Remote Keyless Entry System (Transmitter)",
+   "protocols": [],
+   "status": "unread",
+   "years": "2019-2023"
+  },
+  {
+   "evidence": "recording of a car this ID is listed for",
+   "expect": "blind: assumed like the Denso keys above",
+   "family": "toyota-2ch-assumed",
+   "filing_read": false,
+   "frequency": "314.35 MHz",
+   "granted": "2021-01-13",
+   "id": "HYQ12BGF",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Toyota"
+   ],
+   "model_years": 12,
+   "models": "Toyota Camry, Toyota Corolla",
+   "product": "Remote Keyless Entry System (Transmitter)",
+   "protocols": [],
+   "status": "unread",
+   "years": "2018-2023"
+  },
+  {
+   "evidence": "recording of a car this ID is listed for",
+   "expect": "blind: assumed like the Denso keys above",
+   "family": "toyota-2ch-assumed",
+   "filing_read": false,
+   "frequency": "314 MHz, 315 MHz",
+   "granted": "2021-01-14",
+   "id": "HYQ12BGG",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Toyota"
+   ],
+   "model_years": 3,
+   "models": "Toyota Tacoma",
+   "product": "Remote Keyless Entry System (Transmitter)",
+   "protocols": [],
+   "status": "unread",
+   "years": "2020-2022"
+  },
+  {
+   "evidence": "recording of a car this ID is listed for",
+   "filing_read": false,
+   "frequency": "434 MHz, 433 MHz",
+   "granted": "2015-06-18",
+   "id": "HYQ14AHK",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Subaru",
+    "Toyota"
+   ],
+   "model_years": 46,
+   "models": "Subaru Ascent, Subaru BRZ, Subaru Crosstrek, Subaru Forester, Subaru Impreza, Subaru Legacy, Subaru Outback, Subaru STI, Subaru WRX, Toyota GR86",
+   "product": "Electronic Key",
+   "protocols": [],
+   "status": "unread",
+   "years": "2017-2025"
+  },
+  {
+   "evidence": "recording",
+   "family": "toyota-2ch-denso",
+   "filing_read": true,
+   "frequency": "315 MHz, 314.35 MHz, 314.3 MHz",
+   "granted": "2010-06-04",
+   "id": "HYQ14FBA",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Lexus",
+    "Toyota"
+   ],
+   "model_years": 53,
+   "models": "Lexus LX570, Lexus NX200T, Lexus NX300H, Toyota Camry, Toyota Highlander, Toyota Land Cruiser, Toyota Mirai, Toyota RAV4, Toyota Sequoia",
+   "product": "Electronic Key",
+   "protocols": [],
+   "status": "blind",
+   "years": "2012-2022"
+  },
+  {
+   "evidence": "recording",
+   "family": "toyota-2ch-denso",
+   "filing_read": true,
+   "frequency": "315 MHz, 314.3 MHz",
+   "granted": "2014-09-25",
+   "id": "HYQ14FBB",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Land Rover",
+    "Lexus",
+    "Toyota"
+   ],
+   "model_years": 49,
+   "models": "Land Rover Cruiser, Lexus LX570, Lexus RX350, Lexus RX350L, Lexus RX450H, Lexus RX450HL, Toyota 4RUNNER, Toyota Land Cruiser, Toyota Sequoia, Toyota Tacoma, Toyota Tundra",
+   "product": "Electronic Key",
+   "protocols": [],
+   "status": "blind",
+   "years": "2015-2023"
+  },
+  {
+   "evidence": "recording",
+   "family": "toyota-2ch-denso",
+   "filing_read": true,
+   "frequency": "315 MHz, 314.35 MHz",
+   "granted": "2015-02-23",
+   "id": "HYQ14FBC",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Toyota"
+   ],
+   "model_years": 27,
+   "models": "Toyota Avalon, Toyota Camry, Toyota Highlander, Toyota Prius, Toyota RAV4",
+   "product": "Electronic Key",
+   "protocols": [],
+   "status": "blind",
+   "years": "2016-2023"
+  },
+  {
+   "evidence": "recording",
+   "family": "toyota-2ch-denso",
+   "filing_read": true,
+   "frequency": "315 MHz, 314.35 MHz, 314 MHz",
+   "granted": "2016-03-04",
+   "id": "HYQ14FBE",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Toyota"
+   ],
+   "model_years": 10,
+   "models": "Toyota Avalon, Toyota Prius Prime",
+   "product": "Electronic Key",
+   "protocols": [],
+   "status": "blind",
+   "years": "2017-2023"
+  },
+  {
+   "evidence": "recording",
+   "family": "toyota-2ch-denso",
+   "filing_read": true,
+   "frequency": "314.35 MHz, 312.11 MHz, 315 MHz",
+   "granted": "2019-09-02",
+   "id": "HYQ14FBX",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Subaru",
+    "Toyota"
+   ],
+   "model_years": 45,
+   "models": "Subaru Solterra, Toyota 4RUNNER, Toyota BZ4X, Toyota Crown, Toyota Grand Highlander, Toyota Highlander, Toyota Land Cruiser, Toyota Landcruiser, Toyota Mirai, Toyota Prius, Toyota Prius Prime, Toyota RAV4, Toyota RAV4 Prime, Toyota Runner, Toyota Sequoia, Toyota Sienna, Toyota Tacoma, Toyota Tundra,",
+   "product": "Electronic Key",
+   "protocols": [],
+   "status": "blind",
+   "years": "2021-2026"
+  },
+  {
+   "evidence": "recording of a car this ID is listed for",
+   "expect": "blind: assumed like the Denso keys above",
+   "family": "toyota-2ch-assumed",
+   "filing_read": false,
+   "frequency": "314 MHz, 315 MHz, 433 MHz",
+   "granted": "2019-08-08",
+   "id": "HYQ14FBZ",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Lexus"
+   ],
+   "model_years": 47,
+   "models": "Lexus ES250, Lexus ES300H, Lexus ES350, Lexus GX460, Lexus Hatchback, Lexus LC500, Lexus LC500H, Lexus LS500, Lexus LS500H, Lexus UX, Lexus UX200, Lexus UX250, Lexus UX250H",
+   "product": "Electronic Key",
+   "protocols": [],
+   "status": "unread",
+   "years": "2020-2025"
+  },
+  {
+   "evidence": "recording",
+   "family": "toyota-2ch-denso",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2019-10-24",
+   "id": "HYQ14FLA",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Toyota"
+   ],
+   "model_years": 24,
+   "models": "Toyota 4RUNNER, Toyota Camry, Toyota Highlander, Toyota Mirai, Toyota Prius, Toyota Prius Prime, Toyota RAV4",
+   "product": "Electronic Key",
+   "protocols": [],
+   "status": "blind",
+   "years": "2018-2025"
+  },
+  {
+   "evidence": "recording",
+   "family": "toyota-2ch-denso",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2019-10-28",
+   "id": "HYQ14FLB",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Lexus"
+   ],
+   "model_years": 47,
+   "models": "Lexus IS250, Lexus IS300, Lexus IS350, Lexus IS500, Lexus LX570, Lexus NX200T, Lexus NX300, Lexus NX300-NX300H, Lexus NX300H, Lexus RC300, Lexus RC350, Lexus RCF, Lexus RX, Lexus RX350, Lexus RX450, Lexus RX450H",
+   "product": "Electronic Key",
+   "protocols": [],
+   "status": "blind",
+   "years": "2020-2024"
+  },
+  {
+   "evidence": "recording (the only remote listed for that car)",
+   "filing_read": false,
+   "frequency": "433 MHz, 434 MHz, 315 MHz",
+   "granted": "2013-03-21",
+   "id": "HYQ1EA",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Chevrolet",
+    "GMC"
+   ],
+   "model_years": 30,
+   "models": "Chevrolet Silverado, Chevrolet Suburban, Chevrolet Tahoe, GMC Acadia, GMC Sierra, GMC Yukon",
+   "product": "Electronic Key",
+   "protocols": [
+    "Chevrolet V0"
+   ],
+   "status": "read",
+   "years": "2015-2023"
+  },
+  {
+   "evidence": "recording (the only remote listed for that car)",
+   "filing_read": false,
+   "frequency": "433 MHz, 315 MHz, 434 MHz",
+   "granted": "2013-11-01",
+   "id": "HYQ4EA",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Buick",
+    "Chevrolet"
+   ],
+   "model_years": 46,
+   "models": "Buick Lacrosse, Buick Regal, Chevrolet Blazer, Chevrolet Camaro, Chevrolet Cruze, Chevrolet Malibu, Chevrolet Trailblazer, Chevrolet Traverse",
+   "product": "Electronic Key",
+   "protocols": [
+    "Chevrolet V0"
+   ],
+   "status": "read",
+   "years": "2016-2023"
+  },
+  {
+   "evidence": "recording (the only remote listed for that car)",
+   "filing_read": false,
+   "frequency": "434 MHz, 433 MHz",
+   "granted": "2019-05-30",
+   "id": "HYQ4ES",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Buick",
+    "Chevrolet"
+   ],
+   "model_years": 43,
+   "models": "Buick Enclave, Buick Encore, Buick Encore GX, Buick Envista, Chevrolet BOLT, Chevrolet Blazer, Chevrolet Camaro, Chevrolet Convertible, Chevrolet Equinox, Chevrolet Malibu, Chevrolet TRAX, Chevrolet Trailblazer, Chevrolet Traverse",
+   "product": "Electronic Key",
+   "protocols": [
+    "Chevrolet V0"
+   ],
+   "status": "read",
+   "years": "2020-2026"
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-visteon",
+   "filing_read": true,
+   "frequency": "314 MHz, 315 MHz",
+   "granted": "2004-02-09",
+   "id": "KPU41788",
+   "maker": "Visteon Japan, Ltd.",
+   "makes": [
+    "Mazda"
+   ],
+   "model_years": 4,
+   "models": "Mazda RX-8",
+   "product": "Keyless Entry System",
+   "protocols": [],
+   "status": "filed",
+   "years": "2005-2008"
+  },
+  {
+   "evidence": "signal",
+   "family": "bmw-e60",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2002-10-07",
+   "id": "KR55WK47993",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Radio Frequency Transmitter type E60",
+   "protocols": [
+    "BMW/Mini V3"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "ford-eu-pase",
+   "filing_read": true,
+   "frequency": "434 MHz, 433 MHz",
+   "granted": "2009-02-20",
+   "id": "KR55WK48801",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Ford"
+   ],
+   "model_years": 23,
+   "models": "Ford C-Max, Ford Fiesta, Ford Focus",
+   "product": "Radio frequency transmitter",
+   "protocols": [
+    "Ford V1"
+   ],
+   "status": "likely",
+   "years": "2011-2019"
+  },
+  {
+   "evidence": "signal",
+   "family": "bmw-e60",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2003-12-23",
+   "id": "KR55WK49123",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "KEY 5WK4 9123",
+   "protocols": [
+    "BMW/Mini V3"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "bmw-e60",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2006-03-10",
+   "id": "KR55WK49127",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "BMW"
+   ],
+   "model_years": 6,
+   "models": "BMW Series",
+   "product": "Key",
+   "protocols": [
+    "BMW/Mini V3"
+   ],
+   "status": "likely",
+   "years": "2006-2011"
+  },
+  {
+   "evidence": "signal",
+   "family": "bmw-e60",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2006-03-10",
+   "id": "KR55WK49147",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "BMW"
+   ],
+   "model_years": 7,
+   "models": "BMW Series",
+   "product": "Key",
+   "protocols": [
+    "BMW/Mini V3"
+   ],
+   "status": "likely",
+   "years": "2004-2010"
+  },
+  {
+   "evidence": "signal",
+   "family": "honda-other",
+   "filing_read": true,
+   "frequency": "314 MHz, 313.8 MHz",
+   "granted": "2007-03-06",
+   "id": "KR55WK49308",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Honda"
+   ],
+   "model_years": 25,
+   "models": "Honda 4DR, Honda Accord, Honda Civic, Honda Pilot",
+   "product": "Transmitter",
+   "protocols": [],
+   "status": "filed",
+   "years": "2008-2015"
+  },
+  {
+   "evidence": "signal",
+   "family": "gm-global-a",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2010-09-08",
+   "id": "KR55WK50073",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Buick",
+    "Chevrolet"
+   ],
+   "model_years": 35,
+   "models": "Buick Lacrosse, Buick Regal, Buick Verano, Chevrolet Impala, Chevrolet Sonic, Chevrolet Spark, Chevrolet TRAX",
+   "product": "Keyless Car Entry",
+   "protocols": [
+    "Chevrolet V0",
+    "Opel V1"
+   ],
+   "status": "likely",
+   "years": "2010-2019"
+  },
+  {
+   "evidence": "signal",
+   "family": "gm-global-a",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2011-04-07",
+   "id": "KR55WK50077",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Remote Keyless Entry",
+   "protocols": [
+    "Chevrolet V0",
+    "Opel V1"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "gm-global-a",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2010-09-08",
+   "id": "KR55WK50079",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Keyless Car Entry",
+   "protocols": [
+    "Chevrolet V0",
+    "Opel V1"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "recording (the only remote listed for that car)",
+   "filing_read": false,
+   "frequency": "315 MHz",
+   "granted": "2014-12-05",
+   "id": "KR5FS14",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Volkswagen"
+   ],
+   "model_years": 10,
+   "models": "Volkswagen Arteon, Volkswagen Atlas, Volkswagen Jetta, Volkswagen Passat, Volkswagen Tiguan",
+   "product": "radio transmitter",
+   "protocols": [
+    "VAG Polo"
+   ],
+   "status": "read",
+   "years": "2017-2020"
+  },
+  {
+   "evidence": "recording of a car this ID is listed for",
+   "filing_read": false,
+   "frequency": "433 MHz, 434 MHz",
+   "granted": "2012-12-19",
+   "id": "KR5S180144106",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Nissan"
+   ],
+   "model_years": 18,
+   "models": "Nissan Rogue, Nissan Rogue Sport, Nissan X-Trail",
+   "product": "Transmitter",
+   "protocols": [],
+   "status": "unread",
+   "years": "2014-2021"
+  },
+  {
+   "evidence": "signal",
+   "family": "honda-conti-tp",
+   "filing_read": true,
+   "frequency": "Transmitter (Car Key) by Continental Aut",
+   "granted": "2018-03-22",
+   "id": "KR5T4X",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Honda"
+   ],
+   "model_years": 4,
+   "models": "Honda Odyssey",
+   "product": "Radio Frequency Transmitter (Car Key)",
+   "protocols": [
+    "Honda V5"
+   ],
+   "status": "likely",
+   "years": "2021-2024"
+  },
+  {
+   "evidence": "signal",
+   "family": "honda-conti-tp",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2020-06-22",
+   "id": "KR5TP-2",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Radio Frequency Transmitter (Acura MY21)",
+   "protocols": [
+    "Honda V5"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "honda-conti-tp",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2020-06-19",
+   "id": "KR5TP-4",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Radio Frequency Transmitter (Honda MY21)",
+   "protocols": [
+    "Honda V5"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "recording of a car this ID is listed for",
+   "filing_read": false,
+   "frequency": "434 MHz, 433 MHz, 433.92 MHz",
+   "granted": "2016-01-29",
+   "id": "KR5TXN1",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Infiniti",
+    "Nissan"
+   ],
+   "model_years": 30,
+   "models": "Infiniti QX50, Infiniti QX55, Infiniti QX60, Nissan Altima, Nissan Kicks, Nissan Pathfinder, Nissan Rogue, Nissan Sentra, Nissan Versa",
+   "product": "Remote control car key",
+   "protocols": [],
+   "status": "unread",
+   "years": "2018-2024"
+  },
+  {
+   "evidence": "recording of a car this ID is listed for",
+   "filing_read": false,
+   "frequency": "Transmitter by Continental Automotive Gm",
+   "granted": "2017-11-24",
+   "id": "KR5TXN3",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Nissan"
+   ],
+   "model_years": 17,
+   "models": "Nissan Kicks, Nissan Pathfinder, Nissan Rogue",
+   "product": "Radio Frequency Transmitter",
+   "protocols": [],
+   "status": "unread",
+   "years": "2018-2023"
+  },
+  {
+   "evidence": "recording of a car this ID is listed for",
+   "filing_read": false,
+   "frequency": "Transmitter by Continental Automotive Gm",
+   "granted": "2018-04-19",
+   "id": "KR5TXN4",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Infiniti",
+    "Nissan"
+   ],
+   "model_years": 27,
+   "models": "Infiniti QX60, Nissan Altima, Nissan Pathfinder, Nissan Rogue, Nissan Sentra, Nissan Versa",
+   "product": "Radio Frequency Transmitter",
+   "protocols": [],
+   "status": "unread",
+   "years": "2019-2025"
+  },
+  {
+   "evidence": "recording of a car this ID is listed for",
+   "filing_read": false,
+   "frequency": "Transmitter by Continental Automotive Gm",
+   "granted": "2018-08-07",
+   "id": "KR5TXN7",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Infiniti",
+    "Nissan"
+   ],
+   "model_years": 24,
+   "models": "Infiniti Q50, Infiniti Q60, Infiniti QX60, Nissan Frontier, Nissan Maxima, Nissan Murano, Nissan Pathfinder",
+   "product": "Radio Frequency Transmitter",
+   "protocols": [],
+   "status": "unread",
+   "years": "2016-2023"
+  },
+  {
+   "evidence": "reference",
+   "family": "honda-conti-v2x",
+   "filing_read": true,
+   "frequency": "315 MHz, 314 MHz, 313.8 MHz, 433 MHz",
+   "granted": "2013-03-12",
+   "id": "KR5V1X",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Acura",
+    "Honda"
+   ],
+   "model_years": 69,
+   "models": "Acura ILX, Acura MDX, Acura RDX, Acura RLX, Acura TLX, Honda Accord, Honda CAR, Honda Civic, Honda FIT, Honda HR-V, Honda Odyssey",
+   "product": "Transmitter",
+   "protocols": [
+    "Continental-KR5V2X",
+    "Honda-KR5V2X1X"
+   ],
+   "status": "read",
+   "years": "2014-2022"
+  },
+  {
+   "evidence": "reference",
+   "family": "honda-conti-v2x",
+   "filing_read": true,
+   "frequency": "434 MHz, 433.92 MHz, 433 MHz",
+   "granted": "2013-04-15",
+   "id": "KR5V2X",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Acura",
+    "Honda"
+   ],
+   "model_years": 34,
+   "models": "Acura ILX, Acura TLX, Honda CR-V, Honda Civic, Honda Clarity, Honda Odyssey, Honda Pilot",
+   "product": "Transmitter",
+   "protocols": [
+    "Continental-KR5V2X",
+    "Honda-KR5V2X1X"
+   ],
+   "status": "read",
+   "years": "2016-2022"
+  },
+  {
+   "evidence": "recording",
+   "family": "gm-flip-bosch",
+   "filing_read": true,
+   "frequency": "315 MHz, 433 MHz",
+   "granted": "2014-02-24",
+   "id": "LXP-T003",
+   "maker": "Robert Bosch (Australia) Pty Ltd",
+   "makes": [
+    "Chevrolet"
+   ],
+   "model_years": 19,
+   "models": "Chevrolet Cruze, Chevrolet Sonic, Chevrolet Spark, Chevrolet TRAX",
+   "product": "Vehicle remote key",
+   "protocols": [
+    "Chevrolet V0",
+    "Opel V1"
+   ],
+   "status": "read",
+   "years": "2016-2022"
+  },
+  {
+   "evidence": "recording",
+   "family": "gm-flip-bosch",
+   "filing_read": true,
+   "frequency": "433 MHz, 344 MHz, 315 MHz",
+   "granted": "2014-02-24",
+   "id": "LXP-T004",
+   "maker": "Robert Bosch (Australia) Pty Ltd",
+   "makes": [
+    "Chevrolet"
+   ],
+   "model_years": 18,
+   "models": "Chevrolet Cruze, Chevrolet Trailblazer, Chevrolet XL8",
+   "product": "Vehicle remote key",
+   "protocols": [
+    "Chevrolet V0",
+    "Opel V1"
+   ],
+   "status": "read",
+   "years": "2016-2025"
+  },
+  {
+   "evidence": "recording",
+   "family": "fca-fobik",
+   "filing_read": true,
+   "frequency": "433 MHz, 434 MHz, 315 MHz",
+   "granted": "2010-12-06",
+   "id": "M3N-40821302",
+   "maker": "AUMOVIO Systems, Inc.",
+   "makes": [
+    "Dodge",
+    "Jeep",
+    "Ram"
+   ],
+   "model_years": 57,
+   "models": "Dodge Durango, Dodge Journey, Jeep Compass, Jeep Durango, Jeep Grand Cherokee, Jeep Renegade, Ram Promaster",
+   "product": "Auto Entry/Remote Start Transmitter",
+   "protocols": [
+    "Fiat V2"
+   ],
+   "status": "read",
+   "years": "2011-2023"
+  },
+  {
+   "evidence": "recording",
+   "family": "fca-fobik",
+   "filing_read": true,
+   "frequency": "434 MHz, 433 MHz",
+   "granted": "2015-10-21",
+   "id": "M3N-97395900",
+   "maker": "AUMOVIO Systems, Inc.",
+   "makes": [
+    "Chrysler"
+   ],
+   "model_years": 17,
+   "models": "Chrysler Pacifica, Chrysler Voyager",
+   "product": "RKE Tx",
+   "protocols": [
+    "Fiat V2"
+   ],
+   "status": "read",
+   "years": "2017-2025"
+  },
+  {
+   "evidence": "recording (the only remote listed for that car)",
+   "filing_read": false,
+   "frequency": "315 MHz, 434 MHz",
+   "granted": "2015-12-08",
+   "id": "M3N-A2C931423",
+   "maker": "AUMOVIO Systems, Inc.",
+   "makes": [
+    "Ford"
+   ],
+   "model_years": 65,
+   "models": "Ford Bronco, Ford Cobra, Ford EDGE, Ford Electric, Ford Escape, Ford Expedition, Ford Explorer, Ford Mach-E, Ford Mustang, Ford ST, Ford Transit, Ford Transit Connect",
+   "product": "RKES Transmitter",
+   "protocols": [
+    "Ford V3"
+   ],
+   "status": "read",
+   "years": "2017-2026"
+  },
+  {
+   "evidence": "reference",
+   "family": "fca-siemens-315",
+   "filing_read": true,
+   "frequency": "314 MHz, 315 MHz",
+   "granted": "2004-09-01",
+   "id": "M3N5WY72XX",
+   "maker": "AUMOVIO Systems, Inc.",
+   "makes": [
+    "Chrysler",
+    "Dodge",
+    "Jeep"
+   ],
+   "model_years": 20,
+   "models": "Chrysler Pacifica, Chrysler Town & Country, Dodge Caravan, Dodge Grand Caravan, Jeep Liberty",
+   "product": "RKE Transmitter",
+   "protocols": [
+    "Siemens-5WY72XX"
+   ],
+   "status": "read",
+   "years": "2004-2008"
+  },
+  {
+   "evidence": "signal",
+   "family": "gm-smart",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2006-05-03",
+   "id": "M3N5WY7777",
+   "maker": "AUMOVIO Systems, Inc.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "RKE Transmitter",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "gm-smart",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2008-05-15",
+   "id": "M3N5WY7777A",
+   "maker": "AUMOVIO Systems, Inc.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Automobile Security Transmitter",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "fca-siemens-433",
+   "filing_read": true,
+   "frequency": "433 MHz",
+   "granted": "2008-05-20",
+   "id": "M3N5WY783X",
+   "maker": "AUMOVIO Systems, Inc.",
+   "makes": [
+    "Jeep"
+   ],
+   "model_years": 6,
+   "models": "Jeep Grand Cherokee",
+   "product": "Automotive Alarm Keyfob",
+   "protocols": [],
+   "status": "filed",
+   "years": "2008-2013"
+  },
+  {
+   "evidence": "signal",
+   "family": "ford-peps",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2010-03-19",
+   "id": "M3N5WY8609",
+   "maker": "AUMOVIO Systems, Inc.",
+   "makes": [
+    "Ford",
+    "Lincoln"
+   ],
+   "model_years": 21,
+   "models": "Ford Expedition, Ford Explorer, Ford FLEX, Ford Focus, Ford Taurus, Lincoln MKS, Lincoln MKT, Lincoln MKX, Lincoln Navigator",
+   "product": "Auto Remote Entry/Start Transmitter",
+   "protocols": [],
+   "status": "filed",
+   "years": "2012-2017"
+  },
+  {
+   "evidence": "signal",
+   "family": "honda-lock-1ta",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2006-05-09",
+   "id": "MLBHLIK-1T",
+   "maker": "Minebea AccessSolutions Inc.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "RKE Transmitter",
+   "protocols": [
+    "Honda V6"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "honda-lock-1ta",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2011-11-30",
+   "id": "MLBHLIK-1TA",
+   "maker": "Minebea AccessSolutions Inc.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Transmitter of Keyless Entry",
+   "protocols": [
+    "Honda V6"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "honda-lock-6",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2012-01-25",
+   "id": "MLBHLIK6-1R",
+   "maker": "Minebea AccessSolutions Inc.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Integrate Immobilizer System with RKE",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "honda-lock-6",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2012-02-06",
+   "id": "MLBHLIK6-1T",
+   "maker": "Minebea AccessSolutions Inc.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Transmitter of Keyless Entry",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "honda-lock-6",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2014-10-29",
+   "id": "MLBHLIK6-1TA",
+   "maker": "Minebea AccessSolutions Inc.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Keyless transmitter",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "honda-lock-6",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2013-10-28",
+   "id": "MLBHLIK6-3T",
+   "maker": "Minebea AccessSolutions Inc.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Keyless transmitter",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "honda-other",
+   "filing_read": true,
+   "frequency": "314 MHz",
+   "granted": "2010-08-04",
+   "id": "N5F-A05TAA",
+   "maker": "Valeo Comfort and Driving Assistance",
+   "makes": [
+    "Honda"
+   ],
+   "model_years": 11,
+   "models": "Honda Accord, Honda Civic",
+   "product": "Remote Keyless Entry",
+   "protocols": [],
+   "status": "filed",
+   "years": "2006-2015"
+  },
+  {
+   "evidence": "signal",
+   "family": "honda-other",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "",
+   "id": "N5F-S0084A",
+   "maker": "",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "honda-other",
+   "filing_read": false,
+   "frequency": "314 MHz, 313.8 MHz",
+   "granted": "2005-06-20",
+   "id": "N5FS0084A",
+   "maker": "Valeo Comfort and Driving Assistance",
+   "makes": [
+    "Acura",
+    "Honda"
+   ],
+   "model_years": 30,
+   "models": "Acura CSX, Acura Civic, Honda Accord, Honda Civic, Honda Odyssey",
+   "product": "Transmitter S0084A",
+   "protocols": [],
+   "status": "filed",
+   "years": "2006-2017"
+  },
+  {
+   "evidence": "recording (the only remote listed for that car)",
+   "filing_read": false,
+   "frequency": "433 MHz",
+   "granted": "2000-02-25",
+   "id": "NHVWB1U521",
+   "maker": "Tohoku Alps Co Ltd",
+   "makes": [
+    "Honda"
+   ],
+   "model_years": 17,
+   "models": "Honda Accord, Honda Civic, Honda Element, Honda FIT, Honda Pilot",
+   "product": "Remote Keyless Entry TX",
+   "protocols": [
+    "Honda V0"
+   ],
+   "status": "read",
+   "years": "2001-2008"
+  },
+  {
+   "evidence": "signal",
+   "family": "gm-global-a",
+   "filing_read": true,
+   "frequency": "315 MHz, 433 MHz",
+   "granted": "2009-12-14",
+   "id": "OHT01060512",
+   "maker": "Strattec Security Corporation",
+   "makes": [
+    "GMC"
+   ],
+   "model_years": 10,
+   "models": "GMC Terrain",
+   "product": "Keyless Entry",
+   "protocols": [
+    "Chevrolet V0",
+    "Opel V1"
+   ],
+   "status": "likely",
+   "years": "2010-2019"
+  },
+  {
+   "evidence": "signal",
+   "family": "fca-siemens-433",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2005-05-08",
+   "id": "OHT692427AA",
+   "maker": "Strattec Security Corporation",
+   "makes": [
+    "Jeep"
+   ],
+   "model_years": 15,
+   "models": "Jeep Patriot",
+   "product": "RKE Transmitter",
+   "protocols": [],
+   "status": "filed",
+   "years": "2004-2018"
+  },
+  {
+   "evidence": "recording",
+   "family": "gm-omron-066",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2006-06-23",
+   "id": "OUC6000066",
+   "maker": "NIDEC MOBILITY CORPORATION",
+   "makes": [
+    "Cadillac"
+   ],
+   "model_years": 30,
+   "models": "Cadillac CTS, Cadillac DTS, Cadillac Escalade, Cadillac SRX, Cadillac STS",
+   "product": "Remote Control Transmitter",
+   "protocols": [
+    "GM RFA"
+   ],
+   "status": "read",
+   "years": "2007-2016"
+  },
+  {
+   "evidence": "signal",
+   "family": "gm-omron",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2011-04-11",
+   "id": "OUC6000223",
+   "maker": "NIDEC MOBILITY CORPORATION",
+   "makes": [
+    "Cadillac"
+   ],
+   "model_years": 8,
+   "models": "Cadillac Escalade",
+   "product": "Remote Control Transmitter",
+   "protocols": [
+    "GM RFA"
+   ],
+   "status": "likely",
+   "years": "2007-2014"
+  },
+  {
+   "evidence": "signal",
+   "family": "gm-omron",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2010-03-24",
+   "id": "OUC60221",
+   "maker": "NIDEC MOBILITY CORPORATION",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Remote Control Transmitter",
+   "protocols": [
+    "GM RFA"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "gm-omron",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2004-12-09",
+   "id": "OUC60270",
+   "maker": "NIDEC MOBILITY CORPORATION",
+   "makes": [
+    "GMC"
+   ],
+   "model_years": 2,
+   "models": "GMC XL, GMC Yukon",
+   "product": "Remote Control Transmitter",
+   "protocols": [
+    "GM RFA"
+   ],
+   "status": "likely",
+   "years": "2007-2007"
+  },
+  {
+   "evidence": "signal",
+   "family": "mitsu-kos",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2006-07-25",
+   "id": "OUC644M-KEY-N",
+   "maker": "NIDEC MOBILITY CORPORATION",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Security Remote Control Transmitter",
+   "protocols": [
+    "Mitsubishi V1"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "ford-ask-315",
+   "filing_read": true,
+   "frequency": "315 MHz, 433 MHz",
+   "granted": "2005-10-20",
+   "id": "OUCD6000022",
+   "maker": "NIDEC MOBILITY CORPORATION",
+   "makes": [
+    "Ford"
+   ],
+   "model_years": 5,
+   "models": "Ford Transit Connect",
+   "product": "RKE Transmitter",
+   "protocols": [
+    "Ford V0"
+   ],
+   "status": "likely",
+   "years": "2015-2019"
+  },
+  {
+   "evidence": "reference",
+   "family": "honda-omron",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2001-07-16",
+   "id": "OUCG8D-344H-A",
+   "maker": "NIDEC MOBILITY CORPORATION",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Automotive Security Remote Transmitter",
+   "protocols": [
+    "Honda V0",
+    "Nidec RKE"
+   ],
+   "status": "read",
+   "years": ""
+  },
+  {
+   "evidence": "reference",
+   "family": "honda-omron",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2000-10-31",
+   "id": "OUCG8D-355H-A",
+   "maker": "NIDEC MOBILITY CORPORATION",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Keyless Entry System (Transmitter)",
+   "protocols": [
+    "Honda V0",
+    "Nidec RKE"
+   ],
+   "status": "read",
+   "years": ""
+  },
+  {
+   "evidence": "reference",
+   "family": "honda-omron",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2002-02-13",
+   "id": "OUCG8D-380H-A",
+   "maker": "NIDEC MOBILITY CORPORATION",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Automotive Security Transmitter",
+   "protocols": [
+    "Honda V0",
+    "Nidec RKE"
+   ],
+   "status": "read",
+   "years": ""
+  },
+  {
+   "evidence": "reference",
+   "family": "honda-omron",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2004-01-30",
+   "id": "OUCG8D-399H-A",
+   "maker": "NIDEC MOBILITY CORPORATION",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Keyless Entry Remote Control Transmitter",
+   "protocols": [
+    "Honda V0",
+    "Nidec RKE"
+   ],
+   "status": "read",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mitsu-620",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2004-11-03",
+   "id": "OUCG8D-620M-A",
+   "maker": "NIDEC MOBILITY CORPORATION",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Security, Remote Control Transmitter",
+   "protocols": [
+    "Mitsubishi V0"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mitsu-kos",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2015-04-21",
+   "id": "OUCJ166N",
+   "maker": "NIDEC MOBILITY CORPORATION",
+   "makes": [
+    "Mitsubishi"
+   ],
+   "model_years": 26,
+   "models": "Mitsubishi Cross, Mitsubishi Eclipse, Mitsubishi Lancer, Mitsubishi Mirage, Mitsubishi Outlander",
+   "product": "Transmitter of Keyless Entry System",
+   "protocols": [
+    "Mitsubishi V1"
+   ],
+   "status": "likely",
+   "years": "2015-2022"
+  },
+  {
+   "evidence": "signal",
+   "family": "fca-marelli",
+   "filing_read": true,
+   "frequency": "433 MHz, 434 MHz",
+   "granted": "2016-03-09",
+   "id": "RX2TRF198",
+   "maker": "Marelli Europe S.p.A.",
+   "makes": [
+    "Dodge",
+    "Fiat",
+    "Ram"
+   ],
+   "model_years": 29,
+   "models": "Dodge Promaster, Dodge Promaster City, Fiat 500L, Ram Promaster, Ram Promaster City",
+   "product": "Remote Keyless Entry System Transmitter",
+   "protocols": [],
+   "status": "filed",
+   "years": "2012-2021"
+  },
+  {
+   "evidence": "recording of a car this ID is listed for",
+   "expect": "filed: 315 or 433.92 MHz FSK, one 0.44 to 0.46 s block",
+   "family": "hk-santafe",
+   "filing_read": false,
+   "frequency": "315 MHz, 433 MHz",
+   "granted": "2012-02-16",
+   "id": "SY5DMFNA04",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [
+    "Genesis",
+    "Hyundai"
+   ],
+   "model_years": 10,
+   "models": "Genesis G80, Hyundai Santa Fe",
+   "product": "Smart Key Fob",
+   "protocols": [],
+   "status": "unread",
+   "years": "2013-2020"
+  },
+  {
+   "evidence": "recording of a car this ID is listed for",
+   "expect": "filed: 315 or 433.92 MHz FSK, one 0.44 to 0.46 s block",
+   "family": "hk-santafe",
+   "filing_read": false,
+   "frequency": "433 MHz",
+   "granted": "2013-01-22",
+   "id": "SY5DMFNA433",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [
+    "Hyundai"
+   ],
+   "model_years": 17,
+   "models": "Hyundai Azera, Hyundai Equus, Hyundai Santa Fe, Hyundai XL",
+   "product": "Smart Key Fob",
+   "protocols": [],
+   "status": "unread",
+   "years": "2013-2019"
+  },
+  {
+   "evidence": "assumed",
+   "expect": "filed: 315 or 433.92 MHz FSK, one 0.44 to 0.46 s block",
+   "family": "hk-santafe",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2008-03-07",
+   "id": "SY5HMFNA04",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [
+    "Hyundai",
+    "Kia"
+   ],
+   "model_years": 37,
+   "models": "Hyundai 2DR, Hyundai Azera, Hyundai Elantra, Hyundai Equus, Hyundai Sonata, Hyundai Tucson, Hyundai Veloster, Kia Forte, Kia Optima, Kia RIO, Kia SOUL, Kia Sorento",
+   "product": "Smart Key Fob",
+   "protocols": [],
+   "status": "filed",
+   "years": "2010-2017"
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-conti-sy5",
+   "filing_read": true,
+   "frequency": "433 MHz",
+   "granted": "2020-03-09",
+   "id": "SY5KA4FGE06",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [
+    "Kia"
+   ],
+   "model_years": 1,
+   "models": "Kia Carnival",
+   "product": "Smart Key Fob",
+   "protocols": [],
+   "status": "blind",
+   "years": "2023-2023"
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-conti-sy5",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2020-03-09",
+   "id": "SY5KA4FGE07",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Key Fob",
+   "protocols": [],
+   "status": "blind",
+   "years": ""
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-conti-sy5",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2021-05-08",
+   "id": "SY5KA4FGE09",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Key Fob",
+   "protocols": [],
+   "status": "blind",
+   "years": ""
+  },
+  {
+   "evidence": "recording of a car this ID is listed for",
+   "expect": "filed: 315 or 433.92 MHz FSK, one 0.44 to 0.46 s block",
+   "family": "hk-santafe",
+   "filing_read": true,
+   "frequency": "434 MHz, 433 MHz, 315 MHz",
+   "granted": "2013-04-18",
+   "id": "SY5MDFNA433",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [
+    "Hyundai"
+   ],
+   "model_years": 13,
+   "models": "Hyundai Elantra, Hyundai Hatchback, Hyundai Santa Fe",
+   "product": "Smart Key Fob",
+   "protocols": [],
+   "status": "unread",
+   "years": "2013-2017"
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-conti-sy5",
+   "filing_read": true,
+   "frequency": "433 MHz, 434 MHz",
+   "granted": "2020-03-09",
+   "id": "SY5MQ4AFGE04",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [
+    "Kia"
+   ],
+   "model_years": 15,
+   "models": "Kia Carnival, Kia SOUL, Kia Sorento, Kia Sorrento, Kia Sportage",
+   "product": "Smart Key Fob",
+   "protocols": [],
+   "status": "blind",
+   "years": "2020-2024"
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-conti-sy5",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2022-09-02",
+   "id": "SY5MQ4AMFGE04",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "SVI-MQ4aMFGE04",
+   "protocols": [],
+   "status": "blind",
+   "years": ""
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-conti-sy5",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2020-09-18",
+   "id": "SY5MQ4FGE03",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Key Fob",
+   "protocols": [],
+   "status": "blind",
+   "years": ""
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-conti-sy5",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2019-11-01",
+   "id": "SY5MQ4FGE04",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Key Fob",
+   "protocols": [],
+   "status": "blind",
+   "years": ""
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-conti-sy5",
+   "filing_read": true,
+   "frequency": "433 MHz, 434 MHz",
+   "granted": "2019-11-01",
+   "id": "SY5MQ4FGE05",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [
+    "Kia"
+   ],
+   "model_years": 14,
+   "models": "Kia Carnival, Kia SOUL, Kia Sorento, Kia Sportage",
+   "product": "Smart Key Fob",
+   "protocols": [],
+   "status": "blind",
+   "years": "2020-2025"
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-conti-sy5",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2020-03-09",
+   "id": "SY5MQ4FGE06",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Key Fob",
+   "protocols": [],
+   "status": "blind",
+   "years": ""
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-conti-sy5",
+   "filing_read": true,
+   "frequency": "433 MHz, 434 MHz",
+   "granted": "2019-11-01",
+   "id": "SY5MQ4FGE07",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [
+    "Kia"
+   ],
+   "model_years": 4,
+   "models": "Kia Sorento, Kia Sportage",
+   "product": "Smart Key Fob",
+   "protocols": [],
+   "status": "blind",
+   "years": "2020-2024"
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-conti-sy5",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2022-09-02",
+   "id": "SY5MQ4MFGE03",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "SVI-MQ4MFGE03",
+   "protocols": [],
+   "status": "blind",
+   "years": ""
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-conti-sy5",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2022-09-02",
+   "id": "SY5MQ4MFGE03A",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "SVI-MQ4MFGE03",
+   "protocols": [],
+   "status": "blind",
+   "years": ""
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-conti-sy5",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2019-08-09",
+   "id": "SY5SKFGE03",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Key Fob",
+   "protocols": [],
+   "status": "blind",
+   "years": ""
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-conti-sy5",
+   "filing_read": true,
+   "frequency": "433 MHz",
+   "granted": "2018-05-25",
+   "id": "SY5SKFGE04",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [
+    "Kia"
+   ],
+   "model_years": 4,
+   "models": "Kia SOUL",
+   "product": "Smart Key Fob",
+   "protocols": [],
+   "status": "blind",
+   "years": "2019-2022"
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-conti-sy5",
+   "filing_read": true,
+   "frequency": "433 MHz, 434 MHz",
+   "granted": "2022-03-21",
+   "id": "SY5SKRGE03",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [
+    "Kia"
+   ],
+   "model_years": 6,
+   "models": "Kia SOUL, Kia Sorento, Kia Sorrento, Kia Sportage",
+   "product": "Remote Keyless Entry System(Transmitter)",
+   "protocols": [],
+   "status": "blind",
+   "years": "2021-2024"
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-conti-sy5",
+   "filing_read": true,
+   "frequency": "433 MHz, 434 MHz",
+   "granted": "2022-03-21",
+   "id": "SY5SKRGE04",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [
+    "Kia"
+   ],
+   "model_years": 11,
+   "models": "Kia NIRO, Kia SOUL, Kia Sorento",
+   "product": "Remote Keyless Entry System(Transmitter)",
+   "protocols": [],
+   "status": "blind",
+   "years": "2018-2023"
+  },
+  {
+   "evidence": "assumed",
+   "expect": "filed: 433.92 MHz FSK, bursts 43.5 or 44.9 ms, or one 0.38 to 0.40 s block",
+   "family": "hk-mobis-other",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2014-05-02",
+   "id": "TQ8-FOB-4F06",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Remote Keyless Entry",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "assumed",
+   "expect": "filed: 433.92 MHz FSK, bursts 43.5 or 44.9 ms, or one 0.38 to 0.40 s block",
+   "family": "hk-mobis-other",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2015-04-23",
+   "id": "TQ8-FOB-4F08",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Remote Keyless Entry",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "assumed",
+   "expect": "filed: 433.92 MHz FSK, bursts 43.5 or 44.9 ms, or one 0.38 to 0.40 s block",
+   "family": "hk-mobis-other",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2015-09-10",
+   "id": "TQ8-FOB-4F10",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Remote Keyless Entry",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-6ac2",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2016-12-29",
+   "id": "TQ8-FOB-4F15",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-6ac2",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2017-06-13",
+   "id": "TQ8-FOB-4F16",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-6ac2",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2017-12-14",
+   "id": "TQ8-FOB-4F17",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-6ac2",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2017-03-09",
+   "id": "TQ8-FOB-4F18",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-6ac2",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2017-12-14",
+   "id": "TQ8-FOB-4F19",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-6ac2",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2018-01-09",
+   "id": "TQ8-FOB-4F20",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-6ac2",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2018-01-12",
+   "id": "TQ8-FOB-4F21",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-6ac2",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2018-07-05",
+   "id": "TQ8-FOB-4F24",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-6ac2",
+   "filing_read": true,
+   "frequency": "434 MHz",
+   "granted": "2018-11-28",
+   "id": "TQ8-FOB-4F26",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [
+    "Hyundai"
+   ],
+   "model_years": 1,
+   "models": "Hyundai Tucson",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "likely",
+   "years": "2024-2024"
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-6ac2",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2018-11-23",
+   "id": "TQ8-FOB-4F27",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-6ac2",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2018-12-03",
+   "id": "TQ8-FOB-4F28",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-6ac2",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2018-09-28",
+   "id": "TQ8-FOB-4F29",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-6ac2",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2019-02-27",
+   "id": "TQ8-FOB-4F30",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-6ac2",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2019-04-12",
+   "id": "TQ8-FOB-4F31",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-6ac2",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2019-04-12",
+   "id": "TQ8-FOB-4F32",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-6ac2",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2019-11-20",
+   "id": "TQ8-FOB-4F33",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "recording",
+   "family": "hk-mobis-4f34",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2019-04-17",
+   "id": "TQ8-FOB-4F34",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "read",
+   "years": ""
+  },
+  {
+   "evidence": "assumed",
+   "expect": "filed: 433.92 MHz FSK, bursts 43.5 or 44.9 ms, or one 0.38 to 0.40 s block",
+   "family": "hk-mobis-other",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2019-06-26",
+   "id": "TQ8-FOB-4F35",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-6ac2",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2020-03-12",
+   "id": "TQ8-FOB-4F43",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Fob Smart Key",
+   "protocols": [
+    "Kia Mobis"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-3f04",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2012-03-23",
+   "id": "TQ8-RKE-3F04",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Remote Keyless Entry",
+   "protocols": [
+    "Kia V2"
+   ],
+   "status": "likely",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "hk-mobis-3f04",
+   "filing_read": false,
+   "frequency": "315 MHz",
+   "granted": "2012-09-14",
+   "id": "TQ8-RKE-3F05",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [
+    "Kia"
+   ],
+   "model_years": 1,
+   "models": "Kia RIO",
+   "product": "Remote Keyless Entry",
+   "protocols": [
+    "Kia V2"
+   ],
+   "status": "likely",
+   "years": "2015-2015"
+  },
+  {
+   "evidence": "assumed",
+   "expect": "filed: 433.92 MHz FSK, bursts 43.5 or 44.9 ms, or one 0.38 to 0.40 s block",
+   "family": "hk-mobis-other",
+   "filing_read": true,
+   "frequency": "",
+   "granted": "2013-12-10",
+   "id": "TQ8-RKE-4F16",
+   "maker": "HYUNDAI MOBIS CO., LTD.",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "REMOTE KEYLESS ENTRY",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2018-03-23",
+   "id": "WAZSKE11401",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Keyless System LFU",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "315 MHz",
+   "granted": "2018-03-22",
+   "id": "WAZSKE11D01",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [
+    "Mazda"
+   ],
+   "model_years": 35,
+   "models": "Mazda CX-30, Mazda CX-50, Mazda CX-70, Mazda CX-90, Mazda Hatchback, Mazda MX-30, Mazda MX-5, Mazda Miata",
+   "product": "Keyless System Hand Unit",
+   "protocols": [],
+   "status": "filed",
+   "years": "2019-2026"
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2014-02-20",
+   "id": "WAZSKE13301",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Keyless System SSU",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2014-02-20",
+   "id": "WAZSKE13302",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Keyless System SSU",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2013-04-01",
+   "id": "WAZSKE13401",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Keyless System LFU",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": true,
+   "frequency": "315 MHz",
+   "granted": "2011-03-28",
+   "id": "WAZSKE13D01",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [
+    "Mazda"
+   ],
+   "model_years": 34,
+   "models": "Mazda CX-3, Mazda CX-5, Mazda CX-9, Mazda CX3, Mazda CX5, Mazda Hatchback",
+   "product": "Keyless System Hand Unit",
+   "protocols": [],
+   "status": "filed",
+   "years": "2012-2020"
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "315 MHz",
+   "granted": "2015-12-15",
+   "id": "WAZSKE13D02",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [
+    "Fiat",
+    "Mazda",
+    "Toyota"
+   ],
+   "model_years": 50,
+   "models": "Fiat Spider, Mazda CX-3, Mazda CX-5, Mazda CX-9, Mazda CX3, Mazda CX5, Toyota Yaris, Toyota Yaris iA",
+   "product": "Keyless System Hand Unit",
+   "protocols": [],
+   "status": "filed",
+   "years": "2012-2020"
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "315 MHz",
+   "granted": "2019-02-05",
+   "id": "WAZSKE13D03",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [
+    "Mazda"
+   ],
+   "model_years": 36,
+   "models": "Mazda CX-3, Mazda CX-5, Mazda CX-9, Mazda MX 5, Mazda MX-5, Mazda Miata, Mazda RF, Mazda Series",
+   "product": "Keyless System Hand Unit",
+   "protocols": [],
+   "status": "filed",
+   "years": "2019-2025"
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2014-11-05",
+   "id": "WAZSKE45A01",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System (Smart Unit)",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2014-11-05",
+   "id": "WAZSKE45A02",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System (Hand Unit)",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2020-12-25",
+   "id": "WAZSKE45A03",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System Smart Unit",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2025-06-04",
+   "id": "WAZSKE45A04",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System (Hand Unit)",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2018-05-30",
+   "id": "WAZSKE8AD01",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System (Smart Unit)",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2018-05-29",
+   "id": "WAZSKE8AD02",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System (Hand Unit)",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2022-07-20",
+   "id": "WAZSKE8AD03",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System (Smart Unit)",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2014-02-27",
+   "id": "WAZSKEA7A01",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System (Smart Unit)",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2014-02-23",
+   "id": "WAZSKEA7A02",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System (Hand Unit)",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2016-08-31",
+   "id": "WAZSKEA7A03",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System Hand Unit",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2023-08-23",
+   "id": "WAZSKEA7A04",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System Smart Unit",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2023-08-09",
+   "id": "WAZSKEA7A05",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System Hand Unit",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2016-08-23",
+   "id": "WAZSKEA7D01",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System(Smart Unit)",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2016-08-24",
+   "id": "WAZSKEA7D02",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System(Hand Unit)",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2019-07-15",
+   "id": "WAZSKEA7D03",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System (Hand Unit)",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2022-02-21",
+   "id": "WAZSKEA7D04",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System (Smart Unit)",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2023-09-26",
+   "id": "WAZSKEA7D05",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System Smart Unit",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2023-08-28",
+   "id": "WAZSKEA7D06",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System Smart Unit",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2019-05-27",
+   "id": "WAZSKESAD01",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System Smart Unit",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2019-05-23",
+   "id": "WAZSKESAD02",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System Hand Unit",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  },
+  {
+   "evidence": "signal",
+   "family": "mazda-ske",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2025-04-14",
+   "id": "WAZSKESAD03",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Smart Keyless System (Hand Unit)",
+   "protocols": [],
+   "status": "filed",
+   "years": ""
+  }
+ ],
+ "source": "FCC equipment authorizations (read through the fccid.io mirror) and US parts catalogues for the cars each remote fits"
+}

@@ -1,0 +1,487 @@
+{
+ "comment": "How the site files protocols, recordings and FCC IDs under makes. Written by hand. tokens: the parts of a protocol's make label (split at '/') that belong to the group. folders: the folders of IMPORTS. catalogue: make names as parts catalogues write them (FCC ID tables, coverage).",
+ "groups": [
+  {
+   "slug": "kia-hyundai",
+   "title": "Kia, Hyundai and Genesis",
+   "short": "Kia / Hyundai",
+   "tokens": [
+    "Kia",
+    "Hyundai",
+    "Genesis"
+   ],
+   "folders": [
+    "KIA",
+    "HYUNDAI",
+    "genesis"
+   ],
+   "catalogue": [
+    "Kia",
+    "Hyundai",
+    "Genesis"
+   ],
+   "blurb": "Hyundai Motor Group buys its remotes from several suppliers, and each supplier's signal is a protocol of its own here. Kia V0 to V7 follow ProtoPirate's numbering (pulse-width, Manchester and KeeLoq frames; V6 with AES-128). Hyundai/Kia RIO and SantaFe 13-16 are FoxFW's decoders. Kia Mobis, Kia Denso and Kia Forte were worked out from recordings of Hyundai Mobis and DENSO Korea smart keys. The Continental smart keys of 2017 on are recorded but not read: by their FCC filings their signal is faster and narrower than the presets the recordings were made with."
+  },
+  {
+   "slug": "gm",
+   "title": "General Motors: Chevrolet, Buick, GMC, Cadillac, Holden",
+   "short": "GM",
+   "tokens": [
+    "Chevrolet",
+    "Buick",
+    "GMC",
+    "Cadillac",
+    "Holden"
+   ],
+   "folders": [
+    "chevy",
+    "buick",
+    "gmc",
+    "cadillac",
+    "HOLDEN"
+   ],
+   "catalogue": [
+    "Chevrolet",
+    "Buick",
+    "GMC",
+    "Cadillac",
+    "Holden",
+    "Pontiac",
+    "Saturn",
+    "Oldsmobile",
+    "Hummer"
+   ],
+   "blurb": "Three unrelated signals. The 433 MHz key fobs send one Manchester frame of a 24-bit serial and an encrypted block (Chevrolet V0; Opel V1 reads the same outer frame). The 315 MHz remotes Omron built from 2004 send an 84-bit frame every 100 ms (GM RFA). GM is an older frame, ported from Flipper-ARF and rtl_433."
+  },
+  {
+   "slug": "ford",
+   "title": "Ford, Lincoln and Mercury",
+   "short": "Ford",
+   "tokens": [
+    "Ford",
+    "Lincoln",
+    "Mercury"
+   ],
+   "folders": [
+    "FORD"
+   ],
+   "catalogue": [
+    "Ford",
+    "Lincoln",
+    "Mercury"
+   ],
+   "blurb": "Ford V0 to V3 are Manchester frames with a rolling code: V0 on-off keyed, V1 and V2 2-FSK, V3 either. Ford V3 is the smart key sold in Europe and North America."
+  },
+  {
+   "slug": "stellantis-us",
+   "title": "Chrysler, Dodge, Jeep and Ram",
+   "short": "Chrysler / Jeep",
+   "tokens": [
+    "Chrysler",
+    "Dodge",
+    "Jeep",
+    "Ram"
+   ],
+   "folders": [
+    "chrysler",
+    "jeep"
+   ],
+   "catalogue": [
+    "Chrysler",
+    "Dodge",
+    "Jeep",
+    "Ram"
+   ],
+   "blurb": "The key fobs of the Chrysler group send the frame filed under Fiat V2, with their own layout of button flags and a 16-bit counter. Chrysler V0 is an older pulse-width remote; the Siemens and Chrysler remotes ported from rtl_433 are receive only."
+  },
+  {
+   "slug": "fiat",
+   "title": "Fiat, Alfa Romeo and Lancia",
+   "short": "Fiat / Alfa Romeo",
+   "tokens": [
+    "Fiat",
+    "Alfa Romeo",
+    "Lancia"
+   ],
+   "folders": [
+    "FIAT",
+    "ALFA ROMEO"
+   ],
+   "catalogue": [
+    "Fiat",
+    "Alfa Romeo",
+    "Lancia"
+   ],
+   "blurb": "Fiat V0 and Fiat V1 are Manchester remote keys (V1 with the HITAG2 cipher, whose key KAT can recover). MARELLI stores and replays the frames of Magneti Marelli keys, Fiat Ducato V0 is the van's HITAG2 remote, and Fiat V2 is the frame shared with the Chrysler group."
+  },
+  {
+   "slug": "honda",
+   "title": "Honda and Acura",
+   "short": "Honda / Acura",
+   "tokens": [
+    "Honda",
+    "Acura"
+   ],
+   "folders": [
+    "honda",
+    "acura"
+   ],
+   "catalogue": [
+    "Honda",
+    "Acura"
+   ],
+   "blurb": "Honda has more remote signals here than any other make: fixed-code and rolling-code frames (Honda Static, Honda V0 to V10), the Continental smart keys read with rtl_433's decoders, the Nidec remote, and an encrypted 64-bit block (Honda V6) that KAT reads from recordings."
+  },
+  {
+   "slug": "toyota",
+   "title": "Toyota and Lexus",
+   "short": "Toyota / Lexus",
+   "tokens": [
+    "Toyota",
+    "Lexus",
+    "Scion"
+   ],
+   "folders": [
+    "Toyota + Lexus"
+   ],
+   "catalogue": [
+    "Toyota",
+    "Lexus",
+    "Scion"
+   ],
+   "blurb": "Toyota and Lexus V0 are on-off-keyed rolling-code remotes. The two-channel 2-FSK keys of later cars, which by their FCC filings alternate between 312.10 and 314.35 MHz, are recorded but not read: the recordings in the library were made with presets that cannot hold their signal."
+  },
+  {
+   "slug": "vag",
+   "title": "Volkswagen group: VW, Audi, Seat, Skoda, Porsche",
+   "short": "VW group",
+   "tokens": [
+    "VW",
+    "Volkswagen",
+    "Audi",
+    "Seat",
+    "Skoda",
+    "Porsche",
+    "Lamborghini"
+   ],
+   "folders": [
+    "VAG",
+    "SKODA",
+    "Lamborghini"
+   ],
+   "catalogue": [
+    "Volkswagen",
+    "Audi",
+    "Seat",
+    "Skoda",
+    "Porsche",
+    "Lamborghini",
+    "Bentley"
+   ],
+   "blurb": "VAG covers the group's remote keys with the AUT64 and XTEA ciphers. VAG Polo is the newer frame of the 2017 Polo and the 2020 Atlas; Audi V3 and Porsche Cayenne are frames of their own."
+  },
+  {
+   "slug": "bmw",
+   "title": "BMW and Mini",
+   "short": "BMW / Mini",
+   "tokens": [
+    "BMW",
+    "Mini"
+   ],
+   "folders": [
+    "BMW"
+   ],
+   "catalogue": [
+    "BMW",
+    "Mini"
+   ],
+   "blurb": "BMW, BMW V2 and BMW/Mini V3 are Manchester rolling-code frames; BMW CAS3 is a pulse-width frame with AES-128 that KAT replays."
+  },
+  {
+   "slug": "mercedes",
+   "title": "Mercedes-Benz",
+   "short": "Mercedes-Benz",
+   "tokens": [
+    "Mercedes-Benz",
+    "Mercedes"
+   ],
+   "folders": [
+    "mercedes"
+   ],
+   "catalogue": [
+    "Mercedes-Benz",
+    "Mercedes"
+   ],
+   "blurb": "Two 2-FSK Manchester frames with a rolling code; KAT replays a captured frame."
+  },
+  {
+   "slug": "mazda",
+   "title": "Mazda",
+   "short": "Mazda",
+   "tokens": [
+    "Mazda"
+   ],
+   "folders": [
+    "Mazda"
+   ],
+   "catalogue": [
+    "Mazda"
+   ],
+   "blurb": "Mazda V0, V1 and V2 and the Siemens remote. A fob sends each frame twice and a new frame every 100 ms while a button is held; KAT lists every one."
+  },
+  {
+   "slug": "mitsubishi",
+   "title": "Mitsubishi",
+   "short": "Mitsubishi",
+   "tokens": [
+    "Mitsubishi"
+   ],
+   "folders": [
+    "MITSUBISHI"
+   ],
+   "catalogue": [
+    "Mitsubishi"
+   ],
+   "blurb": "Mitsubishi V0 shares Kia V0's frame; Mitsubishi V1 is a Manchester remote KAT reads for any fob and replays."
+  },
+  {
+   "slug": "nissan",
+   "title": "Nissan, Infiniti and Datsun",
+   "short": "Nissan",
+   "tokens": [
+    "Nissan",
+    "Infiniti",
+    "Datsun",
+    "Lada"
+   ],
+   "folders": [
+    "nissan",
+    "Skyline"
+   ],
+   "catalogue": [
+    "Nissan",
+    "Infiniti",
+    "Datsun"
+   ],
+   "blurb": "Nissan V0 is FoxFW's decoder of a Manchester rolling-code frame (decode only); Datsun Lada is a HITAG2 remote."
+  },
+  {
+   "slug": "subaru",
+   "title": "Subaru",
+   "short": "Subaru",
+   "tokens": [
+    "Subaru"
+   ],
+   "folders": [
+    "SUBARU"
+   ],
+   "catalogue": [
+    "Subaru"
+   ],
+   "blurb": "A pulse-width frame with a rolling counter, which KAT decodes and sends. The recordings are of an Impreza, a 2012 Forester and a 2018 WRX."
+  },
+  {
+   "slug": "suzuki",
+   "title": "Suzuki",
+   "short": "Suzuki",
+   "tokens": [
+    "Suzuki"
+   ],
+   "folders": [
+    "SUZUKI"
+   ],
+   "catalogue": [
+    "Suzuki"
+   ],
+   "blurb": "Suzuki V0 is one of the four frame types of Kia V0's pulse-width format."
+  },
+  {
+   "slug": "opel",
+   "title": "Opel and Vauxhall",
+   "short": "Opel",
+   "tokens": [
+    "Opel",
+    "Vauxhall"
+   ],
+   "folders": [
+    "OPEL"
+   ],
+   "catalogue": [
+    "Opel",
+    "Vauxhall"
+   ],
+   "blurb": "Opel V1 is a Bosch remote with an XTEA-encrypted block; Opel V0 and Opel-Mokka are further frames. General Motors' 433 MHz fobs send Opel V1's outer frame with another cipher (Chevrolet V0)."
+  },
+  {
+   "slug": "psa",
+   "title": "Peugeot and Citroën",
+   "short": "Peugeot / Citroën",
+   "tokens": [
+    "Peugeot",
+    "Citroen",
+    "Citroën",
+    "DS"
+   ],
+   "folders": [
+    "GROUPE PSA"
+   ],
+   "catalogue": [
+    "Peugeot",
+    "Citroen"
+   ],
+   "blurb": "One protocol, PSA: a Manchester frame encrypted with TEA, whose key KAT can recover."
+  },
+  {
+   "slug": "renault",
+   "title": "Renault and Dacia",
+   "short": "Renault",
+   "tokens": [
+    "Renault",
+    "Dacia"
+   ],
+   "folders": [
+    "RENAULT"
+   ],
+   "catalogue": [
+    "Renault",
+    "Dacia"
+   ],
+   "blurb": "Renault V0 to V4 are the frames of the card and key remotes; Renault V1 uses the HITAG2 cipher, whose key KAT can recover."
+  },
+  {
+   "slug": "isuzu",
+   "title": "Isuzu",
+   "short": "Isuzu",
+   "tokens": [
+    "Isuzu"
+   ],
+   "folders": [
+    "Isuzu"
+   ],
+   "catalogue": [
+    "Isuzu"
+   ],
+   "blurb": "Two remotes read from recordings: a rolling-code frame in differential Manchester and the fixed code of an FTS truck's remote."
+  },
+  {
+   "slug": "ldv",
+   "title": "LDV and Maxus",
+   "short": "LDV",
+   "tokens": [
+    "LDV",
+    "Maxus"
+   ],
+   "folders": [
+    "LDV"
+   ],
+   "catalogue": [
+    "LDV"
+   ],
+   "blurb": "The T80 pickup's remote: LDV V0, a 128-bit Manchester frame."
+  },
+  {
+   "slug": "land-rover",
+   "title": "Land Rover and Jaguar",
+   "short": "Land Rover",
+   "tokens": [
+    "Land Rover",
+    "Jaguar"
+   ],
+   "folders": [],
+   "catalogue": [
+    "Land Rover",
+    "Jaguar"
+   ],
+   "blurb": "Land Rover RKE is a port of Flipper-ARF's decoder that KAT keeps but does not register. The remote once named Land Rover V0 is Honda V2."
+  },
+  {
+   "slug": "tesla",
+   "title": "Tesla",
+   "short": "Tesla",
+   "tokens": [
+    "Tesla"
+   ],
+   "folders": [],
+   "catalogue": [
+    "Tesla"
+   ],
+   "blurb": "Not a key: the fixed signal a charge handle sends to open the charge port."
+  },
+  {
+   "slug": "volvo",
+   "title": "Volvo",
+   "short": "Volvo",
+   "tokens": [
+    "Volvo"
+   ],
+   "folders": [
+    "VOLVO"
+   ],
+   "catalogue": [
+    "Volvo"
+   ],
+   "blurb": "One recording, of a 1999 S40, which no decoder reads."
+  },
+  {
+   "slug": "byd",
+   "title": "BYD",
+   "short": "BYD",
+   "tokens": [
+    "BYD"
+   ],
+   "folders": [
+    "BYD"
+   ],
+   "catalogue": [
+    "BYD"
+   ],
+   "blurb": "Recordings of an Atto 3 and a Seal; no decoder reads them yet."
+  },
+  {
+   "slug": "alarms",
+   "title": "Aftermarket alarms and remote starters",
+   "short": "Alarms",
+   "tokens": [
+    "Astroflex",
+    "Audiovox",
+    "Code Alarm",
+    "Compustar",
+    "Scher-Khan",
+    "Sheriff",
+    "Star Line"
+   ],
+   "folders": [],
+   "catalogue": [],
+   "blurb": "Remotes of alarm and remote-start systems fitted after the car is built: Star Line, Scher-Khan and Sheriff, and the Astroflex, Audiovox, Code Alarm and Compustar remotes ported from rtl_433 (receive only)."
+  },
+  {
+   "slug": "chips",
+   "title": "Encoder chips: KeeLoq, HITAG2 and others",
+   "short": "Encoder chips",
+   "tokens": [
+    "KeeLoq",
+    "Hitag2 RKE",
+    "MIC"
+   ],
+   "folders": [],
+   "catalogue": [],
+   "blurb": "Protocols named after the encoder chip in the remote, which many makes use: Microchip's KeeLoq (with the HCS361 and HCS362 encoders ported from rtl_433), NXP's HITAG2 remote keyless entry frame, and the MIC6SC2 encoder."
+  }
+ ],
+ "captures_only": [
+  {
+   "slug": "gates",
+   "title": "Gate, garage and home remotes",
+   "folders": [
+    "GATES"
+   ]
+  },
+  {
+   "slug": "misc",
+   "title": "Mixed and synthetic files",
+   "folders": [
+    "MISC"
+   ]
+  }
+ ]
+}

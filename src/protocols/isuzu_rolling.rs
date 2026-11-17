@@ -53,7 +53,7 @@ pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     decoder: NAME,
     aliases: &[],
     name_prefix: None,
-    encoding: Coding::Manchester,
+    encoding: Coding::DifferentialManchester,
     rf: Rf::AM,
     encryption: "Rolling code (cipher unknown)",
     make: "Isuzu",

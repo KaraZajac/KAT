@@ -1,0 +1,1452 @@
+{
+ "by_make": [
+  {
+   "all_remotes_read": 26,
+   "filing_only": 8,
+   "likely_read": 157,
+   "make": "Ford",
+   "maybe_read": 0,
+   "model_years": 435,
+   "nothing": 205,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 65
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 8,
+   "likely_read": 27,
+   "make": "Toyota",
+   "maybe_read": 0,
+   "model_years": 381,
+   "nothing": 200,
+   "recorded_no_data": 142,
+   "recorded_unread": 4,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Nissan",
+   "maybe_read": 0,
+   "model_years": 377,
+   "nothing": 309,
+   "recorded_no_data": 0,
+   "recorded_unread": 68,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Lexus",
+   "maybe_read": 0,
+   "model_years": 237,
+   "nothing": 113,
+   "recorded_no_data": 77,
+   "recorded_unread": 47,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 56,
+   "filing_only": 0,
+   "likely_read": 11,
+   "make": "Chevrolet",
+   "maybe_read": 0,
+   "model_years": 230,
+   "nothing": 125,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 94
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 146,
+   "likely_read": 16,
+   "make": "Mazda",
+   "maybe_read": 0,
+   "model_years": 196,
+   "nothing": 34,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 64,
+   "filing_only": 27,
+   "likely_read": 4,
+   "make": "Honda",
+   "maybe_read": 0,
+   "model_years": 170,
+   "nothing": 57,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 82
+  },
+  {
+   "all_remotes_read": 1,
+   "filing_only": 32,
+   "likely_read": 12,
+   "make": "Kia",
+   "maybe_read": 0,
+   "model_years": 158,
+   "nothing": 83,
+   "recorded_no_data": 28,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 3
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Subaru",
+   "maybe_read": 0,
+   "model_years": 153,
+   "nothing": 107,
+   "recorded_no_data": 1,
+   "recorded_unread": 45,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 29,
+   "likely_read": 6,
+   "make": "Hyundai",
+   "maybe_read": 0,
+   "model_years": 153,
+   "nothing": 90,
+   "recorded_no_data": 0,
+   "recorded_unread": 28,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Infiniti",
+   "maybe_read": 0,
+   "model_years": 125,
+   "nothing": 106,
+   "recorded_no_data": 0,
+   "recorded_unread": 19,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 19,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Cadillac",
+   "maybe_read": 0,
+   "model_years": 124,
+   "nothing": 94,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 30
+  },
+  {
+   "all_remotes_read": 28,
+   "filing_only": 11,
+   "likely_read": 0,
+   "make": "Dodge",
+   "maybe_read": 0,
+   "model_years": 121,
+   "nothing": 81,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 29
+  },
+  {
+   "all_remotes_read": 39,
+   "filing_only": 21,
+   "likely_read": 0,
+   "make": "Jeep",
+   "maybe_read": 0,
+   "model_years": 112,
+   "nothing": 45,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 46
+  },
+  {
+   "all_remotes_read": 10,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Volkswagen",
+   "maybe_read": 0,
+   "model_years": 86,
+   "nothing": 76,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 10
+  },
+  {
+   "all_remotes_read": 4,
+   "filing_only": 0,
+   "likely_read": 12,
+   "make": "GMC",
+   "maybe_read": 0,
+   "model_years": 83,
+   "nothing": 58,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 13
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Volvo",
+   "maybe_read": 0,
+   "model_years": 82,
+   "nothing": 82,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 10,
+   "likely_read": 0,
+   "make": "Acura",
+   "maybe_read": 0,
+   "model_years": 81,
+   "nothing": 39,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 32
+  },
+  {
+   "all_remotes_read": 21,
+   "filing_only": 0,
+   "likely_read": 20,
+   "make": "Buick",
+   "maybe_read": 0,
+   "model_years": 74,
+   "nothing": 33,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 21
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 11,
+   "likely_read": 3,
+   "make": "Lincoln",
+   "maybe_read": 0,
+   "model_years": 63,
+   "nothing": 49,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Porsche",
+   "maybe_read": 0,
+   "model_years": 60,
+   "nothing": 60,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Land Rover",
+   "maybe_read": 0,
+   "model_years": 57,
+   "nothing": 55,
+   "recorded_no_data": 2,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 26,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Chrysler",
+   "maybe_read": 0,
+   "model_years": 55,
+   "nothing": 29,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 26
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Scion",
+   "maybe_read": 0,
+   "model_years": 45,
+   "nothing": 35,
+   "recorded_no_data": 10,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 26,
+   "make": "Mitsubishi",
+   "maybe_read": 0,
+   "model_years": 41,
+   "nothing": 15,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Audi",
+   "maybe_read": 0,
+   "model_years": 40,
+   "nothing": 40,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Jaguar",
+   "maybe_read": 0,
+   "model_years": 38,
+   "nothing": 38,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 8,
+   "make": "BMW",
+   "maybe_read": 0,
+   "model_years": 38,
+   "nothing": 30,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Pontiac",
+   "maybe_read": 0,
+   "model_years": 36,
+   "nothing": 36,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Suzuki",
+   "maybe_read": 0,
+   "model_years": 33,
+   "nothing": 33,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Oldsmobile",
+   "maybe_read": 0,
+   "model_years": 30,
+   "nothing": 30,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 2,
+   "filing_only": 12,
+   "likely_read": 0,
+   "make": "Ram",
+   "maybe_read": 0,
+   "model_years": 29,
+   "nothing": 15,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 2
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 5,
+   "make": "Mercury",
+   "maybe_read": 0,
+   "model_years": 24,
+   "nothing": 19,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Maserati",
+   "maybe_read": 0,
+   "model_years": 21,
+   "nothing": 21,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Alfa Romeo",
+   "maybe_read": 0,
+   "model_years": 20,
+   "nothing": 20,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Mini",
+   "maybe_read": 0,
+   "model_years": 20,
+   "nothing": 20,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Saturn",
+   "maybe_read": 0,
+   "model_years": 16,
+   "nothing": 16,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 7,
+   "likely_read": 0,
+   "make": "Fiat",
+   "maybe_read": 0,
+   "model_years": 7,
+   "nothing": 0,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Genesis",
+   "maybe_read": 0,
+   "model_years": 6,
+   "nothing": 2,
+   "recorded_no_data": 0,
+   "recorded_unread": 4,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Isuzu",
+   "maybe_read": 0,
+   "model_years": 5,
+   "nothing": 5,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Hummer",
+   "maybe_read": 0,
+   "model_years": 5,
+   "nothing": 5,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  }
+ ],
+ "catalogue": {
+  "fcc_ids_known": 1300,
+  "fcc_ids_with_cars": 285,
+  "filings_read": 90,
+  "model_years": 4067
+ },
+ "gaps": [
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "CWTWB1U345",
+   "keying": "",
+   "maker": "ALPS ALPINE CO., LTD.",
+   "makes": [
+    "Ford",
+    "Lincoln",
+    "Mazda",
+    "Mercury"
+   ],
+   "model_years": 154,
+   "models": "Ford E-Series, Ford EDGE, Ford Econoline, Ford Escape, Ford Excursion, Ford Expedition, Ford Explorer, Ford F-150, Ford F-250, Ford F-350, Ford Freestar, Ford F",
+   "status": "likely",
+   "years": "1998-2017"
+  },
+  {
+   "expect": "",
+   "frequency": "",
+   "id": "CWTWB1U733",
+   "keying": "ASK",
+   "maker": "ALPS ALPINE CO., LTD.",
+   "makes": [
+    "Nissan"
+   ],
+   "model_years": 112,
+   "models": "Nissan Armada, Nissan Frontier, Nissan Murano, Nissan NV1500, Nissan NV2500, Nissan NV3500, Nissan Pathfinder, Nissan Quest, Nissan Sentra, Nissan Titan, Nissan",
+   "status": "none",
+   "years": "2001-2018"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "HYQ14AEM",
+   "keying": "ASK",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Land Rover",
+    "Lexus",
+    "Toyota"
+   ],
+   "model_years": 72,
+   "models": "Land Rover Cruiser, Lexus Convertible, Lexus ES350, Lexus GS350, Lexus GS450H, Lexus GS460, Lexus IS, Lexus IS250, Lexus IS350, Lexus ISC, Lexus ISF, Lexus LX47",
+   "status": "none",
+   "years": "2008-2016"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "CWTWB1U415",
+   "keying": "unknown",
+   "maker": "ALPS ALPINE CO., LTD.",
+   "makes": [
+    "Nissan",
+    "Suzuki"
+   ],
+   "model_years": 69,
+   "models": "Nissan Frontier, Nissan Hatchback, Nissan NV, Nissan NV200, Nissan Pathfinder, Nissan Titan, Nissan Versa, Nissan Xterra, Suzuki Equator",
+   "status": "none",
+   "years": "2005-2021"
+  },
+  {
+   "expect": "",
+   "frequency": "433 MHz, 434 MHz",
+   "id": "KR55WK49264",
+   "keying": "FSK",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Volvo"
+   ],
+   "model_years": 69,
+   "models": "Volvo S60, Volvo S80, Volvo SLOT, Volvo V40, Volvo V60, Volvo V70, Volvo XC60, Volvo XC70",
+   "status": "none",
+   "years": "2007-2018"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "KOBUT1BT",
+   "keying": "unknown",
+   "maker": "Lear Corporation",
+   "makes": [
+    "Buick",
+    "Cadillac",
+    "Chevrolet",
+    "GMC",
+    "Oldsmobile",
+    "Pontiac"
+   ],
+   "model_years": 67,
+   "models": "Buick Lesabre, Buick Park Avenue, Cadillac Deville, Chevrolet Astro, Chevrolet Blazer, Chevrolet Impala, Chevrolet Malibu, Chevrolet Monte Carlo, Chevrolet S10,",
+   "status": "none",
+   "years": "1996-2005"
+  },
+  {
+   "expect": "",
+   "frequency": "434 MHz, 433 MHz",
+   "id": "KR55WK49266",
+   "keying": "FSK",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Volvo"
+   ],
+   "model_years": 67,
+   "models": "Volvo S60, Volvo S80, Volvo SLOT, Volvo V40, Volvo V60, Volvo V70, Volvo XC60, Volvo XC70",
+   "status": "none",
+   "years": "2007-2018"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "N5F-A08TDA",
+   "keying": "FSK",
+   "maker": "Valeo Comfort and Driving Assistance",
+   "makes": [
+    "Ford"
+   ],
+   "model_years": 65,
+   "models": "Ford Bronco, Ford F-150, Ford F-250, Ford F-350, Ford F-450, Ford F-550, Ford F-Series, Ford F150, Ford Ranger, Ford Raptor",
+   "status": "none",
+   "years": "2015-2023"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "LHJ011",
+   "keying": "unknown",
+   "maker": "AUMOVIO Systems, Inc.",
+   "makes": [
+    "Cadillac",
+    "Chevrolet",
+    "GMC",
+    "Hummer",
+    "Pontiac",
+    "Saturn"
+   ],
+   "model_years": 64,
+   "models": "Cadillac ESV, Cadillac EXT, Cadillac Escalade, Chevrolet Avalanche, Chevrolet Classic, Chevrolet Equinox, Chevrolet HD, Chevrolet Silverado, Chevrolet Silverado",
+   "status": "none",
+   "years": "2003-2007"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "HYQ12BAN",
+   "keying": "ASK",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Scion",
+    "Toyota"
+   ],
+   "model_years": 61,
+   "models": "Scion XB, Toyota 4RUNNER, Toyota Avalon, Toyota Celica, Toyota Cruiser, Toyota ECHO, Toyota FJ, Toyota Highlander, Toyota Prius, Toyota RAV4, Toyota Sequoia, To",
+   "status": "none",
+   "years": "1999-2009"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz, 314 MHz",
+   "id": "OHT692713AA",
+   "keying": "both",
+   "maker": "Strattec Security Corporation",
+   "makes": [
+    "Dodge",
+    "Jeep"
+   ],
+   "model_years": 59,
+   "models": "Dodge Nitro, Jeep Commander, Jeep Compass, Jeep Grand Cherokee, Jeep JR, Jeep Liberty, Jeep Patriot, Jeep Wrangler",
+   "status": "none",
+   "years": "2005-2018"
+  },
+  {
+   "expect": "",
+   "frequency": "",
+   "id": "M3N-A2C931426",
+   "keying": "FSK",
+   "maker": "AUMOVIO Systems, Inc.",
+   "makes": [
+    "Ford",
+    "Lincoln"
+   ],
+   "model_years": 58,
+   "models": "Ford Bronco, Ford Cobra, Ford EDGE, Ford Expedition, Ford Explorer, Ford F-150, Ford F-Series, Ford Maverick, Ford Mustang, Ford Ranger, Ford Raptor, Ford ST, L",
+   "status": "none",
+   "years": "2016-2024"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "KOBJTF10A",
+   "keying": "both",
+   "maker": "Lear Corporation",
+   "makes": [
+    "Jaguar",
+    "Land Rover"
+   ],
+   "model_years": 55,
+   "models": "Jaguar Range Rover, Jaguar Rover, Jaguar XJ, Land Rover Discovery, Land Rover LR2, Land Rover LR4, Land Rover Range Rover, Land Rover Rover",
+   "status": "none",
+   "years": "2010-2020"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz, 314.35 MHz, 314.3 MHz",
+   "id": "HYQ14FBA",
+   "keying": "FSK",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Lexus",
+    "Toyota"
+   ],
+   "model_years": 53,
+   "models": "Lexus LX570, Lexus NX200T, Lexus NX300H, Toyota Camry, Toyota Highlander, Toyota Land Cruiser, Toyota Mirai, Toyota RAV4, Toyota Sequoia",
+   "status": "blind",
+   "years": "2012-2022"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "NBG010180T",
+   "keying": "unknown",
+   "maker": "HELLA GmbH & Co. KGaA",
+   "makes": [
+    "Volkswagen"
+   ],
+   "model_years": 53,
+   "models": "Volkswagen Beetle, Volkswagen CC, Volkswagen EOS, Volkswagen GOLF, Volkswagen GTI, Volkswagen Jetta, Volkswagen Passat, Volkswagen Tiguan, Volkswagen Touareg",
+   "status": "none",
+   "years": "2011-2016"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "KOBLEAR1XT",
+   "keying": "ASK",
+   "maker": "Lear Corporation",
+   "makes": [
+    "Buick",
+    "Cadillac",
+    "Chevrolet",
+    "GMC",
+    "Oldsmobile",
+    "Pontiac"
+   ],
+   "model_years": 52,
+   "models": "Buick Lesabre, Cadillac Deville, Chevrolet Astro, Chevrolet Blazer, Chevrolet Classic, Chevrolet Corvette, Chevrolet Express, Chevrolet Impala, Chevrolet Malibu",
+   "status": "none",
+   "years": "2001-2007"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "WAZSKE13D02",
+   "keying": "FSK",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [
+    "Fiat",
+    "Mazda",
+    "Toyota"
+   ],
+   "model_years": 50,
+   "models": "Fiat Spider, Mazda CX-3, Mazda CX-5, Mazda CX-9, Mazda CX3, Mazda CX5, Toyota Yaris, Toyota Yaris iA",
+   "status": "filed",
+   "years": "2012-2020"
+  },
+  {
+   "expect": "",
+   "frequency": "433 MHz, 434 MHz, 315 MHz",
+   "id": "CWTWBU766",
+   "keying": "ASK",
+   "maker": "ALPS ALPINE CO., LTD.",
+   "makes": [
+    "Subaru"
+   ],
+   "model_years": 49,
+   "models": "Subaru Crosstrek, Subaru Forester, Subaru Impreza, Subaru Legacy, Subaru Outback, Subaru Tribeca, Subaru WRX, Subaru XV",
+   "status": "none",
+   "years": "2008-2019"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz, 314.3 MHz",
+   "id": "HYQ14FBB",
+   "keying": "FSK",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Land Rover",
+    "Lexus",
+    "Toyota"
+   ],
+   "model_years": 49,
+   "models": "Land Rover Cruiser, Lexus LX570, Lexus RX350, Lexus RX350L, Lexus RX450H, Lexus RX450HL, Toyota 4RUNNER, Toyota Land Cruiser, Toyota Sequoia, Toyota Tacoma, Toy",
+   "status": "blind",
+   "years": "2015-2023"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "KOBDT04A",
+   "keying": "unknown",
+   "maker": "Lear Corporation",
+   "makes": [
+    "Chrysler",
+    "Dodge",
+    "Jeep",
+    "Mitsubishi"
+   ],
+   "model_years": 49,
+   "models": "Chrysler Aspen, Chrysler Cruiser, Dodge Avenger, Dodge Caliber, Dodge Charger, Dodge Dakota, Dodge Durango, Dodge Magnum, Dodge Nitro, Jeep Commander, Jeep Gran",
+   "status": "none",
+   "years": "2004-2014"
+  },
+  {
+   "expect": "blind: assumed like the Denso keys above",
+   "frequency": "314 MHz, 315 MHz, 433 MHz",
+   "id": "HYQ14FBZ",
+   "keying": "both",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Lexus"
+   ],
+   "model_years": 47,
+   "models": "Lexus ES250, Lexus ES300H, Lexus ES350, Lexus GX460, Lexus Hatchback, Lexus LC500, Lexus LC500H, Lexus LS500, Lexus LS500H, Lexus UX, Lexus UX200, Lexus UX250, ",
+   "status": "unread",
+   "years": "2020-2025"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "HYQ14FLB",
+   "keying": "FSK",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Lexus"
+   ],
+   "model_years": 47,
+   "models": "Lexus IS250, Lexus IS300, Lexus IS350, Lexus IS500, Lexus LX570, Lexus NX200T, Lexus NX300, Lexus NX300-NX300H, Lexus NX300H, Lexus RC300, Lexus RC350, Lexus RC",
+   "status": "blind",
+   "years": "2020-2024"
+  },
+  {
+   "expect": "",
+   "frequency": "434 MHz, 433 MHz",
+   "id": "HYQ14AHK",
+   "keying": "both",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Subaru",
+    "Toyota"
+   ],
+   "model_years": 46,
+   "models": "Subaru Ascent, Subaru BRZ, Subaru Crosstrek, Subaru Forester, Subaru Impreza, Subaru Legacy, Subaru Outback, Subaru STI, Subaru WRX, Toyota GR86",
+   "status": "unread",
+   "years": "2017-2025"
+  },
+  {
+   "expect": "",
+   "frequency": "434 MHz, 433 MHz, 433.92 MHz, 315 MHz",
+   "id": "M3N-A3C108397",
+   "keying": "FSK",
+   "maker": "AUMOVIO Systems, Inc.",
+   "makes": [
+    "Ford",
+    "Lincoln"
+   ],
+   "model_years": 46,
+   "models": "Ford Expedition, Ford Explorer, Ford F-150, Ford F-250, Ford F-350, Ford F-450, Ford F-550, Ford F-600, Ford F-650, Ford F-750, Ford F-Series, Ford Maverick, Fo",
+   "status": "none",
+   "years": "2023-2026"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "NBG010206T",
+   "keying": "unknown",
+   "maker": "HELLA GmbH & Co. KGaA",
+   "makes": [
+    "Volkswagen"
+   ],
+   "model_years": 46,
+   "models": "Volkswagen Beetle, Volkswagen CC, Volkswagen EOS, Volkswagen GOLF, Volkswagen GTI, Volkswagen Jetta, Volkswagen Passat, Volkswagen Tiguan, Volkswagen Touareg",
+   "status": "none",
+   "years": "2010-2016"
+  },
+  {
+   "expect": "",
+   "frequency": "314.35 MHz, 312.11 MHz, 315 MHz",
+   "id": "HYQ14FBX",
+   "keying": "FSK",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Subaru",
+    "Toyota"
+   ],
+   "model_years": 45,
+   "models": "Subaru Solterra, Toyota 4RUNNER, Toyota BZ4X, Toyota Crown, Toyota Grand Highlander, Toyota Highlander, Toyota Land Cruiser, Toyota Landcruiser, Toyota Mirai, T",
+   "status": "blind",
+   "years": "2021-2026"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "CWTWB1U722",
+   "keying": "unknown",
+   "maker": "ALPS ALPINE CO., LTD.",
+   "makes": [
+    "Ford",
+    "Lincoln",
+    "Mercury"
+   ],
+   "model_years": 44,
+   "models": "Ford EDGE, Ford Escape, Ford FLEX, Ford Fusion, Ford Mustang, Ford Taurus, Lincoln MKS, Lincoln MKX, Lincoln MKZ, Mercury Mariner, Mercury Milan, Mercury Monteg",
+   "status": "none",
+   "years": "2006-2012"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "CWTWBU735",
+   "keying": "both",
+   "maker": "ALPS ALPINE CO., LTD.",
+   "makes": [
+    "Infiniti",
+    "Nissan"
+   ],
+   "model_years": 44,
+   "models": "Infiniti M35, Infiniti M45, Infiniti QX56, Nissan Maxima, Nissan Pathfinder, Nissan Rogue, Nissan Sentra, Nissan Versa",
+   "status": "none",
+   "years": "2006-2013"
+  },
+  {
+   "expect": "",
+   "frequency": "433 MHz, 434 MHz",
+   "id": "A269ZUA101",
+   "keying": "unknown",
+   "maker": "ALPS ALPINE CO., LTD.",
+   "makes": [
+    "Honda"
+   ],
+   "model_years": 43,
+   "models": "Honda Accord, Honda CR-V, Honda Civic, Honda DEL, Honda Insight, Honda Odyssey, Honda Pilot, Honda Prelude, Honda S2000, Honda SOL",
+   "status": "none",
+   "years": "1994-2006"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "HYQ4AA",
+   "keying": "both",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Buick",
+    "Chevrolet"
+   ],
+   "model_years": 43,
+   "models": "Buick Encore, Buick Envision, Chevrolet BOLT, Chevrolet Cruze, Chevrolet Equinox, Chevrolet Sonic, Chevrolet Spark, Chevrolet XL7",
+   "status": "none",
+   "years": "2016-2022"
+  },
+  {
+   "expect": "",
+   "frequency": "433 MHz, 315 MHz",
+   "id": "NHVWB1U711",
+   "keying": "ASK",
+   "maker": "Tohoku Alps Co Ltd",
+   "makes": [
+    "Subaru"
+   ],
+   "model_years": 43,
+   "models": "Subaru B9, Subaru BAJA, Subaru Forester, Subaru Impreza, Subaru Legacy, Subaru Outback, Subaru Tribeca, Subaru WRX",
+   "status": "none",
+   "years": "2000-2014"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz, 314 MHz, 433 MHz",
+   "id": "GQ43VT20T",
+   "keying": "ASK",
+   "maker": "BCS Access Systems US LLC",
+   "makes": [
+    "Toyota"
+   ],
+   "model_years": 41,
+   "models": "Toyota Avalon, Toyota Highlander, Toyota Sienna, Toyota Tacoma, Toyota Tundra",
+   "status": "none",
+   "years": "2004-2020"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz, 314 MHz",
+   "id": "GQ43VT9T",
+   "keying": "unknown",
+   "maker": "BCS Access Systems US LLC",
+   "makes": [
+    "Chrysler",
+    "Dodge",
+    "Jeep"
+   ],
+   "model_years": 40,
+   "models": "Chrysler 300M, Chrysler Concorde, Chrysler Convertible, Chrysler Cruiser, Chrysler LHS, Dodge Durango, Dodge Intrepid, Dodge NEON, Jeep Cherokee, Jeep Grand Che",
+   "status": "none",
+   "years": "1997-2011"
+  },
+  {
+   "expect": "",
+   "frequency": "433 MHz, 315 MHz",
+   "id": "HYQ2EB",
+   "keying": "both",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Cadillac"
+   ],
+   "model_years": 40,
+   "models": "Cadillac ATS, Cadillac CT6, Cadillac CTS, Cadillac ESV, Cadillac Escalade, Cadillac SRX, Cadillac XT4, Cadillac XT5, Cadillac XT6, Cadillac XTS",
+   "status": "none",
+   "years": "2015-2021"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz, 433 MHz, 344 MHz",
+   "id": "IYZFBSB802",
+   "keying": "FSK",
+   "maker": "Marquardt GmbH",
+   "makes": [
+    "Audi"
+   ],
+   "model_years": 40,
+   "models": "Audi A4, Audi A5, Audi A6, Audi A7, Audi A8, Audi Q5, Audi S6",
+   "status": "none",
+   "years": "2008-2018"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "KR55WK48903",
+   "keying": "both",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Infiniti",
+    "Nissan"
+   ],
+   "model_years": 40,
+   "models": "Infiniti G25, Infiniti G35, Infiniti G37, Infiniti Q40, Infiniti Q60, Nissan Altima, Nissan Maxima, Nissan Murano, Nissan Versa",
+   "status": "none",
+   "years": "2007-2015"
+  },
+  {
+   "expect": "blind: assumed like the Denso keys above",
+   "frequency": "314 MHz, 315 MHz",
+   "id": "HYQ14FBF",
+   "keying": "both",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Lexus"
+   ],
+   "model_years": 38,
+   "models": "Lexus ES250, Lexus ES300, Lexus ES300H, Lexus ES350, Lexus GX460, Lexus LC500, Lexus LS500, Lexus LS500H, Lexus UX200, Lexus UX250H",
+   "status": "none",
+   "years": "2018-2024"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "CWTWB1U551",
+   "keying": "unknown",
+   "maker": "ALPS ALPINE CO., LTD.",
+   "makes": [
+    "Ford"
+   ],
+   "model_years": 37,
+   "models": "Ford Expedition, Ford Freestar, Ford Windstar",
+   "status": "none",
+   "years": "1998-2012"
+  },
+  {
+   "expect": "filed: 315 or 433.92 MHz FSK, one 0.44..0.46 s block",
+   "frequency": "315 MHz",
+   "id": "SY5HMFNA04",
+   "keying": "FSK",
+   "maker": "AUMOVIO Korea Ltd.",
+   "makes": [
+    "Hyundai",
+    "Kia"
+   ],
+   "model_years": 37,
+   "models": "Hyundai 2DR, Hyundai Azera, Hyundai Elantra, Hyundai Equus, Hyundai Sonata, Hyundai Tucson, Hyundai Veloster, Kia Forte, Kia Optima, Kia RIO, Kia SOUL, Kia Sore",
+   "status": "filed",
+   "years": "2010-2017"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz, 314 MHz, 314.3 MHz",
+   "id": "HYQ12BDM",
+   "keying": "FSK",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Toyota"
+   ],
+   "model_years": 36,
+   "models": "Toyota Camry, Toyota Corolla, Toyota Prius, Toyota Prius C, Toyota RAV4",
+   "status": "blind",
+   "years": "2012-2019"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "WAZSKE13D03",
+   "keying": "FSK",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [
+    "Mazda"
+   ],
+   "model_years": 36,
+   "models": "Mazda CX-3, Mazda CX-5, Mazda CX-9, Mazda MX 5, Mazda MX-5, Mazda Miata, Mazda RF, Mazda Series",
+   "status": "filed",
+   "years": "2019-2025"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "BGBX1T478SKE12501",
+   "keying": "FSK",
+   "maker": "Mitsubishi Electric Corp",
+   "makes": [
+    "Mazda"
+   ],
+   "model_years": 35,
+   "models": "Mazda CX-7, Mazda CX-9, Mazda MX-5, Mazda Miata",
+   "status": "filed",
+   "years": "2006-2015"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "HYQ14ABB",
+   "keying": "unknown",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Lexus"
+   ],
+   "model_years": 35,
+   "models": "Lexus GS350, Lexus GS460, Lexus IS, Lexus IS250, Lexus IS350, Lexus LS460, Lexus LX570",
+   "status": "none",
+   "years": "2007-2016"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "KR55WK50073",
+   "keying": "ASK",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Buick",
+    "Chevrolet"
+   ],
+   "model_years": 35,
+   "models": "Buick Lacrosse, Buick Regal, Buick Verano, Chevrolet Impala, Chevrolet Sonic, Chevrolet Spark, Chevrolet TRAX",
+   "status": "likely",
+   "years": "2010-2019"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "NBG009066T",
+   "keying": "ASK",
+   "maker": "HELLA GmbH & Co. KGaA",
+   "makes": [
+    "Isuzu",
+    "Volkswagen"
+   ],
+   "model_years": 35,
+   "models": "Isuzu Axiom, Isuzu Rodeo, Volkswagen CC, Volkswagen Passat, Volkswagen SLOT",
+   "status": "none",
+   "years": "2002-2015"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "WAZSKE11D01",
+   "keying": "FSK",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [
+    "Mazda"
+   ],
+   "model_years": 35,
+   "models": "Mazda CX-30, Mazda CX-50, Mazda CX-70, Mazda CX-90, Mazda Hatchback, Mazda MX-30, Mazda MX-5, Mazda Miata",
+   "status": "filed",
+   "years": "2019-2026"
+  },
+  {
+   "expect": "",
+   "frequency": "433 MHz, 434 MHz, 433.92 MHz",
+   "id": "KR5S180144014",
+   "keying": "FSK",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Infiniti",
+    "Nissan"
+   ],
+   "model_years": 34,
+   "models": "Infiniti JX35, Infiniti QX60, Nissan Altima, Nissan Maxima, Nissan Murano, Nissan Pathfinder",
+   "status": "none",
+   "years": "2013-2020"
+  },
+  {
+   "expect": "",
+   "frequency": "434 MHz, 433 MHz",
+   "id": "N5F-A08TBLP",
+   "keying": "FSK",
+   "maker": "Valeo Comfort and Driving Assistance",
+   "makes": [
+    "Ford"
+   ],
+   "model_years": 34,
+   "models": "Ford F-150, Ford F-250, Ford F-350, Ford F-450, Ford F-550, Ford F-600, Ford F-750, Ford F-Series, Ford F250, Ford F750, Ford Maverick, Ford Ranger, Ford Transi",
+   "status": "none",
+   "years": "2023-2026"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "WAZSKE13D01",
+   "keying": "FSK",
+   "maker": "Mitsubishi Electric Mobility Corporation",
+   "makes": [
+    "Mazda"
+   ],
+   "model_years": 34,
+   "models": "Mazda CX-3, Mazda CX-5, Mazda CX-9, Mazda CX3, Mazda CX5, Mazda Hatchback",
+   "status": "filed",
+   "years": "2012-2020"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "KR55WK50138",
+   "keying": "ASK",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Porsche"
+   ],
+   "model_years": 33,
+   "models": "Porsche Boxster, Porsche Cayenne, Porsche Cayman, Porsche Macan, Porsche Panamera",
+   "status": "none",
+   "years": "2010-2017"
+  },
+  {
+   "expect": "",
+   "frequency": "",
+   "id": "M3N-A2C940780",
+   "keying": "FSK",
+   "maker": "AUMOVIO Systems, Inc.",
+   "makes": [
+    "Lincoln"
+   ],
+   "model_years": 33,
+   "models": "Lincoln Continental, Lincoln MKC, Lincoln MKX, Lincoln MKZ, Lincoln Nautilus, Lincoln Navigator",
+   "status": "none",
+   "years": "2017-2023"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz, 433 MHz",
+   "id": "YGOHUF5662",
+   "keying": "FSK",
+   "maker": "Huf Huelsbeck & Fuerst GmbH & Co. KG",
+   "makes": [
+    "BMW"
+   ],
+   "model_years": 33,
+   "models": "BMW Series, BMW X3, BMW X4, BMW X5, BMW X6",
+   "status": "none",
+   "years": "2009-2018"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "ABO0204T",
+   "keying": "unknown",
+   "maker": "General Motors Corporation-Corporate Affairs-VEFE",
+   "makes": [
+    "Buick",
+    "Chevrolet",
+    "Oldsmobile",
+    "Pontiac"
+   ],
+   "model_years": 32,
+   "models": "Buick Century, Buick Regal, Chevrolet Venture, Oldsmobile Intrigue, Oldsmobile Silhouette, Pontiac Grand Prix, Pontiac Montana, Pontiac Trans",
+   "status": "none",
+   "years": "1997-2001"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "CWTWB1U808",
+   "keying": "both",
+   "maker": "ALPS ALPINE CO., LTD.",
+   "makes": [
+    "Nissan"
+   ],
+   "model_years": 32,
+   "models": "Nissan CUBE, Nissan JUKE, Nissan LEAF, Nissan NOTE, Nissan Quest, Nissan Versa",
+   "status": "none",
+   "years": "2011-2019"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "CWTWBU624",
+   "keying": "FSK",
+   "maker": "ALPS ALPINE CO., LTD.",
+   "makes": [
+    "Infiniti",
+    "Nissan"
+   ],
+   "model_years": 32,
+   "models": "Infiniti QX56, Nissan Armada, Nissan Pathfinder, Nissan Rogue, Nissan Versa",
+   "status": "none",
+   "years": "2007-2015"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz, 314 MHz",
+   "id": "HYQ12BBT",
+   "keying": "ASK",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Land Rover",
+    "Lexus",
+    "Toyota"
+   ],
+   "model_years": 31,
+   "models": "Land Rover Cruiser, Lexus ES330, Lexus LS430, Lexus RX330, Toyota Cruiser, Toyota FJ, Toyota Land Cruiser",
+   "status": "none",
+   "years": "2003-2015"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz",
+   "id": "HYQ12BBX",
+   "keying": "ASK",
+   "maker": "Denso Corporation",
+   "makes": [
+    "Scion",
+    "Toyota"
+   ],
+   "model_years": 31,
+   "models": "Scion XA, Scion XB, Toyota 4RUNNER, Toyota Avalon, Toyota Sequoia",
+   "status": "none",
+   "years": "1999-2009"
+  },
+  {
+   "expect": "",
+   "frequency": "433 MHz, 434 MHz",
+   "id": "CWTWB1U787",
+   "keying": "both",
+   "maker": "ALPS ALPINE CO., LTD.",
+   "makes": [
+    "Infiniti",
+    "Nissan"
+   ],
+   "model_years": 30,
+   "models": "Infiniti M35H, Infiniti M37, Infiniti M56, Infiniti Q70, Infiniti Q70L, Infiniti QX56, Nissan Armada",
+   "status": "none",
+   "years": "2011-2024"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz, 314 MHz",
+   "id": "GQ4-29T",
+   "keying": "ASK",
+   "maker": "BCS Access Systems US LLC",
+   "makes": [
+    "Toyota"
+   ],
+   "model_years": 30,
+   "models": "Toyota Avalon, Toyota Corolla, Toyota Matrix, Toyota Venza",
+   "status": "none",
+   "years": "2007-2016"
+  },
+  {
+   "expect": "",
+   "frequency": "315 MHz, 433 MHz",
+   "id": "KR55WK49622",
+   "keying": "FSK",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Nissan"
+   ],
+   "model_years": 30,
+   "models": "Nissan GT-R, Nissan GTR, Nissan Murano",
+   "status": "none",
+   "years": "2009-2020"
+  }
+ ],
+ "totals": {
+  "all_remotes_read": 296,
+  "filing_only": 322,
+  "likely_read": 307,
+  "maybe_read": 0,
+  "model_years": 4067,
+  "nothing": 2510,
+  "recorded_no_data": 260,
+  "recorded_unread": 215,
+  "signal_known": 0,
+  "some_remote_read": 453
+ }
+}

@@ -1,0 +1,10109 @@
+{
+ "branch": "main",
+ "captures": [
+  {
+   "bytes": 226549,
+   "folder": "ALFA ROMEO",
+   "frequency": 433920000,
+   "more": true,
+   "path": "ALFA ROMEO/more/Giulietta_Close.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 53374,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 50,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 33.68,
+   "type": "raw"
+  },
+  {
+   "bytes": 212257,
+   "folder": "ALFA ROMEO",
+   "frequency": 433920000,
+   "more": true,
+   "path": "ALFA ROMEO/more/Giulietta_Open.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 50165,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 50,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 31.96,
+   "type": "raw"
+  },
+  {
+   "bytes": 193220,
+   "folder": "ALFA ROMEO",
+   "frequency": 433920000,
+   "more": true,
+   "path": "ALFA ROMEO/more/Giulietta_Trunk.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 45448,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 55,
+     "protocol": "Fiat V1"
+    },
+    {
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 29.54,
+   "type": "raw"
+  },
+  {
+   "bytes": 261780,
+   "folder": "BMW",
+   "frequency": 868350000,
+   "more": true,
+   "path": "BMW/more/BmwE60_2004_868_FM_cl.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 62464,
+   "reads": [
+    {
+     "distinct": 6,
+     "frames": 57,
+     "protocol": "BMW/Mini V3"
+    }
+   ],
+   "seconds": 14.83,
+   "type": "raw"
+  },
+  {
+   "bytes": 2102,
+   "folder": "BYD",
+   "frequency": 433920000,
+   "more": false,
+   "path": "BYD/BYD Atto 3 2022 boot.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 433,
+   "reads": [],
+   "seconds": 0.29,
+   "type": "raw"
+  },
+  {
+   "bytes": 7527,
+   "folder": "BYD",
+   "frequency": 433920000,
+   "more": false,
+   "path": "BYD/BYD Atto 3 2022 unlock.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 1616,
+   "reads": [],
+   "seconds": 0.92,
+   "type": "raw"
+  },
+  {
+   "bytes": 87428,
+   "folder": "BYD",
+   "frequency": 433075000,
+   "more": false,
+   "path": "BYD/BYD Seal 2025 lock x5.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 19968,
+   "reads": [],
+   "seconds": 9.19,
+   "type": "raw"
+  },
+  {
+   "bytes": 86802,
+   "folder": "BYD",
+   "frequency": 433075000,
+   "more": false,
+   "path": "BYD/BYD Seal 2025 unlock x5.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 19789,
+   "reads": [],
+   "seconds": 9.87,
+   "type": "raw"
+  },
+  {
+   "bytes": 21933,
+   "folder": "BYD",
+   "frequency": 433889000,
+   "more": false,
+   "path": "BYD/BYD Sealion lock x4.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4965,
+   "reads": [],
+   "seconds": 6.98,
+   "type": "raw"
+  },
+  {
+   "bytes": 20285,
+   "folder": "BYD",
+   "frequency": 433889000,
+   "more": false,
+   "path": "BYD/BYD Sealion unlock x3.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4608,
+   "reads": [],
+   "seconds": 5.1,
+   "type": "raw"
+  },
+  {
+   "bytes": 22536,
+   "folder": "BYD",
+   "frequency": 433920000,
+   "more": false,
+   "path": "BYD/BYD apertura.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 5030,
+   "reads": [],
+   "seconds": 9.15,
+   "type": "raw"
+  },
+  {
+   "bytes": 244979,
+   "folder": "FIAT",
+   "frequency": 433889000,
+   "more": false,
+   "path": "FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 54160,
+   "reads": [
+    {
+     "buttons": [
+      "3",
+      "13",
+      "1B",
+      "23",
+      "27",
+      "2B",
+      "33",
+      "3B"
+     ],
+     "distinct": 11,
+     "encodable": true,
+     "frames": 11,
+     "protocol": "Fiat V0",
+     "serial": "54536200",
+     "serials": 1
+    }
+   ],
+   "seconds": 20.25,
+   "type": "raw"
+  },
+  {
+   "bytes": 19090,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "more": false,
+   "path": "FIAT/Fiat Panda.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4261,
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 7,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 7,
+     "protocol": "Fiat V1",
+     "serial": "EFB82D66",
+     "serials": 1
+    }
+   ],
+   "seconds": 2.63,
+   "type": "raw"
+  },
+  {
+   "bytes": 172,
+   "folder": "FIAT",
+   "frequency": 433889000,
+   "key_bits": "71",
+   "key_protocol": "Fiat type 0",
+   "more": false,
+   "path": "FIAT/Fiat type 0 N1.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "frames": 1,
+     "key": true,
+     "protocol": "Fiat V0"
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 176,
+   "folder": "FIAT",
+   "more": false,
+   "note": "No RAW_Data in .sub file",
+   "path": "FIAT/Fiat type 0 N2.sub",
+   "pinned": true,
+   "reads": [],
+   "type": "other"
+  },
+  {
+   "bytes": 394677,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FIAT/more/1 Raw Fca Fiat 2017-2024.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 92773,
+   "reads": [
+    {
+     "distinct": 21,
+     "frames": 56,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 40.62,
+   "type": "raw"
+  },
+  {
+   "bytes": 233346,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FIAT/more/2 Raw Fca Fiat 2017-2024.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 54757,
+   "reads": [
+    {
+     "distinct": 15,
+     "frames": 39,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 25.25,
+   "type": "raw"
+  },
+  {
+   "bytes": 299,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "key_bits": "102",
+   "key_protocol": "Fiat V1",
+   "more": true,
+   "path": "FIAT/more/Big_sidorovich.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "4"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Fiat V1",
+     "serial": "75E1D628",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 138942,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FIAT/more/Fiat Panda 2022 Close.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 33016,
+   "reads": [
+    {
+     "distinct": 14,
+     "frames": 24,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 19.57,
+   "type": "raw"
+  },
+  {
+   "bytes": 137583,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FIAT/more/Fiat Panda 2022 Open.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 32737,
+   "reads": [
+    {
+     "distinct": 15,
+     "frames": 37,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 20.01,
+   "type": "raw"
+  },
+  {
+   "bytes": 119564,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FIAT/more/Fiat Panda 2022 Trunk.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 28480,
+   "reads": [
+    {
+     "distinct": 15,
+     "frames": 35,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 18.7,
+   "type": "raw"
+  },
+  {
+   "bytes": 324,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "key_bits": "102",
+   "key_protocol": "Fiat V1",
+   "more": true,
+   "path": "FIAT/more/Fiat V1_kurwa_aptechka.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Fiat V1",
+     "serial": "75E1D628",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 324,
+   "folder": "FIAT",
+   "frequency": 433889000,
+   "key_bits": "102",
+   "key_protocol": "Fiat V1",
+   "more": true,
+   "path": "FIAT/more/Fiat V1_quantum_artefact.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Fiat V1",
+     "serial": "75E1D628",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 323,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "key_bits": "102",
+   "key_protocol": "Fiat V1",
+   "more": true,
+   "path": "FIAT/more/Fiat V1_quantum_breeky.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Fiat V1",
+     "serial": "75E1D628",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 300,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "key_bits": "102",
+   "key_protocol": "Fiat V1",
+   "more": true,
+   "path": "FIAT/more/Great_kot.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Fiat V1",
+     "serial": "75E1D628",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 300,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "key_bits": "102",
+   "key_protocol": "Fiat V1",
+   "more": true,
+   "path": "FIAT/more/Liquid_juzyk.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Fiat V1",
+     "serial": "75E1D628",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 299,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "key_bits": "102",
+   "key_protocol": "Fiat V1",
+   "more": true,
+   "path": "FIAT/more/Ooo.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Fiat V1",
+     "serial": "75E1D628",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 34077,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FIAT/more/RAW_fiat_open.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 7488,
+   "reads": [
+    {
+     "distinct": 3,
+     "frames": 37,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 12.91,
+   "type": "raw"
+  },
+  {
+   "bytes": 26357,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FIAT/more/RAW_fiat_open_4taps.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 5786,
+   "reads": [
+    {
+     "distinct": 4,
+     "frames": 26,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 9.57,
+   "type": "raw"
+  },
+  {
+   "bytes": 36139,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FIAT/more/RAW_fiat_trunk.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 7938,
+   "reads": [
+    {
+     "distinct": 2,
+     "frames": 41,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 13.81,
+   "type": "raw"
+  },
+  {
+   "bytes": 72565,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FIAT/more/RAW_fiat_trunk_3holds.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 16399,
+   "reads": [
+    {
+     "distinct": 3,
+     "frames": 40,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 13.34,
+   "type": "raw"
+  },
+  {
+   "bytes": 68140,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FIAT/more/RAW_panda_open_3holds.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 15375,
+   "reads": [
+    {
+     "distinct": 3,
+     "frames": 41,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 12.55,
+   "type": "raw"
+  },
+  {
+   "bytes": 25286,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FIAT/more/RAW_panda_trunk_4taps.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 5554,
+   "reads": [
+    {
+     "distinct": 4,
+     "frames": 25,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 9.31,
+   "type": "raw"
+  },
+  {
+   "bytes": 298676,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FIAT/more/Unstable_Fiat_v1.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 65976,
+   "reads": [
+    {
+     "distinct": 17,
+     "frames": 287,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 39.79,
+   "type": "raw"
+  },
+  {
+   "bytes": 189778,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FIAT/more/Unstable_Fiat_v1_2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 41896,
+   "reads": [
+    {
+     "distinct": 11,
+     "frames": 190,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 24.63,
+   "type": "raw"
+  },
+  {
+   "bytes": 156474,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FIAT/more/Unstable_Fiat_v1_3.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 34580,
+   "reads": [
+    {
+     "distinct": 5,
+     "frames": 149,
+     "protocol": "Fiat V1"
+    },
+    {
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Ford V0"
+    }
+   ],
+   "seconds": 20.91,
+   "type": "raw"
+  },
+  {
+   "bytes": 25440,
+   "folder": "FIAT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FIAT/more/fiat panda RAW trunk.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 5584,
+   "reads": [
+    {
+     "distinct": 3,
+     "frames": 27,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 9.14,
+   "type": "raw"
+  },
+  {
+   "bytes": 153885,
+   "folder": "FORD",
+   "frequency": 433920000,
+   "more": false,
+   "path": "FORD/0000_Ford_ts_x4.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 34816,
+   "reads": [
+    {
+     "buttons": [
+      "1",
+      "2"
+     ],
+     "crc_ok": 16,
+     "distinct": 4,
+     "encodable": true,
+     "frames": 16,
+     "protocol": "Ford V0",
+     "serial": "43C024F8",
+     "serials": 1
+    }
+   ],
+   "seconds": 10.37,
+   "type": "raw"
+  },
+  {
+   "bytes": 38082,
+   "folder": "FORD",
+   "frequency": 314980000,
+   "more": false,
+   "path": "FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 8443,
+   "reads": [
+    {
+     "buttons": [
+      "1",
+      "2",
+      "4",
+      "8",
+      "10"
+     ],
+     "crc_ok": 33,
+     "distinct": 10,
+     "encodable": true,
+     "frames": 33,
+     "protocol": "Ford V0",
+     "serial": "FCA7C7BF",
+     "serials": 1
+    }
+   ],
+   "seconds": 10.26,
+   "type": "raw"
+  },
+  {
+   "bytes": 10142,
+   "folder": "FORD",
+   "frequency": 433920000,
+   "more": false,
+   "path": "FORD/2008_Focus_Lock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 2158,
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 11,
+     "distinct": 3,
+     "encodable": true,
+     "frames": 11,
+     "protocol": "Ford V0",
+     "serial": "4306BE50",
+     "serials": 1
+    }
+   ],
+   "seconds": 4.43,
+   "type": "raw"
+  },
+  {
+   "bytes": 9940,
+   "folder": "FORD",
+   "frequency": 433920000,
+   "more": false,
+   "path": "FORD/2008_Focus_Trunk.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 2118,
+   "reads": [
+    {
+     "buttons": [
+      "4"
+     ],
+     "crc_ok": 12,
+     "distinct": 3,
+     "encodable": true,
+     "frames": 12,
+     "protocol": "Ford V0",
+     "serial": "4306BE50",
+     "serials": 1
+    }
+   ],
+   "seconds": 4.06,
+   "type": "raw"
+  },
+  {
+   "bytes": 14394,
+   "folder": "FORD",
+   "frequency": 433920000,
+   "more": false,
+   "path": "FORD/2008_Focus_Unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 3072,
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 17,
+     "distinct": 3,
+     "encodable": true,
+     "frames": 17,
+     "protocol": "Ford V0",
+     "serial": "4306BE50",
+     "serials": 1
+    }
+   ],
+   "seconds": 6.46,
+   "type": "raw"
+  },
+  {
+   "bytes": 256515,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 15373,
+    "deviation_hz": 15869,
+    "keying": "2-FSK"
+   },
+   "folder": "FORD",
+   "frequency": 312000000,
+   "more": false,
+   "path": "FORD/21_ford_escape.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 62976,
+   "reads": [],
+   "seconds": 9.08,
+   "type": "raw"
+  },
+  {
+   "bytes": 57462,
+   "folder": "FORD",
+   "frequency": 314980000,
+   "more": false,
+   "path": "FORD/22_ford_escape_u2_l2_t2_p2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 12800,
+   "reads": [
+    {
+     "buttons": [
+      "1",
+      "2",
+      "6",
+      "7"
+     ],
+     "distinct": 8,
+     "frames": 20,
+     "protocol": "Ford V3",
+     "serial": "4E2464E4",
+     "serials": 1
+    }
+   ],
+   "seconds": 9.23,
+   "type": "raw"
+  },
+  {
+   "bytes": 7131,
+   "folder": "FORD",
+   "frequency": 433420000,
+   "more": false,
+   "path": "FORD/25_ford_bronco_u2_l2_rs2_p2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 1553,
+   "reads": [],
+   "seconds": 6.99,
+   "type": "raw"
+  },
+  {
+   "bytes": 20819,
+   "folder": "FORD",
+   "frequency": 433920000,
+   "more": false,
+   "path": "FORD/3_unlock_ford.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4608,
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 12,
+     "distinct": 3,
+     "encodable": true,
+     "frames": 12,
+     "protocol": "Ford V0",
+     "serial": "48189F19",
+     "serials": 1
+    }
+   ],
+   "seconds": 5.7,
+   "type": "raw"
+  },
+  {
+   "bytes": 49287,
+   "folder": "FORD",
+   "frequency": 433920000,
+   "more": false,
+   "path": "FORD/Ford Mondeo.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 10948,
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 40,
+     "distinct": 10,
+     "encodable": true,
+     "frames": 40,
+     "protocol": "Ford V0",
+     "serial": "54BF55F4",
+     "serials": 1
+    }
+   ],
+   "seconds": 9.55,
+   "type": "raw"
+  },
+  {
+   "bytes": 138497,
+   "custom": {
+    "bandwidth_hz": 101562,
+    "baud": 38383,
+    "deviation_hz": 31738,
+    "keying": "2-FSK"
+   },
+   "folder": "FORD",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FORD/more/Ford2011_2015_f3.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 32768,
+   "reads": [
+    {
+     "distinct": 3,
+     "frames": 3,
+     "protocol": "Ford V1"
+    }
+   ],
+   "seconds": 5.81,
+   "type": "raw"
+  },
+  {
+   "bytes": 310416,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 38383,
+    "deviation_hz": 14282,
+    "keying": "2-FSK"
+   },
+   "folder": "FORD",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FORD/more/FordV1_orig1_10US_10LS_TS.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 72844,
+   "reads": [
+    {
+     "distinct": 113,
+     "frames": 113,
+     "protocol": "Ford V1"
+    }
+   ],
+   "seconds": 19.79,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 38383,
+    "deviation_hz": 14282,
+    "keying": "2-FSK"
+   },
+   "folder": "FORD",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FORD/more/FordV1_orig2_10UL_10LL_10TL.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 72068,
+   "reads": [
+    {
+     "distinct": 16,
+     "frames": 82,
+     "protocol": "Ford V1"
+    }
+   ],
+   "seconds": 18.42,
+   "type": "raw"
+  },
+  {
+   "bytes": 178932,
+   "folder": "FORD",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FORD/more/Ford_ka_2010_open.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 42437,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 52,
+     "protocol": "Fiat V1"
+    },
+    {
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 19.66,
+   "type": "raw"
+  },
+  {
+   "bytes": 92590,
+   "custom": {
+    "bandwidth_hz": 101562,
+    "baud": 38383,
+    "deviation_hz": 31738,
+    "keying": "2-FSK"
+   },
+   "folder": "FORD",
+   "frequency": 433920000,
+   "more": true,
+   "path": "FORD/more/RAW-2026_02_23-20_14_50.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 21590,
+   "reads": [
+    {
+     "distinct": 6,
+     "frames": 6,
+     "protocol": "Ford V1"
+    }
+   ],
+   "seconds": 3.19,
+   "type": "raw"
+  },
+  {
+   "bytes": 73216,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 38383,
+    "deviation_hz": 14282,
+    "keying": "2-FSK"
+   },
+   "folder": "FORD",
+   "frequency": 434258000,
+   "more": true,
+   "path": "FORD/more/RAW-2026_03_16-14_55_14.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 17001,
+   "reads": [
+    {
+     "distinct": 8,
+     "frames": 8,
+     "protocol": "Ford V1"
+    }
+   ],
+   "seconds": 3.15,
+   "type": "raw"
+  },
+  {
+   "bytes": 141401,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 38383,
+    "deviation_hz": 14282,
+    "keying": "2-FSK"
+   },
+   "folder": "FORD",
+   "frequency": 434258000,
+   "more": true,
+   "path": "FORD/more/RAW-2026_03_16-15_55_25.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 32870,
+   "reads": [
+    {
+     "distinct": 16,
+     "frames": 16,
+     "protocol": "Ford V1"
+    }
+   ],
+   "seconds": 5.77,
+   "type": "raw"
+  },
+  {
+   "bytes": 169262,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 38383,
+    "deviation_hz": 14282,
+    "keying": "2-FSK"
+   },
+   "folder": "FORD",
+   "frequency": 434258000,
+   "more": true,
+   "path": "FORD/more/RAW-2026_03_16-16_04_00.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 39520,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 20,
+     "protocol": "Ford V1"
+    }
+   ],
+   "seconds": 6.83,
+   "type": "raw"
+  },
+  {
+   "bytes": 150583,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 38383,
+    "deviation_hz": 14282,
+    "keying": "2-FSK"
+   },
+   "folder": "FORD",
+   "frequency": 434258000,
+   "more": true,
+   "path": "FORD/more/RAW-2026_03_16-16_04_31.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 35444,
+   "reads": [
+    {
+     "distinct": 8,
+     "frames": 8,
+     "protocol": "Ford V1"
+    }
+   ],
+   "seconds": 7.14,
+   "type": "raw"
+  },
+  {
+   "bytes": 121381,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 38383,
+    "deviation_hz": 14282,
+    "keying": "2-FSK"
+   },
+   "folder": "FORD",
+   "frequency": 434258000,
+   "more": true,
+   "path": "FORD/more/RAW-2026_03_16-16_04_49.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 28248,
+   "reads": [
+    {
+     "distinct": 14,
+     "frames": 14,
+     "protocol": "Ford V1"
+    }
+   ],
+   "seconds": 5.0,
+   "type": "raw"
+  },
+  {
+   "bytes": 36875,
+   "folder": "GATES",
+   "frequency": 315000000,
+   "more": true,
+   "path": "GATES/more/2668A_315.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 8088,
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 20,
+     "protocol": "Security+ 2.0"
+    }
+   ],
+   "seconds": 13.55,
+   "type": "raw"
+  },
+  {
+   "bytes": 43630,
+   "folder": "GATES",
+   "frequency": 390000000,
+   "more": true,
+   "path": "GATES/more/891LM_7359_raw.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 9591,
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 20,
+     "protocol": "Security+ 2.0"
+    }
+   ],
+   "seconds": 18.69,
+   "type": "raw"
+  },
+  {
+   "bytes": 54087,
+   "folder": "GATES",
+   "frequency": 390000000,
+   "more": true,
+   "path": "GATES/more/893LM_7359_r_1.1.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 11898,
+   "reads": [
+    {
+     "distinct": 11,
+     "frames": 22,
+     "protocol": "Security+ 2.0"
+    }
+   ],
+   "seconds": 15.8,
+   "type": "raw"
+  },
+  {
+   "bytes": 64428,
+   "folder": "GATES",
+   "frequency": 390000000,
+   "more": true,
+   "path": "GATES/more/893LM_7359_r_1.2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 14190,
+   "reads": [
+    {
+     "distinct": 15,
+     "frames": 29,
+     "protocol": "Security+ 2.0"
+    }
+   ],
+   "seconds": 17.47,
+   "type": "raw"
+  },
+  {
+   "bytes": 53656,
+   "folder": "GATES",
+   "frequency": 390000000,
+   "more": true,
+   "path": "GATES/more/893LM_7359_r_1.3.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 11816,
+   "reads": [
+    {
+     "distinct": 12,
+     "frames": 24,
+     "protocol": "Security+ 2.0"
+    }
+   ],
+   "seconds": 14.47,
+   "type": "raw"
+  },
+  {
+   "bytes": 100382,
+   "folder": "GATES",
+   "frequency": 390000000,
+   "more": true,
+   "path": "GATES/more/893LM_7359_raw2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 22130,
+   "reads": [
+    {
+     "distinct": 6,
+     "frames": 36,
+     "protocol": "Security+ 2.0"
+    }
+   ],
+   "seconds": 23.82,
+   "type": "raw"
+  },
+  {
+   "bytes": 79542,
+   "folder": "GATES",
+   "frequency": 390000000,
+   "more": true,
+   "path": "GATES/more/893MAX_7964_raw.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 17588,
+   "reads": [
+    {
+     "distinct": 15,
+     "frames": 30,
+     "protocol": "Security+ 2.0"
+    }
+   ],
+   "seconds": 18.87,
+   "type": "raw"
+  },
+  {
+   "bytes": 36400,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "more": true,
+   "path": "GATES/more/Beninca.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 8100,
+   "reads": [
+    {
+     "distinct": 4,
+     "frames": 27,
+     "protocol": "KeeLoq (Beninca)"
+    },
+    {
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Feron"
+    },
+    {
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Microchip-HCS361 [KeeLoq (Unknown)]"
+    }
+   ],
+   "seconds": 6.75,
+   "type": "raw"
+  },
+  {
+   "bytes": 40966,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "more": true,
+   "path": "GATES/more/Bft.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 9061,
+   "reads": [
+    {
+     "distinct": 4,
+     "frames": 41,
+     "protocol": "KeeLoq (BFT)"
+    }
+   ],
+   "seconds": 7.0,
+   "type": "raw"
+  },
+  {
+   "bytes": 25466,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "more": true,
+   "path": "GATES/more/Bft_raw_3_sends.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 5632,
+   "reads": [
+    {
+     "distinct": 3,
+     "frames": 23,
+     "protocol": "KeeLoq (BFT)"
+    }
+   ],
+   "seconds": 5.2,
+   "type": "raw"
+  },
+  {
+   "bytes": 17532,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "more": true,
+   "path": "GATES/more/Doorhan_13.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 3895,
+   "reads": [
+    {
+     "distinct": 4,
+     "frames": 7,
+     "protocol": "KeeLoq (DoorHan)"
+    }
+   ],
+   "seconds": 3.97,
+   "type": "raw"
+  },
+  {
+   "bytes": 11081,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "more": true,
+   "path": "GATES/more/Fan_high.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 2478,
+   "reads": [
+    {
+     "distinct": 1,
+     "frames": 2,
+     "protocol": "KeeLoq (Unknown)"
+    }
+   ],
+   "seconds": 1.89,
+   "type": "raw"
+  },
+  {
+   "bytes": 6730,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "more": true,
+   "path": "GATES/more/Fan_medium.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 1471,
+   "reads": [
+    {
+     "distinct": 1,
+     "frames": 2,
+     "protocol": "KeeLoq (Faraon)"
+    }
+   ],
+   "seconds": 1.49,
+   "type": "raw"
+  },
+  {
+   "bytes": 182,
+   "folder": "GATES",
+   "frequency": 434176948,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/Federal.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "8"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (Stilmatic)",
+     "serial": "2A5",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 17390,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "more": true,
+   "path": "GATES/more/Genius_bravo (2).sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 3882,
+   "reads": [
+    {
+     "distinct": 4,
+     "frames": 8,
+     "protocol": "KeeLoq (Genius_Bravo)"
+    }
+   ],
+   "seconds": 3.47,
+   "type": "raw"
+  },
+  {
+   "bytes": 180,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/Light_Dn.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "KeeLoq (Unknown)",
+     "serial": "10DEF3A",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 12070,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "more": true,
+   "path": "GATES/more/Light_toggle.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 2666,
+   "reads": [
+    {
+     "distinct": 2,
+     "frames": 4,
+     "protocol": "KeeLoq (Unknown)"
+    }
+   ],
+   "seconds": 2.65,
+   "type": "raw"
+  },
+  {
+   "bytes": 19151,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "more": true,
+   "path": "GATES/more/Nice_mhouse.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4252,
+   "reads": [
+    {
+     "distinct": 4,
+     "frames": 11,
+     "protocol": "KeeLoq (NICE_MHOUSE)"
+    }
+   ],
+   "seconds": 3.89,
+   "type": "raw"
+  },
+  {
+   "bytes": 185,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/ORLEN_OFF.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "4"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (Elmes_Poland)",
+     "serial": "2B7121C",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 185,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/ORLEN_ON.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (Elmes_Poland)",
+     "serial": "2B7121C",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 180,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/Pp0.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "KeeLoq (Unknown)",
+     "serial": "B5308",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 192,
+   "folder": "GATES",
+   "frequency": 433500000,
+   "key_bits": "56",
+   "key_protocol": "Somfy Telis",
+   "more": true,
+   "path": "GATES/more/Somfy_Telis_electronic_shades.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "4"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Somfy Telis",
+     "serial": "482826",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 180,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/Ultra_kit.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "4"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (Beninca)",
+     "serial": "CD9F3A",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 182,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/Wolsvagen Golf .sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "4"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (Normstahl)",
+     "serial": "62948E4",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 187,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/aerf_motorgate.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (Cenmax_St-5)",
+     "serial": "1A2B3C5",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 6877,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "more": true,
+   "path": "GATES/more/came_atomo_raw.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 1423,
+   "reads": [
+    {
+     "distinct": 6,
+     "frames": 6,
+     "protocol": "CAME Atomo"
+    }
+   ],
+   "seconds": 2.29,
+   "type": "raw"
+  },
+  {
+   "bytes": 181,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/cigarettemachine.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (JCM_Tech)",
+     "serial": "162A831",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 159,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/doorhan.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (DoorHan)",
+     "serial": "8A91ECC",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 10457,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "more": true,
+   "path": "GATES/more/doorhan_raw.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 2276,
+   "reads": [
+    {
+     "distinct": 3,
+     "frames": 13,
+     "protocol": "KeeLoq (DoorHan)"
+    }
+   ],
+   "seconds": 1.67,
+   "type": "raw"
+  },
+  {
+   "bytes": 185,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/jcm1g_norton.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "KeeLoq (Unknown)",
+     "serial": "1230C5A",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 166,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/k-dh-enc00-cnt3DC9.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (DoorHan)",
+     "serial": "84EE9D5",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 166,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/k-dh-enc00-cnt3DCA.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (DoorHan)",
+     "serial": "84EE9D5",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 166,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/k-dh-enc00-cntA247.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (DoorHan)",
+     "serial": "84EE9D5",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 166,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/k-dh-enc00-cntA248.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (DoorHan)",
+     "serial": "84EE9D5",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 166,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/k-dh-enc00-cntFD75.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (Reff)",
+     "serial": "84EE9D5",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 166,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/k-dh-enc00-cntFD76.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (DoorHan)",
+     "serial": "84EE9D5",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 166,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/k-dh-sn0000000.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (Rosh)",
+     "serial": "0",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 166,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/k-dh-sn01EA8D8-cnt0004.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (DoorHan)",
+     "serial": "1EA8D8",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 166,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/k-dh-sn84EE9D5-cnt0004.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (DoorHan)",
+     "serial": "84EE9D5",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 166,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/k-dh-sn84EE9D5-cnt000B.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (DoorHan)",
+     "serial": "84EE9D5",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 166,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/k-dh-sn84EE9D5-cnt0042.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (DoorHan)",
+     "serial": "84EE9D5",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 166,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/k-dh-sn84EE9D5-cnt0043.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (DoorHan)",
+     "serial": "84EE9D5",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 166,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/k-dh-sn84EE9D5-cnt3E90.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (DoorHan)",
+     "serial": "84EE9D5",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 166,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/k-dh-sn84EE9D5-cntEC01.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (DoorHan)",
+     "serial": "84EE9D5",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 166,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/k-dh-sn84EE9D5-cntEC02.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (DoorHan)",
+     "serial": "84EE9D5",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 166,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/k-dh-sn84EE9D5-cntEC03.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (DoorHan)",
+     "serial": "84EE9D5",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 166,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/k-kgb-sn84E9D5-cntEC0D.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (KGB/Subaru)",
+     "serial": "84EE9D5",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 198,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "GATES/more/keeloq_seed.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "KeeLoq (Unknown)",
+     "serial": "B5308",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 4096,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "more": true,
+   "path": "GATES/more/somfy_keytis_raw.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 812,
+   "reads": [
+    {
+     "distinct": 5,
+     "frames": 5,
+     "protocol": "Somfy Keytis"
+    }
+   ],
+   "seconds": 0.94,
+   "type": "raw"
+  },
+  {
+   "bytes": 9741,
+   "folder": "GATES",
+   "frequency": 433920000,
+   "more": true,
+   "path": "GATES/more/somfy_telis_raw.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 1932,
+   "reads": [
+    {
+     "distinct": 8,
+     "frames": 20,
+     "protocol": "Somfy Telis"
+    }
+   ],
+   "seconds": 3.36,
+   "type": "raw"
+  },
+  {
+   "bytes": 4178,
+   "folder": "GROUPE PSA",
+   "frequency": 433920000,
+   "more": false,
+   "path": "GROUPE PSA/PSA_523_536.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 896,
+   "reads": [
+    {
+     "buttons": [
+      "0"
+     ],
+     "crc_ok": 1,
+     "distinct": 2,
+     "encodable": true,
+     "frames": 2,
+     "protocol": "PSA",
+     "serial": "99EB25",
+     "serials": 1
+    }
+   ],
+   "seconds": 0.42,
+   "type": "raw"
+  },
+  {
+   "bytes": 4175,
+   "folder": "GROUPE PSA",
+   "frequency": 433920000,
+   "more": false,
+   "path": "GROUPE PSA/PSA_536_523.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 896,
+   "reads": [
+    {
+     "buttons": [
+      "0"
+     ],
+     "crc_ok": 1,
+     "distinct": 2,
+     "encodable": true,
+     "frames": 2,
+     "protocol": "PSA",
+     "serial": "99EB25",
+     "serials": 1
+    }
+   ],
+   "seconds": 0.42,
+   "type": "raw"
+  },
+  {
+   "bytes": 22256,
+   "folder": "GROUPE PSA",
+   "frequency": 433920000,
+   "more": false,
+   "path": "GROUPE PSA/Peugeot 307 close.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4899,
+   "reads": [
+    {
+     "distinct": 5,
+     "frames": 5,
+     "protocol": "PSA"
+    }
+   ],
+   "seconds": 5.86,
+   "type": "raw"
+  },
+  {
+   "bytes": 20699,
+   "folder": "GROUPE PSA",
+   "frequency": 433920000,
+   "more": false,
+   "path": "GROUPE PSA/Peugeot 307 open.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4529,
+   "reads": [
+    {
+     "distinct": 6,
+     "frames": 6,
+     "protocol": "PSA"
+    }
+   ],
+   "seconds": 5.94,
+   "type": "raw"
+  },
+  {
+   "bytes": 362411,
+   "folder": "HOLDEN",
+   "frequency": 433920000,
+   "more": false,
+   "path": "HOLDEN/Holden Barina 2016 AU.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 80854,
+   "reads": [
+    {
+     "buttons": [
+      "C",
+      "D"
+     ],
+     "distinct": 167,
+     "frames": 358,
+     "protocol": "Chevrolet V0",
+     "serial": "B61B30",
+     "serials": 1
+    },
+    {
+     "buttons": [
+      "73"
+     ],
+     "crc_ok": 5,
+     "distinct": 1,
+     "frames": 5,
+     "protocol": "Opel V1",
+     "serial": "4F2679",
+     "serials": 1
+    }
+   ],
+   "seconds": 45.6,
+   "type": "raw"
+  },
+  {
+   "bytes": 35877,
+   "folder": "HYUNDAI",
+   "frequency": 433889000,
+   "more": false,
+   "path": "HYUNDAI/18_hyun_santafe_ll_uu_t_p.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 8019,
+   "reads": [],
+   "seconds": 11.19,
+   "type": "raw"
+  },
+  {
+   "bytes": 1553,
+   "folder": "HYUNDAI",
+   "frequency": 433889000,
+   "more": false,
+   "path": "HYUNDAI/18_hyunai_santa_fe_l2_u2_t2_p2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 313,
+   "reads": [],
+   "seconds": 6.39,
+   "type": "raw"
+  },
+  {
+   "bytes": 101159,
+   "folder": "HYUNDAI",
+   "frequency": 433920000,
+   "more": false,
+   "path": "HYUNDAI/2017_Hyundai_Elantra_panic.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 22695,
+   "reads": [],
+   "seconds": 25.19,
+   "type": "raw"
+  },
+  {
+   "bytes": 1854,
+   "folder": "HYUNDAI",
+   "frequency": 433920000,
+   "more": false,
+   "path": "HYUNDAI/25_hyundai_sonata_l2_u2_rs2_p2.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 373,
+   "reads": [],
+   "seconds": 7.31,
+   "type": "raw"
+  },
+  {
+   "bytes": 167,
+   "folder": "HYUNDAI",
+   "frequency": 433920000,
+   "key_bits": "61",
+   "key_protocol": "KIA/HYU V0",
+   "more": false,
+   "path": "HYUNDAI/HYU V0 N1.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "reads": [
+    {
+     "frames": 1,
+     "key": true,
+     "protocol": "Kia V0"
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 176,
+   "folder": "HYUNDAI",
+   "frequency": 433920000,
+   "key_bits": "61",
+   "key_protocol": "KIA/HYU V0",
+   "more": false,
+   "path": "HYUNDAI/HYU V0_great_konserva.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "reads": [
+    {
+     "frames": 1,
+     "key": true,
+     "protocol": "Kia V0"
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 21302,
+   "folder": "HYUNDAI",
+   "frequency": 315000000,
+   "more": false,
+   "path": "HYUNDAI/HYU V1  N1 RAW.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4022,
+   "reads": [
+    {
+     "buttons": [
+      "1",
+      "2"
+     ],
+     "crc_ok": 15,
+     "distinct": 15,
+     "encodable": true,
+     "frames": 15,
+     "protocol": "Kia V1",
+     "serial": "B444706E",
+     "serials": 1
+    }
+   ],
+   "seconds": 5.66,
+   "type": "raw"
+  },
+  {
+   "bytes": 167,
+   "folder": "HYUNDAI",
+   "frequency": 433920000,
+   "key_bits": "53",
+   "key_protocol": "KIA/HYU V2",
+   "more": false,
+   "path": "HYUNDAI/HYU V2 N1.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "reads": [
+    {
+     "frames": 1,
+     "key": true,
+     "protocol": "Kia V2"
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 167,
+   "folder": "HYUNDAI",
+   "frequency": 433920000,
+   "key_bits": "53",
+   "key_protocol": "KIA/HYU V2",
+   "more": false,
+   "path": "HYUNDAI/HYU V2_random_habar.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "reads": [
+    {
+     "frames": 1,
+     "key": true,
+     "protocol": "Kia V2"
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 174,
+   "folder": "HYUNDAI",
+   "frequency": 433920000,
+   "key_bits": "68",
+   "key_protocol": "KIA/HYU V4",
+   "more": false,
+   "path": "HYUNDAI/HYU V4 N1.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "reads": [
+    {
+     "frames": 1,
+     "key": true,
+     "protocol": "Kia V3/V4"
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 218,
+   "folder": "HYUNDAI",
+   "frequency": 433920000,
+   "key_bits": "144",
+   "key_protocol": "KIA/HYU V6",
+   "more": false,
+   "path": "HYUNDAI/HYU V6_test.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "reads": [
+    {
+     "frames": 1,
+     "key": true,
+     "protocol": "Kia V6"
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 174,
+   "folder": "HYUNDAI",
+   "frequency": 433920000,
+   "key_bits": "61",
+   "key_protocol": "KIA/HYU V0",
+   "more": true,
+   "path": "HYUNDAI/more/HYU V0 N1_2.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Kia V0",
+     "serial": "67BD75B",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 167,
+   "folder": "HYUNDAI",
+   "frequency": 433920000,
+   "key_bits": "61",
+   "key_protocol": "KIA/HYU V0",
+   "more": true,
+   "path": "HYUNDAI/more/HYU V0_great_konserva_4.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Kia V0",
+     "serial": "67BD75B",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 167,
+   "folder": "HYUNDAI",
+   "frequency": 433920000,
+   "key_bits": "61",
+   "key_protocol": "KIA/HYU V0",
+   "more": true,
+   "path": "HYUNDAI/more/HYU V0_kurwa_door.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "reads": [
+    {
+     "buttons": [
+      "3"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Kia V0",
+     "serial": "B11554C",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 167,
+   "folder": "HYUNDAI",
+   "frequency": 433920000,
+   "key_bits": "61",
+   "key_protocol": "KIA/HYU V0",
+   "more": true,
+   "path": "HYUNDAI/more/HYU V0_little_breeky.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Kia V0",
+     "serial": "37BA08C",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 174,
+   "folder": "HYUNDAI",
+   "frequency": 433920000,
+   "key_bits": "67",
+   "key_protocol": "KIA/HYU V5",
+   "more": true,
+   "path": "HYUNDAI/more/HYU V5_great_juzyk.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Kia V5",
+     "serial": "440C016",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 218,
+   "folder": "HYUNDAI",
+   "frequency": 433920000,
+   "key_bits": "144",
+   "key_protocol": "KIA/HYU V6",
+   "more": true,
+   "path": "HYUNDAI/more/HYU V6_small_breeky.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Kia V6",
+     "serial": "61F622",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 120424,
+   "folder": "HYUNDAI",
+   "frequency": 433920000,
+   "more": true,
+   "path": "HYUNDAI/more/Tucson2.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 27648,
+   "reads": [
+    {
+     "distinct": 2,
+     "frames": 2,
+     "protocol": "Kia V6"
+    }
+   ],
+   "seconds": 6.4,
+   "type": "raw"
+  },
+  {
+   "bytes": 173,
+   "folder": "HYUNDAI",
+   "frequency": 433920000,
+   "key_bits": "67",
+   "key_protocol": "KIA/HYU V5",
+   "more": false,
+   "path": "HYUNDAI/test_new_kia_hyu.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "reads": [
+    {
+     "frames": 1,
+     "key": true,
+     "protocol": "Kia V5"
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 54588,
+   "folder": "Isuzu",
+   "frequency": 433889000,
+   "more": false,
+   "path": "Isuzu/Isuzu_Lock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 12077,
+   "reads": [
+    {
+     "buttons": [
+      "0",
+      "4"
+     ],
+     "distinct": 8,
+     "frames": 26,
+     "protocol": "Isuzu Rolling",
+     "serial": "4A0D2EC",
+     "serials": 1
+    }
+   ],
+   "seconds": 7.62,
+   "type": "raw"
+  },
+  {
+   "bytes": 51587,
+   "folder": "Isuzu",
+   "frequency": 433889000,
+   "more": false,
+   "path": "Isuzu/Isuzu_Unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 11391,
+   "reads": [
+    {
+     "buttons": [
+      "0",
+      "2"
+     ],
+     "distinct": 7,
+     "frames": 25,
+     "protocol": "Isuzu Rolling",
+     "serial": "4A0D2EC",
+     "serials": 1
+    }
+   ],
+   "seconds": 7.24,
+   "type": "raw"
+  },
+  {
+   "bytes": 26924,
+   "folder": "Isuzu",
+   "frequency": 433920000,
+   "more": false,
+   "path": "Isuzu/Isuzu_fts_lock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 5948,
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "distinct": 2,
+     "frames": 8,
+     "protocol": "Isuzu Static"
+    }
+   ],
+   "seconds": 3.74,
+   "type": "raw"
+  },
+  {
+   "bytes": 34084,
+   "folder": "Isuzu",
+   "frequency": 433920000,
+   "more": false,
+   "path": "Isuzu/Isuzu_fts_unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 7437,
+   "reads": [
+    {
+     "buttons": [
+      "4"
+     ],
+     "distinct": 2,
+     "frames": 18,
+     "protocol": "Isuzu Static"
+    }
+   ],
+   "seconds": 4.75,
+   "type": "raw"
+  },
+  {
+   "bytes": 188,
+   "folder": "Isuzu",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "Isuzu/more/Isuzu Gm 2011 (1).sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "4"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (ZX-730-750-1055)",
+     "serial": "10ABCB",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 188,
+   "folder": "Isuzu",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "KeeLoq",
+   "more": true,
+   "path": "Isuzu/more/Isuzu Gm 2011.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "4"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "KeeLoq (ZX-730-750-1055)",
+     "serial": "10ABCB",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 9525,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": false,
+   "path": "KIA/23_kia_sorento_l2_ul2_t2_p2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 2113,
+   "reads": [],
+   "seconds": 6.59,
+   "type": "raw"
+  },
+  {
+   "bytes": 1979,
+   "folder": "KIA",
+   "frequency": 433889000,
+   "more": false,
+   "path": "KIA/23_kia_sportage_l2_u2_t2_p2.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 391,
+   "reads": [],
+   "seconds": 6.23,
+   "type": "raw"
+  },
+  {
+   "bytes": 2151,
+   "folder": "KIA",
+   "frequency": 433889000,
+   "more": false,
+   "path": "KIA/24_kia_sorento_l2_u2_rs2_p2.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 439,
+   "reads": [],
+   "seconds": 7.59,
+   "type": "raw"
+  },
+  {
+   "bytes": 8307,
+   "folder": "KIA",
+   "frequency": 433889000,
+   "more": false,
+   "path": "KIA/25_kia_carnval_l2_u2_t2_p2_rs2_lr2_rr2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 1771,
+   "reads": [],
+   "seconds": 13.26,
+   "type": "raw"
+  },
+  {
+   "bytes": 14173,
+   "folder": "KIA",
+   "frequency": 315000000,
+   "more": false,
+   "path": "KIA/KIA V1 N1 RAW.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 2662,
+   "reads": [
+    {
+     "buttons": [
+      "1",
+      "2"
+     ],
+     "crc_ok": 10,
+     "distinct": 10,
+     "encodable": true,
+     "frames": 10,
+     "protocol": "Kia V1",
+     "serial": "B444706E",
+     "serials": 1
+    }
+   ],
+   "seconds": 3.77,
+   "type": "raw"
+  },
+  {
+   "bytes": 298190,
+   "folder": "KIA",
+   "frequency": 315000000,
+   "more": false,
+   "path": "KIA/KIA V3 N1 RAW.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 67977,
+   "reads": [
+    {
+     "buttons": [
+      "2",
+      "4"
+     ],
+     "crc_ok": 75,
+     "distinct": 15,
+     "encodable": true,
+     "frames": 75,
+     "protocol": "Kia V3",
+     "serial": "C0ED06",
+     "serials": 1
+    }
+   ],
+   "seconds": 32.78,
+   "type": "raw"
+  },
+  {
+   "bytes": 292878,
+   "folder": "KIA",
+   "frequency": 315000000,
+   "more": false,
+   "path": "KIA/KIA V4 N1 RAW.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 66449,
+   "reads": [
+    {
+     "buttons": [
+      "2",
+      "4"
+     ],
+     "crc_ok": 75,
+     "distinct": 15,
+     "encodable": true,
+     "frames": 75,
+     "protocol": "Kia V4",
+     "serial": "1C0ED06",
+     "serials": 1
+    }
+   ],
+   "seconds": 37.46,
+   "type": "raw"
+  },
+  {
+   "bytes": 433229,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": false,
+   "path": "KIA/KIA V5 N1 RAW.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 99840,
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 40,
+     "distinct": 21,
+     "encodable": true,
+     "frames": 40,
+     "protocol": "Kia V5",
+     "serial": "440C016",
+     "serials": 1
+    }
+   ],
+   "seconds": 25.88,
+   "type": "raw"
+  },
+  {
+   "bytes": 450365,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": false,
+   "path": "KIA/KIA V5 N2 RAW.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 103424,
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 39,
+     "distinct": 20,
+     "encodable": true,
+     "frames": 39,
+     "protocol": "Kia V5",
+     "serial": "177250E",
+     "serials": 1
+    }
+   ],
+   "seconds": 38.52,
+   "type": "raw"
+  },
+  {
+   "bytes": 174,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "key_bits": "67",
+   "key_protocol": "KIA/HYU V5",
+   "more": false,
+   "path": "KIA/KIA V5 N3.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "reads": [
+    {
+     "frames": 1,
+     "key": true,
+     "protocol": "Kia V5"
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 218,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "key_bits": "144",
+   "key_protocol": "KIA/HYU V6",
+   "more": false,
+   "path": "KIA/KIA V6 N2.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "reads": [
+    {
+     "frames": 1,
+     "key": true,
+     "protocol": "Kia V6"
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 433229,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": false,
+   "path": "KIA/KIA_V5_x20.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 99840,
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 40,
+     "distinct": 21,
+     "encodable": true,
+     "frames": 40,
+     "protocol": "Kia V5",
+     "serial": "440C016",
+     "serials": 1
+    }
+   ],
+   "seconds": 25.88,
+   "type": "raw"
+  },
+  {
+   "bytes": 97,
+   "folder": "KIA",
+   "more": false,
+   "note": "No RAW_Data in .sub file",
+   "path": "KIA/Kia0_orig.sub",
+   "pinned": true,
+   "reads": [],
+   "type": "raw"
+  },
+  {
+   "bytes": 298190,
+   "folder": "KIA",
+   "frequency": 315000000,
+   "more": false,
+   "path": "KIA/Kia3_5cl_5op_5tr.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 67977,
+   "reads": [
+    {
+     "buttons": [
+      "2",
+      "4"
+     ],
+     "crc_ok": 75,
+     "distinct": 15,
+     "encodable": true,
+     "frames": 75,
+     "protocol": "Kia V3",
+     "serial": "C0ED06",
+     "serials": 1
+    }
+   ],
+   "seconds": 32.78,
+   "type": "raw"
+  },
+  {
+   "bytes": 292878,
+   "folder": "KIA",
+   "frequency": 315000000,
+   "more": false,
+   "path": "KIA/Kia4_5cl_5op_5tr.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 66449,
+   "reads": [
+    {
+     "buttons": [
+      "2",
+      "4"
+     ],
+     "crc_ok": 75,
+     "distinct": 15,
+     "encodable": true,
+     "frames": 75,
+     "protocol": "Kia V4",
+     "serial": "1C0ED06",
+     "serials": 1
+    }
+   ],
+   "seconds": 37.46,
+   "type": "raw"
+  },
+  {
+   "bytes": 14173,
+   "folder": "KIA",
+   "frequency": 315000000,
+   "more": false,
+   "path": "KIA/KiaV1_5cl_5op.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 2662,
+   "reads": [
+    {
+     "buttons": [
+      "1",
+      "2"
+     ],
+     "crc_ok": 10,
+     "distinct": 10,
+     "encodable": true,
+     "frames": 10,
+     "protocol": "Kia V1",
+     "serial": "B444706E",
+     "serials": 1
+    }
+   ],
+   "seconds": 3.77,
+   "type": "raw"
+  },
+  {
+   "bytes": 34108,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": true,
+   "path": "KIA/more/2019-2022_KIA_Soul_433.92_FM.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 7605,
+   "reads": [],
+   "seconds": 11.74,
+   "type": "raw"
+  },
+  {
+   "bytes": 85724,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": true,
+   "path": "KIA/more/2019-2022_Kia_Sportage_QL__433.92_FM.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 19495,
+   "reads": [
+    {
+     "distinct": 9,
+     "frames": 16,
+     "protocol": "Kia Mobis"
+    }
+   ],
+   "seconds": 9.72,
+   "type": "raw"
+  },
+  {
+   "bytes": 64341,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": true,
+   "path": "KIA/more/2020-2022_Kia_Sorento_433.92_FM.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 14848,
+   "reads": [],
+   "seconds": 5.97,
+   "type": "raw"
+  },
+  {
+   "bytes": 23071,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": true,
+   "path": "KIA/more/2023__Kia_Soul_433.92_FM.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 5093,
+   "reads": [],
+   "seconds": 10.47,
+   "type": "raw"
+  },
+  {
+   "bytes": 117916,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": true,
+   "path": "KIA/more/22-26_Kia_EV6_433.92mhz_FM476.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 27136,
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 10,
+     "protocol": "Kia Denso"
+    }
+   ],
+   "seconds": 7.63,
+   "type": "raw"
+  },
+  {
+   "bytes": 127443,
+   "folder": "KIA",
+   "frequency": 315000000,
+   "more": true,
+   "path": "KIA/more/Forte_315mhz_FM.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 29184,
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 20,
+     "protocol": "Kia Forte"
+    }
+   ],
+   "seconds": 11.81,
+   "type": "raw"
+  },
+  {
+   "bytes": 66865,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": true,
+   "path": "KIA/more/KIA_Niro_late_model_433.92_FM.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 15197,
+   "reads": [
+    {
+     "distinct": 9,
+     "frames": 12,
+     "protocol": "Kia Mobis"
+    }
+   ],
+   "seconds": 9.89,
+   "type": "raw"
+  },
+  {
+   "bytes": 194,
+   "folder": "KIA",
+   "frequency": 315000000,
+   "key_bits": "57",
+   "key_protocol": "Kia V1",
+   "more": true,
+   "path": "KIA/more/Kia V1_great_kot.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Kia V1",
+     "serial": "B444706E",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 371891,
+   "folder": "KIA",
+   "frequency": 315000000,
+   "more": true,
+   "path": "KIA/more/Kia3_30TS.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 82744,
+   "reads": [
+    {
+     "distinct": 30,
+     "frames": 150,
+     "protocol": "Kia V3"
+    }
+   ],
+   "seconds": 70.15,
+   "type": "raw"
+  },
+  {
+   "bytes": 394435,
+   "folder": "KIA",
+   "frequency": 315000000,
+   "more": true,
+   "path": "KIA/more/Kia4_30TS.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 88208,
+   "reads": [
+    {
+     "distinct": 30,
+     "frames": 150,
+     "protocol": "Kia V4"
+    }
+   ],
+   "seconds": 63.05,
+   "type": "raw"
+  },
+  {
+   "bytes": 285381,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": true,
+   "path": "KIA/more/Kia_0_orig.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 65536,
+   "reads": [
+    {
+     "distinct": 15,
+     "frames": 30,
+     "protocol": "Kia V0"
+    }
+   ],
+   "seconds": 23.41,
+   "type": "raw"
+  },
+  {
+   "bytes": 102126,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": true,
+   "path": "KIA/more/Kia_Carnival_433.92_FM.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 23552,
+   "reads": [],
+   "seconds": 10.73,
+   "type": "raw"
+  },
+  {
+   "bytes": 87183,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": true,
+   "path": "KIA/more/Kia_K7_433.92_FM.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 19968,
+   "reads": [
+    {
+     "distinct": 7,
+     "frames": 12,
+     "protocol": "Kia Mobis"
+    }
+   ],
+   "seconds": 8.58,
+   "type": "raw"
+  },
+  {
+   "bytes": 111314,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": true,
+   "path": "KIA/more/Random_late_model_KIA_remote_433.92mhz_FM476.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 25600,
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 10,
+     "protocol": "Kia Denso"
+    }
+   ],
+   "seconds": 5.65,
+   "type": "raw"
+  },
+  {
+   "bytes": 44952,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": true,
+   "path": "KIA/more/kia_seed_raw.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 10240,
+   "reads": [
+    {
+     "distinct": 4,
+     "frames": 12,
+     "protocol": "Kia V0"
+    }
+   ],
+   "seconds": 2.37,
+   "type": "raw"
+  },
+  {
+   "bytes": 178688,
+   "folder": "KIA",
+   "frequency": 315000000,
+   "more": true,
+   "path": "KIA/more/kia_v3_b.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 40754,
+   "reads": [
+    {
+     "distinct": 9,
+     "frames": 45,
+     "protocol": "Kia V3"
+    }
+   ],
+   "seconds": 19.21,
+   "type": "raw"
+  },
+  {
+   "bytes": 191,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "key_bits": "68",
+   "key_protocol": "Kia V4",
+   "more": true,
+   "path": "KIA/more/kia_v4_1.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Kia V4",
+     "serial": "12345",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 462476,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": true,
+   "path": "KIA/more/kia_v6.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 104161,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 20,
+     "protocol": "Kia V6"
+    }
+   ],
+   "seconds": 61.94,
+   "type": "raw"
+  },
+  {
+   "bytes": 263901,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": true,
+   "path": "KIA/more/kia_v6_DXL_2_10.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 60343,
+   "reads": [
+    {
+     "distinct": 8,
+     "frames": 8,
+     "protocol": "Kia V6"
+    }
+   ],
+   "seconds": 17.47,
+   "type": "raw"
+  },
+  {
+   "bytes": 348142,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": true,
+   "path": "KIA/more/kia_v6_KD_2_10.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 79798,
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 10,
+     "protocol": "Kia V6"
+    }
+   ],
+   "seconds": 23.8,
+   "type": "raw"
+  },
+  {
+   "bytes": 69186,
+   "folder": "KIA",
+   "frequency": 433920000,
+   "more": true,
+   "path": "KIA/more/kia_v7_Korea_H6_DXL.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 15210,
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 20,
+     "protocol": "Kia V7"
+    }
+   ],
+   "seconds": 18.58,
+   "type": "raw"
+  },
+  {
+   "bytes": 39034,
+   "folder": "LDV",
+   "frequency": 433889000,
+   "more": false,
+   "path": "LDV/LDV-T80_lock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 8634,
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "distinct": 4,
+     "frames": 4,
+     "protocol": "Ford V3",
+     "serial": "43A88F90",
+     "serials": 1
+    }
+   ],
+   "seconds": 5.88,
+   "type": "raw"
+  },
+  {
+   "bytes": 34608,
+   "folder": "LDV",
+   "frequency": 433889000,
+   "more": false,
+   "path": "LDV/LDV-T80_unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 7626,
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "distinct": 3,
+     "frames": 3,
+     "protocol": "Ford V3",
+     "serial": "43A88F90",
+     "serials": 1
+    }
+   ],
+   "seconds": 5.23,
+   "type": "raw"
+  },
+  {
+   "bytes": 989,
+   "folder": "Lamborghini",
+   "frequency": 315000000,
+   "more": false,
+   "path": "Lamborghini/Lambo_Lock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 155,
+   "reads": [],
+   "seconds": 3.9,
+   "type": "raw"
+  },
+  {
+   "bytes": 327,
+   "folder": "Lamborghini",
+   "frequency": 315000000,
+   "more": false,
+   "path": "Lamborghini/Lambo_Trunk.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 30,
+   "reads": [],
+   "seconds": 3.49,
+   "type": "raw"
+  },
+  {
+   "bytes": 478,
+   "folder": "Lamborghini",
+   "frequency": 315000000,
+   "more": false,
+   "path": "Lamborghini/Lambo_Unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 53,
+   "reads": [],
+   "seconds": 4.26,
+   "type": "raw"
+  },
+  {
+   "bytes": 165,
+   "folder": "MISC",
+   "frequency": 433920000,
+   "key_bits": "25",
+   "key_protocol": "Audiovox PRO",
+   "more": true,
+   "note": "the Audiovox-PROOE3B decoder does not take this \"Audiovox PRO\" key file (25 bits): it holds no valid frame of the protocol",
+   "path": "MISC/more/36 Audiovox PRO.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [],
+   "type": "key"
+  },
+  {
+   "bytes": 17002,
+   "folder": "MISC",
+   "frequency": 434420000,
+   "more": true,
+   "path": "MISC/more/vag_1_2_3_4__kia_0_1_3_4_5.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 3664,
+   "reads": [
+    {
+     "distinct": 4,
+     "frames": 4,
+     "protocol": "VAG"
+    },
+    {
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Toyota (FoxFW)"
+    },
+    {
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Kia V1"
+    },
+    {
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Kia V0"
+    }
+   ],
+   "seconds": 1.97,
+   "type": "raw"
+  },
+  {
+   "bytes": 32097,
+   "folder": "MITSUBISHI",
+   "frequency": 433920000,
+   "more": false,
+   "path": "MITSUBISHI/Mitsh_all_x1_fm476.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 7293,
+   "reads": [
+    {
+     "buttons": [
+      "2",
+      "8"
+     ],
+     "distinct": 2,
+     "encodable": true,
+     "frames": 8,
+     "protocol": "Mitsubishi V1",
+     "serial": "1260F206",
+     "serials": 1
+    }
+   ],
+   "seconds": 1.62,
+   "type": "raw"
+  },
+  {
+   "bytes": 89309,
+   "folder": "MITSUBISHI",
+   "frequency": 433920000,
+   "more": false,
+   "path": "MITSUBISHI/Mitsubishi pajero 2011.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 20393,
+   "reads": [
+    {
+     "buttons": [
+      "3",
+      "4",
+      "6"
+     ],
+     "crc_ok": 4,
+     "distinct": 4,
+     "encodable": true,
+     "frames": 4,
+     "protocol": "Kia V0",
+     "serial": "DF8ABA0",
+     "serials": 1
+    },
+    {
+     "buttons": [
+      "3",
+      "4",
+      "6"
+     ],
+     "crc_ok": 4,
+     "distinct": 4,
+     "encodable": true,
+     "frames": 4,
+     "protocol": "Mitsubishi V0",
+     "serial": "DF8ABA0",
+     "serials": 1
+    }
+   ],
+   "seconds": 8.22,
+   "type": "raw"
+  },
+  {
+   "bytes": 331420,
+   "folder": "MITSUBISHI",
+   "frequency": 433920000,
+   "more": true,
+   "path": "MITSUBISHI/more/KeyFob1_1.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 76288,
+   "reads": [
+    {
+     "distinct": 17,
+     "frames": 68,
+     "protocol": "Mitsubishi V1"
+    }
+   ],
+   "seconds": 20.73,
+   "type": "raw"
+  },
+  {
+   "bytes": 402405,
+   "folder": "MITSUBISHI",
+   "frequency": 433920000,
+   "more": true,
+   "path": "MITSUBISHI/more/KeyFob1_2.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 92672,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 80,
+     "protocol": "Mitsubishi V1"
+    }
+   ],
+   "seconds": 25.54,
+   "type": "raw"
+  },
+  {
+   "bytes": 395528,
+   "folder": "MITSUBISHI",
+   "frequency": 433920000,
+   "more": true,
+   "path": "MITSUBISHI/more/KeyFob1_3.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 91136,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 80,
+     "protocol": "Mitsubishi V1"
+    }
+   ],
+   "seconds": 23.06,
+   "type": "raw"
+  },
+  {
+   "bytes": 394561,
+   "folder": "MITSUBISHI",
+   "frequency": 433920000,
+   "more": true,
+   "path": "MITSUBISHI/more/KeyFob1_4.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 90112,
+   "reads": [
+    {
+     "distinct": 13,
+     "frames": 109,
+     "protocol": "Mitsubishi V1"
+    }
+   ],
+   "seconds": 21.19,
+   "type": "raw"
+  },
+  {
+   "bytes": 662116,
+   "folder": "MITSUBISHI",
+   "frequency": 433920000,
+   "more": true,
+   "path": "MITSUBISHI/more/KeyFob1_5.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 151040,
+   "reads": [
+    {
+     "distinct": 19,
+     "frames": 194,
+     "protocol": "Mitsubishi V1"
+    }
+   ],
+   "seconds": 35.4,
+   "type": "raw"
+  },
+  {
+   "bytes": 694474,
+   "folder": "MITSUBISHI",
+   "frequency": 433920000,
+   "more": true,
+   "path": "MITSUBISHI/more/KeyFob1_6.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 158358,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 203,
+     "protocol": "Mitsubishi V1"
+    }
+   ],
+   "seconds": 37.09,
+   "type": "raw"
+  },
+  {
+   "bytes": 148320,
+   "custom": {
+    "bandwidth_hz": 101562,
+    "baud": 38383,
+    "deviation_hz": 31738,
+    "keying": "2-FSK"
+   },
+   "folder": "MITSUBISHI",
+   "frequency": 433920000,
+   "more": true,
+   "path": "MITSUBISHI/more/Mitsh_btn3_x20_f3.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 33841,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 72,
+     "protocol": "Mitsubishi V1"
+    }
+   ],
+   "seconds": 7.31,
+   "type": "raw"
+  },
+  {
+   "bytes": 182033,
+   "custom": {
+    "bandwidth_hz": 101562,
+    "baud": 38383,
+    "deviation_hz": 31738,
+    "keying": "2-FSK"
+   },
+   "folder": "MITSUBISHI",
+   "frequency": 433920000,
+   "more": true,
+   "path": "MITSUBISHI/more/Mitsh_lock_x20_f3.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 41744,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 80,
+     "protocol": "Mitsubishi V1"
+    }
+   ],
+   "seconds": 8.77,
+   "type": "raw"
+  },
+  {
+   "bytes": 137696,
+   "custom": {
+    "bandwidth_hz": 101562,
+    "baud": 38383,
+    "deviation_hz": 31738,
+    "keying": "2-FSK"
+   },
+   "folder": "MITSUBISHI",
+   "frequency": 433920000,
+   "more": true,
+   "path": "MITSUBISHI/more/Mitsh_unlock_x20_f3.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 31431,
+   "reads": [
+    {
+     "distinct": 18,
+     "frames": 64,
+     "protocol": "Mitsubishi V1"
+    }
+   ],
+   "seconds": 6.67,
+   "type": "raw"
+  },
+  {
+   "bytes": 2212,
+   "folder": "Mazda",
+   "frequency": 314980000,
+   "more": false,
+   "path": "Mazda/25mazda_cx50_ll_uu_tt_pp_x2.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 459,
+   "reads": [],
+   "seconds": 12.61,
+   "type": "raw"
+  },
+  {
+   "bytes": 5475,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": false,
+   "path": "Mazda/MazdaV1F4_OEM2_LU.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 1145,
+   "reads": [
+    {
+     "buttons": [
+      "6",
+      "A"
+     ],
+     "crc_ok": 4,
+     "distinct": 2,
+     "encodable": true,
+     "frames": 4,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 0.89,
+   "type": "raw"
+  },
+  {
+   "bytes": 78461,
+   "folder": "Mazda",
+   "frequency": 433889000,
+   "more": false,
+   "path": "Mazda/Rx8_2007_10x_alarm.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 17751,
+   "reads": [],
+   "seconds": 12.74,
+   "type": "raw"
+  },
+  {
+   "bytes": 26339,
+   "folder": "Mazda",
+   "frequency": 433889000,
+   "more": false,
+   "path": "Mazda/Rx8_2007_10x_lock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 5781,
+   "reads": [],
+   "seconds": 12.94,
+   "type": "raw"
+  },
+  {
+   "bytes": 22486,
+   "folder": "Mazda",
+   "frequency": 433889000,
+   "more": false,
+   "path": "Mazda/Rx8_2007_10x_trunk.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4875,
+   "reads": [],
+   "seconds": 18.94,
+   "type": "raw"
+  },
+  {
+   "bytes": 14806,
+   "folder": "Mazda",
+   "frequency": 433889000,
+   "more": false,
+   "path": "Mazda/Rx8_2007_10x_unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 3203,
+   "reads": [],
+   "seconds": 11.94,
+   "type": "raw"
+  },
+  {
+   "bytes": 75789,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": false,
+   "path": "Mazda/mazda_key3_10x_trunk.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 16896,
+   "reads": [
+    {
+     "buttons": [
+      "26"
+     ],
+     "distinct": 10,
+     "encodable": true,
+     "frames": 20,
+     "protocol": "Mazda V1",
+     "serial": "5",
+     "serials": 1
+    }
+   ],
+   "seconds": 6.6,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/20x_Long_Lock-B.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 70187,
+   "reads": [
+    {
+     "distinct": 40,
+     "frames": 43,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 29.15,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/20x_Long_Lock.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 69805,
+   "reads": [
+    {
+     "distinct": 48,
+     "frames": 52,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 32.89,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/20x_Long_Unlock-B.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 69507,
+   "reads": [
+    {
+     "distinct": 55,
+     "frames": 59,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 36.16,
+   "type": "raw"
+  },
+  {
+   "bytes": 1554531,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/20x_Long_Unlock.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 348770,
+   "reads": [
+    {
+     "distinct": 384,
+     "frames": 404,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 230.54,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/300x_Short_Lock-B.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 70770,
+   "reads": [
+    {
+     "distinct": 24,
+     "frames": 47,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 18.84,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/300x_Short_Lock.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 70667,
+   "reads": [
+    {
+     "distinct": 24,
+     "frames": 47,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 21.54,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/300x_Short_Unlock-B.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 70695,
+   "reads": [
+    {
+     "distinct": 22,
+     "frames": 44,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 21.36,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/300x_Short_Unlock.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 69685,
+   "reads": [
+    {
+     "distinct": 34,
+     "frames": 68,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 30.23,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/MazdaF4V1_OEM_20lck_long.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 67960,
+   "reads": [
+    {
+     "distinct": 115,
+     "frames": 120,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 56.07,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/MazdaF4V1_OEM_20ulk_long.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 67571,
+   "reads": [
+    {
+     "distinct": 62,
+     "frames": 64,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 55.55,
+   "type": "raw"
+  },
+  {
+   "bytes": 1498357,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/MazdaF4_OEM_300lck.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 331206,
+   "reads": [
+    {
+     "distinct": 300,
+     "frames": 599,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 247.16,
+   "type": "raw"
+  },
+  {
+   "bytes": 1533585,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/MazdaF4_OEM_300ulk.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 338785,
+   "reads": [
+    {
+     "distinct": 317,
+     "frames": 630,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 285.86,
+   "type": "raw"
+  },
+  {
+   "bytes": 1740510,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/MazdaV1F4_OEM2_300lck.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 387320,
+   "reads": [
+    {
+     "distinct": 310,
+     "frames": 616,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 232.6,
+   "type": "raw"
+  },
+  {
+   "bytes": 2028713,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/MazdaV1F4_OEM2_300ulk.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 454912,
+   "reads": [
+    {
+     "distinct": 300,
+     "frames": 597,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 234.77,
+   "type": "raw"
+  },
+  {
+   "bytes": 988558,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/MazdaV1F4_OEM2_5lck_hold30s.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 221474,
+   "reads": [
+    {
+     "distinct": 275,
+     "frames": 285,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 144.78,
+   "type": "raw"
+  },
+  {
+   "bytes": 1098158,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/MazdaV1F4_OEM2_5ulk_hold30s.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 246420,
+   "reads": [
+    {
+     "distinct": 288,
+     "frames": 298,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 146.01,
+   "type": "raw"
+  },
+  {
+   "bytes": 553107,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/Mazda_F2.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 126683,
+   "reads": [
+    {
+     "distinct": 17,
+     "frames": 54,
+     "protocol": "Mazda Siemens"
+    },
+    {
+     "distinct": 23,
+     "frames": 27,
+     "protocol": "Mazda V0"
+    }
+   ],
+   "seconds": 60.48,
+   "type": "raw"
+  },
+  {
+   "bytes": 851512,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/Mazda_F4.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 193418,
+   "reads": [
+    {
+     "distinct": 46,
+     "frames": 46,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 74.5,
+   "type": "raw"
+  },
+  {
+   "bytes": 226041,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/Mazda_Visteon_TS.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 50444,
+   "reads": [
+    {
+     "distinct": 31,
+     "frames": 75,
+     "protocol": "Mazda V0"
+    }
+   ],
+   "seconds": 56.22,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/mazda_key0_1665x_btn5.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 63792,
+   "reads": [
+    {
+     "distinct": 108,
+     "frames": 216,
+     "protocol": "Mazda V1"
+    }
+   ],
+   "seconds": 102.48,
+   "type": "raw"
+  },
+  {
+   "bytes": 1713570,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/mazda_key0_524x_btn5.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 357817,
+   "reads": [
+    {
+     "distinct": 524,
+     "frames": 1047,
+     "protocol": "Mazda V1"
+    }
+   ],
+   "seconds": 639.77,
+   "type": "raw"
+  },
+  {
+   "bytes": 459818,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/mazda_key1_145x_lock.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 96341,
+   "reads": [
+    {
+     "distinct": 145,
+     "frames": 290,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 154.64,
+   "type": "raw"
+  },
+  {
+   "bytes": 59600,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/mazda_key3_10x_lock.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 12772,
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 20,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 10.21,
+   "type": "raw"
+  },
+  {
+   "bytes": 64365,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/mazda_key3_10x_unlock.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 13722,
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 20,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 11.55,
+   "type": "raw"
+  },
+  {
+   "bytes": 32017,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/mazda_key5_10x_lock.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 6621,
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 20,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 12.0,
+   "type": "raw"
+  },
+  {
+   "bytes": 32155,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/mazda_key5_10x_trunk.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 6656,
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 20,
+     "protocol": "Mazda V1"
+    }
+   ],
+   "seconds": 11.39,
+   "type": "raw"
+  },
+  {
+   "bytes": 31962,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/mazda_key5_10x_unlock.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 6609,
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 20,
+     "protocol": "Mazda V2"
+    }
+   ],
+   "seconds": 11.95,
+   "type": "raw"
+  },
+  {
+   "bytes": 90980,
+   "folder": "Mazda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "Mazda/more/mazda_visteon_6xl_5xu_5xa.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 20329,
+   "reads": [
+    {
+     "distinct": 12,
+     "frames": 24,
+     "protocol": "Mazda V2"
+    },
+    {
+     "distinct": 5,
+     "frames": 10,
+     "protocol": "Mazda V1"
+    }
+   ],
+   "seconds": 12.64,
+   "type": "raw"
+  },
+  {
+   "bytes": 82108,
+   "folder": "OPEL",
+   "frequency": 433920000,
+   "more": false,
+   "path": "OPEL/Opel Vectra 2008.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 19149,
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 14,
+     "distinct": 6,
+     "encodable": true,
+     "frames": 14,
+     "protocol": "Fiat V1",
+     "serial": "468F5D25",
+     "serials": 1
+    }
+   ],
+   "seconds": 12.05,
+   "type": "raw"
+  },
+  {
+   "bytes": 7282,
+   "folder": "RENAULT",
+   "frequency": 433075000,
+   "more": false,
+   "path": "RENAULT/Renault Megane Scenic 2005 lock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 1557,
+   "reads": [],
+   "seconds": 4.25,
+   "type": "raw"
+  },
+  {
+   "bytes": 16443,
+   "folder": "RENAULT",
+   "frequency": 433075000,
+   "more": false,
+   "path": "RENAULT/Renault Megane Scenic 2005 trunk.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 3584,
+   "reads": [],
+   "seconds": 6.56,
+   "type": "raw"
+  },
+  {
+   "bytes": 11772,
+   "folder": "RENAULT",
+   "frequency": 433075000,
+   "more": false,
+   "path": "RENAULT/Renault Megane Scenic 2005 unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 2534,
+   "reads": [],
+   "seconds": 5.61,
+   "type": "raw"
+  },
+  {
+   "bytes": 2083235,
+   "folder": "RENAULT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "RENAULT/more/Renault_Duster_2010_KD_300ulk.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 464494,
+   "reads": [
+    {
+     "distinct": 299,
+     "frames": 437,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 55,
+     "frames": 56,
+     "protocol": "Renault/xHorse V4"
+    },
+    {
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Hitag2"
+    }
+   ],
+   "seconds": 377.8,
+   "type": "raw"
+  },
+  {
+   "bytes": 86846,
+   "folder": "RENAULT",
+   "frequency": 434176948,
+   "more": true,
+   "path": "RENAULT/more/Renault_v1_000R3X.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 19515,
+   "reads": [
+    {
+     "distinct": 6,
+     "frames": 59,
+     "protocol": "Renault V0"
+    },
+    {
+     "distinct": 3,
+     "frames": 13,
+     "protocol": "Renault V1 (ARF) [Dynamic 0x10]"
+    }
+   ],
+   "seconds": 12.25,
+   "type": "raw"
+  },
+  {
+   "bytes": 45179,
+   "folder": "RENAULT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "RENAULT/more/Renault_v1_PSA_A5_1_1U1L.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 10182,
+   "reads": [
+    {
+     "distinct": 2,
+     "frames": 5,
+     "protocol": "Renault V1"
+    }
+   ],
+   "seconds": 5.74,
+   "type": "raw"
+  },
+  {
+   "bytes": 820670,
+   "folder": "RENAULT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "RENAULT/more/Renault_v1_PSA_A5_1_20U20L.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 183672,
+   "reads": [
+    {
+     "distinct": 40,
+     "frames": 78,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 12,
+     "frames": 17,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 117.38,
+   "type": "raw"
+  },
+  {
+   "bytes": 38379,
+   "folder": "RENAULT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "RENAULT/more/Renault_v1_PSA_A5_3_1U1L.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 8500,
+   "reads": [
+    {
+     "distinct": 2,
+     "frames": 4,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 1,
+     "frames": 2,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 5.74,
+   "type": "raw"
+  },
+  {
+   "bytes": 825721,
+   "folder": "RENAULT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "RENAULT/more/Renault_v1_PSA_A5_3_20U20L.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 184632,
+   "reads": [
+    {
+     "distinct": 40,
+     "frames": 81,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 16,
+     "frames": 26,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 116.86,
+   "type": "raw"
+  },
+  {
+   "bytes": 41267,
+   "folder": "RENAULT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "RENAULT/more/Renault_v1_PSA_A5_4_1U1L.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 9222,
+   "reads": [
+    {
+     "distinct": 2,
+     "frames": 4,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 5.8,
+   "type": "raw"
+  },
+  {
+   "bytes": 796984,
+   "folder": "RENAULT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "RENAULT/more/Renault_v1_PSA_A5_4_20U20L.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 178570,
+   "reads": [
+    {
+     "distinct": 40,
+     "frames": 81,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 9,
+     "frames": 11,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 115.97,
+   "type": "raw"
+  },
+  {
+   "bytes": 59320,
+   "folder": "RENAULT",
+   "frequency": 434176948,
+   "more": true,
+   "path": "RENAULT/more/kangoo_1.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 13269,
+   "reads": [
+    {
+     "distinct": 7,
+     "frames": 14,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 3,
+     "frames": 4,
+     "protocol": "Renault V0"
+    }
+   ],
+   "seconds": 9.51,
+   "type": "raw"
+  },
+  {
+   "bytes": 86480,
+   "folder": "RENAULT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "RENAULT/more/kangoo_2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 19273,
+   "reads": [
+    {
+     "distinct": 14,
+     "frames": 24,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 4,
+     "frames": 8,
+     "protocol": "Renault V0"
+    }
+   ],
+   "seconds": 15.57,
+   "type": "raw"
+  },
+  {
+   "bytes": 48079,
+   "folder": "RENAULT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "RENAULT/more/kangoo_3.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 10732,
+   "reads": [
+    {
+     "distinct": 7,
+     "frames": 12,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 4,
+     "frames": 6,
+     "protocol": "Renault V0"
+    }
+   ],
+   "seconds": 5.39,
+   "type": "raw"
+  },
+  {
+   "bytes": 20743,
+   "folder": "RENAULT",
+   "frequency": 434176948,
+   "more": true,
+   "path": "RENAULT/more/kangoo_4_2x_close.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4608,
+   "reads": [
+    {
+     "distinct": 4,
+     "frames": 7,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 2,
+     "frames": 4,
+     "protocol": "Renault V0"
+    }
+   ],
+   "seconds": 3.21,
+   "type": "raw"
+  },
+  {
+   "bytes": 1909886,
+   "folder": "RENAULT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "RENAULT/more/lock_20_longpress.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 433337,
+   "reads": [
+    {
+     "distinct": 21,
+     "frames": 42,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 5,
+     "frames": 6,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 322.17,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "RENAULT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "RENAULT/more/trunk_300.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 68910,
+   "reads": [
+    {
+     "distinct": 30,
+     "frames": 60,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 6,
+     "frames": 9,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 55.58,
+   "type": "raw"
+  },
+  {
+   "bytes": 1683925,
+   "folder": "RENAULT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "RENAULT/more/unlock_20_longpress.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 379586,
+   "reads": [
+    {
+     "distinct": 22,
+     "frames": 44,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 6,
+     "frames": 9,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 328.14,
+   "type": "raw"
+  },
+  {
+   "bytes": 1883914,
+   "folder": "RENAULT",
+   "frequency": 433920000,
+   "more": true,
+   "path": "RENAULT/more/unlock_300_1.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 420311,
+   "reads": [
+    {
+     "distinct": 300,
+     "frames": 559,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 24,
+     "frames": 30,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 500.56,
+   "type": "raw"
+  },
+  {
+   "bytes": 19703,
+   "folder": "SKODA",
+   "frequency": 434390000,
+   "more": false,
+   "path": "SKODA/Skoda_Fabia_2007 RAW.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4367,
+   "reads": [
+    {
+     "buttons": [
+      "0"
+     ],
+     "crc_ok": 5,
+     "distinct": 4,
+     "encodable": true,
+     "frames": 5,
+     "protocol": "VAG",
+     "serial": "7687620",
+     "serials": 1
+    }
+   ],
+   "seconds": 3.93,
+   "type": "raw"
+  },
+  {
+   "bytes": 102220,
+   "folder": "SKODA",
+   "frequency": 434420000,
+   "more": true,
+   "path": "SKODA/more/Skoda_lock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 22560,
+   "reads": [
+    {
+     "distinct": 5,
+     "frames": 25,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 11.86,
+   "type": "raw"
+  },
+  {
+   "bytes": 151923,
+   "folder": "SKODA",
+   "frequency": 434420000,
+   "more": true,
+   "path": "SKODA/more/Skoda_trunk.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 33532,
+   "reads": [
+    {
+     "distinct": 5,
+     "frames": 25,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 18.65,
+   "type": "raw"
+  },
+  {
+   "bytes": 126599,
+   "folder": "SKODA",
+   "frequency": 434420000,
+   "more": true,
+   "path": "SKODA/more/Skoda_unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 27942,
+   "reads": [
+    {
+     "distinct": 5,
+     "frames": 25,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 15.12,
+   "type": "raw"
+  },
+  {
+   "bytes": 2245,
+   "folder": "SUBARU",
+   "frequency": 433657070,
+   "more": false,
+   "path": "SUBARU/20_subaru_outback_ll_tt_ulul_pp.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 475,
+   "reads": [],
+   "seconds": 5.41,
+   "type": "raw"
+  },
+  {
+   "bytes": 23052,
+   "folder": "SUBARU",
+   "frequency": 433920000,
+   "more": false,
+   "path": "SUBARU/Subaro Impreza RAW .sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4608,
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "distinct": 5,
+     "encodable": true,
+     "frames": 5,
+     "protocol": "Subaru",
+     "serial": "CB715E",
+     "serials": 1
+    }
+   ],
+   "seconds": 7.16,
+   "type": "raw"
+  },
+  {
+   "bytes": 19968,
+   "folder": "SUBARU",
+   "more": false,
+   "path": "SUBARU/Subaru Forester 2012 AU.sub",
+   "pinned": true,
+   "pulses": 3653,
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Subaru",
+     "serial": "324AFE",
+     "serials": 1
+    }
+   ],
+   "seconds": 3.96,
+   "type": "raw"
+  },
+  {
+   "bytes": 90624,
+   "folder": "SUBARU",
+   "frequency": 433920000,
+   "more": false,
+   "path": "SUBARU/Subaru WRX Impreza 2018 AU.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 17929,
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "distinct": 3,
+     "encodable": true,
+     "frames": 3,
+     "protocol": "Subaru",
+     "serial": "2A90CE",
+     "serials": 1
+    }
+   ],
+   "seconds": 22.61,
+   "type": "raw"
+  },
+  {
+   "bytes": 159,
+   "folder": "SUBARU",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "Subaru",
+   "more": true,
+   "path": "SUBARU/more/Subaru_impreza_full_fob.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "Subaru",
+     "serial": "CB715E",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 319439,
+   "folder": "SUZUKI",
+   "frequency": 433920000,
+   "more": false,
+   "path": "SUZUKI/Suzuki_v0_kd.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 72885,
+   "reads": [
+    {
+     "buttons": [
+      "2",
+      "3",
+      "4"
+     ],
+     "crc_ok": 15,
+     "distinct": 15,
+     "encodable": true,
+     "frames": 15,
+     "protocol": "Suzuki V0",
+     "serial": "1530242",
+     "serials": 1
+    }
+   ],
+   "seconds": 37.33,
+   "type": "raw"
+  },
+  {
+   "bytes": 12601,
+   "folder": "Skyline",
+   "frequency": 314980000,
+   "more": false,
+   "path": "Skyline/Skyline_close_US.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 2763,
+   "reads": [],
+   "seconds": 7.94,
+   "type": "raw"
+  },
+  {
+   "bytes": 5453,
+   "folder": "Skyline",
+   "frequency": 314980000,
+   "more": false,
+   "path": "Skyline/Skyline_open_US.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 1172,
+   "reads": [],
+   "seconds": 4.53,
+   "type": "raw"
+  },
+  {
+   "bytes": 10823,
+   "folder": "Toyota + Lexus",
+   "frequency": 312100000,
+   "more": false,
+   "path": "Toyota + Lexus/18_toyota_tacoma_l2_ul2_p2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 2391,
+   "reads": [],
+   "seconds": 9.09,
+   "type": "raw"
+  },
+  {
+   "bytes": 5890,
+   "folder": "Toyota + Lexus",
+   "frequency": 312100000,
+   "more": false,
+   "path": "Toyota + Lexus/19_lexus_is_sk_l_u_t_p.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 1307,
+   "reads": [],
+   "seconds": 7.19,
+   "type": "raw"
+  },
+  {
+   "bytes": 5437,
+   "folder": "Toyota + Lexus",
+   "frequency": 312100000,
+   "more": false,
+   "path": "Toyota + Lexus/19_toyota_camry_hv_ul2_l2_t2_p2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 1175,
+   "reads": [],
+   "seconds": 8.87,
+   "type": "raw"
+  },
+  {
+   "bytes": 65714,
+   "folder": "Toyota + Lexus",
+   "frequency": 312000000,
+   "more": false,
+   "path": "Toyota + Lexus/19_toyota_camry_l2_u2_t2_p2.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 14848,
+   "reads": [],
+   "seconds": 11.57,
+   "type": "raw"
+  },
+  {
+   "bytes": 35907,
+   "folder": "Toyota + Lexus",
+   "frequency": 312000000,
+   "more": false,
+   "path": "Toyota + Lexus/2017 Lexus NX200t_312.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 8162,
+   "reads": [],
+   "seconds": 14.81,
+   "type": "raw"
+  },
+  {
+   "bytes": 9136,
+   "folder": "Toyota + Lexus",
+   "frequency": 314350000,
+   "more": false,
+   "path": "Toyota + Lexus/2017 Lexus NX200t_314.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 1941,
+   "reads": [],
+   "seconds": 14.8,
+   "type": "raw"
+  },
+  {
+   "bytes": 2594,
+   "folder": "Toyota + Lexus",
+   "frequency": 314350000,
+   "more": false,
+   "path": "Toyota + Lexus/21_lexus_is300_lluulluut.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 549,
+   "reads": [],
+   "seconds": 6.31,
+   "type": "raw"
+  },
+  {
+   "bytes": 1462,
+   "folder": "Toyota + Lexus",
+   "frequency": 315000000,
+   "more": false,
+   "path": "Toyota + Lexus/21_toyota_tacoma_l_u.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 300,
+   "reads": [],
+   "seconds": 2.55,
+   "type": "raw"
+  },
+  {
+   "bytes": 30792,
+   "folder": "Toyota + Lexus",
+   "frequency": 314350000,
+   "more": false,
+   "path": "Toyota + Lexus/23_toyota_rav4_l2_ul2_t2_p2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 6936,
+   "reads": [],
+   "seconds": 8.98,
+   "type": "raw"
+  },
+  {
+   "bytes": 3611,
+   "folder": "Toyota + Lexus",
+   "frequency": 312000000,
+   "more": false,
+   "path": "Toyota + Lexus/23_toyota_tacoma_l2_u2_p2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 769,
+   "reads": [],
+   "seconds": 6.55,
+   "type": "raw"
+  },
+  {
+   "bytes": 170768,
+   "folder": "Toyota + Lexus",
+   "frequency": 433657070,
+   "more": false,
+   "path": "Toyota + Lexus/Lexus UX 250 2021 lock.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 39424,
+   "reads": [],
+   "seconds": 11.76,
+   "type": "raw"
+  },
+  {
+   "bytes": 155675,
+   "folder": "Toyota + Lexus",
+   "frequency": 433657070,
+   "more": false,
+   "path": "Toyota + Lexus/Lexus UX 250 2021 unlock.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 35840,
+   "reads": [],
+   "seconds": 11.3,
+   "type": "raw"
+  },
+  {
+   "bytes": 29927,
+   "folder": "Toyota + Lexus",
+   "frequency": 314350000,
+   "more": false,
+   "path": "Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 6230,
+   "reads": [
+    {
+     "buttons": [
+      "D1"
+     ],
+     "crc_ok": 20,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 20,
+     "protocol": "Toyota",
+     "serial": "4AB9A1",
+     "serials": 1
+    }
+   ],
+   "seconds": 6.26,
+   "type": "raw"
+  },
+  {
+   "bytes": 29715,
+   "folder": "Toyota + Lexus",
+   "frequency": 314350000,
+   "more": false,
+   "path": "Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 6139,
+   "reads": [
+    {
+     "buttons": [
+      "0",
+      "D1"
+     ],
+     "crc_ok": 18,
+     "distinct": 3,
+     "encodable": true,
+     "frames": 20,
+     "protocol": "Toyota",
+     "serial": "4AB9A1",
+     "serials": 1
+    }
+   ],
+   "seconds": 6.36,
+   "type": "raw"
+  },
+  {
+   "bytes": 20321,
+   "folder": "Toyota + Lexus",
+   "frequency": 314350000,
+   "more": false,
+   "path": "Toyota + Lexus/Toyota Estima 2000 ACR30.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4196,
+   "reads": [
+    {
+     "buttons": [
+      "D1"
+     ],
+     "crc_ok": 13,
+     "distinct": 2,
+     "encodable": true,
+     "frames": 13,
+     "protocol": "Toyota",
+     "serial": "4AB9A1",
+     "serials": 1
+    }
+   ],
+   "seconds": 4.78,
+   "type": "raw"
+  },
+  {
+   "bytes": 35886,
+   "folder": "Toyota + Lexus",
+   "frequency": 312000000,
+   "more": false,
+   "path": "Toyota + Lexus/Toyota_Lexus NX200t_2017_312.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 8162,
+   "reads": [],
+   "seconds": 14.81,
+   "type": "raw"
+  },
+  {
+   "bytes": 9127,
+   "folder": "Toyota + Lexus",
+   "frequency": 314350000,
+   "more": false,
+   "path": "Toyota + Lexus/Toyota_Lexus NX200t_2017_314.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 1941,
+   "reads": [],
+   "seconds": 14.8,
+   "type": "raw"
+  },
+  {
+   "bytes": 24834,
+   "folder": "Toyota + Lexus",
+   "frequency": 433920000,
+   "more": false,
+   "path": "Toyota + Lexus/Toyota_Prius2006_lock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 5549,
+   "reads": [
+    {
+     "buttons": [
+      "B"
+     ],
+     "distinct": 1,
+     "frames": 8,
+     "protocol": "Toyota (FoxFW)",
+     "serial": "7231804",
+     "serials": 1
+    }
+   ],
+   "seconds": 2.69,
+   "type": "raw"
+  },
+  {
+   "bytes": 51466,
+   "folder": "Toyota + Lexus",
+   "frequency": 433920000,
+   "more": false,
+   "path": "Toyota + Lexus/Toyota_Prius2006_unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 11776,
+   "reads": [
+    {
+     "buttons": [
+      "E"
+     ],
+     "distinct": 1,
+     "frames": 8,
+     "protocol": "Toyota (FoxFW)",
+     "serial": "7231804",
+     "serials": 1
+    }
+   ],
+   "seconds": 3.92,
+   "type": "raw"
+  },
+  {
+   "bytes": 219912,
+   "folder": "Toyota + Lexus",
+   "frequency": 312100000,
+   "more": true,
+   "path": "Toyota + Lexus/more/Tundra19_lock.sub",
+   "pinned": true,
+   "preset": "FM238",
+   "pulses": 51712,
+   "reads": [],
+   "seconds": 13.72,
+   "type": "raw"
+  },
+  {
+   "bytes": 180736,
+   "folder": "Toyota + Lexus",
+   "frequency": 314350000,
+   "more": true,
+   "path": "Toyota + Lexus/more/Tundra19_lock2.sub",
+   "pinned": true,
+   "preset": "FM238",
+   "pulses": 42496,
+   "reads": [],
+   "seconds": 12.07,
+   "type": "raw"
+  },
+  {
+   "bytes": 228595,
+   "folder": "Toyota + Lexus",
+   "frequency": 314350000,
+   "more": true,
+   "path": "Toyota + Lexus/more/Tundra19_unlock.sub",
+   "pinned": true,
+   "preset": "FM238",
+   "pulses": 53760,
+   "reads": [],
+   "seconds": 14.89,
+   "type": "raw"
+  },
+  {
+   "bytes": 182636,
+   "folder": "Toyota + Lexus",
+   "frequency": 312100000,
+   "more": true,
+   "path": "Toyota + Lexus/more/Tundra19_unlock2.sub",
+   "pinned": true,
+   "preset": "FM238",
+   "pulses": 43008,
+   "reads": [],
+   "seconds": 11.26,
+   "type": "raw"
+  },
+  {
+   "bytes": 64913,
+   "folder": "VAG",
+   "frequency": 314980000,
+   "more": false,
+   "path": "VAG/20_vw_atlas_l2_u2_t2_rs2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 14361,
+   "reads": [
+    {
+     "buttons": [
+      "1",
+      "2",
+      "3",
+      "4"
+     ],
+     "distinct": 23,
+     "frames": 23,
+     "protocol": "VAG Polo",
+     "serial": "36712BD",
+     "serials": 23
+    }
+   ],
+   "seconds": 8.77,
+   "type": "raw"
+  },
+  {
+   "bytes": 20146,
+   "folder": "VAG",
+   "frequency": 433420000,
+   "more": false,
+   "path": "VAG/24_vw_atlas_l2_t2_ul2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4608,
+   "reads": [],
+   "seconds": 3.72,
+   "type": "raw"
+  },
+  {
+   "bytes": 198,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": false,
+   "path": "VAG/Audi A3 2012 key.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "frames": 1,
+     "key": true,
+     "protocol": "VAG"
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 44032,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": false,
+   "path": "VAG/Golf4.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 9481,
+   "reads": [
+    {
+     "buttons": [
+      "1",
+      "2"
+     ],
+     "crc_ok": 36,
+     "distinct": 18,
+     "encodable": true,
+     "frames": 38,
+     "protocol": "VAG",
+     "serial": "A2F9F3C",
+     "serials": 3
+    }
+   ],
+   "seconds": 10.61,
+   "type": "raw"
+  },
+  {
+   "bytes": 31605,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": false,
+   "path": "VAG/Passat_2015.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 6964,
+   "reads": [
+    {
+     "buttons": [
+      "10",
+      "20"
+     ],
+     "crc_ok": 8,
+     "distinct": 4,
+     "encodable": true,
+     "frames": 8,
+     "protocol": "VAG",
+     "serial": "FD779294",
+     "serials": 1
+    }
+   ],
+   "seconds": 2.26,
+   "type": "raw"
+  },
+  {
+   "bytes": 199,
+   "folder": "VAG",
+   "frequency": 434390000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": false,
+   "path": "VAG/Passat_b5_3bg.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "frames": 1,
+     "key": true,
+     "protocol": "VAG"
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 260298,
+   "folder": "VAG",
+   "frequency": 434620000,
+   "more": false,
+   "path": "VAG/Test_55_unlock_and_55_lock_suran.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 57601,
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 69,
+     "distinct": 60,
+     "encodable": true,
+     "frames": 69,
+     "protocol": "VAG",
+     "serial": "10C70EF7",
+     "serials": 1
+    }
+   ],
+   "seconds": 52.78,
+   "type": "raw"
+  },
+  {
+   "bytes": 31560,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": false,
+   "path": "VAG/VAG_2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 6954,
+   "reads": [
+    {
+     "buttons": [
+      "1",
+      "2"
+     ],
+     "crc_ok": 8,
+     "distinct": 4,
+     "encodable": true,
+     "frames": 8,
+     "protocol": "VAG",
+     "serial": "DED2BA3",
+     "serials": 1
+    }
+   ],
+   "seconds": 2.26,
+   "type": "raw"
+  },
+  {
+   "bytes": 47024,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": false,
+   "path": "VAG/VW Polo 5 2017 lock x5.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 10375,
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "distinct": 15,
+     "frames": 15,
+     "protocol": "VAG Polo",
+     "serial": "11066BD5",
+     "serials": 15
+    }
+   ],
+   "seconds": 7.36,
+   "type": "raw"
+  },
+  {
+   "bytes": 8041,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": false,
+   "path": "VAG/VW Polo 5 2017 lock1.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 1749,
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "distinct": 3,
+     "frames": 3,
+     "protocol": "VAG Polo",
+     "serial": "4889D78A",
+     "serials": 3
+    }
+   ],
+   "seconds": 1.47,
+   "type": "raw"
+  },
+  {
+   "bytes": 8133,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": false,
+   "path": "VAG/VW Polo 5 2017 lock2.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 1771,
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "distinct": 3,
+     "frames": 3,
+     "protocol": "VAG Polo",
+     "serial": "59EFF1D5",
+     "serials": 3
+    }
+   ],
+   "seconds": 1.47,
+   "type": "raw"
+  },
+  {
+   "bytes": 8114,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": false,
+   "path": "VAG/VW Polo 5 2017 lock3.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 1767,
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "distinct": 3,
+     "frames": 3,
+     "protocol": "VAG Polo",
+     "serial": "B31E041",
+     "serials": 3
+    }
+   ],
+   "seconds": 1.05,
+   "type": "raw"
+  },
+  {
+   "bytes": 49538,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": false,
+   "path": "VAG/VW Polo 5 2017 unlock x5.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 10941,
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "distinct": 15,
+     "frames": 15,
+     "protocol": "VAG Polo",
+     "serial": "EDC16C62",
+     "serials": 15
+    }
+   ],
+   "seconds": 7.69,
+   "type": "raw"
+  },
+  {
+   "bytes": 8151,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": false,
+   "path": "VAG/VW Polo 5 2017 unlock1.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 1773,
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "distinct": 3,
+     "frames": 3,
+     "protocol": "VAG Polo",
+     "serial": "C3523659",
+     "serials": 3
+    }
+   ],
+   "seconds": 1.33,
+   "type": "raw"
+  },
+  {
+   "bytes": 8169,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": false,
+   "path": "VAG/VW Polo 5 2017 unlock2.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 1779,
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "distinct": 3,
+     "frames": 3,
+     "protocol": "VAG Polo",
+     "serial": "830148E4",
+     "serials": 3
+    }
+   ],
+   "seconds": 1.4,
+   "type": "raw"
+  },
+  {
+   "bytes": 8156,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": false,
+   "path": "VAG/VW Polo 5 2017 unlock3.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 1777,
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "distinct": 3,
+     "frames": 3,
+     "protocol": "VAG Polo",
+     "serial": "35F34F94",
+     "serials": 3
+    }
+   ],
+   "seconds": 1.06,
+   "type": "raw"
+  },
+  {
+   "bytes": 44333,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": false,
+   "path": "VAG/VW_Skoda_Seat_2008.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 9624,
+   "reads": [
+    {
+     "buttons": [
+      "1",
+      "2"
+     ],
+     "crc_ok": 31,
+     "distinct": 4,
+     "encodable": true,
+     "frames": 31,
+     "protocol": "VAG",
+     "serial": "15302419",
+     "serials": 1
+    }
+   ],
+   "seconds": 7.49,
+   "type": "raw"
+  },
+  {
+   "bytes": 43796,
+   "folder": "VAG",
+   "frequency": 434390000,
+   "more": false,
+   "path": "VAG/Vw pasat B7.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 9728,
+   "reads": [
+    {
+     "buttons": [
+      "10",
+      "20"
+     ],
+     "crc_ok": 12,
+     "distinct": 7,
+     "encodable": true,
+     "frames": 12,
+     "protocol": "VAG",
+     "serial": "3C07EAA9",
+     "serials": 1
+    }
+   ],
+   "seconds": 5.17,
+   "type": "raw"
+  },
+  {
+   "bytes": 41238,
+   "folder": "VAG",
+   "frequency": 434390000,
+   "more": false,
+   "path": "VAG/Vw_passat_b5_3bg.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 8985,
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 27,
+     "distinct": 4,
+     "encodable": true,
+     "frames": 27,
+     "protocol": "VAG",
+     "serial": "C21578B",
+     "serials": 1
+    }
+   ],
+   "seconds": 5.88,
+   "type": "raw"
+  },
+  {
+   "bytes": 194,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": true,
+   "path": "VAG/more/1.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "7C8F963",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 240,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": true,
+   "path": "VAG/more/1_2.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "7C8F963",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 194,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": true,
+   "path": "VAG/more/2.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "7C8F963",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 240,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": true,
+   "path": "VAG/more/2_2.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "7C8F963",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 183,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "key_bits": "88",
+   "key_protocol": "Audi V1",
+   "more": true,
+   "note": "no decoder reads \"Audi V1\" key files (88 bits)",
+   "path": "VAG/more/32 Audi V1.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [],
+   "type": "key"
+  },
+  {
+   "bytes": 178318,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/A120LL.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 39338,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 80,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 34.93,
+   "type": "raw"
+  },
+  {
+   "bytes": 82028,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/A120LS.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 18045,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 39,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 20.75,
+   "type": "raw"
+  },
+  {
+   "bytes": 200911,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/A120TL.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 44187,
+   "reads": [
+    {
+     "distinct": 21,
+     "frames": 84,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 36.44,
+   "type": "raw"
+  },
+  {
+   "bytes": 82646,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/A120TS.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 18143,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 29,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 22.14,
+   "type": "raw"
+  },
+  {
+   "bytes": 184670,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/A120UL.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 40688,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 80,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 33.97,
+   "type": "raw"
+  },
+  {
+   "bytes": 99973,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/A120US.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 21989,
+   "reads": [
+    {
+     "distinct": 21,
+     "frames": 42,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 21.96,
+   "type": "raw"
+  },
+  {
+   "bytes": 122633,
+   "custom": {
+    "bandwidth_hz": 650000,
+    "baud": 3794,
+    "keying": "OOK"
+   },
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/A1_5L_5T_5U.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 27128,
+   "reads": [
+    {
+     "distinct": 15,
+     "frames": 30,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 20.66,
+   "type": "raw"
+  },
+  {
+   "bytes": 184046,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/A220LL.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 40575,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 80,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 32.98,
+   "type": "raw"
+  },
+  {
+   "bytes": 112358,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/A220LS.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 24876,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 40,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 20.8,
+   "type": "raw"
+  },
+  {
+   "bytes": 179982,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/A220TL.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 39641,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 80,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 34.09,
+   "type": "raw"
+  },
+  {
+   "bytes": 91644,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/A220TS.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 20206,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 40,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 22.2,
+   "type": "raw"
+  },
+  {
+   "bytes": 193940,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/A220UL.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 42746,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 80,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 35.92,
+   "type": "raw"
+  },
+  {
+   "bytes": 89324,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/A220US.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 19703,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 40,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 21.21,
+   "type": "raw"
+  },
+  {
+   "bytes": 107315,
+   "custom": {
+    "bandwidth_hz": 650000,
+    "baud": 3794,
+    "keying": "OOK"
+   },
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/A2_5L_5T_5U.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 23801,
+   "reads": [
+    {
+     "distinct": 15,
+     "frames": 30,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 20.4,
+   "type": "raw"
+  },
+  {
+   "bytes": 212343,
+   "custom": {
+    "bandwidth_hz": 135417,
+    "baud": 10340,
+    "keying": "OOK"
+   },
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/A3_5L_5T_5U.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 50635,
+   "reads": [
+    {
+     "distinct": 15,
+     "frames": 30,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 14.6,
+   "type": "raw"
+  },
+  {
+   "bytes": 115840,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/AM650_5L_5T_5U.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 25854,
+   "reads": [
+    {
+     "distinct": 15,
+     "frames": 32,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 18.22,
+   "type": "raw"
+  },
+  {
+   "bytes": 93717,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/AM650_mix_1l_2t_3u.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 20766,
+   "reads": [
+    {
+     "distinct": 15,
+     "frames": 31,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 19.57,
+   "type": "raw"
+  },
+  {
+   "bytes": 105241,
+   "folder": "VAG",
+   "frequency": 434390000,
+   "more": true,
+   "path": "VAG/more/Audi_A3_P8.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 23292,
+   "reads": [
+    {
+     "distinct": 15,
+     "frames": 46,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 18.55,
+   "type": "raw"
+  },
+  {
+   "bytes": 285922,
+   "folder": "VAG",
+   "frequency": 434390000,
+   "more": true,
+   "path": "VAG/more/Audi_A3_P8_20LL.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 63088,
+   "reads": [
+    {
+     "distinct": 24,
+     "frames": 96,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 48.45,
+   "type": "raw"
+  },
+  {
+   "bytes": 147934,
+   "folder": "VAG",
+   "frequency": 434390000,
+   "more": true,
+   "path": "VAG/more/Audi_A3_P8_20LS.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 32929,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 40,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 26.34,
+   "type": "raw"
+  },
+  {
+   "bytes": 262257,
+   "folder": "VAG",
+   "frequency": 434390000,
+   "more": true,
+   "path": "VAG/more/Audi_A3_P8_20TL.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 57715,
+   "reads": [
+    {
+     "distinct": 21,
+     "frames": 84,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 48.34,
+   "type": "raw"
+  },
+  {
+   "bytes": 147836,
+   "folder": "VAG",
+   "frequency": 434390000,
+   "more": true,
+   "path": "VAG/more/Audi_A3_P8_20TS.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 32892,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 40,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 26.79,
+   "type": "raw"
+  },
+  {
+   "bytes": 214052,
+   "folder": "VAG",
+   "frequency": 434390000,
+   "more": true,
+   "path": "VAG/more/Audi_A3_P8_20US.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 47430,
+   "reads": [
+    {
+     "distinct": 30,
+     "frames": 60,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 39.76,
+   "type": "raw"
+  },
+  {
+   "bytes": 308436,
+   "folder": "VAG",
+   "frequency": 434390000,
+   "more": true,
+   "path": "VAG/more/Audi_A3_P8_30UL.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 67981,
+   "reads": [
+    {
+     "distinct": 25,
+     "frames": 96,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 58.09,
+   "type": "raw"
+  },
+  {
+   "bytes": 241,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "key_bits": "80",
+   "key_protocol": "VAG GROUP",
+   "more": true,
+   "path": "VAG/more/Audi_a3_2010_full.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "3C0E23BF",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 12255,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/Audi_a3_2012_unlock_5times.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 2674,
+   "reads": [
+    {
+     "distinct": 5,
+     "frames": 7,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 1.85,
+   "type": "raw"
+  },
+  {
+   "bytes": 484377,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/Audi_v1_100x_close.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 106543,
+   "reads": [
+    {
+     "distinct": 101,
+     "frames": 365,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 109.75,
+   "type": "raw"
+  },
+  {
+   "bytes": 441475,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/Audi_v1_100x_trunk.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 97445,
+   "reads": [
+    {
+     "distinct": 100,
+     "frames": 363,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 103.91,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/Audi_v1_105x_close.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 67693,
+   "reads": [
+    {
+     "distinct": 37,
+     "frames": 269,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 61.95,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/Audi_v1_299x_close.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 65712,
+   "reads": [
+    {
+     "distinct": 63,
+     "frames": 253,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 60.01,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/Audi_v1_309x_close.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 65791,
+   "reads": [
+    {
+     "distinct": 65,
+     "frames": 253,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 41.54,
+   "type": "raw"
+  },
+  {
+   "bytes": 143786,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/Audi_v1_30x_close.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 31689,
+   "reads": [
+    {
+     "distinct": 30,
+     "frames": 148,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 23.1,
+   "type": "raw"
+  },
+  {
+   "bytes": 140913,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/Audi_v1_30x_trunk.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 31049,
+   "reads": [
+    {
+     "distinct": 30,
+     "frames": 147,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 24.18,
+   "type": "raw"
+  },
+  {
+   "bytes": 1653820,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/Audi_v1_344x_close.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 354038,
+   "reads": [
+    {
+     "distinct": 361,
+     "frames": 1418,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 343.96,
+   "type": "raw"
+  },
+  {
+   "bytes": 179830,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/Audi_v1_Touareg.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 40195,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 96,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 24.13,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/Audi_v1_TouaregLock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 67860,
+   "reads": [
+    {
+     "distinct": 61,
+     "frames": 276,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 42.52,
+   "type": "raw"
+  },
+  {
+   "bytes": 1409026,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/Audi_v1_TouaregLock_long.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 311918,
+   "reads": [
+    {
+     "distinct": 17,
+     "frames": 82,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 367.05,
+   "type": "raw"
+  },
+  {
+   "bytes": 71893,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/Audi_v1_only_close.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 15872,
+   "reads": [
+    {
+     "distinct": 13,
+     "frames": 61,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 9.16,
+   "type": "raw"
+  },
+  {
+   "bytes": 51677,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/Audi_v1_only_open.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 11403,
+   "reads": [
+    {
+     "distinct": 9,
+     "frames": 44,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 7.15,
+   "type": "raw"
+  },
+  {
+   "bytes": 64466,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/Audi_v1_only_trunk.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 14245,
+   "reads": [
+    {
+     "distinct": 11,
+     "frames": 50,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 8.78,
+   "type": "raw"
+  },
+  {
+   "bytes": 5255,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/Lock_vw.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 1108,
+   "reads": [
+    {
+     "distinct": 3,
+     "frames": 4,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 0.79,
+   "type": "raw"
+  },
+  {
+   "bytes": 4256,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/Unlock_vw.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 896,
+   "reads": [
+    {
+     "distinct": 2,
+     "frames": 3,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 0.67,
+   "type": "raw"
+  },
+  {
+   "bytes": 239,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "key_bits": "0",
+   "key_protocol": "VAG",
+   "more": true,
+   "note": "the VAG decoder does not take this \"VAG\" key file (0 bits): it holds no valid frame of the protocol",
+   "path": "VAG/more/VAG_032.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [],
+   "type": "key"
+  },
+  {
+   "bytes": 244,
+   "folder": "VAG",
+   "frequency": 434190000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": true,
+   "path": "VAG/more/VAG_big_sidorovich.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "4"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "E3097F45",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 244,
+   "folder": "VAG",
+   "frequency": 434190000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": true,
+   "path": "VAG/more/VAG_great_kot.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "4"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "E3097F45",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 244,
+   "folder": "VAG",
+   "frequency": 434190000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": true,
+   "path": "VAG/more/VAG_liquid_juzyk.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "E3097F45",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 244,
+   "folder": "VAG",
+   "frequency": 434190000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": true,
+   "path": "VAG/more/VAG_little_zalaz.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "E3097F45",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 240,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": true,
+   "path": "VAG/more/VW_07C8F963.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "7C8F963",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 25979,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/VW_VAG_2.roundtrip.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 5500,
+   "reads": [
+    {
+     "distinct": 1,
+     "frames": 10,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 1.84,
+   "type": "raw"
+  },
+  {
+   "bytes": 23929,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/Vag.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 5293,
+   "reads": [
+    {
+     "distinct": 3,
+     "frames": 5,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 4.58,
+   "type": "raw"
+  },
+  {
+   "bytes": 139616,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/Vag_v4.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 30689,
+   "reads": [
+    {
+     "distinct": 15,
+     "frames": 50,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 27.42,
+   "type": "raw"
+  },
+  {
+   "bytes": 188,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "key_bits": "64",
+   "key_protocol": "Audi V1",
+   "more": true,
+   "note": "no decoder reads \"Audi V1\" key files (64 bits)",
+   "path": "VAG/more/audi_v1.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [],
+   "type": "key"
+  },
+  {
+   "bytes": 307200,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/audi_v1_19641x_unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 65751,
+   "reads": [
+    {
+     "distinct": 48,
+     "frames": 197,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 300.71,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/audi_v1_2128x_unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 65675,
+   "reads": [
+    {
+     "distinct": 53,
+     "frames": 178,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 62.25,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/audi_v1_3233x_unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 65700,
+   "reads": [
+    {
+     "distinct": 45,
+     "frames": 190,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 60.61,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "VAG",
+   "frequency": 433920000,
+   "more": true,
+   "path": "VAG/more/audi_v1_4412x_unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 65488,
+   "reads": [
+    {
+     "distinct": 60,
+     "frames": 193,
+     "protocol": "Fiat V1"
+    }
+   ],
+   "seconds": 67.63,
+   "type": "raw"
+  },
+  {
+   "bytes": 240,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": true,
+   "path": "VAG/more/fftr.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "7C8F963",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 244,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": true,
+   "path": "VAG/more/jjjhf.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "4"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "B4EFE282",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 25889,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/passatb6.roundtrip.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 5480,
+   "reads": [
+    {
+     "distinct": 1,
+     "frames": 10,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 1.84,
+   "type": "raw"
+  },
+  {
+   "bytes": 263625,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "more": true,
+   "path": "VAG/more/passatb6.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 58232,
+   "reads": [
+    {
+     "distinct": 11,
+     "frames": 94,
+     "protocol": "VAG"
+    }
+   ],
+   "seconds": 28.79,
+   "type": "raw"
+  },
+  {
+   "bytes": 240,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": true,
+   "path": "VAG/more/test.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "7C8F963",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 240,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": true,
+   "path": "VAG/more/ttttt.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "7C8F963",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 240,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": true,
+   "path": "VAG/more/vw.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "7C8F963",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 240,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": true,
+   "path": "VAG/more/vw2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "7C8F963",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 240,
+   "folder": "VAG",
+   "frequency": 434420000,
+   "key_bits": "80",
+   "key_protocol": "VAG",
+   "more": true,
+   "path": "VAG/more/yyyy.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "7C8F963",
+     "serials": 1
+    }
+   ],
+   "type": "key"
+  },
+  {
+   "bytes": 30350,
+   "folder": "VOLVO",
+   "frequency": 433920000,
+   "more": false,
+   "path": "VOLVO/Volvo S40 1999 unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 7168,
+   "reads": [],
+   "seconds": 5.1,
+   "type": "raw"
+  },
+  {
+   "bytes": 3416,
+   "folder": "acura",
+   "frequency": 433657070,
+   "more": false,
+   "path": "acura/22_acura_rdx_l_ul_t_p_l_ul.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 713,
+   "reads": [],
+   "seconds": 7.52,
+   "type": "raw"
+  },
+  {
+   "bytes": 47091,
+   "folder": "buick",
+   "frequency": 314980000,
+   "more": false,
+   "path": "buick/15_buick_lacross_t2_rs2_p2_l2_u2.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 10671,
+   "reads": [
+    {
+     "buttons": [
+      "9"
+     ],
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Chevrolet V0",
+     "serial": "AD1053",
+     "serials": 1
+    }
+   ],
+   "seconds": 14.69,
+   "type": "raw"
+  },
+  {
+   "bytes": 36270,
+   "folder": "buick",
+   "frequency": 433920000,
+   "more": false,
+   "path": "buick/24_buick_encore_ul2_t2_l2_rs2_p2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 8105,
+   "reads": [
+    {
+     "buttons": [
+      "4",
+      "5"
+     ],
+     "distinct": 26,
+     "frames": 34,
+     "protocol": "Chevrolet V0",
+     "serial": "AA67D0",
+     "serials": 1
+    }
+   ],
+   "seconds": 8.65,
+   "type": "raw"
+  },
+  {
+   "bytes": 33548,
+   "folder": "buick",
+   "frequency": 433889000,
+   "more": false,
+   "path": "buick/24_buick_envista_ul2_l2_t2_rs2_p2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 7466,
+   "reads": [
+    {
+     "buttons": [
+      "C",
+      "D"
+     ],
+     "distinct": 38,
+     "frames": 38,
+     "protocol": "Chevrolet V0",
+     "serial": "B6EC9C",
+     "serials": 1
+    }
+   ],
+   "seconds": 3.89,
+   "type": "raw"
+  },
+  {
+   "bytes": 28547,
+   "folder": "cadillac",
+   "frequency": 315000000,
+   "more": true,
+   "path": "cadillac/more/2008-2012_Cadilla_CTS_315mhz_AM650.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 6577,
+   "reads": [
+    {
+     "distinct": 15,
+     "frames": 25,
+     "protocol": "GM RFA"
+    }
+   ],
+   "seconds": 5.64,
+   "type": "raw"
+  },
+  {
+   "bytes": 35329,
+   "folder": "chevy",
+   "frequency": 433920000,
+   "more": false,
+   "path": "chevy/18_chevy_malibu_l2_u2_rs2_t2_p2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 7831,
+   "reads": [
+    {
+     "buttons": [
+      "8",
+      "9"
+     ],
+     "distinct": 36,
+     "frames": 36,
+     "protocol": "Chevrolet V0",
+     "serial": "A8936E",
+     "serials": 1
+    }
+   ],
+   "seconds": 8.0,
+   "type": "raw"
+  },
+  {
+   "bytes": 23350,
+   "folder": "chevy",
+   "frequency": 433920000,
+   "more": false,
+   "path": "chevy/22_chevy_trail_blazer_l2_u2_rs_p_t.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 5203,
+   "reads": [
+    {
+     "buttons": [
+      "A",
+      "B"
+     ],
+     "distinct": 18,
+     "frames": 22,
+     "protocol": "Chevrolet V0",
+     "serial": "B809C5",
+     "serials": 1
+    }
+   ],
+   "seconds": 7.17,
+   "type": "raw"
+  },
+  {
+   "bytes": 58594,
+   "folder": "chrysler",
+   "frequency": 434075000,
+   "more": false,
+   "path": "chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 12911,
+   "reads": [
+    {
+     "buttons": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7"
+     ],
+     "distinct": 15,
+     "encodable": true,
+     "frames": 47,
+     "protocol": "Fiat V2",
+     "serial": "D737A2C3",
+     "serials": 1
+    }
+   ],
+   "seconds": 13.65,
+   "type": "raw"
+  },
+  {
+   "bytes": 21578,
+   "folder": "chrysler",
+   "frequency": 433889000,
+   "more": false,
+   "path": "chrysler/Chrysler PT Cruiser 2006 close.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4315,
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 10,
+     "distinct": 10,
+     "encodable": true,
+     "frames": 10,
+     "protocol": "Chrysler V0",
+     "serial": "A11E7D24",
+     "serials": 2
+    }
+   ],
+   "seconds": 16.23,
+   "type": "raw"
+  },
+  {
+   "bytes": 22798,
+   "folder": "chrysler",
+   "frequency": 433889000,
+   "more": false,
+   "path": "chrysler/Chrysler PT Cruiser 2006 open.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4585,
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 10,
+     "distinct": 10,
+     "encodable": true,
+     "frames": 10,
+     "protocol": "Chrysler V0",
+     "serial": "A11E7D24",
+     "serials": 2
+    }
+   ],
+   "seconds": 15.23,
+   "type": "raw"
+  },
+  {
+   "bytes": 1147195,
+   "folder": "chrysler",
+   "frequency": 433889000,
+   "more": true,
+   "path": "chrysler/more/PT_300xLCK.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 239183,
+   "reads": [
+    {
+     "distinct": 308,
+     "frames": 308,
+     "protocol": "Chrysler V0"
+    }
+   ],
+   "seconds": 843.58,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "chrysler",
+   "frequency": 433889000,
+   "more": true,
+   "path": "chrysler/more/PT_300xUNL.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 66285,
+   "reads": [
+    {
+     "distinct": 28,
+     "frames": 28,
+     "protocol": "Chrysler V0"
+    }
+   ],
+   "seconds": 82.42,
+   "type": "raw"
+  },
+  {
+   "bytes": 210675,
+   "folder": "chrysler",
+   "frequency": 433889000,
+   "more": true,
+   "path": "chrysler/more/PT_LCK100.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 42135,
+   "reads": [
+    {
+     "distinct": 105,
+     "frames": 105,
+     "protocol": "Chrysler V0"
+    }
+   ],
+   "seconds": 130.89,
+   "type": "raw"
+  },
+  {
+   "bytes": 678342,
+   "folder": "chrysler",
+   "frequency": 433889000,
+   "more": true,
+   "path": "chrysler/more/PT_LCK250.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 137434,
+   "reads": [
+    {
+     "distinct": 271,
+     "frames": 271,
+     "protocol": "Chrysler V0"
+    }
+   ],
+   "seconds": 521.67,
+   "type": "raw"
+  },
+  {
+   "bytes": 60162,
+   "folder": "genesis",
+   "frequency": 433920000,
+   "more": false,
+   "path": "genesis/19_genesis_g90_l2_u2_t2_p2.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 13824,
+   "reads": [],
+   "seconds": 8.44,
+   "type": "raw"
+  },
+  {
+   "bytes": 26089,
+   "folder": "genesis",
+   "frequency": 433920000,
+   "more": false,
+   "path": "genesis/24_genesis_gv80_hatch.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 5865,
+   "reads": [],
+   "seconds": 8.54,
+   "type": "raw"
+  },
+  {
+   "bytes": 26673,
+   "folder": "genesis",
+   "frequency": 433920000,
+   "more": false,
+   "path": "genesis/24_genesis_gv80_lock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 5944,
+   "reads": [],
+   "seconds": 8.05,
+   "type": "raw"
+  },
+  {
+   "bytes": 21945,
+   "folder": "genesis",
+   "frequency": 433920000,
+   "more": false,
+   "path": "genesis/24_genesis_gv80_remote_start.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4875,
+   "reads": [],
+   "seconds": 7.53,
+   "type": "raw"
+  },
+  {
+   "bytes": 30486,
+   "folder": "genesis",
+   "frequency": 433920000,
+   "more": false,
+   "path": "genesis/24_genesis_gv80_unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 6836,
+   "reads": [],
+   "seconds": 9.18,
+   "type": "raw"
+  },
+  {
+   "bytes": 53269,
+   "folder": "gmc",
+   "frequency": 314980000,
+   "more": false,
+   "path": "gmc/15_gmc_acadia_rs2_l2_u2_t2_p2.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 12515,
+   "reads": [
+    {
+     "distinct": 29,
+     "frames": 38,
+     "protocol": "GM RFA",
+     "serial": "178",
+     "serials": 1
+    }
+   ],
+   "seconds": 10.14,
+   "type": "raw"
+  },
+  {
+   "bytes": 40752,
+   "folder": "gmc",
+   "frequency": 433920000,
+   "more": false,
+   "path": "gmc/20_gmc_acadia_l2_u2_rs2_t2_p2.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 9419,
+   "reads": [
+    {
+     "buttons": [
+      "C",
+      "D"
+     ],
+     "distinct": 24,
+     "frames": 25,
+     "protocol": "Chevrolet V0",
+     "serial": "BBC6E9",
+     "serials": 1
+    }
+   ],
+   "seconds": 8.94,
+   "type": "raw"
+  },
+  {
+   "bytes": 66461,
+   "folder": "honda",
+   "frequency": 434176948,
+   "more": false,
+   "path": "honda/17_honda_pilot_lllluuuuaaattt.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 14848,
+   "reads": [],
+   "seconds": 25.52,
+   "type": "raw"
+  },
+  {
+   "bytes": 47535,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": false,
+   "path": "honda/18_Honda_accord_l2_u2_rs2_t2_p2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 10752,
+   "reads": [],
+   "seconds": 9.41,
+   "type": "raw"
+  },
+  {
+   "bytes": 4005,
+   "folder": "honda",
+   "frequency": 433657070,
+   "more": false,
+   "path": "honda/18_honda_civic_ll_uu_rs_t_rs_t_pp.sub",
+   "pinned": true,
+   "preset": "AM270",
+   "pulses": 847,
+   "reads": [],
+   "seconds": 9.51,
+   "type": "raw"
+  },
+  {
+   "bytes": 119,
+   "folder": "honda",
+   "frequency": 433220000,
+   "more": false,
+   "note": "No RAW_Data in .sub file",
+   "path": "honda/24_hoda_crv_l2_u2_rs_t_p.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [],
+   "type": "raw"
+  },
+  {
+   "bytes": 4607,
+   "folder": "honda",
+   "frequency": 434176948,
+   "more": false,
+   "path": "honda/24_honda_crv.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 1005,
+   "reads": [],
+   "seconds": 3.99,
+   "type": "raw"
+  },
+  {
+   "bytes": 119,
+   "folder": "honda",
+   "frequency": 433220000,
+   "more": false,
+   "note": "No RAW_Data in .sub file",
+   "path": "honda/24_honda_crv_l2_u2_rs_t_p.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "reads": [],
+   "type": "raw"
+  },
+  {
+   "bytes": 2912,
+   "folder": "honda",
+   "frequency": 434176948,
+   "more": false,
+   "path": "honda/24_honda_hrv_l2_rs_t_p_ul2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 594,
+   "reads": [],
+   "seconds": 7.0,
+   "type": "raw"
+  },
+  {
+   "bytes": 16656,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": false,
+   "path": "honda/HondaV2H4_OEM2_LU.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 3935,
+   "reads": [
+    {
+     "buttons": [
+      "1",
+      "3"
+     ],
+     "crc_ok": 4,
+     "distinct": 2,
+     "frames": 4,
+     "protocol": "Continental-KR5V2X",
+     "serial": "442F9A85",
+     "serials": 1
+    }
+   ],
+   "seconds": 0.5,
+   "type": "raw"
+  },
+  {
+   "bytes": 90722,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": false,
+   "path": "honda/HondaV2_PandoraTS_cell0_btn123.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 21177,
+   "reads": [
+    {
+     "buttons": [
+      "0",
+      "1",
+      "3"
+     ],
+     "crc_ok": 6,
+     "distinct": 3,
+     "frames": 6,
+     "protocol": "Continental-KR5V2X",
+     "serial": "58046885",
+     "serials": 1
+    }
+   ],
+   "seconds": 6.77,
+   "type": "raw"
+  },
+  {
+   "bytes": 55851,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": false,
+   "path": "honda/Honda_433AM_20LS.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 11754,
+   "reads": [
+    {
+     "buttons": [
+      "8"
+     ],
+     "crc_ok": 39,
+     "distinct": 10,
+     "encodable": true,
+     "frames": 39,
+     "protocol": "Honda V1",
+     "serial": "4119B5A",
+     "serials": 1
+    }
+   ],
+   "seconds": 30.14,
+   "type": "raw"
+  },
+  {
+   "bytes": 270257,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": false,
+   "path": "honda/Honda_V1_Ferrari_10_10.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 61927,
+   "reads": [
+    {
+     "crc_ok": 11,
+     "distinct": 11,
+     "encodable": true,
+     "frames": 11,
+     "protocol": "Honda V6"
+    }
+   ],
+   "seconds": 29.21,
+   "type": "raw"
+  },
+  {
+   "bytes": 209467,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 15373,
+    "deviation_hz": 15869,
+    "keying": "2-FSK"
+   },
+   "folder": "honda",
+   "frequency": 433657070,
+   "more": false,
+   "path": "honda/Lock_honda.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 53248,
+   "reads": [
+    {
+     "buttons": [
+      "21"
+     ],
+     "crc_ok": 23,
+     "distinct": 23,
+     "frames": 23,
+     "protocol": "Honda V5",
+     "serial": "B53EFF72",
+     "serials": 1
+    }
+   ],
+   "seconds": 7.42,
+   "type": "raw"
+  },
+  {
+   "bytes": 178117,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 15373,
+    "deviation_hz": 15869,
+    "keying": "2-FSK"
+   },
+   "folder": "honda",
+   "frequency": 433657070,
+   "more": false,
+   "path": "honda/Unlock_honda.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 45056,
+   "reads": [
+    {
+     "buttons": [
+      "22"
+     ],
+     "crc_ok": 17,
+     "distinct": 17,
+     "frames": 17,
+     "protocol": "Honda V5",
+     "serial": "B53EFF72",
+     "serials": 1
+    }
+   ],
+   "seconds": 6.67,
+   "type": "raw"
+  },
+  {
+   "bytes": 361736,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/0 (2).sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 75546,
+   "reads": [
+    {
+     "distinct": 44,
+     "frames": 343,
+     "protocol": "Honda V1"
+    }
+   ],
+   "seconds": 119.94,
+   "type": "raw"
+  },
+  {
+   "bytes": 5815,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/05 Honda V5.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 1494,
+   "reads": [
+    {
+     "distinct": 2,
+     "frames": 6,
+     "protocol": "Honda V5"
+    }
+   ],
+   "seconds": 0.21,
+   "type": "raw"
+  },
+  {
+   "bytes": 127558,
+   "folder": "honda",
+   "frequency": 433657070,
+   "more": true,
+   "path": "honda/more/2022-2024_Honda_CR-V_433.66_FM476.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 29696,
+   "reads": [],
+   "seconds": 8.94,
+   "type": "raw"
+  },
+  {
+   "bytes": 1097803,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Fz_10l_10u_10t_10p.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 242525,
+   "reads": [
+    {
+     "distinct": 40,
+     "frames": 158,
+     "protocol": "Honda V1"
+    }
+   ],
+   "seconds": 195.95,
+   "type": "raw"
+  },
+  {
+   "bytes": 30424,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 15373,
+    "deviation_hz": 15869,
+    "keying": "2-FSK"
+   },
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaCivic2008.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 7316,
+   "reads": [
+    {
+     "distinct": 2,
+     "frames": 4,
+     "protocol": "Honda V5"
+    },
+    {
+     "distinct": 1,
+     "frames": 2,
+     "protocol": "Continental-KR5V2X"
+    }
+   ],
+   "seconds": 1.52,
+   "type": "raw"
+  },
+  {
+   "bytes": 1778882,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaH1_OEM2_20lck_hold.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 391598,
+   "reads": [
+    {
+     "distinct": 42,
+     "frames": 42,
+     "protocol": "Honda V6"
+    }
+   ],
+   "seconds": 527.52,
+   "type": "raw"
+  },
+  {
+   "bytes": 544381,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaH1_OEM2_300lck.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 115864,
+   "reads": [
+    {
+     "distinct": 300,
+     "frames": 300,
+     "protocol": "Honda V6"
+    }
+   ],
+   "seconds": 260.83,
+   "type": "raw"
+  },
+  {
+   "bytes": 580139,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaH1_OEM2_300trk.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 123919,
+   "reads": [
+    {
+     "distinct": 300,
+     "frames": 300,
+     "protocol": "Honda V6"
+    }
+   ],
+   "seconds": 217.67,
+   "type": "raw"
+  },
+  {
+   "bytes": 590790,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaH1_OEM2_300ulk.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 126387,
+   "reads": [
+    {
+     "distinct": 300,
+     "frames": 300,
+     "protocol": "Honda V6"
+    }
+   ],
+   "seconds": 248.85,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV0_72D9E4CA_300lck.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 68657,
+   "reads": [
+    {
+     "distinct": 41,
+     "frames": 41,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 41.66,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV0_72D9E4CA_300trk.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 69445,
+   "reads": [
+    {
+     "distinct": 35,
+     "frames": 35,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 27.45,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV0_72D9E4CA_300ulk.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 68597,
+   "reads": [
+    {
+     "distinct": 42,
+     "frames": 42,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 43.5,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV0_755D1FCA_300trk.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 69593,
+   "reads": [
+    {
+     "distinct": 34,
+     "frames": 34,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 28.55,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV0_B25199CA_300trk.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 69362,
+   "reads": [
+    {
+     "distinct": 38,
+     "frames": 38,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 29.77,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV0_B25199CA_300ulk.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 68963,
+   "reads": [
+    {
+     "distinct": 40,
+     "frames": 40,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 38.34,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV0_BD061DCA_300lck.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 68862,
+   "reads": [
+    {
+     "distinct": 38,
+     "frames": 38,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 40.78,
+   "type": "raw"
+  },
+  {
+   "bytes": 1210455,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV0_BD661FCA_300lck.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 266390,
+   "reads": [
+    {
+     "distinct": 299,
+     "frames": 299,
+     "protocol": "Honda V0"
+    },
+    {
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Nidec RKE"
+    }
+   ],
+   "seconds": 293.95,
+   "type": "raw"
+  },
+  {
+   "bytes": 1462720,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV0_BD661FCA_300ulk.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 323558,
+   "reads": [
+    {
+     "distinct": 308,
+     "frames": 308,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 254.92,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV0_FA94E9CA_300trk.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 70223,
+   "reads": [
+    {
+     "distinct": 23,
+     "frames": 23,
+     "protocol": "Honda V0"
+    },
+    {
+     "distinct": 2,
+     "frames": 2,
+     "protocol": "Nidec RKE"
+    }
+   ],
+   "seconds": 22.32,
+   "type": "raw"
+  },
+  {
+   "bytes": 1604375,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV0_FA94E9CA_300ulk.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 354224,
+   "reads": [
+    {
+     "distinct": 300,
+     "frames": 300,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 332.0,
+   "type": "raw"
+  },
+  {
+   "bytes": 503916,
+   "folder": "honda",
+   "frequency": 313850000,
+   "more": true,
+   "path": "honda/more/HondaV0_xHorse_20lck.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 116728,
+   "reads": [
+    {
+     "distinct": 16,
+     "frames": 16,
+     "protocol": "Honda V0"
+    },
+    {
+     "distinct": 3,
+     "frames": 3,
+     "protocol": "Ford V3"
+    }
+   ],
+   "seconds": 29.14,
+   "type": "raw"
+  },
+  {
+   "bytes": 880249,
+   "folder": "honda",
+   "frequency": 313850000,
+   "more": true,
+   "path": "honda/more/HondaV0_xHorse_20trk.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 204621,
+   "reads": [
+    {
+     "distinct": 15,
+     "frames": 15,
+     "protocol": "Honda V0"
+    },
+    {
+     "distinct": 3,
+     "frames": 3,
+     "protocol": "Ford V3"
+    }
+   ],
+   "seconds": 47.59,
+   "type": "raw"
+  },
+  {
+   "bytes": 139831,
+   "folder": "honda",
+   "frequency": 313850000,
+   "more": true,
+   "path": "honda/more/HondaV0_xHorse_LUTP.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 32472,
+   "reads": [
+    {
+     "distinct": 3,
+     "frames": 3,
+     "protocol": "Honda V0"
+    },
+    {
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Ford V3"
+    }
+   ],
+   "seconds": 7.14,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV2H4_OEM2_300lck.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 72132,
+   "reads": [
+    {
+     "distinct": 17,
+     "frames": 30,
+     "protocol": "Continental-KR5V2X"
+    }
+   ],
+   "seconds": 20.96,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV2H4_OEM2_300ulk.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 72402,
+   "reads": [
+    {
+     "distinct": 27,
+     "frames": 51,
+     "protocol": "Continental-KR5V2X"
+    }
+   ],
+   "seconds": 21.72,
+   "type": "raw"
+  },
+  {
+   "bytes": 227175,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV2_3lck.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 52848,
+   "reads": [
+    {
+     "distinct": 3,
+     "frames": 6,
+     "protocol": "Continental-KR5V2X"
+    }
+   ],
+   "seconds": 17.12,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV2_PandoraTS_cell0_300btn1.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 72548,
+   "reads": [
+    {
+     "distinct": 35,
+     "frames": 70,
+     "protocol": "Continental-KR5V2X"
+    }
+   ],
+   "seconds": 36.04,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV2_PandoraTS_cell0_300btn2.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 72267,
+   "reads": [
+    {
+     "distinct": 26,
+     "frames": 52,
+     "protocol": "Continental-KR5V2X"
+    }
+   ],
+   "seconds": 33.14,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV2_PandoraTS_cell0_300btn3.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 72276,
+   "reads": [
+    {
+     "distinct": 24,
+     "frames": 48,
+     "protocol": "Continental-KR5V2X"
+    }
+   ],
+   "seconds": 28.9,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV2_PandoraTS_cell2_300btn1.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 72612,
+   "reads": [
+    {
+     "distinct": 30,
+     "frames": 60,
+     "protocol": "Continental-KR5V2X"
+    }
+   ],
+   "seconds": 27.7,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV2_PandoraTS_cell2_300btn3.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 72303,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 39,
+     "protocol": "Continental-KR5V2X"
+    }
+   ],
+   "seconds": 23.57,
+   "type": "raw"
+  },
+  {
+   "bytes": 57703,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV2_PandoraTS_cell2_btn123.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 13438,
+   "reads": [
+    {
+     "distinct": 2,
+     "frames": 4,
+     "protocol": "Continental-KR5V2X"
+    }
+   ],
+   "seconds": 4.4,
+   "type": "raw"
+  },
+  {
+   "bytes": 55935,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/HondaV2_synthetic_testvector.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 12340,
+   "reads": [
+    {
+     "distinct": 16,
+     "frames": 16,
+     "protocol": "Honda V2"
+    }
+   ],
+   "seconds": 4.02,
+   "type": "raw"
+  },
+  {
+   "bytes": 719155,
+   "folder": "honda",
+   "frequency": 313850000,
+   "more": true,
+   "path": "honda/more/Honda_313_lock_long_20.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 151872,
+   "reads": [
+    {
+     "distinct": 40,
+     "frames": 40,
+     "protocol": "Honda V6"
+    }
+   ],
+   "seconds": 159.71,
+   "type": "raw"
+  },
+  {
+   "bytes": 940695,
+   "folder": "honda",
+   "frequency": 313850000,
+   "more": true,
+   "path": "honda/more/Honda_313_unlock_long_20.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 197773,
+   "reads": [
+    {
+     "distinct": 40,
+     "frames": 40,
+     "protocol": "Honda V6"
+    }
+   ],
+   "seconds": 224.19,
+   "type": "raw"
+  },
+  {
+   "bytes": 283936,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_433AM_20LL.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 57598,
+   "reads": [
+    {
+     "distinct": 9,
+     "frames": 358,
+     "protocol": "Honda V1"
+    }
+   ],
+   "seconds": 136.46,
+   "type": "raw"
+  },
+  {
+   "bytes": 276395,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_433AM_20PL.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 55058,
+   "reads": [
+    {
+     "distinct": 11,
+     "frames": 418,
+     "protocol": "Honda V1"
+    }
+   ],
+   "seconds": 123.13,
+   "type": "raw"
+  },
+  {
+   "bytes": 30471,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_433AM_20PS.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 6100,
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 37,
+     "protocol": "Honda V1"
+    }
+   ],
+   "seconds": 19.69,
+   "type": "raw"
+  },
+  {
+   "bytes": 308427,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_433AM_20TL.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 62703,
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 399,
+     "protocol": "Honda V1"
+    }
+   ],
+   "seconds": 148.0,
+   "type": "raw"
+  },
+  {
+   "bytes": 28054,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_433AM_20TS.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 5570,
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 39,
+     "protocol": "Honda V1"
+    }
+   ],
+   "seconds": 17.73,
+   "type": "raw"
+  },
+  {
+   "bytes": 311930,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_433AM_20UL.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 63462,
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 397,
+     "protocol": "Honda V1"
+    }
+   ],
+   "seconds": 150.48,
+   "type": "raw"
+  },
+  {
+   "bytes": 31512,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_433AM_20US.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 6332,
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 39,
+     "protocol": "Honda V1"
+    }
+   ],
+   "seconds": 22.44,
+   "type": "raw"
+  },
+  {
+   "bytes": 140821,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_433AM_TS20_new.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 30988,
+   "reads": [
+    {
+     "distinct": 11,
+     "frames": 40,
+     "protocol": "Honda V1"
+    }
+   ],
+   "seconds": 27.22,
+   "type": "raw"
+  },
+  {
+   "bytes": 361216,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_V0_kd_10_10_10.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 81075,
+   "reads": [
+    {
+     "distinct": 40,
+     "frames": 40,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 51.69,
+   "type": "raw"
+  },
+  {
+   "bytes": 397968,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_V1_kd_5_5_5.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 86710,
+   "reads": [
+    {
+     "distinct": 30,
+     "frames": 30,
+     "protocol": "Honda V6"
+    }
+   ],
+   "seconds": 74.02,
+   "type": "raw"
+  },
+  {
+   "bytes": 597721,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_V1_orig_320_locks.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 123376,
+   "reads": [
+    {
+     "distinct": 128,
+     "frames": 629,
+     "protocol": "Honda V1"
+    }
+   ],
+   "seconds": 265.88,
+   "type": "raw"
+  },
+  {
+   "bytes": 123492,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_civic_fm476.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 28971,
+   "reads": [
+    {
+     "distinct": 8,
+     "frames": 12,
+     "protocol": "Continental-KR5V2X"
+    }
+   ],
+   "seconds": 9.11,
+   "type": "raw"
+  },
+  {
+   "bytes": 12566,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_v0_1tr_kd_hnd.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 2736,
+   "reads": [
+    {
+     "distinct": 2,
+     "frames": 2,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 3.08,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_v0_Invalid_Chk_Honda_TS_sn1_300.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 69031,
+   "reads": [
+    {
+     "distinct": 36,
+     "frames": 36,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 43.44,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_v0_Invalid_Chk_Honda_TS_sn3_300.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 70227,
+   "reads": [
+    {
+     "distinct": 26,
+     "frames": 26,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 23.44,
+   "type": "raw"
+  },
+  {
+   "bytes": 411881,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_v0_Invalid_Chk_Honda_V0_TS_10_10_10.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 94109,
+   "reads": [
+    {
+     "distinct": 30,
+     "frames": 30,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 40.94,
+   "type": "raw"
+  },
+  {
+   "bytes": 146820,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_v0_RAW_oh_no_sus.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 33792,
+   "reads": [
+    {
+     "distinct": 4,
+     "frames": 6,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 8.54,
+   "type": "raw"
+  },
+  {
+   "bytes": 275333,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_v2_v3_Ferrari_10_10.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 62976,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 20,
+     "protocol": "HondaV2&V3"
+    }
+   ],
+   "seconds": 30.18,
+   "type": "raw"
+  },
+  {
+   "bytes": 499578,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_v6_TS_10_10_10.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 117379,
+   "reads": [
+    {
+     "distinct": 24,
+     "frames": 44,
+     "protocol": "Continental-KR5V2X"
+    }
+   ],
+   "seconds": 37.61,
+   "type": "raw"
+  },
+  {
+   "bytes": 446793,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Honda_v6_kd_10_10_10.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 103325,
+   "reads": [
+    {
+     "distinct": 40,
+     "frames": 45,
+     "protocol": "Continental-KR5V2X"
+    }
+   ],
+   "seconds": 58.09,
+   "type": "raw"
+  },
+  {
+   "bytes": 254614,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Long.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 50862,
+   "reads": [
+    {
+     "distinct": 12,
+     "frames": 399,
+     "protocol": "Honda V1"
+    }
+   ],
+   "seconds": 84.97,
+   "type": "raw"
+  },
+  {
+   "bytes": 198577,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Orig_10l_10u_10t_10p.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 43160,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 76,
+     "protocol": "Honda V1"
+    }
+   ],
+   "seconds": 59.85,
+   "type": "raw"
+  },
+  {
+   "bytes": 17426,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 38383,
+    "deviation_hz": 14282,
+    "keying": "2-FSK"
+   },
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/RAW_super_door000.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 4096,
+   "reads": [
+    {
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Honda V2"
+    }
+   ],
+   "seconds": 0.69,
+   "type": "raw"
+  },
+  {
+   "bytes": 25021,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/Short.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 4928,
+   "reads": [
+    {
+     "distinct": 12,
+     "frames": 39,
+     "protocol": "Honda V1"
+    }
+   ],
+   "seconds": 11.53,
+   "type": "raw"
+  },
+  {
+   "bytes": 134042,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/honda_civic_2005_27.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 29984,
+   "reads": [
+    {
+     "distinct": 21,
+     "frames": 21,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 14.71,
+   "type": "raw"
+  },
+  {
+   "bytes": 155830,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/honda_civic_2005_28.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 35031,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 20,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 16.99,
+   "type": "raw"
+  },
+  {
+   "bytes": 231141,
+   "custom": {
+    "bandwidth_hz": 101562,
+    "baud": 38383,
+    "deviation_hz": 31738,
+    "keying": "2-FSK"
+   },
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/honda_civic_2005_29.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 53829,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 20,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 10.86,
+   "type": "raw"
+  },
+  {
+   "bytes": 226215,
+   "custom": {
+    "bandwidth_hz": 101562,
+    "baud": 38383,
+    "deviation_hz": 31738,
+    "keying": "2-FSK"
+   },
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": true,
+   "path": "honda/more/honda_civic_2005_30.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 52758,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 20,
+     "protocol": "Honda V0"
+    }
+   ],
+   "seconds": 10.54,
+   "type": "raw"
+  },
+  {
+   "bytes": 8374,
+   "folder": "honda",
+   "frequency": 433920000,
+   "more": false,
+   "path": "honda/single_click_Orig2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 1812,
+   "reads": [
+    {
+     "buttons": [
+      "8"
+     ],
+     "crc_ok": 2,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 2,
+     "protocol": "Honda V1",
+     "serial": "4119B5A",
+     "serials": 1
+    }
+   ],
+   "seconds": 1.92,
+   "type": "raw"
+  },
+  {
+   "bytes": 53021,
+   "folder": "jeep",
+   "frequency": 433889000,
+   "more": false,
+   "path": "jeep/22_jeep_renegade_ul2_l2_rs2_p2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 11776,
+   "reads": [
+    {
+     "buttons": [
+      "1",
+      "2",
+      "4",
+      "7"
+     ],
+     "distinct": 8,
+     "encodable": true,
+     "frames": 29,
+     "protocol": "Fiat V2",
+     "serial": "D08BE613",
+     "serials": 1
+    }
+   ],
+   "seconds": 9.0,
+   "type": "raw"
+  },
+  {
+   "bytes": 826,
+   "folder": "mercedes",
+   "frequency": 434075000,
+   "more": false,
+   "path": "mercedes/24_Merc_gle350_lulu.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 159,
+   "reads": [],
+   "seconds": 0.1,
+   "type": "raw"
+  },
+  {
+   "bytes": 4082,
+   "folder": "mercedes",
+   "frequency": 314350000,
+   "more": false,
+   "path": "mercedes/24_merc_gle350_luluttlulu.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 859,
+   "reads": [],
+   "seconds": 11.07,
+   "type": "raw"
+  },
+  {
+   "bytes": 151986,
+   "folder": "mercedes",
+   "frequency": 315000000,
+   "more": false,
+   "path": "mercedes/Mercedes W220 S430 1999 315.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 35167,
+   "reads": [],
+   "seconds": 32.71,
+   "type": "raw"
+  },
+  {
+   "bytes": 37498,
+   "folder": "nissan",
+   "frequency": 433920000,
+   "more": false,
+   "path": "nissan/18_nissan_rogue_rs2_l2_u2_t2_p2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 8373,
+   "reads": [],
+   "seconds": 11.34,
+   "type": "raw"
+  },
+  {
+   "bytes": 34740,
+   "folder": "nissan",
+   "frequency": 433920000,
+   "more": false,
+   "path": "nissan/18_nisssan_rogue_rs3_l3_u3_t3_p3.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 7680,
+   "reads": [],
+   "seconds": 15.28,
+   "type": "raw"
+  },
+  {
+   "bytes": 3798,
+   "folder": "nissan",
+   "frequency": 433657070,
+   "more": false,
+   "path": "nissan/21_nissan_versa_l2_u2_t2_p2.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 787,
+   "reads": [],
+   "seconds": 7.28,
+   "type": "raw"
+  },
+  {
+   "bytes": 26316,
+   "folder": "nissan",
+   "frequency": 433920000,
+   "more": false,
+   "path": "nissan/22_nissan_frontier_lock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 5878,
+   "reads": [],
+   "seconds": 8.58,
+   "type": "raw"
+  },
+  {
+   "bytes": 27069,
+   "folder": "nissan",
+   "frequency": 433920000,
+   "more": false,
+   "path": "nissan/22_nissan_frotier_unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 6051,
+   "reads": [],
+   "seconds": 9.3,
+   "type": "raw"
+  },
+  {
+   "bytes": 15395,
+   "folder": "nissan",
+   "frequency": 434176948,
+   "more": false,
+   "path": "nissan/Nissan_frontier_lock_2time.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 3407,
+   "reads": [],
+   "seconds": 9.05,
+   "type": "raw"
+  },
+  {
+   "bytes": 24938,
+   "folder": "nissan",
+   "frequency": 434176948,
+   "more": false,
+   "path": "nissan/Nissan_frotier_unlock_4.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 5551,
+   "reads": [],
+   "seconds": 10.63,
+   "type": "raw"
+  },
+  {
+   "bytes": 12601,
+   "folder": "nissan",
+   "frequency": 314980000,
+   "more": false,
+   "path": "nissan/Skyline_close_US.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 2763,
+   "reads": [],
+   "seconds": 7.94,
+   "type": "raw"
+  },
+  {
+   "bytes": 5453,
+   "folder": "nissan",
+   "frequency": 314980000,
+   "more": false,
+   "path": "nissan/Skyline_open_US.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 1172,
+   "reads": [],
+   "seconds": 4.53,
+   "type": "raw"
+  },
+  {
+   "bytes": 307200,
+   "folder": "nissan",
+   "frequency": 433920000,
+   "more": true,
+   "path": "nissan/more/Nissan_Almera_2014_xHorse_300lck.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 68614,
+   "reads": [
+    {
+     "distinct": 29,
+     "frames": 53,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 17,
+     "frames": 34,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 43.16,
+   "type": "raw"
+  },
+  {
+   "bytes": 371929,
+   "folder": "nissan",
+   "frequency": 433920000,
+   "more": true,
+   "path": "nissan/more/Nissan_Almera_2014_xHorse_5lck_hold10s.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 82619,
+   "reads": [
+    {
+     "distinct": 5,
+     "frames": 11,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 2,
+     "frames": 4,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 59.58,
+   "type": "raw"
+  },
+  {
+   "bytes": 404204,
+   "folder": "nissan",
+   "frequency": 433920000,
+   "more": true,
+   "path": "nissan/more/Nissan_Almera_2014_xHorse_5pnc_hold10s.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 90370,
+   "reads": [
+    {
+     "distinct": 5,
+     "frames": 11,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 2,
+     "frames": 4,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 67.99,
+   "type": "raw"
+  },
+  {
+   "bytes": 358758,
+   "folder": "nissan",
+   "frequency": 433920000,
+   "more": true,
+   "path": "nissan/more/Nissan_Almera_2014_xHorse_5trk_hold10s.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 80190,
+   "reads": [
+    {
+     "distinct": 5,
+     "frames": 9,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 3,
+     "frames": 6,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 62.52,
+   "type": "raw"
+  },
+  {
+   "bytes": 418662,
+   "folder": "nissan",
+   "frequency": 433920000,
+   "more": true,
+   "path": "nissan/more/Nissan_Almera_2014_xHorse_5ulk_hold10s.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 93693,
+   "reads": [
+    {
+     "distinct": 5,
+     "frames": 11,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 2,
+     "frames": 4,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 69.17,
+   "type": "raw"
+  },
+  {
+   "bytes": 53639,
+   "folder": "nissan",
+   "frequency": 433920000,
+   "more": true,
+   "path": "nissan/more/Nissan_Almera_2014_xHorse_LUTP.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 12032,
+   "reads": [
+    {
+     "distinct": 4,
+     "frames": 10,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 1,
+     "frames": 2,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 8.42,
+   "type": "raw"
+  },
+  {
+   "bytes": 318953,
+   "folder": "nissan",
+   "frequency": 433920000,
+   "more": true,
+   "path": "nissan/more/Nissan_Almera_2014_xHorse_LUTP_hold10s.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 71132,
+   "reads": [
+    {
+     "distinct": 4,
+     "frames": 8,
+     "protocol": "Renault V1"
+    },
+    {
+     "distinct": 2,
+     "frames": 4,
+     "protocol": "Renault/xHorse V4"
+    }
+   ],
+   "seconds": 55.42,
+   "type": "raw"
+  }
+ ],
+ "folder": "IMPORTS",
+ "repo": "https://github.com/KaraZajac/KAT"
+}

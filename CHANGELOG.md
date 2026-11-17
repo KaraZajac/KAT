@@ -2,6 +2,16 @@
 
 All notable changes to KAT are documented here.
 
+## [Unreleased]
+
+### Added
+
+- **kat.karazajac.io is a reference work.** Every protocol's page has a box of facts that the program itself writes out (`docs/data/protocols.json`, from the new test `site_data`), the recordings KAT reads with the protocol and the FCC IDs tied to it. New pages: [all protocols in one table](https://kat.karazajac.io/protocols.html), [a page per make](https://kat.karazajac.io/makes.html), [the recording library](https://kat.karazajac.io/captures.html) with a link to each of its 490 files and what KAT reads from it, [FCC IDs](https://kat.karazajac.io/fcc.html), [coverage by model-year](https://kat.karazajac.io/coverage.html) with the remotes a recording is wanted of, a [glossary](docs/glossary.md), [Recording a remote](docs/recording.md) (which Flipper preset holds which signal), [About this site](docs/about.md), and a search over all of it. A recording or source file named in a page's text opens in the repository. `scripts/site_data.py` writes the data; the landing page's counts come from it.
+
+### Changed
+
+- **Isuzu Rolling's line coding reads "Differential Manchester"** in a capture's details; it said Manchester.
+
 ## [1.15.0] - 2026-11-17
 
 Six decoders of KAT's own, worked out from recordings no reference reads: **Kia Mobis**, **Kia Denso**, **Kia Forte**, **GM RFA**, **Isuzu Rolling** and **Isuzu Static**. Chevrolet V0 reads the whole GM 433 MHz family, also from recordings with stretched pulses, and VAG Polo reads the 2020 VW Atlas.

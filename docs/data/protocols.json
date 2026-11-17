@@ -1,0 +1,4830 @@
+{
+ "decoders": 158,
+ "display_names": {
+  "BMW/Mini V3": "BMW/Mini V3",
+  "CAME Atomo": "CAME Atomo",
+  "Chevrolet V0": "Chevrolet V0",
+  "Chrysler V0": "Chrysler V0",
+  "Continental-KR5V2X": "Continental-KR5V2X",
+  "Feron": "Feron",
+  "Fiat V0": "Fiat V0",
+  "Fiat V1": "Fiat V1",
+  "Fiat V2": "Fiat V2",
+  "Ford V0": "Ford V0",
+  "Ford V1": "Ford V1",
+  "Ford V3": "Ford V3",
+  "GM RFA": "GM RFA",
+  "Hitag2": "Hitag2",
+  "Honda V0": "Honda V0",
+  "Honda V1": "Honda V1",
+  "Honda V2": "Honda V2",
+  "Honda V5": "Honda V5",
+  "Honda V6": "Honda V6",
+  "HondaV2&V3": "HondaV2&V3",
+  "Isuzu Rolling": "Isuzu Rolling",
+  "Isuzu Static": "Isuzu Static",
+  "KeeLoq (BFT)": "KeeLoq",
+  "KeeLoq (Beninca)": "KeeLoq",
+  "KeeLoq (Cenmax_St-5)": "KeeLoq",
+  "KeeLoq (DoorHan)": "KeeLoq",
+  "KeeLoq (Elmes_Poland)": "KeeLoq",
+  "KeeLoq (Faraon)": "KeeLoq",
+  "KeeLoq (Genius_Bravo)": "KeeLoq",
+  "KeeLoq (JCM_Tech)": "KeeLoq",
+  "KeeLoq (KGB/Subaru)": "KeeLoq",
+  "KeeLoq (NICE_MHOUSE)": "KeeLoq",
+  "KeeLoq (Normstahl)": "KeeLoq",
+  "KeeLoq (Reff)": "KeeLoq",
+  "KeeLoq (Rosh)": "KeeLoq",
+  "KeeLoq (Stilmatic)": "KeeLoq",
+  "KeeLoq (Unknown)": "KeeLoq",
+  "KeeLoq (ZX-730-750-1055)": "KeeLoq",
+  "Kia Denso": "Kia Denso",
+  "Kia Forte": "Kia Forte",
+  "Kia Mobis": "Kia Mobis",
+  "Kia V0": "Kia V0",
+  "Kia V1": "Kia V1",
+  "Kia V3": "Kia V3/V4",
+  "Kia V4": "Kia V3/V4",
+  "Kia V5": "Kia V5",
+  "Kia V6": "Kia V6",
+  "Kia V7": "Kia V7",
+  "Mazda Siemens": "Mazda Siemens",
+  "Mazda V0": "Mazda V0",
+  "Mazda V1": "Mazda V1",
+  "Mazda V2": "Mazda V2",
+  "Microchip-HCS361 [KeeLoq (Unknown)]": "Microchip-HCS361",
+  "Mitsubishi V0": "Mitsubishi V0",
+  "Mitsubishi V1": "Mitsubishi V1",
+  "Nidec RKE": "Nidec RKE",
+  "Opel V1": "Opel V1",
+  "PSA": "PSA",
+  "Renault V0": "Renault V0",
+  "Renault V1": "Renault V1",
+  "Renault V1 (ARF) [Dynamic 0x10]": "Renault V1 (ARF)",
+  "Renault/xHorse V4": "Renault/xHorse V4",
+  "Security+ 2.0": "Security+ 2.0",
+  "Somfy Keytis": "Somfy Keytis",
+  "Somfy Telis": "Somfy Telis",
+  "Subaru": "Subaru",
+  "Suzuki V0": "Suzuki V0",
+  "Toyota": "Toyota",
+  "Toyota (FoxFW)": "Toyota (FoxFW)",
+  "VAG": "VAG",
+  "VAG Polo": "VAG Polo"
+ },
+ "key_names": {
+  "Audiovox PRO": "Audiovox-PROOE3B",
+  "Fiat V1": "Fiat V1",
+  "Fiat type 0": "Fiat V0",
+  "KIA/HYU V0": "Kia V0",
+  "KIA/HYU V2": "Kia V2",
+  "KIA/HYU V4": "Kia V3/V4",
+  "KIA/HYU V5": "Kia V5",
+  "KIA/HYU V6": "Kia V6",
+  "KeeLoq": "KeeLoq",
+  "Kia V1": "Kia V1",
+  "Kia V4": "Kia V3/V4",
+  "Somfy Telis": "Somfy Telis",
+  "Subaru": "Subaru",
+  "VAG": "VAG",
+  "VAG GROUP": "VAG"
+ },
+ "protocols": [
+  {
+   "aliases": [],
+   "bits": 61,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Kia V0",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Kia/Hyundai",
+   "module": "kia_v0",
+   "name": "Kia V0",
+   "order": 0,
+   "page": "kia_v0",
+   "prefix": null,
+   "presets": [
+    "FM476",
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [
+    "Suzuki"
+   ],
+   "bits": 61,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Kia V0",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Suzuki",
+   "module": "kia_v0",
+   "name": "Suzuki V0",
+   "order": 0,
+   "page": "kia_v0",
+   "prefix": null,
+   "presets": [
+    "FM476",
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [],
+   "bits": 61,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Kia V0",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Honda/Acura",
+   "module": "kia_v0",
+   "name": "Honda V0",
+   "order": 0,
+   "page": "kia_v0",
+   "prefix": null,
+   "presets": [
+    "FM476",
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [],
+   "bits": 57,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Kia V1",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Kia/Hyundai",
+   "module": "kia_v1",
+   "name": "Kia V1",
+   "order": 1,
+   "page": "kia_v1",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 300,
+   "te_long": 1600,
+   "te_short": 800
+  },
+  {
+   "aliases": [],
+   "bits": 53,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Kia V2",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Kia/Hyundai",
+   "module": "kia_v2",
+   "name": "Kia V2",
+   "order": 2,
+   "page": "kia_v2",
+   "prefix": null,
+   "presets": [
+    "FM476",
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 200,
+   "te_long": 1000,
+   "te_short": 500
+  },
+  {
+   "aliases": [
+    "Kia V3",
+    "Kia V4",
+    "KIA/HYU V3",
+    "KIA/HYU V4"
+   ],
+   "bits": 68,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Kia V3/V4",
+   "encoder": true,
+   "encryption": "KeeLoq",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Kia/Hyundai",
+   "module": "kia_v3_v4",
+   "name": "Kia V3/V4",
+   "order": 3,
+   "page": "kia_v3_v4",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 800,
+   "te_short": 400
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Kia V5",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Kia/Hyundai",
+   "module": "kia_v5",
+   "name": "Kia V5",
+   "order": 4,
+   "page": "kia_v5",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 800,
+   "te_short": 400
+  },
+  {
+   "aliases": [],
+   "bits": 144,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Kia V6",
+   "encoder": true,
+   "encryption": "AES-128",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Kia/Hyundai",
+   "module": "kia_v6",
+   "name": "Kia V6",
+   "order": 5,
+   "page": "kia_v6",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 400,
+   "te_short": 200
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Kia V7",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Kia/Hyundai",
+   "module": "kia_v7",
+   "name": "Kia V7",
+   "order": 6,
+   "page": "kia_v7",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [
+    "VW"
+   ],
+   "bits": 80,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "VAG",
+   "encoder": true,
+   "encryption": "AUT64/XTEA",
+   "frequencies": [
+    315000000,
+    433920000,
+    434420000
+   ],
+   "make": "VW/Audi/Seat/Skoda",
+   "module": "vag",
+   "name": "VAG",
+   "order": 7,
+   "page": "vag",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 80,
+   "te_long": 1000,
+   "te_short": 500
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Ford V0",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Ford",
+   "module": "ford_v0",
+   "name": "Ford V0",
+   "order": 8,
+   "page": "ford_v0",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 120,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [],
+   "bits": 136,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Ford V1",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Ford",
+   "module": "ford_v1",
+   "name": "Ford V1",
+   "order": 9,
+   "page": "ford_v1",
+   "prefix": null,
+   "presets": [
+    "F4"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 39,
+   "te_long": 130,
+   "te_short": 65
+  },
+  {
+   "aliases": [],
+   "bits": 104,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Ford V3",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Ford",
+   "module": "ford_v3",
+   "name": "Ford V3",
+   "order": 10,
+   "page": "ford_v3",
+   "prefix": null,
+   "presets": [
+    "AM650",
+    "F4"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 60,
+   "te_long": 480,
+   "te_short": 240
+  },
+  {
+   "aliases": [],
+   "bits": 104,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Ford V2",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Ford",
+   "module": "ford_v2",
+   "name": "Ford V2",
+   "order": 11,
+   "page": "ford_v2",
+   "prefix": null,
+   "presets": [
+    "F4"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 260,
+   "te_long": 400,
+   "te_short": 200
+  },
+  {
+   "aliases": [],
+   "bits": 135,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Honda V5",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Honda/Acura",
+   "module": "honda_v5",
+   "name": "Honda V5",
+   "order": 12,
+   "page": "honda_v5",
+   "prefix": null,
+   "presets": [
+    "Honda1",
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 20,
+   "te_long": 126,
+   "te_short": 63
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Honda Static",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Honda/Acura",
+   "module": "honda_static",
+   "name": "Honda Static",
+   "order": 13,
+   "page": "honda_static",
+   "prefix": null,
+   "presets": [
+    "Honda1"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 120,
+   "te_long": 700,
+   "te_short": 63
+  },
+  {
+   "aliases": [],
+   "bits": 68,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Honda V1",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Honda/Acura",
+   "module": "honda_v1",
+   "name": "Honda V1",
+   "order": 14,
+   "page": "honda_v1",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 400,
+   "te_long": 2000,
+   "te_short": 1000
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Subaru",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    433920000,
+    315000000
+   ],
+   "make": "Subaru",
+   "module": "subaru",
+   "name": "Subaru",
+   "order": 15,
+   "page": "subaru",
+   "prefix": null,
+   "presets": [
+    "AM650",
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 200,
+   "te_long": 1600,
+   "te_short": 800
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Fiat V0",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Fiat",
+   "module": "fiat_v0",
+   "name": "Fiat V0",
+   "order": 16,
+   "page": "fiat_v0",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 400,
+   "te_short": 200
+  },
+  {
+   "aliases": [],
+   "bits": 104,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Fiat V1",
+   "encoder": true,
+   "encryption": "HITAG2",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Fiat",
+   "module": "fiat_v1",
+   "name": "Fiat V1",
+   "order": 17,
+   "page": "fiat_v1",
+   "prefix": null,
+   "presets": [
+    "AM650",
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [
+    "Fiat Marelli"
+   ],
+   "bits": 80,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "MARELLI",
+   "encoder": true,
+   "encryption": "Replay (saved frames; no decoder)",
+   "frequencies": [
+    433920000
+   ],
+   "make": "Fiat",
+   "module": "fiat_marelli",
+   "name": "MARELLI",
+   "order": 18,
+   "page": "fiat_marelli",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 80,
+   "te_long": 520,
+   "te_short": 260
+  },
+  {
+   "aliases": [],
+   "bits": 35,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Scher-Khan",
+   "encoder": true,
+   "encryption": "Magic Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Scher-Khan",
+   "module": "scher_khan",
+   "name": "Scher-Khan",
+   "order": 19,
+   "page": "scher_khan",
+   "prefix": null,
+   "presets": [
+    "FM476",
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 160,
+   "te_long": 1100,
+   "te_short": 750
+  },
+  {
+   "aliases": [
+    "StarLine"
+   ],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Star Line",
+   "encoder": true,
+   "encryption": "KeeLoq",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Star Line",
+   "module": "star_line",
+   "name": "Star Line",
+   "order": 20,
+   "page": "star_line",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 120,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Sheriff CFM",
+   "encoder": true,
+   "encryption": "KeeLoq",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Sheriff",
+   "module": "sheriff_cfm",
+   "name": "Sheriff CFM",
+   "order": 21,
+   "page": "sheriff_cfm",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 140,
+   "te_long": 800,
+   "te_short": 400
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "KeeLoq",
+   "encoder": true,
+   "encryption": "KeeLoq",
+   "frequencies": [
+    0
+   ],
+   "make": "KeeLoq",
+   "module": "keeloq",
+   "name": "KeeLoq",
+   "order": 22,
+   "page": "keeloq",
+   "prefix": "keeloq (",
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 180,
+   "te_long": 800,
+   "te_short": 400
+  },
+  {
+   "aliases": [
+    "PSA2",
+    "PSA OLD",
+    "PSA GROUP"
+   ],
+   "bits": 128,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "PSA",
+   "encoder": true,
+   "encryption": "TEA/XOR",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Peugeot/Citroen",
+   "module": "psa",
+   "name": "PSA",
+   "order": 23,
+   "page": "psa",
+   "prefix": null,
+   "presets": [
+    "AM650",
+    "F3"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [],
+   "bits": 80,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Chrysler V0",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Chrysler/Dodge/Jeep",
+   "module": "chrysler_v0",
+   "name": "Chrysler V0",
+   "order": 24,
+   "page": "chrysler_v0",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 3400,
+   "te_short": 300
+  },
+  {
+   "aliases": [
+    "Land Rover V0"
+   ],
+   "bits": 81,
+   "category": "Vehicle",
+   "coding": "DifferentialManchester",
+   "decoder": "Honda V2",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Honda/Acura",
+   "module": "honda_v2",
+   "name": "Honda V2",
+   "order": 25,
+   "page": "honda_v2",
+   "prefix": null,
+   "presets": [
+    "F4"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Mazda V0",
+   "encoder": true,
+   "encryption": "XOR whitening",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Mazda",
+   "module": "mazda_v0",
+   "name": "Mazda V0",
+   "order": 26,
+   "page": "mazda_v0",
+   "prefix": null,
+   "presets": [
+    "AM650",
+    "F2"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Mazda Siemens",
+   "encoder": true,
+   "encryption": "Siemens XOR",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Mazda",
+   "module": "mazda_siemens",
+   "name": "Mazda Siemens",
+   "order": 27,
+   "page": "mazda_siemens",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [
+    "Mitsu V0"
+   ],
+   "bits": 80,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Mitsubishi V0",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000,
+    868350000
+   ],
+   "make": "Mitsubishi",
+   "module": "mitsubishi_v0",
+   "name": "Mitsubishi V0",
+   "order": 28,
+   "page": "mitsubishi_v0",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [
+    "Porsche Touareg"
+   ],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Porsche Cayenne",
+   "encoder": true,
+   "encryption": "VAG rolling",
+   "frequencies": [
+    315000000,
+    433920000,
+    868350000
+   ],
+   "make": "Porsche",
+   "module": "porsche_cayenne",
+   "name": "Porsche Cayenne",
+   "order": 29,
+   "page": "porsche_cayenne",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 500,
+   "te_long": 3370,
+   "te_short": 1680
+  },
+  {
+   "aliases": [],
+   "bits": 96,
+   "category": "Vehicle",
+   "coding": "DifferentialManchester",
+   "decoder": "Toyota",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Toyota/Lexus",
+   "module": "toyota",
+   "name": "Toyota",
+   "order": 30,
+   "page": "toyota",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 185,
+   "te_long": 1587,
+   "te_short": 793
+  },
+  {
+   "aliases": [],
+   "bits": 128,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "BMW",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    433920000
+   ],
+   "make": "BMW",
+   "module": "bmw",
+   "name": "BMW",
+   "order": 31,
+   "page": "bmw",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 25,
+   "te_long": 124,
+   "te_short": 62
+  },
+  {
+   "aliases": [],
+   "bits": 63,
+   "category": "Vehicle",
+   "coding": "DifferentialManchester",
+   "decoder": "Mazda V2",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Mazda",
+   "module": "mazda_v2",
+   "name": "Mazda V2",
+   "order": 32,
+   "page": "mazda_v2",
+   "prefix": null,
+   "presets": [
+    "AM650",
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 250,
+   "te_long": 1000,
+   "te_short": 500
+  },
+  {
+   "aliases": [],
+   "bits": 112,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Mercedes V0",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    433920000
+   ],
+   "make": "Mercedes-Benz",
+   "module": "mercedes_v0",
+   "name": "Mercedes V0",
+   "order": 33,
+   "page": "mercedes_v0",
+   "prefix": null,
+   "presets": [
+    "FM20K"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 1000,
+   "te_short": 500
+  },
+  {
+   "aliases": [],
+   "bits": 122,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Mercedes V1",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    433920000
+   ],
+   "make": "Mercedes-Benz",
+   "module": "mercedes_v1",
+   "name": "Mercedes V1",
+   "order": 34,
+   "page": "mercedes_v1",
+   "prefix": null,
+   "presets": [
+    "FM20K"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 30,
+   "te_long": 100,
+   "te_short": 50
+  },
+  {
+   "aliases": [],
+   "bits": 93,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Opel V1",
+   "encoder": false,
+   "encryption": "XTEA",
+   "frequencies": [
+    433920000
+   ],
+   "make": "Opel",
+   "module": "opel_v1",
+   "name": "Opel V1",
+   "order": 35,
+   "page": "opel_v1",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 70,
+   "te_long": 240,
+   "te_short": 120
+  },
+  {
+   "aliases": [],
+   "bits": 104,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Renault V1",
+   "encoder": true,
+   "encryption": "HITAG2",
+   "frequencies": [
+    315000000,
+    433920000,
+    868350000
+   ],
+   "make": "Renault",
+   "module": "renault_v1",
+   "name": "Renault V1",
+   "order": 36,
+   "page": "renault_v1",
+   "prefix": null,
+   "presets": [
+    "AM650",
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 50,
+   "te_long": 250,
+   "te_short": 125
+  },
+  {
+   "aliases": [],
+   "bits": 82,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Renault V0",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000,
+    868350000
+   ],
+   "make": "Renault",
+   "module": "renault_v0",
+   "name": "Renault V0",
+   "order": 37,
+   "page": "renault_v0",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 69,
+   "te_long": 250,
+   "te_short": 125
+  },
+  {
+   "aliases": [],
+   "bits": 82,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Renault V1 (ARF)",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000,
+    868350000
+   ],
+   "make": "Renault",
+   "module": "renault_v1_arf",
+   "name": "Renault V1 (ARF)",
+   "order": 38,
+   "page": "renault_v1_arf",
+   "prefix": null,
+   "presets": [
+    "AM650",
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 69,
+   "te_long": 250,
+   "te_short": 125
+  },
+  {
+   "aliases": [],
+   "bits": 112,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Fiat V2",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Fiat/Chrysler/Jeep",
+   "module": "fiat_v2",
+   "name": "Fiat V2",
+   "order": 39,
+   "page": "fiat_v2",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 420,
+   "te_short": 210
+  },
+  {
+   "aliases": [],
+   "bits": 112,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "GM",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Chevrolet/Buick/GMC/Cadillac",
+   "module": "gm",
+   "name": "GM",
+   "order": 40,
+   "page": "gm",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 120,
+   "te_long": 500,
+   "te_short": 300
+  },
+  {
+   "aliases": [],
+   "bits": 88,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Datsun Lada",
+   "encoder": true,
+   "encryption": "HITAG2",
+   "frequencies": [
+    433920000
+   ],
+   "make": "Datsun/Lada",
+   "module": "datsun_lada",
+   "name": "Datsun Lada",
+   "order": 41,
+   "page": "datsun_lada",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 110,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [],
+   "bits": 128,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Beninca ARC",
+   "encoder": true,
+   "encryption": "AES-128",
+   "frequencies": [
+    0
+   ],
+   "make": "Beninca",
+   "module": "beninca_arc",
+   "name": "Beninca ARC",
+   "order": 42,
+   "page": "beninca_arc",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 155,
+   "te_long": 600,
+   "te_short": 300
+  },
+  {
+   "aliases": [],
+   "bits": 89,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "KingGates Stylo4k",
+   "encoder": true,
+   "encryption": "KeeLoq",
+   "frequencies": [
+    0
+   ],
+   "make": "KingGates",
+   "module": "kinggates_stylo_4k",
+   "name": "KingGates Stylo4k",
+   "order": 43,
+   "page": "kinggates_stylo_4k",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 140,
+   "te_long": 1100,
+   "te_short": 400
+  },
+  {
+   "aliases": [],
+   "bits": 72,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Jarolift",
+   "encoder": true,
+   "encryption": "KeeLoq",
+   "frequencies": [
+    0
+   ],
+   "make": "Jarolift",
+   "module": "jarolift",
+   "name": "Jarolift",
+   "order": 44,
+   "page": "jarolift",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 167,
+   "te_long": 800,
+   "te_short": 400
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Faac SLH",
+   "encoder": true,
+   "encryption": "KeeLoq",
+   "frequencies": [
+    0
+   ],
+   "make": "FAAC",
+   "module": "faac_slh",
+   "name": "Faac SLH",
+   "order": 45,
+   "page": "faac_slh",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 595,
+   "te_short": 255
+  },
+  {
+   "aliases": [],
+   "bits": 62,
+   "category": "Gate",
+   "coding": "Manchester",
+   "decoder": "Security+ 2.0",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Chamberlain/LiftMaster",
+   "module": "secplus_v2",
+   "name": "Security+ 2.0",
+   "order": 46,
+   "page": "secplus_v2",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 110,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [],
+   "bits": 80,
+   "category": "Gate",
+   "coding": "Manchester",
+   "decoder": "Somfy Keytis",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Somfy",
+   "module": "somfy_keytis",
+   "name": "Somfy Keytis",
+   "order": 47,
+   "page": "somfy_keytis",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 250,
+   "te_long": 1280,
+   "te_short": 640
+  },
+  {
+   "aliases": [],
+   "bits": 56,
+   "category": "Gate",
+   "coding": "Manchester",
+   "decoder": "Somfy Telis",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Somfy",
+   "module": "somfy_telis",
+   "name": "Somfy Telis",
+   "order": 48,
+   "page": "somfy_telis",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 250,
+   "te_long": 1280,
+   "te_short": 640
+  },
+  {
+   "aliases": [],
+   "bits": 21,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Security+ 1.0",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Chamberlain/LiftMaster",
+   "module": "secplus_v1",
+   "name": "Security+ 1.0",
+   "order": 49,
+   "page": "secplus_v1",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 1500,
+   "te_short": 500
+  },
+  {
+   "aliases": [],
+   "bits": 72,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Alutech AT-4N",
+   "encoder": false,
+   "encryption": "TEA",
+   "frequencies": [
+    0
+   ],
+   "make": "Alutech",
+   "module": "alutech_at_4n",
+   "name": "Alutech AT-4N",
+   "order": 50,
+   "page": "alutech_at_4n",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 140,
+   "te_long": 800,
+   "te_short": 400
+  },
+  {
+   "aliases": [
+    "Nice One",
+    "Nice O-Code"
+   ],
+   "bits": 52,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Nice FloR-S",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Nice",
+   "module": "nice_flor_s",
+   "name": "Nice FloR-S",
+   "order": 51,
+   "page": "nice_flor_s",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 300,
+   "te_long": 1000,
+   "te_short": 500
+  },
+  {
+   "aliases": [],
+   "bits": 54,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Ditec GOL4",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Ditec",
+   "module": "ditec_gol4",
+   "name": "Ditec GOL4",
+   "order": 52,
+   "page": "ditec_gol4",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 200,
+   "te_long": 1100,
+   "te_short": 400
+  },
+  {
+   "aliases": [],
+   "bits": 62,
+   "category": "Gate",
+   "coding": "Manchester",
+   "decoder": "CAME Atomo",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "CAME",
+   "module": "came_atomo",
+   "name": "CAME Atomo",
+   "order": 53,
+   "page": "came_atomo",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 250,
+   "te_long": 1200,
+   "te_short": 600
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Gate",
+   "coding": "Manchester",
+   "decoder": "Power Smart",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Power Smart",
+   "module": "power_smart",
+   "name": "Power Smart",
+   "order": 54,
+   "page": "power_smart",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 450,
+   "te_short": 225
+  },
+  {
+   "aliases": [],
+   "bits": 128,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Urmet",
+   "encoder": false,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Urmet",
+   "module": "urmet",
+   "name": "Urmet",
+   "order": 55,
+   "page": "urmet",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 5500,
+   "te_short": 500
+  },
+  {
+   "aliases": [
+    "Revers RB2"
+   ],
+   "bits": 64,
+   "category": "Gate",
+   "coding": "Manchester",
+   "decoder": "Revers_RB2",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Revers",
+   "module": "revers_rb2",
+   "name": "Revers_RB2",
+   "order": 56,
+   "page": "revers_rb2",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 160,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [],
+   "bits": 32,
+   "category": "Gate",
+   "coding": "Manchester",
+   "decoder": "Telcoma/Cardin EDGE",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Telcoma/Cardin",
+   "module": "telcoma_edge",
+   "name": "Telcoma/Cardin EDGE",
+   "order": 57,
+   "page": "telcoma_edge",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 520,
+   "te_long": 2540,
+   "te_short": 1270
+  },
+  {
+   "aliases": [
+    "Phoenix V2",
+    "V2 Phoenix"
+   ],
+   "bits": 52,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Phoenix_V2",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Phoenix",
+   "module": "phoenix_v2",
+   "name": "Phoenix_V2",
+   "order": 58,
+   "page": "phoenix_v2",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 853,
+   "te_short": 427
+  },
+  {
+   "aliases": [],
+   "bits": 40,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Dooya",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Dooya",
+   "module": "dooya",
+   "name": "Dooya",
+   "order": 59,
+   "page": "dooya",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 120,
+   "te_long": 733,
+   "te_short": 366
+  },
+  {
+   "aliases": [],
+   "bits": 28,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Roger",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Roger",
+   "module": "roger",
+   "name": "Roger",
+   "order": 60,
+   "page": "roger",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 270,
+   "te_long": 1000,
+   "te_short": 500
+  },
+  {
+   "aliases": [],
+   "bits": 21,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Hay21",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Hay21",
+   "module": "hay21",
+   "name": "Hay21",
+   "order": 61,
+   "page": "hay21",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 700,
+   "te_short": 300
+  },
+  {
+   "aliases": [],
+   "bits": 18,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Allstar Firefly",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Allstar",
+   "module": "allstar_firefly",
+   "name": "Allstar Firefly",
+   "order": 62,
+   "page": "allstar_firefly",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 300,
+   "te_long": 4000,
+   "te_short": 600
+  },
+  {
+   "aliases": [],
+   "bits": 49,
+   "category": "Gate",
+   "coding": "Manchester",
+   "decoder": "Marantec",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Marantec",
+   "module": "marantec",
+   "name": "Marantec",
+   "order": 63,
+   "page": "marantec",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 200,
+   "te_long": 2000,
+   "te_short": 1000
+  },
+  {
+   "aliases": [],
+   "bits": 44,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Hormann HSM",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Hormann",
+   "module": "hormann",
+   "name": "Hormann HSM",
+   "order": 64,
+   "page": "hormann",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 200,
+   "te_long": 1000,
+   "te_short": 500
+  },
+  {
+   "aliases": [],
+   "bits": 56,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Nero Radio",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Nero",
+   "module": "nero_radio",
+   "name": "Nero Radio",
+   "order": 65,
+   "page": "nero_radio",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 80,
+   "te_long": 400,
+   "te_short": 200
+  },
+  {
+   "aliases": [],
+   "bits": 40,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Nero Sketch",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Nero",
+   "module": "nero_sketch",
+   "name": "Nero Sketch",
+   "order": 66,
+   "page": "nero_sketch",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 660,
+   "te_short": 330
+  },
+  {
+   "aliases": [],
+   "bits": 48,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "iDo 117/111",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "iDo",
+   "module": "ido",
+   "name": "iDo 117/111",
+   "order": 67,
+   "page": "ido",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 1450,
+   "te_short": 450
+  },
+  {
+   "aliases": [],
+   "bits": 36,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Dickert_MAHS",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Dickert",
+   "module": "dickert_mahs",
+   "name": "Dickert_MAHS",
+   "order": 68,
+   "page": "dickert_mahs",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 800,
+   "te_short": 400
+  },
+  {
+   "aliases": [],
+   "bits": 37,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Doitrand",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Doitrand",
+   "module": "doitrand",
+   "name": "Doitrand",
+   "order": 69,
+   "page": "doitrand",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 1100,
+   "te_short": 400
+  },
+  {
+   "aliases": [],
+   "bits": 36,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Mastercode",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Clemsa",
+   "module": "mastercode",
+   "name": "Mastercode",
+   "order": 70,
+   "page": "mastercode",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 2145,
+   "te_short": 1072
+  },
+  {
+   "aliases": [],
+   "bits": 24,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Marantec24",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Marantec",
+   "module": "marantec24",
+   "name": "Marantec24",
+   "order": 71,
+   "page": "marantec24",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 200,
+   "te_long": 1600,
+   "te_short": 800
+  },
+  {
+   "aliases": [],
+   "bits": 18,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Clemsa",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Clemsa",
+   "module": "clemsa",
+   "name": "Clemsa",
+   "order": 72,
+   "page": "clemsa",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 2695,
+   "te_short": 385
+  },
+  {
+   "aliases": [],
+   "bits": 18,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "BETT",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Berner/Elka/Tedsen/Teletaster",
+   "module": "bett",
+   "name": "BETT",
+   "order": 73,
+   "page": "bett",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 2000,
+   "te_short": 340
+  },
+  {
+   "aliases": [],
+   "bits": 18,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Elplast",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Elplast",
+   "module": "elplast",
+   "name": "Elplast",
+   "order": 74,
+   "page": "elplast",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 160,
+   "te_long": 1550,
+   "te_short": 230
+  },
+  {
+   "aliases": [],
+   "bits": 12,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Ansonic",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Ansonic",
+   "module": "ansonic",
+   "name": "Ansonic",
+   "order": 75,
+   "page": "ansonic",
+   "prefix": null,
+   "presets": [
+    "AM650",
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 120,
+   "te_long": 1111,
+   "te_short": 555
+  },
+  {
+   "aliases": [],
+   "bits": 40,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Holtek",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Holtek",
+   "module": "holtek",
+   "name": "Holtek",
+   "order": 80,
+   "page": "holtek",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 870,
+   "te_short": 430
+  },
+  {
+   "aliases": [],
+   "bits": 54,
+   "category": "Gate",
+   "coding": "Manchester",
+   "decoder": "CAME TWEE",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "CAME",
+   "module": "came_twee",
+   "name": "CAME TWEE",
+   "order": 81,
+   "page": "came_twee",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 250,
+   "te_long": 1000,
+   "te_short": 500
+  },
+  {
+   "aliases": [],
+   "bits": 24,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "MegaCode",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Linear",
+   "module": "megacode",
+   "name": "MegaCode",
+   "order": 82,
+   "page": "megacode",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 200,
+   "te_long": 1000,
+   "te_short": 1000
+  },
+  {
+   "aliases": [],
+   "bits": 10,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Cham_Code",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Chamberlain/LiftMaster",
+   "module": "chamberlain_code",
+   "name": "Cham_Code",
+   "order": 83,
+   "page": "chamberlain_code",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 200,
+   "te_long": 3000,
+   "te_short": 1000
+  },
+  {
+   "aliases": [],
+   "bits": 24,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "GateTX",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Gate-TX",
+   "module": "gate_tx",
+   "name": "GateTX",
+   "order": 84,
+   "page": "gate_tx",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 700,
+   "te_short": 350
+  },
+  {
+   "aliases": [],
+   "bits": 12,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Holtek_HT12X",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Holtek",
+   "module": "holtek_ht12x",
+   "name": "Holtek_HT12X",
+   "order": 85,
+   "page": "holtek_ht12x",
+   "prefix": null,
+   "presets": [
+    "AM650",
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 200,
+   "te_long": 640,
+   "te_short": 320
+  },
+  {
+   "aliases": [],
+   "bits": 12,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "CAME",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "CAME",
+   "module": "came",
+   "name": "CAME",
+   "order": 86,
+   "page": "came",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 640,
+   "te_short": 320
+  },
+  {
+   "aliases": [],
+   "bits": 42,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Prastel",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Prastel",
+   "module": "prastel",
+   "name": "Prastel",
+   "order": 87,
+   "page": "prastel",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 640,
+   "te_short": 320
+  },
+  {
+   "aliases": [],
+   "bits": 12,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Nice FLO",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Nice",
+   "module": "nice_flo",
+   "name": "Nice FLO",
+   "order": 88,
+   "page": "nice_flo",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 200,
+   "te_long": 1400,
+   "te_short": 700
+  },
+  {
+   "aliases": [],
+   "bits": 10,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Linear",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Linear",
+   "module": "linear",
+   "name": "Linear",
+   "order": 89,
+   "page": "linear",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 350,
+   "te_long": 1500,
+   "te_short": 500
+  },
+  {
+   "aliases": [],
+   "bits": 8,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "LinearDelta3",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Linear",
+   "module": "linear_delta3",
+   "name": "LinearDelta3",
+   "order": 90,
+   "page": "linear_delta3",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 2000,
+   "te_short": 500
+  },
+  {
+   "aliases": [],
+   "bits": 25,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "SMC5326",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Generic (SMC5326)",
+   "module": "smc5326",
+   "name": "SMC5326",
+   "order": 91,
+   "page": "smc5326",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 200,
+   "te_long": 900,
+   "te_short": 300
+  },
+  {
+   "aliases": [],
+   "bits": 24,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Princeton",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Generic (PT2262)",
+   "module": "princeton",
+   "name": "Princeton",
+   "order": 92,
+   "page": "princeton",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 300,
+   "te_long": 1170,
+   "te_short": 390
+  },
+  {
+   "aliases": [],
+   "bits": 176,
+   "category": "Gate",
+   "coding": "Manchester",
+   "decoder": "Hormann BiSecur",
+   "encoder": true,
+   "encryption": "AES-128",
+   "frequencies": [
+    0
+   ],
+   "make": "Hormann",
+   "module": "hormann_bisecur",
+   "name": "Hormann BiSecur",
+   "order": 76,
+   "page": "hormann_bisecur",
+   "prefix": null,
+   "presets": [
+    "F3"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 104,
+   "te_long": 416,
+   "te_short": 208
+  },
+  {
+   "aliases": [],
+   "bits": 34,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "GangQi",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "GangQi",
+   "module": "gangqi",
+   "name": "GangQi",
+   "order": 77,
+   "page": "gangqi",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 200,
+   "te_long": 1200,
+   "te_short": 500
+  },
+  {
+   "aliases": [],
+   "bits": 42,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Hollarm",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Hollarm",
+   "module": "hollarm",
+   "name": "Hollarm",
+   "order": 78,
+   "page": "hollarm",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 200,
+   "te_long": 1000,
+   "te_short": 200
+  },
+  {
+   "aliases": [],
+   "bits": 128,
+   "category": "Gate",
+   "coding": "Manchester",
+   "decoder": "Cardin S508",
+   "encoder": false,
+   "encryption": "AES-128",
+   "frequencies": [
+    0
+   ],
+   "make": "Cardin",
+   "module": "cardin_s508",
+   "name": "Cardin S508",
+   "order": 79,
+   "page": "cardin_s508",
+   "prefix": null,
+   "presets": [
+    "FM12K"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 50,
+   "te_long": 200,
+   "te_short": 100
+  },
+  {
+   "aliases": [],
+   "bits": 24,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Freezer",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Freezer",
+   "module": "freezer",
+   "name": "Freezer",
+   "order": 93,
+   "page": "freezer",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 120,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [],
+   "bits": 12,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Faac TM",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "FAAC",
+   "module": "faac_tm",
+   "name": "Faac TM",
+   "order": 94,
+   "page": "faac_tm",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 120,
+   "te_long": 800,
+   "te_short": 400
+  },
+  {
+   "aliases": [],
+   "bits": 24,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Proteco",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Proteco",
+   "module": "proteco",
+   "name": "Proteco",
+   "order": 95,
+   "page": "proteco",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 880,
+   "te_short": 440
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Gate",
+   "coding": "Manchester",
+   "decoder": "Honeywell Sec",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Honeywell",
+   "module": "honeywell",
+   "name": "Honeywell Sec",
+   "order": 96,
+   "page": "honeywell",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 51,
+   "te_long": 280,
+   "te_short": 143
+  },
+  {
+   "aliases": [],
+   "bits": 32,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Magellan",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Paradox",
+   "module": "magellan",
+   "name": "Magellan",
+   "order": 97,
+   "page": "magellan",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 400,
+   "te_short": 200
+  },
+  {
+   "aliases": [],
+   "bits": 32,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "X10",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "X10",
+   "module": "x10",
+   "name": "X10",
+   "order": 98,
+   "page": "x10",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 1800,
+   "te_short": 600
+  },
+  {
+   "aliases": [],
+   "bits": 48,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Honeywell",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Honeywell",
+   "module": "honeywell_wdb",
+   "name": "Honeywell",
+   "order": 99,
+   "page": "honeywell_wdb",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 60,
+   "te_long": 320,
+   "te_short": 160
+  },
+  {
+   "aliases": [],
+   "bits": 18,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Legrand",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Legrand",
+   "module": "legrand",
+   "name": "Legrand",
+   "order": 100,
+   "page": "legrand",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 1125,
+   "te_short": 375
+  },
+  {
+   "aliases": [],
+   "bits": 32,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Doorbell32",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Doorbell",
+   "module": "doorbell32",
+   "name": "Doorbell32",
+   "order": 101,
+   "page": "doorbell32",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 200,
+   "te_long": 1545,
+   "te_short": 515
+  },
+  {
+   "aliases": [],
+   "bits": 32,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Intertechno_V3",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Intertechno",
+   "module": "intertechno_v3",
+   "name": "Intertechno_V3",
+   "order": 102,
+   "page": "intertechno_v3",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 1375,
+   "te_short": 275
+  },
+  {
+   "aliases": [],
+   "bits": 24,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "KeyFinder",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "KeyFinder",
+   "module": "keyfinder",
+   "name": "KeyFinder",
+   "order": 103,
+   "page": "keyfinder",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 1200,
+   "te_short": 400
+  },
+  {
+   "aliases": [],
+   "bits": 37,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Treadmill37",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Treadmill (QH-433)",
+   "module": "treadmill37",
+   "name": "Treadmill37",
+   "order": 104,
+   "page": "treadmill37",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 900,
+   "te_short": 300
+  },
+  {
+   "aliases": [],
+   "bits": 33,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Nord ICE",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Nord ICE",
+   "module": "nord_ice",
+   "name": "Nord ICE",
+   "order": 105,
+   "page": "nord_ice",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 760,
+   "te_short": 270
+  },
+  {
+   "aliases": [],
+   "bits": 32,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Feron",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Feron",
+   "module": "feron",
+   "name": "Feron",
+   "order": 106,
+   "page": "feron",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 750,
+   "te_short": 350
+  },
+  {
+   "aliases": [],
+   "bits": 11,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "KeyFinder2",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "KeyFinder",
+   "module": "keyfinder2",
+   "name": "KeyFinder2",
+   "order": 107,
+   "page": "keyfinder2",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 1020,
+   "te_short": 350
+  },
+  {
+   "aliases": [],
+   "bits": 80,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "VAG Polo",
+   "encoder": false,
+   "encryption": "Rolling code (encrypted)",
+   "frequencies": [
+    0
+   ],
+   "make": "Volkswagen",
+   "module": "vag_polo",
+   "name": "VAG Polo",
+   "order": 108,
+   "page": "vag_polo",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 130,
+   "te_long": 590,
+   "te_short": 300
+  },
+  {
+   "aliases": [],
+   "bits": 96,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Chevrolet V0",
+   "encoder": false,
+   "encryption": "Rolling code (encrypted hop)",
+   "frequencies": [
+    0
+   ],
+   "make": "Chevrolet/Buick/GMC/Holden",
+   "module": "chevrolet_v0",
+   "name": "Chevrolet V0",
+   "order": 109,
+   "page": "chevrolet_v0",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 71,
+   "te_long": 240,
+   "te_short": 120
+  },
+  {
+   "aliases": [],
+   "bits": 50,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Tesla Charge",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Tesla",
+   "module": "tesla_charge",
+   "name": "Tesla Charge",
+   "order": 110,
+   "page": "tesla_charge",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 140,
+   "te_long": 800,
+   "te_short": 400
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Hyundai/Kia RIO",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Hyundai/Kia",
+   "module": "hyundai_kia_rio",
+   "name": "Hyundai/Kia RIO",
+   "order": 111,
+   "page": "hyundai_kia_rio",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 728,
+   "te_short": 312
+  },
+  {
+   "aliases": [],
+   "bits": 80,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "SantaFe 13-16",
+   "encoder": true,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Hyundai",
+   "module": "santa_fe",
+   "name": "SantaFe 13-16",
+   "order": 112,
+   "page": "santa_fe",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 375,
+   "te_short": 125
+  },
+  {
+   "aliases": [],
+   "bits": 88,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Hitag2",
+   "encoder": false,
+   "encryption": "Hitag2",
+   "frequencies": [
+    0
+   ],
+   "make": "Hitag2 RKE",
+   "module": "hitag2_rke",
+   "name": "Hitag2",
+   "order": 113,
+   "page": "hitag2_rke",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 120,
+   "te_long": 480,
+   "te_short": 240
+  },
+  {
+   "aliases": [],
+   "bits": 56,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Nidec RKE",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Honda",
+   "module": "nidec_rke",
+   "name": "Nidec RKE",
+   "order": 114,
+   "page": "nidec_rke",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 120,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [],
+   "bits": 88,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Renault/xHorse V4",
+   "encoder": false,
+   "encryption": "Rolling (clear counter)",
+   "frequencies": [
+    433920000,
+    315000000
+   ],
+   "make": "Renault",
+   "module": "renault_v4",
+   "name": "Renault/xHorse V4",
+   "order": 115,
+   "page": "renault_v4",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 70,
+   "te_long": 250,
+   "te_short": 125
+  },
+  {
+   "aliases": [],
+   "bits": 71,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Fiat Ducato V0",
+   "encoder": false,
+   "encryption": "HITAG2",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Fiat",
+   "module": "ducato_v0",
+   "name": "Fiat Ducato V0",
+   "order": 116,
+   "page": "ducato_v0",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 99,
+   "te_long": 400,
+   "te_short": 200
+  },
+  {
+   "aliases": [],
+   "bits": 82,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Renault V2",
+   "encoder": false,
+   "encryption": "Encrypted",
+   "frequencies": [
+    433920000,
+    315000000
+   ],
+   "make": "Renault",
+   "module": "renault_v2",
+   "name": "Renault V2",
+   "order": 117,
+   "page": "renault_v2",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 60,
+   "te_long": 460,
+   "te_short": 230
+  },
+  {
+   "aliases": [],
+   "bits": 40,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Opel V0",
+   "encoder": false,
+   "encryption": "Unknown",
+   "frequencies": [
+    433920000
+   ],
+   "make": "Opel",
+   "module": "opel_v0",
+   "name": "Opel V0",
+   "order": 118,
+   "page": "opel_v0",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 300,
+   "te_long": 5400,
+   "te_short": 830
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Miller",
+   "decoder": "Honda V6",
+   "encoder": true,
+   "encryption": "Encrypted block (cipher unknown)",
+   "frequencies": [
+    313850000,
+    433920000
+   ],
+   "make": "Honda/Acura",
+   "module": "honda_v6",
+   "name": "Honda V6",
+   "order": 119,
+   "page": "honda_v6",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 170,
+   "te_long": 1600,
+   "te_short": 800
+  },
+  {
+   "aliases": [],
+   "bits": 72,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Kia Mobis",
+   "encoder": false,
+   "encryption": "Rolling code (cipher unknown), counter in the clear",
+   "frequencies": [
+    0
+   ],
+   "make": "Kia/Hyundai",
+   "module": "kia_mobis",
+   "name": "Kia Mobis",
+   "order": 126,
+   "page": "kia_mobis",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 60,
+   "te_long": 390,
+   "te_short": 195
+  },
+  {
+   "aliases": [],
+   "bits": 112,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Kia Denso",
+   "encoder": false,
+   "encryption": "Rolling code (cipher unknown)",
+   "frequencies": [
+    0
+   ],
+   "make": "Kia/Hyundai",
+   "module": "kia_denso",
+   "name": "Kia Denso",
+   "order": 127,
+   "page": "kia_denso",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 55,
+   "te_long": 350,
+   "te_short": 175
+  },
+  {
+   "aliases": [],
+   "bits": 88,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Kia Forte",
+   "encoder": false,
+   "encryption": "Rolling code (cipher unknown)",
+   "frequencies": [
+    0
+   ],
+   "make": "Kia",
+   "module": "kia_forte",
+   "name": "Kia Forte",
+   "order": 128,
+   "page": "kia_forte",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 980,
+   "te_short": 490
+  },
+  {
+   "aliases": [],
+   "bits": 84,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "GM RFA",
+   "encoder": false,
+   "encryption": "Rolling code (cipher unknown)",
+   "frequencies": [
+    0
+   ],
+   "make": "Cadillac/GMC/Chevrolet/Buick",
+   "module": "gm_rfa",
+   "name": "GM RFA",
+   "order": 129,
+   "page": "gm_rfa",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 59,
+   "te_long": 236,
+   "te_short": 118
+  },
+  {
+   "aliases": [],
+   "bits": 105,
+   "category": "Vehicle",
+   "coding": "DifferentialManchester",
+   "decoder": "Isuzu Rolling",
+   "encoder": false,
+   "encryption": "Rolling code (cipher unknown)",
+   "frequencies": [
+    0
+   ],
+   "make": "Isuzu",
+   "module": "isuzu_rolling",
+   "name": "Isuzu Rolling",
+   "order": 130,
+   "page": "isuzu_rolling",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 203,
+   "te_long": 812,
+   "te_short": 406
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Isuzu Static",
+   "encoder": false,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Isuzu",
+   "module": "isuzu_static",
+   "name": "Isuzu Static",
+   "order": 131,
+   "page": "isuzu_static",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 120,
+   "te_long": 1046,
+   "te_short": 523
+  },
+  {
+   "aliases": [],
+   "bits": 51,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Honda V4",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Honda/Acura",
+   "module": "honda_v4",
+   "name": "Honda V4",
+   "order": 120,
+   "page": "honda_v4",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 200,
+   "te_long": 1100,
+   "te_short": 750
+  },
+  {
+   "aliases": [],
+   "bits": 88,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Honda V7",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Honda/Acura",
+   "module": "honda_v7",
+   "name": "Honda V7",
+   "order": 121,
+   "page": "honda_v7",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 480,
+   "te_short": 250
+  },
+  {
+   "aliases": [],
+   "bits": 112,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Honda V9",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Honda/Acura",
+   "module": "honda_v9",
+   "name": "Honda V9",
+   "order": 122,
+   "page": "honda_v9",
+   "prefix": null,
+   "presets": [
+    "Honda1",
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 25,
+   "te_long": 126,
+   "te_short": 63
+  },
+  {
+   "aliases": [],
+   "bits": 100,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "HondaV2&V3",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    433920000
+   ],
+   "make": "Honda/Acura",
+   "module": "honda_v2_v3",
+   "name": "HondaV2&V3",
+   "order": 123,
+   "page": "honda_v2_v3",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": false,
+   "te_delta": 50,
+   "te_long": 192,
+   "te_short": 96
+  },
+  {
+   "aliases": [],
+   "bits": 96,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Honda V10",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Honda/Acura",
+   "module": "honda_v10",
+   "name": "Honda V10",
+   "order": 124,
+   "page": "honda_v10",
+   "prefix": null,
+   "presets": [
+    "FM476",
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 35,
+   "te_long": 208,
+   "te_short": 104
+  },
+  {
+   "aliases": [],
+   "bits": 96,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Mitsubishi V1",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Mitsubishi",
+   "module": "mitsubishi_v1",
+   "name": "Mitsubishi V1",
+   "order": 125,
+   "page": "mitsubishi_v1",
+   "prefix": null,
+   "presets": [
+    "FM476",
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 400,
+   "te_short": 200
+  },
+  {
+   "aliases": [],
+   "bits": 128,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "LDV V0",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "LDV",
+   "module": "ldv_v0",
+   "name": "LDV V0",
+   "order": 132,
+   "page": "ldv_v0",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 120,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [],
+   "bits": 224,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Lexus V0",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Lexus",
+   "module": "lexus_v0",
+   "name": "Lexus V0",
+   "order": 133,
+   "page": "lexus_v0",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 700,
+   "te_short": 350
+  },
+  {
+   "aliases": [],
+   "bits": 71,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Mazda V1",
+   "encoder": true,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Mazda",
+   "module": "mazda_v1",
+   "name": "Mazda V1",
+   "order": 134,
+   "page": "mazda_v1",
+   "prefix": null,
+   "presets": [
+    "AM650",
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 200,
+   "te_long": 1010,
+   "te_short": 505
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Nissan V0",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Nissan",
+   "module": "nissan_v0",
+   "name": "Nissan V0",
+   "order": 135,
+   "page": "nissan_v0",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 200,
+   "te_long": 1000,
+   "te_short": 500
+  },
+  {
+   "aliases": [],
+   "bits": 66,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Toyota (FoxFW)",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    315000000,
+    433920000
+   ],
+   "make": "Toyota",
+   "module": "toyota_foxfw",
+   "name": "Toyota (FoxFW)",
+   "order": 136,
+   "page": "toyota_foxfw",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 100,
+   "te_long": 800,
+   "te_short": 400
+  },
+  {
+   "aliases": [],
+   "bits": null,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Audi V2",
+   "encoder": null,
+   "encryption": "Encrypted (rolling)",
+   "frequencies": null,
+   "make": "Audi",
+   "module": "audi_v2",
+   "name": "Audi V2",
+   "order": null,
+   "page": "audi_v2",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": false,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": null,
+   "te_long": null,
+   "te_short": null
+  },
+  {
+   "aliases": [],
+   "bits": 56,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "BMW V2",
+   "encoder": false,
+   "encryption": "Encrypted (rolling)",
+   "frequencies": [
+    0
+   ],
+   "make": "BMW",
+   "module": "bmw_v2",
+   "name": "BMW V2",
+   "order": 137,
+   "page": "bmw_v2",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 150,
+   "te_long": 1000,
+   "te_short": 500
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "BMW/Mini V3",
+   "encoder": false,
+   "encryption": "AES (rolling)",
+   "frequencies": [
+    0
+   ],
+   "make": "BMW / Mini",
+   "module": "bmw_v3",
+   "name": "BMW/Mini V3",
+   "order": 138,
+   "page": "bmw_v3",
+   "prefix": null,
+   "presets": [
+    "FM476",
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 40,
+   "te_long": 190,
+   "te_short": 95
+  },
+  {
+   "aliases": [],
+   "bits": 96,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Audi V3",
+   "encoder": false,
+   "encryption": "Encrypted (rolling)",
+   "frequencies": [
+    0
+   ],
+   "make": "Audi",
+   "module": "audi_v3",
+   "name": "Audi V3",
+   "order": 139,
+   "page": "audi_v3",
+   "prefix": null,
+   "presets": [
+    "AM650",
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": 180,
+   "te_long": 766,
+   "te_short": 383
+  },
+  {
+   "aliases": [],
+   "bits": 64,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "BMW CAS3",
+   "encoder": true,
+   "encryption": "AES-128",
+   "frequencies": [
+    0
+   ],
+   "make": "BMW",
+   "module": "bmw_cas3",
+   "name": "BMW CAS3",
+   "order": 140,
+   "page": "bmw_cas3",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 400,
+   "te_long": 1500,
+   "te_short": 250
+  },
+  {
+   "aliases": [
+    "Siemens 5WY72XX Car Remote"
+   ],
+   "bits": 113,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Siemens-5WY72XX",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Chrysler/Dodge",
+   "module": "siemens_5wy72xx",
+   "name": "Siemens-5WY72XX",
+   "order": 151,
+   "page": "siemens_5wy72xx",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": true,
+   "te_delta": 0,
+   "te_long": 440,
+   "te_short": 220
+  },
+  {
+   "aliases": [
+    "Alps FWB1U545 Car Remote",
+    "Alps FWB1U545"
+   ],
+   "bits": 76,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Alps-FWB1U545",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Honda",
+   "module": "alps_fwb1u545",
+   "name": "Alps-FWB1U545",
+   "order": 152,
+   "page": "alps_fwb1u545",
+   "prefix": null,
+   "presets": [
+    "F3"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": true,
+   "te_delta": 0,
+   "te_long": 1000,
+   "te_short": 500
+  },
+  {
+   "aliases": [
+    "Code Alarm FRDPC2002 Car Remote"
+   ],
+   "bits": 60,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "CodeAlarm-FRDPC2002",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Code Alarm",
+   "module": "code_alarm_frdpc2002",
+   "name": "CodeAlarm-FRDPC2002",
+   "order": 153,
+   "page": "code_alarm_frdpc2002",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": true,
+   "te_delta": 100,
+   "te_long": 1100,
+   "te_short": 550
+  },
+  {
+   "aliases": [
+    "Astrostart 2000 Car Remote",
+    "AstroStart 2000"
+   ],
+   "bits": 52,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Astrostart-2000",
+   "encoder": false,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Astroflex",
+   "module": "astrostart_2000",
+   "name": "Astrostart-2000",
+   "order": 154,
+   "page": "astrostart_2000",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": true,
+   "te_delta": 80,
+   "te_long": 526,
+   "te_short": 326
+  },
+  {
+   "aliases": [
+    "Chrysler Car Remote"
+   ],
+   "bits": 48,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Chrysler-CarRemote",
+   "encoder": false,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Chrysler/Dodge/Jeep",
+   "module": "chrysler_car_remote",
+   "name": "Chrysler-CarRemote",
+   "order": 155,
+   "page": "chrysler_car_remote",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": true,
+   "te_delta": 100,
+   "te_long": 700,
+   "te_short": 350
+  },
+  {
+   "aliases": [
+    "Compustar 1WG3R Car Remote",
+    "Compustar"
+   ],
+   "bits": 35,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Compustar-1WG3R",
+   "encoder": false,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Compustar",
+   "module": "compustar_1wg3r",
+   "name": "Compustar-1WG3R",
+   "order": 156,
+   "page": "compustar_1wg3r",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": true,
+   "te_delta": 0,
+   "te_long": 1076,
+   "te_short": 708
+  },
+  {
+   "aliases": [
+    "Audiovox PRO-OE3B Car Remote",
+    "Audiovox PRO"
+   ],
+   "bits": 25,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Audiovox-PROOE3B",
+   "encoder": false,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Audiovox",
+   "module": "audiovox_pro_oe3b",
+   "name": "Audiovox-PROOE3B",
+   "order": 157,
+   "page": "audiovox_pro_oe3b",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": true,
+   "te_delta": 0,
+   "te_long": 895,
+   "te_short": 445
+  },
+  {
+   "aliases": [
+    "Honda Keyfob KR5V2X/1X"
+   ],
+   "bits": 120,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Honda-KR5V2X1X",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Honda/Acura",
+   "module": "honda_kr5v2x1x",
+   "name": "Honda-KR5V2X1X",
+   "order": 147,
+   "page": "honda_kr5v2x1x",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": true,
+   "te_delta": 30,
+   "te_long": 120,
+   "te_short": 60
+  },
+  {
+   "aliases": [
+    "Continental KR5V2X Car Remote",
+    "Continental RKE"
+   ],
+   "bits": 112,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Continental-KR5V2X",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Honda/Acura",
+   "module": "continental_kr5v2x",
+   "name": "Continental-KR5V2X",
+   "order": 148,
+   "page": "continental_kr5v2x",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": true,
+   "te_delta": 50,
+   "te_long": 200,
+   "te_short": 100
+  },
+  {
+   "aliases": [
+    "MIC 6SC2 Car Remote"
+   ],
+   "bits": 48,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "MIC6SC2-CarRemote",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "MIC",
+   "module": "mic6sc2",
+   "name": "MIC6SC2-CarRemote",
+   "order": 149,
+   "page": "mic6sc2",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": true,
+   "te_delta": 125,
+   "te_long": 500,
+   "te_short": 250
+  },
+  {
+   "aliases": [
+    "Opel Mokka Car Key"
+   ],
+   "bits": 82,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Opel-Mokka",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Opel",
+   "module": "opel_mokka",
+   "name": "Opel-Mokka",
+   "order": 150,
+   "page": "opel_mokka",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": true,
+   "te_delta": 50,
+   "te_long": 200,
+   "te_short": 100
+  },
+  {
+   "aliases": [
+    "Elero bidirectional blinds/awning remote (Silent Gliss and others)"
+   ],
+   "bits": 232,
+   "category": "Gate",
+   "coding": "Nrz",
+   "decoder": "Elero",
+   "encoder": false,
+   "encryption": "Rolling Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Elero",
+   "module": "elero",
+   "name": "Elero",
+   "order": 141,
+   "page": "elero",
+   "prefix": null,
+   "presets": [
+    "F3"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": true,
+   "te_delta": 3,
+   "te_long": 13,
+   "te_short": 13
+  },
+  {
+   "aliases": [
+    "Somfy io-homecontrol"
+   ],
+   "bits": 88,
+   "category": "Gate",
+   "coding": "Nrz",
+   "decoder": "Somfy-IOHC",
+   "encoder": false,
+   "encryption": "AES-128",
+   "frequencies": [
+    0
+   ],
+   "make": "Somfy",
+   "module": "somfy_iohc",
+   "name": "Somfy-IOHC",
+   "order": 142,
+   "page": "somfy_iohc",
+   "prefix": null,
+   "presets": [
+    "F2"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": true,
+   "te_delta": 6,
+   "te_long": 26,
+   "te_short": 26
+  },
+  {
+   "aliases": [
+    "RojaFlex-Shutter",
+    "RojaFlex-Bridge",
+    "RojaFlex-Other",
+    "RojaFlex shutter and remote devices"
+   ],
+   "bits": 72,
+   "category": "Gate",
+   "coding": "Nrz",
+   "decoder": "RojaFlex-Remote",
+   "encoder": false,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "RojaFlex",
+   "module": "rojaflex",
+   "name": "RojaFlex-Remote",
+   "order": 143,
+   "page": "rojaflex",
+   "prefix": null,
+   "presets": [
+    "FM476"
+   ],
+   "registered": true,
+   "rf": "FM",
+   "rtl433": true,
+   "te_delta": 25,
+   "te_long": 100,
+   "te_short": 100
+  },
+  {
+   "aliases": [
+    "Microchip HCS362 KeeLoq PWM",
+    "Microchip HCS362 KeeLoq MC"
+   ],
+   "bits": 69,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Microchip-HCS362",
+   "encoder": false,
+   "encryption": "KeeLoq",
+   "frequencies": [
+    0
+   ],
+   "make": "KeeLoq",
+   "module": "microchip_hcs362",
+   "name": "Microchip-HCS362",
+   "order": 144,
+   "page": "microchip_hcs362",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": true,
+   "te_delta": 50,
+   "te_long": 400,
+   "te_short": 200
+  },
+  {
+   "aliases": [
+    "Microchip HCS361 KeeLoq Hopping Encoder based remotes (Sync, 833 bit/s)",
+    "Microchip HCS361 KeeLoq Hopping Encoder based remotes (Sync, 1667 bit/s)",
+    "Microchip HCS361 KeeLoq Hopping Encoder based remotes (No Sync, 833 bit/s)",
+    "Microchip HCS361 KeeLoq Hopping Encoder based remotes (No Sync, 1667 bit/s)",
+    "Microchip HCS361 KeeLoq Hopping Encoder based remotes (PIWM, 2500 bit/s)",
+    "Microchip HCS361 KeeLoq Hopping Encoder based remotes (PIWM, 5000 bit/s)"
+   ],
+   "bits": 67,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Microchip-HCS361",
+   "encoder": false,
+   "encryption": "KeeLoq",
+   "frequencies": [
+    0
+   ],
+   "make": "KeeLoq",
+   "module": "microchip_hcs361",
+   "name": "Microchip-HCS361",
+   "order": 145,
+   "page": "microchip_hcs361",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": true,
+   "te_delta": 140,
+   "te_long": 400,
+   "te_short": 200
+  },
+  {
+   "aliases": [
+    "Cardin S466-TX2"
+   ],
+   "bits": 24,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Cardin-S466",
+   "encoder": false,
+   "encryption": "Fixed Code",
+   "frequencies": [
+    0
+   ],
+   "make": "Cardin",
+   "module": "cardin_s466",
+   "name": "Cardin-S466",
+   "order": 146,
+   "page": "cardin_s466",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": true,
+   "te_delta": 335,
+   "te_long": 1400,
+   "te_short": 730
+  },
+  {
+   "aliases": [],
+   "bits": null,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Land Rover RKE",
+   "encoder": null,
+   "encryption": "KeeLoq",
+   "frequencies": null,
+   "make": "Land Rover",
+   "module": "land_rover_rke",
+   "name": "Land Rover RKE",
+   "order": null,
+   "page": "land_rover_rke",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": false,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": null,
+   "te_long": null,
+   "te_short": null
+  },
+  {
+   "aliases": [],
+   "bits": null,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Audi",
+   "encoder": null,
+   "encryption": "Rolling Code",
+   "frequencies": null,
+   "make": "Audi",
+   "module": "audi",
+   "name": "Audi",
+   "order": null,
+   "page": "audi",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": false,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": null,
+   "te_long": null,
+   "te_short": null
+  },
+  {
+   "aliases": [],
+   "bits": null,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Audi V1",
+   "encoder": null,
+   "encryption": "Rolling (weak Feistel)",
+   "frequencies": null,
+   "make": "Audi",
+   "module": "audi_v1",
+   "name": "Audi V1",
+   "order": null,
+   "page": "audi_v1",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": false,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": null,
+   "te_long": null,
+   "te_short": null
+  },
+  {
+   "aliases": [],
+   "bits": null,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Hyundai",
+   "encoder": null,
+   "encryption": "Rolling Code",
+   "frequencies": null,
+   "make": "Hyundai",
+   "module": "hyundai",
+   "name": "Hyundai",
+   "order": null,
+   "page": "hyundai",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": false,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": null,
+   "te_long": null,
+   "te_short": null
+  },
+  {
+   "aliases": [],
+   "bits": null,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Mazda Infinity",
+   "encoder": null,
+   "encryption": "Rolling Code",
+   "frequencies": null,
+   "make": "Mazda",
+   "module": "mazda_infinity",
+   "name": "Mazda Infinity",
+   "order": null,
+   "page": "mazda_infinity",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": false,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": null,
+   "te_long": null,
+   "te_short": null
+  },
+  {
+   "aliases": [
+    "Fiat V3",
+    "Fiat V5"
+   ],
+   "bits": null,
+   "category": "Vehicle",
+   "coding": "Manchester",
+   "decoder": "Fiat Multi",
+   "encoder": null,
+   "encryption": "Rolling",
+   "frequencies": null,
+   "make": "Fiat",
+   "module": "fiat_multi",
+   "name": "Fiat Multi",
+   "order": null,
+   "page": "fiat_multi",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": false,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": null,
+   "te_long": null,
+   "te_short": null
+  },
+  {
+   "aliases": [],
+   "bits": null,
+   "category": "Vehicle",
+   "coding": "Nrz",
+   "decoder": "Renault V3",
+   "encoder": null,
+   "encryption": "Encrypted",
+   "frequencies": null,
+   "make": "Renault",
+   "module": "renault_v3",
+   "name": "Renault V3",
+   "order": null,
+   "page": "renault_v3",
+   "prefix": null,
+   "presets": [
+    "AM650",
+    "FM476"
+   ],
+   "registered": false,
+   "rf": "Both",
+   "rtl433": false,
+   "te_delta": null,
+   "te_long": null,
+   "te_short": null
+  },
+  {
+   "aliases": [
+    "Markisol, E-Motion, BOFU, Rollerhouse, BF-30x, BF-415 curtain remote"
+   ],
+   "bits": null,
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "Markisol",
+   "encoder": null,
+   "encryption": "Fixed Code",
+   "frequencies": null,
+   "make": "Markisol",
+   "module": "markisol",
+   "name": "Markisol",
+   "order": null,
+   "page": "markisol",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": false,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": null,
+   "te_long": null,
+   "te_short": null
+  },
+  {
+   "aliases": [],
+   "bits": null,
+   "category": "Vehicle",
+   "coding": "Pwm",
+   "decoder": "Honda V8",
+   "encoder": null,
+   "encryption": "KeeLoq",
+   "frequencies": null,
+   "make": "Honda/Acura",
+   "module": "honda_v8",
+   "name": "Honda V8",
+   "order": null,
+   "page": "honda_v8",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": false,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": null,
+   "te_long": null,
+   "te_short": null
+  }
+ ],
+ "version": "1.15.0"
+}

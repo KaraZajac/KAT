@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KAT — Keyfob Analysis Toolkit</title>
-<meta name="description" content="KAT captures, decodes and retransmits car key fob and garage door, gate, barrier and shutter remote signals from a terminal, with a HackRF One or an RTL-SDR, and decodes IQ recordings and Flipper Zero .sub files with no radio attached. 157 protocol decoders. BSD-3-Clause.">
+<meta name="description" content="KAT captures, decodes and retransmits car key fob and garage door, gate, barrier and shutter remote signals from a terminal, with a HackRF One or an RTL-SDR, and decodes IQ recordings and Flipper Zero .sub files with no radio attached. {{decoders}} protocol decoders. BSD-3-Clause.">
 <link rel="canonical" href="https://kat.karazajac.io/">
 <meta property="og:title" content="KAT — Keyfob Analysis Toolkit">
-<meta property="og:description" content="Capture, decode and retransmit car key fob and gate remote signals from a terminal, with a HackRF One or an RTL-SDR, or from recordings and Flipper .sub files. 157 protocol decoders.">
+<meta property="og:description" content="Capture, decode and retransmit car key fob and gate remote signals from a terminal, with a HackRF One or an RTL-SDR, or from recordings and Flipper .sub files. {{decoders}} protocol decoders.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://kat.karazajac.io/">
 <meta property="og:image" content="https://kat.karazajac.io/og.png">
@@ -19,6 +19,7 @@
 <meta name="theme-color" content="#07070d">
 <link rel="icon" type="image/svg+xml" href="logo.svg">
 <link rel="stylesheet" href="style.css">
+<script src="site.js" data-search="search.json" defer></script>
 </head>
 <body>
 
@@ -34,17 +35,25 @@
       <img class="nav-logo" src="logo.svg" width="30" height="30" alt="" aria-hidden="true">
       KAT
     </a>
-    <div class="nav-links">
-      <a href="#how">How it works</a>
-      <a href="#protocols">Protocols</a>
-      <a href="#docs">Docs</a>
-      <a href="#get">Get it</a>
+    <div class="nav-links" id="nav-links">
+      <a href="protocols.html">Protocols</a>
+      <a href="makes.html">Makes</a>
+      <a href="captures.html">Recordings</a>
+      <a href="fcc.html">FCC IDs</a>
+      <a href="guides.html">Guides</a>
+      <a href="glossary.html">Glossary</a>
+      <a href="#get">Download</a>
       <a class="nav-github" href="https://github.com/KaraZajac/KAT" aria-label="KAT on GitHub">
         <svg height="18" viewBox="0 0 16 16" width="18" fill="currentColor" aria-hidden="true">
           <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
         </svg>
       </a>
     </div>
+    <div class="nav-search" role="search">
+      <input type="search" id="site-search" placeholder="Search  /" aria-label="Search protocols, makes, FCC IDs and recordings" autocomplete="off" spellcheck="false" aria-expanded="false" aria-controls="search-results">
+      <div id="search-results" hidden></div>
+    </div>
+    <button class="nav-toggle" type="button" aria-label="Menu" aria-controls="nav-links" aria-expanded="false">☰</button>
   </div>
 </nav>
 
@@ -66,7 +75,7 @@
       <strong>RTL-SDR</strong> (receive only) and a <strong>Flipper Zero</strong> on USB
       (receive and transmit), several at once, each on its own frequency, and decodes IQ
       recordings and Flipper Zero <code>.sub</code> files with no radio attached.
-      <span class="hero-tag-pop">157 protocol decoders, each checked against the reference C code.</span>
+      <span class="hero-tag-pop">{{decoders}} protocol decoders, each checked against the reference C code.</span>
     </p>
 
     <figure class="term-shot">
@@ -81,9 +90,9 @@
     </figure>
 
     <div class="stats-row" id="stats-row">
-      <div class="stat-chip"><span class="num" data-target="157">157</span><span>protocol decoders</span></div>
-      <div class="stat-chip"><span class="num" data-target="87">87</span><span>car key fobs &amp; alarms</span></div>
-      <div class="stat-chip"><span class="num" data-target="70">70</span><span>garage, gate, home &amp; sensor remotes</span></div>
+      <div class="stat-chip"><span class="num" data-target="{{decoders}}">{{decoders}}</span><span>protocol decoders</span></div>
+      <div class="stat-chip"><span class="num" data-target="{{car}}">{{car}}</span><span>car key fobs &amp; alarms</span></div>
+      <div class="stat-chip"><span class="num" data-target="{{gate}}">{{gate}}</span><span>garage, gate, home &amp; sensor remotes</span></div>
       <div class="stat-chip stat-vfy"><span class="num" data-target="239">239</span><span>of 250 frames caught over the air</span></div>
     </div>
 
@@ -113,6 +122,33 @@
         <li>RogueMaster</li>
         <li>rtl_433 (receive only)</li>
       </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ──────────────── THE REFERENCE ──────────────── -->
+<section id="reference" class="section reveal">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-tag">the reference</span>
+      <h2>What remotes send, written down.</h2>
+      <p class="lead">
+        This site is also a reference work on remote-control signals. Every
+        protocol has a page with the facts the program itself uses, the
+        recordings it was worked out from and the FCC filings of the remotes
+        that send it, and every table links to the file or the source it
+        comes from.
+      </p>
+    </div>
+    <div class="doors">
+      <a class="door" href="protocols.html"><span class="door-n">one table</span><h3>Protocols</h3><p>Line coding, modulation, pulse widths, frame length and code type of every protocol. Sort it, filter it, open a page.</p></a>
+      <a class="door" href="makes.html"><span class="door-n">{{makes}} makes</span><h3>Makes</h3><p>What each car maker's remotes send, year after year and supplier after supplier, and the brands of gate remotes.</p></a>
+      <a class="door" href="captures.html"><span class="door-n">{{recordings}} recordings</span><h3>Recordings</h3><p>Real remotes as Flipper <code>.sub</code> files: a link to every file, and what KAT reads from it.</p></a>
+      <a class="door" href="fcc.html"><span class="door-n">{{fcc}} FCC IDs</span><h3>FCC IDs</h3><p>The remotes' FCC filings tied to protocols, with how sure each tie is.</p></a>
+      <a class="door" href="coverage.html"><span class="door-n">by model-year</span><h3>Coverage</h3><p>How much of what is on the road KAT reads, make by make, and the remotes a recording is wanted of.</p></a>
+      <a class="door" href="recording.html"><span class="door-n">guide</span><h3>Recording a remote</h3><p>Which preset holds which signal, why some recordings are empty, and how to check one.</p></a>
+      <a class="door" href="glossary.html"><span class="door-n">a to z</span><h3>Glossary</h3><p>Manchester, PWM, rolling code, KeeLoq, deviation, preset: the words the pages use.</p></a>
+      <a class="door" href="about.html"><span class="door-n">sources</span><h3>About the reference</h3><p>Where the facts come from, what “checked against the reference” means, and how to add to it.</p></a>
     </div>
   </div>
 </section>
@@ -391,14 +427,16 @@
   <div class="container">
     <div class="section-head">
       <span class="section-tag">protocols</span>
-      <h2>157 decoders. Every one has a page.</h2>
+      <h2>{{decoders}} decoders. Every one has a page.</h2>
       <p class="lead">
-        87 car key fob and alarm protocols and 70 garage door, gate, barrier,
+        {{car}} car key fob and alarm protocols and {{gate}} garage door, gate, barrier,
         shutter, doorbell, sensor and key-finder protocols. They follow ProtoPirate where it has the
         protocol, then Flipper-ARF and doctor-firmware, then Momentum,
         RogueMaster and FoxFW; remotes no Flipper firmware reads are decoded with
         receive-only ports of rtl_433. Each page covers the protocol's timing,
         frame layout and decoder, and its encoder where KAT has one.
+        <a href="protocols.html">All of them in one table</a>, or
+        <a href="makes.html">by make</a>.
       </p>
     </div>
 
@@ -649,6 +687,7 @@
     </div>
 
     <div class="guides">
+      <a class="guide" href="recording.html"><strong>Recording a remote</strong>Which preset holds which signal, why a recording can be empty, and how to check one before you leave the car.</a>
       <a class="guide" href="radio.html"><strong>Receive chain and IQ files</strong>The wide-band detector, per-burst filtering, frequency hopping, recordings, and how the receiver was measured.</a>
       <a class="guide" href="transmit.html"><strong>Transmit</strong>The OOK and 2-FSK waveforms, the modulation each protocol uses, and the presets.</a>
       <a class="guide" href="session.html"><strong>Sessions and saved fobs</strong>Autosave and restore, and how a capture is matched to your <code>.fob</code> files.</a>
@@ -657,8 +696,10 @@
       <a class="guide" href="flipper_key_files.html"><strong>Flipper key files</strong>The decoded <code>.sub</code> files KAT reads and writes, field by field.</a>
       <a class="guide" href="add_manually.html"><strong>Add Manually</strong>New gate and garage remotes with <code>:new</code>, to pair with a receiver.</a>
       <a class="guide" href="unidentified_captures.html"><strong>Unidentified captures</strong>Captures that nothing decodes, KAT or the references, and what is known about them.</a>
+      <a class="guide" href="glossary.html"><strong>Glossary</strong>The words the pages use, from AM650 to XTEA.</a>
       <a class="guide" href="https://github.com/KaraZajac/KAT/blob/main/CHANGELOG.md"><strong>Changelog</strong>What changed in each release.</a>
     </div>
+    <p class="section-more"><a href="guides.html">All guides and reference pages →</a></p>
   </div>
 </section>
 
@@ -818,12 +859,12 @@ cargo build --release</pre>
       </ul>
     </div>
     <div class="footer-col">
-      <h4>Docs</h4>
+      <h4>Reference</h4>
       <ul>
-        <li><a href="#protocols">Protocols</a></li>
-        <li><a href="radio.html">Receive chain</a></li>
-        <li><a href="transmit.html">Transmit</a></li>
-        <li><a href="flipper_key_files.html">Flipper key files</a></li>
+        <li><a href="protocols.html">Protocols</a> · <a href="makes.html">Makes</a></li>
+        <li><a href="captures.html">Recordings</a> · <a href="fcc.html">FCC IDs</a></li>
+        <li><a href="coverage.html">Coverage</a> · <a href="glossary.html">Glossary</a></li>
+        <li><a href="guides.html">Guides</a> · <a href="about.html">About</a></li>
       </ul>
     </div>
     <div class="footer-col">

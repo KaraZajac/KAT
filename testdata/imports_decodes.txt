@@ -1200,6 +1200,8 @@ Mazda/mazda_key3_10x_trunk.sub | 433920000 | Mazda V1 | data=EC2614EE52734276/71
 Mazda/mazda_key3_10x_trunk.sub | 433920000 | Mazda V1 | data=EC2614EE52734276/71 extra=63 sn=5 btn=26 cnt=10 crc=0 tx=1
 Mazda/mazda_key3_10x_trunk.sub | 433920000 | Mazda V1 | data=EC2614AE5233061D/71 extra=6B sn=5 btn=26 cnt=11 crc=0 tx=1
 Mazda/mazda_key3_10x_trunk.sub | 433920000 | Mazda V1 | data=EC2614AE5233061D/71 extra=6B sn=5 btn=26 cnt=11 crc=0 tx=1
+OPEL/2008_vauxhall_zafira_sri_lock.sub | 433920000 | (none)
+OPEL/2008_vauxhall_zafira_sri_unlock.sub | 433920000 | (none)
 OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D25114D/104 extra=1C26188AE68 sn=468F5D25 btn=1 cnt=53 crc=1 tx=1
 OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D251150/104 extra=1DACE693AB7 sn=468F5D25 btn=1 cnt=54 crc=1 tx=1
 OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D25115A/104 extra=1FACCD31609 sn=468F5D25 btn=1 cnt=56 crc=1 tx=1

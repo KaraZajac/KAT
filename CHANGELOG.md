@@ -2,6 +2,12 @@
 
 All notable changes to KAT are documented here.
 
+## [Unreleased]
+
+### Added
+
+- **Recordings of a 2008 Vauxhall Zafira's remote** (`IMPORTS/OPEL/2008_vauxhall_zafira_sri_lock.sub` and `2008_vauxhall_zafira_sri_unlock.sub`, 15 presses each, sent in by a tester). Nothing reads them yet: the remote is not on-off keyed, and the AM recording holds only the instants its signal changes state. [unidentified_captures.md](docs/unidentified_captures.md#vauxhall-zafira-2008) has what can be seen: a clock of 106.7 µs, a press of two frames sent twice each, a constant start, and where lock and unlock differ. FoxFW's Opel V0 describes this signal, and takes the three short bursts between the frames for bits.
+
 ## [1.15.1] - 2026-11-17
 
 PSA remotes get the right buttons: KAT numbered every PSA remote's buttons one way, and for one of the two frame types that made Unlock lock the car. Found with a tester's recordings of a three-button Delphi remote, which also showed a button KAT did not read, presses it missed, and a Chevrolet V0 frame that was another remote's preamble. Also in this release: kat.karazajac.io as a reference work.

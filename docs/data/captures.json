@@ -4920,6 +4920,32 @@
    "type": "raw"
   },
   {
+   "bytes": 59028,
+   "folder": "OPEL",
+   "frequency": 433920000,
+   "more": false,
+   "path": "OPEL/2008_vauxhall_zafira_sri_lock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 13488,
+   "reads": [],
+   "seconds": 30.38,
+   "type": "raw"
+  },
+  {
+   "bytes": 102399,
+   "folder": "OPEL",
+   "frequency": 433920000,
+   "more": false,
+   "path": "OPEL/2008_vauxhall_zafira_sri_unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 23250,
+   "reads": [],
+   "seconds": 39.88,
+   "type": "raw"
+  },
+  {
    "bytes": 82108,
    "folder": "OPEL",
    "frequency": 433920000,

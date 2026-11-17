@@ -92,6 +92,41 @@ The frames are 64 bits long instead of 80. The file holds two of them, `2D376746
 51. That is the even/odd pair one Chrysler V0 press sends, but the other bytes fail Chrysler V0's
 checks. Several presses of each button would show whether the rest follows a related scheme.
 
+### Vauxhall Zafira 2008
+
+`OPEL/2008_vauxhall_zafira_sri_lock.sub` and `OPEL/2008_vauxhall_zafira_sri_unlock.sub`, 433.92 MHz, recorded
+with AM650; 15 presses
+in each, sent in by a tester. KAT reads nothing from them, and neither does FoxFW's [Opel V0](opel_v0.md),
+whose description of its signal fits these recordings (below).
+
+- **What the recording holds.** Through a press the carrier stays on, and all there is in it are dips of
+  about 95 µs (60 to 140). The time from one dip to the next is a whole number of units of 106.7 µs
+  (1/9375 s). What the remote does between two dips, an AM recording does not show.
+- **A press.** About 150 dips 853 µs apart (8 units; 0.13 s), then a frame, 1.7 ms without carrier, and the
+  same frame again. Three short bursts of about 3.5 ms follow, 5.5 ms apart. Then a second frame, also
+  twice. 0.2 s in all.
+- **A frame.** Four intervals of 8 units, then intervals of 2 to about 10 units. The first eleven are the same in
+  every frame of both files, `2 7 3 2 2 3 3 3 4 3 5` (37 units); about twenty more change with every press.
+  The longest frames are 92 units behind the four (9.8 ms).
+- **Lock and unlock.** Just behind those 37 units most lock frames have their next dips 3, 7 and 11 units
+  on, most unlock frames 3, 7 and 12 units on (the first two frames of an unlock press often one more, 5
+  units on).
+- **Why no bits.** The dips are not all there, and not always on time. The two copies of a frame, 15 ms
+  apart, often differ in which dips they show, most of all where two dips are 2 units apart. Of 86 frames,
+  53 have the dips at 2, 9 and 37 units that every frame should have.
+
+The dips are most likely where a two-tone or phase-keyed signal changes state, which is all an on-off
+receiver notices of it. With intervals of 2, 3 and 4 units the commonest (longer ones can be two with a dip
+missing between them), a delay code (Miller) with a 213 µs bit is one candidate; nothing here proves it.
+
+FoxFW's Opel V0 describes the same recording as on-off keying: "carrier frequency ~1200 Hz (period ~830us)",
+"bursts of ~4 cycles (~3500us) separated by ~5400us gaps", "preamble: continuous carrier >50000us". Those
+are the 853 µs intervals, the three short bursts between the two frames and the preamble. It takes each
+burst for a bit and wants a frame of 62 to 66 of them; a press has three.
+
+What would settle it: the same remote recorded with an FM preset (`FM476`, and `FM238` if that holds
+nothing), or as IQ samples from an SDR, a few presses of each button.
+
 ## Not added
 
 `23_bmw_x5_lock.sub` and `23_bmw_x5_unlock.sub`, shared with these captures, are not recordings.

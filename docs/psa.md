@@ -36,8 +36,12 @@ sent. `kat --decode` runs the same search in line and ends the frame's line with
 or `key=none`. Ten doctor-firmware key files a tester sorted as crackable with qDoctor's library all
 give the serial qDoctor found, in 0.02–0.5 s each.
 
-`IMPORTS/GROUPE PSA` holds two genuine fobs: an XOR fob (serial 0x99EB25, counters 0x39B/0x39C)
-and a TEA fob (serial 0x014590 recovered by the BF1 brute force, counters 0x9158E53/0x9158E55).
+`IMPORTS/GROUPE PSA` holds four genuine remotes: an XOR fob (serial 0x99EB25, counters 0x39B/0x39C)
+and a TEA fob (serial 0x014590 recovered by the BF1 brute force, counters 0x9158E53/0x9158E55) in
+`PSA_523_536.sub` / `PSA_536_523.sub`; a Peugeot 307 key (TEA, serial 0x02F0AB) in `Peugeot 307
+close.sub` / `open.sub`; and a three-button Delphi remote (XOR, serial 0x725335), ten presses of each
+button in `Delphi_remote_lock_x10.sub`, `_unlock_x10.sub` and `_button3_x10.sub`
+([The Delphi remote](#the-delphi-remote)).
 
 ## Timing
 
@@ -45,7 +49,7 @@ and a TEA fob (serial 0x014590 recovered by the BF1 brute force, counters 0x9158
 |------------------|------------------|-------------------------------------------------|
 | Short            | 250 µs           | 151..349 µs (State2 also takes 350 µs)           |
 | Long             | 500 µs           | 351..599 µs                                      |
-| Preamble         | > 0x46 short LOWs | then a 401..599 µs LOW (the sync)               |
+| Preamble         | > 0x46 short LOWs | then a 401..599 µs LOW (the sync); KAT also takes 351..400 µs, for a frame that decrypts |
 | End marker       | 1000 µs HIGH     | 801..1199 µs, and (KAT) 1051..1449 µs: a Flipper's 1000 µs end after a final 0 bit; only at exactly 80 bits. doctor-firmware's first file needs none (frame complete at the 80th bit); its current one takes any HIGH of 3.2 half-bits or more |
 | 125 µs path (doctor's first file) | 125 / 250 µs | ≥ 0x45 short pulses, then a 250 µs one; complete at the 80th bit (or on a 500 ± 99 µs end) |
 | Adaptive path (doctor's current file) | the half-bit the preamble has | first HIGH 250 ± 99 µs or 125 ± 49 µs; more than 15 preamble LOWs in that window, the first 32 averaged into te; data at te ± 40 % and 2·te ± 40 % of te; end HIGH ≥ 3.2·te |
@@ -66,7 +70,40 @@ encrypted; the low nibble of `b1` is the **0xA sync** every genuine frame carrie
 
 `DecodedSignal`: `data` = key1, `extra` = key2 (the 64-bit `Key_2`, 16 bits used),
 `data_count_bit` = 128, `serial`/`button`/`counter` (low 16 bits of the 28-bit TEA counter) when
-decrypted. Buttons (Flipper-ARF): 0 = Lock, 1 = Unlock, 2 = Trunk.
+decrypted.
+
+## Buttons
+
+The two frame types number their buttons differently, so KAT names a button, and picks the code
+it sends, by the type of the frame.
+
+| Code | mode 0x23 (XOR) | mode 0x36 (TEA) |
+|---|---|---|
+| 0 | not known (the code of the XOR fob in `PSA_523_536.sub`, pressed twice) | Lock |
+| 1 | Lock | Unlock |
+| 2 | Unlock | Trunk |
+| 3 | the third button ("Button 3") | – |
+
+What each column rests on:
+
+- **mode 0x36:** Flipper-ARF's names. A Peugeot 307 key sends 0 to close and 1 to open (five and six
+  presses in `Peugeot 307 close.sub` / `open.sub`); no recording has a 2.
+- **mode 0x23:** the Delphi remote's 30 presses, ten of each button, in files its owner named
+  after the button. The owner also reported what the old numbering did on the car: KAT's Unlock,
+  which sent 1, locked it. What the third button does on that car is not known, so KAT calls
+  it "Button 3"; KAT's **Trunk** command sends it.
+
+Both columns rest on one remote each. A mode 0x23 remote that numbers from 0, or a TEA remote that
+numbers from 1, would be named wrongly: a recording of one, with the buttons named, would show it.
+
+### The CRC byte and the button
+
+The XOR stage's sixth byte, which the references call the CRC, is `b7 ^ b8 ^ b9`. In the 32
+genuine mode 0x23 frames (30 of the Delphi remote, 2 of the other fob) its last bit is the parity
+of the button code's two low bits: set for Lock (1) and Unlock (2), clear for the third button (3)
+and for code 0. Its other seven bits follow no rule KAT knows: in the Delphi remote's frames they
+change from press to press and are no linear function of the counter and the button (and `b9` is
+0xF7 in every frame); in the other fob's two frames the byte is 0x40 and `b9` changes.
 
 ## RF
 
@@ -77,7 +114,7 @@ decrypted. Buttons (Flipper-ARF): 0 = Lock, 1 = Unlock, 2 = Trunk.
 
 ## Decoder
 
-KAT runs four state machines side by side on every pulse, each exactly as in its C file:
+KAT runs five state machines side by side on every pulse, four of them exactly as in their C file:
 
 1. **ProtoPirate machine** — State0 picks the path from the first HIGH (151..349 µs → State1,
    85..150 µs → State3). State1 counts 250 µs LOWs; a 500 µs LOW after more than 0x46 of them
@@ -114,9 +151,16 @@ KAT runs four state machines side by side on every pulse, each exactly as in its
    bit), and it wants the end HIGH the first doctor-firmware machine does without, so it replaces
    neither.
 
+5. **KAT's wide-sync machine** — ProtoPirate's machine once more, with one window wider: the sync
+   LOW behind the preamble may be 351..599 µs instead of 401..599 µs, which is what State2 takes
+   for a long pulse anyway. A remote whose half bit is 218 µs has its sync at 436 µs, and a
+   recording puts it anywhere from 392 to 459 µs ([The Delphi remote](#the-delphi-remote)). It
+   completes on the end HIGH as ProtoPirate's machine does: a frame both read is ProtoPirate's;
+   one only this machine reads **must decrypt**.
+
 "Must decrypt": an XOR frame is reported when the fast path decrypts it; a TEA frame, with `autobf`,
 as `PSA [unchecked]`, kept out of the list until the key search finds its key (dropped if none
-fits); without `autobf` it is dropped. After a reported frame all four machines start again, as
+fits); without `autobf` it is dropped. After a reported frame all five machines start again, as
 the registry restarts every decoder, so a frame is reported once.
 
 Separate machines matter: once ARF's AM State4 overruns to 121 bits with a non-80/88 window its C
@@ -125,7 +169,8 @@ stop the 250/500 µs path. On a stream of interleaved AM and 250/500 µs frames 
 machine reports 15 of the 1943 frames ProtoPirate decodes; KAT reports all 1943.
 
 Every reported frame goes through ProtoPirate's routing: the XOR fast path when key2 allows it,
-otherwise the brute force.
+otherwise the brute force. KAT's routing lets one more button code into the fast path, 3 (see
+Deviations).
 
 ## Brute Force (key recovery)
 
@@ -149,8 +194,11 @@ Once the serial is known, decryption is O(1) (`tea_decrypt_with_serial`), so `en
 
 ProtoPirate `psa_encoder_build_upload` (identical in ARF and doctor-firmware): the plaintext fields
 are re-derived from the captured key1/key2 (+ the brute-forced serial for TEA frames), then sent with
-counter + 1 (PP emulate plugin `current_counter++`, ARF/doctor `+ mult`) and the requested button
-(KAT Lock/Unlock/Trunk → 0/1/2; Panic and others keep the captured button).
+counter + 1 (PP emulate plugin `current_counter++`, ARF/doctor `+ mult`) and the requested button:
+KAT Lock/Unlock/Trunk → 1/2/3 in mode 0x23 and 0/1/2 in mode 0x36 ([Buttons](#buttons)); Panic and
+others keep the captured button. In mode 0x23 a frame for another button than the captured one also
+gets the CRC byte's last bit as a remote sends it with that button; the rest of that byte is the
+captured frame's, as in the references.
 
 - **mode 0x23:** XOR-encrypt `b2..b7`, keeping the captured `b9` (if key2 ≠ 0) and searching `b8`'s
   high nibble (and `b9` when there is no key2) for a checksum fixed point; fallback `b9` = 0x23.
@@ -221,13 +269,64 @@ Deviations).
   inside every reference decoder's window. Checked over the air (HackRF → Flipper Zero `subghz rx_raw`,
   the recording decoded with the references' window, i.e. KAT 1.8.3's decoder): a 1.8.3 transmission
   of such a frame was not readable, the new one is (9 of 10 copies; frames ending in a 1 bit: both).
-- **Buttons from ARF.** ProtoPirate's emulate plugin maps Lock/Unlock/Trunk/Panic to 0x1/0x2/0x4/0x8
-  (its generic template, shared verbatim with Ford V1; 0x8 cannot even be an XOR-mode button under
-  PP's own key2 filter). All four genuine frames carry button 0, which PP's map lacks; ARF's codes
-  (0 Lock, 1 Unlock, 2 Trunk) are used.
+- **Buttons by frame type.** No reference has the buttons of both frame types right. ProtoPirate's
+  emulate plugin maps Lock/Unlock/Trunk/Panic to 0x1/0x2/0x4/0x8 (its generic template, shared
+  verbatim with Ford V1; doctor-firmware's custom buttons send the same four). Flipper-ARF names
+  0 Lock, 1 Unlock, 2 Trunk, and KAT used those for every frame up to 1.15.0. A Peugeot 307 key
+  (TEA) does send 0 and 1. A Delphi remote (mode 0x23) sends 1 for Lock, 2 for Unlock and 3 for
+  its third button: with ARF's codes its Unlock presses were listed as "Trunk", its Lock presses as
+  "Unlock", and KAT's Unlock locked the car, as the remote's owner reported. KAT now numbers
+  mode 0x23 from 1 and mode 0x36 from 0 ([Buttons](#buttons)).
+- **The button code 3 is a mode 0x23 frame (KAT's routing).** The references' filter
+  (`psa_direct_xor_allowed_by_key2`) lets the XOR fast path run for the codes 0, 1, 2, 4, 5 and 6
+  only, so they take the Delphi remote's third button for a TEA frame, and their brute force finds
+  it no key (KAT 1.15.0: `key=none` for each of the ten presses). All 20 of those frames pass the
+  XOR checksum, give the remote's serial and carry on its counter. KAT runs the fast path for 3 as
+  well. (The filter is 6 codes of 16, the checksum 4 bits: about 1 TEA frame in 43 passes both and
+  is read as an XOR frame, in the references as in KAT. With 3 it is 1 in 37.)
+- **A sync LOW of 351 to 400 µs (KAT's wide-sync machine).** Every reference wants the LOW behind
+  the preamble to be 401..599 µs: 500 µs to within 99. The Delphi remote's half bit is 218 µs in all
+  30 presses, so its sync is 436 µs, and in the recordings, whose carrier pulses are up to 34 µs too
+  long and whose pauses as much too short, it is 392 to 459 µs. In 7 of the 30 presses it is 400 µs
+  or less, and ProtoPirate's, Flipper-ARF's and both of doctor-firmware's decoders drop the press
+  (doctor-firmware's current one measures the half bit on the preamble, but still wants the sync
+  within 99 µs of 500). 351 µs up is what the same C takes for a long pulse inside the frame. Such a
+  frame must decrypt.
+- **The CRC byte's last bit follows the button (encoder).** The references send the captured CRC
+  byte with whatever button is asked for. A genuine remote's byte has the parity of the button code
+  in its last bit ([Buttons](#the-crc-byte-and-the-button)), so a third-button frame built from a
+  Lock capture would differ from the remote's own in that bit. KAT sets it. Whether a car checks
+  the bit is not known: for Lock and Unlock it is the same, and those are what has been tried on
+  a car.
 - **BF2 CRC comparison: either variant.** PP/doctor compare the CRC-16 with `b8:b9`, ARF with
   `b7:b9`; no genuine BF2 frame exists to settle it, so both are accepted (a spurious hit would need
   a ~2^-40 coincidence).
+
+## The Delphi remote
+
+Recorded by its owner in November 2026: a black oval remote with three buttons, "DELPHI" moulded
+into the case. On the board: pads for four buttons, a 16-pin transmitter IC marked `5100 B2 0122`
+(Infineon's TDA5100 by its marking), a 13.560 MHz crystal (× 32 = 433.92 MHz), an 8-pin Microchip
+IC and a 3 V coin cell. The car it belongs to is not known to KAT.
+
+| | |
+|---|---|
+| Frame type | mode 0x23, serial 0x725335, header `B6DA`, `b9` = 0xF7 in every frame |
+| Half bit | 218 µs in all 30 presses (the references' nominal: 250 µs) |
+| A press | two copies of one frame: about 173 preamble pulses, the frame, a HIGH of about 880 µs and a LOW of about 860 µs; then 11 preamble pulses and the frame again |
+| Counter | up by one with every press: 0x68DA to 0x68F7 over the three files, no gap |
+| Buttons | 1 Lock, 2 Unlock, 3 the third button |
+
+What KAT 1.15.0 made of the three files, and what it reads now:
+
+| File | 1.15.0 | now |
+|---|---|---|
+| `Delphi_remote_lock_x10.sub` | 9 presses, named "Unlock" | 10, "Lock" |
+| `Delphi_remote_unlock_x10.sub` | 5 presses, named "Trunk", and 2 Chevrolet V0 frames | 10, "Unlock" |
+| `Delphi_remote_button3_x10.sub` | 7 frames without a key | 10, "Button 3" |
+
+The presses 1.15.0 missed had a sync LOW of 400 µs or less (7), or were taken by Chevrolet V0, to
+which a run of 218 µs pulses is a preamble and 96 bits ([Chevrolet V0](chevrolet_v0.md), 2).
 
 ## Retired: PSA2 ("PSA OLD")
 
@@ -253,11 +352,22 @@ for decoder pulses, uploads, `encode()` calls and brute forces, KAT additions sw
 - **Encoder:** 6000 random uploads identical pulse for pulse to ProtoPirate's encoder before the end
   HIGH changed to 900 µs (both modes,
   key2 = 0 / low byte 0xFF / key1 = 0 edge cases); 3000 full `encode()` calls (field re-derivation,
-  button map, counter + 1) identical to the C encoder fed with the fields the C decrypts.
+  button map, counter + 1) identical to the C encoder fed with the fields the C decrypts. (That
+  comparison was made with Flipper-ARF's button codes. Since KAT numbers a mode 0x23 frame's buttons
+  from 1 and sets the CRC byte's last bit for another button, such an upload differs from the C's in
+  the button code and that bit, as meant; TEA uploads are unchanged.)
 - **Brute force:** 2 × 38 frames (each: 24 BF1 from the C encoder, 5 + 5 BF2 in the PP and ARF CRC
   variants, 4 misses) give the C's result (ARF's `decrypt_file` for the ARF variant).
 - **Real captures:** both GROUPE PSA files decode to exactly ProtoPirate's key1/key2/fields and
   brute-force results; the encoder reproduces the fobs' genuine frames.
+- **The Delphi remote (after 1.15.0):** the three files give 10 presses each, one serial, the
+  counter 0x68DA to 0x68F7 in order, the buttons 1, 2 and 3, and no frame of another protocol
+  (`delphi_remote_numbers_its_buttons_from_one`). With KAT's additions off, the references' rules
+  give 9, 7 and 7 frames, the last 7 undecrypted (`delphi_remote_as_the_references_read_it`). An
+  own reader, written apart from the decoder (preamble, then 80 Manchester bits with the 0xA
+  nibble), finds the same 30 frames, each twice. Built from a Lock capture, KAT's Lock, Unlock and
+  Trunk decode as the remote's 1, 2 and 3 with the counter one on; on a car only the old map has
+  been tried (its Unlock locked the car).
 - **doctor-firmware's rule (1.8.5):** 184 variations of four made-up TEA frames (end pulse none or
   250–5000 µs at 250 µs, none or 125–2500 µs at 125 µs; preambles of 40–72 pairs; ±10–60 µs duty
   skew; half-bits of 100–300 µs) through the unmodified doctor-firmware, ProtoPirate and Flipper-ARF

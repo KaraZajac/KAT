@@ -32,7 +32,7 @@
 //! then `Serial`, `Btn`, `HopHi` (the hop's 4 high bits), `HopLo` (its low 32), `Seed`; loading
 //! needs `Bit: 96` and reads `Seed` when present.
 //!
-//! **Deviations**: two. First, KAT has the C's own `CHEVROLET_V0_GM_ACCEPT_ANY` on, which the C's comment
+//! **Deviations**: three. First, KAT has the C's own `CHEVROLET_V0_GM_ACCEPT_ANY` on, which the C's comment
 //! describes as generalizing "to the whole GM 434 MHz remote family (Buick/Cadillac/GMC/newer
 //! Chevrolet), whose fobs carry a per-remote type/toggle nibble instead of Open/Close": any
 //! nibble is taken. The nibble is not a button. The frame is the one Opel V1 reads as `00010`, a
@@ -56,6 +56,16 @@
 //! what catches a bit lost or gained inside the frame: the first version, without it, read one
 //! frame in 30 of the 2020 Acadia capture with another serial. A burst the C's reading takes is
 //! not read twice.
+//!
+//! Third, a frame whose 96 bits all but alternate (fewer than 16 of its 95 pairs of neighbouring
+//! bits alike) is not reported: it is the preamble of another remote. The preamble word is itself
+//! alternating bits and one pair alike, and pulses of 191 to 310 µs are this decoder's long pulse,
+//! so a long run of such pulses with a few shorter ones among them is, to the C, a preamble and
+//! 96 bits. A PSA remote with a 218 µs half bit sends 170: two of ten presses of
+//! `IMPORTS/GROUPE PSA/Delphi_remote_unlock_x10.sub` were listed as Chevrolet V0 frames
+//! (`555555556AAB5555`, `5555555AAAAAD555`), and the registry's restart cost PSA those presses.
+//! With the nibble A, which alternating bits give half the time, FoxFW's own gate passes them too.
+//! No frame of the seven captures comes near: the fewest pairs alike in any is 31.
 //!
 //! **Evidence**: `IMPORTS/chevy/22_chevy_trail_blazer_l2_u2_rs_p_t.sub` (433.92 MHz OOK270; 21
 //! frames with the constant serial 0xB809C5, nibble 0xA or 0xB; matched frame for frame with the
@@ -235,13 +245,29 @@ impl ChevroletV0Decoder {
     }
 }
 
-/// The C's gate on a frame: not degenerate and, without the GM switch, the nibble A or B.
+/// The C's gate on a frame: not degenerate and, without the GM switch, the nibble A or B. KAT's
+/// own: not a preamble either (Deviations).
 fn gated(gdata: u64, seed: u32) -> Option<DecodedSignal> {
     let btn = button_of(gdata);
     if gdata == 0 || gdata == u64::MAX || !(ACCEPT_ANY || btn == 0xA || btn == 0xB) {
         return None;
     }
+    if alternates(gdata, seed) {
+        return None;
+    }
     Some(signal(gdata, seed))
+}
+
+/// Fewer of the 95 pairs of neighbouring bits alike than this: the bits all but alternate.
+const MIN_ALIKE: u32 = 16;
+
+/// The 96 bits all but alternate: another remote's preamble of 240 µs pulses, not a frame. (Half
+/// the pairs of neighbouring bits of a frame are alike: 47 of 95, give or take 5. Of the 519
+/// frames this decoder reads from the seven captures in IMPORTS, none has fewer than 31.)
+fn alternates(gdata: u64, seed: u32) -> bool {
+    let bits = (u128::from(gdata) << 32) | u128::from(seed);
+    let alike = !(bits ^ (bits >> 1)) & ((1 << 95) - 1);
+    alike.count_ones() < MIN_ALIKE
 }
 
 /// KAT's second reading: a whole burst with its skew taken out. The preamble word, the C's 96
@@ -512,6 +538,53 @@ mod tests {
             assert_eq!(got.len(), frames, "{}", path.display());
             assert!(got.iter().all(|d| d.serial == Some(serial)), "{}", path.display());
             assert_eq!(seen, nibbles, "{}", path.display());
+        }
+    }
+
+    /// A frame whose bits all but alternate is another remote's preamble: a PSA remote with a
+    /// 218 µs half bit sends about 170 pulses of that length, which are long pulses here, and where
+    /// a few of them come out under 191 µs the C's reading has its preamble word and 96 bits. Two
+    /// of ten presses of `Delphi_remote_unlock_x10.sub` gave such a frame (and cost PSA the press).
+    /// The real frames are far from it: the fewest neighbouring bits alike in any of them is pinned.
+    #[test]
+    fn a_preamble_is_no_frame() {
+        // the two frames that recording gave
+        for (gdata, seed) in [(0x5555_5555_6AAB_5555, 0x5555_5555), (0x5555_555A_AAAA_D555, 0x555A_AAAA)] {
+            assert!(alternates(gdata, seed), "{gdata:016X}");
+            assert!(gated(gdata, seed).is_none());
+            let wire = testing::burst(42, gdata, seed, &[true, false, true]);
+            assert!(feed_all(&mut ChevroletV0Decoder::new(), &wire).is_empty());
+        }
+        assert!(!alternates(GDATA, SEED));
+        let mut fewest = u32::MAX;
+        let mut frames = 0;
+        for path in [
+            "IMPORTS/chevy/22_chevy_trail_blazer_l2_u2_rs_p_t.sub",
+            "IMPORTS/chevy/18_chevy_malibu_l2_u2_rs2_t2_p2.sub",
+            "IMPORTS/buick/24_buick_encore_ul2_t2_l2_rs2_p2.sub",
+            "IMPORTS/buick/24_buick_envista_ul2_l2_t2_rs2_p2.sub",
+            "IMPORTS/buick/15_buick_lacross_t2_rs2_p2_l2_u2.sub",
+            "IMPORTS/gmc/20_gmc_acadia_l2_u2_rs2_t2_p2.sub",
+            "IMPORTS/HOLDEN/Holden Barina 2016 AU.sub",
+        ] {
+            let path = std::path::Path::new(path);
+            if !path.is_file() {
+                eprintln!("Skip: IMPORTS not found (run from crate root)");
+                return;
+            }
+            for d in feed_resetting(&mut ChevroletV0Decoder::new(), &sub_pulses(path).1) {
+                let bits = (u128::from(d.data) << 32) | u128::from(d.extra.unwrap());
+                fewest = fewest.min((!(bits ^ (bits >> 1)) & ((1 << 95) - 1)).count_ones());
+                frames += 1;
+            }
+        }
+        eprintln!("CHEVY alike: {frames} frames, fewest pairs alike {fewest}");
+        assert_eq!((frames, fewest), (519, 31));
+        // the PSA recordings give no frame of this decoder
+        for file in ["lock", "unlock", "button3"] {
+            let path = format!("IMPORTS/GROUPE PSA/Delphi_remote_{file}_x10.sub");
+            let got = feed_resetting(&mut ChevroletV0Decoder::new(), &sub_pulses(std::path::Path::new(&path)).1);
+            assert!(got.is_empty(), "{path}: {got:?}");
         }
     }
 

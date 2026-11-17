@@ -2,15 +2,25 @@
 
 All notable changes to KAT are documented here.
 
-## [Unreleased]
+## [1.15.1] - 2026-11-17
+
+PSA remotes get the right buttons: KAT numbered every PSA remote's buttons one way, and for one of the two frame types that made Unlock lock the car. Found with a tester's recordings of a three-button Delphi remote, which also showed a button KAT did not read, presses it missed, and a Chevrolet V0 frame that was another remote's preamble. Also in this release: kat.karazajac.io as a reference work.
 
 ### Added
 
 - **kat.karazajac.io is a reference work.** Every protocol's page has a box of facts that the program itself writes out (`docs/data/protocols.json`, from the new test `site_data`), the recordings KAT reads with the protocol and the FCC IDs tied to it. New pages: [all protocols in one table](https://kat.karazajac.io/protocols.html), [a page per make](https://kat.karazajac.io/makes.html), [the recording library](https://kat.karazajac.io/captures.html) with a link to each of its 490 files and what KAT reads from it, [FCC IDs](https://kat.karazajac.io/fcc.html), [coverage by model-year](https://kat.karazajac.io/coverage.html) with the remotes a recording is wanted of, a [glossary](docs/glossary.md), [Recording a remote](docs/recording.md) (which Flipper preset holds which signal), [About this site](docs/about.md), and a search over all of it. A recording or source file named in a page's text opens in the repository. `scripts/site_data.py` writes the data; the landing page's counts come from it.
+- **Recordings of a three-button Delphi remote** (`IMPORTS/GROUPE PSA/Delphi_remote_*.sub`, ten presses of each button, sent in by its owner). [psa.md](docs/psa.md#the-delphi-remote) has what they show.
 
 ### Changed
 
 - **Isuzu Rolling's line coding reads "Differential Manchester"** in a capture's details; it said Manchester.
+
+### Fixed
+
+- **PSA: Unlock locked the car** ([psa.md](docs/psa.md#buttons)). KAT numbered every PSA remote's buttons as Flipper-ARF names them: 0 Lock, 1 Unlock, 2 Trunk. A Peugeot 307 key (a TEA frame) does send those. A three-button Delphi remote (an XOR frame), recorded by its owner ten presses a button, sends 1 for Lock, 2 for Unlock and 3 for its third button: its Lock presses were listed as "Unlock", its Unlock presses as "Trunk", and KAT's Unlock sent the code that locks. KAT now numbers by frame type, on the list and when it sends: XOR frames from 1, TEA frames from 0. What that remote's third button does on its car is not known; it is listed as "Button 3" and KAT's Trunk command sends it.
+- **PSA: a remote's third button was a frame without a key.** The references' rule for telling XOR frames from TEA frames lets six button codes through, and 3 is not one of them, so each press of that button went to the key search and came back `no key`. The frames pass the XOR checksum with the remote's serial and counter: KAT reads them.
+- **PSA: 7 of that remote's 30 presses were not read at all.** Its half bit is 218 µs where the references expect 250, so the pause that ends its preamble is 436 µs, and a recording puts it anywhere from 392 to 459. Every reference wants 401 or more. KAT takes 351 µs up, the length the same decoders take for a long pulse inside the frame, for a frame that decrypts.
+- **Chevrolet V0 listed another remote's preamble as a frame** ([chevrolet_v0.md](docs/chevrolet_v0.md)). To that decoder a long run of 218 µs pulses with a few shorter ones among them is a preamble and 96 bits: two presses of the PSA remote above were listed as Chevrolet V0 frames of alternating bits (`555555556AAB5555`), and PSA lost those presses. A frame whose bits all but alternate is no longer reported, and the reading added in 1.15.0 drops a burst whose short pulses are not half bits. No real frame changes: the 519 in the recordings stay.
 
 ## [1.15.0] - 2026-11-17
 

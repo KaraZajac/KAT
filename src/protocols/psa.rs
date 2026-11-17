@@ -36,10 +36,11 @@
 //!   current machine adds the frames behind a short preamble (16 to 70 LOWs) or on a clock away
 //!   from 250 µs, when an end HIGH follows; one only it reads must decrypt too. A real one:
 //!   the sixth press of `IMPORTS/GROUPE PSA/Peugeot 307 open.sub`, recorded with 61 preamble LOWs.
+//!   A fifth machine is KAT's own: ProtoPirate's with the sync LOW taken from 351 µs (Deviations).
 //! - **Encoder** — PP `psa_encoder_build_upload` (mode 0x23 XOR + mode 0x36 TEA, buffer[0..1] kept
 //!   from the captured key1, buffer[9] from the captured key2), 10 repeats (PP/ARF), counter + 1 (PP
-//!   emulate plugin `current_counter++`, ARF/doctor `+ mult`), ARF's PSA button codes, and the
-//!   genuine fobs' 900 µs end HIGH (see Deviations).
+//!   emulate plugin `current_counter++`, ARF/doctor `+ mult`), the frame type's button codes, and
+//!   the genuine fobs' 900 µs end HIGH (see Deviations).
 //! - **Key recovery** — PP `psa_brute_force_run` (BF1 0x23xxxxxx with the scheduled TEA key
 //!   derivation, then BF2 0xF3xxxxxx), multithreaded ([`brute_force`]). The references emit a TEA
 //!   frame undecrypted and leave the brute force to a manual action ("Brute force" in PP's
@@ -63,10 +64,23 @@
 //!   XOR filter, which dropped the genuine TEA frame `F47A25DEC980F0DE/1621` (key2 0x16 passes the
 //!   filter, the XOR checksum fails, PP's brute force decrypts it). KAT keeps PP's gate, as
 //!   doctor's current file now does.
-//! - Buttons: PP's emulate plugin maps Lock/Unlock/Trunk/Panic to 0x1/0x2/0x4/0x8 (its generic
-//!   template, shared verbatim with Ford V1); ARF names PSA codes 0 = Lock, 1 = Unlock, 2 = Trunk.
-//!   All four genuine frames (two fobs, both modes) carry button 0, a code PP's map does not have,
-//!   so KAT uses ARF's codes.
+//! - Buttons: no reference has both frame types right. PP's emulate plugin maps Lock/Unlock/Trunk/
+//!   Panic to 0x1/0x2/0x4/0x8 (its generic template, shared verbatim with Ford V1); ARF names PSA
+//!   codes 0 = Lock, 1 = Unlock, 2 = Trunk, which KAT used for every frame up to 1.15.0. A Peugeot
+//!   307 key (TEA) sends 0 to close and 1 to open; a three-button Delphi remote (mode 0x23,
+//!   `IMPORTS/GROUPE PSA/Delphi_remote_*.sub`, 30 presses) sends 1 for Lock, 2 for Unlock and 3
+//!   for its third button, and with ARF's codes KAT's Unlock locked its car. KAT numbers by frame
+//!   type ([`button_name`], `map_button`).
+//! - The button code 3: `psa_direct_xor_allowed_by_key2` lets the XOR fast path run for the codes
+//!   0, 1, 2, 4, 5, 6, so the references take the Delphi remote's third button for a TEA frame no
+//!   key decrypts. Its 20 frames pass the XOR checksum with the remote's serial and counter; KAT's
+//!   routing ([`fast_decrypt`]) takes the code 3 too.
+//! - The sync LOW: 401..599 µs in every reference. The Delphi remote's half bit is 218 µs, its
+//!   sync 436 µs, in the recordings 392 to 459 µs: 7 of 30 presses are under 401 µs and lost. A
+//!   second ProtoPirate-shaped machine ([`Machine::wide_sync`]) takes 351 µs up, the long pulse of
+//!   State2; a frame only it reads must decrypt.
+//! - The CRC byte of a mode 0x23 frame sent for another button: its last bit is set as a remote
+//!   sends it (`next_crc`); the references send the captured byte.
 //! - AM path: ARF's completion accepts any 80/88-bit window with the 0xA nibble at one of up to
 //!   9 offsets after only 8 preamble cells; KAT's registry resets re-arm it, and on
 //!   `IMPORTS/honda/Lock_honda.sub` it then accepts Honda Static chips plus inter-frame noise (the
@@ -136,14 +150,33 @@ pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     presets: &[&AM650, &F3],
 };
 
-/// Flipper-ARF psa_button_name (the genuine IMPORTS frames carry 0).
+/// Flipper-ARF `psa_button_name`: the label when only the code is known. A capture is labelled by
+/// [capture_button_name], which knows its frame type; the two types number their buttons differently.
 fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
-    Some(match code {
-        0x0 => "Lock",
-        0x1 => "Unlock",
-        0x2 => "Trunk",
+    Some(button_name(MODE_TEA, code))
+}
+
+/// What a button code means in a frame of `mode` (module doc, Deviations).
+/// - mode 0x36 (TEA): Flipper-ARF's names, 0 Lock, 1 Unlock, 2 Trunk. A Peugeot 307 key sends 0 to
+///   close and 1 to open (`IMPORTS/GROUPE PSA/Peugeot 307 close.sub` / `open.sub`).
+/// - mode 0x23 (XOR): 1 Lock, 2 Unlock, 3 the third button, from 30 presses of a three-button Delphi
+///   remote (`IMPORTS/GROUPE PSA/Delphi_remote_*.sub`). What its third button does on the car is not
+///   known, nor what 0 is (the code of the other mode 0x23 fob in IMPORTS, pressed twice).
+pub fn button_name(mode: u8, code: u8) -> &'static str {
+    match (mode, code) {
+        (MODE_XOR, 0x1) | (MODE_TEA, 0x0) => "Lock",
+        (MODE_XOR, 0x2) | (MODE_TEA, 0x1) => "Unlock",
+        (MODE_XOR, 0x3) => "Button 3",
+        (MODE_TEA, 0x2) => "Trunk",
         _ => "Other",
-    })
+    }
+}
+
+/// The label of a capture's button: the frame type is read off the frame itself (mode 0x23 when
+/// the XOR fast path decrypts it, or when the capture has no key2: the retired PSA2 decoder's).
+pub fn capture_button_name(data: u64, extra: Option<u64>, code: u8) -> &'static str {
+    let xor = extra.map_or(true, |key2| fast_decrypt(data, key2 as u32).is_some());
+    button_name(if xor { MODE_XOR } else { MODE_TEA }, code)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -201,6 +234,10 @@ const ENC_UPLOAD_LEN: usize = 325;
 
 const MODE_XOR: u8 = 0x23;
 const MODE_TEA: u8 = 0x36;
+/// The third button of a mode 0x23 remote: a code the references' XOR filter does not let through.
+const XOR_BUTTON_3: u32 = 0x3;
+/// KAT's wide-sync machine: the shortest LOW it takes for the sync (the references: 401 µs).
+const WIDE_SYNC_MIN: u32 = 351;
 
 // TEA (psa_crypto.c / psa_crypto.h)
 const TEA_DELTA: u32 = 0x9E37_79B9;
@@ -441,11 +478,20 @@ fn xor_decrypt(key1: u64, key2_low: u32) -> Option<PsaFields> {
 
 /// ProtoPirate's routing (`psa_handle_decoded_frame` / `psa_decrypt_router`): the XOR fast path
 /// runs only when the key2 high byte selects it; anything else is a TEA frame for the brute force.
-fn fast_decrypt(key1: u64, key2_low: u32) -> Option<PsaFields> {
+fn fast_decrypt_c(key1: u64, key2_low: u32) -> Option<PsaFields> {
     if !direct_xor_allowed_by_key2((key2_low >> 8) as u8) {
         return None;
     }
     xor_decrypt(key1, key2_low)
+}
+
+/// KAT's routing: ProtoPirate's, and the button code 3, which the references' filter leaves to the
+/// brute force (module doc, Deviations: a genuine remote's third button).
+fn fast_decrypt(key1: u64, key2_low: u32) -> Option<PsaFields> {
+    if (key2_low >> 8) & 0xF == XOR_BUTTON_3 {
+        return xor_decrypt(key1, key2_low);
+    }
+    fast_decrypt_c(key1, key2_low)
 }
 
 /// `psa_extract_fields_mode36` on the TEA plaintext words.
@@ -731,6 +777,9 @@ enum AmComplete {
 /// One reference decoder: the `SubGhzProtocolDecoderPSA` fields its `feed` uses.
 struct Machine {
     flavor: Flavor,
+    /// KAT's second ProtoPirate-shaped machine (module doc, Deviations): the sync LOW may be as
+    /// short as State2's long pulse, 351 µs.
+    wide_sync: bool,
     state: DecoderState,
     prev_duration: u32,
     decode_data_low: u32,
@@ -755,9 +804,15 @@ fn abs_diff(a: u32, b: u32) -> u32 {
 }
 
 impl Machine {
+    /// ProtoPirate's machine with the wide sync window.
+    fn wide_sync() -> Self {
+        Self { wide_sync: true, ..Self::new(Flavor::ProtoPirate) }
+    }
+
     fn new(flavor: Flavor) -> Self {
         Self {
             flavor,
+            wide_sync: false,
             state: DecoderState::Reset,
             prev_duration: 0,
             decode_data_low: 0,
@@ -905,7 +960,10 @@ impl Machine {
             self.prev_duration = duration;
             return None;
         }
-        if duration > TE_SHORT && abs_diff(duration, TE_LONG) < 100 {
+        // The sync: a LOW of 401..599 µs. KAT's wide-sync machine also takes 351..400 µs, the rest
+        // of what State2 takes for a long pulse.
+        let sync = duration > TE_SHORT && abs_diff(duration, TE_LONG) < 100;
+        if sync || (self.wide_sync && (WIDE_SYNC_MIN..=400).contains(&duration)) {
             // ProtoPirate / ARF: more than 0x46 preamble LOWs; doctor: at least 0x46.
             let enough = match self.flavor {
                 Flavor::Doctor => self.pattern_counter >= PATTERN_THRESHOLD_1,
@@ -1569,11 +1627,17 @@ impl AdaptiveMachine {
 /// would also block ProtoPirate's 250/500 µs path. doctor-firmware's current machine
 /// ([`AdaptiveMachine`]) completes on the end HIGH, like ProtoPirate's: a frame both read is
 /// ProtoPirate's, one only it reads (a preamble of 16 to 70 LOWs, a clock away from 250 µs) must
-/// decrypt. After a reported frame all four start again, as the registry restarts every decoder.
+/// decrypt. KAT's own fifth machine is ProtoPirate's with a wider window for the sync LOW (351 µs up
+/// instead of 401): a remote whose half bit is 218 µs has its sync at 436 µs, and a recording puts
+/// it on either side of 401. It completes on ProtoPirate's end pulse, so a frame both read is
+/// ProtoPirate's; one it reads alone must decrypt. After a reported frame all five start again, as
+/// the registry restarts every decoder.
 pub struct PsaDecoder {
     pp: Machine,
     doctor: Machine,
     arf: Machine,
+    /// KAT's wide-sync machine ([Machine::wide_sync]).
+    wide: Machine,
     /// doctor-firmware's current machine ([AdaptiveMachine]). It completes a frame on its end
     /// HIGH, the pulse ProtoPirate's machine completes on, so a frame both read is reported as
     /// before; one it reads alone must decrypt, like the other added machines' frames.
@@ -1596,6 +1660,7 @@ impl PsaDecoder {
             pp: Machine::new(Flavor::ProtoPirate),
             doctor: Machine::new(Flavor::Doctor),
             arf: Machine::new(Flavor::Arf),
+            wide: Machine::wide_sync(),
             adaptive: AdaptiveMachine::new(),
             doctor_pending: None,
             kat_extensions: true,
@@ -1616,7 +1681,11 @@ impl PsaDecoder {
     /// cannot decrypt is dropped, or with `autobf` reported as [UNCHECKED_NAME] for the brute force
     /// to decide: a genuine TEA frame decrypts in a fraction of a second, that window never does.
     fn emit(&self, frame: RawFrame) -> Option<DecodedSignal> {
-        let fields = fast_decrypt(frame.key1, frame.key2_low);
+        let fields = if self.kat_extensions {
+            fast_decrypt(frame.key1, frame.key2_low)
+        } else {
+            fast_decrypt_c(frame.key1, frame.key2_low)
+        };
         let unchecked = frame.am && self.kat_extensions && fields.is_none();
         if unchecked && !self.report_unchecked {
             return None;
@@ -1658,6 +1727,7 @@ impl ProtocolDecoder for PsaDecoder {
         self.pp = Machine::new(Flavor::ProtoPirate);
         self.doctor = Machine::new(Flavor::Doctor);
         self.arf = Machine::new(Flavor::Arf);
+        self.wide = Machine::wide_sync();
         self.adaptive = AdaptiveMachine::new();
         self.doctor_pending = None;
     }
@@ -1680,9 +1750,13 @@ impl ProtocolDecoder for PsaDecoder {
         let mut frame = self.pp.feed(level, duration);
         let arf = self.arf.feed(level, duration).filter(|f| f.am);
         let mut adaptive = None;
+        let mut wide = None;
         if self.kat_extensions {
             let doctor = self.doctor.feed(level, duration);
             adaptive = self.adaptive.feed(level, duration);
+            // The wide-sync machine completes on the pulse ProtoPirate's does: its frame counts
+            // when ProtoPirate's machine has none, and must decrypt.
+            wide = self.wide.feed(level, duration).map(|f| RawFrame { am: true, ..f });
             // A pending doctor frame: ProtoPirate's end pulse is the first HIGH after the 80th bit
             // (a final 1 bit's LOW half comes first). Taken by ProtoPirate's machine, the frame is
             // reported as before; otherwise doctor's rule alone read it, and it must decrypt.
@@ -1702,10 +1776,11 @@ impl ProtocolDecoder for PsaDecoder {
                 None => {}
             }
         }
-        // A ProtoPirate frame wins a same-pulse tie; the adaptive machine's frame is taken when no
-        // other machine completed one on this pulse. After a report all four machines restart (as
-        // the registry restarts every decoder), so a frame is reported once.
-        let out = frame.or(arf).or(adaptive).and_then(|frame| self.emit(frame));
+        // A ProtoPirate frame wins a same-pulse tie; the adaptive machine's frame, then the
+        // wide-sync machine's, is taken when no other machine completed one on this pulse. After a
+        // report all five machines restart (as the registry restarts every decoder), so a frame is
+        // reported once.
+        let out = frame.or(arf).or(adaptive).or(wide).and_then(|frame| self.emit(frame));
         if out.is_some() && self.kat_extensions {
             self.reset();
         }
@@ -1826,15 +1901,29 @@ impl Default for PsaDecoder {
 // Encoder (psa.c psa_build_buffer_mode23 / _mode36 / psa_encoder_build_upload)
 // ---------------------------------------------------------------------------------------------
 
-/// KAT generic command → PSA button (ARF `psa_custom_to_btn` codes: 0 Lock, 1 Unlock, 2 Trunk);
-/// anything else (Panic, unknown) keeps the captured button.
-fn map_button(generic: u8, captured: u8) -> u8 {
+/// KAT generic command → the button code of a frame of `mode` ([button_name]): Lock, Unlock, and
+/// for KAT's Trunk command the third button (mode 0x36: ARF's Trunk, 2; mode 0x23: code 3, whatever
+/// that button does on the car). Anything else (Panic, unknown) keeps the captured button.
+fn map_button(mode: u8, generic: u8, captured: u8) -> u8 {
+    let lock = if mode == MODE_XOR { 0x1 } else { 0x0 };
     match generic {
-        0x01 => 0x0,
-        0x02 => 0x1,
-        0x04 => 0x2,
+        0x01 => lock,
+        0x02 => lock + 1,
+        0x04 => lock + 2,
         _ => captured,
     }
+}
+
+/// The CRC byte of the frame sent for `button`. The references send the captured byte again, and so
+/// does KAT for the captured button. In every genuine mode 0x23 frame (32 frames of two remotes) the
+/// byte's last bit is the parity of the button code's two low bits: set for Lock and Unlock, clear
+/// for the third button. A frame for another button than the captured one gets that bit as the
+/// remote sends it; the other seven bits follow no rule KAT knows and stay.
+fn next_crc(fields: &PsaFields, button: u8) -> u16 {
+    if fields.mode != MODE_XOR || button == fields.button {
+        return fields.crc;
+    }
+    (fields.crc & !1) | u16::from((button ^ (button >> 1)) & 1)
 }
 
 /// `psa_build_buffer_mode23`: XOR-encrypt b2..b7, searching b9 (or keeping the captured one) and
@@ -1914,7 +2003,8 @@ fn next_fields(decoded: &DecodedSignal, button: u8) -> Option<PsaFields> {
             crc: 0,
         })
     })?;
-    Some(PsaFields { button: map_button(button, fields.button), counter: fields.counter.wrapping_add(1), ..fields })
+    let button = map_button(fields.mode, button, fields.button);
+    Some(PsaFields { button, counter: fields.counter.wrapping_add(1), crc: next_crc(&fields, button), ..fields })
 }
 
 /// Key1 and the 16-bit validation word of the frame for `fields` (`psa_encoder_build_upload`'s
@@ -2054,6 +2144,114 @@ mod tests {
         }
     }
 
+    /// The files of the three-button Delphi remote, ten presses of one button each, and the button's code.
+    const DELPHI: [(&str, u8); 3] = [
+        ("GROUPE PSA/Delphi_remote_lock_x10.sub", 1),
+        ("GROUPE PSA/Delphi_remote_unlock_x10.sub", 2),
+        ("GROUPE PSA/Delphi_remote_button3_x10.sub", 3),
+    ];
+
+    /// A three-button Delphi remote, recorded by its owner: mode 0x23, serial 0x725335, and one
+    /// counter that runs through the 30 presses of the three files without a gap. Lock is 1, Unlock
+    /// 2 and the third button 3 (Flipper-ARF's names, 0 / 1 / 2, call its Unlock frames Trunk, and
+    /// the references' XOR filter leaves the third button to a brute force that finds no key). Every
+    /// press is read, and nothing else is read from the files.
+    #[test]
+    fn delphi_remote_numbers_its_buttons_from_one() {
+        let mut counter = 0x68DA;
+        for (rel, button) in DELPHI {
+            let Some(results) = registry_decodes(rel) else {
+                return;
+            };
+            assert_eq!(results.len(), 10, "{rel}: {results:?}");
+            for (name, d) in &results {
+                assert_eq!(name, "PSA", "{rel}");
+                assert_eq!((d.serial, d.button, d.counter), (Some(0x725335), Some(button), Some(counter)), "{rel}");
+                assert!(d.crc_valid && d.encoder_capable, "{rel}");
+                let key2 = d.extra.unwrap();
+                assert_eq!((d.data >> 48, key2 & 0xFF), (0xB6DA, 0xF7), "{rel}: the header and b9 are the remote's");
+                assert_eq!(capture_button_name(d.data, d.extra, button), ["Lock", "Unlock", "Button 3"][usize::from(button) - 1]);
+                // the CRC byte's last bit: the parity of the button's two low bits
+                let fields = fast_decrypt(d.data, key2 as u32).unwrap();
+                assert_eq!(fields.crc & 1, u16::from(button != 3), "{rel} {:016X}", d.data);
+                counter += 1;
+            }
+        }
+        assert_eq!(counter, 0x68F8);
+    }
+
+    /// What the references' decoders make of the same files (KAT's additions off): the sync LOW of
+    /// this remote (half bit 218 µs, so 436 µs) is under their 401 µs in seven presses, and the
+    /// third button's frames pass for TEA frames.
+    #[test]
+    fn delphi_remote_as_the_references_read_it() {
+        for ((rel, _), (frames, decrypted)) in DELPHI.into_iter().zip([(9, 9), (7, 7), (7, 0)]) {
+            let path = Path::new("IMPORTS").join(rel);
+            if !path.exists() {
+                return;
+            }
+            let (_, raw) = import_sub_raw(&path).unwrap();
+            let pulses: Vec<LevelDuration> = raw.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
+            let got = decode_all_c_like(&pulses);
+            assert_eq!((got.len(), got.iter().filter(|d| d.serial.is_some()).count()), (frames, decrypted), "{rel}");
+        }
+    }
+
+    /// The wide-sync machine: a sync LOW of 351 to 400 µs is read, and such a frame must decrypt
+    /// (a mode 0x23 frame at once; a TEA frame through the key search, or it is dropped).
+    #[test]
+    fn a_short_sync_low_is_read_when_the_frame_decrypts() {
+        let with_sync = |fields: &PsaFields, key1: u64, key2: u32, sync: u32| {
+            let mut wire = merged(&build_upload(key1, key2, fields));
+            let at = wire.iter().position(|p| !p.level && p.duration_us == 2 * ENC_TE).expect("the sync LOW");
+            wire[at].duration_us = sync;
+            wire
+        };
+        let xor = PsaFields { mode: MODE_XOR, serial: 0x725335, button: 3, counter: 0x68EE, crc: 0x50 };
+        let tea = PsaFields { mode: MODE_TEA, serial: 0x014590, button: 0, counter: 0x9158E55, crc: 0xD5 };
+        for sync in [351, 380, 400] {
+            let wire = with_sync(&xor, 0xB6DA_3125_DF76_B704, 0xA3F7, sync);
+            let got = decode_all(&wire);
+            assert_eq!(got.iter().map(|d| (d.data, d.extra, d.button)).collect::<Vec<_>>(), vec![(0xB6DA_3125_DF76_B704, Some(0xA3F7), Some(3))], "sync {sync}");
+            assert!(decode_all_c_like(&wire).is_empty(), "sync {sync}: the references drop it");
+            let wire = with_sync(&tea, 0xF47A_2EA1_1A4C_7CAF, 0x2927, sync);
+            assert!(decode_all(&wire).is_empty(), "sync {sync}: a TEA frame without the key search");
+            let got = decode_all_autobf(&wire);
+            assert_eq!(got.iter().map(|d| (d.data, d.protocol_display_name.as_deref())).collect::<Vec<_>>(), vec![(0xF47A_25DE_C980_F0DE, Some(UNCHECKED_NAME))], "sync {sync}");
+        }
+        // 350 µs is a short pulse to State2 and no sync to any machine; 401 µs is ProtoPirate's own.
+        assert!(decode_all(&with_sync(&xor, 0xB6DA_3125_DF76_B704, 0xA3F7, 350)).is_empty());
+        let wire = with_sync(&tea, 0xF47A_2EA1_1A4C_7CAF, 0x2927, 401);
+        assert_eq!(decode_all(&wire).len(), 1, "ProtoPirate's machine reports a TEA frame undecrypted");
+    }
+
+    /// Sending another button than the captured one, from the Delphi remote's frames: KAT's Lock,
+    /// Unlock and Trunk are the remote's 1, 2 and 3, and the CRC byte's last bit is the one the
+    /// remote sends with that button. The other fields are the capture's, the counter one on.
+    #[test]
+    fn delphi_remote_buttons_are_sent_as_the_remote_sends_them() {
+        let dec = PsaDecoder::new();
+        let lock = psa_from(0xB6DA_FAEE_20BD_48CF, 0x61F7, None); // counter 0x68DA, CRC byte 0x59
+        let third = psa_from(0xB6DA_3125_DF76_B704, 0xA3F7, None); // counter 0x68EE, CRC byte 0x50
+        for (capture, counter, command, button, crc) in [
+            (&lock, 0x68DB, 0x01, 1, 0x59),
+            (&lock, 0x68DB, 0x02, 2, 0x59),
+            (&lock, 0x68DB, 0x04, 3, 0x58),
+            (&lock, 0x68DB, 0x08, 1, 0x59),
+            (&third, 0x68EF, 0x01, 1, 0x51),
+            (&third, 0x68EF, 0x02, 2, 0x51),
+            (&third, 0x68EF, 0x04, 3, 0x50),
+        ] {
+            let got = decode_all(&merged(&dec.encode(capture, command).unwrap()));
+            assert_eq!(got.len(), ENC_REPEAT, "command {command:#x}");
+            let d = &got[0];
+            assert_eq!((d.serial, d.button, d.counter), (Some(0x725335), Some(button), Some(counter)), "command {command:#x}");
+            assert_eq!((d.data >> 48, d.extra.unwrap() & 0xFF), (0xB6DA, 0xF7), "the header and b9 stay");
+            assert_eq!(xor_decrypt(d.data, d.extra.unwrap() as u32).unwrap().crc, crc, "command {command:#x}");
+            assert_eq!(dec.sent_signal(capture, command).as_ref(), Some(d));
+        }
+    }
+
     #[test]
     fn brute_force_finds_the_tea_fob_like_protopirate() {
         // PP psa_brute_force_run on the two genuine TEA frames: BF1, key counter 0x23014590.
@@ -2132,14 +2330,14 @@ mod tests {
     fn encode_round_trips_xor_and_tea_frames() {
         let dec = PsaDecoder::new();
         // XOR frame (the genuine counter-0x39B frame with key2's last bit set, CRC byte 0x41):
-        // Unlock → button 1, counter + 1, 10 copies.
+        // Unlock → button 2 (mode 0x23), counter + 1, 10 copies.
         let xor = psa_from(0x6EDA_E3B4_785F_7BC6, 0x70F7, Some(0x99EB25));
         let wire = dec.encode(&xor, 0x02).unwrap();
         assert_eq!(wire.len(), ENC_REPEAT * ENC_UPLOAD_LEN);
         let got = decode_all(&merged(&wire));
         assert_eq!(got.len(), ENC_REPEAT);
         for d in &got {
-            assert_eq!((d.serial, d.button, d.counter), (Some(0x99EB25), Some(1), Some(0x039C)));
+            assert_eq!((d.serial, d.button, d.counter), (Some(0x99EB25), Some(2), Some(0x039C)));
             assert_eq!(d.data >> 48, 0x6EDA, "buffer[0..1] (sync) preserved");
             assert_eq!(xor_decrypt(d.data, d.extra.unwrap() as u32).unwrap().crc, 0x41);
         }
@@ -2168,8 +2366,9 @@ mod tests {
         let legacy = DecodedSignal { serial: Some(0x99EB25), button: Some(0), counter: Some(0x039B), crc_valid: true, ..psa_from(0x6EDA_E3B4_785F_7BC6, 0, None) };
         let legacy = DecodedSignal { extra: None, ..legacy };
         let wire = PsaDecoder::new().encode(&legacy, 0x02).unwrap();
-        // ProtoPirate's mode 0x23 upload for (serial, Unlock, counter + 1, CRC 0), no original key2.
-        let expected = build_upload(0x6EDA_E3B4_785F_7BC6, 0, &PsaFields { mode: MODE_XOR, serial: 0x99EB25, button: 1, counter: 0x039C, crc: 0 });
+        // ProtoPirate's mode 0x23 upload for (serial, Unlock, counter + 1), no original key2. The CRC
+        // byte, 0 without a key2 to take it from, gets the bit an Unlock frame has ([next_crc]).
+        let expected = build_upload(0x6EDA_E3B4_785F_7BC6, 0, &PsaFields { mode: MODE_XOR, serial: 0x99EB25, button: 2, counter: 0x039C, crc: 1 });
         assert_eq!(wire[..ENC_UPLOAD_LEN].iter().map(|p| (p.level, p.duration_us)).collect::<Vec<_>>(), expected.iter().map(|p| (p.level, p.duration_us)).collect::<Vec<_>>());
     }
 
@@ -2494,10 +2693,10 @@ mod tests {
         let xor = psa_from(0x6EDA_E3B4_785F_7BC6, 0x70F7, Some(0x99EB25));
         let sent = dec.sent_signal(&xor, 0x02).unwrap();
         assert_eq!(Some(&sent), decode_all(&merged(&dec.encode(&xor, 0x02).unwrap())).first());
-        // Ending in a 0 bit (no decode): Unlock → button 1, counter + 1, and the next press goes on.
+        // Ending in a 0 bit (no decode): Unlock → button 2, counter + 1, and the next press goes on.
         let xor0 = psa_from(0x6EDA_E3B4_785F_7BC6, 0x70F6, Some(0x99EB25));
         let sent = dec.sent_signal(&xor0, 0x02).unwrap();
-        assert_eq!((sent.serial, sent.button, sent.counter, sent.crc_valid), (Some(0x99EB25), Some(1), Some(0x039C), true));
+        assert_eq!((sent.serial, sent.button, sent.counter, sent.crc_valid), (Some(0x99EB25), Some(2), Some(0x039C), true));
         assert_eq!(dec.sent_signal(&sent, 0x02).unwrap().counter, Some(0x039D));
         // TEA (serial from the brute force): the C's upload with the encoded fields; a second
         // press from it is the fob's own later frame (PSA_536_523, counter 0x9158E55).
@@ -2602,7 +2801,8 @@ mod tests {
                 Some("P") => {
                     if let Some(s) = dec.feed(f[1] == "1", f[2].parse().unwrap()) {
                         let key2 = s.extra.unwrap();
-                        match fast_decrypt(s.data, key2 as u32) {
+                        // the references' routing: this line is compared with their C
+                        match fast_decrypt_c(s.data, key2 as u32) {
                             Some(x) => println!(
                                 "D {idx} {:016X} {:016X} 50 {:06X} {:X} {:X} {:X}",
                                 s.data, key2, x.serial, x.button, x.counter, x.crc
@@ -2779,12 +2979,21 @@ mod tests {
         assert_eq!(auto_key_search("Kia V0", &tea), AutoKeySearch::NotNeeded);
     }
 
+    /// The two frame types number their buttons differently: mode 0x36 as Flipper-ARF names them
+    /// (and a Peugeot 307 key sends them), mode 0x23 one higher (the Delphi remote's recordings).
     #[test]
-    fn button_mapping_uses_psa_codes() {
-        assert_eq!(map_button(0x01, 2), 0);
-        assert_eq!(map_button(0x02, 2), 1);
-        assert_eq!(map_button(0x04, 0), 2);
-        assert_eq!(map_button(0x08, 2), 2);
+    fn button_mapping_follows_the_frame_type() {
+        assert_eq!([0x01, 0x02, 0x04, 0x08].map(|g| map_button(MODE_TEA, g, 2)), [0, 1, 2, 2]);
+        assert_eq!([0x01, 0x02, 0x04, 0x08].map(|g| map_button(MODE_XOR, g, 2)), [1, 2, 3, 2]);
+        assert_eq!([0, 1, 2, 3, 4].map(|c| button_name(MODE_TEA, c)), ["Lock", "Unlock", "Trunk", "Other", "Other"]);
+        assert_eq!([0, 1, 2, 3, 4].map(|c| button_name(MODE_XOR, c)), ["Other", "Lock", "Unlock", "Button 3", "Other"]);
+        // a capture's label: the frame says which type it is
+        let (key1, key2) = (0xB6DA_FAEE_20BD_48CF, 0x61F7); // the Delphi remote's first Lock press
+        assert_eq!(capture_button_name(key1, Some(key2), 1), "Lock");
+        assert_eq!(capture_button_name(0xF47A_2EA1_1A4C_7CAF, Some(0x2927), 1), "Unlock"); // a TEA frame
+        assert_eq!(capture_button_name(key1, None, 2), "Unlock"); // no key2: the retired PSA2 decoder's
+        // the label without a frame is Flipper-ARF's, as since KAT 1.4
+        assert_eq!([0, 1, 2, 3].map(|c| native_buttons("PSA", c)), [Some("Lock"), Some("Unlock"), Some("Trunk"), Some("Other")]);
     }
 
     /// Key files (ProtoPirate `subghz_protocol_decoder_psa_serialize` / `_deserialize`): the XOR

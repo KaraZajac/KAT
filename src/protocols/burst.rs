@@ -23,6 +23,10 @@
 //! allow pulses of three half bits, for a frame that ends with one: up to 3.9, three from 2.5.)
 //! Counted so, a burst of another speed would pass for one of this speed, so the burst must come
 //! out at the reader's half bit to within an eighth (its length by its half bits), or it is dropped.
+//! So is a burst whose one-half pulses, or whose two-half pulses, are not that long on average (to
+//! a quarter of a half bit, from three pulses of a length on): the preamble of a remote with a
+//! 218 µs half bit is, to a 120 µs reader, a run of two-half pulses, and the few of them that
+//! jitter under 180 µs are counted as one half each. Two of 30 such preambles read as a frame.
 //!
 //! **Differential Manchester.** [cells] reads the half bits the other way: a transition between
 //! all cells, and a 1 where a cell has one in its middle too.
@@ -144,6 +148,8 @@ impl BurstReader {
         let te = i64::from(self.te);
         let mut halves: Vec<bool> = self.lead.take().into_iter().collect();
         let (mut length, mut counted) = (0, 0);
+        // of the pulses counted as one half bit and as two: the sum of their widths, their number
+        let mut sorted = [(0i64, 0i64); 2];
         for (level, duration) in pulses {
             let fair = i64::from(duration) + if level { -skew } else { skew };
             let units = if fair * 2 < te * 3 {
@@ -155,6 +161,9 @@ impl BurstReader {
             };
             length += i64::from(duration);
             counted += units;
+            if let Some(of_length) = sorted.get_mut(units as usize - 1) {
+                *of_length = (of_length.0 + fair, of_length.1 + 1);
+            }
             for _ in 0..units {
                 halves.push(level);
             }
@@ -162,6 +171,12 @@ impl BurstReader {
         // another speed: not this reader's burst
         if (length - counted * te).abs() * 8 > counted * te {
             return Vec::new();
+        }
+        // pulses between the two lengths, sorted into both: not this reader's burst either
+        for (units, (sum, pulses)) in (1i64..).zip(sorted) {
+            if pulses >= 3 && (sum - pulses * units * te).abs() * 4 > pulses * te {
+                return Vec::new();
+            }
         }
         halves
     }
@@ -365,6 +380,18 @@ mod tests {
             assert_eq!(r.feed(i % 2 == 0, 370), None);
         }
         assert_eq!(r.feed(false, 9_000).map(|h| h.len()), Some(42));
+        // so is one whose short pulses are no half bit: a remote with a 218 µs half bit, to a
+        // 120 µs reader, sends two-half pulses, a few of which come out under 180 µs
+        let mut r = BurstReader::skewed(120, 2, 512);
+        let slow = |r: &mut BurstReader, short: u32| {
+            for i in 0..170 {
+                assert_eq!(r.feed(i % 2 == 0, if i % 40 == 7 { short } else { 218 }), None);
+            }
+            r.feed(false, 436).map(|h| h.len())
+        };
+        assert_eq!(slow(&mut r, 176), None);
+        // (with real half bits among them, the same run is a burst)
+        assert_eq!(slow(&mut r, 122), Some(170 * 2 - 5 + 2));
         // the same pulses end a two-half reader's burst at the long one
         let mut r = BurstReader::skewed(400, 2, 64);
         for (l, d) in [(true, 400), (false, 400), (true, 800), (false, 800)] {

@@ -1612,6 +1612,15 @@ pub fn native_button_name(protocol: &str, code: u8) -> Option<&'static str> {
     info::lookup(protocol)?.button_name(protocol, code)
 }
 
+/// The label of a capture's button code: [native_button_name], but for PSA, whose two frame types
+/// number their buttons differently (`psa::button_name`), so its label is read with the frame.
+pub fn capture_button_name(protocol: &str, code: u8, data: u64, extra: Option<u64>) -> Option<&'static str> {
+    if info::lookup(protocol).is_some_and(|i| i.decoder == "PSA") {
+        return Some(psa::capture_button_name(data, extra, code));
+    }
+    native_button_name(protocol, code)
+}
+
 /// Helper macro for duration comparison (matches protopirate's DURATION_DIFF)
 #[macro_export]
 macro_rules! duration_diff {

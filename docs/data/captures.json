@@ -2390,6 +2390,99 @@
    "type": "raw"
   },
   {
+   "bytes": 20445,
+   "custom": {
+    "bandwidth_hz": 203125,
+    "baud": 3794,
+    "keying": "OOK"
+   },
+   "folder": "GROUPE PSA",
+   "frequency": 433920000,
+   "more": false,
+   "path": "GROUPE PSA/Delphi_remote_button3_x10.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 4445,
+   "reads": [
+    {
+     "buttons": [
+      "3"
+     ],
+     "crc_ok": 10,
+     "distinct": 10,
+     "encodable": true,
+     "frames": 10,
+     "protocol": "PSA",
+     "serial": "725335",
+     "serials": 1
+    }
+   ],
+   "seconds": 3.09,
+   "type": "raw"
+  },
+  {
+   "bytes": 20411,
+   "custom": {
+    "bandwidth_hz": 203125,
+    "baud": 3794,
+    "keying": "OOK"
+   },
+   "folder": "GROUPE PSA",
+   "frequency": 433920000,
+   "more": false,
+   "path": "GROUPE PSA/Delphi_remote_lock_x10.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 4437,
+   "reads": [
+    {
+     "buttons": [
+      "1"
+     ],
+     "crc_ok": 10,
+     "distinct": 10,
+     "encodable": true,
+     "frames": 10,
+     "protocol": "PSA",
+     "serial": "725335",
+     "serials": 1
+    }
+   ],
+   "seconds": 2.78,
+   "type": "raw"
+  },
+  {
+   "bytes": 20372,
+   "custom": {
+    "bandwidth_hz": 203125,
+    "baud": 3794,
+    "keying": "OOK"
+   },
+   "folder": "GROUPE PSA",
+   "frequency": 433920000,
+   "more": false,
+   "path": "GROUPE PSA/Delphi_remote_unlock_x10.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 4433,
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 10,
+     "distinct": 10,
+     "encodable": true,
+     "frames": 10,
+     "protocol": "PSA",
+     "serial": "725335",
+     "serials": 1
+    }
+   ],
+   "seconds": 3.0,
+   "type": "raw"
+  },
+  {
    "bytes": 4178,
    "folder": "GROUPE PSA",
    "frequency": 433920000,

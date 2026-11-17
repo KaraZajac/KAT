@@ -188,6 +188,36 @@ FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5551BA50F1150705/64 extra=73ED
 FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5551BA50F1150705/64 extra=73ED sn=54BF55F4 btn=1 cnt=700 crc=1 tx=1
 FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5551BA50F1150705/64 extra=73ED sn=54BF55F4 btn=1 cnt=700 crc=1 tx=1
 FORD/Ford Mondeo.sub | 433920000 | Ford V0 | data=5551BA50F1150705/64 extra=73ED sn=54BF55F4 btn=1 cnt=700 crc=1 tx=1
+GROUPE PSA/Delphi_remote_button3_x10.sub | 433920000 | PSA | data=B6DA3125DF76B704/128 extra=A3F7 sn=725335 btn=3 cnt=68EE crc=1 tx=1
+GROUPE PSA/Delphi_remote_button3_x10.sub | 433920000 | PSA | data=B6DA6D79822AEA58/128 extra=E3F7 sn=725335 btn=3 cnt=68EF crc=1 tx=1
+GROUPE PSA/Delphi_remote_button3_x10.sub | 433920000 | PSA | data=B6DAC9DD398E51FC/128 extra=23F7 sn=725335 btn=3 cnt=68F0 crc=1 tx=1
+GROUPE PSA/Delphi_remote_button3_x10.sub | 433920000 | PSA | data=B6DAB9AD48FE208C/128 extra=A3F7 sn=725335 btn=3 cnt=68F1 crc=1 tx=1
+GROUPE PSA/Delphi_remote_button3_x10.sub | 433920000 | PSA | data=B6DA61759326FB54/128 extra=A3F7 sn=725335 btn=3 cnt=68F2 crc=1 tx=1
+GROUPE PSA/Delphi_remote_button3_x10.sub | 433920000 | PSA | data=B6DAEDF91EAA76D8/128 extra=83F7 sn=725335 btn=3 cnt=68F3 crc=1 tx=1
+GROUPE PSA/Delphi_remote_button3_x10.sub | 433920000 | PSA | data=B6DA5B4FAF1CC76E/128 extra=3F7 sn=725335 btn=3 cnt=68F4 crc=1 tx=1
+GROUPE PSA/Delphi_remote_button3_x10.sub | 433920000 | PSA | data=B6DA6F7B9A28F25A/128 extra=43F7 sn=725335 btn=3 cnt=68F5 crc=1 tx=1
+GROUPE PSA/Delphi_remote_button3_x10.sub | 433920000 | PSA | data=B6DAC7D3318059F2/128 extra=E3F7 sn=725335 btn=3 cnt=68F6 crc=1 tx=1
+GROUPE PSA/Delphi_remote_button3_x10.sub | 433920000 | PSA | data=B6DAB9AD4EFE268C/128 extra=63F7 sn=725335 btn=3 cnt=68F7 crc=1 tx=1
+GROUPE PSA/Delphi_remote_lock_x10.sub | 433920000 | PSA | data=B6DAFAEE20BD48CF/128 extra=61F7 sn=725335 btn=1 cnt=68DA crc=1 tx=1
+GROUPE PSA/Delphi_remote_lock_x10.sub | 433920000 | PSA | data=B6DA56428D11E563/128 extra=41F7 sn=725335 btn=1 cnt=68DB crc=1 tx=1
+GROUPE PSA/Delphi_remote_lock_x10.sub | 433920000 | PSA | data=B6DA2E3AF2699A1B/128 extra=C1F7 sn=725335 btn=1 cnt=68DC crc=1 tx=1
+GROUPE PSA/Delphi_remote_lock_x10.sub | 433920000 | PSA | data=B6DA849059C331B1/128 extra=21F7 sn=725335 btn=1 cnt=68DD crc=1 tx=1
+GROUPE PSA/Delphi_remote_lock_x10.sub | 433920000 | PSA | data=B6DAB0A46EF70685/128 extra=61F7 sn=725335 btn=1 cnt=68DE crc=1 tx=1
+GROUPE PSA/Delphi_remote_lock_x10.sub | 433920000 | PSA | data=B6DA1602C951A123/128 extra=41F7 sn=725335 btn=1 cnt=68DF crc=1 tx=1
+GROUPE PSA/Delphi_remote_lock_x10.sub | 433920000 | PSA | data=B6DA9E8A7ED916AB/128 extra=1F7 sn=725335 btn=1 cnt=68E0 crc=1 tx=1
+GROUPE PSA/Delphi_remote_lock_x10.sub | 433920000 | PSA | data=B6DA2C38CD6BA519/128 extra=C1F7 sn=725335 btn=1 cnt=68E1 crc=1 tx=1
+GROUPE PSA/Delphi_remote_lock_x10.sub | 433920000 | PSA | data=B6DA1206F0559827/128 extra=C1F7 sn=725335 btn=1 cnt=68E2 crc=1 tx=1
+GROUPE PSA/Delphi_remote_lock_x10.sub | 433920000 | PSA | data=B6DA7C689F3BF749/128 extra=A1F7 sn=725335 btn=1 cnt=68E3 crc=1 tx=1
+GROUPE PSA/Delphi_remote_unlock_x10.sub | 433920000 | PSA | data=B6DA697D8D2EE55C/128 extra=C2F7 sn=725335 btn=2 cnt=68E4 crc=1 tx=1
+GROUPE PSA/Delphi_remote_unlock_x10.sub | 433920000 | PSA | data=B6DA293DCC6EA41C/128 extra=22F7 sn=725335 btn=2 cnt=68E5 crc=1 tx=1
+GROUPE PSA/Delphi_remote_unlock_x10.sub | 433920000 | PSA | data=B6DAF3E715B47DC6/128 extra=22F7 sn=725335 btn=2 cnt=68E6 crc=1 tx=1
+GROUPE PSA/Delphi_remote_unlock_x10.sub | 433920000 | PSA | data=B6DA1703F0509822/128 extra=42F7 sn=725335 btn=2 cnt=68E7 crc=1 tx=1
+GROUPE PSA/Delphi_remote_unlock_x10.sub | 433920000 | PSA | data=B6DA7D69953AFD48/128 extra=62F7 sn=725335 btn=2 cnt=68E8 crc=1 tx=1
+GROUPE PSA/Delphi_remote_unlock_x10.sub | 433920000 | PSA | data=B6DA2B3FC26CAA1E/128 extra=22F7 sn=725335 btn=2 cnt=68E9 crc=1 tx=1
+GROUPE PSA/Delphi_remote_unlock_x10.sub | 433920000 | PSA | data=B6DAC3D7298441F6/128 extra=42F7 sn=725335 btn=2 cnt=68EA crc=1 tx=1
+GROUPE PSA/Delphi_remote_unlock_x10.sub | 433920000 | PSA | data=B6DA95817ED216A0/128 extra=C2F7 sn=725335 btn=2 cnt=68EB crc=1 tx=1
+GROUPE PSA/Delphi_remote_unlock_x10.sub | 433920000 | PSA | data=B6DA3521D972B100/128 extra=62F7 sn=725335 btn=2 cnt=68EC crc=1 tx=1
+GROUPE PSA/Delphi_remote_unlock_x10.sub | 433920000 | PSA | data=B6DAA3B74EE42696/128 extra=A2F7 sn=725335 btn=2 cnt=68ED crc=1 tx=1
 GROUPE PSA/PSA_523_536.sub | 433920000 | PSA | data=6EDAE3B4785F7BC6/128 extra=70F6 sn=99EB25 btn=0 cnt=39B crc=1 tx=1
 GROUPE PSA/PSA_523_536.sub | 433920000 | PSA | data=F47A2EA11A4C7CAF/128 extra=2927 sn=- btn=- cnt=- crc=0 tx=0
 GROUPE PSA/PSA_536_523.sub | 433920000 | PSA | data=F47A25DEC980F0DE/128 extra=1621 sn=- btn=- cnt=- crc=0 tx=0

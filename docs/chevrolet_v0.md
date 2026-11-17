@@ -75,6 +75,24 @@ Without a checksum, that length is what catches a bit lost or gained inside the 
 it read one frame in 30 of the Acadia capture with another serial. A burst the C's reading takes is not read
 twice.
 
+The skew correction sorts every pulse into one half bit or two, so a slower remote's pulses, sorted into both,
+would pass. A burst is therefore dropped when its one-half pulses, or its two-half pulses, are not that long on
+average (to a quarter of a half bit; from three pulses of a length on).
+
+## A preamble is no frame (KAT)
+
+The preamble word is alternating bits and one pair alike, and a pulse of 191 to 310 µs is this decoder's long
+pulse. A long run of such pulses with a few shorter ones among them is therefore, to the C, a preamble and 96
+bits, and with the nibble `A`, which alternating bits give half the time, FoxFW's own gate passes the "frame".
+A PSA remote whose half bit is 218 µs sends about 170 such pulses before every frame: two of ten presses of
+`IMPORTS/GROUPE PSA/Delphi_remote_unlock_x10.sub` were listed as Chevrolet V0 frames (`555555556AAB5555` and
+`5555555AAAAAD555`), and since the list of decoders starts over after a frame, [PSA](psa.md) lost those two
+presses.
+
+KAT does not report a frame whose 96 bits all but alternate: fewer than 16 of its 95 pairs of neighbouring bits
+alike. A frame has about half of them alike (47, give or take 5); of the 519 frames this decoder reads from the
+seven captures below, none has fewer than 31.
+
 ## Decoder state machine
 
 1. **Reset step:** any pulse that is short or long starts the preamble (Manchester state `Mid1`, register cleared)
@@ -102,8 +120,8 @@ No checksum exists: the gate is structural, so the registry places Chevrolet V0 
 
 ## Validation
 
-- Two deviations from the C as FoxFW builds it: its `CHEVROLET_V0_GM_ACCEPT_ANY` is on (above), and a burst its
-  reading drops is read again whole (below).
+- Three deviations from the C as FoxFW builds it: its `CHEVROLET_V0_GM_ACCEPT_ANY` is on (above), a burst its
+  reading drops is read again whole (below), and a frame of all but alternating bits is not reported (above).
 - With it, five more captures decode, each with one serial and a nibble whose last bit alone changes:
   `chevy/18_chevy_malibu_…` (36 frames, serial `A8936E`, nibble 8/9), `buick/24_buick_encore_…` (34, `AA67D0`,
   4/5), `buick/24_buick_envista_…` (38, `B6EC9C`, C/D), `HOLDEN/Holden Barina 2016 AU.sub` (358, `B61B30`, C/D)
@@ -117,4 +135,6 @@ No checksum exists: the gate is structural, so the registry places Chevrolet V0 
   are not `A`/`B`).
 - Unit tests: a synthetic frame, the gates (zero and all-ones payloads, an out-of-tolerance pulse), key-file round
   trip, the real captures; the second reading on a burst with 55 µs of skew (which the C's reading loses), its
-  length check (2, 3 or 4 bits behind the 96), a cut preamble, two bursts, the end of the input.
+  length check (2, 3 or 4 bits behind the 96), a cut preamble, two bursts, the end of the input; the two
+  preamble "frames" of the PSA recording, the fewest pairs alike in the real frames (31), and no frame from the
+  three PSA recordings.

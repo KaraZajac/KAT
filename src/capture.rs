@@ -330,7 +330,7 @@ impl Capture {
     /// whose protocol names none, "Btn 0xN"; else KAT's car commands.
     pub fn button_name(&self) -> &str {
         if let Some(code) = self.button {
-            if let Some(name) = crate::protocols::native_button_name(self.protocol_name(), code) {
+            if let Some(name) = crate::protocols::capture_button_name(self.protocol_name(), code, self.data, self.data_extra) {
                 return name;
             }
             if crate::protocols::gate_buttons::is_gate(self.protocol_name()) {

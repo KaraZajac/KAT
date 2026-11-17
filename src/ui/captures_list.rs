@@ -920,6 +920,15 @@ mod tests {
         capture.protocol = Some("KeeLoq (NICE_MHOUSE)".to_string());
         capture.button = Some(0x09);
         assert_eq!((capture.button_name(), button_label(&capture).as_str()), ("Btn 0x9", "0x09"));
+        // PSA's two frame types number their buttons differently: the frame decides the name. A
+        // mode 0x23 frame (a Delphi remote's Lock and third button), then a TEA frame's code 1.
+        capture.protocol = Some("PSA".to_string());
+        (capture.data, capture.data_extra, capture.button) = (0xB6DA_FAEE_20BD_48CF, Some(0x61F7), Some(0x01));
+        assert_eq!(button_label(&capture), "Lock (0x01)");
+        (capture.data, capture.data_extra, capture.button) = (0xB6DA_3125_DF76_B704, Some(0xA3F7), Some(0x03));
+        assert_eq!(button_label(&capture), "Button 3 (0x03)");
+        (capture.data, capture.data_extra, capture.button) = (0xF47A_2EA1_1A4C_7CAF, Some(0x2927), Some(0x01));
+        assert_eq!(button_label(&capture), "Unlock (0x01)");
     }
 
     /// An empty list says what to do next, and every hint fits the narrowest terminal's list.

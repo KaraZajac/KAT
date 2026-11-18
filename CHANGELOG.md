@@ -2,7 +2,9 @@
 
 All notable changes to KAT are documented here.
 
-## [Unreleased]
+## [1.16.2] - 2026-11-18
+
+PortaPack IQ captures (`.C8` / `.C16`) open directly, with the capture's `.TXT` giving the frequency and sample rate, and a 2019 Honda Civic EX's remote joins the library. Both were already on `main`; this is the release that ships them.
 
 ### Added
 

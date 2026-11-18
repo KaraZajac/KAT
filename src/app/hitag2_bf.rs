@@ -44,7 +44,7 @@ fn frame_of(c: &Capture) -> Result<Hitag2Frame, String> {
 
 /// The protocols the attack takes (a cheap filter before [`frame_of`]).
 fn is_hitag2_remote(c: &Capture) -> bool {
-    matches!(c.protocol_name(), "Fiat V1" | "Renault V1" | "Fiat V2")
+    matches!(c.protocol_name(), "Fiat V1" | "Renault V1" | "Fiat V2" | "Hitag2")
 }
 
 /// Whether the signal menu offers the search for this capture: a Fiat V1, Renault V1 or Fiat V2
@@ -85,7 +85,7 @@ fn mark_recovered(captures: &mut [Capture], uid: u32) -> usize {
 /// Renault V1, Fiat's for Fiat V1 and V2.
 fn saved_bytes(remote: Hitag2Remote, key: u64) -> [u8; 6] {
     match remote {
-        Hitag2Remote::RenaultV1 => hell::key_bytes(key),
+        Hitag2Remote::RenaultV1 | Hitag2Remote::Hitag2Rke => hell::key_bytes(key),
         Hitag2Remote::FiatV1 | Hitag2Remote::FiatV2 => hell::fiat_bcm_key(key),
     }
 }
@@ -237,8 +237,15 @@ impl App {
             Err(e) => format!("not saved ({e}), usable until KAT exits"),
         };
         let fresh = mark_recovered(&mut self.captures, uid);
+        // Hitag2 RKE is decode-only (no verified transmitter): the key is recovered and saved, but
+        // KAT does not send fresh codes for it, unlike Fiat V1 / Renault V1 / Fiat V2.
+        let effect = if remote == Hitag2Remote::Hitag2Rke {
+            "now carry the recovered key (decode only; no transmit)"
+        } else {
+            "can now send fresh codes"
+        };
         self.status_message = Some(format!(
-            "HiTag2 key of remote {uid:08X} recovered in {took}: {:012X} ({saved}); {fresh} capture{} can now send fresh codes",
+            "HiTag2 key of remote {uid:08X} recovered in {took}: {:012X} ({saved}); {fresh} capture{} {effect}",
             found.key,
             crate::plural(fresh)
         ));

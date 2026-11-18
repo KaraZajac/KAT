@@ -313,6 +313,7 @@ pub fn hitag2_key_known(protocol: &str, signal: &DecodedSignal) -> bool {
         "Fiat V1" => fiat_v1::FiatV1Decoder::has_key(signal),
         "Renault V1" => renault_v1::RenaultV1Decoder::has_key(signal),
         "Fiat V2" => fiat_v2::FiatV2Decoder::has_key(signal),
+        "Hitag2" => hitag2_rke::Hitag2RkeDecoder::has_key(signal),
         _ => false,
     }
 }

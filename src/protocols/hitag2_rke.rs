@@ -39,6 +39,8 @@
 //! encrypted part and needs the remote's key (see the HITAG2 key recovery).
 
 use super::g2_common::decoded;
+use super::hitag2;
+use super::hitag2_keys::{self, KeyOrder};
 use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
 
@@ -96,6 +98,30 @@ fn signal(uid: u32, btn: u8, lctr: u16, ks: u32, chk: u8) -> DecodedSignal {
     d.extra = Some(u64::from(chk) << 32 | u64::from(ks));
     d.crc_valid = true;
     d
+}
+
+impl Hitag2RkeDecoder {
+    /// The key saved for this remote (`hitag2_keys.txt`, standard order, e.g. by "Recover key
+    /// (HiTag2)", [`super::hitag2_hell`]) that reproduces the captured keystream:
+    /// `renault_authenticator(uid, btn, lctr, key) == ks` (the Garcia-2016 HiTag2 RKE nonce
+    /// `lctr<<4 | btn`; the recovered equivalent key works at epoch 0, since `lctr` is already the
+    /// counter's low 10 bits). **Decode only: KAT has no verified Hitag2 RKE transmitter** (the
+    /// generic decoder spans several OEM timings; held for a measured capture), so this confirms
+    /// the key — it does not enable fresh codes.
+    pub(super) fn saved_key(signal: &DecodedSignal) -> Option<[u8; 6]> {
+        let ks = (signal.extra? & 0xFFFF_FFFF) as u32;
+        let uid = (signal.data >> 32) as u32;
+        let btn = ((signal.data >> 28) & 0x0F) as u8;
+        let lctr = ((signal.data >> 18) & 0x3FF) as u32;
+        hitag2_keys::keys_for(uid, KeyOrder::Standard)
+            .into_iter()
+            .find_map(|(key, _)| (hitag2::renault_authenticator(uid, btn, lctr, &key) == ks).then_some(key))
+    }
+
+    /// Whether the remote's HITAG2 key is known ([`Self::saved_key`]).
+    pub(super) fn has_key(signal: &DecodedSignal) -> bool {
+        Self::saved_key(signal).is_some()
+    }
 }
 
 /// `subghz_protocol_decoder_hitag2_find_and_emit`.
@@ -592,6 +618,55 @@ mod tests {
             let out = dec.from_flipper_key(&key).and_then(|d| dec.encode(&d, d.button.unwrap_or(0)));
             assert!(out.is_none(), "{file}");
             println!("KATENC {file} | (none)");
+        }
+    }
+
+    /// Key-recovery wiring (`hitag2_hell.rs`): `frame_of("Hitag2", …)` extracts UID, the full
+    /// 32-bit keystream as the hop, the 10-bit `lctr` as the counter and the button; a saved key
+    /// that reproduces the keystream flips `has_key`. The IV is assumed to be Renault V1's
+    /// (`lctr<<4 | btn`) — **not verified against a real Hitag2 RKE remote.**
+    #[test]
+    fn key_recovery_wiring() {
+        use crate::protocols::hitag2::renault_authenticator;
+        use crate::protocols::hitag2_hell::{self as hell, Hitag2Remote};
+        let key = [0x4B, 0x41, 0x54, 0x31, 0x2E, 0x38];
+        let uid = 0x5EED_0C01u32; // a UID no other test uses (the key database is global)
+        let (btn, lctr) = (1u8, 0x101u16);
+        let ks = renault_authenticator(uid, btn, u32::from(lctr), &key);
+        let sig = signal(uid, btn, lctr, ks, 0);
+        let f = hell::frame_of("Hitag2", &sig).unwrap();
+        assert_eq!((f.remote, f.uid, f.hop, f.cnt, f.btn), (Hitag2Remote::Hitag2Rke, uid, ks, 0x101, 1));
+        assert!(!Hitag2RkeDecoder::has_key(&sig));
+        crate::protocols::hitag2_keys::tests::remember_for_test(uid, key);
+        assert!(Hitag2RkeDecoder::has_key(&sig));
+        assert_eq!(Hitag2RkeDecoder::saved_key(&sig), Some(key));
+        // A 0 or all-ones UID is refused, as for the other HITAG2 remotes.
+        assert!(hell::frame_of("Hitag2", &signal(0, 1, 1, 1, 0)).is_err());
+        assert!(hell::frame_of("Hitag2", &signal(u32::MAX, 1, 1, 1, 0)).is_err());
+    }
+
+    /// The full HiTag2 Hell search recovers the key from two synthetic presses; the recovered
+    /// equivalent key reproduces both keystreams. Ignored (a full search is seconds in release,
+    /// minutes in debug). Proves the recovery plumbing, **not** that a real remote uses this IV.
+    #[test]
+    #[ignore = "full HiTag2 Hell search"]
+    fn key_recovery_round_trip() {
+        use crate::protocols::hitag2::renault_authenticator;
+        use crate::protocols::hitag2_hell::{self as hell, BruteForceControl, BruteForceOutcome};
+        let key = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC];
+        let uid = 0x1A2B_3C4Du32;
+        let frame = |lctr: u16, btn: u8| {
+            let ks = renault_authenticator(uid, btn, u32::from(lctr), &key);
+            hell::frame_of("Hitag2", &signal(uid, btn, lctr, ks, 0)).unwrap()
+        };
+        let (f1, f2) = (frame(0x101, 1), frame(0x102, 1));
+        let reqs = hell::requests_for(&f1, Some(&f2)).unwrap();
+        let BruteForceOutcome::Found(rk) = hell::recover_key_any(&reqs, &BruteForceControl::default()) else {
+            panic!("no key recovered");
+        };
+        let k = hell::key_bytes(rk.key);
+        for lctr in [0x101u32, 0x102] {
+            assert_eq!(renault_authenticator(uid, 1, lctr, &k), renault_authenticator(uid, 1, lctr, &key));
         }
     }
 }

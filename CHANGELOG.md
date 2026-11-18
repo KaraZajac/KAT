@@ -2,6 +2,12 @@
 
 All notable changes to KAT are documented here.
 
+## [Unreleased]
+
+### Added
+
+- **HiTag2 key recovery for Hitag2 RKE remotes.** "Recover key (HiTag2)" now also accepts `Hitag2` captures (`hitag2_rke.rs`, NXP PCF7946/7947, Garcia et al. 2016): two presses of one remote recover the 48-bit key through the same HiTag2 Hell attack KAT runs for Fiat V1 / Renault V1 / Fiat V2, saved to `hitag2_keys.txt`. **Decode only** — KAT does not transmit Hitag2 RKE (no verified encoder; its timing spans several OEMs), and the recovery is **unverified against a real remote**: the IV is assumed to be Renault's (`lctr<<4 | btn`), and a wrong IV only yields "not found", never a false key.
+
 ## [1.16.2] - 2026-11-18
 
 PortaPack IQ captures (`.C8` / `.C16`) open directly, with the capture's `.TXT` giving the frequency and sample rate, and a 2019 Honda Civic EX's remote joins the library. Both were already on `main`; this is the release that ships them.

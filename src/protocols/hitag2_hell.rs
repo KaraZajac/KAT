@@ -1107,6 +1107,11 @@ pub enum Hitag2Remote {
     FiatV1,
     RenaultV1,
     FiatV2,
+    /// Hitag2 RKE (`hitag2_rke.rs`, the generic PCF7946/7947 RKE decoder, Garcia et al. 2016):
+    /// same cipher and IV (`cnt<<4 | btn`) as Renault V1. **Unverified against a real remote** —
+    /// the generic decoder spans several OEMs whose IV bit-packing may differ; a wrong IV only
+    /// yields "not found", never a false key.
+    Hitag2Rke,
 }
 
 /// One received frame in the attack's terms (qDoctor's `Hitag2Signal`).
@@ -1130,7 +1135,7 @@ impl Hitag2Frame {
     /// of frames can tell them apart (the search would return that equivalent key under combo 0).
     fn readings(&self) -> Vec<(u32, u8)> {
         match self.remote {
-            Hitag2Remote::FiatV1 | Hitag2Remote::RenaultV1 => vec![(self.cnt, self.btn)],
+            Hitag2Remote::FiatV1 | Hitag2Remote::RenaultV1 | Hitag2Remote::Hitag2Rke => vec![(self.cnt, self.btn)],
             Hitag2Remote::FiatV2 => {
                 let one_hot = match self.btn {
                     1 => 0x2,
@@ -1187,6 +1192,7 @@ pub fn frame_of(protocol: &str, signal: &DecodedSignal) -> Result<Hitag2Frame, S
         "Fiat V1" => Hitag2Remote::FiatV1,
         "Renault V1" => Hitag2Remote::RenaultV1,
         "Fiat V2" => Hitag2Remote::FiatV2,
+        "Hitag2" => Hitag2Remote::Hitag2Rke,
         p if p.starts_with("Renault V1 (ARF)") => {
             return Err("Renault V1 (ARF) frames carry no fixed 32-bit hop and only a 24-bit serial".into())
         }
@@ -1205,6 +1211,20 @@ pub fn frame_of(protocol: &str, signal: &DecodedSignal) -> Result<Hitag2Frame, S
         };
         let uid = u32::from_be_bytes([raw[2], raw[3], raw[4], raw[5]]);
         return Ok(Hitag2Frame { remote, uid, hop, cnt, btn: raw[7] >> 6 });
+    }
+    if remote == Hitag2Remote::Hitag2Rke {
+        // hitag2_rke packs the frame in the signal: data = UID<<32 | btn<<28 | lctr<<18 | ks>>14,
+        // extra = check<<32 | keystream. The 10-bit lctr is the counter's low bits (< 1024, which
+        // the equivalent-key trick needs); the full 32-bit keystream (from extra) is the hop. The
+        // IV is lctr<<4 | btn, the Garcia-2016 nonce renault_authenticator takes.
+        let ks = (signal.extra.ok_or("Hitag2 frame has no keystream")? & 0xFFFF_FFFF) as u32;
+        let uid = (signal.data >> 32) as u32;
+        if uid == 0 || uid == u32::MAX {
+            return Err("Hitag2 frame: UID is 0 or all ones".into());
+        }
+        let btn = ((signal.data >> 28) & 0x0F) as u8;
+        let cnt = ((signal.data >> 18) & 0x3FF) as u32;
+        return Ok(Hitag2Frame { remote, uid, hop: ks, cnt, btn });
     }
     let raw = frame13(signal).ok_or_else(|| format!("not a valid {protocol} frame"))?;
     if remote == Hitag2Remote::RenaultV1 {

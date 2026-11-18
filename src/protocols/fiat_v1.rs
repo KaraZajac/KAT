@@ -21,8 +21,8 @@
 //!   (`hitag2_hell.rs`, ported from qDoctor's C, and `app/hitag2_bf.rs`).
 //! - ARF/doctor-firmware keep a per-UID key database (`hitag2_key_db.c`, `hitag2_keys.txt`):
 //!   KAT keeps the same file in its config folder (`hitag2_keys.rs`), where "Recover key
-//!   (HiTag2)" saves the keys it finds. doctor-firmware's typed-in "Hitag2 Key" (and a key file's
-//!   `Hitag2 Key` line) is not read: KAT has no key entry.
+//!   (HiTag2)" saves the keys it finds, and a key file's `Hitag2 Key` line when it fits the
+//!   file's frame (see Key files). KAT has no prompt for a typed-in key.
 //!
 //! RF: 315 / 433.92 MHz, AM (OOK), Manchester. Two TE variants are decoded in parallel:
 //!   Variant A (e.g. Panda):        te 250/500 µs ±100 µs
@@ -116,15 +116,26 @@
 //! UID << 32 | hop, then Serial (UID), Btn, Cnt (control), Type (TE variant: 0 = A, 1 = B), Hop,
 //! XOR, Tail Bits (decimal), Raw (the 13 wire bytes), `Hitag2 Key` + `Hitag2 Epoch` when one of
 //! ProtoPirate's embedded keys verifies the hop (the C decoder's own check, epoch 0) or the key
-//! saved for the remote does (Flipper-ARF writes every key it verified; same byte order), and
-//! `Disp: Fiat V1 - Unlock|Lock|Trunk|Close|Unknown`. Loading needs Bit 102; with Raw (any
+//! saved for the remote does, and `Disp: Fiat V1 - Unlock|Lock|Trunk|Close|Unknown`.
+//!
+//! **The `Hitag2 Key` line's byte order.** The references do not agree. doctor-firmware writes
+//! and reads the standard HITAG2 order (`fiat_v1_hitag2_key_cipher_to_disk` /
+//! `_disk_to_cipher`; its typed-in key too): the six bytes [`hitag2::fiat_bcm_authenticator`]
+//! takes, with the last two in front. ProtoPirate and Flipper-ARF write the bytes as that cipher
+//! takes them. Each refuses the other's line (compiled C, one frame, both lines: doctor
+//! `KEY:OK` / `KEY:??`, ProtoPirate the reverse). **KAT writes doctor-firmware's order** (until
+//! 1.16 it wrote the cipher's, so that doctor-firmware did not take a key from a KAT file), and
+//! on loading takes the line in either order: the one that reproduces the frame's hop, with the
+//! line's epoch, for the frame's button or any of 1/2/4/8, becomes the remote's saved key
+//! ([`hitag2_keys::adopt_file_key`]) unless an embedded or saved key fits already.
+//! Loading needs Bit 102; with Raw (any
 //! reference's file) the frame is Raw and must pass `fiat_v1_frame_valid`; without Raw it is
 //! rebuilt from Key / Serial / Btn / Cnt / Hop / XOR / Tail Bits (default 2) and validated, as the
 //! C code intends — ProtoPirate's own decoder reads those lines after the failed Raw lookup
 //! without rewinding, so in practice it needs Raw; Flipper-ARF's encoder rebuilds from them.
-//! Type missing (Flipper-ARF's files) = variant B, ProtoPirate's default. A `Hitag2 Key` in the
-//! file is not read: TX resolves the key from its own lists and the saved keys (see above) and
-//! otherwise replays the frame.
+//! Type missing (Flipper-ARF's files) = variant B, ProtoPirate's default. TX resolves the key from
+//! KAT's lists and the saved keys (see above), where a file's own key now is, and otherwise
+//! replays the frame.
 
 use super::hitag2;
 use super::hitag2_keys::{self, KeyOrder};
@@ -550,9 +561,32 @@ impl FiatV1Decoder {
     }
 
     /// The key a `.sub` names on its `Hitag2 Key` / `Hitag2 Epoch` lines: an embedded one
-    /// (ProtoPirate) or the remote's saved one (Flipper-ARF writes every key it verified).
+    /// (ProtoPirate) or the remote's saved one (Flipper-ARF writes every key it verified). In the
+    /// cipher's byte order; the line has the standard one ([`KeyOrder::standard`]).
     fn file_key(f: &Fields) -> Option<([u8; 6], u32)> {
         Self::resolve_known_key(f).map(|index| (KNOWN_KEYS[index], 0)).or_else(|| Self::resolve_saved_key(f))
+    }
+
+    /// A loaded key file's `Hitag2 Key` / `Hitag2 Epoch` lines (module doc, Key files): when no
+    /// embedded or saved key fits the frame and the line's key does, it becomes the remote's saved
+    /// key. The line is read as doctor-firmware's (standard order) first, then as ProtoPirate's
+    /// and Flipper-ARF's (the cipher's order); a key that fits one way does not fit the other.
+    fn adopt_file_key(file: &FlipperKey, f: &Fields) {
+        let Some(line) = file.hex_bytes_field("Hitag2 Key").and_then(|b| <[u8; 6]>::try_from(b).ok()) else {
+            return;
+        };
+        if Self::file_key(f).is_some() {
+            return;
+        }
+        let epoch = file.u32_field("Hitag2 Epoch").unwrap_or(0) & 0x3FFFF;
+        let fits = |key: &[u8; 6]| {
+            let matches =
+                |button: u8| hitag2::fiat_bcm_authenticator(f.uid, button, f.control & 0x03FF, key, epoch) == f.hop;
+            matches(f.button) || BUTTONS.iter().any(|&b| matches(b))
+        };
+        if let Some(key) = [KeyOrder::FiatBcm.arrange(line), line].into_iter().find(fits) {
+            hitag2_keys::adopt_file_key(f.uid, key, epoch);
+        }
     }
 
     /// The HITAG2 key (and epoch) for a frame: ProtoPirate's embedded keys, the key saved for the
@@ -871,7 +905,11 @@ impl ProtocolDecoder for FiatV1Decoder {
                 raw
             }
         };
-        Self::frame_valid(&raw).then(|| Self::decoded_signal(&raw, variant))
+        if !Self::frame_valid(&raw) {
+            return None;
+        }
+        Self::adopt_file_key(key, &Self::fields(&raw));
+        Some(Self::decoded_signal(&raw, variant))
     }
 
     /// `subghz_protocol_decoder_fiat_v1_serialize` (see the module doc, Key files).
@@ -891,7 +929,8 @@ impl ProtocolDecoder for FiatV1Decoder {
         key.push_u32("Tail Bits", f.tail.into());
         key.push_hex_bytes("Raw", &raw);
         if let Some((hitag2_key, epoch)) = Self::file_key(&f) {
-            key.push_hex_bytes("Hitag2 Key", &hitag2_key);
+            // doctor-firmware's `fiat_v1_hitag2_key_cipher_to_disk`: the standard order.
+            key.push_hex_bytes("Hitag2 Key", &KeyOrder::FiatBcm.standard(hitag2_key));
             key.push_u32("Hitag2 Epoch", epoch);
         }
         let name = match f.button {
@@ -1029,9 +1068,9 @@ mod tests {
         assert_eq!(pulses(&upload(&raw_a, VARIANT_A)), C_UPLOAD_A.to_vec());
     }
 
-    /// Key files: ProtoPirate's lines (Raw, the verifying embedded key) round-trip for both
-    /// variants; a Flipper-ARF file (no Type: variant B) and a file without Raw load; a loaded key
-    /// transmits a fresh frame that decodes back.
+    /// Key files: ProtoPirate's lines (Raw; the verifying embedded key in doctor-firmware's byte
+    /// order) round-trip for both variants; a Flipper-ARF file (no Type: variant B) and a file
+    /// without Raw load; a loaded key transmits a fresh frame that decodes back.
     #[test]
     fn flipper_key_files() {
         use crate::protocols::flipper_key::testing::{assert_round_trip, key};
@@ -1045,7 +1084,7 @@ mod tests {
             text.ends_with(
                 "Protocol: Fiat V1\nBit: 102\nKey: EF B8 2D 66 4B 10 84 C7\nSerial: 4021824870\n\
                  Btn: 2\nCnt: 142\nType: 0\nHop: 1259373767\nXOR: 100\nTail Bits: 2\n\
-                 Raw: 00 01 EF B8 2D 66 22 39 2C 42 13 1E 64\nHitag2 Key: 6D 6B F2 1D 3A 1A\n\
+                 Raw: 00 01 EF B8 2D 66 22 39 2C 42 13 1E 64\nHitag2 Key: 3A 1A 6D 6B F2 1D\n\
                  Hitag2 Epoch: 0\nDisp: Fiat V1 - Trunk\n"
             ),
             "{text}"
@@ -1091,13 +1130,22 @@ mod tests {
     }
 
     /// Oracle vectors (see `fiat_v0::write_oracle_vector`): a variant-A frame signed with
-    /// embedded key 3, and a variant-B frame no key verifies (replayed).
+    /// embedded key 3, a variant-B frame no key verifies (replayed), and a variant-A frame signed
+    /// with a key no reference has, saved for its remote: its `.kat.txt` carries the key on the
+    /// `Hitag2 Key` line, which doctor-firmware must take (`load`: "KEY:OK").
     #[test]
     #[ignore]
     fn oracle_vectors() {
         let signed = FiatV1Decoder::build_raw(0xEFB82D66, BUTTON_TRUNK, 0x08E, 0x4B1084C7, 2);
         let plain = FiatV1Decoder::build_raw(0x12345678, BUTTON_CLOSE, 0x3FF, 0xDEADBEEF, 1);
-        for (name, raw, variant) in [("fiat_v1_1", signed, VARIANT_A), ("fiat_v1_2", plain, VARIANT_B)] {
+        let own_key = [0x54, 0x31, 0x2E, 0x38, 0x4B, 0x41];
+        let own_uid = 0x5EED_0F31;
+        hitag2_keys::tests::remember_for_test(own_uid, own_key);
+        let own_hop = hitag2::fiat_bcm_authenticator(own_uid, BUTTON_UNLOCK, 0x155, &own_key, 0);
+        let own = FiatV1Decoder::build_raw(own_uid, BUTTON_UNLOCK, 0x155, own_hop, 2);
+        for (name, raw, variant) in
+            [("fiat_v1_1", signed, VARIANT_A), ("fiat_v1_2", plain, VARIANT_B), ("fiat_v1_3", own, VARIANT_A)]
+        {
             let up = upload(&raw, variant);
             crate::protocols::fiat_v0::write_oracle_vector(
                 name,
@@ -1226,8 +1274,8 @@ mod tests {
 
     /// A key saved for the remote (`hitag2_keys.txt`, e.g. by "Recover key (HiTag2)") is used
     /// after the embedded keys: fresh frames instead of the replay, and the key on the `.sub`'s
-    /// Hitag2 lines. Saved in the standard order (a Renault V1 record of the remote), it serves
-    /// too.
+    /// Hitag2 lines, there in the standard order as doctor-firmware writes it. Saved in the
+    /// standard order (a Renault V1 record of the remote), it serves too.
     #[test]
     fn saved_key_signs_fresh_frames() {
         let fiat_key = [0x54, 0x31, 0x2E, 0x38, 0x4B, 0x41];
@@ -1248,7 +1296,58 @@ mod tests {
             let fresh = hitag2::fiat_bcm_authenticator(uid, BUTTON_LOCK, 0x156, &fiat_key, 0);
             assert_eq!(FiatV1Decoder::fields(&tx_raw).hop, fresh);
             let text = text_of(&dec, &sig);
-            assert!(text.contains("\nHitag2 Key: 54 31 2E 38 4B 41\nHitag2 Epoch: 0\n"), "{text}");
+            assert!(text.contains("\nHitag2 Key: 4B 41 54 31 2E 38\nHitag2 Epoch: 0\n"), "{text}");
+        }
+    }
+
+    /// A loaded key file's `Hitag2 Key` line becomes the remote's saved key when it reproduces the
+    /// frame's hop: in doctor-firmware's order (the standard one) and in ProtoPirate's and
+    /// Flipper-ARF's (the cipher's), with the line's epoch, also for another button than the
+    /// frame's. A key that does not fit, in either order, is left alone. What KAT then writes is
+    /// doctor-firmware's line.
+    #[test]
+    fn a_key_file_key_line_is_used() {
+        use crate::protocols::flipper_key::testing::key;
+        let cipher = [0x31, 0x2E, 0x31, 0x37, 0x4B, 0x41];
+        let standard = KeyOrder::FiatBcm.standard(cipher);
+        assert_eq!(standard, [0x4B, 0x41, 0x31, 0x2E, 0x31, 0x37]);
+        let hex = |k: [u8; 6]| k.map(|b| format!("{b:02X}")).join(" ");
+        let dec = FiatV1Decoder::new();
+        // (UID, the line, its epoch, the button the hop was made for): UIDs no other test uses.
+        let cases = [
+            (0x5EED_0F21u32, standard, 0u32, BUTTON_UNLOCK),
+            (0x5EED_0F22, cipher, 0, BUTTON_UNLOCK),
+            (0x5EED_0F23, standard, 5, BUTTON_LOCK),
+        ];
+        for (uid, line, epoch, signed_for) in cases {
+            let hop = hitag2::fiat_bcm_authenticator(uid, signed_for, 0x155, &cipher, epoch);
+            let raw = FiatV1Decoder::build_raw(uid, BUTTON_UNLOCK, 0x155, hop, 2);
+            let f = FiatV1Decoder::fields(&raw);
+            let file = |key_line: [u8; 6], epoch: u32| {
+                let mut k = FlipperKey::for_protocol("Fiat V1", LOGICAL_BITS, (u64::from(uid) << 32) | u64::from(hop));
+                k.push_u32("Type", VARIANT_A.into());
+                k.push_hex_bytes("Raw", &raw);
+                k.push_hex_bytes("Hitag2 Key", &key_line);
+                k.push_u32("Hitag2 Epoch", epoch);
+                k
+            };
+            // A key that fits in neither order, and the right key with another epoch.
+            let mut wrong = line;
+            wrong[3] ^= 0x10;
+            for bad in [file(wrong, epoch), file(line, epoch + 1)] {
+                assert!(dec.from_flipper_key(&bad).is_some());
+                assert_eq!(FiatV1Decoder::resolve_key(&f), None, "{uid:08X}");
+            }
+            let loaded = dec.from_flipper_key(&file(line, epoch)).unwrap();
+            assert_eq!(FiatV1Decoder::resolve_key(&f), Some((cipher, epoch)), "{uid:08X}");
+            assert_eq!(hitag2_keys::find(uid).and_then(|r| r.key), Some(cipher), "the database's order");
+            assert!(FiatV1Decoder::has_key(&loaded));
+            let text = text_of(&dec, &loaded);
+            assert!(text.contains(&format!("\nHitag2 Key: {}\nHitag2 Epoch: {epoch}\n", hex(standard))), "{text}");
+            // KAT's own line loads back, and a file KAT 1.16 wrote (the cipher's order) too.
+            assert_eq!(dec.from_flipper_key(&key(&text)), Some(loaded.clone()));
+            assert_eq!(dec.from_flipper_key(&file(cipher, epoch)), Some(loaded));
+            assert_eq!(FiatV1Decoder::resolve_key(&f), Some((cipher, epoch)));
         }
     }
 

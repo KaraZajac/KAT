@@ -1006,7 +1006,8 @@ mod tests {
         assert_eq!(n("Kia V1", 0x3), Some("Trunk"));
         assert_eq!(n("Kia V4", 0x8), Some("Horn"));
         assert_eq!(n("Kia V3/V4", 0x3), Some("Trunk"));
-        assert_eq!(n("Kia V5", 0x2), Some("Lock"));
+        assert_eq!(n("Kia V5", 0x1), Some("Lock"));
+        assert_eq!(n("Kia V5", 0x2), Some("Unlock"));
         assert_eq!(n("Kia V6", 0x4), Some("Panic"));
         assert_eq!(n("Kia V7", 0x3), Some("Trunk"));
         assert_eq!(n("Kia V7", 0x8), Some("Trunk"), "the references name 8 Trunk (KAT's Panic sends it)");

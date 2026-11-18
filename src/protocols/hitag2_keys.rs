@@ -10,17 +10,25 @@
 //! replaces that line, drops later ones and keeps the line's seed (`hitag2_key_db_save_key` +
 //! `_upsert`).
 //!
-//! The key bytes are as each firmware's protocol stores them: Fiat V1 (and so KAT's Fiat V2) in the
-//! order [`super::hitag2::fiat_bcm_authenticator`] takes (doctor-firmware's "cipher" order),
-//! Renault V1 in the standard HITAG2 order of [`super::hitag2::renault_authenticator`]
-//! (doctor-firmware's "Hitag2 Key" line). A protocol uses a record only once it reproduces the
+//! The key bytes are as each firmware's protocol stores them **in this file**: Fiat V1 (and so
+//! KAT's Fiat V2) in the order [`super::hitag2::fiat_bcm_authenticator`] takes (doctor-firmware's
+//! "cipher" order), Renault V1 in the standard HITAG2 order of
+//! [`super::hitag2::renault_authenticator`]. A protocol uses a record only once it reproduces the
 //! captured hop, as in the C (a record that does not verify is ignored); KAT also tries the bytes
 //! in the other order ([`keys_for`]), so a key saved from Fiat V1 captures serves the same remote
 //! decoded as Renault V1 (`IMPORTS/OPEL/Opel Vectra 2008.sub` decodes under both names).
 //!
+//! **Not the order of a key file's `Hitag2 Key` line.** doctor-firmware writes that line, and
+//! takes a typed-in key, in the standard order for both protocols
+//! (`fiat_v1_hitag2_key_cipher_to_disk`), and KAT writes it so too; only this file has a Fiat V1
+//! key in the cipher's order, which is the standard one with its first two bytes moved to the
+//! end ([`KeyOrder`]). So a Fiat V1 key copied out of this file by hand is not the key
+//! doctor-firmware's prompt wants.
+//!
 //! KAT reads the file once at startup ([`load`]) and writes it when "Recover key (HiTag2)" finds a
-//! key ([`save_key`]). The seed column (doctor-firmware's Renault seed) is kept but not read: KAT
-//! recovers Renault seeds from the frame itself.
+//! key ([`save_key`]) and when a loaded key file names a key that fits its frame
+//! ([`adopt_file_key`]). The seed column (doctor-firmware's Renault seed) is kept but not read:
+//! KAT recovers Renault seeds from the frame itself.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -77,6 +85,10 @@ static DB: RwLock<Vec<(u32, Record)>> = RwLock::new(Vec::new());
 
 /// Bumped on every change of [`DB`], so callers can memoise what they derive from it.
 static GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// The config folder [`load`] was called with: where [`adopt_file_key`] writes. `None` in the
+/// tests and in a headless run, which keep an adopted key for the process only.
+static CONFIG_DIR: RwLock<Option<PathBuf>> = RwLock::new(None);
 
 /// The database's version: it changes whenever a record is loaded or saved.
 pub fn generation() -> u64 {
@@ -179,6 +191,7 @@ fn remember(uid: u32, record: Record) {
 /// Read `<config dir>/hitag2_keys.txt` if it exists (once, at startup, before any transmit).
 /// Returns a status line for the user when there was a file.
 pub fn load(config_dir: &Path) -> Option<String> {
+    *CONFIG_DIR.write().unwrap_or_else(|e| e.into_inner()) = Some(config_dir.to_path_buf());
     let path = config_dir.join(FILE_NAME);
     let text = std::fs::read_to_string(&path).ok()?;
     let mut keys = 0;
@@ -249,6 +262,24 @@ pub fn save_key(config_dir: &Path, uid: u32, key: [u8; 6], epoch: u32) -> std::i
     Ok(path)
 }
 
+/// A key that a loaded key file names on its `Hitag2 Key` line and that the caller has checked
+/// against the file's frame: remote `uid` uses it from now on, in place of a record that did not
+/// fit the frame. With KAT's config folder known ([`load`]) it is also written to
+/// `hitag2_keys.txt`, as [`save_key`] does. doctor-firmware does the same for a remote without a
+/// record (`fiat_v1_resolve_hitag2_key`, `renault_v1_remember_key`). `key` is in the order this
+/// file has for the remote's protocol (module doc).
+pub fn adopt_file_key(uid: u32, key: [u8; 6], epoch: u32) {
+    if !uid_ok(uid) {
+        return;
+    }
+    let dir = CONFIG_DIR.read().unwrap_or_else(|e| e.into_inner()).clone();
+    match dir {
+        // The session keeps the key even when the file cannot be written.
+        Some(dir) => drop(save_key(&dir, uid, key, epoch)),
+        None => remember(uid, Record { key: Some(key), epoch: epoch & EPOCH_MASK, seed: find(uid).and_then(|r| r.seed) }),
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -292,6 +323,38 @@ pub(crate) mod tests {
         assert_eq!(KeyOrder::FiatBcm.arrange(std_key), [3, 4, 5, 6, 1, 2]);
         assert_eq!(KeyOrder::FiatBcm.standard([3, 4, 5, 6, 1, 2]), std_key);
         assert_eq!(KeyOrder::Standard.arrange(std_key), std_key);
+    }
+
+    /// A key from a key file: the remote uses it for the session (the tests have no config
+    /// folder, so nothing is written), a seed of its record is kept, and the UIDs the firmwares
+    /// refuse are refused.
+    #[test]
+    fn a_file_key_is_adopted() {
+        let uid = 0x5EED_0002;
+        assert_eq!(find(uid), None);
+        adopt_file_key(uid, [1, 2, 3, 4, 5, 6], 0x4_0003);
+        assert_eq!(find(uid), Some(Record { key: Some([1, 2, 3, 4, 5, 6]), epoch: 3, seed: None }));
+        remember(uid, Record { key: None, epoch: 0, seed: Some(7) });
+        adopt_file_key(uid, [6, 5, 4, 3, 2, 1], 0);
+        assert_eq!(find(uid), Some(Record { key: Some([6, 5, 4, 3, 2, 1]), epoch: 0, seed: Some(7) }));
+        adopt_file_key(0, [1; 6], 0);
+        adopt_file_key(u32::MAX, [1; 6], 0);
+        assert_eq!((find(0), find(u32::MAX)), (None, None));
+    }
+
+    /// With KAT's config folder known (`load`, at startup), an adopted key is written to the
+    /// file. (Other tests adopt keys meanwhile: their lines may be in the file too.)
+    #[test]
+    fn an_adopted_key_is_written_once_the_folder_is_known() {
+        let dir = std::env::temp_dir().join(format!("kat-hitag2-adopt-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(load(&dir), None, "no file yet");
+        adopt_file_key(0x5EED_0003, [0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6], 1);
+        *CONFIG_DIR.write().unwrap_or_else(|e| e.into_inner()) = None;
+        let text = std::fs::read_to_string(dir.join(FILE_NAME)).unwrap();
+        assert!(text.starts_with(HEADER) && text.contains("5EED0003 A1A2A3A4A5A6 1 -\n"), "{text}");
+        assert_eq!(find(0x5EED_0003).and_then(|r| r.key), Some([0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6]));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// Saving: a new file gets the header; the remote's line is replaced in place (seed kept,

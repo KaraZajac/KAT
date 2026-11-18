@@ -547,6 +547,9 @@ mod tests {
         // Trunk) — KAT 1.4 labelled 8 "Panic" like ProtoPirate's emulate key; Fiat V1 is AM | FM in
         // Flipper-ARF and doctor-firmware (union); Hyundai (unregistered) names the C's three codes.
         ("Kia V7", "buttons", "0=Other,1=Lock,2=Unlock,3=Trunk,4-7=Other,8=Trunk,9-255=Other"),
+        // 2026-11: Kia V5's 1 is Lock and 2 is Unlock, as doctor-firmware's `kia_v5.c` ("Close",
+        // "Open"); KAT 1.4 had Flipper-ARF's names, the two the other way round (kia_v5.rs).
+        ("Kia V5", "buttons", "0=Other,1=Lock,2=Unlock,3=Other,4=Trunk,5-7=Other,8=Horn,9-255=Other"),
         ("Fiat V1", "rf", "AM/FM"),
         // Flipper-ARF and FoxFW flag Subaru AM + FM (ProtoPirate AM; November 2026).
         ("Subaru", "rf", "AM/FM"),

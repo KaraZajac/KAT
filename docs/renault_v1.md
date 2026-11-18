@@ -32,7 +32,7 @@ frame is replayed byte-for-byte as doctor-firmware does.
 | Fiat V1 type-B frames behind this header | also listed as Renault V1 | Fiat V1 (by the header's HIGH) | Fiat V1 (doctor-firmware's rule) |
 | Serial-derived seed search (2^18) | on demand (minutes on a Flipper) | on demand | automatic (~10 ms) |
 | TX with recovered seed | fresh frame | fresh frame | fresh frame (ProtoPirate upload) |
-| TX with typed-in "Hitag2 Key" (+ epoch, key DB) | yes (epoch 0) | yes (8-epoch search, UID key DB) | UID key DB (`hitag2_keys.txt`, 8-epoch search); no key entry |
+| TX with typed-in "Hitag2 Key" (+ epoch, key DB) | yes (epoch 0) | yes (8-epoch search, UID key DB) | UID key DB (`hitag2_keys.txt`, 8-epoch search) and the `Hitag2 Key` line of a loaded key file; no prompt |
 | HiTag2 key recovery (Hitag2Hell) | — | — (qDoctor app) | on demand: **Recover key (HiTag2)**, 2 captures ([HiTag2 key recovery](hitag2_hell.md)) |
 | TX without key or seed | refuses | byte-identical replay | byte-identical replay (doctor upload) |
 
@@ -152,8 +152,11 @@ second-lowest place (`((key >> 32) & 0xF0) != 0x30`, no reason given); KAT keeps
    `epoch << 10 | cnt10` + 1, hop `hitag2::renault_authenticator(uid, btn, counter, key)` (= Fiat V1's
    cipher with the key rotated by two bytes), the captured tail bits; doctor-firmware's upload as in 3.
    The key file (`to_flipper_key`) then gets doctor-firmware's `Hitag2 Key` + `Hitag2 Epoch` lines.
-   ProtoPirate's typed-in "Hitag2 Key" (`hitag2_authenticator(uid, btn, cnt10 + 1, key)`, epoch 0) is not
-   reachable: KAT has no key entry.
+   A loaded key file's `Hitag2 Key` line (doctor-firmware's, or the key typed into ProtoPirate; both the
+   standard order) becomes the remote's saved key when it reproduces the frame's hop, with the line's
+   epoch or one of the next seven, else with 0 to 7 (`renault_v1_apply_stored_secret`,
+   `renault_v1_flipper_accept_hitag2_key`): for this run and in `hitag2_keys.txt`. KAT has no prompt
+   for a typed-in key.
 3. **No seed, no key:** doctor-firmware's encoder has no failure path without a key or seed and replays the
    captured Key/Key_2 byte-for-byte (any button). KAT does the same with doctor-firmware's upload in its
    default "Kangoo" variant: 255 pairs + one HIGH 125, 3 long frames, 8 short frames each closed by

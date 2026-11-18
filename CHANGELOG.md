@@ -2,6 +2,19 @@
 
 All notable changes to KAT are documented here.
 
+## [1.16.1] - 2026-11-18
+
+Two corrections that follow doctor-firmware. Kia V5's Lock and Unlock were the wrong way round. And a Fiat V1 key file had its HITAG2 key in a byte order doctor-firmware does not take; KAT now writes that firmware's order, and uses the key a loaded file names.
+
+### Changed
+
+- **A key file's `Hitag2 Key` line is used.** Loading a Fiat V1 or Renault V1 key file whose `Hitag2 Key` line reproduces the file's frame makes that key the remote's saved key, for the run and in `hitag2_keys.txt`, as doctor-firmware does. Fiat V1 lines are read in either byte order, so files from doctor-firmware, ProtoPirate, Flipper-ARF and older KAT versions all bring their key along. KAT ignored the line before.
+
+### Fixed
+
+- **Kia V5: Lock and Unlock were the wrong way round.** Button `1` is Lock and `2` is Unlock, as doctor-firmware has them; KAT had Flipper-ARF's names, with the two swapped. A capture that listed "Unlock" now lists "Lock", and Send's Lock and Unlock transmit `1` and `2`. Trunk (`4`) and Horn (`8`) are unchanged. `docs/kia_v5.md` says where each name comes from.
+- **Fiat V1 key files: the `Hitag2 Key` line had its bytes in an order doctor-firmware does not take.** KAT wrote the key as the Fiat cipher takes it, as ProtoPirate and Flipper-ARF do; doctor-firmware writes and expects the standard HITAG2 order, which has those bytes with the last two in front, so it showed `KEY:??` for a recovered key in a KAT file. KAT now writes doctor-firmware's order. ProtoPirate and Flipper-ARF do not take that line; no order serves all three. `hitag2_keys.txt` is unchanged: there doctor-firmware itself keeps a Fiat V1 key in the cipher's order.
+
 ## [1.16.0] - 2026-11-18
 
 Three remotes no reference reads, worked out from recordings their owners sent in: the Suzuki TS002, an old two-button Opel key and an old one-button Renault key. KAT can send the first two as well. And kat.karazajac.io gets the hardware: a page per remote with pictures of its circuit board, the chips, and example frames with their fields marked on every protocol's page.

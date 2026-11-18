@@ -131,7 +131,7 @@ doc comment has the details.
 | Honda V2 (PP) | `Honda V2` / 81 | Serial, Btn, BtnSig, Cnt, Check, Tail, ExtraBit | `Land Rover V0` files load |
 | Subaru (PP) | `Subaru` / 64 | Serial, Btn, Cnt, Disp | |
 | Fiat V0 (PP) | `Fiat V0` / 71 | Serial, Btn, Cnt, EndByte, Disp | Bit 64 or 71; button from EndByte, else `CRC`, else Btn |
-| Fiat V1 (PP) | `Fiat V1` / 102 | Serial, Btn, Cnt, Type, Hop, XOR, Tail Bits, Raw, Hitag2 Key + Epoch (when a key verifies), Disp | Raw validated; ARF files (no Type) load as variant B |
+| Fiat V1 (PP) | `Fiat V1` / 102 | Serial, Btn, Cnt, Type, Hop, XOR, Tail Bits, Raw, Hitag2 Key + Epoch (when a key verifies), Disp | Raw validated; ARF files (no Type) load as variant B; `Hitag2 Key` is written in doctor-firmware's byte order and read in either ([Fiat V1](fiat_v1.md)) |
 | Fiat V2 (PP) | `Fiat V2` / 112 | Serial, Btn, Cnt, Hop, Raw | Raw required |
 | Scher-Khan (PP) | `Scher-Khan` / 35–64, word | Serial, Btn, Cnt | frames over 64 bits are not written (the C keeps only 64) |
 | Star Line (PP) | `Star Line` / 64, word | Serial, Btn, Cnt, Manufacture | Manufacture restricts the key search, as in the C |
@@ -139,7 +139,7 @@ doc comment has the details.
 | Chrysler V0 (PP) | `Chrysler V0` / 80 | Key_2, Plain_A or Plain_B, Serial, Btn, Cnt | |
 | Mazda V0 (PP) | `Mazda V0` / 64 | Checksum, Serial, Btn, Cnt, Disp | |
 | Renault V0 (PP) | `Renault V0` / 82 | Serial, Btn, Cnt, Key2, Disp | checksum required |
-| Renault V1 (PP) | `Renault V1` / 88 | Key_2, Recovered, Seed, Serial, Btn, Cnt, Hop | the seed search reruns on load; `Bit: 82` keys go to Renault V1 (ARF) |
+| Renault V1 (PP) | `Renault V1` / 88 | Key_2, Recovered, Seed, Serial, Btn, Cnt, Hop, Hitag2 Key + Epoch (when a saved key verifies) | the seed search reruns on load; a `Hitag2 Key` line that fits the frame is used; `Bit: 82` keys go to Renault V1 (ARF) |
 | Sheriff CFM (ARF) | `Sheriff CFM` / 64 | Model, Serial, Btn, Cnt | must decrypt |
 | KeeLoq (ARF) | `KeeLoq` / 64 | Seed (the seed types: BFT, Erreka, Monarch, Phantom/Hiland, Dea_Mio; see [keeloq.md](keeloq.md)), Manufacture | the named manufacturer's keys validate the frame (TX then uses that manufacturer, as ARF); `Unknown`, no line, a name KAT's keystore lacks (doctor-firmware's brand names) or a key that does not validate: identified as on air, as the references load such a file |
 | Mazda Siemens (ARF) | `MazdaSiemens` / 64 | Serial, Btn, Cnt | |

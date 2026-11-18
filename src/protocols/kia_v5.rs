@@ -1,9 +1,16 @@
 //! Kia V5 decoder + encoder.
 //!
 //! Port of ProtoPirate `protocols/kia_v5.c` (HEAD 2026-10; the encoder dates from 2026-05-19 "Fix
-//! KIA V5 encoder", which KAT had not ported). Flipper-ARF's `kia_v5.c` builds the same upload and
-//! names the buttons (used below); its decoder only reports exactly-67-bit frames, a subset of
-//! ProtoPirate's ≥64 (C oracle on IMPORTS: 117 vs 119 frames), so KAT follows ProtoPirate.
+//! KIA V5 encoder", which KAT had not ported). Flipper-ARF's `kia_v5.c` builds the same upload;
+//! its decoder only reports exactly-67-bit frames, a subset of ProtoPirate's ≥64 (C oracle on
+//! IMPORTS: 117 vs 119 frames), so KAT follows ProtoPirate.
+//!
+//! **Buttons**: 0x1 Lock, 0x2 Unlock as doctor-firmware's `kia_v5.c` ("Close", "Open"); 0x4 Trunk
+//! and 0x8 Horn as Flipper-ARF's. ProtoPirate names none. (Until 1.16 KAT had Flipper-ARF's
+//! 0x1 Unlock, 0x2 Lock.) doctor-firmware also names 0x3 "Boot", which KAT does not take: the
+//! frame is laid out like Microchip's HCS360 code word, where the four button bits are four
+//! inputs and one button is 1, 2, 4 or 8. No recording in IMPORTS says which button was pressed
+//! (they hold 0x1 and 0x2), so Trunk and Horn are not checked against a remote.
 //!
 //! Air format (315 / 433.92 MHz, FM): Manchester, te_short 400µs / te_long 800µs (te_delta 150).
 //! Preamble of short pairs (>40 counted), a long HIGH sync, then the frame: 64 data bits and a 3-bit
@@ -34,7 +41,7 @@
 //! HIGH 800, LOW 400, HIGH 400, the 64 key bits + `0` + 2 CRC bits as Manchester (1 → LOW, HIGH;
 //! 0 → HIGH, LOW, 400µs halves), closing LOW 400 + HIGH 400; adjacent equal levels merged. One
 //! upload per call, which KAT sends 6 times as the C's TX loop does (`tx_copies.rs`). Each press sends counter + 1, as both
-//! references do; KAT's generic button maps to ARF's Kia V5 codes: Lock → 0x2, Unlock → 0x1,
+//! references do; KAT's generic button maps to the codes above: Lock → 0x1, Unlock → 0x2,
 //! Trunk → 0x4, Panic → 0x8 ("Horn"); anything else keeps the captured button.
 //!
 //! Key files: ProtoPirate's `kia_protocol_decoder_v5_serialize` — "Kia V5", Bit 64..67, Key, Serial,
@@ -68,11 +75,12 @@ pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     presets: &[&FM476],
 };
 
-/// Flipper-ARF kia_v5.c names.
+/// Lock and Unlock as doctor-firmware's kia_v5.c ("Close", "Open"), Trunk and Horn as
+/// Flipper-ARF's (see the module docs).
 fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
     Some(match code {
-        0x1 => "Unlock",
-        0x2 => "Lock",
+        0x1 => "Lock",
+        0x2 => "Unlock",
         0x4 => "Trunk",
         0x8 => "Horn",
         _ => "Other",
@@ -370,8 +378,8 @@ impl ProtocolDecoder for KiaV5Decoder {
         let captured = decoded.button.unwrap_or(p_button) & 0x0F;
         let counter = decoded.counter.unwrap_or(p_counter).wrapping_add(1);
         let button = match button {
-            0x01 => 0x2,
-            0x02 => 0x1,
+            0x01 => 0x1,
+            0x02 => 0x2,
             0x04 => 0x4,
             0x08 => 0x8,
             _ => captured,
@@ -522,15 +530,16 @@ mod tests {
         }
     }
 
-    /// encode(): counter + 1 and KAT's generic button mapped to ARF's Kia V5 codes.
+    /// encode(): counter + 1 and KAT's generic button mapped to the Kia V5 codes (Lock 0x1,
+    /// Unlock 0x2); another command keeps the captured button (here 0x4).
     #[test]
     fn encode_bumps_counter_and_maps_buttons() {
         keys::load_keystore_from_embedded();
         let (key, serial, _, counter, _) = C_CAPTURE[0];
-        for (generic, want) in [(0x01u8, 0x2u8), (0x02, 0x1), (0x04, 0x4), (0x08, 0x8), (0x40, 0x1)] {
+        for (generic, want) in [(0x01u8, 0x1u8), (0x02, 0x2), (0x04, 0x4), (0x08, 0x8), (0x40, 0x4)] {
             let src = DecodedSignal {
                 serial: Some(serial),
-                button: Some(0x1),
+                button: Some(0x4),
                 counter: Some(counter),
                 crc_valid: true,
                 data: key,
@@ -594,9 +603,11 @@ mod tests {
             let (serial, button, counter) = parse_key(l.data);
             assert_eq!((l.serial, l.button, l.counter), (Some(serial), Some(button), Some(counter)));
             assert_eq!((l.data_count_bit, l.extra, l.crc_valid), (67, Some(3), false));
-            // TX from the loaded key: same serial, counter + 1, fresh CRC.
+            // TX from the loaded key (button 0x2, Unlock): Lock sends 0x1; same serial,
+            // counter + 1, fresh CRC.
+            assert_eq!(button, 0x2);
             let tx = feed_all(&dec.encode(&l, 0x01).unwrap());
-            assert_eq!((tx[0].serial, tx[0].button, tx[0].counter, tx[0].crc_valid), (Some(serial), Some(0x2), Some(counter.wrapping_add(1)), true));
+            assert_eq!((tx[0].serial, tx[0].button, tx[0].counter, tx[0].crc_valid), (Some(serial), Some(0x1), Some(counter.wrapping_add(1)), true));
         }
         // An edited counter rebuilds the frame (mixer re-encrypted, fresh CRC); other Bits fail.
         let e = dec.from_flipper_key(&key(&text.replace("Cnt: 21344", "Cnt: 21400"))).unwrap();

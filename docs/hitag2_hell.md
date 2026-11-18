@@ -133,14 +133,28 @@ and from a Flipper running either.
 One line per remote: the UID (8 hex digits), the key (12 hex digits, or `-`), the epoch (decimal, or
 `-` without a key) and doctor-firmware's Renault seed (8 hex digits, or `-`; KAT keeps it but recovers
 seeds from the frame itself). The first line of a UID counts. The key is stored as each firmware's
-protocol stores it: Fiat V1 (and Fiat V2) in the order the Fiat cipher takes it, the standard HITAG2
-order rotated by two bytes; Renault V1 in the standard order. KAT tries a key in both orders, so a key
-found from Fiat V1 captures serves the same remote decoded as Renault V1. Every use checks the key
+protocol stores it in this file: Fiat V1 (and Fiat V2) in the order the Fiat cipher takes it, the standard
+HITAG2 order rotated by two bytes; Renault V1 in the standard order. KAT tries a key in both orders, so a
+key found from Fiat V1 captures serves the same remote decoded as Renault V1. Every use checks the key
 against the captured hop first; a line that does not verify is ignored, as in the firmwares.
 
-KAT reads the file at startup and writes it when **Recover key (HiTag2)** finds a key: the remote's
-line is replaced (its seed kept), or appended; other lines and comments stay. A key can also be added by
-hand. The `Hitag2 Key` line of a loaded key file is not read (KAT has no key entry).
+**Which order is where.** The status line after a search and the `Hitag2 Key` line of a key file have the
+standard order, for both protocols, as doctor-firmware's files and its key prompt do. Only this file
+has a Fiat V1 key in the cipher's order:
+
+| | Fiat V1 key `4B 41 54 31 2E 38` | Renault V1 key |
+|---|---|---|
+| Status line, `Hitag2 Key` line of a key file, doctor-firmware's prompt | `4B4154312E38` | as it is |
+| `hitag2_keys.txt` (KAT's and doctor-firmware's) | `54312E384B41` | as it is |
+
+So to type a Fiat V1 key from this file into doctor-firmware, move its last two bytes to the front; or
+send the capture's key file instead, which has the key in the order the firmware wants.
+(ProtoPirate and Flipper-ARF want the cipher's order on that line and do not take KAT's;
+[Fiat V1](fiat_v1.md) has the comparison.)
+
+KAT reads the file at startup. It writes it when **Recover key (HiTag2)** finds a key, and when a loaded
+key file has a `Hitag2 Key` line that reproduces the file's frame: the remote's line is replaced (its seed
+kept), or appended; other lines and comments stay. A key can also be added by hand, in either order.
 
 **With the key**, the encoders build a fresh frame (otherwise they replay the captured one):
 

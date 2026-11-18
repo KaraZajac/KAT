@@ -28,7 +28,7 @@ below, which KAT also has). What they add, and KAT therefore also does:
 | Capability | ProtoPirate | Flipper-ARF | doctor-firmware | KAT |
 |---|---|---|---|---|
 | Embedded keys | 9 | 8 (PP's first 8) | 9 | 9 |
-| Typed-in "Hitag2 Key" (+ epoch) | yes | yes (from its BF scene) | yes | no key entry |
+| Typed-in "Hitag2 Key" (+ epoch) | yes | yes (from its BF scene) | yes | no prompt; the `Hitag2 Key` line of a loaded key file is used |
 | Key dictionary + heuristics (L2/L4) | — | on demand (BF scene) | — | automatic, every frame |
 | Hitag2Hell key recovery (L5) | — | on demand, needs 2 captures for a unique key | — | on demand: **Recover key (HiTag2)**, 2 captures ([HiTag2 key recovery](hitag2_hell.md)) |
 | UID → key database | — | yes | yes | yes (`hitag2_keys.txt`, same format) |
@@ -158,8 +158,35 @@ doctor-firmware keep in `subghz/assets/` (same format and byte order, so it can 
 and the remote's captures then transmit fresh frames. The Panda capture contains a single frame, so
 its key cannot be recovered.
 
-**Not ported:** *typed-in keys* (doctor-firmware's "Hitag2 Key" entry, and the `Hitag2 Key` line of
-a loaded file): KAT has no key entry; a key can be added to `hitag2_keys.txt` by hand instead.
+### The `Hitag2 Key` line of a key file
+
+When an embedded key or the remote's saved key reproduces the frame's hop, KAT writes it into the key file
+as `Hitag2 Key` and `Hitag2 Epoch`. The firmwares do not agree on the order of the six bytes:
+
+| Firmware | `Hitag2 Key` in a Fiat V1 file | The same key |
+|---|---|---|
+| doctor-firmware (also its typed-in key) | the standard HITAG2 order | `4B 41 54 31 2E 38` |
+| ProtoPirate, Flipper-ARF | as the Fiat cipher takes the bytes: the standard order with its first two bytes at the end | `54 31 2E 38 4B 41` |
+| **KAT** | as doctor-firmware | `4B 41 54 31 2E 38` |
+
+Each side refuses the other's line. With one frame signed by that key, doctor-firmware's compiled C shows
+`KEY:OK` for the first line and `KEY:??` for the second, ProtoPirate's the reverse, and Flipper-ARF shows the
+key only for the second. So no line serves all three. Up to 1.16 KAT wrote the second, and doctor-firmware
+did not take a recovered key from a KAT file; KAT now writes doctor-firmware's, and ProtoPirate and
+Flipper-ARF do not take it. (For the nine embedded keys this changes nothing in what they send: each
+finds those in its own list.)
+
+**Loading.** KAT reads the line in either order. The key that reproduces the frame's hop, with the line's
+epoch, for the frame's button or any of 1/2/4/8, becomes the remote's saved key: for this run, and in
+`hitag2_keys.txt`, as doctor-firmware saves a file's key in its own database. A key that does not fit is
+ignored. So a file from any of the three firmwares, and a file an older KAT wrote, brings its key along.
+
+**`hitag2_keys.txt` has the other order.** In that file a Fiat V1 key is stored as the cipher takes it, in
+doctor-firmware's own database as in KAT's (the file can be copied either way). A key read out of it by
+hand is therefore not what doctor-firmware's prompt wants: move its last two bytes to the front.
+
+**Not ported:** a prompt for a typed-in key. A key can be added to `hitag2_keys.txt` by hand, in either
+order.
 
 ## Validation
 

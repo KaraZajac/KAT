@@ -200,7 +200,8 @@ behind, buffers are dropped (logged) rather than stalling USB.
 ## IQ files
 
 Supported: `.cs8` (signed 8-bit I/Q, `hackrf_transfer`), `.cu8` (unsigned 8-bit, `rtl_sdr`,
-`rtl_433 -w`), `.cf32` / `.cfile` / `.complex` (float32, GNU Radio, URH). Files are processed on a
+`rtl_433 -w`), `.cf32` / `.cfile` / `.complex` (float32, GNU Radio, URH), and what a PortaPack's
+Capture app writes: `.C8` (signed 8-bit) and `.C16` (signed 16-bit). Files are processed on a
 background thread; progress shows in the status-bar title and the result in the status line. Captures
 go through the same decoding, duplicate (`ignore_duplicates`) and unknown-signal (`show_unknown_signals`)
 rules as live ones, with or without a radio.
@@ -219,6 +220,19 @@ or to the import/export directories; `:iq stop` cancels), or pick the file in th
 Frequency and rate default to what the file name says, else the current frequency and 2 MS/s.
 Understood names: KAT's own (below), rtl_433 (`g001_433.92M_250k.cu8`), gqrx-style bare numbers
 (`…_433920000_2000000_…`), and tokens like `433.92MHz`, `2Msps`, `2.4M`, `250k`.
+
+**PortaPack captures.** A PortaPack (Mayhem) saves `NAME.C16` or `NAME.C8` and, beside it, `NAME.TXT` with
+the capture's settings:
+
+```text
+center_frequency=433650000
+sample_rate=1000000
+```
+
+Keep the two files together: KAT reads frequency and rate from the `.TXT` (before the file name's
+hints; `--freq`, `--rate` and the `:iq` arguments still win), so `kat --decode NAME.C16` or `:iq NAME.C8`
+needs nothing more. Without the `.TXT` the rate has to be given: the samples do not say it, and at a wrong
+rate nothing decodes. A capture below 200 kS/s is too slow for KAT, as any recording is.
 
 **`:record [file]` / `:record stop`** writes the IQ exactly as received (HackRF `.cs8`, RTL-SDR `.cu8`)
 to the export directory, on a writer thread (the receive path never waits for the disk; if the disk

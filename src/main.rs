@@ -79,7 +79,8 @@ const USAGE: &str = "Usage: kat [--iq <file> [--freq <MHz|Hz>] [--rate <S/s>]]
        kat --keeloq-bf <file|dir>... [--type auto|6|7|8] [--save] [--freq <MHz|Hz>] [--rate <S/s>]
 
   --iq <file>     Decode an IQ recording at startup, with or without a radio attached:
-                  .cs8 (hackrf_transfer), .cu8 (rtl_sdr / rtl_433), .cf32 (GNU Radio, URH)
+                  .cs8 (hackrf_transfer), .cu8 (rtl_sdr / rtl_433), .cf32 (GNU Radio, URH),
+                  .C8 / .C16 (PortaPack; its .TXT beside the file gives frequency and rate)
   -d, --decode <p>...
                   Decode files without the TUI and print one line per distinct decode:
                   Flipper .sub (RAW or key files) and IQ recordings; directories are searched
@@ -92,10 +93,10 @@ const USAGE: &str = "Usage: kat [--iq <file> [--freq <MHz|Hz>] [--rate <S/s>]]
                   --type: auto (6, then 7; the default), 6, 7 or 8 (8 searches 2^40 keys and
                   needs three captures); --save adds the key to keeloq_mfcodes_user as BF_<serial>.
   --freq <f>      Centre frequency of the recording, MHz (433.92) or Hz (433920000);
-                  default: from the file name, else the configured frequency (433.92 MHz
-                  for --decode)
-  --rate <r>      Sample rate, 200k to 40M S/s (2M, 2.4M, 250k, 2048000); default: from the
-                  file name, else 2M
+                  default: from a PortaPack's .TXT or the file name, else the configured
+                  frequency (433.92 MHz for --decode)
+  --rate <r>      Sample rate, 200k to 40M S/s (2M, 2.4M, 250k, 2048000); default: from a
+                  PortaPack's .TXT or the file name, else 2M
   -h, --help      Show this help
   -V, --version   Show the version
 
@@ -114,7 +115,7 @@ fn file_hint(path: &str) -> String {
     } else if export::has_extension(p, "fob") {
         format!("open it in the app with :load {path}")
     } else {
-        "KAT reads .sub and .fob files and .cs8 / .cu8 / .cf32 recordings".to_string()
+        "KAT reads .sub and .fob files and .cs8 / .cu8 / .cf32 / .C8 / .C16 recordings".to_string()
     }
 }
 
@@ -152,7 +153,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<CliAction, Strin
                 let v = flag_value(inline, &mut it, "--iq")?;
                 // A .sub or .fob would pass the existence check and then fail inside the TUI.
                 if !radio::iq_file::is_iq_path(std::path::Path::new(&v)) {
-                    return Err(format!("--iq {v}: not an IQ recording (.cs8, .cu8, .cf32); {}", file_hint(&v)));
+                    return Err(format!("--iq {v}: not an IQ recording ({}); {}", radio::iq_file::IQ_EXTENSIONS, file_hint(&v)));
                 }
                 opts.iq = Some(std::path::PathBuf::from(v));
             }

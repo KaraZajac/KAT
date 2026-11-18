@@ -4,9 +4,11 @@
 //! without any radio attached.
 //!
 //! Formats: `.cs8` (hackrf_transfer, signed 8-bit), `.cu8` (rtl_sdr / rtl_433, unsigned 8-bit),
-//! `.cf32` (GNU Radio / URH float32). Centre frequency and sample rate come from the command, else
-//! from the file name (KAT `kat_<centre>Hz_<rate>sps[_rx<target>Hz]_…`, rtl_433 `…_433.92M_250k`,
-//! gqrx-style bare numbers), else the current frequency and 2 MS/s.
+//! `.cf32` (GNU Radio / URH float32), and a PortaPack's `.C8` (signed 8-bit) and `.C16` (signed
+//! 16-bit). Centre frequency and sample rate come from the command, else from the text file a
+//! PortaPack writes beside its capture ([`sidecar_hints`]), else from the file name (KAT
+//! `kat_<centre>Hz_<rate>sps[_rx<target>Hz]_…`, rtl_433 `…_433.92M_250k`, gqrx-style bare
+//! numbers), else the current frequency and 2 MS/s.
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -22,8 +24,10 @@ use super::dsp::IqFormat;
 use super::pipeline::RxPipeline;
 use super::rx::burst_captures;
 
-/// Default sample rate when neither the command nor the file name gives one.
+/// Default sample rate when neither the command, a sidecar file nor the file name gives one.
 pub const DEFAULT_FILE_RATE: u32 = 2_000_000;
+/// The IQ file names KAT reads, for messages.
+pub const IQ_EXTENSIONS: &str = ".cs8, .cu8, .cf32, .C8, .C16";
 /// Lowest sample rate the pipeline decodes (`kat --rate` checks it up front).
 pub const MIN_FILE_RATE: u32 = 200_000;
 
@@ -154,6 +158,42 @@ pub fn parse_rate_arg(s: &str) -> Option<u32> {
     (100e3..=40e6).contains(&v).then(|| v.round() as u32)
 }
 
+/// The most a sidecar text file is read: Mayhem's is under a hundred bytes.
+const SIDECAR_MAX_BYTES: u64 = 4096;
+
+/// Centre frequency and sample rate from the text of a PortaPack capture's `.TXT` (Mayhem's
+/// `metadata_file.cpp`): lines `center_frequency=<Hz>` and `sample_rate=<S/s>`, decimal. Other
+/// lines (its `latitude`, `longitude`, …) and values that are not a number above 0 are ignored.
+pub fn parse_sidecar(text: &str) -> NameHints {
+    let mut hints = NameHints::default();
+    for line in text.lines() {
+        let Some((key, value)) = line.split_once('=') else { continue };
+        let Some(value) = value.trim().parse::<u32>().ok().filter(|&v| v > 0) else { continue };
+        match key.trim() {
+            "center_frequency" => hints.centre = Some(value),
+            "sample_rate" => hints.rate = Some(value),
+            _ => {}
+        }
+    }
+    hints
+}
+
+/// What the text file beside a recording says: `<name>.TXT` (or `.txt`) next to `<name>.C16`, as
+/// a PortaPack's Capture app writes it. Nothing when there is no such file.
+pub fn sidecar_hints(path: &Path) -> NameHints {
+    for ext in ["TXT", "txt"] {
+        let Ok(file) = std::fs::File::open(path.with_extension(ext)) else { continue };
+        let mut text = String::new();
+        if file.take(SIDECAR_MAX_BYTES).read_to_string(&mut text).is_ok() {
+            let hints = parse_sidecar(&text);
+            if hints != NameHints::default() {
+                return hints;
+            }
+        }
+    }
+    NameHints::default()
+}
+
 /// What to process.
 #[derive(Debug, Clone)]
 pub struct IqFileSpec {
@@ -167,19 +207,21 @@ pub struct IqFileSpec {
 }
 
 impl IqFileSpec {
-    /// Build a spec: explicit arguments win, then file-name hints, then the defaults.
+    /// Build a spec: explicit arguments win, then the capture's sidecar text file, then
+    /// file-name hints, then the defaults.
     pub fn resolve(path: PathBuf, freq: Option<u32>, rate: Option<u32>, default_freq: u32) -> Result<Self, String> {
         let format = IqFormat::from_path(&path)
-            .ok_or_else(|| format!("{}: not an IQ file (.cs8, .cu8, .cf32)", path.display()))?;
+            .ok_or_else(|| format!("{}: not an IQ file ({IQ_EXTENSIONS})", path.display()))?;
         let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        let side = sidecar_hints(&path);
         let hints = parse_name_hints(name);
-        let centre = freq.or(hints.centre).unwrap_or(default_freq);
+        let centre = freq.or(side.centre).or(hints.centre).unwrap_or(default_freq);
         // A KAT recording names its target relative to its centre; keep that offset.
         let target = match (hints.centre, hints.target) {
             (Some(c), Some(t)) => (centre as i64 + t as i64 - c as i64).clamp(1, u32::MAX as i64) as u32,
             _ => centre,
         };
-        let sample_rate = rate.or(hints.rate).unwrap_or(DEFAULT_FILE_RATE);
+        let sample_rate = rate.or(side.rate).or(hints.rate).unwrap_or(DEFAULT_FILE_RATE);
         if sample_rate < MIN_FILE_RATE {
             return Err(format!("Sample rate {sample_rate} S/s is too low (need ≥ 200 kS/s)"));
         }
@@ -427,5 +469,39 @@ mod tests {
         let s = IqFileSpec::resolve(PathBuf::from("fob.cu8"), None, Some(2_048_000), 868_350_000).unwrap();
         assert_eq!((s.format, s.centre_hz, s.target_hz, s.sample_rate), (IqFormat::Cu8, 868_350_000, 868_350_000, 2_048_000));
         assert!(IqFileSpec::resolve(PathBuf::from("fob.sub"), None, None, 0).is_err());
+    }
+
+    /// A PortaPack capture: `.C8` / `.C16` with the `.TXT` its Capture app writes beside it.
+    #[test]
+    fn portapack_captures() {
+        // Mayhem's file, with the lines it adds when it has a position.
+        let text = "center_frequency=433650000\nsample_rate=1000000\nlatitude=1.2345678\nlongitude=2.3456789\n";
+        assert_eq!(parse_sidecar(text), NameHints { centre: Some(433_650_000), rate: Some(1_000_000), target: None });
+        assert_eq!(parse_sidecar("sample_rate = 500000 \r\n"), NameHints { centre: None, rate: Some(500_000), target: None });
+        for junk in ["", "notes about this fob", "center_frequency=\nsample_rate=0\n", "sample_rate=fast", "sample_rate=-5"] {
+            assert_eq!(parse_sidecar(junk), NameHints::default(), "{junk:?}");
+        }
+
+        let dir = std::env::temp_dir().join(format!("kat-portapack-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        // No sidecar: the formats alone, the name's hints and the defaults as for any recording.
+        let s = IqFileSpec::resolve(dir.join("BBD_0001.C16"), None, None, 315_000_000).unwrap();
+        assert_eq!((s.format, s.centre_hz, s.sample_rate), (IqFormat::Cs16, 315_000_000, DEFAULT_FILE_RATE));
+        let s = IqFileSpec::resolve(dir.join("fob_433.92M_250k.c8"), None, None, 0).unwrap();
+        assert_eq!((s.format, s.centre_hz, s.sample_rate), (IqFormat::Cs8, 433_920_000, 250_000));
+        // With it: the sidecar wins over the name, the command over both.
+        std::fs::write(dir.join("BBD_0001.TXT"), "center_frequency=433650000\nsample_rate=1000000\n").unwrap();
+        let s = IqFileSpec::resolve(dir.join("BBD_0001.C16"), None, None, 315_000_000).unwrap();
+        assert_eq!((s.centre_hz, s.target_hz, s.sample_rate), (433_650_000, 433_650_000, 1_000_000));
+        let s = IqFileSpec::resolve(dir.join("BBD_0001.C16"), Some(433_920_000), Some(500_000), 0).unwrap();
+        assert_eq!((s.centre_hz, s.sample_rate), (433_920_000, 500_000));
+        std::fs::write(dir.join("fob_433.92M_250k.txt"), "sample_rate=2000000\n").unwrap();
+        let s = IqFileSpec::resolve(dir.join("fob_433.92M_250k.c8"), None, None, 0).unwrap();
+        assert_eq!((s.centre_hz, s.sample_rate), (433_920_000, 2_000_000), "lower-case .txt; the name's frequency stays");
+        // A rate the pipeline cannot decode is refused as for any file.
+        std::fs::write(dir.join("slow.TXT"), "center_frequency=433920000\nsample_rate=100000\n").unwrap();
+        assert!(IqFileSpec::resolve(dir.join("slow.C16"), None, None, 0).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -2,6 +2,13 @@
 
 All notable changes to KAT are documented here.
 
+## [Unreleased]
+
+### Added
+
+- **PortaPack captures open as they are.** KAT reads the `.C8` (signed 8-bit) and `.C16` (signed 16-bit) IQ files a PortaPack's Capture app writes, with `--decode`, `--iq`, `:iq` and the `:load` browser, and takes the sample rate and the frequency from the `.TXT` the PortaPack saves beside the capture (`center_frequency=`, `sample_rate=`). `--freq` and `--rate` still win; without the `.TXT` the rate has to be given. ([Receive chain](docs/radio.md#iq-files))
+- **A 2019 Honda Civic EX's remote** (`IMPORTS/honda/2019_honda_civic_ex_lock_x3_unlock_x2.sub`, sent in by a tester as a PortaPack capture): the first recording of Honda V5 from a known car. Three presses of Lock and two of Unlock, all read. `docs/honda_v5.md` has what the samples show of the signal (2-FSK ±16 kHz, 7873 bit/s, a wake-up burst before each frame) and why KAT has no encoder for it: the rolling word behaves as a cipher's output.
+
 ## [1.16.1] - 2026-11-18
 
 Two corrections that follow doctor-firmware. Kia V5's Lock and Unlock were the wrong way round. And a Fiat V1 key file had its HITAG2 key in a byte order doctor-firmware does not take; KAT now writes that firmware's order, and uses the key a loaded file names.

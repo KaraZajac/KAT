@@ -26,7 +26,7 @@ Its 160 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPira
 - **A Flipper Zero as the radio** — plugged in over USB, with no app to install: KAT reads the pulses its receiver streams (`subghz rx_raw`), cuts each decoded frame out of the receiver's noise and lists it like an SDR's, and transmits its own encoders' output as a RAW `.sub` played with `subghz tx_from_file` (OOK or 2-FSK). FM reception needs doctor-firmware ([docs/flipper_radio.md](docs/flipper_radio.md)).
 - **Several radios at once** — every HackRF, RTL-SDR and Flipper Zero plugged in, each tuned on its own (frequency, gains, hopping, recording): listen on 315 and 433.92 MHz at once, or transmit with one radio while another listens and shows the transmission decodes. The header has a line per radio, each capture says which radio heard it, and `:radios` lists what is plugged in and what each can do ([docs/radio.md](docs/radio.md#several-radios)).
 - **Frequency hopping** — `:hop` cycles Flipper's hopper list (315.00, 390.00, 430.50, 433.92, 434.25, 434.42, 868.35 MHz) and stays on a frequency while a signal is on air, like ProtoPirate.
-- **IQ recordings** — decode `.cs8` (hackrf_transfer), `.cu8` (rtl_sdr / rtl_433) and `.cf32` recordings without a radio, and record the raw IQ while receiving (`:record`).
+- **IQ recordings** — decode `.cs8` (hackrf_transfer), `.cu8` (rtl_sdr / rtl_433), `.cf32` and PortaPack `.C8` / `.C16` recordings without a radio, and record the raw IQ while receiving (`:record`).
 
 **Decode**
 
@@ -166,7 +166,7 @@ kat --help                                  # all options; --version prints the 
 
 `--decode` prints `file | frequency | source | protocol | xcount | data=…/bits sn= btn= cnt= crc= tx=` per distinct decode (with `autobf`, an undecrypted PSA frame's line ends `key=BF1` / `key=BF2` with the fields its key decrypts, or `key=none`) (`source` is `raw`, `key`, or the IQ path `am`/`fm`); `--all` prints every decode in stream order, `--verbose` also dumps each IQ burst (time, length, SNR, carrier offset, FSK deviation, pulses) to stderr. Files whose name carries no rate (e.g. rtl_433 `gfile001.cu8`) need `--rate`.
 
-`--freq` and `--rate` default to values in the recording's file name (e.g. `kat_433670000Hz_2000000sps_….cs8`), else the configured frequency and 2 MS/s. `--rate` takes 200 kS/s to 40 MS/s; `--iq` takes IQ recordings (`.cs8`, `.cu8`, `.cf32`) — `.sub` files go to `--decode`, or open in the app with `:load`. `-d` and `-v` are short for `--decode` and `--verbose`.
+`--freq` and `--rate` default to the `.TXT` a PortaPack writes beside its capture, then to values in the recording's file name (e.g. `kat_433670000Hz_2000000sps_….cs8`), else the configured frequency and 2 MS/s. `--rate` takes 200 kS/s to 40 MS/s; `--iq` takes IQ recordings (`.cs8`, `.cu8`, `.cf32`, `.C8`, `.C16`) — `.sub` files go to `--decode`, or open in the app with `:load`. `-d` and `-v` are short for `--decode` and `--verbose`.
 
 Exit status: `0` on success; `1` when `--decode` could not read a file or found nothing to decode (an empty folder, or only `.fob` files), or `--keeloq-bf` found no key; `2` for a bad argument or a missing `--iq` / `--keeloq-bf` file. `--keeloq-bf` shows its progress line only on a terminal.
 
@@ -252,7 +252,7 @@ Press `:` and type a command (`:help` lists them); the command word works in any
 | `:hop <MHz> <MHz> …` | Set the hop list (`:hop default` restores Flipper's list; `:hop dwell <ms>` sets the time per quiet frequency) |
 | `:lna <0-40>` / `:vga <0-62>` / `:amp [on\|off]` | A HackRF's receive gains and RF amplifier (`:amp` alone toggles it): LNA in 8 dB steps, VGA in 2 dB steps; a value in between goes to the step below, and the message says so. An RTL-SDR has one gain, which `:vga` sets; a Flipper Zero has none (its receive preset sets them), and the commands a radio has no use for say so |
 | `:txpower <0-47> [amp on/off]` | TX VGA gain and RF amp for every transmission of a HackRF (a Flipper Zero sends at its own power); no argument shows the setting |
-| `:iq <file> [MHz] [rate]` | Decode a `.cs8` / `.cu8` / `.cf32` IQ recording in the background (no radio needed); `:iq stop` cancels |
+| `:iq <file> [MHz] [rate]` | Decode a `.cs8` / `.cu8` / `.cf32` / PortaPack `.C8` / `.C16` IQ recording in the background (no radio needed); `:iq stop` cancels |
 | `:record [file]` / `:record stop` | Record the raw IQ as received to the export folder (`.cs8` for HackRF, `.cu8` for RTL-SDR) |
 | `:load [file\|dir]` | Import a `.fob` or `.sub` file, or decode an IQ recording; a directory, or no argument, opens the file browser there. A path is looked up as given, then in the import and export folders; quotes and `~` work (`:load "My Fob.sub"`). In the browser `←` / `Backspace` go to the parent folder and `→` opens a folder |
 | `:lock <ID>` / `:unlock <ID>` / `:trunk <ID>` / `:panic <ID>` | Transmit that button's next code |

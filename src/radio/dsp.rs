@@ -22,10 +22,13 @@ pub type C32 = Complex32;
 /// Raw interleaved IQ sample formats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IqFormat {
-    /// Signed 8-bit I, Q (HackRF, `hackrf_transfer -r`): `.cs8`
+    /// Signed 8-bit I, Q (HackRF, `hackrf_transfer -r`): `.cs8`; a PortaPack's `.C8`
     Cs8,
     /// Unsigned 8-bit I, Q centred on 127.5 (RTL-SDR, `rtl_sdr`): `.cu8`
     Cu8,
+    /// Little-endian signed 16-bit I, Q: a PortaPack's `.C16` (its Capture app's format up to
+    /// 1.25 MS/s; Mayhem's `complex16_t`), `.cs16`
+    Cs16,
     /// Little-endian 32-bit float I, Q in [-1, 1] (GNU Radio, URH, gqrx `.raw`): `.cf32`
     Cf32,
 }
@@ -35,6 +38,7 @@ impl IqFormat {
     pub fn bytes_per_sample(self) -> usize {
         match self {
             IqFormat::Cs8 | IqFormat::Cu8 => 2,
+            IqFormat::Cs16 => 4,
             IqFormat::Cf32 => 8,
         }
     }
@@ -44,15 +48,18 @@ impl IqFormat {
         match self {
             IqFormat::Cs8 => "cs8",
             IqFormat::Cu8 => "cu8",
+            IqFormat::Cs16 => "cs16",
             IqFormat::Cf32 => "cf32",
         }
     }
 
-    /// Format from a file extension (case-insensitive). `.cfile`/`.complex`/`.fc32` are cf32 too.
+    /// Format from a file extension (case-insensitive). `.cfile`/`.complex`/`.fc32` are cf32 too;
+    /// `.c8` and `.c16` are what a PortaPack (Mayhem) writes: signed 8-bit and signed 16-bit.
     pub fn from_extension(ext: &str) -> Option<Self> {
         match ext.to_ascii_lowercase().as_str() {
-            "cs8" => Some(IqFormat::Cs8),
+            "cs8" | "c8" => Some(IqFormat::Cs8),
             "cu8" => Some(IqFormat::Cu8),
+            "cs16" | "c16" => Some(IqFormat::Cs16),
             "cf32" | "fc32" | "cfile" | "complex" => Some(IqFormat::Cf32),
             _ => None,
         }
@@ -64,7 +71,8 @@ impl IqFormat {
     }
 
     /// Convert whole samples from `bytes` (any trailing partial sample is ignored) and append them
-    /// to `out` in LSB units (cf32 is scaled by 128 so every format shares one level scale).
+    /// to `out` in LSB units (cf32 is scaled by 128 and 16-bit samples divided by 256, as Mayhem
+    /// converts `.C16` to `.C8`, so every format shares one level scale).
     pub fn convert(self, bytes: &[u8], out: &mut Vec<C32>) {
         let n = bytes.len() / self.bytes_per_sample();
         let start = out.len();
@@ -79,6 +87,13 @@ impl IqFormat {
             IqFormat::Cu8 => {
                 for (o, b) in dst.iter_mut().zip(bytes.chunks_exact(2)) {
                     *o = C32::new(b[0] as f32 - 127.5, b[1] as f32 - 127.5);
+                }
+            }
+            IqFormat::Cs16 => {
+                for (o, b) in dst.iter_mut().zip(bytes.chunks_exact(4)) {
+                    let i = i16::from_le_bytes([b[0], b[1]]);
+                    let q = i16::from_le_bytes([b[2], b[3]]);
+                    *o = C32::new(f32::from(i) / 256.0, f32::from(q) / 256.0);
                 }
             }
             IqFormat::Cf32 => {
@@ -678,8 +693,17 @@ mod tests {
         b.extend_from_slice(&(-0.25f32).to_le_bytes());
         IqFormat::Cf32.convert(&b, &mut out);
         assert_eq!(out, vec![C32::new(64.0, -32.0)]);
+        // 16-bit: little-endian, on the 8-bit scale (a trailing partial sample is ignored).
+        out.clear();
+        IqFormat::Cs16.convert(&[0x00, 0x7F, 0x00, 0x80, 0x80, 0xFF, 0x40, 0x00, 9], &mut out);
+        assert_eq!(out, vec![C32::new(127.0, -128.0), C32::new(-0.5, 0.25)]);
         assert_eq!(IqFormat::from_extension("CU8"), Some(IqFormat::Cu8));
         assert_eq!(IqFormat::from_extension("sub"), None);
+        // A PortaPack's names.
+        assert_eq!(IqFormat::from_extension("C8"), Some(IqFormat::Cs8));
+        assert_eq!(IqFormat::from_extension("C16"), Some(IqFormat::Cs16));
+        assert_eq!((IqFormat::Cs16.bytes_per_sample(), IqFormat::Cs16.extension()), (4, "cs16"));
+        assert_eq!(IqFormat::from_extension("txt"), None);
     }
 
     #[test]

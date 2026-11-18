@@ -8786,6 +8786,38 @@
    "type": "raw"
   },
   {
+   "bytes": 25130,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 15373,
+    "deviation_hz": 15869,
+    "keying": "2-FSK"
+   },
+   "folder": "honda",
+   "frequency": 433657070,
+   "more": false,
+   "path": "honda/2019_honda_civic_ex_lock_x3_unlock_x2.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 6839,
+   "reads": [
+    {
+     "buttons": [
+      "21",
+      "22"
+     ],
+     "crc_ok": 10,
+     "distinct": 10,
+     "frames": 10,
+     "protocol": "Honda V5",
+     "serial": "B5A87246",
+     "serials": 1
+    }
+   ],
+   "seconds": 4.15,
+   "type": "raw"
+  },
+  {
    "bytes": 119,
    "folder": "honda",
    "frequency": 433220000,

@@ -285,7 +285,7 @@ const NO_FOB: &str = ".fob files are not decoded here; open them in the app with
 /// What `--decode` says about a folder without a file it reads.
 fn nothing_to_decode(path: &Path) -> String {
     format!(
-        "kat: {}: nothing to decode (--decode reads Flipper .sub files and .cs8 / .cu8 / .cf32 recordings; {NO_FOB})",
+        "kat: {}: nothing to decode (--decode reads Flipper .sub files and .cs8 / .cu8 / .cf32 / .C8 / .C16 recordings; {NO_FOB})",
         path.display()
     )
 }

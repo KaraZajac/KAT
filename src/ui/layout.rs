@@ -728,7 +728,7 @@ fn render_load_file_browser(frame: &mut Frame, app: &App) {
     }
 
     let mut block = Block::default()
-        .title(" Load file (.fob .sub .cs8 .cu8 .cf32) ")
+        .title(" Load file (.fob .sub .cs8 .cu8 .cf32 .C8 .C16) ")
         .borders(Borders::ALL)
         .border_style(cyan);
     if let Some(hint) = text::more_hint(start, entry_rows, entries.len()) {

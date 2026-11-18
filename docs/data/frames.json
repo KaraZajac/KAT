@@ -955,6 +955,26 @@
     {
      "bits": 135,
      "button": 33,
+     "counter": "4648",
+     "data": "6C0F6208B5A87246",
+     "extra": "21004648F67A1917",
+     "file": "honda/2019_honda_civic_ex_lock_x3_unlock_x2.sub",
+     "name": "Honda V5",
+     "serial": "B5A87246"
+    },
+    {
+     "bits": 135,
+     "button": 34,
+     "counter": "464B",
+     "data": "6C0F620AB5A87246",
+     "extra": "2200464BB456A20A",
+     "file": "honda/2019_honda_civic_ex_lock_x3_unlock_x2.sub",
+     "name": "Honda V5",
+     "serial": "B5A87246"
+    },
+    {
+     "bits": 135,
+     "button": 33,
      "counter": "1C07",
      "data": "6C0F6208B53EFF72",
      "extra": "21001C075C4974E9",
@@ -971,31 +991,11 @@
      "file": "honda/Unlock_honda.sub",
      "name": "Honda V5",
      "serial": "B53EFF72"
-    },
-    {
-     "bits": 135,
-     "button": 33,
-     "counter": "1C10",
-     "data": "6C0F6209B53EFF72",
-     "extra": "21001C107E12A29D",
-     "file": "honda/Lock_honda.sub",
-     "name": "Honda V5",
-     "serial": "B53EFF72"
-    },
-    {
-     "bits": 135,
-     "button": 33,
-     "counter": "123",
-     "data": "6C0F620ADEADBEEF",
-     "extra": "21000123CAFEF00D",
-     "file": "honda/more/05 Honda V5.sub",
-     "name": "Honda V5",
-     "serial": "DEADBEEF"
     }
    ],
    "fields": {},
-   "files": 4,
-   "frames": 50
+   "files": 5,
+   "frames": 60
   },
   "Honda V6": {
    "bits": 64,

@@ -51,6 +51,38 @@ init 0) over bytes 0..20 against byte 20. Tried first when at least 168 bits fol
 CRC-gated), `encoder_capable` false. Key file: `Protocol: Honda V5`, `Bit`, `Key`, `Serial`, `Btn`, `Cnt`, `CRC`,
 `Rolling`, `Variant`, `MidHi`, `MidLo`, `Ext` (135-bit frames only).
 
+## A named car: 2019 Honda Civic EX
+
+`IMPORTS/honda/2019_honda_civic_ex_lock_x3_unlock_x2.sub` is the first recording of this protocol from a
+car that is known: three presses of Lock, then two of Unlock, sent in by a tester as a PortaPack IQ capture.
+All five presses read, each as two frames (retransmit markers `0x08` and `0x0A`) with a valid CRC: serial
+`B5A87246`, button `0x21` at counters `4648`, `4649`, `464A`, then `0x22` at `464B`, `464C`. FoxFW's
+compiled C reads the same ten frames.
+
+What the IQ samples show of the signal, at 1 MS/s:
+
+| | Measured |
+|---|---|
+| Modulation | 2-FSK, the two tones 32 kHz apart (±16 kHz) |
+| Half bit | 63.5 µs: 7873 bit/s (the Flipper recordings below: 63.1 µs) |
+| A press | wake-up burst 24.6 ms (386 alternating half bits), 75 ms of silence, frame 23.7 ms; 276 ms later the same again, the frame with the other marker |
+
+The capture came without its `.TXT`, so its sample rate and frequency are not on record. The rate is
+inferred: at 1 MS/s the half bit is this protocol's, within 0.6 % of the Flipper recordings', and all ten
+frames pass their CRC; at half or twice that rate nothing reads. The frequency line of the `.sub` is the
+library's other Honda V5
+files' (433.657 MHz), not a measurement: the signal sits 9 kHz above whatever the capture was tuned to. The
+`.sub` was made from the IQ file by taking the higher tone as HIGH.
+
+**The rolling word is not a counter under a mask.** Over the 29 presses of the two remotes in the library
+(this one and the one below) about half of its 32 bits change from one press to the next, no bit of it is
+a linear function of the counter's bits, and no two presses differ by a constant. It behaves as a cipher's
+output, so the next press cannot be worked out from the ones recorded, and KAT has no encoder for this
+protocol, as the reference has none.
+
+`IMPORTS/honda/18_honda_civic_ll_uu_rs_t_rs_t_pp.sub`, a 2018 Civic at the same frequency, reads as nothing:
+it was recorded with an on-off-keying preset (`Ook270`), and this signal is FSK.
+
 ## Evidence and deviation
 
 `IMPORTS/honda/Lock_honda.sub` and `Unlock_honda.sub` (Honda1 custom preset, 433.657 MHz) decoded as Honda Static in

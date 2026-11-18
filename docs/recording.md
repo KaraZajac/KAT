@@ -9,7 +9,7 @@ which signal, and how to tell on the spot whether a recording is worth keeping.
 
 ## Overview
 
-A decoder starts with a recording. KAT 1.16 reads 421 of the library's 510 files. Eight of the rest are empty
+A decoder starts with a recording. KAT 1.16 reads 422 of the library's 511 files. Eight of the rest are empty
 files or key files no decoder takes; of the other 81, 74 hold no data at all. A pass that looks for nothing but pulses of regular width finds stretches of carrier and
 noise in them, and no bits. Those remotes were recorded with a radio setting that could not hold their signal,
 and no decoder will ever read those files. This page is about not making more of them.
@@ -25,8 +25,8 @@ chosen **preset** and hands over levels and durations: carrier for 412 µs, none
 - a remote faster than the preset's data rate comes out with its pulses stretched and its pauses shortened, or
   with short pulses missing.
 
-An SDR recording (`.cs8` from a HackRF One, `.cu8` from an RTL-SDR) keeps the samples and can be demodulated
-again another way. KAT records one while it receives with `:record` ([Receive chain](radio.md)).
+An SDR recording (`.cs8` from a HackRF One, `.cu8` from an RTL-SDR, `.C16` or `.C8` from a PortaPack) keeps
+the samples and can be demodulated again another way. KAT records one while it receives with `:record` ([Receive chain](radio.md)).
 
 ## Which preset
 

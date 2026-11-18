@@ -2506,6 +2506,16 @@ gmc/20_gmc_acadia_l2_u2_rs2_t2_p2.sub | 433920000 | Chevrolet V0 | data=BBC6E9CF
 honda/17_honda_pilot_lllluuuuaaattt.sub | 434176948 | (none)
 honda/18_Honda_accord_l2_u2_rs2_t2_p2.sub | 433920000 | (none)
 honda/18_honda_civic_ll_uu_rs_t_rs_t_pp.sub | 433657070 | (none)
+honda/2019_honda_civic_ex_lock_x3_unlock_x2.sub | 433657070 | Honda V5 | data=6C0F6208B5A87246/135 extra=21004648F67A1917 sn=B5A87246 btn=21 cnt=4648 crc=1 tx=0
+honda/2019_honda_civic_ex_lock_x3_unlock_x2.sub | 433657070 | Honda V5 | data=6C0F620AB5A87246/135 extra=21004648F67A1917 sn=B5A87246 btn=21 cnt=4648 crc=1 tx=0
+honda/2019_honda_civic_ex_lock_x3_unlock_x2.sub | 433657070 | Honda V5 | data=6C0F6208B5A87246/135 extra=21004649A2A60E86 sn=B5A87246 btn=21 cnt=4649 crc=1 tx=0
+honda/2019_honda_civic_ex_lock_x3_unlock_x2.sub | 433657070 | Honda V5 | data=6C0F620AB5A87246/135 extra=21004649A2A60E86 sn=B5A87246 btn=21 cnt=4649 crc=1 tx=0
+honda/2019_honda_civic_ex_lock_x3_unlock_x2.sub | 433657070 | Honda V5 | data=6C0F6208B5A87246/135 extra=2100464A97129BD9 sn=B5A87246 btn=21 cnt=464A crc=1 tx=0
+honda/2019_honda_civic_ex_lock_x3_unlock_x2.sub | 433657070 | Honda V5 | data=6C0F620AB5A87246/135 extra=2100464A97129BD9 sn=B5A87246 btn=21 cnt=464A crc=1 tx=0
+honda/2019_honda_civic_ex_lock_x3_unlock_x2.sub | 433657070 | Honda V5 | data=6C0F6208B5A87246/135 extra=2200464BB456A20A sn=B5A87246 btn=22 cnt=464B crc=1 tx=0
+honda/2019_honda_civic_ex_lock_x3_unlock_x2.sub | 433657070 | Honda V5 | data=6C0F620AB5A87246/135 extra=2200464BB456A20A sn=B5A87246 btn=22 cnt=464B crc=1 tx=0
+honda/2019_honda_civic_ex_lock_x3_unlock_x2.sub | 433657070 | Honda V5 | data=6C0F6208B5A87246/135 extra=2200464C3B38EFE7 sn=B5A87246 btn=22 cnt=464C crc=1 tx=0
+honda/2019_honda_civic_ex_lock_x3_unlock_x2.sub | 433657070 | Honda V5 | data=6C0F620AB5A87246/135 extra=2200464C3B38EFE7 sn=B5A87246 btn=22 cnt=464C crc=1 tx=0
 honda/24_hoda_crv_l2_u2_rs_t_p.sub | ERR No RAW_Data in .sub file
 honda/24_honda_crv.sub | 434176948 | (none)
 honda/24_honda_crv_l2_u2_rs_t_p.sub | ERR No RAW_Data in .sub file

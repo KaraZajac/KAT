@@ -68,7 +68,7 @@ computer. KAT receives with either and transmits with a HackRF One ([Receive cha
 
 ### IQ recording
 
-The raw samples of an SDR, saved (`.cs8`, `.cu8`, `.cf32`). Unlike a `.sub` file it keeps everything the radio
+The raw samples of an SDR, saved (`.cs8`, `.cu8`, `.cf32`; a PortaPack's `.C8`, `.C16`). Unlike a `.sub` file it keeps everything the radio
 heard, so it can be demodulated again another way. KAT decodes such files and can record one while it receives.
 
 ### Skew

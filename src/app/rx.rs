@@ -374,7 +374,7 @@ impl App {
     /// `:iq <path> [freq MHz|Hz] [rate]`, `:iq stop`
     pub(super) fn cmd_iq(&mut self, args: &[&str]) -> Result<()> {
         if args.is_empty() {
-            self.last_error = Some("Usage: :iq <file.cs8|.cu8> [freq MHz] [rate, e.g. 2M] | :iq stop".to_string());
+            self.last_error = Some("Usage: :iq <file.cs8|.cu8|.C16> [freq MHz] [rate, e.g. 2M] | :iq stop".to_string());
             return Ok(());
         }
         if args.len() == 1 && args[0].eq_ignore_ascii_case("stop") {

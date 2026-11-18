@@ -1,0 +1,3361 @@
+{
+ "protocols": {
+  "BMW/Mini V3": {
+   "bits": 64,
+   "examples": [
+    {
+     "bits": 64,
+     "button": 8,
+     "counter": "760E",
+     "data": "80BFBB3760EBAC0",
+     "extra": null,
+     "file": "BMW/more/BmwE60_2004_868_FM_cl.sub",
+     "name": "BMW/Mini V3",
+     "serial": "BFB"
+    },
+    {
+     "bits": 64,
+     "button": 16,
+     "counter": "7699",
+     "data": "100BFBB2769958C5",
+     "extra": null,
+     "file": "BMW/more/BmwE60_2004_868_FM_cl.sub",
+     "name": "BMW/Mini V3",
+     "serial": "BFB"
+    },
+    {
+     "bits": 64,
+     "button": 8,
+     "counter": "6E52",
+     "data": "80BFBB36E5280C2",
+     "extra": null,
+     "file": "BMW/more/BmwE60_2004_868_FM_cl.sub",
+     "name": "BMW/Mini V3",
+     "serial": "BFB"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 57,
+     "how": "",
+     "offset": 56,
+     "values": 2,
+     "width": 8,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 57,
+     "how": "",
+     "offset": 16,
+     "values": 6,
+     "width": 16,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 57,
+     "how": "",
+     "offset": 40,
+     "values": 1,
+     "width": 12,
+     "word": "data"
+    }
+   },
+   "files": 1,
+   "frames": 57
+  },
+  "CAME Atomo": {
+   "bits": 62,
+   "examples": [
+    {
+     "bits": 62,
+     "button": 1,
+     "counter": "341",
+     "data": "1FAFCBEED15B667F",
+     "extra": null,
+     "file": "GATES/more/came_atomo_raw.sub",
+     "name": "CAME Atomo",
+     "serial": "12EA4998"
+    },
+    {
+     "bits": 62,
+     "button": 1,
+     "counter": "341",
+     "data": "184F8DB91369D86F",
+     "extra": null,
+     "file": "GATES/more/came_atomo_raw.sub",
+     "name": "CAME Atomo",
+     "serial": "12EA4998"
+    }
+   ],
+   "fields": {},
+   "files": 1,
+   "frames": 6
+  },
+  "Chevrolet V0": {
+   "bits": 96,
+   "examples": [
+    {
+     "bits": 96,
+     "button": 13,
+     "counter": null,
+     "data": "B61B30D388D870A2",
+     "extra": "1084BD08",
+     "file": "HOLDEN/Holden Barina 2016 AU.sub",
+     "name": "Chevrolet V0",
+     "serial": "B61B30"
+    },
+    {
+     "bits": 96,
+     "button": 12,
+     "counter": null,
+     "data": "B61B30C00FDDB29A",
+     "extra": "7EA5400D",
+     "file": "HOLDEN/Holden Barina 2016 AU.sub",
+     "name": "Chevrolet V0",
+     "serial": "B61B30"
+    },
+    {
+     "bits": 96,
+     "button": 9,
+     "counter": null,
+     "data": "AD105394B4FDBE24",
+     "extra": "C2B14CA8",
+     "file": "buick/15_buick_lacross_t2_rs2_p2_l2_u2.sub",
+     "name": "Chevrolet V0",
+     "serial": "AD1053"
+    },
+    {
+     "bits": 96,
+     "button": 4,
+     "counter": null,
+     "data": "AA67D042E153DF62",
+     "extra": "1E0759E7",
+     "file": "buick/24_buick_encore_ul2_t2_l2_rs2_p2.sub",
+     "name": "Chevrolet V0",
+     "serial": "AA67D0"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 514,
+     "how": "",
+     "offset": 36,
+     "values": 8,
+     "width": 4,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 514,
+     "how": "",
+     "offset": 40,
+     "values": 7,
+     "width": 24,
+     "word": "data"
+    }
+   },
+   "files": 7,
+   "frames": 514
+  },
+  "Chrysler V0": {
+   "bits": 80,
+   "examples": [
+    {
+     "bits": 80,
+     "button": 1,
+     "counter": "20",
+     "data": "7A11E7D2462A57D",
+     "extra": "2462",
+     "file": "chrysler/Chrysler PT Cruiser 2006 close.sub",
+     "name": "Chrysler V0",
+     "serial": "A11E7D24"
+    },
+    {
+     "bits": 80,
+     "button": 2,
+     "counter": "1A",
+     "data": "5BF14E2D7432F92D",
+     "extra": "7432",
+     "file": "chrysler/Chrysler PT Cruiser 2006 open.sub",
+     "name": "Chrysler V0",
+     "serial": "A11E7D24"
+    },
+    {
+     "bits": 80,
+     "button": 1,
+     "counter": "1F",
+     "data": "FB4725BFA44725BF",
+     "extra": "7984",
+     "file": "chrysler/Chrysler PT Cruiser 2006 close.sub",
+     "name": "Chrysler V0",
+     "serial": "4725BF79"
+    },
+    {
+     "bits": 80,
+     "button": 2,
+     "counter": "19",
+     "data": "9B4D2FB59E4D2FB5",
+     "extra": "738E",
+     "file": "chrysler/Chrysler PT Cruiser 2006 open.sub",
+     "name": "Chrysler V0",
+     "serial": "4725BF79"
+    }
+   ],
+   "fields": {
+    "counter": {
+     "frames": 732,
+     "how": "reversed",
+     "offset": 58,
+     "values": 64,
+     "width": 6,
+     "word": "data"
+    }
+   },
+   "files": 6,
+   "frames": 732
+  },
+  "Continental-KR5V2X": {
+   "bits": 112,
+   "examples": [
+    {
+     "bits": 112,
+     "button": 1,
+     "counter": "296",
+     "data": "442F9A8560100002",
+     "extra": "962AB0BAA212",
+     "file": "honda/HondaV2H4_OEM2_LU.sub",
+     "name": "Continental-KR5V2X",
+     "serial": "442F9A85"
+    },
+    {
+     "bits": 112,
+     "button": 3,
+     "counter": "297",
+     "data": "442F9A8560300002",
+     "extra": "9741A2516467",
+     "file": "honda/HondaV2H4_OEM2_LU.sub",
+     "name": "Continental-KR5V2X",
+     "serial": "442F9A85"
+    },
+    {
+     "bits": 112,
+     "button": 0,
+     "counter": "AA4A",
+     "data": "58046885700000AA",
+     "extra": "4A1CD95A49F7",
+     "file": "honda/HondaV2_PandoraTS_cell0_btn123.sub",
+     "name": "Continental-KR5V2X",
+     "serial": "58046885"
+    },
+    {
+     "bits": 112,
+     "button": 10,
+     "counter": "13",
+     "data": "B6204B8220A00000",
+     "extra": "13BC473E0C05",
+     "file": "honda/more/Honda_v6_kd_10_10_10.sub",
+     "name": "Continental-KR5V2X",
+     "serial": "B6204B82"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 473,
+     "how": "",
+     "offset": 20,
+     "values": 5,
+     "width": 4,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 473,
+     "how": "",
+     "offset": 32,
+     "values": 5,
+     "width": 32,
+     "word": "data"
+    }
+   },
+   "files": 15,
+   "frames": 473
+  },
+  "Feron": {
+   "bits": 32,
+   "examples": [
+    {
+     "bits": 32,
+     "button": null,
+     "counter": null,
+     "data": "15276ECF",
+     "extra": null,
+     "file": "GATES/more/Beninca.sub",
+     "name": "Feron",
+     "serial": "1527"
+    }
+   ],
+   "fields": {},
+   "files": 1,
+   "frames": 1
+  },
+  "Fiat V0": {
+   "bits": 71,
+   "examples": [
+    {
+     "bits": 71,
+     "button": 19,
+     "counter": "1BFE",
+     "data": "DE21BFE54536200",
+     "extra": null,
+     "file": "FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub",
+     "name": "Fiat V0",
+     "serial": "54536200"
+    },
+    {
+     "bits": 71,
+     "button": 27,
+     "counter": "E84D",
+     "data": "FEC0E84D54536200",
+     "extra": null,
+     "file": "FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub",
+     "name": "Fiat V0",
+     "serial": "54536200"
+    },
+    {
+     "bits": 71,
+     "button": 39,
+     "counter": "A311",
+     "data": "52D6A31154536200",
+     "extra": null,
+     "file": "FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub",
+     "name": "Fiat V0",
+     "serial": "54536200"
+    },
+    {
+     "bits": 71,
+     "button": 51,
+     "counter": "37D",
+     "data": "9A3D037D54536200",
+     "extra": null,
+     "file": "FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub",
+     "name": "Fiat V0",
+     "serial": "54536200"
+    }
+   ],
+   "fields": {
+    "counter": {
+     "frames": 12,
+     "how": "",
+     "offset": 32,
+     "values": 11,
+     "width": 16,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 12,
+     "how": "",
+     "offset": 0,
+     "values": 1,
+     "width": 32,
+     "word": "data"
+    }
+   },
+   "files": 2,
+   "frames": 12
+  },
+  "Fiat V1": {
+   "bits": 104,
+   "examples": [
+    {
+     "bits": 104,
+     "button": 4,
+     "counter": "271",
+     "data": "1F4FF5F2849C4",
+     "extra": "14CB345FAB1",
+     "file": "ALFA ROMEO/more/Giulietta_Close.sub",
+     "name": "Fiat V1",
+     "serial": "F4FF5F28"
+    },
+    {
+     "bits": 104,
+     "button": 8,
+     "counter": "25D",
+     "data": "1F4FF5F288974",
+     "extra": "145FBA6D24B",
+     "file": "ALFA ROMEO/more/Giulietta_Open.sub",
+     "name": "Fiat V1",
+     "serial": "F4FF5F28"
+    },
+    {
+     "bits": 104,
+     "button": 2,
+     "counter": "285",
+     "data": "1F4FF5F282A14",
+     "extra": "14BAA68C209",
+     "file": "ALFA ROMEO/more/Giulietta_Trunk.sub",
+     "name": "Fiat V1",
+     "serial": "F4FF5F28"
+    },
+    {
+     "bits": 104,
+     "button": 1,
+     "counter": "2D4",
+     "data": "13B09152C1B52",
+     "extra": "19231D52A1E",
+     "file": "FIAT/more/1 Raw Fca Fiat 2017-2024.sub",
+     "name": "Fiat V1",
+     "serial": "3B09152C"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 5872,
+     "how": "",
+     "offset": 12,
+     "values": 4,
+     "width": 4,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 5872,
+     "how": "",
+     "offset": 2,
+     "values": 685,
+     "width": 10,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 5872,
+     "how": "",
+     "offset": 16,
+     "values": 10,
+     "width": 32,
+     "word": "data"
+    }
+   },
+   "files": 46,
+   "frames": 5872
+  },
+  "Fiat V2": {
+   "bits": 112,
+   "examples": [
+    {
+     "bits": 112,
+     "button": 4,
+     "counter": "DFDC",
+     "data": "1D737A2C35EFB",
+     "extra": "20235C167DE9",
+     "file": "chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub",
+     "name": "Fiat V2",
+     "serial": "D737A2C3"
+    },
+    {
+     "bits": 112,
+     "button": 2,
+     "counter": "DFE6",
+     "data": "1D737A2C35FBB",
+     "extra": "2019F11FE069",
+     "file": "chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub",
+     "name": "Fiat V2",
+     "serial": "D737A2C3"
+    },
+    {
+     "bits": 112,
+     "button": 3,
+     "counter": "DFED",
+     "data": "1D737A2C35F7B",
+     "extra": "2012C634A3F5",
+     "file": "chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub",
+     "name": "Fiat V2",
+     "serial": "D737A2C3"
+    },
+    {
+     "bits": 112,
+     "button": 7,
+     "counter": "DFF5",
+     "data": "1D737A2C357FB",
+     "extra": "200A55E511ED",
+     "file": "chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub",
+     "name": "Fiat V2",
+     "serial": "D737A2C3"
+    }
+   ],
+   "fields": {
+    "counter": {
+     "frames": 76,
+     "how": "inverted",
+     "offset": 32,
+     "values": 23,
+     "width": 16,
+     "word": "extra"
+    },
+    "serial": {
+     "frames": 76,
+     "how": "",
+     "offset": 16,
+     "values": 2,
+     "width": 32,
+     "word": "data"
+    }
+   },
+   "files": 2,
+   "frames": 76
+  },
+  "Ford V0": {
+   "bits": 64,
+   "examples": [
+    {
+     "bits": 64,
+     "button": 0,
+     "counter": "0",
+     "data": "0",
+     "extra": "0",
+     "file": "FIAT/more/Unstable_Fiat_v1_3.sub",
+     "name": "Ford V0",
+     "serial": "0"
+    },
+    {
+     "bits": 64,
+     "button": 1,
+     "counter": "B9C8",
+     "data": "55DA59BD61897199",
+     "extra": "B099",
+     "file": "FORD/0000_Ford_ts_x4.sub",
+     "name": "Ford V0",
+     "serial": "43C024F8"
+    },
+    {
+     "bits": 64,
+     "button": 2,
+     "counter": "B9CA",
+     "data": "55D85BBF63BB739B",
+     "extra": "C29F",
+     "file": "FORD/0000_Ford_ts_x4.sub",
+     "name": "Ford V0",
+     "serial": "43C024F8"
+    },
+    {
+     "bits": 64,
+     "button": 16,
+     "counter": "B07D",
+     "data": "55C49FFF87B8CD38",
+     "extra": "D68E",
+     "file": "FORD/16_ford_escape_rs2_l2_u2_t2_p2.sub",
+     "name": "Ford V0",
+     "serial": "FCA7C7BF"
+    }
+   ],
+   "fields": {},
+   "files": 8,
+   "frames": 142
+  },
+  "Ford V1": {
+   "bits": 136,
+   "examples": [
+    {
+     "bits": 136,
+     "button": 2,
+     "counter": "DB4",
+     "data": "D3950E26008983",
+     "extra": "E5BE2C2684B9A549",
+     "file": "FORD/more/Ford2011_2015_f3.sub",
+     "name": "Ford V1",
+     "serial": "401B8983"
+    },
+    {
+     "bits": 136,
+     "button": 1,
+     "counter": "5A",
+     "data": "D3950E260853A1",
+     "extra": "9D9D59AB1A5A0A8C",
+     "file": "FORD/more/FordV1_orig1_10US_10LS_TS.sub",
+     "name": "Ford V1",
+     "serial": "979753A1"
+    },
+    {
+     "bits": 136,
+     "button": 4,
+     "counter": "64",
+     "data": "D3950E260053A1",
+     "extra": "D3D317E5044464C6",
+     "file": "FORD/more/FordV1_orig1_10US_10LS_TS.sub",
+     "name": "Ford V1",
+     "serial": "979753A1"
+    },
+    {
+     "bits": 136,
+     "button": 2,
+     "counter": "50",
+     "data": "D3950E260153A1",
+     "extra": "979753A120500092",
+     "file": "FORD/more/FordV1_orig1_10US_10LS_TS.sub",
+     "name": "Ford V1",
+     "serial": "979753A1"
+    }
+   ],
+   "fields": {},
+   "files": 9,
+   "frames": 270
+  },
+  "Ford V3": {
+   "bits": 104,
+   "examples": [
+    {
+     "bits": 104,
+     "button": 2,
+     "counter": "EB0D",
+     "data": "FF4E2464E40802EB",
+     "extra": "DD7DCEFA7",
+     "file": "FORD/22_ford_escape_u2_l2_t2_p2.sub",
+     "name": "Ford V3",
+     "serial": "4E2464E4"
+    },
+    {
+     "bits": 104,
+     "button": 1,
+     "counter": "EB0F",
+     "data": "FF4E2464E40801EB",
+     "extra": "F8F588C22",
+     "file": "FORD/22_ford_escape_u2_l2_t2_p2.sub",
+     "name": "Ford V3",
+     "serial": "4E2464E4"
+    },
+    {
+     "bits": 104,
+     "button": 7,
+     "counter": "EB11",
+     "data": "FF4E2464E40807EB",
+     "extra": "113E15FA11",
+     "file": "FORD/22_ford_escape_u2_l2_t2_p2.sub",
+     "name": "Ford V3",
+     "serial": "4E2464E4"
+    },
+    {
+     "bits": 104,
+     "button": 6,
+     "counter": "EB15",
+     "data": "FF4E2464E40806EB",
+     "extra": "15C7D1FEBF",
+     "file": "FORD/22_ford_escape_u2_l2_t2_p2.sub",
+     "name": "Ford V3",
+     "serial": "4E2464E4"
+    }
+   ],
+   "fields": {
+    "serial": {
+     "frames": 34,
+     "how": "",
+     "offset": 24,
+     "values": 7,
+     "width": 32,
+     "word": "data"
+    }
+   },
+   "files": 6,
+   "frames": 34
+  },
+  "GM RFA": {
+   "bits": 84,
+   "examples": [
+    {
+     "bits": 84,
+     "button": null,
+     "counter": null,
+     "data": "400315751307AAC2",
+     "extra": "DFA04",
+     "file": "cadillac/more/2008-2012_Cadilla_CTS_315mhz_AM650.sub",
+     "name": "GM RFA",
+     "serial": "FA04"
+    },
+    {
+     "bits": 84,
+     "button": null,
+     "counter": null,
+     "data": "8DA1F726177A3967",
+     "extra": "DFA04",
+     "file": "cadillac/more/2008-2012_Cadilla_CTS_315mhz_AM650.sub",
+     "name": "GM RFA",
+     "serial": "FA04"
+    },
+    {
+     "bits": 84,
+     "button": null,
+     "counter": null,
+     "data": "B6CCAF769454A44B",
+     "extra": "D0178",
+     "file": "gmc/15_gmc_acadia_rs2_l2_u2_t2_p2.sub",
+     "name": "GM RFA",
+     "serial": "178"
+    }
+   ],
+   "fields": {
+    "serial": {
+     "frames": 63,
+     "how": "",
+     "offset": 0,
+     "values": 2,
+     "width": 16,
+     "word": "extra"
+    }
+   },
+   "files": 2,
+   "frames": 63
+  },
+  "Hitag2": {
+   "bits": 103,
+   "examples": [
+    {
+     "bits": 103,
+     "button": 0,
+     "counter": "132",
+     "data": "5352000A04C828E4",
+     "extra": "C0A390185",
+     "file": "OPEL/more/opel_two_button_remote_unlock_x300.sub",
+     "name": "Hitag2",
+     "serial": "5352000A"
+    },
+    {
+     "bits": 103,
+     "button": 8,
+     "counter": "F",
+     "data": "80000081803C81C0",
+     "extra": "BC20703011",
+     "file": "OPEL/more/opel_two_button_remote_unlock_x300.sub",
+     "name": "Hitag2",
+     "serial": "80000081"
+    },
+    {
+     "bits": 103,
+     "button": 0,
+     "counter": "1",
+     "data": "FFFFFFFE0007FFFF",
+     "extra": "FFFFFFFE",
+     "file": "RENAULT/more/Renault_Duster_2010_KD_300ulk.sub",
+     "name": "Hitag2",
+     "serial": "FFFFFFFE"
+    }
+   ],
+   "fields": {
+    "counter": {
+     "frames": 3,
+     "how": "",
+     "offset": 18,
+     "values": 3,
+     "width": 12,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 3,
+     "how": "",
+     "offset": 32,
+     "values": 3,
+     "width": 32,
+     "word": "data"
+    }
+   },
+   "files": 2,
+   "frames": 3
+  },
+  "Honda V0": {
+   "bits": 72,
+   "examples": [
+    {
+     "bits": 72,
+     "button": 6,
+     "counter": "1ABA",
+     "data": "F0585D72D9E4CA9C",
+     "extra": null,
+     "file": "honda/more/HondaV0_72D9E4CA_300lck.sub",
+     "name": "Honda V0",
+     "serial": "72D9E4"
+    },
+    {
+     "bits": 72,
+     "button": 5,
+     "counter": "1D04",
+     "data": "F0B82072D9E4AA35",
+     "extra": null,
+     "file": "honda/more/HondaV0_72D9E4CA_300trk.sub",
+     "name": "Honda V0",
+     "serial": "72D9E4"
+    },
+    {
+     "bits": 72,
+     "button": 7,
+     "counter": "1D05",
+     "data": "F0B8A072D9E4FAA9",
+     "extra": null,
+     "file": "honda/more/HondaV0_72D9E4CA_300trk.sub",
+     "name": "Honda V0",
+     "serial": "72D9E4"
+    },
+    {
+     "bits": 72,
+     "button": 1,
+     "counter": "1BDC",
+     "data": "F0D83B72D9E42AE8",
+     "extra": null,
+     "file": "honda/more/HondaV0_72D9E4CA_300ulk.sub",
+     "name": "Honda V0",
+     "serial": "72D9E4"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 1453,
+     "how": "",
+     "offset": 13,
+     "values": 5,
+     "width": 3,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 1453,
+     "how": "",
+     "offset": 16,
+     "values": 10,
+     "width": 24,
+     "word": "data"
+    }
+   },
+   "files": 24,
+   "frames": 1453
+  },
+  "Honda V1": {
+   "bits": 68,
+   "examples": [
+    {
+     "bits": 68,
+     "button": 8,
+     "counter": "31",
+     "data": "4119B5A888880031",
+     "extra": null,
+     "file": "honda/Honda_433AM_20LS.sub",
+     "name": "Honda V1",
+     "serial": "4119B5A"
+    },
+    {
+     "bits": 68,
+     "button": 0,
+     "counter": "34",
+     "data": "4119B5A808080034",
+     "extra": null,
+     "file": "honda/more/0 (2).sub",
+     "name": "Honda V1",
+     "serial": "4119B5A"
+    },
+    {
+     "bits": 68,
+     "button": 9,
+     "counter": "3E",
+     "data": "4119B5A99190003E",
+     "extra": null,
+     "file": "honda/more/0 (2).sub",
+     "name": "Honda V1",
+     "serial": "4119B5A"
+    },
+    {
+     "bits": 68,
+     "button": 10,
+     "counter": "48",
+     "data": "4119B5AFA7A00048",
+     "extra": null,
+     "file": "honda/more/0 (2).sub",
+     "name": "Honda V1",
+     "serial": "4119B5A"
+    }
+   ],
+   "fields": {
+    "counter": {
+     "frames": 3412,
+     "how": "",
+     "offset": 0,
+     "values": 128,
+     "width": 8,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 3412,
+     "how": "",
+     "offset": 36,
+     "values": 1,
+     "width": 28,
+     "word": "data"
+    }
+   },
+   "files": 16,
+   "frames": 3412
+  },
+  "Honda V2": {
+   "bits": 81,
+   "examples": [
+    {
+     "bits": 81,
+     "button": 4,
+     "counter": "5",
+     "data": "A285E34B1D2C0283",
+     "extra": "7FFF",
+     "file": "honda/more/HondaV2_synthetic_testvector.sub",
+     "name": "Honda V2",
+     "serial": "4B1D2C"
+    },
+    {
+     "bits": 81,
+     "button": 2,
+     "counter": "5",
+     "data": "C203634B1D2C0283",
+     "extra": "7FFF",
+     "file": "honda/more/HondaV2_synthetic_testvector.sub",
+     "name": "Honda V2",
+     "serial": "4B1D2C"
+    },
+    {
+     "bits": 81,
+     "button": 4,
+     "counter": "6",
+     "data": "A285E34B1D2C0304",
+     "extra": "FFFF",
+     "file": "honda/more/HondaV2_synthetic_testvector.sub",
+     "name": "Honda V2",
+     "serial": "4B1D2C"
+    },
+    {
+     "bits": 81,
+     "button": 2,
+     "counter": "1CA",
+     "data": "C20363EE3184E507",
+     "extra": "7FFF",
+     "file": "honda/more/RAW_super_door000.sub",
+     "name": "Honda V2",
+     "serial": "EE3184"
+    }
+   ],
+   "fields": {
+    "counter": {
+     "frames": 17,
+     "how": "",
+     "offset": 7,
+     "values": 9,
+     "width": 9,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 17,
+     "how": "",
+     "offset": 16,
+     "values": 2,
+     "width": 24,
+     "word": "data"
+    }
+   },
+   "files": 2,
+   "frames": 17
+  },
+  "Honda V5": {
+   "bits": 135,
+   "examples": [
+    {
+     "bits": 135,
+     "button": 33,
+     "counter": "1C07",
+     "data": "6C0F6208B53EFF72",
+     "extra": "21001C075C4974E9",
+     "file": "honda/Lock_honda.sub",
+     "name": "Honda V5",
+     "serial": "B53EFF72"
+    },
+    {
+     "bits": 135,
+     "button": 34,
+     "counter": "1BF2",
+     "data": "6C0F620AB53EFF72",
+     "extra": "22001BF252E38A7C",
+     "file": "honda/Unlock_honda.sub",
+     "name": "Honda V5",
+     "serial": "B53EFF72"
+    },
+    {
+     "bits": 135,
+     "button": 33,
+     "counter": "1C10",
+     "data": "6C0F6209B53EFF72",
+     "extra": "21001C107E12A29D",
+     "file": "honda/Lock_honda.sub",
+     "name": "Honda V5",
+     "serial": "B53EFF72"
+    },
+    {
+     "bits": 135,
+     "button": 33,
+     "counter": "123",
+     "data": "6C0F620ADEADBEEF",
+     "extra": "21000123CAFEF00D",
+     "file": "honda/more/05 Honda V5.sub",
+     "name": "Honda V5",
+     "serial": "DEADBEEF"
+    }
+   ],
+   "fields": {},
+   "files": 4,
+   "frames": 50
+  },
+  "Honda V6": {
+   "bits": 64,
+   "examples": [
+    {
+     "bits": 64,
+     "button": null,
+     "counter": null,
+     "data": "DFB79FDC6D0A8691",
+     "extra": null,
+     "file": "honda/Honda_V1_Ferrari_10_10.sub",
+     "name": "Honda V6",
+     "serial": null
+    },
+    {
+     "bits": 64,
+     "button": null,
+     "counter": null,
+     "data": "110A26BF1E04E96",
+     "extra": null,
+     "file": "honda/Honda_V1_Ferrari_10_10.sub",
+     "name": "Honda V6",
+     "serial": null
+    },
+    {
+     "bits": 64,
+     "button": null,
+     "counter": null,
+     "data": "2C36839A6B02FAC7",
+     "extra": null,
+     "file": "honda/more/HondaH1_OEM2_20lck_hold.sub",
+     "name": "Honda V6",
+     "serial": null
+    },
+    {
+     "bits": 64,
+     "button": null,
+     "counter": null,
+     "data": "AAB0051CED847C77",
+     "extra": null,
+     "file": "honda/more/HondaH1_OEM2_300lck.sub",
+     "name": "Honda V6",
+     "serial": null
+    }
+   ],
+   "fields": {},
+   "files": 8,
+   "frames": 1063
+  },
+  "HondaV2&V3": {
+   "bits": 120,
+   "examples": [
+    {
+     "bits": 120,
+     "button": 0,
+     "counter": "3",
+     "data": "CDB000000",
+     "extra": "83F02C9B121C9B6C",
+     "file": "honda/more/Honda_v2_v3_Ferrari_10_10.sub",
+     "name": "HondaV2&V3",
+     "serial": "0"
+    },
+    {
+     "bits": 120,
+     "button": 138,
+     "counter": "4",
+     "data": "39888A120B000000",
+     "extra": "9779BB1BFC16484F",
+     "file": "honda/more/Honda_v2_v3_Ferrari_10_10.sub",
+     "name": "HondaV2&V3",
+     "serial": "3988"
+    },
+    {
+     "bits": 120,
+     "button": 140,
+     "counter": "8",
+     "data": "39888C2009000000",
+     "extra": "C97912990616DB69",
+     "file": "honda/more/Honda_v2_v3_Ferrari_10_10.sub",
+     "name": "HondaV2&V3",
+     "serial": "3988"
+    },
+    {
+     "bits": 120,
+     "button": 138,
+     "counter": "4",
+     "data": "39888A1001000000",
+     "extra": "39791C3EE6168C49",
+     "file": "honda/more/Honda_v2_v3_Ferrari_10_10.sub",
+     "name": "HondaV2&V3",
+     "serial": "3988"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 20,
+     "how": "",
+     "offset": 40,
+     "values": 3,
+     "width": 8,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 20,
+     "how": "",
+     "offset": 34,
+     "values": 11,
+     "width": 4,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 20,
+     "how": "",
+     "offset": 48,
+     "values": 2,
+     "width": 16,
+     "word": "data"
+    }
+   },
+   "files": 1,
+   "frames": 20
+  },
+  "Isuzu Rolling": {
+   "bits": 105,
+   "examples": [
+    {
+     "bits": 105,
+     "button": 4,
+     "counter": null,
+     "data": "6A3502F469186AD7",
+     "extra": "1",
+     "file": "Isuzu/Isuzu_Lock.sub",
+     "name": "Isuzu Rolling",
+     "serial": "4A0D2EC"
+    },
+    {
+     "bits": 105,
+     "button": 0,
+     "counter": null,
+     "data": "DADEA72D77B2C81B",
+     "extra": "7",
+     "file": "Isuzu/Isuzu_Lock.sub",
+     "name": "Isuzu Rolling",
+     "serial": "4A0D2EC"
+    },
+    {
+     "bits": 105,
+     "button": 2,
+     "counter": null,
+     "data": "491804E88F2BBDA",
+     "extra": "C",
+     "file": "Isuzu/Isuzu_Unlock.sub",
+     "name": "Isuzu Rolling",
+     "serial": "4A0D2EC"
+    },
+    {
+     "bits": 105,
+     "button": 4,
+     "counter": null,
+     "data": "9B1D4D891C3A4203",
+     "extra": "C",
+     "file": "Isuzu/Isuzu_Lock.sub",
+     "name": "Isuzu Rolling",
+     "serial": "4A0D2EC"
+    }
+   ],
+   "fields": {},
+   "files": 2,
+   "frames": 51
+  },
+  "Isuzu Static": {
+   "bits": 64,
+   "examples": [
+    {
+     "bits": 64,
+     "button": 2,
+     "counter": null,
+     "data": "1100183250E81FF",
+     "extra": null,
+     "file": "Isuzu/Isuzu_fts_lock.sub",
+     "name": "Isuzu Static",
+     "serial": null
+    },
+    {
+     "bits": 64,
+     "button": 4,
+     "counter": null,
+     "data": "1100183410E81FF",
+     "extra": null,
+     "file": "Isuzu/Isuzu_fts_unlock.sub",
+     "name": "Isuzu Static",
+     "serial": null
+    },
+    {
+     "bits": 64,
+     "button": 2,
+     "counter": null,
+     "data": "1100183270E81FF",
+     "extra": null,
+     "file": "Isuzu/Isuzu_fts_lock.sub",
+     "name": "Isuzu Static",
+     "serial": null
+    },
+    {
+     "bits": 64,
+     "button": 4,
+     "counter": null,
+     "data": "1100183430E81FF",
+     "extra": null,
+     "file": "Isuzu/Isuzu_fts_unlock.sub",
+     "name": "Isuzu Static",
+     "serial": null
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 26,
+     "how": "",
+     "offset": 28,
+     "values": 2,
+     "width": 4,
+     "word": "data"
+    }
+   },
+   "files": 2,
+   "frames": 26
+  },
+  "KeeLoq": {
+   "bits": 64,
+   "examples": [
+    {
+     "bits": 64,
+     "button": 12,
+     "counter": "6",
+     "data": "EAD89130885E3A83",
+     "extra": null,
+     "file": "GATES/more/Beninca.sub",
+     "name": "KeeLoq (Beninca)",
+     "serial": "15C7A11"
+    },
+    {
+     "bits": 64,
+     "button": 4,
+     "counter": "2BAA",
+     "data": "D43590BC5CF9B302",
+     "extra": null,
+     "file": "GATES/more/Ultra_kit.sub",
+     "name": "KeeLoq (Beninca)",
+     "serial": "CD9F3A"
+    },
+    {
+     "bits": 64,
+     "button": 2,
+     "counter": "3",
+     "data": "1E99977AD3EFB004",
+     "extra": null,
+     "file": "GATES/more/Bft.sub",
+     "name": "KeeLoq (BFT)",
+     "serial": "DF7CB"
+    },
+    {
+     "bits": 64,
+     "button": 0,
+     "counter": null,
+     "data": "7F24EBEA4A7DF820",
+     "extra": null,
+     "file": "GATES/more/Fan_high.sub",
+     "name": "KeeLoq (Unknown)",
+     "serial": "41FBE52"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 169,
+     "how": "reversed",
+     "offset": 0,
+     "values": 8,
+     "width": 4,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 169,
+     "how": "reversed",
+     "offset": 4,
+     "values": 25,
+     "width": 28,
+     "word": "data"
+    }
+   },
+   "files": 41,
+   "frames": 169
+  },
+  "Kia Denso": {
+   "bits": 112,
+   "examples": [
+    {
+     "bits": 112,
+     "button": null,
+     "counter": null,
+     "data": "8F9CB789A1AFB264",
+     "extra": "FF9359AC9D77",
+     "file": "KIA/more/22-26_Kia_EV6_433.92mhz_FM476.sub",
+     "name": "Kia Denso",
+     "serial": "9AC9D77"
+    },
+    {
+     "bits": 112,
+     "button": null,
+     "counter": null,
+     "data": "8FA3484170819572",
+     "extra": "FF9359AC9D77",
+     "file": "KIA/more/22-26_Kia_EV6_433.92mhz_FM476.sub",
+     "name": "Kia Denso",
+     "serial": "9AC9D77"
+    },
+    {
+     "bits": 112,
+     "button": null,
+     "counter": null,
+     "data": "8F8F5287759B52B6",
+     "extra": "FF9357B74E67",
+     "file": "KIA/more/Random_late_model_KIA_remote_433.92mhz_FM476.sub",
+     "name": "Kia Denso",
+     "serial": "7B74E67"
+    }
+   ],
+   "fields": {
+    "serial": {
+     "frames": 20,
+     "how": "",
+     "offset": 0,
+     "values": 2,
+     "width": 28,
+     "word": "extra"
+    }
+   },
+   "files": 2,
+   "frames": 20
+  },
+  "Kia Forte": {
+   "bits": 88,
+   "examples": [
+    {
+     "bits": 88,
+     "button": 1,
+     "counter": null,
+     "data": "ECD69B5E46B08AD",
+     "extra": "10199",
+     "file": "KIA/more/Forte_315mhz_FM.sub",
+     "name": "Kia Forte",
+     "serial": "990ECD"
+    },
+    {
+     "bits": 88,
+     "button": 2,
+     "counter": null,
+     "data": "ECD97A08B8C689D",
+     "extra": "10299",
+     "file": "KIA/more/Forte_315mhz_FM.sub",
+     "name": "Kia Forte",
+     "serial": "990ECD"
+    },
+    {
+     "bits": 88,
+     "button": 1,
+     "counter": null,
+     "data": "ECDF5187433F10D",
+     "extra": "10199",
+     "file": "KIA/more/Forte_315mhz_FM.sub",
+     "name": "Kia Forte",
+     "serial": "990ECD"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 20,
+     "how": "",
+     "offset": 8,
+     "values": 2,
+     "width": 4,
+     "word": "extra"
+    }
+   },
+   "files": 1,
+   "frames": 20
+  },
+  "Kia Mobis": {
+   "bits": 72,
+   "examples": [
+    {
+     "bits": 72,
+     "button": 1,
+     "counter": "5",
+     "data": "5147424D845F",
+     "extra": "0",
+     "file": "KIA/more/2019-2022_Kia_Sportage_QL__433.92_FM.sub",
+     "name": "Kia Mobis",
+     "serial": null
+    },
+    {
+     "bits": 72,
+     "button": 2,
+     "counter": "A",
+     "data": "A257763C572A",
+     "extra": "0",
+     "file": "KIA/more/2019-2022_Kia_Sportage_QL__433.92_FM.sub",
+     "name": "Kia Mobis",
+     "serial": null
+    },
+    {
+     "bits": 72,
+     "button": 1,
+     "counter": "6",
+     "data": "614D511CD172",
+     "extra": "0",
+     "file": "KIA/more/2019-2022_Kia_Sportage_QL__433.92_FM.sub",
+     "name": "Kia Mobis",
+     "serial": null
+    },
+    {
+     "bits": 72,
+     "button": 1,
+     "counter": "2",
+     "data": "2135DA9B0A9D",
+     "extra": "0",
+     "file": "KIA/more/KIA_Niro_late_model_433.92_FM.sub",
+     "name": "Kia Mobis",
+     "serial": null
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 40,
+     "how": "",
+     "offset": 40,
+     "values": 2,
+     "width": 4,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 40,
+     "how": "",
+     "offset": 44,
+     "values": 12,
+     "width": 4,
+     "word": "data"
+    }
+   },
+   "files": 3,
+   "frames": 40
+  },
+  "Kia V0": {
+   "bits": 61,
+   "examples": [
+    {
+     "bits": 61,
+     "button": 2,
+     "counter": "7391",
+     "data": "F739167BD75B2BD",
+     "extra": null,
+     "file": "HYUNDAI/HYU V0 N1.sub",
+     "name": "Kia V0",
+     "serial": "67BD75B"
+    },
+    {
+     "bits": 61,
+     "button": 3,
+     "counter": "3145",
+     "data": "F3145B11554C382",
+     "extra": null,
+     "file": "HYUNDAI/more/HYU V0_kurwa_door.sub",
+     "name": "Kia V0",
+     "serial": "B11554C"
+    },
+    {
+     "bits": 61,
+     "button": 1,
+     "counter": "7CA4",
+     "data": "F7CA437BA08C171",
+     "extra": null,
+     "file": "HYUNDAI/more/HYU V0_little_breeky.sub",
+     "name": "Kia V0",
+     "serial": "37BA08C"
+    },
+    {
+     "bits": 61,
+     "button": 4,
+     "counter": "7",
+     "data": "1F0007DF8ABA04B5",
+     "extra": null,
+     "file": "MITSUBISHI/Mitsubishi pajero 2011.sub",
+     "name": "Kia V0",
+     "serial": "DF8ABA0"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 53,
+     "how": "",
+     "offset": 8,
+     "values": 5,
+     "width": 4,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 53,
+     "how": "",
+     "offset": 40,
+     "values": 28,
+     "width": 16,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 53,
+     "how": "",
+     "offset": 12,
+     "values": 6,
+     "width": 28,
+     "word": "data"
+    }
+   },
+   "files": 10,
+   "frames": 53
+  },
+  "Kia V1": {
+   "bits": 57,
+   "examples": [
+    {
+     "bits": 57,
+     "button": 1,
+     "counter": "66",
+     "data": "B444706E016602",
+     "extra": null,
+     "file": "HYUNDAI/HYU V1  N1 RAW.sub",
+     "name": "Kia V1",
+     "serial": "B444706E"
+    },
+    {
+     "bits": 57,
+     "button": 2,
+     "counter": "6B",
+     "data": "B444706E026B00",
+     "extra": null,
+     "file": "HYUNDAI/HYU V1  N1 RAW.sub",
+     "name": "Kia V1",
+     "serial": "B444706E"
+    },
+    {
+     "bits": 57,
+     "button": 1,
+     "counter": "67",
+     "data": "B444706E016701",
+     "extra": null,
+     "file": "HYUNDAI/HYU V1  N1 RAW.sub",
+     "name": "Kia V1",
+     "serial": "B444706E"
+    },
+    {
+     "bits": 57,
+     "button": 1,
+     "counter": "91",
+     "data": "B444706E01910A",
+     "extra": null,
+     "file": "KIA/KIA V1 N1 RAW.sub",
+     "name": "Kia V1",
+     "serial": "B444706E"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 37,
+     "how": "",
+     "offset": 16,
+     "values": 2,
+     "width": 4,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 37,
+     "how": "",
+     "offset": 8,
+     "values": 25,
+     "width": 8,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 37,
+     "how": "",
+     "offset": 24,
+     "values": 1,
+     "width": 32,
+     "word": "data"
+    }
+   },
+   "files": 5,
+   "frames": 37
+  },
+  "Kia V2": {
+   "bits": 53,
+   "examples": [
+    {
+     "bits": 53,
+     "button": 9,
+     "counter": "CA2",
+     "data": "E18CC1429A2CE",
+     "extra": null,
+     "file": "HYUNDAI/HYU V2 N1.sub",
+     "name": "Kia V2",
+     "serial": "E18CC142"
+    },
+    {
+     "bits": 53,
+     "button": 2,
+     "counter": "BE6",
+     "data": "E18CC1422E6B2",
+     "extra": null,
+     "file": "HYUNDAI/HYU V2_random_habar.sub",
+     "name": "Kia V2",
+     "serial": "E18CC142"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 2,
+     "how": "",
+     "offset": 16,
+     "values": 2,
+     "width": 4,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 2,
+     "how": "",
+     "offset": 20,
+     "values": 1,
+     "width": 32,
+     "word": "data"
+    }
+   },
+   "files": 2,
+   "frames": 2
+  },
+  "Kia V3/V4": {
+   "bits": 68,
+   "examples": [
+    {
+     "bits": 68,
+     "button": 2,
+     "counter": "BDE9",
+     "data": "C3B1790C8FC0C864",
+     "extra": "0",
+     "file": "HYUNDAI/HYU V4 N1.sub",
+     "name": "Kia V4",
+     "serial": "61303F1"
+    },
+    {
+     "bits": 68,
+     "button": 4,
+     "counter": "18",
+     "data": "7E0E0C0860B70382",
+     "extra": "0",
+     "file": "KIA/KIA V4 N1 RAW.sub",
+     "name": "Kia V4",
+     "serial": "1C0ED06"
+    },
+    {
+     "bits": 68,
+     "button": 1,
+     "counter": "7",
+     "data": "D82D5BD5A2C48008",
+     "extra": "0",
+     "file": "KIA/more/kia_v4_1.sub",
+     "name": "Kia V4",
+     "serial": "12345"
+    },
+    {
+     "bits": 68,
+     "button": 2,
+     "counter": "13",
+     "data": "20FD579060B70384",
+     "extra": "0",
+     "file": "KIA/KIA V4 N1 RAW.sub",
+     "name": "Kia V4",
+     "serial": "1C0ED06"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 647,
+     "how": "reversed",
+     "offset": 1,
+     "values": 3,
+     "width": 3,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 647,
+     "how": "reversed",
+     "offset": 4,
+     "values": 4,
+     "width": 28,
+     "word": "data"
+    }
+   },
+   "files": 9,
+   "frames": 647
+  },
+  "Kia V5": {
+   "bits": 67,
+   "examples": [
+    {
+     "bits": 67,
+     "button": 1,
+     "counter": "5360",
+     "data": "9CAF491D68030228",
+     "extra": "1",
+     "file": "HYUNDAI/more/HYU V5_great_juzyk.sub",
+     "name": "Kia V5",
+     "serial": "440C016"
+    },
+    {
+     "bits": 67,
+     "button": 2,
+     "counter": "3B54",
+     "data": "7AA31142AF951B84",
+     "extra": "3",
+     "file": "HYUNDAI/test_new_kia_hyu.sub",
+     "name": "Kia V5",
+     "serial": "1D8A9F5"
+    },
+    {
+     "bits": 67,
+     "button": 1,
+     "counter": "5361",
+     "data": "561D6DAA68030228",
+     "extra": "2",
+     "file": "KIA/KIA V5 N1 RAW.sub",
+     "name": "Kia V5",
+     "serial": "440C016"
+    },
+    {
+     "bits": 67,
+     "button": 1,
+     "counter": "2DE4",
+     "data": "B8BEDC9270A4EE88",
+     "extra": "2",
+     "file": "KIA/KIA V5 N2 RAW.sub",
+     "name": "Kia V5",
+     "serial": "177250E"
+    }
+   ],
+   "fields": {
+    "serial": {
+     "frames": 122,
+     "how": "reversed",
+     "offset": 4,
+     "values": 3,
+     "width": 28,
+     "word": "data"
+    }
+   },
+   "files": 6,
+   "frames": 122
+  },
+  "Kia V6": {
+   "bits": 144,
+   "examples": [
+    {
+     "bits": 144,
+     "button": 1,
+     "counter": "2012",
+     "data": "ED028AE751F0ECAE",
+     "extra": "D2",
+     "file": "HYUNDAI/HYU V6_test.sub",
+     "name": "Kia V6",
+     "serial": "1AD9C3"
+    },
+    {
+     "bits": 144,
+     "button": 2,
+     "counter": "4074",
+     "data": "ED0331A6D1CE8E66",
+     "extra": "D3",
+     "file": "HYUNDAI/more/HYU V6_small_breeky.sub",
+     "name": "Kia V6",
+     "serial": "61F622"
+    },
+    {
+     "bits": 144,
+     "button": 11,
+     "counter": "C04B",
+     "data": "DA07827EFCA4EA82",
+     "extra": "1C106A7",
+     "file": "KIA/KIA V6 N2.sub",
+     "name": "Kia V6",
+     "serial": "109DA7"
+    },
+    {
+     "bits": 144,
+     "button": 1,
+     "counter": "1663",
+     "data": "2D032668D0AF3F80",
+     "extra": "1D3",
+     "file": "HYUNDAI/more/Tucson2.sub",
+     "name": "Kia V6",
+     "serial": "5B9CFE"
+    }
+   ],
+   "fields": {},
+   "files": 7,
+   "frames": 43
+  },
+  "Kia V7": {
+   "bits": 64,
+   "examples": [
+    {
+     "bits": 64,
+     "button": 1,
+     "counter": "57",
+     "data": "4C0057153024B19C",
+     "extra": null,
+     "file": "KIA/more/kia_v7_Korea_H6_DXL.sub",
+     "name": "Kia V7",
+     "serial": "153024B"
+    },
+    {
+     "bits": 64,
+     "button": 2,
+     "counter": "5C",
+     "data": "4C005C153024B268",
+     "extra": null,
+     "file": "KIA/more/kia_v7_Korea_H6_DXL.sub",
+     "name": "Kia V7",
+     "serial": "153024B"
+    },
+    {
+     "bits": 64,
+     "button": 1,
+     "counter": "58",
+     "data": "4C0058153024B19F",
+     "extra": null,
+     "file": "KIA/more/kia_v7_Korea_H6_DXL.sub",
+     "name": "Kia V7",
+     "serial": "153024B"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 20,
+     "how": "",
+     "offset": 8,
+     "values": 2,
+     "width": 4,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 20,
+     "how": "",
+     "offset": 40,
+     "values": 10,
+     "width": 8,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 20,
+     "how": "",
+     "offset": 12,
+     "values": 1,
+     "width": 28,
+     "word": "data"
+    }
+   },
+   "files": 1,
+   "frames": 20
+  },
+  "Mazda Siemens": {
+   "bits": 64,
+   "examples": [
+    {
+     "bits": 64,
+     "button": 16,
+     "counter": "13",
+     "data": "15302419100013A5",
+     "extra": null,
+     "file": "Mazda/more/Mazda_F2.sub",
+     "name": "Mazda Siemens",
+     "serial": "15302419"
+    },
+    {
+     "bits": 64,
+     "button": 0,
+     "counter": "14",
+     "data": "1530241900001496",
+     "extra": null,
+     "file": "Mazda/more/Mazda_F2.sub",
+     "name": "Mazda Siemens",
+     "serial": "15302419"
+    },
+    {
+     "bits": 64,
+     "button": 32,
+     "counter": "18",
+     "data": "15302419200018BA",
+     "extra": null,
+     "file": "Mazda/more/Mazda_F2.sub",
+     "name": "Mazda Siemens",
+     "serial": "15302419"
+    },
+    {
+     "bits": 64,
+     "button": 64,
+     "counter": "1D",
+     "data": "1530241940001DDF",
+     "extra": null,
+     "file": "Mazda/more/Mazda_F2.sub",
+     "name": "Mazda Siemens",
+     "serial": "15302419"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 54,
+     "how": "",
+     "offset": 24,
+     "values": 4,
+     "width": 8,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 54,
+     "how": "",
+     "offset": 8,
+     "values": 15,
+     "width": 8,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 54,
+     "how": "",
+     "offset": 32,
+     "values": 1,
+     "width": 32,
+     "word": "data"
+    }
+   },
+   "files": 1,
+   "frames": 54
+  },
+  "Mazda V0": {
+   "bits": 64,
+   "examples": [
+    {
+     "bits": 64,
+     "button": 1,
+     "counter": "13",
+     "data": "4213508011113A5",
+     "extra": null,
+     "file": "Mazda/more/Mazda_F2.sub",
+     "name": "Mazda V0",
+     "serial": "15302419"
+    },
+    {
+     "bits": 64,
+     "button": 0,
+     "counter": "13",
+     "data": "421350811111395",
+     "extra": null,
+     "file": "Mazda/more/Mazda_F2.sub",
+     "name": "Mazda V0",
+     "serial": "15302419"
+    },
+    {
+     "bits": 64,
+     "button": 2,
+     "counter": "18",
+     "data": "1D382C11281808BA",
+     "extra": null,
+     "file": "Mazda/more/Mazda_F2.sub",
+     "name": "Mazda V0",
+     "serial": "15302419"
+    },
+    {
+     "bits": 64,
+     "button": 4,
+     "counter": "1D",
+     "data": "1D382C11481D08DF",
+     "extra": null,
+     "file": "Mazda/more/Mazda_F2.sub",
+     "name": "Mazda V0",
+     "serial": "15302419"
+    }
+   ],
+   "fields": {},
+   "files": 2,
+   "frames": 102
+  },
+  "Mazda V1": {
+   "bits": 71,
+   "examples": [
+    {
+     "bits": 71,
+     "button": 38,
+     "counter": "8",
+     "data": "EC2614DE723323AD",
+     "extra": "51",
+     "file": "Mazda/mazda_key3_10x_trunk.sub",
+     "name": "Mazda V1",
+     "serial": "5"
+    },
+    {
+     "bits": 71,
+     "button": 38,
+     "counter": "9",
+     "data": "EC26169E511566EC",
+     "extra": "5",
+     "file": "Mazda/mazda_key3_10x_trunk.sub",
+     "name": "Mazda V1",
+     "serial": "5"
+    },
+    {
+     "bits": 71,
+     "button": 38,
+     "counter": "1D",
+     "data": "EC2652ADA109341C",
+     "extra": "55",
+     "file": "Mazda/more/mazda_key0_1665x_btn5.sub",
+     "name": "Mazda V1",
+     "serial": "14"
+    },
+    {
+     "bits": 71,
+     "button": 38,
+     "counter": "0",
+     "data": "EC2651DDB130021A",
+     "extra": "7B",
+     "file": "Mazda/more/mazda_key0_524x_btn5.sub",
+     "name": "Mazda V1",
+     "serial": "14"
+    }
+   ],
+   "fields": {
+    "serial": {
+     "frames": 1313,
+     "how": "",
+     "offset": 42,
+     "values": 4,
+     "width": 6,
+     "word": "data"
+    }
+   },
+   "files": 5,
+   "frames": 1313
+  },
+  "Mazda V2": {
+   "bits": 63,
+   "examples": [
+    {
+     "bits": 63,
+     "button": 6,
+     "counter": "49",
+     "data": "661F64B5A4F535A",
+     "extra": null,
+     "file": "Mazda/MazdaV1F4_OEM2_LU.sub",
+     "name": "Mazda V2",
+     "serial": null
+    },
+    {
+     "bits": 63,
+     "button": 10,
+     "counter": "52",
+     "data": "A6134EB9A91870E",
+     "extra": null,
+     "file": "Mazda/MazdaV1F4_OEM2_LU.sub",
+     "name": "Mazda V2",
+     "serial": null
+    },
+    {
+     "bits": 63,
+     "button": 134,
+     "counter": "83",
+     "data": "865A7B3BD41A691A",
+     "extra": null,
+     "file": "Mazda/more/20x_Long_Lock-B.sub",
+     "name": "Mazda V2",
+     "serial": null
+    },
+    {
+     "bits": 63,
+     "button": 138,
+     "counter": "7A",
+     "data": "8A5B272013D4F672",
+     "extra": null,
+     "file": "Mazda/more/20x_Long_Unlock-B.sub",
+     "name": "Mazda V2",
+     "serial": null
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 4417,
+     "how": "",
+     "offset": 56,
+     "values": 10,
+     "width": 8,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 4417,
+     "how": "",
+     "offset": 19,
+     "values": 256,
+     "width": 8,
+     "word": "data"
+    }
+   },
+   "files": 24,
+   "frames": 4417
+  },
+  "Microchip-HCS361": {
+   "bits": 67,
+   "examples": [
+    {
+     "bits": 67,
+     "button": 10,
+     "counter": null,
+     "data": "55596A66A5696AA5",
+     "extra": "4",
+     "file": "GATES/more/Beninca.sub",
+     "name": "Microchip-HCS361 [KeeLoq (Unknown)]",
+     "serial": "55696A5"
+    },
+    {
+     "bits": 67,
+     "button": 15,
+     "counter": null,
+     "data": "FFFFFFFFEFFFFFFF",
+     "extra": "7",
+     "file": "OPEL/more/opel_two_button_remote_unlock_x300.sub",
+     "name": "Microchip-HCS361 [KeeLoq (Unknown)]",
+     "serial": "FFFFFF7"
+    }
+   ],
+   "fields": {
+    "serial": {
+     "frames": 2,
+     "how": "reversed",
+     "offset": 4,
+     "values": 2,
+     "width": 28,
+     "word": "data"
+    }
+   },
+   "files": 2,
+   "frames": 2
+  },
+  "Mitsubishi V0": {
+   "bits": 61,
+   "examples": [
+    {
+     "bits": 61,
+     "button": 4,
+     "counter": "7",
+     "data": "1F0007DF8ABA04B5",
+     "extra": null,
+     "file": "MITSUBISHI/Mitsubishi pajero 2011.sub",
+     "name": "Mitsubishi V0",
+     "serial": "DF8ABA0"
+    },
+    {
+     "bits": 61,
+     "button": 3,
+     "counter": "8",
+     "data": "1F0008DF8ABA03B4",
+     "extra": null,
+     "file": "MITSUBISHI/Mitsubishi pajero 2011.sub",
+     "name": "Mitsubishi V0",
+     "serial": "DF8ABA0"
+    },
+    {
+     "bits": 61,
+     "button": 6,
+     "counter": "9",
+     "data": "1F0009DF8ABA06EA",
+     "extra": null,
+     "file": "MITSUBISHI/Mitsubishi pajero 2011.sub",
+     "name": "Mitsubishi V0",
+     "serial": "DF8ABA0"
+    },
+    {
+     "bits": 61,
+     "button": 6,
+     "counter": "A",
+     "data": "1F000ADF8ABA0673",
+     "extra": null,
+     "file": "MITSUBISHI/Mitsubishi pajero 2011.sub",
+     "name": "Mitsubishi V0",
+     "serial": "DF8ABA0"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 4,
+     "how": "",
+     "offset": 8,
+     "values": 3,
+     "width": 4,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 4,
+     "how": "",
+     "offset": 40,
+     "values": 4,
+     "width": 4,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 4,
+     "how": "",
+     "offset": 12,
+     "values": 1,
+     "width": 28,
+     "word": "data"
+    }
+   },
+   "files": 1,
+   "frames": 4
+  },
+  "Mitsubishi V1": {
+   "bits": 96,
+   "examples": [
+    {
+     "bits": 96,
+     "button": 8,
+     "counter": "36F",
+     "data": "1260F206E08DBE52",
+     "extra": "2528B2FDBE5",
+     "file": "MITSUBISHI/Mitsh_all_x1_fm476.sub",
+     "name": "Mitsubishi V1",
+     "serial": "1260F206"
+    },
+    {
+     "bits": 96,
+     "button": 2,
+     "counter": "370",
+     "data": "1260F206E02DC272",
+     "extra": "272DBECFEC9",
+     "file": "MITSUBISHI/Mitsh_all_x1_fm476.sub",
+     "name": "Mitsubishi V1",
+     "serial": "1260F206"
+    },
+    {
+     "bits": 96,
+     "button": 4,
+     "counter": "3C2",
+     "data": "1E4C11A7E04F0BEE",
+     "extra": "3EE1D726EBF",
+     "file": "MITSUBISHI/more/KeyFob1_3.sub",
+     "name": "Mitsubishi V1",
+     "serial": "1E4C11A7"
+    },
+    {
+     "bits": 96,
+     "button": 2,
+     "counter": "391",
+     "data": "1E4C11A7E02E47E6",
+     "extra": "3E66BEAFFD3",
+     "file": "MITSUBISHI/more/KeyFob1_1.sub",
+     "name": "Mitsubishi V1",
+     "serial": "1E4C11A7"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 958,
+     "how": "",
+     "offset": 20,
+     "values": 3,
+     "width": 4,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 958,
+     "how": "",
+     "offset": 10,
+     "values": 133,
+     "width": 10,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 958,
+     "how": "",
+     "offset": 32,
+     "values": 2,
+     "width": 32,
+     "word": "data"
+    }
+   },
+   "files": 10,
+   "frames": 958
+  },
+  "Nidec RKE": {
+   "bits": 57,
+   "examples": [
+    {
+     "bits": 57,
+     "button": 5,
+     "counter": "38A",
+     "data": "38A5F299755F400",
+     "extra": "F400",
+     "file": "honda/more/HondaV0_FA94E9CA_300trk.sub",
+     "name": "Nidec RKE",
+     "serial": "5F2997"
+    },
+    {
+     "bits": 57,
+     "button": 15,
+     "counter": "393",
+     "data": "3935F29975F9A00",
+     "extra": "9A00",
+     "file": "honda/more/HondaV0_FA94E9CA_300trk.sub",
+     "name": "Nidec RKE",
+     "serial": "5F2997"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 3,
+     "how": "",
+     "offset": 16,
+     "values": 3,
+     "width": 4,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 3,
+     "how": "",
+     "offset": 48,
+     "values": 3,
+     "width": 12,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 3,
+     "how": "",
+     "offset": 24,
+     "values": 2,
+     "width": 24,
+     "word": "data"
+    }
+   },
+   "files": 2,
+   "frames": 3
+  },
+  "Opel Rolling": {
+   "bits": 60,
+   "examples": [
+    {
+     "bits": 60,
+     "button": 11,
+     "counter": "2F7",
+     "data": "B71597D857F251B",
+     "extra": "ACA2F7",
+     "file": "OPEL/more/opel_two_button_remote_lock_x300.sub",
+     "name": "Opel Rolling",
+     "serial": "71597D"
+    },
+    {
+     "bits": 60,
+     "button": 10,
+     "counter": "421",
+     "data": "A71597D768EF12B",
+     "extra": "ACA421",
+     "file": "OPEL/more/opel_two_button_remote_unlock_x300.sub",
+     "name": "Opel Rolling",
+     "serial": "71597D"
+    },
+    {
+     "bits": 60,
+     "button": 11,
+     "counter": "2FA",
+     "data": "B71597DA752A54C",
+     "extra": "ACA2FA",
+     "file": "OPEL/more/opel_two_button_remote_lock_x300.sub",
+     "name": "Opel Rolling",
+     "serial": "71597D"
+    },
+    {
+     "bits": 60,
+     "button": 10,
+     "counter": "422",
+     "data": "A71597DB2BAC3E5",
+     "extra": "ACA422",
+     "file": "OPEL/more/opel_two_button_remote_unlock_x300.sub",
+     "name": "Opel Rolling",
+     "serial": "71597D"
+    }
+   ],
+   "fields": {
+    "counter": {
+     "frames": 955,
+     "how": "",
+     "offset": 0,
+     "values": 399,
+     "width": 12,
+     "word": "extra"
+    }
+   },
+   "files": 4,
+   "frames": 1172
+  },
+  "Opel V1": {
+   "bits": 93,
+   "examples": [
+    {
+     "bits": 93,
+     "button": 115,
+     "counter": "6B5E",
+     "data": "127933CB45276D80",
+     "extra": "8AB37A9",
+     "file": "HOLDEN/Holden Barina 2016 AU.sub",
+     "name": "Opel V1",
+     "serial": "4F2679"
+    }
+   ],
+   "fields": {
+    "serial": {
+     "frames": 5,
+     "how": "",
+     "offset": 35,
+     "values": 1,
+     "width": 24,
+     "word": "data"
+    }
+   },
+   "files": 1,
+   "frames": 5
+  },
+  "PSA": {
+   "bits": 128,
+   "examples": [
+    {
+     "bits": 128,
+     "button": 3,
+     "counter": "68EE",
+     "data": "B6DA3125DF76B704",
+     "extra": "A3F7",
+     "file": "GROUPE PSA/Delphi_remote_button3_x10.sub",
+     "name": "PSA",
+     "serial": "725335"
+    },
+    {
+     "bits": 128,
+     "button": 1,
+     "counter": "68DA",
+     "data": "B6DAFAEE20BD48CF",
+     "extra": "61F7",
+     "file": "GROUPE PSA/Delphi_remote_lock_x10.sub",
+     "name": "PSA",
+     "serial": "725335"
+    },
+    {
+     "bits": 128,
+     "button": 2,
+     "counter": "68E4",
+     "data": "B6DA697D8D2EE55C",
+     "extra": "C2F7",
+     "file": "GROUPE PSA/Delphi_remote_unlock_x10.sub",
+     "name": "PSA",
+     "serial": "725335"
+    },
+    {
+     "bits": 128,
+     "button": 0,
+     "counter": "39B",
+     "data": "6EDAE3B4785F7BC6",
+     "extra": "70F6",
+     "file": "GROUPE PSA/PSA_523_536.sub",
+     "name": "PSA",
+     "serial": "99EB25"
+    }
+   ],
+   "fields": {},
+   "files": 7,
+   "frames": 45
+  },
+  "Renault 1-Button": {
+   "bits": 72,
+   "examples": [
+    {
+     "bits": 72,
+     "button": null,
+     "counter": null,
+     "data": "30A84DCF9013E860",
+     "extra": "11",
+     "file": "RENAULT/renault_one_button_remote_x110.sub",
+     "name": "Renault 1-Button",
+     "serial": "A84DC"
+    },
+    {
+     "bits": 72,
+     "button": null,
+     "counter": null,
+     "data": "30A84DC05A6C788E",
+     "extra": "D5",
+     "file": "RENAULT/renault_one_button_remote_x110.sub",
+     "name": "Renault 1-Button",
+     "serial": "A84DC"
+    }
+   ],
+   "fields": {
+    "serial": {
+     "frames": 350,
+     "how": "",
+     "offset": 36,
+     "values": 1,
+     "width": 20,
+     "word": "data"
+    }
+   },
+   "files": 1,
+   "frames": 350
+  },
+  "Renault V0": {
+   "bits": 82,
+   "examples": [
+    {
+     "bits": 82,
+     "button": 6,
+     "counter": "23",
+     "data": "4804CE06238E9097",
+     "extra": "37681",
+     "file": "RENAULT/more/Renault_v1_000R3X.sub",
+     "name": "Renault V0",
+     "serial": "4804CE"
+    },
+    {
+     "bits": 82,
+     "button": 10,
+     "counter": "26",
+     "data": "4804CE0A268B9C42",
+     "extra": "2685",
+     "file": "RENAULT/more/Renault_v1_000R3X.sub",
+     "name": "Renault V0",
+     "serial": "4804CE"
+    },
+    {
+     "bits": 82,
+     "button": 6,
+     "counter": "24",
+     "data": "4804CE0624CB0BD4",
+     "extra": "2D64A",
+     "file": "RENAULT/more/Renault_v1_000R3X.sub",
+     "name": "Renault V0",
+     "serial": "4804CE"
+    },
+    {
+     "bits": 82,
+     "button": 6,
+     "counter": "10",
+     "data": "4804CE0610EAD85B",
+     "extra": "2B60F",
+     "file": "RENAULT/more/kangoo_1.sub",
+     "name": "Renault V0",
+     "serial": "4804CE"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 81,
+     "how": "",
+     "offset": 32,
+     "values": 2,
+     "width": 4,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 81,
+     "how": "",
+     "offset": 24,
+     "values": 19,
+     "width": 8,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 81,
+     "how": "",
+     "offset": 40,
+     "values": 1,
+     "width": 24,
+     "word": "data"
+    }
+   },
+   "files": 5,
+   "frames": 81
+  },
+  "Renault V1": {
+   "bits": 104,
+   "examples": [
+    {
+     "bits": 104,
+     "button": 2,
+     "counter": "13B",
+     "data": "18BB002E624ED",
+     "extra": "C0F9F012CD",
+     "file": "RENAULT/more/Renault_Duster_2010_KD_300ulk.sub",
+     "name": "Renault V1",
+     "serial": "8BB002E6"
+    },
+    {
+     "bits": 104,
+     "button": 1,
+     "counter": "2A7D",
+     "data": "1CA61542A19F4",
+     "extra": "A447D10E04",
+     "file": "RENAULT/more/Renault_v1_PSA_A5_1_1U1L.sub",
+     "name": "Renault V1",
+     "serial": "CA61542A"
+    },
+    {
+     "bits": 104,
+     "button": 4,
+     "counter": "227",
+     "data": "1C61A6328489D",
+     "extra": "38B5912678",
+     "file": "RENAULT/more/trunk_300.sub",
+     "name": "Renault V1",
+     "serial": "C61A6328"
+    },
+    {
+     "bits": 104,
+     "button": 8,
+     "counter": "2D9",
+     "data": "112B7432E8B64",
+     "extra": "15A6AB0639",
+     "file": "nissan/more/Nissan_Almera_2014_xHorse_5pnc_hold10s.sub",
+     "name": "Renault V1",
+     "serial": "12B7432E"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 1565,
+     "how": "",
+     "offset": 12,
+     "values": 4,
+     "width": 4,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 1565,
+     "how": "",
+     "offset": 16,
+     "values": 7,
+     "width": 32,
+     "word": "data"
+    }
+   },
+   "files": 22,
+   "frames": 1565
+  },
+  "Renault V1 (ARF)": {
+   "bits": 82,
+   "examples": [
+    {
+     "bits": 82,
+     "button": 5,
+     "counter": "29",
+     "data": "4804CE0529AAD5C6",
+     "extra": "1001425F",
+     "file": "RENAULT/more/Renault_v1_000R3X.sub",
+     "name": "Renault V1 (ARF) [Dynamic 0x10]",
+     "serial": "4804CE"
+    },
+    {
+     "bits": 82,
+     "button": 5,
+     "counter": "2A",
+     "data": "4804CE052ACEC9FC",
+     "extra": "1000061F",
+     "file": "RENAULT/more/Renault_v1_000R3X.sub",
+     "name": "Renault V1 (ARF) [Dynamic 0x10]",
+     "serial": "4804CE"
+    }
+   ],
+   "fields": {
+    "counter": {
+     "frames": 13,
+     "how": "",
+     "offset": 24,
+     "values": 3,
+     "width": 8,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 13,
+     "how": "",
+     "offset": 40,
+     "values": 1,
+     "width": 24,
+     "word": "data"
+    }
+   },
+   "files": 1,
+   "frames": 13
+  },
+  "Renault/xHorse V4": {
+   "bits": 88,
+   "examples": [
+    {
+     "bits": 88,
+     "button": 13,
+     "counter": "77",
+     "data": "B00A0D7D5DFB292",
+     "extra": "DC0D78",
+     "file": "ALFA ROMEO/more/Giulietta_Trunk.sub",
+     "name": "Renault/xHorse V4",
+     "serial": "B00A0D7"
+    },
+    {
+     "bits": 88,
+     "button": 14,
+     "counter": "6B",
+     "data": "359EABD5E5AD5E09",
+     "extra": "60132",
+     "file": "RENAULT/more/Renault_v1_PSA_A5_1_20U20L.sub",
+     "name": "Renault/xHorse V4",
+     "serial": "359EABD5"
+    },
+    {
+     "bits": 88,
+     "button": 11,
+     "counter": "D7",
+     "data": "39E59CD7B75FD346",
+     "extra": "140D0C",
+     "file": "RENAULT/more/trunk_300.sub",
+     "name": "Renault/xHorse V4",
+     "serial": "39E59CD7"
+    },
+    {
+     "bits": 88,
+     "button": 7,
+     "counter": "26",
+     "data": "ED48BCD1749BEA59",
+     "extra": "54F9C6",
+     "file": "nissan/more/Nissan_Almera_2014_xHorse_5pnc_hold10s.sub",
+     "name": "Renault/xHorse V4",
+     "serial": "ED48BCD1"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 227,
+     "how": "",
+     "offset": 28,
+     "values": 4,
+     "width": 4,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 227,
+     "how": "",
+     "offset": 18,
+     "values": 128,
+     "width": 8,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 227,
+     "how": "",
+     "offset": 32,
+     "values": 8,
+     "width": 32,
+     "word": "data"
+    }
+   },
+   "files": 19,
+   "frames": 227
+  },
+  "Security+ 2.0": {
+   "bits": 62,
+   "examples": [
+    {
+     "bits": 62,
+     "button": 80,
+     "counter": "126",
+     "data": "3D2831556836",
+     "extra": "3C008C54241D",
+     "file": "GATES/more/2668A_315.sub",
+     "name": "Security+ 2.0",
+     "serial": "5BC6914C"
+    },
+    {
+     "bits": 62,
+     "button": 19,
+     "counter": "24C",
+     "data": "3D299F0FF6DB",
+     "extra": "3C168DBAD4EE",
+     "file": "GATES/more/891LM_7359_raw.sub",
+     "name": "Security+ 2.0",
+     "serial": "60C4C080"
+    },
+    {
+     "bits": 62,
+     "button": 82,
+     "counter": "F3",
+     "data": "3D203B59C4B4",
+     "extra": "3C099E7C3E17",
+     "file": "GATES/more/893LM_7359_r_1.1.sub",
+     "name": "Security+ 2.0",
+     "serial": "424C81AC"
+    },
+    {
+     "bits": 62,
+     "button": 81,
+     "counter": "1C",
+     "data": "3D28AE6794C9",
+     "extra": "3C156EB8CAEE",
+     "file": "GATES/more/893LM_7359_r_1.2.sub",
+     "name": "Security+ 2.0",
+     "serial": "424C81AC"
+    }
+   ],
+   "fields": {},
+   "files": 7,
+   "frames": 181
+  },
+  "Siemens-5WY72XX": {
+   "bits": 96,
+   "examples": [
+    {
+     "bits": 96,
+     "button": 16,
+     "counter": "223D",
+     "data": "780F066110223D9B",
+     "extra": "AB5C5526",
+     "file": "chrysler/more/fca_siemens_5wy72xx_door_button_10_x50.sub",
+     "name": "Siemens-5WY72XX",
+     "serial": "61060F78"
+    },
+    {
+     "bits": 96,
+     "button": 32,
+     "counter": "2281",
+     "data": "780F06612022818B",
+     "extra": "A9AB7F65",
+     "file": "chrysler/more/fca_siemens_5wy72xx_door_button_20_x51.sub",
+     "name": "Siemens-5WY72XX",
+     "serial": "61060F78"
+    },
+    {
+     "bits": 96,
+     "button": 1,
+     "counter": "21C8",
+     "data": "780F06610121C801",
+     "extra": "DA85C00",
+     "file": "chrysler/more/fca_siemens_5wy72xx_lock_x49.sub",
+     "name": "Siemens-5WY72XX",
+     "serial": "61060F78"
+    },
+    {
+     "bits": 96,
+     "button": 8,
+     "counter": "2164",
+     "data": "780F066108216491",
+     "extra": "29FE9388",
+     "file": "chrysler/more/fca_siemens_5wy72xx_panic_x50.sub",
+     "name": "Siemens-5WY72XX",
+     "serial": "61060F78"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 879,
+     "how": "",
+     "offset": 24,
+     "values": 6,
+     "width": 8,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 879,
+     "how": "",
+     "offset": 8,
+     "values": 301,
+     "width": 16,
+     "word": "data"
+    }
+   },
+   "files": 6,
+   "frames": 879
+  },
+  "Somfy Keytis": {
+   "bits": 80,
+   "examples": [
+    {
+     "bits": 80,
+     "button": 4,
+     "counter": "44",
+     "data": "A45F5F1B2DFE33",
+     "extra": "C40019",
+     "file": "GATES/more/somfy_keytis_raw.sub",
+     "name": "Somfy Keytis",
+     "serial": "36D3CD"
+    }
+   ],
+   "fields": {},
+   "files": 1,
+   "frames": 5
+  },
+  "Somfy Telis": {
+   "bits": 56,
+   "examples": [
+    {
+     "bits": 56,
+     "button": 4,
+     "counter": "165F",
+     "data": "8DC3D58AC2EACC",
+     "extra": null,
+     "file": "GATES/more/Somfy_Telis_electronic_shades.sub",
+     "name": "Somfy Telis",
+     "serial": "482826"
+    },
+    {
+     "bits": 56,
+     "button": 2,
+     "counter": "208",
+     "data": "A78381899B8888",
+     "extra": null,
+     "file": "GATES/more/somfy_telis_raw.sub",
+     "name": "Somfy Telis",
+     "serial": "121300"
+    },
+    {
+     "bits": 56,
+     "button": 3,
+     "counter": "209",
+     "data": "A79391988A9999",
+     "extra": null,
+     "file": "GATES/more/somfy_telis_raw.sub",
+     "name": "Somfy Telis",
+     "serial": "121300"
+    },
+    {
+     "bits": 56,
+     "button": 1,
+     "counter": "20B",
+     "data": "A7B3B1BAA8BBBB",
+     "extra": null,
+     "file": "GATES/more/somfy_telis_raw.sub",
+     "name": "Somfy Telis",
+     "serial": "121300"
+    }
+   ],
+   "fields": {},
+   "files": 2,
+   "frames": 21
+  },
+  "Subaru": {
+   "bits": 64,
+   "examples": [
+    {
+     "bits": 64,
+     "button": 1,
+     "counter": "C90A",
+     "data": "E1CB715E4FD1C3F8",
+     "extra": null,
+     "file": "SUBARU/Subaro Impreza RAW .sub",
+     "name": "Subaru",
+     "serial": "CB715E"
+    },
+    {
+     "bits": 64,
+     "button": 2,
+     "counter": "32",
+     "data": "E2324AFE5BE7500A",
+     "extra": null,
+     "file": "SUBARU/Subaru Forester 2012 AU.sub",
+     "name": "Subaru",
+     "serial": "324AFE"
+    },
+    {
+     "bits": 64,
+     "button": 1,
+     "counter": "C90B",
+     "data": "E1CB715E16DDF787",
+     "extra": null,
+     "file": "SUBARU/Subaro Impreza RAW .sub",
+     "name": "Subaru",
+     "serial": "CB715E"
+    },
+    {
+     "bits": 64,
+     "button": 1,
+     "counter": "1904",
+     "data": "E12A90CEF2FEDF44",
+     "extra": null,
+     "file": "SUBARU/Subaru WRX Impreza 2018 AU.sub",
+     "name": "Subaru",
+     "serial": "2A90CE"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 10,
+     "how": "",
+     "offset": 56,
+     "values": 2,
+     "width": 4,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 10,
+     "how": "",
+     "offset": 32,
+     "values": 3,
+     "width": 24,
+     "word": "data"
+    }
+   },
+   "files": 4,
+   "frames": 10
+  },
+  "Suzuki TS002": {
+   "bits": 72,
+   "examples": [
+    {
+     "bits": 72,
+     "button": 2,
+     "counter": "197",
+     "data": "1402ADE9980B5EB6",
+     "extra": "BC",
+     "file": "SUZUKI/more/suzuki_ts002_held_unlock_x5_lock_x5.sub",
+     "name": "Suzuki TS002",
+     "serial": "ADE998"
+    },
+    {
+     "bits": 72,
+     "button": 34,
+     "counter": "197",
+     "data": "1422ADE9980B5EB6",
+     "extra": "BC",
+     "file": "SUZUKI/more/suzuki_ts002_held_unlock_x5_lock_x5.sub",
+     "name": "Suzuki TS002",
+     "serial": "ADE998"
+    },
+    {
+     "bits": 72,
+     "button": 1,
+     "counter": "19C",
+     "data": "1401ADE998EA44AE",
+     "extra": "11",
+     "file": "SUZUKI/more/suzuki_ts002_held_unlock_x5_lock_x5.sub",
+     "name": "Suzuki TS002",
+     "serial": "ADE998"
+    },
+    {
+     "bits": 72,
+     "button": 33,
+     "counter": "19C",
+     "data": "1421ADE998EA44AE",
+     "extra": "11",
+     "file": "SUZUKI/more/suzuki_ts002_held_unlock_x5_lock_x5.sub",
+     "name": "Suzuki TS002",
+     "serial": "ADE998"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 1214,
+     "how": "",
+     "offset": 48,
+     "values": 4,
+     "width": 8,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 1214,
+     "how": "",
+     "offset": 24,
+     "values": 1,
+     "width": 24,
+     "word": "data"
+    }
+   },
+   "files": 4,
+   "frames": 1214
+  },
+  "Suzuki V0": {
+   "bits": 64,
+   "examples": [
+    {
+     "bits": 64,
+     "button": 3,
+     "counter": "19",
+     "data": "F001915302423C10",
+     "extra": null,
+     "file": "SUZUKI/Suzuki_v0_kd.sub",
+     "name": "Suzuki V0",
+     "serial": "1530242"
+    },
+    {
+     "bits": 64,
+     "button": 4,
+     "counter": "1E",
+     "data": "F001E153024242C0",
+     "extra": null,
+     "file": "SUZUKI/Suzuki_v0_kd.sub",
+     "name": "Suzuki V0",
+     "serial": "1530242"
+    },
+    {
+     "bits": 64,
+     "button": 2,
+     "counter": "23",
+     "data": "F002315302422FF0",
+     "extra": null,
+     "file": "SUZUKI/Suzuki_v0_kd.sub",
+     "name": "Suzuki V0",
+     "serial": "1530242"
+    },
+    {
+     "bits": 64,
+     "button": 3,
+     "counter": "1A",
+     "data": "F001A15302423580",
+     "extra": null,
+     "file": "SUZUKI/Suzuki_v0_kd.sub",
+     "name": "Suzuki V0",
+     "serial": "1530242"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 15,
+     "how": "",
+     "offset": 12,
+     "values": 3,
+     "width": 4,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 15,
+     "how": "",
+     "offset": 44,
+     "values": 15,
+     "width": 8,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 15,
+     "how": "",
+     "offset": 16,
+     "values": 1,
+     "width": 28,
+     "word": "data"
+    }
+   },
+   "files": 1,
+   "frames": 15
+  },
+  "Toyota": {
+   "bits": 96,
+   "examples": [
+    {
+     "bits": 96,
+     "button": 209,
+     "counter": "64",
+     "data": "91A081A6C8A6D3",
+     "extra": "A3D2FBA1",
+     "file": "Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub",
+     "name": "Toyota",
+     "serial": "4AB9A1"
+    },
+    {
+     "bits": 96,
+     "button": 0,
+     "counter": null,
+     "data": "9CE182BE9A8AC2",
+     "extra": "B3D6F781",
+     "file": "Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub",
+     "name": "Toyota",
+     "serial": "4AB9A1"
+    },
+    {
+     "bits": 96,
+     "button": 209,
+     "counter": "60",
+     "data": "DFA0C0B6CEAB92",
+     "extra": "A3CBB7A1",
+     "file": "Toyota + Lexus/Toyota Estima 2000 ACR30 3.sub",
+     "name": "Toyota",
+     "serial": "4AB9A1"
+    },
+    {
+     "bits": 96,
+     "button": 209,
+     "counter": "66",
+     "data": "88E1D1ACDAA6C0",
+     "extra": "B183BFA5",
+     "file": "Toyota + Lexus/Toyota Estima 2000 ACR30.sub",
+     "name": "Toyota",
+     "serial": "4AB9A1"
+    }
+   ],
+   "fields": {},
+   "files": 3,
+   "frames": 53
+  },
+  "Toyota (FoxFW)": {
+   "bits": 68,
+   "examples": [
+    {
+     "bits": 68,
+     "button": 11,
+     "counter": "2",
+     "data": "D6A209D69F48FCFB",
+     "extra": "9",
+     "file": "MISC/more/vag_1_2_3_4__kia_0_1_3_4_5.sub",
+     "name": "Toyota (FoxFW)",
+     "serial": "9F48FCF"
+    },
+    {
+     "bits": 68,
+     "button": 14,
+     "counter": "2",
+     "data": "29CD45FF7231804E",
+     "extra": "F",
+     "file": "Toyota + Lexus/Toyota_Prius2006_unlock.sub",
+     "name": "Toyota (FoxFW)",
+     "serial": "7231804"
+    },
+    {
+     "bits": 68,
+     "button": 11,
+     "counter": "2",
+     "data": "3F2E50987231804B",
+     "extra": "F",
+     "file": "Toyota + Lexus/Toyota_Prius2006_lock.sub",
+     "name": "Toyota (FoxFW)",
+     "serial": "7231804"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 17,
+     "how": "",
+     "offset": 0,
+     "values": 2,
+     "width": 4,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 17,
+     "how": "",
+     "offset": 4,
+     "values": 2,
+     "width": 28,
+     "word": "data"
+    }
+   },
+   "files": 3,
+   "frames": 17
+  },
+  "VAG": {
+   "bits": 80,
+   "examples": [
+    {
+     "bits": 80,
+     "button": 32,
+     "counter": "9391",
+     "data": "976AC900C8799",
+     "extra": "800000000001142A",
+     "file": "MISC/more/vag_1_2_3_4__kia_0_1_3_4_5.sub",
+     "name": "VAG",
+     "serial": "FD779294"
+    },
+    {
+     "bits": 80,
+     "button": 2,
+     "counter": "2FED",
+     "data": "DDDC5D8521FD0F",
+     "extra": "80000000FF02972A",
+     "file": "MISC/more/vag_1_2_3_4__kia_0_1_3_4_5.sub",
+     "name": "VAG",
+     "serial": "DED2BA3"
+    },
+    {
+     "bits": 80,
+     "button": 0,
+     "counter": "8477",
+     "data": "C0F195199E9C29A3",
+     "extra": "800000000204392B",
+     "file": "SKODA/Skoda_Fabia_2007 RAW.sub",
+     "name": "VAG",
+     "serial": "7687620"
+    },
+    {
+     "bits": 80,
+     "button": 4,
+     "counter": "4B3C",
+     "data": "1B1FD16503F33F",
+     "extra": "80000000FF023546",
+     "file": "SKODA/more/Skoda_trunk.sub",
+     "name": "VAG",
+     "serial": "E2C36A6F"
+    }
+   ],
+   "fields": {},
+   "files": 63,
+   "frames": 1808
+  },
+  "VAG Polo": {
+   "bits": 80,
+   "examples": [
+    {
+     "bits": 80,
+     "button": 2,
+     "counter": null,
+     "data": "6712BD975ADB881A",
+     "extra": "BD03",
+     "file": "VAG/20_vw_atlas_l2_u2_t2_rs2.sub",
+     "name": "VAG Polo",
+     "serial": "36712BD"
+    },
+    {
+     "bits": 80,
+     "button": 1,
+     "counter": null,
+     "data": "C9AF51F1D5BB08BE",
+     "extra": "7D91",
+     "file": "VAG/20_vw_atlas_l2_u2_t2_rs2.sub",
+     "name": "VAG Polo",
+     "serial": "91C9AF51"
+    },
+    {
+     "bits": 80,
+     "button": 3,
+     "counter": null,
+     "data": "55CC261266330B5",
+     "extra": "DD15",
+     "file": "VAG/20_vw_atlas_l2_u2_t2_rs2.sub",
+     "name": "VAG Polo",
+     "serial": "15055CC2"
+    },
+    {
+     "bits": 80,
+     "button": 4,
+     "counter": null,
+     "data": "50532D3EA96825C5",
+     "extra": "F536",
+     "file": "VAG/20_vw_atlas_l2_u2_t2_rs2.sub",
+     "name": "VAG Polo",
+     "serial": "3650532D"
+    }
+   ],
+   "fields": {},
+   "files": 9,
+   "frames": 71
+  }
+ },
+ "source": "scripts/site_frames.py from the decodes of the recordings in IMPORTS"
+}

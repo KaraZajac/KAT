@@ -100,7 +100,8 @@
     // Its rows: every table up to the next filter box.
     const blocks = [];
     for (let el = find.nextElementSibling; el && !el.classList.contains('table-find'); el = el.nextElementSibling) blocks.push(el);
-    const rows = blocks.flatMap((el) => Array.from(el.querySelectorAll('tbody tr[data-q]')));
+    // Rows of tables, and the cards of a grid of remotes.
+    const rows = blocks.flatMap((el) => Array.from(el.querySelectorAll('tbody tr[data-q], a.fob-card[data-q]')));
     if (!rows.length) { find.hidden = true; return; }
     const apply = () => {
       const words = norm(input.value).split(' ').filter(Boolean);

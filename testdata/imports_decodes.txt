@@ -1216,9 +1216,603 @@ OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D251160/104 extra=1
 OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D251164/104 extra=1E2215FFEA6 sn=468F5D25 btn=1 cnt=59 crc=1 tx=1
 OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D251164/104 extra=1E2215FFEA6 sn=468F5D25 btn=1 cnt=59 crc=1 tx=1
 OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D251164/104 extra=1E2215FFEA6 sn=468F5D25 btn=1 cnt=59 crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=B71597DA3AA79FA/60 extra=ACA576 sn=71597D btn=B cnt=576 crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=B71597DA3AA79FA/60 extra=ACA576 sn=71597D btn=B cnt=576 crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=B71597DA3AA79FA/60 extra=ACA576 sn=71597D btn=B cnt=576 crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=B71597D649B6907/60 extra=ACA577 sn=71597D btn=B cnt=577 crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=B71597D649B6805/60 extra=ACA578 sn=71597D btn=B cnt=578 crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=B71597D649B6805/60 extra=ACA578 sn=71597D btn=B cnt=578 crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=B71597DD42D0E71/60 extra=ACA579 sn=71597D btn=B cnt=579 crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=B71597DD42D0E71/60 extra=ACA579 sn=71597D btn=B cnt=579 crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=B71597DD42D0E71/60 extra=ACA579 sn=71597D btn=B cnt=579 crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=B71597DD0285DCB/60 extra=ACA57A sn=71597D btn=B cnt=57A crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=B71597DD0285DCB/60 extra=ACA57A sn=71597D btn=B cnt=57A crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=B71597DD0285DCB/60 extra=ACA57A sn=71597D btn=B cnt=57A crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=971597D6/32 sn=71597D btn=9 cnt=- crc=1 tx=0
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=A71597DF2FBDD96/60 extra=ACA57C sn=71597D btn=A cnt=57C crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=A71597DF2FBDD96/60 extra=ACA57C sn=71597D btn=A cnt=57C crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=A71597DF2FBDD96/60 extra=ACA57C sn=71597D btn=A cnt=57C crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=A71597DC13790D8/60 extra=ACA57D sn=71597D btn=A cnt=57D crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=A71597DC13790D8/60 extra=ACA57D sn=71597D btn=A cnt=57D crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=A71597DC13790D8/60 extra=ACA57D sn=71597D btn=A cnt=57D crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=A71597DB640E75C/60 extra=ACA57E sn=71597D btn=A cnt=57E crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=A71597DB640E75C/60 extra=ACA57E sn=71597D btn=A cnt=57E crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=A71597DB640E75C/60 extra=ACA57E sn=71597D btn=A cnt=57E crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=A71597D768D4328/60 extra=ACA57F sn=71597D btn=A cnt=57F crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=A71597D768D4328/60 extra=ACA57F sn=71597D btn=A cnt=57F crc=1 tx=1
+OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=A71597D768D4328/60 extra=ACA57F sn=71597D btn=A cnt=57F crc=1 tx=1
+OPEL/opel_two_button_remote_lock_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=B71597DA75F1945/60 extra=ACA56E sn=71597D btn=B cnt=56E crc=1 tx=1
+OPEL/opel_two_button_remote_lock_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=A71597DF2FBD89C/60 extra=ACA571 sn=71597D btn=A cnt=571 crc=1 tx=1
+OPEL/opel_two_button_remote_lock_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=A71597DD42D0574/60 extra=ACA572 sn=71597D btn=A cnt=572 crc=1 tx=1
+OPEL/opel_two_button_remote_lock_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=A71597DD42D0574/60 extra=ACA572 sn=71597D btn=A cnt=572 crc=1 tx=1
+OPEL/opel_two_button_remote_lock_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=A71597DA3AA7BFC/60 extra=ACA574 sn=71597D btn=A cnt=574 crc=1 tx=1
+OPEL/opel_two_button_remote_lock_x5_unlock_x5.sub | 433890000 | Opel Rolling | data=A71597DA3AA7BFC/60 extra=ACA574 sn=71597D btn=A cnt=574 crc=1 tx=1
 RENAULT/Renault Megane Scenic 2005 lock.sub | 433075000 | (none)
 RENAULT/Renault Megane Scenic 2005 trunk.sub | 433075000 | (none)
 RENAULT/Renault Megane Scenic 2005 unlock.sub | 433075000 | (none)
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCF9013E860/72 extra=11 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCF9013E860/72 extra=11 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCF9013E860/72 extra=11 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCF9013E860/72 extra=11 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC05A6C788E/72 extra=D5 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC05A6C788E/72 extra=D5 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC05A6C788E/72 extra=D5 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC05A6C788E/72 extra=D5 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCBC4674E20/72 extra=D3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCBC4674E20/72 extra=D3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCBC4674E20/72 extra=D3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC684BF2B01/72 extra=2 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC684BF2B01/72 extra=2 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC684BF2B01/72 extra=2 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC684BF2B01/72 extra=2 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1225571F9/72 extra=EB sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1225571F9/72 extra=EB sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1225571F9/72 extra=EB sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1225571F9/72 extra=EB sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC3F665F9DC/72 extra=A0 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC3F665F9DC/72 extra=A0 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC3F665F9DC/72 extra=A0 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC3F665F9DC/72 extra=A0 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC184501761/72 extra=B6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC184501761/72 extra=B6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC184501761/72 extra=B6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC184501761/72 extra=B6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCEA14F5053/72 extra=F6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCEA14F5053/72 extra=F6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCEA14F5053/72 extra=F6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCED2DC5F5A/72 extra=10 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCED2DC5F5A/72 extra=10 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCED2DC5F5A/72 extra=10 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC0DED98592/72 extra=5 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC0DED98592/72 extra=5 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC0DED98592/72 extra=5 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCD4DC213F5/72 extra=71 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCD4DC213F5/72 extra=71 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCD4DC213F5/72 extra=71 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC11EF4D43E/72 extra=14 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC11EF4D43E/72 extra=14 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC11EF4D43E/72 extra=14 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC8DE7E8258/72 extra=67 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC8DE7E8258/72 extra=67 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC8DE7E8258/72 extra=67 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC25E23A4EC/72 extra=22 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC25E23A4EC/72 extra=22 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC25E23A4EC/72 extra=22 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC398D6DF4D/72 extra=CA sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC398D6DF4D/72 extra=CA sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC398D6DF4D/72 extra=CA sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC3FC772955/72 extra=E1 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC3FC772955/72 extra=E1 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC3FC772955/72 extra=E1 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCDE998E145/72 extra=CD sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCDE998E145/72 extra=CD sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCDE998E145/72 extra=CD sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC9B73CCAAE/72 extra=F3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC9B73CCAAE/72 extra=F3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC9B73CCAAE/72 extra=F3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC063CB2D3C/72 extra=AC sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC063CB2D3C/72 extra=AC sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC063CB2D3C/72 extra=AC sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC0806A495A/72 extra=EC sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC0806A495A/72 extra=EC sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC0806A495A/72 extra=EC sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC83AF70AC6/72 extra=1C sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC83AF70AC6/72 extra=1C sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC83AF70AC6/72 extra=1C sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC8D9C0D9EA/72 extra=37 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC8D9C0D9EA/72 extra=37 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC8D9C0D9EA/72 extra=37 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC9F7DD971A/72 extra=BB sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC9F7DD971A/72 extra=BB sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC9F7DD971A/72 extra=BB sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC708979AA7/72 extra=B0 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC708979AA7/72 extra=B0 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC708979AA7/72 extra=B0 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCD48BABCC4/72 extra=92 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCD48BABCC4/72 extra=92 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC897D52A4B/72 extra=3E sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC897D52A4B/72 extra=3E sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC897D52A4B/72 extra=3E sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC854CF771B/72 extra=EA sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC854CF771B/72 extra=EA sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC854CF771B/72 extra=EA sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC57DD8FA8F/72 extra=C0 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC57DD8FA8F/72 extra=C0 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC57DD8FA8F/72 extra=C0 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC20B10754E/72 extra=37 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC20B10754E/72 extra=37 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC20B10754E/72 extra=37 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7BB72DC23/72 extra=24 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7BB72DC23/72 extra=24 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7BB72DC23/72 extra=24 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCDD47E4420/72 extra=D6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCDD47E4420/72 extra=D6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCDD47E4420/72 extra=D6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCB52E4D596/72 extra=EB sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCB52E4D596/72 extra=EB sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCB52E4D596/72 extra=EB sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC95A627BB1/72 extra=EE sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC95A627BB1/72 extra=EE sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC95A627BB1/72 extra=EE sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC56BACA546/72 extra=34 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC56BACA546/72 extra=34 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC56BACA546/72 extra=34 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC3D2265D8D/72 extra=32 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC3D2265D8D/72 extra=32 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC3D2265D8D/72 extra=32 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC71A5CA246/72 extra=B0 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC71A5CA246/72 extra=B0 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC71A5CA246/72 extra=B0 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7919298DA/72 extra=53 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7919298DA/72 extra=53 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7919298DA/72 extra=53 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC284AD0E8D/72 extra=BD sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC284AD0E8D/72 extra=BD sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC284AD0E8D/72 extra=BD sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCC705BE767/72 extra=B2 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCC705BE767/72 extra=B2 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCC705BE767/72 extra=B2 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCC705BE767/72 extra=B2 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCB88A7139C/72 extra=BE sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCB88A7139C/72 extra=BE sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCB88A7139C/72 extra=BE sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC442A79738/72 extra=5B sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC442A79738/72 extra=5B sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC442A79738/72 extra=5B sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC442A79738/72 extra=5B sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCE7943F63F/72 extra=E8 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCE7943F63F/72 extra=E8 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCE7943F63F/72 extra=E8 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC5D61D00B8/72 extra=63 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC5D61D00B8/72 extra=63 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC5D61D00B8/72 extra=63 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7E991BFF5/72 extra=20 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7E991BFF5/72 extra=20 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7E991BFF5/72 extra=20 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1D462BEA9/72 extra=B5 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1D462BEA9/72 extra=B5 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1D462BEA9/72 extra=B5 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC249945045/72 extra=DF sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC249945045/72 extra=DF sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC249945045/72 extra=DF sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC249945045/72 extra=DF sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC09424F273/72 extra=24 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC09424F273/72 extra=24 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC09424F273/72 extra=24 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC09424F273/72 extra=24 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC11E089030/72 extra=A2 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC11E089030/72 extra=A2 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC11E089030/72 extra=A2 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC2DBE48DEC/72 extra=49 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC2DBE48DEC/72 extra=49 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC2DBE48DEC/72 extra=49 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCD86B36228/72 extra=67 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCD86B36228/72 extra=67 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCD86B36228/72 extra=67 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCFD47B28BE/72 extra=23 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCFD47B28BE/72 extra=23 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCFD47B28BE/72 extra=23 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCEC355EB19/72 extra=7F sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCEC355EB19/72 extra=7F sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCEA5009FF7/72 extra=D6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCEA5009FF7/72 extra=D6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCEA5009FF7/72 extra=D6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC2EA83AFDE/72 extra=F sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC2EA83AFDE/72 extra=F sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC2E23B3A11/72 extra=E5 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC2E23B3A11/72 extra=E5 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCCD046AB2A/72 extra=E sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCCD046AB2A/72 extra=E sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCCD046AB2A/72 extra=E sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC006462893/72 extra=EE sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC006462893/72 extra=EE sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCA01A74E3D/72 extra=CA sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCA01A74E3D/72 extra=CA sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCA01A74E3D/72 extra=CA sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1364A05B0/72 extra=DD sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1364A05B0/72 extra=DD sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC8E521674D/72 extra=F3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC8E521674D/72 extra=F3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC8E521674D/72 extra=F3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCFA831033B/72 extra=BB sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCFA831033B/72 extra=BB sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCFA831033B/72 extra=BB sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1D61E6F53/72 extra=E0 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1D61E6F53/72 extra=E0 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC6F3625EFF/72 extra=23 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC6F3625EFF/72 extra=23 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC6F3625EFF/72 extra=23 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC116479211/72 extra=C6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC116479211/72 extra=C6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC116479211/72 extra=C6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC70C76A6F6/72 extra=38 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC70C76A6F6/72 extra=38 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC70C76A6F6/72 extra=38 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC401FE9E71/72 extra=1 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC401FE9E71/72 extra=1 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC401FE9E71/72 extra=1 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1E5D7B47A/72 extra=E8 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1E5D7B47A/72 extra=E8 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1E5D7B47A/72 extra=E8 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC05BF9B571/72 extra=73 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC05BF9B571/72 extra=73 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC05BF9B571/72 extra=73 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC05BF9B571/72 extra=73 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC0F87C5F3D/72 extra=F3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC0F87C5F3D/72 extra=F3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC0F87C5F3D/72 extra=F3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC42302B96A/72 extra=E3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC42302B96A/72 extra=E3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC42302B96A/72 extra=E3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC3D20DC62E/72 extra=21 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC3D20DC62E/72 extra=21 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC3D20DC62E/72 extra=21 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCB0D752017/72 extra=51 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCB0D752017/72 extra=51 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCB0D752017/72 extra=51 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC2E416937C/72 extra=A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC2E416937C/72 extra=A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC2E416937C/72 extra=A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCF88077325/72 extra=C3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCF88077325/72 extra=C3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCF88077325/72 extra=C3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCF14465BF4/72 extra=E7 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCF14465BF4/72 extra=E7 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCF14465BF4/72 extra=E7 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCA117287E1/72 extra=1A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCA117287E1/72 extra=1A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCA117287E1/72 extra=1A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1D615442B/72 extra=B8 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1D615442B/72 extra=B8 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1D615442B/72 extra=B8 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1D615442B/72 extra=B8 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC0A5D6C657/72 extra=F7 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC0A5D6C657/72 extra=F7 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC0A5D6C657/72 extra=F7 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC0A5D6C657/72 extra=F7 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCD9413FF86/72 extra=E6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCD9413FF86/72 extra=E6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCD9413FF86/72 extra=E6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC8C8FB270E/72 extra=7 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC8C8FB270E/72 extra=7 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC8C8FB270E/72 extra=7 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC642EDF577/72 extra=3E sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC642EDF577/72 extra=3E sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC642EDF577/72 extra=3E sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC77D278D9A/72 extra=5F sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC77D278D9A/72 extra=5F sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC77D278D9A/72 extra=5F sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC2DC269254/72 extra=2B sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC2DC269254/72 extra=2B sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC2DC269254/72 extra=2B sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC88D21536E/72 extra=8C sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC88D21536E/72 extra=8C sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC88D21536E/72 extra=8C sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC88D21536E/72 extra=8C sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC4922A518B/72 extra=73 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC4922A518B/72 extra=73 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC4922A518B/72 extra=73 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC4922A518B/72 extra=73 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC9B33DB6F2/72 extra=D6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC9B33DB6F2/72 extra=D6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC9B33DB6F2/72 extra=D6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1497805CD/72 extra=ED sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1497805CD/72 extra=ED sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1497805CD/72 extra=ED sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC1497805CD/72 extra=ED sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCE44BDAA3F/72 extra=77 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCE44BDAA3F/72 extra=77 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCE44BDAA3F/72 extra=77 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCE44BDAA3F/72 extra=77 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC65D5E3CA6/72 extra=8A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC65D5E3CA6/72 extra=8A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC65D5E3CA6/72 extra=8A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC65D5E3CA6/72 extra=8A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC400DDDF7F/72 extra=6C sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC400DDDF7F/72 extra=6C sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC400DDDF7F/72 extra=6C sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC35B6E405D/72 extra=3E sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC35B6E405D/72 extra=3E sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC35B6E405D/72 extra=3E sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC40339D951/72 extra=A3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC40339D951/72 extra=A3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC40339D951/72 extra=A3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC40339D951/72 extra=A3 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC4FB0B3FD7/72 extra=9 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC4FB0B3FD7/72 extra=9 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC4FB0B3FD7/72 extra=9 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCA4F7AB8D8/72 extra=4A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCA4F7AB8D8/72 extra=4A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCA4F7AB8D8/72 extra=4A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCA4F7AB8D8/72 extra=4A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC29DFF7EED/72 extra=E6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC29DFF7EED/72 extra=E6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC29DFF7EED/72 extra=E6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC29DFF7EED/72 extra=E6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC8D2C00444/72 extra=4F sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC8D2C00444/72 extra=4F sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC8D2C00444/72 extra=4F sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC8D2C00444/72 extra=4F sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC9090714F3/72 extra=F5 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC9090714F3/72 extra=F5 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC9090714F3/72 extra=F5 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC9090714F3/72 extra=F5 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC0B484A87B/72 extra=F6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC0B484A87B/72 extra=F6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC0B484A87B/72 extra=F6 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCA88B68024/72 extra=85 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCA88B68024/72 extra=85 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCA88B68024/72 extra=85 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCB1365935C/72 extra=A7 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCB1365935C/72 extra=A7 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCB1365935C/72 extra=A7 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCB3697DE28/72 extra=49 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCB3697DE28/72 extra=49 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCB3697DE28/72 extra=49 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC5C9073FC7/72 extra=26 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC5C9073FC7/72 extra=26 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC5C9073FC7/72 extra=26 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7A1A40D33/72 extra=29 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7A1A40D33/72 extra=29 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7A1A40D33/72 extra=29 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7A1A40D33/72 extra=29 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7E54FBCED/72 extra=E9 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7E54FBCED/72 extra=E9 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7E54FBCED/72 extra=E9 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7E54FBCED/72 extra=E9 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7279004BB/72 extra=1A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7279004BB/72 extra=1A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7279004BB/72 extra=1A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC7279004BB/72 extra=1A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC236EE9DA6/72 extra=F4 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC236EE9DA6/72 extra=F4 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC236EE9DA6/72 extra=F4 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC236EE9DA6/72 extra=F4 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC37178129D/72 extra=90 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC37178129D/72 extra=90 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC37178129D/72 extra=90 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCD0049A0DB/72 extra=2A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCD0049A0DB/72 extra=2A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCD0049A0DB/72 extra=2A sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC92FA5EF88/72 extra=F1 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC92FA5EF88/72 extra=F1 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DC92FA5EF88/72 extra=F1 sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCC4C15DD43/72 extra=DE sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCC4C15DD43/72 extra=DE sn=A84DC btn=- cnt=- crc=1 tx=0
+RENAULT/renault_one_button_remote_x110.sub | 433870000 | Renault 1-Button | data=30A84DCC4C15DD43/72 extra=DE sn=A84DC btn=- cnt=- crc=1 tx=0
 SKODA/Skoda_Fabia_2007 RAW.sub | 434390000 | VAG | data=C0F195199E9C29A3/80 extra=800000000204392B sn=7687620 btn=0 cnt=8477 crc=1 tx=1
 SKODA/Skoda_Fabia_2007 RAW.sub | 434390000 | VAG | data=C02E4D517FFCE747/80 extra=800000000204B12B sn=7687620 btn=0 cnt=8478 crc=1 tx=1
 SKODA/Skoda_Fabia_2007 RAW.sub | 434390000 | VAG | data=C00FDC5634239909/80 extra=800000000204732B sn=7687620 btn=0 cnt=8479 crc=1 tx=1
@@ -1249,6 +1843,46 @@ SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F002415302422100/64 sn=15
 SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F002515302422B20/64 sn=1530242 btn=2 cnt=25 crc=1 tx=1
 SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F0026153024222B0/64 sn=1530242 btn=2 cnt=26 crc=1 tx=1
 SUZUKI/Suzuki_v0_kd.sub | 433920000 | Suzuki V0 | data=F002715302422890/64 sn=1530242 btn=2 cnt=27 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE99803A4D1/72 extra=38 sn=ADE998 btn=2 cnt=16F crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE99803A4D1/72 extra=38 sn=ADE998 btn=2 cnt=16F crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE99803A4D1/72 extra=38 sn=ADE998 btn=2 cnt=16F crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE99803A4D1/72 extra=38 sn=ADE998 btn=2 cnt=16F crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE998F6873C/72 extra=18 sn=ADE998 btn=1 cnt=170 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE998F6873C/72 extra=18 sn=ADE998 btn=1 cnt=170 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE998F6873C/72 extra=18 sn=ADE998 btn=1 cnt=170 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE998F6873C/72 extra=18 sn=ADE998 btn=1 cnt=170 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE9989C9FE4/72 extra=21 sn=ADE998 btn=2 cnt=171 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE9989C9FE4/72 extra=21 sn=ADE998 btn=2 cnt=171 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE9989C9FE4/72 extra=21 sn=ADE998 btn=2 cnt=171 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE9989C9FE4/72 extra=21 sn=ADE998 btn=2 cnt=171 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE99849BF54/72 extra=52 sn=ADE998 btn=1 cnt=172 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE99849BF54/72 extra=52 sn=ADE998 btn=1 cnt=172 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE99849BF54/72 extra=52 sn=ADE998 btn=1 cnt=172 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE99849BF54/72 extra=52 sn=ADE998 btn=1 cnt=172 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE99823A734/72 extra=B5 sn=ADE998 btn=2 cnt=173 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE99823A734/72 extra=B5 sn=ADE998 btn=2 cnt=173 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE99823A734/72 extra=B5 sn=ADE998 btn=2 cnt=173 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE99823A734/72 extra=B5 sn=ADE998 btn=2 cnt=173 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE998F692F0/72 extra=7A sn=ADE998 btn=1 cnt=174 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE998F692F0/72 extra=7A sn=ADE998 btn=1 cnt=174 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE998F692F0/72 extra=7A sn=ADE998 btn=1 cnt=174 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE998F692F0/72 extra=7A sn=ADE998 btn=1 cnt=174 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE9989CB27C/72 extra=D5 sn=ADE998 btn=2 cnt=175 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE9989CB27C/72 extra=D5 sn=ADE998 btn=2 cnt=175 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE9989CB27C/72 extra=D5 sn=ADE998 btn=2 cnt=175 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE9989CB27C/72 extra=D5 sn=ADE998 btn=2 cnt=175 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE99848B260/72 extra=8B sn=ADE998 btn=1 cnt=176 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE99848B260/72 extra=8B sn=ADE998 btn=1 cnt=176 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE99848B260/72 extra=8B sn=ADE998 btn=1 cnt=176 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE99848B260/72 extra=8B sn=ADE998 btn=1 cnt=176 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE99821BE58/72 extra=26 sn=ADE998 btn=2 cnt=177 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE99821BE58/72 extra=26 sn=ADE998 btn=2 cnt=177 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE99821BE58/72 extra=26 sn=ADE998 btn=2 cnt=177 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1402ADE99821BE58/72 extra=26 sn=ADE998 btn=2 cnt=177 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE998F2B12C/72 extra=4D sn=ADE998 btn=1 cnt=178 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE998F2B12C/72 extra=4D sn=ADE998 btn=1 cnt=178 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE998F2B12C/72 extra=4D sn=ADE998 btn=1 cnt=178 crc=1 tx=1
+SUZUKI/suzuki_ts002_unlock_lock_x10.sub | 433910000 | Suzuki TS002 | data=1401ADE998F2B12C/72 extra=4D sn=ADE998 btn=1 cnt=178 crc=1 tx=1
 Skyline/Skyline_close_US.sub | 314980000 | (none)
 Skyline/Skyline_open_US.sub | 314980000 | (none)
 Toyota + Lexus/18_toyota_tacoma_l2_ul2_p2.sub | 312100000 | (none)

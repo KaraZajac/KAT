@@ -62,4 +62,17 @@ Receive only, as rtl_433 (the encrypted part cannot be regenerated).
 - rtl_433's own pulse packages through KAT's decoder: the expected `.json` files exactly; KAT's pulses through the C
   reference and through KAT: the same events.
 - Fuzz against the C reference: 2 × 20 000 trains, identical output, 24 697 events.
-- No decode on any IMPORTS capture, the Flipper unit-test captures or another device's rtl_433_tests recording.
+- A tester's six recordings of one remote (`IMPORTS/chrysler/more/fca_siemens_5wy72xx_*.sub`, 314.925 MHz),
+  about 50 presses of each button: 301 presses, every one read, ID 61060F78, the check right in each. The
+  sequence goes up by one per press whatever the button: Panic (button 0x08) 0x2164 to 0x2195, Trunk (0x04) to
+  0x21C7, Lock (0x01) to 0x21F8, Unlock (0x02) to 0x222B, and two more codes, 0x10 (0x223D to 0x226E) and
+  0x20 (0x2281 to 0x22B3): the flags rtl_433 names Left Door and Right Door. The remote is a four-button
+  key head: liftgate (marked x2), unlock, lock and panic. Its board is the one in the internal photos
+  of the FCC filing of `M3N5WY72XX` (September 2004): the same outline, a Philips PCF7941 in the same place, the
+  coil, the star-shaped battery contact, the print `CR2032`. The filing's unit is a Dodge key with six buttons
+  (lock, unlock, the two sliding doors, the liftgate, panic) on a board with six pads; so 0x10 and 0x20 are the
+  two pads this key's shell has no button over. Sellers list the four-button key of that FCC ID for the
+  Chrysler Pacifica of 2004 to 2008 and the Jeep Liberty of 2005 to 2007, and the six-button one for the Dodge
+  Caravan and Grand Caravan and the Chrysler Town & Country of 2004 to 2007.
+- No decode on any other IMPORTS capture, the Flipper unit-test captures or another device's rtl_433_tests
+  recording.

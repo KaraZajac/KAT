@@ -248,10 +248,10 @@
    "title": "GM flip keys (Bosch D2XX)"
   },
   {
-   "evidence": "reference",
+   "evidence": "recording",
    "kat": "Siemens-5WY72XX",
    "key": "fca-siemens-315",
-   "note": "",
+   "note": "a four-button key recorded by its owner, 301 presses (IMPORTS/chrysler/more/fca_siemens_5wy72xx_*); its board is the one in the filing's internal photos. rtl_433 names the FCC ID too",
    "protocols": [
     "Siemens-5WY72XX"
    ],
@@ -1977,7 +1977,7 @@
    "years": "2017-2026"
   },
   {
-   "evidence": "reference",
+   "evidence": "recording",
    "family": "fca-siemens-315",
    "filing_read": true,
    "frequency": "315 MHz",

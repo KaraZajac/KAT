@@ -74,6 +74,9 @@ This folder describes how each keyfob and gate/garage remote protocol supported 
 | GM RFA (KAT's own decoder, decode only) | `gm_rfa.rs` | [gm_rfa.md](gm_rfa.md) |
 | Isuzu Rolling (KAT's own decoder, decode only) | `isuzu_rolling.rs` | [isuzu_rolling.md](isuzu_rolling.md) |
 | Isuzu Static (KAT's own decoder, decode only) | `isuzu_static.rs` | [isuzu_static.md](isuzu_static.md) |
+| Suzuki TS002 (KAT's own decoder and encoder) | `suzuki_ts002.rs` | [suzuki_ts002.md](suzuki_ts002.md) |
+| Opel Rolling (KAT's own decoder and encoder) | `opel_rolling.rs` | [opel_rolling.md](opel_rolling.md) |
+| Renault 1-Button (KAT's own decoder, decode only) | `renault_one_button.rs` | [renault_one_button.md](renault_one_button.md) |
 | Mitsubishi V1 (FoxFW; any fob, replay encoder) | `mitsubishi_v1.rs` | [mitsubishi_v1.md](mitsubishi_v1.md) |
 | LDV V0 (FoxFW, decode only) | `ldv_v0.rs` | [ldv_v0.md](ldv_v0.md) |
 | Lexus V0 (FoxFW, decode only) | `lexus_v0.rs` | [lexus_v0.md](lexus_v0.md) |

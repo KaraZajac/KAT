@@ -2,11 +2,19 @@
 
 All notable changes to KAT are documented here.
 
-## [Unreleased]
+## [1.16.0] - 2026-11-18
+
+Three remotes no reference reads, worked out from recordings their owners sent in: the Suzuki TS002, an old two-button Opel key and an old one-button Renault key. KAT can send the first two as well. And kat.karazajac.io gets the hardware: a page per remote with pictures of its circuit board, the chips, and example frames with their fields marked on every protocol's page.
 
 ### Added
 
 - **Recordings of a 2008 Vauxhall Zafira's remote** (`IMPORTS/OPEL/2008_vauxhall_zafira_sri_lock.sub` and `2008_vauxhall_zafira_sri_unlock.sub`, 15 presses each, sent in by a tester). Nothing reads them yet: the remote is not on-off keyed, and the AM recording holds only the instants its signal changes state. [unidentified_captures.md](docs/unidentified_captures.md#vauxhall-zafira-2008) has what can be seen: a clock of 106.7 µs, a press of two frames sent twice each, a constant start, and where lock and unlock differ. FoxFW's Opel V0 describes this signal, and takes the three short bursts between the frames for bits.
+- **Suzuki TS002** ([suzuki_ts002.md](docs/suzuki_ts002.md)): the two-button remote key Calsonic Kansei made for Suzuki, which no reference reads. On-off keying at 433.92 MHz, a 72-bit frame four times a press: a button byte, a 24-bit ID and a 32-bit code. The code is not encrypted: it is the ID again, rotated by the press counter, next to the counter itself. KAT decodes it and sends the next press (Lock or Unlock). Worked out from a tester's recordings of one remote: 230 presses, all read. Nothing has been sent to a car.
+- **Opel Rolling** ([opel_rolling.md](docs/opel_rolling.md)): an old two-button Opel remote key, which no reference reads. On-off keying at 433.92 MHz; a bit is a period of 600 or 900 µs. A 60-bit frame three times a press: the button, a 24-bit serial, a 12-bit counter under one of 16 masks that the remote picks for each press, and a check nibble. KAT decodes it, lists the short frame the remote repeats while a button is held, and sends the next press. Worked out from a tester's recordings of one remote (399 presses read). Whether the masks are the same in every such remote is not known, and nothing has been sent to a car.
+- **Renault 1-Button** ([renault_one_button.md](docs/renault_one_button.md)): an old one-button Renault remote (its board is dated 1999), which no reference reads. On-off keying at 433.92 MHz, Manchester at 1056 bit/s; a 70-bit frame two to four times a press: 24 bits that never change, 36 that change with every press, and an XOR check byte. KAT decodes it and shows the ID. The 36 bits show no structure, so there is nothing to send. Worked out from a tester's recording of one remote: 110 presses, all read.
+- **Recordings from testers**: the Suzuki, the Opel and the Renault remote above (`IMPORTS/SUZUKI/`, `IMPORTS/OPEL/`, `IMPORTS/RENAULT/`), and about 50 presses of each of an FCA remote's six buttons at 315 MHz (`IMPORTS/chrysler/more/fca_siemens_5wy72xx_*.sub`), which KAT reads as [Siemens 5WY72XX](docs/siemens_5wy72xx.md): 301 presses, the sequence up by one each.
+- **The site has the hardware** ([Remotes](https://kat.karazajac.io/remotes.html), [Chips](https://kat.karazajac.io/chips.html)). A page for each of 188 remotes: pictures of the remote and its circuit board (from the internal photos of 121 FCC filings, and from four remotes' owners), notes on what the filing says about the signal, the cars it is sold for, the chips on the board with their data sheets where those are public, and the protocol that reads it. Protocol and make pages show their remotes.
+- **Example frames on every protocol's page**: real frames from the recordings as KAT shows them, with the digits that hold the serial, the button and the counter marked. KAT finds the fields itself: a field is marked only when the same bits give its value in every frame of the protocol in the library (`docs/data/frames.json`, written by `scripts/site_frames.py`). `docs/data/protocols.json` now carries each protocol's button names.
 
 ## [1.15.1] - 2026-11-17
 

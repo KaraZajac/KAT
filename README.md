@@ -2,7 +2,7 @@
 
 KAT captures, decodes and retransmits car key fob and garage door, gate and barrier remote signals from a terminal. It works with a **HackRF One** (receive and transmit), an **RTL-SDR** dongle (receive only) and a **Flipper Zero** on USB (receive and transmit through its console), several at once, each on its own frequency, and decodes IQ recordings and Flipper Zero `.sub` files with no radio attached. It is written in Rust, with a [ratatui](https://ratatui.rs) interface.
 
-Its 157 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate), [Flipper-ARF](https://github.com/D4C1-Labs/Flipper-ARF), [doctor-firmware](https://github.com/thedoctorz/doctor-firmware), [Momentum](https://github.com/Next-Flip/Momentum-Firmware), [RogueMaster](https://github.com/RogueMaster/flipperzero-firmware-wPlugins) and FoxFW, with receive-only decoders from [rtl_433](https://github.com/merbanan/rtl_433) for remotes no Flipper firmware reads, and each one is checked against the reference C code compiled on a PC.
+Its 160 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate), [Flipper-ARF](https://github.com/D4C1-Labs/Flipper-ARF), [doctor-firmware](https://github.com/thedoctorz/doctor-firmware), [Momentum](https://github.com/Next-Flip/Momentum-Firmware), [RogueMaster](https://github.com/RogueMaster/flipperzero-firmware-wPlugins) and FoxFW, with receive-only decoders from [rtl_433](https://github.com/merbanan/rtl_433) for remotes no Flipper firmware reads, and each one is checked against the reference C code compiled on a PC.
 
 **Website: [kat.karazajac.io](https://kat.karazajac.io)**, with a page for every protocol.
 
@@ -30,7 +30,7 @@ Its 157 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPira
 
 **Decode**
 
-- **157 protocols** — 87 car key fob and alarm protocols and 70 garage door, gate, barrier, shutter, doorbell, sensor and key-finder remote protocols ([the full list](#supported-protocols)), and Flipper-ARF's MARELLI key files.
+- **160 protocols** — 90 car key fob and alarm protocols and 70 garage door, gate, barrier, shutter, doorbell, sensor and key-finder remote protocols ([the full list](#supported-protocols)), and Flipper-ARF's MARELLI key files.
 - **KeeLoq keystore fallback** — a signal no protocol claims is tried as KeeLoq with every manufacturer key in the embedded keystore and in your own `keeloq_mfcodes_user` ([docs/keeloq.md](docs/keeloq.md)).
 - **Signal detail** — encoding, RF modulation, encryption, serial, button, counter, key data, CRC (OK or FAIL where the protocol has a check KAT verifies; "none" where it has not: the fixed-code gate remotes, Fiat V0/V2, Ford V2/V3, Mercedes V0, Mitsubishi V0, Subaru, a KeeLoq frame no key identifies, Faac SLH without its seed, Scher-Khan's non-PRO variants …), frequency and the raw level/duration pairs.
 - **Unknown signals** (listed by default) — unidentified signals are listed too, ready to analyze (`a`); `show_unknown_signals = false` lists only decoded ones.
@@ -92,18 +92,18 @@ On Windows there is nothing to install here: the `.zip` carries the HackRF libra
 Then check, unpack and run (with your version and platform):
 
 ```bash
-sha256sum -c kat-v1.15.1-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
-tar xzf kat-v1.15.1-x86_64-linux.tar.gz
-./kat-v1.15.1-x86_64-linux/kat
+sha256sum -c kat-v1.16.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.16.0-x86_64-linux.tar.gz
+./kat-v1.16.0-x86_64-linux/kat
 ```
 
 On Windows, in PowerShell (Windows Terminal):
 
 ```powershell
-$want = (Get-Content kat-v1.15.1-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.15.1-x86_64-windows.zip).Hash -eq $want    # True
-Expand-Archive kat-v1.15.1-x86_64-windows.zip .
-.\kat-v1.15.1-x86_64-windows\kat.exe
+$want = (Get-Content kat-v1.16.0-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.16.0-x86_64-windows.zip).Hash -eq $want    # True
+Expand-Archive kat-v1.16.0-x86_64-windows.zip .
+.\kat-v1.16.0-x86_64-windows\kat.exe
 ```
 
 The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. The Windows build isn't signed, so SmartScreen may stop its first start ("More info", then "Run anyway"). Intel Macs and other platforms build from source.
@@ -465,6 +465,9 @@ Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference; pr
 | GM RFA (KAT's own, from captures: Cadillac CTS, GMC Acadia 2015) | Manchester | AM | Rolling Code, fob ID in the clear (decode-only) | 315 MHz |
 | Isuzu Rolling (KAT's own, from captures) | Differential Manchester | AM | Rolling Code, fob ID and button in the clear (decode-only) | 433.92 MHz |
 | Isuzu Static (KAT's own, from captures: FTS truck) | Manchester | AM | Fixed code (decode-only) | 433.92 MHz |
+| Suzuki TS002 (KAT's own, from captures: the Calsonic Kansei two-button remote) | PWM | AM | Rolling Code, not encrypted: the ID rotated by the counter (sends the next press) | 433.92 MHz |
+| Opel Rolling (KAT's own, from captures: an old two-button remote) | PWM | AM | Rolling Code, counter under one of 16 masks, check nibble (sends the next press) | 433.92 MHz |
+| Renault 1-Button (KAT's own, from a capture: an old one-button remote) | Manchester | AM | Rolling Code, fob ID in the clear, XOR check (decode-only) | 433.92 MHz |
 | Mitsubishi V1 (FoxFW; any fob) | Manchester | AM/FM | Rolling Code (encrypted hop; replay encoder) | 315 / 433.92 MHz |
 | LDV V0 (FoxFW) | Manchester | AM | Rolling Code (decode-only) | 315 / 433.92 MHz |
 | Lexus V0 (FoxFW) | Manchester | AM | Rolling Code, complement-verified (decode-only) | 315 / 433.92 MHz |

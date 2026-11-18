@@ -1,0 +1,402 @@
+{
+ "comment": "Remotes KAT holds its own pictures and measurements of (remotes), and what KAT adds to an FCC filing's remote (fcc_extra). By hand. The pictures were sent in by the remotes' owners.",
+ "remotes": [
+  {
+   "slug": "opel-two-button",
+   "title": "Opel two-button remote key",
+   "short": "Opel two-button key",
+   "group": "opel",
+   "maker": "",
+   "protocols": [
+    "Opel Rolling"
+   ],
+   "summary": "An old two-button Opel remote key head: lock and unlock on one rubber pad with a red LED beside it. The board is dated 19 October 2000. KAT's [Opel Rolling](opel_rolling.md) protocol was worked out from recordings of this one remote.",
+   "facts": [
+    [
+     "Frequency",
+     "433.89 MHz in the recordings; the board is printed `433MHz`"
+    ],
+    [
+     "Modulation",
+     "on-off keying"
+    ],
+    [
+     "Coding",
+     "a bit is one period: 600 µs for a 0, 900 µs for a 1 (pause, then carrier, each half the period)"
+    ],
+    [
+     "Frame",
+     "60 bits behind a sync of 300 µs carrier, 600 µs pause, 600 µs carrier"
+    ],
+    [
+     "A press",
+     "the frame three times; 57 periods of 600 µs before the first copy, 4 before the others"
+    ],
+    [
+     "While held",
+     "a 32-bit frame every 40 ms"
+    ],
+    [
+     "Code",
+     "a 12-bit press counter under one of 16 masks, with a check nibble"
+    ],
+    [
+     "Serial",
+     "`71597D`"
+    ],
+    [
+     "Battery",
+     "CR2032"
+    ],
+    [
+     "Board",
+     "`19.10.00 433MHz`, `E 02648808` (button side); `28 5442 01` (battery side)"
+    ]
+   ],
+   "chips": [
+    {
+     "chip": "pcf7935",
+     "note": "the immobiliser transponder in the same key head (marking read from a picture)"
+    }
+   ],
+   "cars": "Not known. The board's numbers match no part found so far. The two-button remote head of the Astra G and Zafira A of 1998 to 2005 is Bosch's RK 203 (Opel 93176615); a published write-up of a 2001 Astra's RK 203 describes another frame, so this remote is another unit or an earlier kind of that one. The transponder in the key head is the kind Opel keys of about 1998 to 2005 carry.",
+   "recordings": [
+    "OPEL/opel_two_button_remote",
+    "OPEL/more/opel_two_button_remote"
+   ],
+   "photos": [
+    {
+     "src": "img/fobs/opel-two-button/key.webp",
+     "thumb": "img/fobs/opel-two-button/keyt.webp",
+     "w": 824,
+     "h": 1100,
+     "caption": "The key: lock and unlock on one rubber pad, a red LED beside it.",
+     "credit": "Sent in by the remote's owner."
+    },
+    {
+     "src": "img/fobs/opel-two-button/board-buttons.webp",
+     "thumb": "img/fobs/opel-two-button/board-buttonst.webp",
+     "w": 955,
+     "h": 1100,
+     "caption": "The board, button side: printed `19.10.00 433MHz` and `E 02648808`.",
+     "credit": "Sent in by the remote's owner."
+    },
+    {
+     "src": "img/fobs/opel-two-button/board-battery.webp",
+     "thumb": "img/fobs/opel-two-button/board-batteryt.webp",
+     "w": 1100,
+     "h": 824,
+     "caption": "The board, battery side: `28 5442 01` and a CR2032 cell.",
+     "credit": "Sent in by the remote's owner."
+    },
+    {
+     "src": "img/fobs/opel-two-button/transponder.webp",
+     "thumb": "img/fobs/opel-two-button/transpondert.webp",
+     "w": 668,
+     "h": 355,
+     "caption": "The immobiliser transponder from the same key head, a Philips wedge chip. It is not part of the radio remote.",
+     "credit": "Sent in by the remote's owner."
+    }
+   ]
+  },
+  {
+   "slug": "suzuki-ts002",
+   "title": "Suzuki TS002 remote key (Calsonic Kansei)",
+   "short": "Suzuki TS002",
+   "group": "suzuki",
+   "maker": "Calsonic Kansei",
+   "protocols": [
+    "Suzuki TS002"
+   ],
+   "summary": "The two-button remote key Calsonic Kansei made for Suzuki; the case is marked \"Calsonic Kansei Corp. TS002\". KAT's [Suzuki TS002](suzuki_ts002.md) protocol was worked out from recordings of this one remote. Its code is not encrypted.",
+   "facts": [
+    [
+     "Frequency",
+     "433.91 MHz in the recordings; a 433.92 MHz SAW resonator on the board"
+    ],
+    [
+     "Modulation",
+     "on-off keying"
+    ],
+    [
+     "Coding",
+     "pulse width in cells of three units of 256.8 µs: a 0 is carrier 1, pause 2; a 1 is carrier 2, pause 1"
+    ],
+    [
+     "Frame",
+     "72 bits and 72 one bits behind a sync of four units of carrier and four of pause"
+    ],
+    [
+     "A press",
+     "the frame four times; it goes on repeating while the button is held"
+    ],
+    [
+     "Code",
+     "the ID rotated by the press counter, next to the counter: not encrypted"
+    ],
+    [
+     "ID",
+     "`ADE998`"
+    ],
+    [
+     "Case",
+     "\"Calsonic Kansei Corp. TS002\", CE mark"
+    ],
+    [
+     "Board",
+     "`C30451A5801002`"
+    ]
+   ],
+   "chips": [
+    {
+     "chip": "nxp-1a58000",
+     "note": "the 20-pin chip on the board"
+    }
+   ],
+   "cars": "Not known. Parts sellers list TS002 remotes for the Suzuki Swift, SX4, Grand Vitara and Splash of about 2005 to 2014.",
+   "recordings": [
+    "SUZUKI/suzuki_ts002",
+    "SUZUKI/more/suzuki_ts002"
+   ],
+   "photos": [
+    {
+     "src": "img/fobs/suzuki-ts002/key.webp",
+     "thumb": "img/fobs/suzuki-ts002/keyt.webp",
+     "w": 825,
+     "h": 1100,
+     "caption": "The key.",
+     "credit": "Sent in by the remote's owner."
+    },
+    {
+     "src": "img/fobs/suzuki-ts002/case.webp",
+     "thumb": "img/fobs/suzuki-ts002/caset.webp",
+     "w": 824,
+     "h": 1100,
+     "caption": "The back of the remote: \"Calsonic Kansei Corp. TS002\".",
+     "credit": "Sent in by the remote's owner."
+    },
+    {
+     "src": "img/fobs/suzuki-ts002/board.webp",
+     "thumb": "img/fobs/suzuki-ts002/boardt.webp",
+     "w": 1100,
+     "h": 937,
+     "caption": "The board: `C30451A5801002`, a 20-pin NXP chip, a 433.92 MHz SAW resonator, two switches.",
+     "credit": "Sent in by the remote's owner."
+    },
+    {
+     "src": "img/fobs/suzuki-ts002/chip.webp",
+     "thumb": "img/fobs/suzuki-ts002/chipt.webp",
+     "w": 1100,
+     "h": 919,
+     "caption": "The chip: NXP, marked `1A58000`.",
+     "credit": "Sent in by the remote's owner."
+    }
+   ]
+  },
+  {
+   "slug": "renault-one-button",
+   "title": "Renault one-button remote key (1999)",
+   "short": "Renault one-button key",
+   "group": "renault",
+   "maker": "",
+   "protocols": [
+    "Renault 1-Button"
+   ],
+   "summary": "An old one-button Renault remote key head; its board is dated 1999. KAT's [Renault 1-Button](renault_one_button.md) protocol was worked out from a recording of this one remote.",
+   "facts": [
+    [
+     "Frequency",
+     "433.87 MHz in the recording"
+    ],
+    [
+     "Modulation",
+     "on-off keying"
+    ],
+    [
+     "Coding",
+     "Manchester, 473.5 µs per half bit (1056 bit/s)"
+    ],
+    [
+     "Frame",
+     "70 bits behind a run of 0 bits: `11`, 24 fixed bits, 36 changing bits, an XOR check byte"
+    ],
+    [
+     "A press",
+     "the frame two to four times, 14 ms of pause and 8.7 ms of carrier between copies"
+    ],
+    [
+     "Code",
+     "36 bits that change with every press, with no structure found"
+    ],
+    [
+     "ID",
+     "`0A84DC`"
+    ],
+    [
+     "Board",
+     "`99 165`; an 8-pin chip marked `B 89AN`, `S1080`, `49004`; a SAW resonator"
+    ]
+   ],
+   "chips": [
+    {
+     "chip": "renault-s1080",
+     "note": "the 8-pin chip on the board"
+    }
+   ],
+   "cars": "Not known. One seller's listing of a one-button Renault remote quotes this chip marking together with the reference `S108627BN0`; another gives `S108627BN0` as the number on the board of Renault's one-button 433 MHz transmitter `7700438342` and lists it for the Mégane 1, Espace 3, Safrane and Laguna 1 (its title also names the Clio, Kangoo, Trafic and Master). Sellers' lists, not Renault's.",
+   "recordings": [
+    "RENAULT/renault_one_button_remote"
+   ],
+   "photos": [
+    {
+     "src": "img/fobs/renault-one-button/key.webp",
+     "thumb": "img/fobs/renault-one-button/keyt.webp",
+     "w": 825,
+     "h": 1100,
+     "caption": "The key head, back.",
+     "credit": "Sent in by the remote's owner."
+    },
+    {
+     "src": "img/fobs/renault-one-button/board.webp",
+     "thumb": "img/fobs/renault-one-button/boardt.webp",
+     "w": 824,
+     "h": 1100,
+     "caption": "The board in its shell: an 8-pin chip, a SAW resonator, `99 165`.",
+     "credit": "Sent in by the remote's owner."
+    },
+    {
+     "src": "img/fobs/renault-one-button/chip.webp",
+     "thumb": "img/fobs/renault-one-button/chipt.webp",
+     "w": 1100,
+     "h": 584,
+     "caption": "The chip, marked `B 89AN`, `S1080`, `49004`.",
+     "credit": "Sent in by the remote's owner."
+    }
+   ]
+  },
+  {
+   "slug": "psa-delphi-three-button",
+   "title": "Delphi three-button remote (Peugeot / Citroën)",
+   "short": "Delphi three-button remote",
+   "group": "psa",
+   "maker": "Delphi",
+   "protocols": [
+    "PSA"
+   ],
+   "summary": "A black oval remote with three buttons and \"DELPHI\" moulded into the case. It sends [PSA](psa.md) frames of the XOR type, and its recordings are what showed that PSA's two frame types number their buttons differently ([The Delphi remote](psa.md#the-delphi-remote)).",
+   "facts": [
+    [
+     "Frequency",
+     "433.92 MHz: a 13.560 MHz crystal, times 32"
+    ],
+    [
+     "Modulation",
+     "on-off keying"
+    ],
+    [
+     "Coding",
+     "Manchester, 218 µs per half bit"
+    ],
+    [
+     "Frame",
+     "PSA mode 0x23 (XOR), 80 bits"
+    ],
+    [
+     "A press",
+     "two copies of one frame: about 173 preamble pulses before the first, 11 before the second"
+    ],
+    [
+     "Buttons",
+     "1 Lock, 2 Unlock, 3 the third button"
+    ],
+    [
+     "Serial",
+     "`725335`"
+    ],
+    [
+     "Board",
+     "pads for four buttons; a 16-pin transmitter IC marked `5100 B2 0122`; a 13.560 MHz crystal; an 8-pin Microchip IC; a 3 V coin cell"
+    ]
+   ],
+   "chips": [
+    {
+     "chip": "tda5100",
+     "note": "on the board, by its marking `5100 B2`"
+    }
+   ],
+   "cars": "Not known.",
+   "recordings": [
+    "GROUPE PSA/Delphi_remote_"
+   ],
+   "photos": [
+    {
+     "src": "img/fobs/psa-delphi-three-button/fob.webp",
+     "thumb": "img/fobs/psa-delphi-three-button/fobt.webp",
+     "w": 825,
+     "h": 1100,
+     "caption": "The remote: three buttons.",
+     "credit": "Sent in by the remote's owner."
+    },
+    {
+     "src": "img/fobs/psa-delphi-three-button/board.webp",
+     "thumb": "img/fobs/psa-delphi-three-button/boardt.webp",
+     "w": 825,
+     "h": 1100,
+     "caption": "The board, component side: an Infineon TDA5100 transmitter (`5100 B2`), a crystal and an 8-pin controller.",
+     "credit": "Sent in by the remote's owner."
+    },
+    {
+     "src": "img/fobs/psa-delphi-three-button/board-pads.webp",
+     "thumb": "img/fobs/psa-delphi-three-button/board-padst.webp",
+     "w": 1100,
+     "h": 825,
+     "caption": "The board, button side: four pads, three of them under buttons.",
+     "credit": "Sent in by the remote's owner."
+    },
+    {
+     "src": "img/fobs/psa-delphi-three-button/case.webp",
+     "thumb": "img/fobs/psa-delphi-three-button/caset.webp",
+     "w": 825,
+     "h": 1100,
+     "caption": "Inside the case: \"DELPHI\".",
+     "credit": "Sent in by the remote's owner."
+    }
+   ]
+  }
+ ],
+ "fcc_extra": {
+  "M3N5WY72XX": {
+   "photos": [
+    {
+     "src": "img/fobs/m3n5wy72xx/t-key.webp",
+     "thumb": "img/fobs/m3n5wy72xx/t-keyt.webp",
+     "w": 766,
+     "h": 1100,
+     "caption": "A four-button key of this FCC ID: liftgate, unlock, lock, panic.",
+     "credit": "Sent in by the remote's owner."
+    },
+    {
+     "src": "img/fobs/m3n5wy72xx/t-board.webp",
+     "thumb": "img/fobs/m3n5wy72xx/t-boardt.webp",
+     "w": 825,
+     "h": 1100,
+     "caption": "Its board: a Philips PCF7941, the transponder coil, the star-shaped battery contact.",
+     "credit": "Sent in by the remote's owner."
+    }
+   ],
+   "recordings": [
+    "chrysler/more/fca_siemens_5wy72xx_"
+   ],
+   "protocols": [
+    "Siemens-5WY72XX"
+   ],
+   "chips": [
+    {
+     "chip": "pcf7941",
+     "note": "on the board, in the filing's internal photos and in a tester's key"
+    }
+   ],
+   "note": "A tester's four-button key of this FCC ID was recorded: 301 presses over six files, the sequence up by one per press ([Siemens 5WY72XX](siemens_5wy72xx.md#validation))."
+  }
+ }
+}

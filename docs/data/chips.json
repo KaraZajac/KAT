@@ -1,0 +1,155 @@
+{
+ "comment": "Chips seen in remotes: on a board in a picture, or named in an FCC filing. By hand; a data sheet link only where the address answered when it was added.",
+ "chips": [
+  {
+   "key": "pcf7941",
+   "name": "PCF7941",
+   "maker": "Philips / NXP",
+   "kind": "Key controller with transponder",
+   "text": "A remote keyless entry controller with an immobiliser transponder in one chip: the board needs a coil for the transponder next to the transmitter. The filing of `M3N5WY72XX` calls the controller \"STARC 2XL\" in its block diagram; the chip on that board is a PCF7941.",
+   "datasheet": null
+  },
+  {
+   "key": "pcf7961",
+   "name": "PCF7961",
+   "maker": "NXP",
+   "kind": "Key controller with transponder",
+   "text": "A key controller named in the filing of a Chrysler remote.",
+   "datasheet": null
+  },
+  {
+   "key": "ncf29a1",
+   "name": "NCF29A1",
+   "maker": "NXP",
+   "kind": "Key controller with transponder",
+   "text": "A key controller named in a filing.",
+   "datasheet": null
+  },
+  {
+   "key": "pcf7935",
+   "name": "PCF7935",
+   "maker": "Philips",
+   "kind": "Immobiliser transponder",
+   "text": "A transponder the ignition lock reads at 125 kHz; it has no part in the radio remote. Sold as \"ID40\" when coded for Opel.",
+   "datasheet": null
+  },
+  {
+   "key": "tda5100",
+   "name": "TDA5100",
+   "maker": "Infineon",
+   "kind": "Transmitter IC",
+   "text": "An ASK/FSK transmitter for the 433 to 435 MHz and 868 to 870 MHz bands, clocked by a crystal.",
+   "datasheet": {
+    "url": "https://static.datasheets.com/doc/23167503-infineon-tda5100-ds.pdf",
+    "title": "TDA5100 specification (a copy; Infineon no longer lists the part)"
+   }
+  },
+  {
+   "key": "tda5101",
+   "name": "TDA5101",
+   "maker": "Infineon",
+   "kind": "Transmitter IC",
+   "text": "An ASK/FSK transmitter for the 311 to 317 MHz band.",
+   "datasheet": null
+  },
+  {
+   "key": "tda5150",
+   "name": "TDA5150",
+   "maker": "Infineon",
+   "kind": "Transmitter IC",
+   "text": "A multichannel, multiband transmitter for 300 to 928 MHz with ASK, FSK and GFSK.",
+   "datasheet": null
+  },
+  {
+   "key": "hcs361",
+   "name": "HCS361",
+   "maker": "Microchip",
+   "kind": "KeeLoq code hopping encoder",
+   "text": "A KeeLoq code hopping encoder: a 32-bit block cipher with a 64-bit key, the serial number and the key kept in the chip. KAT reads its frames as [Microchip HCS361](microchip_hcs361.md) and as [KeeLoq](keeloq.md).",
+   "datasheet": {
+    "url": "https://ww1.microchip.com/downloads/en/DeviceDoc/40146F.pdf",
+    "title": "HCS361 data sheet (Microchip DS40146F)"
+   },
+   "pages": [
+    "microchip_hcs361",
+    "keeloq"
+   ]
+  },
+  {
+   "key": "hcs301",
+   "name": "HCS301",
+   "maker": "Microchip",
+   "kind": "KeeLoq code hopping encoder",
+   "text": "The KeeLoq code hopping encoder most gate and alarm remotes carry. KAT reads its frames as [KeeLoq](keeloq.md).",
+   "datasheet": {
+    "url": "https://ww1.microchip.com/downloads/en/DeviceDoc/21143C.pdf",
+    "title": "HCS301 data sheet (Microchip DS21143C)"
+   },
+   "pages": [
+    "keeloq"
+   ]
+  },
+  {
+   "key": "hcs200",
+   "name": "HCS200",
+   "maker": "Microchip",
+   "kind": "KeeLoq code hopping encoder",
+   "text": "A KeeLoq code hopping encoder. KAT reads its frames as [KeeLoq](keeloq.md).",
+   "datasheet": {
+    "url": "https://ww1.microchip.com/downloads/en/DeviceDoc/40138c.pdf",
+    "title": "HCS200 data sheet (Microchip DS40138C)"
+   },
+   "pages": [
+    "keeloq"
+   ]
+  },
+  {
+   "key": "upd789860",
+   "name": "µPD789860",
+   "maker": "NEC",
+   "kind": "Microcontroller",
+   "text": "An 8-bit microcontroller named in filings.",
+   "datasheet": null
+  },
+  {
+   "key": "tms37136",
+   "name": "TMS37136",
+   "maker": "Texas Instruments",
+   "kind": "Key controller",
+   "text": "A Texas Instruments part named in a filing.",
+   "datasheet": null
+  },
+  {
+   "key": "r5f1096",
+   "name": "R5F1096",
+   "maker": "Renesas",
+   "kind": "Microcontroller",
+   "text": "A Renesas microcontroller named in a filing.",
+   "datasheet": null
+  },
+  {
+   "key": "starc",
+   "name": "STARC 2XL",
+   "maker": "Philips",
+   "kind": "Key controller with transponder",
+   "text": "The name a filing's block diagram gives the key controller; the chip on that board is a [PCF7941](chip-pcf7941.html).",
+   "datasheet": null
+  },
+  {
+   "key": "nxp-1a58000",
+   "name": "NXP `1A58000`",
+   "maker": "NXP",
+   "kind": "Not identified",
+   "text": "The 20-pin NXP chip on the Suzuki TS002 remote's board, marked `1A58000`, `6979708`. The marking is a customer's, not a type KAT could look up.",
+   "datasheet": null
+  },
+  {
+   "key": "renault-s1080",
+   "name": "`B 89AN S1080`",
+   "maker": "",
+   "kind": "Not identified",
+   "text": "The 8-pin chip on a 1999 Renault one-button remote's board, marked `B 89AN`, `S1080`, `49004`.",
+   "datasheet": null
+  }
+ ]
+}

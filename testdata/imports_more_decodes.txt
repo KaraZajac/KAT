@@ -163,6 +163,10 @@ Mazda/more/mazda_key5_10x_trunk.sub | 433920000 | Mazda V1 | x20 | 10 distinct |
 Mazda/more/mazda_key5_10x_unlock.sub | 433920000 | Mazda V2 | x20 | 10 distinct | fnv=7781A65A7B505E85
 Mazda/more/mazda_visteon_6xl_5xu_5xa.sub | 433920000 | Mazda V2 | x24 | 12 distinct | fnv=CD0135D740034B2B
 Mazda/more/mazda_visteon_6xl_5xu_5xa.sub | 433920000 | Mazda V1 | x10 | 5 distinct | fnv=CC1287CB0E4D5FC5
+OPEL/more/opel_two_button_remote_lock_x300.sub | 433890000 | Opel Rolling | x323 | 158 distinct | fnv=ED510802AD8248B8
+OPEL/more/opel_two_button_remote_unlock_x300.sub | 433890000 | Opel Rolling | x605 | 229 distinct | fnv=2F486440DE1FF677
+OPEL/more/opel_two_button_remote_unlock_x300.sub | 433890000 | Hitag2 | x2 | 2 distinct | fnv=2BDDE497169F06F0
+OPEL/more/opel_two_button_remote_unlock_x300.sub | 433890000 | Microchip-HCS361 [KeeLoq (Unknown)] | x1 | 1 distinct | fnv=285DAD589D43C0F1
 RENAULT/more/Renault_Duster_2010_KD_300ulk.sub | 433920000 | Renault V1 | x437 | 299 distinct | fnv=D759FC733C8B1703
 RENAULT/more/Renault_Duster_2010_KD_300ulk.sub | 433920000 | Renault/xHorse V4 | x56 | 55 distinct | fnv=F185A7E15336D7B6
 RENAULT/more/Renault_Duster_2010_KD_300ulk.sub | 433920000 | Hitag2 | x1 | 1 distinct | fnv=0E03DB533624568B
@@ -199,6 +203,9 @@ SKODA/more/Skoda_lock.sub | 434420000 | VAG | x25 | 5 distinct | fnv=5BFA1BA3E4D
 SKODA/more/Skoda_trunk.sub | 434420000 | VAG | x25 | 5 distinct | fnv=1C81FEDB63460C44
 SKODA/more/Skoda_unlock.sub | 434420000 | VAG | x25 | 5 distinct | fnv=9698CF67CC6AEC79
 SUBARU/more/Subaru_impreza_full_fob.sub | 433920000 | key | Subaru | data=E1CB715EFDC30287/64 sn=CB715E btn=1 cnt=C910 crc=0 tx=1
+SUZUKI/more/suzuki_ts002_held_unlock_x5_lock_x5.sub | 433910000 | Suzuki TS002 | x334 | 20 distinct | fnv=F9AB43B276C8D098
+SUZUKI/more/suzuki_ts002_lock_x105.sub | 433910000 | Suzuki TS002 | x420 | 105 distinct | fnv=C133A4BDCA6A77E1
+SUZUKI/more/suzuki_ts002_unlock_x105.sub | 433910000 | Suzuki TS002 | x420 | 105 distinct | fnv=3C2716FDF03814C5
 Toyota + Lexus/more/Tundra19_lock.sub | 312100000 | (none)
 Toyota + Lexus/more/Tundra19_lock2.sub | 314350000 | (none)
 Toyota + Lexus/more/Tundra19_unlock.sub | 314350000 | (none)
@@ -278,6 +285,12 @@ chrysler/more/PT_300xLCK.sub | 433889000 | Chrysler V0 | x308 | 308 distinct | f
 chrysler/more/PT_300xUNL.sub | 433889000 | Chrysler V0 | x28 | 28 distinct | fnv=837103B8201799D6
 chrysler/more/PT_LCK100.sub | 433889000 | Chrysler V0 | x105 | 105 distinct | fnv=6A22593629EDCC4A
 chrysler/more/PT_LCK250.sub | 433889000 | Chrysler V0 | x271 | 271 distinct | fnv=8511477EB82BB145
+chrysler/more/fca_siemens_5wy72xx_door_button_10_x50.sub | 314925000 | Siemens-5WY72XX | x133 | 50 distinct | fnv=120EA82A067DE0E1
+chrysler/more/fca_siemens_5wy72xx_door_button_20_x51.sub | 315000000 | Siemens-5WY72XX | x150 | 51 distinct | fnv=71787FFF6438E28C
+chrysler/more/fca_siemens_5wy72xx_lock_x49.sub | 314925000 | Siemens-5WY72XX | x147 | 49 distinct | fnv=AEF68F148F41CA6F
+chrysler/more/fca_siemens_5wy72xx_panic_x50.sub | 314925000 | Siemens-5WY72XX | x150 | 50 distinct | fnv=42026CA31C8EF21B
+chrysler/more/fca_siemens_5wy72xx_trunk_x50.sub | 314925000 | Siemens-5WY72XX | x150 | 50 distinct | fnv=3F3B3F69D8DF0DCE
+chrysler/more/fca_siemens_5wy72xx_unlock_x51.sub | 314925000 | Siemens-5WY72XX | x149 | 51 distinct | fnv=F8F791E705201EBD
 honda/more/0 (2).sub | 433920000 | Honda V1 | x343 | 44 distinct | fnv=3F758EC51C84575A
 honda/more/05 Honda V5.sub | 433920000 | Honda V5 | x6 | 2 distinct | fnv=96878947D46C9C70
 honda/more/2022-2024_Honda_CR-V_433.66_FM476.sub | 433657070 | (none)

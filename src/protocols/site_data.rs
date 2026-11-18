@@ -2,7 +2,7 @@
 //!
 //! kat.karazajac.io has a page per protocol (`docs/<module>.md`) with a box of facts beside it,
 //! and tables of all protocols. Those facts are the ones KAT itself uses: [info::ALL] and what
-//! each registered decoder says about its timing, bit count, frequencies and encoder. This test
+//! each registered decoder says about its timing, bit count, frequencies, encoder and button names. This test
 //! writes them out, so the site cannot say something else than the program. With them goes the
 //! entry each display name in the two pinned capture lists belongs to (`KeeLoq (DoorHan)` is
 //! KeeLoq's), as [info::lookup] resolves it, and the entry that reads each `Protocol:` name of the
@@ -44,6 +44,11 @@ fn key_names(reg: &ProtocolRegistry, dir: &Path, out: &mut BTreeMap<String, &'st
 fn entry(reg: &ProtocolRegistry, order: &[&'static str], i: &info::ProtocolInfo) -> serde_json::Value {
     let dec = order.contains(&i.decoder).then(|| reg.get(i.decoder)).flatten();
     let timing = dec.map(|d| d.timing());
+    // The protocol's own button names, code by code (not "Other", and not a combination of flags).
+    let buttons: Vec<(u8, &'static str)> = (0..=255u8)
+        .filter_map(|code| Some((code, i.button_name(i.name, code)?)))
+        .filter(|(_, name)| !name.is_empty() && !matches!(*name, "Other" | "Unknown") && !name.contains(';'))
+        .collect();
     serde_json::json!({
         "name": i.name,
         "decoder": i.decoder,
@@ -64,6 +69,8 @@ fn entry(reg: &ProtocolRegistry, order: &[&'static str], i: &info::ProtocolInfo)
         "bits": timing.as_ref().map(|t| t.min_count_bit),
         "frequencies": dec.map(|d| d.supported_frequencies().to_vec()),
         "encoder": dec.map(|d| d.supports_encoding()),
+        "buttons": buttons,
+        "generic_buttons": i.buttons.is_none(),
     })
 }
 

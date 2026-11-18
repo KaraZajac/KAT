@@ -4972,6 +4972,129 @@
    "type": "raw"
   },
   {
+   "bytes": 657227,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 99976,
+    "keying": "OOK"
+   },
+   "folder": "OPEL",
+   "frequency": 433890000,
+   "more": true,
+   "path": "OPEL/more/opel_two_button_remote_lock_x300.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 144784,
+   "reads": [
+    {
+     "distinct": 158,
+     "frames": 323,
+     "protocol": "Opel Rolling"
+    }
+   ],
+   "seconds": 340.73,
+   "type": "raw"
+  },
+  {
+   "bytes": 741290,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 99976,
+    "keying": "OOK"
+   },
+   "folder": "OPEL",
+   "frequency": 433890000,
+   "more": true,
+   "path": "OPEL/more/opel_two_button_remote_unlock_x300.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 161932,
+   "reads": [
+    {
+     "distinct": 229,
+     "frames": 605,
+     "protocol": "Opel Rolling"
+    },
+    {
+     "distinct": 2,
+     "frames": 2,
+     "protocol": "Hitag2"
+    },
+    {
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Microchip-HCS361 [KeeLoq (Unknown)]"
+    }
+   ],
+   "seconds": 388.27,
+   "type": "raw"
+  },
+  {
+   "bytes": 121806,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 99976,
+    "keying": "OOK"
+   },
+   "folder": "OPEL",
+   "frequency": 433890000,
+   "more": false,
+   "path": "OPEL/opel_two_button_remote_lock_held_x5_unlock_x5.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 26734,
+   "reads": [
+    {
+     "buttons": [
+      "9",
+      "A",
+      "B"
+     ],
+     "crc_ok": 238,
+     "distinct": 10,
+     "encodable": true,
+     "frames": 238,
+     "protocol": "Opel Rolling",
+     "serial": "71597D",
+     "serials": 1
+    }
+   ],
+   "seconds": 24.11,
+   "type": "raw"
+  },
+  {
+   "bytes": 22471,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 99976,
+    "keying": "OOK"
+   },
+   "folder": "OPEL",
+   "frequency": 433890000,
+   "more": false,
+   "path": "OPEL/opel_two_button_remote_lock_x5_unlock_x5.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 4876,
+   "reads": [
+    {
+     "buttons": [
+      "A",
+      "B"
+     ],
+     "crc_ok": 6,
+     "distinct": 4,
+     "encodable": true,
+     "frames": 6,
+     "protocol": "Opel Rolling",
+     "serial": "71597D",
+     "serials": 1
+    }
+   ],
+   "seconds": 11.81,
+   "type": "raw"
+  },
+  {
    "bytes": 7282,
    "folder": "RENAULT",
    "frequency": 433075000,
@@ -5395,6 +5518,33 @@
    "type": "raw"
   },
   {
+   "bytes": 198580,
+   "custom": {
+    "bandwidth_hz": 162500,
+    "baud": 49988,
+    "keying": "OOK"
+   },
+   "folder": "RENAULT",
+   "frequency": 433870000,
+   "more": false,
+   "path": "RENAULT/renault_one_button_remote_x110.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 43600,
+   "reads": [
+    {
+     "crc_ok": 350,
+     "distinct": 110,
+     "frames": 350,
+     "protocol": "Renault 1-Button",
+     "serial": "A84DC",
+     "serials": 1
+    }
+   ],
+   "seconds": 80.52,
+   "type": "raw"
+  },
+  {
    "bytes": 19703,
    "folder": "SKODA",
    "frequency": 434390000,
@@ -5614,6 +5764,110 @@
     }
    ],
    "seconds": 37.33,
+   "type": "raw"
+  },
+  {
+   "bytes": 446532,
+   "custom": {
+    "bandwidth_hz": 162500,
+    "baud": 49988,
+    "keying": "OOK"
+   },
+   "folder": "SUZUKI",
+   "frequency": 433910000,
+   "more": true,
+   "path": "SUZUKI/more/suzuki_ts002_held_unlock_x5_lock_x5.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 98637,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 334,
+     "protocol": "Suzuki TS002"
+    }
+   ],
+   "seconds": 43.62,
+   "type": "raw"
+  },
+  {
+   "bytes": 557765,
+   "custom": {
+    "bandwidth_hz": 162500,
+    "baud": 49988,
+    "keying": "OOK"
+   },
+   "folder": "SUZUKI",
+   "frequency": 433910000,
+   "more": true,
+   "path": "SUZUKI/more/suzuki_ts002_lock_x105.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 123145,
+   "reads": [
+    {
+     "distinct": 105,
+     "frames": 420,
+     "protocol": "Suzuki TS002"
+    }
+   ],
+   "seconds": 96.67,
+   "type": "raw"
+  },
+  {
+   "bytes": 557989,
+   "custom": {
+    "bandwidth_hz": 162500,
+    "baud": 49988,
+    "keying": "OOK"
+   },
+   "folder": "SUZUKI",
+   "frequency": 433910000,
+   "more": true,
+   "path": "SUZUKI/more/suzuki_ts002_unlock_x105.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 123204,
+   "reads": [
+    {
+     "distinct": 105,
+     "frames": 420,
+     "protocol": "Suzuki TS002"
+    }
+   ],
+   "seconds": 93.13,
+   "type": "raw"
+  },
+  {
+   "bytes": 53372,
+   "custom": {
+    "bandwidth_hz": 162500,
+    "baud": 49988,
+    "keying": "OOK"
+   },
+   "folder": "SUZUKI",
+   "frequency": 433910000,
+   "more": false,
+   "path": "SUZUKI/suzuki_ts002_unlock_lock_x10.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 11723,
+   "reads": [
+    {
+     "buttons": [
+      "1",
+      "2"
+     ],
+     "crc_ok": 40,
+     "distinct": 10,
+     "encodable": true,
+     "frames": 40,
+     "protocol": "Suzuki TS002",
+     "serial": "ADE998",
+     "serials": 1
+    }
+   ],
+   "seconds": 9.46,
    "type": "raw"
   },
   {
@@ -8235,6 +8489,150 @@
     }
    ],
    "seconds": 521.67,
+   "type": "raw"
+  },
+  {
+   "bytes": 159739,
+   "custom": {
+    "bandwidth_hz": 203125,
+    "baud": 3794,
+    "keying": "OOK"
+   },
+   "folder": "chrysler",
+   "frequency": 314925000,
+   "more": true,
+   "path": "chrysler/more/fca_siemens_5wy72xx_door_button_10_x50.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 35269,
+   "reads": [
+    {
+     "distinct": 50,
+     "frames": 133,
+     "protocol": "Siemens-5WY72XX"
+    }
+   ],
+   "seconds": 25.78,
+   "type": "raw"
+  },
+  {
+   "bytes": 180623,
+   "custom": {
+    "bandwidth_hz": 203125,
+    "baud": 3794,
+    "keying": "OOK"
+   },
+   "folder": "chrysler",
+   "frequency": 315000000,
+   "more": true,
+   "path": "chrysler/more/fca_siemens_5wy72xx_door_button_20_x51.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 39839,
+   "reads": [
+    {
+     "distinct": 51,
+     "frames": 150,
+     "protocol": "Siemens-5WY72XX"
+    }
+   ],
+   "seconds": 38.76,
+   "type": "raw"
+  },
+  {
+   "bytes": 177221,
+   "custom": {
+    "bandwidth_hz": 203125,
+    "baud": 3794,
+    "keying": "OOK"
+   },
+   "folder": "chrysler",
+   "frequency": 314925000,
+   "more": true,
+   "path": "chrysler/more/fca_siemens_5wy72xx_lock_x49.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 39085,
+   "reads": [
+    {
+     "distinct": 49,
+     "frames": 147,
+     "protocol": "Siemens-5WY72XX"
+    }
+   ],
+   "seconds": 27.69,
+   "type": "raw"
+  },
+  {
+   "bytes": 180095,
+   "custom": {
+    "bandwidth_hz": 203125,
+    "baud": 3794,
+    "keying": "OOK"
+   },
+   "folder": "chrysler",
+   "frequency": 314925000,
+   "more": true,
+   "path": "chrysler/more/fca_siemens_5wy72xx_panic_x50.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 39713,
+   "reads": [
+    {
+     "distinct": 50,
+     "frames": 150,
+     "protocol": "Siemens-5WY72XX"
+    }
+   ],
+   "seconds": 28.97,
+   "type": "raw"
+  },
+  {
+   "bytes": 180608,
+   "custom": {
+    "bandwidth_hz": 203125,
+    "baud": 3794,
+    "keying": "OOK"
+   },
+   "folder": "chrysler",
+   "frequency": 314925000,
+   "more": true,
+   "path": "chrysler/more/fca_siemens_5wy72xx_trunk_x50.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 39837,
+   "reads": [
+    {
+     "distinct": 50,
+     "frames": 150,
+     "protocol": "Siemens-5WY72XX"
+    }
+   ],
+   "seconds": 30.79,
+   "type": "raw"
+  },
+  {
+   "bytes": 184330,
+   "custom": {
+    "bandwidth_hz": 203125,
+    "baud": 3794,
+    "keying": "OOK"
+   },
+   "folder": "chrysler",
+   "frequency": 314925000,
+   "more": true,
+   "path": "chrysler/more/fca_siemens_5wy72xx_unlock_x51.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 40653,
+   "reads": [
+    {
+     "distinct": 51,
+     "frames": 149,
+     "protocol": "Siemens-5WY72XX"
+    }
+   ],
+   "seconds": 31.14,
    "type": "raw"
   },
   {

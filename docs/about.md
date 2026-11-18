@@ -24,7 +24,9 @@ read on every change.
 | The text | Written by hand, kept beside the code in the repository's [`docs`](https://github.com/KaraZajac/KAT/tree/main/docs) folder. The foot of every page links its file |
 | The box of facts | The program: its name for the protocol, the line coding and modulation it expects, the pulse widths and frame length its decoder is built around, whether it can also send. `docs/data/protocols.json`, written by a test in KAT's own source |
 | Recordings | The [library](https://kat.karazajac.io/captures.html): Flipper `.sub` files of real remotes in the repository's `IMPORTS` folder. What KAT reads from each is pinned in two lists that the tests compare on every change |
+| Example frames | The program again: frames it reads from the recordings, with the digits that hold the serial, the button and the counter marked. A field is marked only when the same bits give KAT's value in every frame of the protocol in the library (`docs/data/frames.json`); for a few protocols the whole frame is mapped by hand |
 | FCC IDs | The remotes' public filings at the US Federal Communications Commission, read one by one, and parts catalogues for the cars each remote fits ([FCC IDs](https://kat.karazajac.io/fcc.html)) |
+| Remotes | A page per remote ([Remotes](https://kat.karazajac.io/remotes.html)): pictures of the remote and its circuit board, notes on what its filing says, the chips on it ([Chips](https://kat.karazajac.io/chips.html)) |
 
 ## The references
 
@@ -43,7 +45,9 @@ page says which.
 
 A few decoders are KAT's own, worked out from recordings where no reference reads the signal:
 [Honda V6](honda_v6.md), [Kia Mobis](kia_mobis.md), [Kia Denso](kia_denso.md), [Kia Forte](kia_forte.md),
-[GM RFA](gm_rfa.md), [Isuzu Rolling](isuzu_rolling.md) and [Isuzu Static](isuzu_static.md). Their pages say
+[GM RFA](gm_rfa.md), [Isuzu Rolling](isuzu_rolling.md), [Isuzu Static](isuzu_static.md),
+[Suzuki TS002](suzuki_ts002.md), [Opel Rolling](opel_rolling.md) and [Renault 1-Button](renault_one_button.md).
+Their pages say
 what each field is known from, and what is not known.
 
 ## How sure a statement is
@@ -63,6 +67,18 @@ page lists that gate, and such a protocol sits behind every protocol with a real
 **FCC ties.** A filing is tied to a protocol by a recording of that remote, by the protocol's own source naming
 the FCC ID, or by the filing's figures matching the protocol. The last is a judgement and is marked as one
 ([FCC IDs](https://kat.karazajac.io/fcc.html)).
+
+**Pictures.** The pictures of a remote with an FCC ID are from the internal photos of its filing, a public
+record; each names its exhibit and opens it. The pictures of a remote without one were sent in by its owner,
+with the recordings.
+
+**Notes on a filing.** A remote's page quotes its filing: the frequency, the modulation, pulse widths, the
+parts it names. The notes were taken by reading the exhibits. Where every quotation in a note is found again in
+the text of the exhibits, the note is marked *quoted*; many filings are scans, and their notes cannot be
+checked that way. The exhibit is one click away.
+
+**Chips.** A chip is listed for a remote when a picture of the board shows its marking or the filing names it.
+A marking that is a customer's own number says no more than that.
 
 **Not known.** The pages say "not known" where that is the case. A cipher that has not been identified, a
 button nobody pressed in a recording, a remote whose FCC ID nobody read off its back.

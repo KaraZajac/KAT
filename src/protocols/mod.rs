@@ -60,6 +60,8 @@ mod burst;
 mod gm_rfa;
 mod isuzu_rolling;
 mod isuzu_static;
+mod suzuki_ts002;
+mod renault_one_button;
 mod kia_denso;
 mod kia_forte;
 mod kia_mobis;
@@ -101,6 +103,7 @@ mod bmw;
 mod mazda_v2;
 mod mercedes_v0;
 mod mercedes_v1;
+mod opel_rolling;
 mod opel_v1;
 mod opel_v0;
 mod renault_v2;
@@ -1006,6 +1009,15 @@ impl ProtocolRegistry {
             // the same in two bursts.
             Box::new(isuzu_rolling::IsuzuRollingDecoder::new()),
             Box::new(isuzu_static::IsuzuStaticDecoder::new()),
+            // KAT's own decoders with a check, and encoders. Suzuki TS002: 257 µs OOK pulse width behind
+            // a 1028/1028 µs sync, 72 bits and 72 ones; the code repeats the counter and the ID.
+            // Opel Rolling: OOK periods of 600 or 900 µs behind a 300/600/600 µs sync, 60 bits with a
+            // check nibble (and the 32-bit frame of a held button).
+            Box::new(suzuki_ts002::SuzukiTs002Decoder::new()),
+            Box::new(opel_rolling::OpelRollingDecoder::new()),
+            // Renault 1-Button (decode-only): 473/947 µs OOK Manchester, 0 bits, `11`, 68 bits up to the
+            // burst's end, the XOR of nine bytes.
+            Box::new(renault_one_button::RenaultOneButtonDecoder::new()),
             // LDV V0: 250/500 µs Manchester, >= 48-bit preamble, 128 bits with fixed 0xFF 0xFF bytes
             // and a duplicated button. Behind Ford V3, which reads the same fob's frames first.
             Box::new(ldv_v0::LdvV0Decoder::new()),
@@ -2486,7 +2498,7 @@ mod tests {
             // pulse widths, less than the frame's block.
             let foxfw = ["LDV V0", "Lexus V0", "Mazda V1", "Nissan V0", "Honda V6"].contains(&name);
             // KAT's own decoders from recordings write none either: no firmware has a key format for them.
-            let own = ["Kia Mobis", "Kia Denso", "Kia Forte", "GM RFA", "Isuzu Rolling", "Isuzu Static"].contains(&name);
+            let own = ["Kia Mobis", "Kia Denso", "Kia Forte", "GM RFA", "Isuzu Rolling", "Isuzu Static", "Suzuki TS002", "Opel Rolling", "Renault 1-Button"].contains(&name);
             let listed = written.iter().any(|&(_, dec)| dec == name) || name == "Renault V1 (ARF)" || name == "Toyota (FoxFW)" || name == "HondaV2&V3" || foxfw || own;
             assert!(listed, "{name}: no key-file name listed");
         }

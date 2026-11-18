@@ -1,0 +1,127 @@
+{
+ "comment": "Field maps by hand, for protocols whose whole frame is known: where each field lies in KAT's data word (offset: its lowest bit; bit 0 is the word's last bit) and in the extra word. scripts/site_frames.py finds serial, button and counter by itself; a map here replaces what it found.",
+ "protocols": {
+  "Opel Rolling": {
+   "hide_extra": true,
+   "note": "The held frame is 32 bits: `9`, the serial, a check nibble. [The page above](opel_rolling.md#frame-60-bits-15-nibbles) has the mask.",
+   "fields": [
+    {
+     "kind": "button",
+     "name": "Button",
+     "word": "data",
+     "offset": 56,
+     "width": 4,
+     "note": "`A` Unlock, `B` Lock"
+    },
+    {
+     "kind": "serial",
+     "name": "Serial",
+     "word": "data",
+     "offset": 32,
+     "width": 24
+    },
+    {
+     "kind": "counter",
+     "name": "Plain value, masked",
+     "word": "data",
+     "offset": 8,
+     "width": 24,
+     "note": "three fixed nibbles and the 12-bit counter, each nibble plus `r` and some inverted"
+    },
+    {
+     "kind": "code",
+     "name": "r, inverted",
+     "word": "data",
+     "offset": 4,
+     "width": 4,
+     "note": "the nibble the remote picks for the press"
+    },
+    {
+     "kind": "check",
+     "name": "Check",
+     "word": "data",
+     "offset": 0,
+     "width": 4
+    }
+   ]
+  },
+  "Suzuki TS002": {
+   "note": "The frame is 72 bits: the data word is its first 64, the extra word its last 8.",
+   "fields": [
+    {
+     "kind": "fixed",
+     "name": "Head",
+     "word": "data",
+     "offset": 56,
+     "width": 8,
+     "note": "`14` in every frame of the recorded remote"
+    },
+    {
+     "kind": "button",
+     "name": "Button",
+     "word": "data",
+     "offset": 48,
+     "width": 8,
+     "note": "`01` Lock, `02` Unlock; `20` is added while held"
+    },
+    {
+     "kind": "serial",
+     "name": "ID",
+     "word": "data",
+     "offset": 24,
+     "width": 24
+    },
+    {
+     "kind": "code",
+     "name": "Code",
+     "word": "data",
+     "offset": 0,
+     "width": 24,
+     "note": "with the extra word, 32 bits: the inverted counter byte in four pairs, and the ID rotated by it"
+    },
+    {
+     "kind": "code",
+     "name": "Code, last byte",
+     "word": "extra",
+     "offset": 0,
+     "width": 8
+    }
+   ]
+  },
+  "Renault 1-Button": {
+   "note": "The frame is 70 bits; with two 0 bits in front it is nine bytes: the data word holds the first eight, the extra word the ninth.",
+   "fields": [
+    {
+     "kind": "fixed",
+     "name": "Start",
+     "word": "data",
+     "offset": 60,
+     "width": 4,
+     "note": "two 0 bits of the lead and `11`"
+    },
+    {
+     "kind": "serial",
+     "name": "ID",
+     "word": "data",
+     "offset": 36,
+     "width": 24
+    },
+    {
+     "kind": "code",
+     "name": "Changing bits",
+     "word": "data",
+     "offset": 0,
+     "width": 36
+    },
+    {
+     "kind": "check",
+     "name": "Check",
+     "word": "extra",
+     "offset": 0,
+     "width": 8,
+     "note": "the XOR of the nine bytes is 0"
+    }
+   ]
+  }
+ }
+}

@@ -44,6 +44,21 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # details on Linux) would need its headers to build; KAT finds the port under /dev/serial/by-id.
 serialport = { version = "4.10.1", default-features = false }
 
+# GPU key recovery (optional, cargo feature `gpu`): a compute backend over wgpu (Vulkan on
+# Linux/Windows, Metal on macOS, DX12 on Windows), shaders compiled in-process by naga — no
+# external toolchain or runtime is shipped. The CPU search is always built and is the correctness
+# oracle the GPU result is checked against; without a usable adapter KAT falls back to the CPU.
+wgpu = { version = "0.20", optional = true }
+pollster = { version = "0.3", optional = true }
+bytemuck = { version = "1", optional = true, features = ["derive"] }
+
+
+[features]
+# On by default: KAT ships with GPU recovery, and CI then builds and checks it on every platform.
+# The CPU search is always the fallback. Build with --no-default-features for a lean, wgpu-free KAT.
+default = ["gpu"]
+gpu = ["dep:wgpu", "dep:pollster", "dep:bytemuck"]
+
 
 [build-dependencies]
 pkg-config = "0.3"

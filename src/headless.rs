@@ -444,6 +444,10 @@ pub fn keeloq_bf(opts: &KeeloqBfOptions) -> i32 {
     let job = std::thread::spawn(move || bf::search(&group, &types, &worker));
     let start = std::time::Instant::now();
     eprintln!("Searching type{} {:?} on {} threads…", plural(opts.types.len()), opts.types, std::thread::available_parallelism().map_or(1, |n| n.get()));
+    #[cfg(feature = "gpu")]
+    if let Some(desc) = crate::gpu::description() {
+        eprintln!("GPU: {desc}");
+    }
     // The `\r` progress line only on a terminal: in a log file or a pipe it piles up as one
     // endless line.
     let progress = std::io::IsTerminal::is_terminal(&std::io::stderr());

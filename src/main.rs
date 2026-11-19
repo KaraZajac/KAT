@@ -7,6 +7,8 @@ mod analysis;
 mod app;
 mod capture;
 mod export;
+#[cfg(feature = "gpu")]
+mod gpu;
 mod headless;
 mod keystore;
 mod protocols;

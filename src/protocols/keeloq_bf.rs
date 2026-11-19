@@ -179,6 +179,20 @@ pub fn search(frames: &[Frame], learnings: &[u32], ctl: &Control) -> Outcome {
 /// Try the candidates `range` of one learning type on all cores. A candidate is the unknown part
 /// of the manufacturer key (see the module doc); the result is sorted closest counters first.
 pub fn search_range(frames: &[Frame], learning: u32, range: Range<u64>, ctl: &Control) -> Vec<Candidate> {
+    // With the `gpu` feature and a usable GPU, the kernel finds the candidates that pass every
+    // frame's button/discriminator check (a superset); `verify` below finalises them, so the result
+    // is identical to the CPU scan. It declines small ranges and returns `None` on any error, then
+    // the CPU path runs.
+    #[cfg(feature = "gpu")]
+    if let Some(mans) = crate::gpu::keeloq::filter(frames, learning, range.clone(), ctl) {
+        let mut found: Vec<Candidate> = mans
+            .into_iter()
+            .filter_map(|man| verify(frames, learning, man).map(|counters| Candidate { learning, man_key: man, counters }))
+            .collect();
+        found.sort_by_key(|c| (c.spread(), c.man_key));
+        return found;
+    }
+
     let (shift, width) = layout(learning);
     let end = range.end.min(1 << width);
     let first = frames[0];
@@ -210,7 +224,7 @@ pub fn search_range(frames: &[Frame], learning: u32, range: Range<u64>, ctl: &Co
 }
 
 /// (shift, width) of the unknown part of the manufacturer key.
-fn layout(learning: u32) -> (u32, u32) {
+pub(crate) fn layout(learning: u32) -> (u32, u32) {
     if learning == lt::MAGIC_SERIAL_TYPE_3 {
         (24, 40)
     } else {
@@ -602,6 +616,75 @@ mod tests {
             assert_eq!(found, vec![Candidate { learning, man_key: man, counters: vec![0x0412, 0x0413] }]);
             assert_eq!(ctl.tested.load(Ordering::Relaxed), 10_000);
         }
+    }
+
+    /// The GPU filter (feature `gpu`) and the CPU scan return the same candidate for a planted key:
+    /// a narrow window stays on the CPU, a window ≥ the GPU threshold runs the kernel. Needs a GPU,
+    /// so it is ignored (CI has none); run with `cargo test --features gpu -- --ignored gpu_search`.
+    #[cfg(feature = "gpu")]
+    #[test]
+    #[ignore]
+    fn gpu_search_matches_cpu() {
+        if !crate::gpu::available() {
+            eprintln!("no GPU available; skipping gpu_search_matches_cpu");
+            return;
+        }
+        for (learning, man) in [(lt::MAGIC_SERIAL_TYPE_1, 0x4123_4567u64), (lt::MAGIC_SERIAL_TYPE_2, 0x5EDC_BA98)] {
+            let fix = 0x20C4_9A51; // button 2, serial 0x0C49A51
+            let frames = [press(learning, man, fix, 0x0412), press(learning, man, fix | 0x4000_0000, 0x0413)];
+            let want = vec![Candidate { learning, man_key: man, counters: vec![0x0412, 0x0413] }];
+            // Narrow window (< MIN_RANGE): the CPU path.
+            let cpu = search_range(&frames, learning, man - 1000..man + 1000, &Control::default());
+            // Window ≥ 2^24 (MIN_RANGE): the GPU kernel filters, the CPU verify finalises.
+            let gpu = search_range(&frames, learning, (man - (1 << 23))..(man + (1 << 23)), &Control::default());
+            assert_eq!(cpu, want, "type {learning} cpu");
+            assert_eq!(gpu, want, "type {learning} gpu");
+        }
+    }
+
+    /// Type 8 (2^40) on the GPU: the real HCS200 Magic_3 key over a window ≥ MIN_RANGE matches the
+    /// CPU over a narrow one. Ignored (needs a GPU).
+    #[cfg(feature = "gpu")]
+    #[test]
+    #[ignore]
+    fn gpu_search_type8_matches_cpu() {
+        if !crate::gpu::available() {
+            eprintln!("no GPU available; skipping gpu_search_type8_matches_cpu");
+            return;
+        }
+        let magic3 = keeloq_keystore().iter().find(|k| k.name == "Magic_3").expect("Magic_3").key;
+        let frames: Vec<Frame> =
+            [0x1DB4_F14A_8490_B004u64, 0x28C9_83D1_8490_B002, 0xEF48_E816_8490_B009].map(Frame::from_data).into();
+        let unknown = magic3 >> 24;
+        let cpu = search_range(&frames, lt::MAGIC_SERIAL_TYPE_3, unknown - 3000..unknown + 3000, &Control::default());
+        let gpu = search_range(&frames, lt::MAGIC_SERIAL_TYPE_3, (unknown - (1 << 23))..(unknown + (1 << 23)), &Control::default());
+        assert_eq!(cpu.len(), 1, "cpu");
+        assert_eq!(cpu, gpu, "gpu vs cpu");
+        assert_eq!(gpu[0].man_key, magic3);
+    }
+
+    /// GPU throughput over a 2^30-candidate type-8 window; prints keys/s and the 2^40 ETA. Ignored.
+    #[cfg(feature = "gpu")]
+    #[test]
+    #[ignore]
+    fn gpu_type8_throughput() {
+        if !crate::gpu::available() {
+            eprintln!("no GPU available; skipping gpu_type8_throughput");
+            return;
+        }
+        let frames: Vec<Frame> =
+            [0x1DB4_F14A_8490_B004u64, 0x28C9_83D1_8490_B002, 0xEF48_E816_8490_B009].map(Frame::from_data).into();
+        let w: u64 = 1 << 30;
+        let ctl = Control::default();
+        let t = std::time::Instant::now();
+        let _ = search_range(&frames, lt::MAGIC_SERIAL_TYPE_3, 0..w, &ctl);
+        let s = t.elapsed().as_secs_f64();
+        eprintln!(
+            "gpu type8 ({}): {w} candidates in {s:.2} s = {:.0} M/s; full 2^40 ETA {:.0} s",
+            crate::gpu::description().unwrap_or_default(),
+            w as f64 / s / 1e6,
+            (1u64 << 40) as f64 / (w as f64 / s)
+        );
     }
 
     /// The real HCS200 remote of rtl_433's test recordings (Microchip/HCS200/01, serial D0921), whose

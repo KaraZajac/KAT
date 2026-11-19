@@ -1069,6 +1069,35 @@ fn recover_with(kernel: &Kernel, reqs: &[Hitag2Request], range: Range<u32>, ctl:
             })
         })
     };
+    // With a GPU, the kernel finds the lowest candidate with a verifying state; the CPU `check`
+    // above finalises that one candidate, so the result equals the CPU-only search. Any error or
+    // missing GPU falls through to the CPU path below.
+    #[cfg(feature = "gpu")]
+    {
+        let gpu_reqs: Vec<crate::gpu::hitag2::GpuReq> = reqs
+            .iter()
+            .map(|r| crate::gpu::hitag2::GpuReq {
+                uid: r.uid,
+                cnt: r.cnt,
+                btn: r.btn as u32,
+                has_second: u32::from(r.second.is_some()),
+                s_hop: r.second.map_or(0, |s| s.hop),
+                s_cnt: r.second.map_or(0, |s| s.cnt),
+                s_btn: r.second.map_or(0, |s| u32::from(s.btn)),
+                _pad: 0,
+            })
+            .collect();
+        match crate::gpu::hitag2::lowest_hit(first.hop, &gpu_reqs, &kernel.candidates, range.clone(), &ctl.cancel, &ctl.progress) {
+            crate::gpu::hitag2::GpuSearch::Hit(cidx) => {
+                let mut out = Vec::new();
+                kernel.states(cidx, &mut out);
+                return check(cidx, &out).map_or(BruteForceOutcome::NotFound, BruteForceOutcome::Found);
+            }
+            crate::gpu::hitag2::GpuSearch::NoHit => return BruteForceOutcome::NotFound,
+            crate::gpu::hitag2::GpuSearch::Cancelled => return BruteForceOutcome::Cancelled,
+            crate::gpu::hitag2::GpuSearch::Unavailable => {}
+        }
+    }
     match search(range, ctl, |c, out| kernel.states(c, out), check) {
         Ok(Some((_, key))) => BruteForceOutcome::Found(key),
         Ok(None) => BruteForceOutcome::NotFound,
@@ -1344,6 +1373,32 @@ mod tests {
     fn known_request(k: &KnownFrames) -> Hitag2Request {
         let (_, uid, (cnt, btn, hop), (cnt2, btn2, hop2), ..) = *k;
         Hitag2Request { hop, uid, cnt, btn, second: Some(SecondFrame { hop: hop2, cnt: cnt2, btn: btn2 }) }
+    }
+
+    /// The GPU search (feature `gpu`) recovers each C-verified known frame over a window around its
+    /// known layer-0 candidate, with the same key and candidate the CPU returns. Needs a GPU, so it
+    /// is ignored on CI; run with `cargo test --features gpu -- --ignored gpu_recovers`.
+    #[cfg(feature = "gpu")]
+    #[test]
+    #[ignore]
+    fn gpu_recovers_known_frames() {
+        if !crate::gpu::available() {
+            eprintln!("no GPU available; skipping gpu_recovers_known_frames");
+            return;
+        }
+        for k in &KNOWN {
+            let (key, .., cand) = *k;
+            let req = known_request(k);
+            let lo = cand.saturating_sub(64);
+            let hi = cand + 64;
+            match recover_range(&[req], lo..hi, Width::W256) {
+                BruteForceOutcome::Found(r) => {
+                    assert_eq!(r.key, key, "key for candidate {cand}");
+                    assert_eq!(r.candidate, cand, "candidate index");
+                }
+                other => panic!("GPU did not recover known frame at {cand}: {other:?}"),
+            }
+        }
     }
 
     /// The scalar cipher is qDoctor's (`hitag2hell_authenticator` vectors from the C) and is

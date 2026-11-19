@@ -2,6 +2,12 @@
 
 All notable changes to KAT are documented here.
 
+## [Unreleased]
+
+### Added
+
+- **GPU key recovery** (cargo feature `gpu`, on by default). The KeeLoq manufacturer-key search (`--keeloq-bf`) and the HiTag2 Hell key recovery run on a graphics card when one is present — Vulkan on Linux and Windows, Metal on macOS, DirectX 12 on Windows — through `wgpu`, with no driver or shader toolchain to install. The results are identical to the CPU, which stays the fallback when there is no usable GPU. On a modest laptop GPU a KeeLoq type-8 (2⁴⁰) search drops from about 21 to about 11 minutes and a full HiTag2 Hell sweep from about 20 to about 7 minutes; a desktop graphics card is several times faster again. Build with `--no-default-features` for a lean, wgpu-free KAT.
+
 ## [1.17.1] - 2026-11-19
 
 The fixes a review of 1.16.2 and 1.17.0 found, already on `main`: VW-1 sends a new code on every press (1.17.0 sent the same one again after the first), protocols that carry no checksum no longer show "CRC FAIL", and PortaPack `.TXT` files are read more carefully. No protocol more.

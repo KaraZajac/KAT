@@ -2573,6 +2573,60 @@
    "type": "raw"
   },
   {
+   "bytes": 131300,
+   "custom": {
+    "bandwidth_hz": 203125,
+    "baud": 3794,
+    "keying": "OOK"
+   },
+   "folder": "GROUPE PSA",
+   "frequency": 433900000,
+   "more": false,
+   "path": "GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 30217,
+   "reads": [
+    {
+     "buttons": [
+      "3"
+     ],
+     "distinct": 49,
+     "frames": 49,
+     "protocol": "PSA 2-Button"
+    }
+   ],
+   "seconds": 12.03,
+   "type": "raw"
+  },
+  {
+   "bytes": 131450,
+   "custom": {
+    "bandwidth_hz": 203125,
+    "baud": 3794,
+    "keying": "OOK"
+   },
+   "folder": "GROUPE PSA",
+   "frequency": 433900000,
+   "more": false,
+   "path": "GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 30277,
+   "reads": [
+    {
+     "buttons": [
+      "C"
+     ],
+     "distinct": 41,
+     "frames": 41,
+     "protocol": "PSA 2-Button"
+    }
+   ],
+   "seconds": 16.96,
+   "type": "raw"
+  },
+  {
    "bytes": 362411,
    "folder": "HOLDEN",
    "frequency": 433920000,
@@ -4933,6 +4987,19 @@
    "type": "raw"
   },
   {
+   "bytes": 100730,
+   "folder": "OPEL",
+   "frequency": 433920000,
+   "more": false,
+   "path": "OPEL/2008_vauxhall_zafira_sri_lock_fm476.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 23571,
+   "reads": [],
+   "seconds": 15.12,
+   "type": "raw"
+  },
+  {
    "bytes": 102399,
    "folder": "OPEL",
    "frequency": 433920000,
@@ -4943,6 +5010,19 @@
    "pulses": 23250,
    "reads": [],
    "seconds": 39.88,
+   "type": "raw"
+  },
+  {
+   "bytes": 74418,
+   "folder": "OPEL",
+   "frequency": 433920000,
+   "more": false,
+   "path": "OPEL/2008_vauxhall_zafira_sri_unlock_fm476.sub",
+   "pinned": true,
+   "preset": "FM476",
+   "pulses": 17423,
+   "reads": [],
+   "seconds": 11.09,
    "type": "raw"
   },
   {
@@ -7996,6 +8076,64 @@
    "type": "key"
   },
   {
+   "bytes": 565582,
+   "custom": {
+    "bandwidth_hz": 203125,
+    "baud": 3794,
+    "keying": "OOK"
+   },
+   "folder": "VAG",
+   "frequency": 433930000,
+   "more": true,
+   "path": "VAG/more/old_vw_remote_lock_x300.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 116449,
+   "reads": [
+    {
+     "distinct": 311,
+     "frames": 613,
+     "protocol": "VW-1"
+    },
+    {
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Nissan V0"
+    }
+   ],
+   "seconds": 195.74,
+   "type": "raw"
+  },
+  {
+   "bytes": 562851,
+   "custom": {
+    "bandwidth_hz": 203125,
+    "baud": 3794,
+    "keying": "OOK"
+   },
+   "folder": "VAG",
+   "frequency": 433930000,
+   "more": true,
+   "path": "VAG/more/old_vw_remote_unlock_x300.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 115703,
+   "reads": [
+    {
+     "distinct": 307,
+     "frames": 602,
+     "protocol": "VW-1"
+    },
+    {
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Nissan V0"
+    }
+   ],
+   "seconds": 138.26,
+   "type": "raw"
+  },
+  {
    "bytes": 25889,
    "folder": "VAG",
    "frequency": 434420000,
@@ -8162,6 +8300,37 @@
     }
    ],
    "type": "key"
+  },
+  {
+   "bytes": 78427,
+   "custom": {
+    "bandwidth_hz": 203125,
+    "baud": 3794,
+    "keying": "OOK"
+   },
+   "folder": "VAG",
+   "frequency": 433930000,
+   "more": false,
+   "path": "VAG/old_vw_remote_hold_5lock_5unlock.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 15987,
+   "reads": [
+    {
+     "buttons": [
+      "1",
+      "2"
+     ],
+     "distinct": 10,
+     "encodable": true,
+     "frames": 114,
+     "protocol": "VW-1",
+     "serial": "2AA93AC5",
+     "serials": 1
+    }
+   ],
+   "seconds": 15.16,
+   "type": "raw"
   },
   {
    "bytes": 30350,

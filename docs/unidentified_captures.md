@@ -97,7 +97,9 @@ checks. Several presses of each button would show whether the rest follows a rel
 `OPEL/2008_vauxhall_zafira_sri_lock.sub` and `OPEL/2008_vauxhall_zafira_sri_unlock.sub`, 433.92 MHz, recorded
 with AM650; 15 presses
 in each, sent in by a tester. KAT reads nothing from them, and neither does FoxFW's [Opel V0](opel_v0.md),
-whose description of its signal fits these recordings (below).
+whose description of its signal fits these recordings (below). The same remote recorded with FM476
+(`OPEL/2008_vauxhall_zafira_sri_lock_fm476.sub`, four presses, and `..._unlock_fm476.sub`, three) shows
+nothing more (below).
 
 - **What the recording holds.** Through a press the carrier stays on, and all there is in it are dips of
   about 95 µs (60 to 140). The time from one dip to the next is a whole number of units of 106.7 µs
@@ -115,17 +117,38 @@ whose description of its signal fits these recordings (below).
   apart, often differ in which dips they show, most of all where two dips are 2 units apart. Of 86 frames,
   53 have the dips at 2, 9 and 37 units that every frame should have.
 
-The dips are most likely where a two-tone or phase-keyed signal changes state, which is all an on-off
-receiver notices of it. With intervals of 2, 3 and 4 units the commonest (longer ones can be two with a dip
-missing between them), a delay code (Miller) with a 213 µs bit is one candidate; nothing here proves it.
+- **The FM recordings.** They were made to see what the remote does between two dips. Through a press the
+  FM receiver's output stays on one side of the centre frequency (HIGH for 0.77 of the time; noise takes the
+  rest) and drops where the AM recordings have their dips. The presses are too noisy to read a frame from,
+  but the constant start shows in the mean: at 28 places where every other dip of the start lines up, the
+  dips between them, which had no part in the lining up, are there too (HIGH for 0.49 of the time, 0.51
+  with the two halves exchanged, against 0.77 and 0.79 beside the dips). Between the presses the same search
+  finds nothing (0.42 against 0.43). The stretches between the dips all look alike: no second tone.
+
+The remote does not switch between two tones on either side of 433.92 MHz: an FM receiver would show them
+as HIGH and LOW. (A Flipper's FM output tells only on which side of the centre frequency the signal is; two
+tones on one side would look alike.) Two readings are left, and neither is proved:
+
+- The carrier is off for about a unit at each dip and nothing else happens: the code is in the distances
+  between the gaps.
+- The signal has two states that neither receiver tells apart, two strengths of carrier or two phases, and
+  the receivers mark only one kind of change. In the five pairs of copies that agree in every dip, the 63
+  distances behind the constant start are 2 to 9 units and 4.0 on average. A stream of one bit per unit
+  that shows only its changes from 1 to 0 gives distances of 2 and more and 4 on average; five frames do
+  not make that more than a guess. Such a frame would hold about 90 bits, 37 of them the constant start.
+
+A delay code (Miller), the candidate named here before, is unlikely: its changes are 2, 3 or 4 half bits
+apart, and the pairs that agree in every dip have distances of 5, 6, 7 and 9 units.
 
 FoxFW's Opel V0 describes the same recording as on-off keying: "carrier frequency ~1200 Hz (period ~830us)",
 "bursts of ~4 cycles (~3500us) separated by ~5400us gaps", "preamble: continuous carrier >50000us". Those
 are the 853 µs intervals, the three short bursts between the two frames and the preamble. It takes each
 burst for a bit and wants a frame of 62 to 66 of them; a press has three.
 
-What would settle it: the same remote recorded with an FM preset (`FM476`, and `FM238` if that holds
-nothing), or as IQ samples from an SDR, a few presses of each button.
+What would settle it: IQ samples from an SDR (a PortaPack's Capture app, a HackRF or an RTL-SDR; KAT opens
+all three), 500 kHz wide or more, a few presses of each button near the antenna. They hold the carrier's
+strength and phase between the dips, which no Flipper recording does: its AM and its FM receiver have both
+been tried now.
 
 ## Not added
 

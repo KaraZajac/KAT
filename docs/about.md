@@ -46,7 +46,8 @@ page says which.
 A few decoders are KAT's own, worked out from recordings where no reference reads the signal:
 [Honda V6](honda_v6.md), [Kia Mobis](kia_mobis.md), [Kia Denso](kia_denso.md), [Kia Forte](kia_forte.md),
 [GM RFA](gm_rfa.md), [Isuzu Rolling](isuzu_rolling.md), [Isuzu Static](isuzu_static.md),
-[Suzuki TS002](suzuki_ts002.md), [Opel Rolling](opel_rolling.md) and [Renault 1-Button](renault_one_button.md).
+[Suzuki TS002](suzuki_ts002.md), [Opel Rolling](opel_rolling.md), [Renault 1-Button](renault_one_button.md),
+[PSA 2-Button](psa_two_button.md) and [VW-1](vw_1.md).
 Their pages say
 what each field is known from, and what is not known.
 

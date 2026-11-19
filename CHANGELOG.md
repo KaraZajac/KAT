@@ -2,11 +2,16 @@
 
 All notable changes to KAT are documented here.
 
-## [Unreleased]
+## [1.17.0] - 2026-11-18
+
+Two more remotes no reference in KAT's set reads, worked out from recordings their owners sent in: the oldest Volkswagen Group flip key (the published "VW-1" scheme, a 24-bit LFSR with no key, which KAT can also send) and a two-button Valeo key for Citroën and Peugeot. HiTag2 key recovery now also takes Hitag2 RKE captures, and FM recordings settle what the 2008 Vauxhall Zafira's remote is not.
 
 ### Added
 
 - **HiTag2 key recovery for Hitag2 RKE remotes.** "Recover key (HiTag2)" now also accepts `Hitag2` captures (`hitag2_rke.rs`, NXP PCF7946/7947, Garcia et al. 2016): two presses of one remote recover the 48-bit key through the same HiTag2 Hell attack KAT runs for Fiat V1 / Renault V1 / Fiat V2, saved to `hitag2_keys.txt`. **Decode only** — KAT does not transmit Hitag2 RKE (no verified encoder; its timing spans several OEMs), and the recovery is **unverified against a real remote**: the IV is assumed to be Renault's (`lctr<<4 | btn`), and a wrong IV only yields "not found", never a false key.
+- **VW-1** ([vw_1.md](docs/vw_1.md)): the oldest Volkswagen Group rolling-code remote (VW/Audi/Seat/Skoda, ~1998–2005), which no reference in KAT's set reads. On-off keying at 433.93 MHz, pulse-width coding at 667 bit/s, a 60-bit frame sent two or three times a press. This is the "VW-1" of Garcia, Oswald, Kasper & Pavlidès, *Lock It and Still Lose It* (USENIX Security 2016): there is no secret key, only an obfuscation of the fob's UID and a 24-bit LFSR (feedback x²⁴+x⁷+x²+x+1) clocked 23 times a press. KAT decodes it and computes the captured remote's next press (Lock or Unlock); nothing has been sent to a car. Worked out from a tester's recordings of one VW flip key (628 presses, all read). Not KAT's [VAG](docs/vag.md) (the newer 80-bit AUT64/XTEA frame).
+- **PSA 2-Button** ([psa_two_button.md](docs/psa_two_button.md)): a two-button Valeo flip key for Citroën and Peugeot, which no reference reads; worked out from a tester's recordings of one Citroën key. On-off keying at 433.9 MHz, Manchester at 2415 bit/s; a press is 78 ms of carrier, a pause, and one 76-bit frame closed by 2.5 ms of carrier: the byte `CE`, a button nibble (`C` Unlock, `3` Lock) and a 64-bit code. Decode and display only: the code is a rolling code KAT cannot continue. It is a weak one, though: its bytes are XORs of the press counter's low byte, of one more changing byte and of values that stay, and the page lists what the 100 presses show. 90 of the 100 presses are read; no other file of the library changes.
+- **FM recordings of the 2008 Vauxhall Zafira's remote** (`IMPORTS/OPEL/2008_vauxhall_zafira_sri_lock_fm476.sub` and `2008_vauxhall_zafira_sri_unlock_fm476.sub`, four and three presses, sent in by the tester), made to see what the AM recordings could not show. They show the same: a carrier with dips at the same places, and no second tone. So the 1.16.0 notes went too far in saying the remote is not on-off keyed: it does not switch between two tones on either side of its frequency, and whether it does more than switch its carrier off for a moment only IQ samples will tell. Nothing reads the recordings. [unidentified_captures.md](docs/unidentified_captures.md#vauxhall-zafira-2008) has the test and the two readings that are left.
 
 ## [1.16.2] - 2026-11-18
 

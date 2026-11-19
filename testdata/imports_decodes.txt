@@ -233,6 +233,96 @@ GROUPE PSA/Peugeot 307 open.sub | 433920000 | PSA | data=FF5A0FF42B00718E/128 ex
 GROUPE PSA/Peugeot 307 open.sub | 433920000 | PSA | data=FF5AF5639B459A27/128 extra=7D4E sn=- btn=- cnt=- crc=0 tx=0
 GROUPE PSA/Peugeot 307 open.sub | 433920000 | PSA | data=FF5A78138FC3F295/128 extra=4DF9 sn=- btn=- cnt=- crc=0 tx=0
 GROUPE PSA/Peugeot 307 open.sub | 433920000 | PSA | data=FF5A7C3F9F960FFF/128 extra=FFFF sn=- btn=- cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=B378FD3A36973C21/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=3E6921DA47EF740A/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=2FB3E86E88468B83/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=5EB330177A4E46CC/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=984A032C6D554BEA/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=EB91C7E847D3A405/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=9465B655494C271A/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=A36D6F532AB30CBE/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=35E6D92CD7FCA74B/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=E47CB054626AA91B/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=324805E85CD36605/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=CC518E97E08CC651/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=7593B6CB5E52D184/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=530FF5D79B1A963A/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=E3548E97E0A3C651/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=59D386D51D67E538/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=54B2B6CB5E56F084/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=F649CDD8844B988C/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=C2D87B54B3DDBAA5/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=1B6AC4589D66FA17/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=156253E78DE4257F/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=96B499196D19E7C6/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=A2E17FE8B6B31C05/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=E948F6EAB3633735/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=BFF2385E6D79F921/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=5F5413BBF83AF90A/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=99B3E779AFFF8494/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=61CE20EC0848750A/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=2F789A5762FECF96/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=270DC24163A4A1AC/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=8B585AD3843520C3/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=44B44087E93575E3/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=F74E633936C84CEF/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=7EFA6C64B373AD19/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=FCC85704D8300FAA/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=986DC2A78C22A14A/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=2AC7AD6B6DEC6CB4/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=86B35AD51E5D3938/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=B3CDEA59556A2B0A/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=3B906EDEF142FA4/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=35D6D90DE7DDA77B/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=35065700DC9350DB/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=E8E48ACA3E62B237/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=FBAB08448BB36BA9/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=ADA3DA9189B37B4A/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=92D46B6C6E6D0881/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=6C7EAB6BCE32B81/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=91E166D1F2D333B5/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub | 433900000 | PSA 2-Button | data=77BAE66282B6858F/76 extra=CE3 sn=- btn=3 cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=B328FDAEA2033C71/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=BA2088F2D804495A/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=8E408B60EFED2FD0/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=C7EED361E338FCE1/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=1C200598F1A65087/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=1DD6780EF9A11BE3/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=841E84748BE03784/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=6C7EACDC7E32BEB/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=70D34238D8F78363/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=DE9D9BD7583B7798/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=8B1FB9D98422F529/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=8B505294847220CB/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=529C0598763D496F/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=678430C8E119E387/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=E03E0C817E264447/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=38848F6E098B6511/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=366D4F3F43012CD2/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=E36D5CE2C709F839/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=2A8C05345D0A5087/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=9B5531534CB352BE/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=6DDA99A22277E7BE/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=7D12D6078E7AA812/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=6DAD79F6962B6C52/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=75CC3539604ACE6D/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=D49E53326D12924A/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=E3621E6BC7EE43B1/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=FCB0BD707AB0E23F/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=9DE3E11306C72047/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=60356A33CD61D657/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=4D9BFFF4EB3DC12/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=BE2B8CF3CB421728/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=5F2504E830D36705/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=AE91293D6D68E830/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=B824BDB73E7DB1F8/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=A0F01E44C6B37DA9/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=1363D2D1C4D38737/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=113977CE06BF8EE9/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=12D19F26EE578DE9/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=43CE05761F485087/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=91503F5348685CBE/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
+GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub | 433900000 | PSA 2-Button | data=60B901FD6DC5493B/76 extra=CEC sn=- btn=C cnt=- crc=0 tx=0
 HOLDEN/Holden Barina 2016 AU.sub | 433920000 | Chevrolet V0 | data=B61B30D388D870A2/96 extra=1084BD08 sn=B61B30 btn=D cnt=- crc=0 tx=0
 HOLDEN/Holden Barina 2016 AU.sub | 433920000 | Chevrolet V0 | data=B61B30DECF8BC2D8/96 extra=B17B6071 sn=B61B30 btn=D cnt=- crc=0 tx=0
 HOLDEN/Holden Barina 2016 AU.sub | 433920000 | Chevrolet V0 | data=B61B30C00FDDB29A/96 extra=7EA5400D sn=B61B30 btn=C cnt=- crc=0 tx=0
@@ -1201,7 +1291,9 @@ Mazda/mazda_key3_10x_trunk.sub | 433920000 | Mazda V1 | data=EC2614EE52734276/71
 Mazda/mazda_key3_10x_trunk.sub | 433920000 | Mazda V1 | data=EC2614AE5233061D/71 extra=6B sn=5 btn=26 cnt=11 crc=0 tx=1
 Mazda/mazda_key3_10x_trunk.sub | 433920000 | Mazda V1 | data=EC2614AE5233061D/71 extra=6B sn=5 btn=26 cnt=11 crc=0 tx=1
 OPEL/2008_vauxhall_zafira_sri_lock.sub | 433920000 | (none)
+OPEL/2008_vauxhall_zafira_sri_lock_fm476.sub | 433920000 | (none)
 OPEL/2008_vauxhall_zafira_sri_unlock.sub | 433920000 | (none)
+OPEL/2008_vauxhall_zafira_sri_unlock_fm476.sub | 433920000 | (none)
 OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D25114D/104 extra=1C26188AE68 sn=468F5D25 btn=1 cnt=53 crc=1 tx=1
 OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D251150/104 extra=1DACE693AB7 sn=468F5D25 btn=1 cnt=54 crc=1 tx=1
 OPEL/Opel Vectra 2008.sub | 433920000 | Fiat V1 | data=1468F5D25115A/104 extra=1FACCD31609 sn=468F5D25 btn=1 cnt=56 crc=1 tx=1
@@ -2235,6 +2327,120 @@ VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C081FC34D4BB1ACC/80 extra=8000
 VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C081FC34D4BB1ACC/80 extra=8000000102044E2B sn=C21578B btn=2 cnt=2B07 crc=1 tx=1
 VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C081FC34D4BB1ACC/80 extra=8000000102044E2B sn=C21578B btn=2 cnt=2B07 crc=1 tx=1
 VAG/Vw_passat_b5_3bg.sub | 434390000 | VAG | data=C081FC34D4BB1ACC/80 extra=8000000102044E2B sn=C21578B btn=2 cnt=2B07 crc=1 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2001223F40B981B/60 extra=1223 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2001223F40B981B/60 extra=1223 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2001223F40B981B/60 extra=1223 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2001223F40B981B/60 extra=1223 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2001223F40B981B/60 extra=1223 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2001223F40B981B/60 extra=1223 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2001223F40B981B/60 extra=1223 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2001223F40B981B/60 extra=1223 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2001223F40B981B/60 extra=1223 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2001223F40B981B/60 extra=1223 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2001223F40B981B/60 extra=1223 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2001223F40B981B/60 extra=1223 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2001223F40B981B/60 extra=1223 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2001223F40B981B/60 extra=1223 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=284B7F701FE6DEE/60 extra=84B7F7 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=284B7F701FE6DEE/60 extra=84B7F7 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=284B7F701FE6DEE/60 extra=84B7F7 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=284B7F701FE6DEE/60 extra=84B7F7 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=284B7F701FE6DEE/60 extra=84B7F7 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=284B7F701FE6DEE/60 extra=84B7F7 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=284B7F701FE6DEE/60 extra=84B7F7 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=284B7F701FE6DEE/60 extra=84B7F7 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=284B7F701FE6DEE/60 extra=84B7F7 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=284B7F701FE6DEE/60 extra=84B7F7 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=284B7F701FE6DEE/60 extra=84B7F7 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=284B7F701FE6DEE/60 extra=84B7F7 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=284B7F701FE6DEE/60 extra=84B7F7 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=284B7F701FE6DEE/60 extra=84B7F7 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2626E8148B724A7/60 extra=626E81 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2626E8148B724A7/60 extra=626E81 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2626E8148B724A7/60 extra=626E81 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2626E8148B724A7/60 extra=626E81 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2626E8148B724A7/60 extra=626E81 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2626E8148B724A7/60 extra=626E81 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2626E8148B724A7/60 extra=626E81 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2626E8148B724A7/60 extra=626E81 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2626E8148B724A7/60 extra=626E81 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2626E8148B724A7/60 extra=626E81 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2626E8148B724A7/60 extra=626E81 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2626E8148B724A7/60 extra=626E81 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2626E8148B724A7/60 extra=626E81 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2626E8148B724A7/60 extra=626E81 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=28C2888E9168506/60 extra=8C2888 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=28C2888E9168506/60 extra=8C2888 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=28C2888E9168506/60 extra=8C2888 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=28C2888E9168506/60 extra=8C2888 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=28C2888E9168506/60 extra=8C2888 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=28C2888E9168506/60 extra=8C2888 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=28C2888E9168506/60 extra=8C2888 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=28C2888E9168506/60 extra=8C2888 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=28C2888E9168506/60 extra=8C2888 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=28C2888E9168506/60 extra=8C2888 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=28C2888E9168506/60 extra=8C2888 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=28C2888E9168506/60 extra=8C2888 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=28C2888E9168506/60 extra=8C2888 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2D85E32718E1D9E/60 extra=D85E32 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2D85E32718E1D9E/60 extra=D85E32 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2D85E32718E1D9E/60 extra=D85E32 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2D85E32718E1D9E/60 extra=D85E32 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2D85E32718E1D9E/60 extra=D85E32 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2D85E32718E1D9E/60 extra=D85E32 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2D85E32718E1D9E/60 extra=D85E32 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2D85E32718E1D9E/60 extra=D85E32 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2D85E32718E1D9E/60 extra=D85E32 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2D85E32718E1D9E/60 extra=D85E32 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=2D85E32718E1D9E/60 extra=D85E32 sn=2AA93AC5 btn=2 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1135ACA46B92AA9/60 extra=135ACA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1135ACA46B92AA9/60 extra=135ACA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1135ACA46B92AA9/60 extra=135ACA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1135ACA46B92AA9/60 extra=135ACA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1135ACA46B92AA9/60 extra=135ACA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1135ACA46B92AA9/60 extra=135ACA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1135ACA46B92AA9/60 extra=135ACA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1135ACA46B92AA9/60 extra=135ACA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1135ACA46B92AA9/60 extra=135ACA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1135ACA46B92AA9/60 extra=135ACA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1EAF2A77A851695/60 extra=EAF2A7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1EAF2A77A851695/60 extra=EAF2A7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1EAF2A77A851695/60 extra=EAF2A7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1EAF2A77A851695/60 extra=EAF2A7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1EAF2A77A851695/60 extra=EAF2A7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1EAF2A77A851695/60 extra=EAF2A7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1EAF2A77A851695/60 extra=EAF2A7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1EAF2A77A851695/60 extra=EAF2A7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1EAF2A77A851695/60 extra=EAF2A7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1EAF2A77A851695/60 extra=EAF2A7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=176DA18718E1D9E/60 extra=76DA18 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=176DA18718E1D9E/60 extra=76DA18 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=176DA18718E1D9E/60 extra=76DA18 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=176DA18718E1D9E/60 extra=76DA18 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=176DA18718E1D9E/60 extra=76DA18 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=176DA18718E1D9E/60 extra=76DA18 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=176DA18718E1D9E/60 extra=76DA18 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=176DA18718E1D9E/60 extra=76DA18 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=176DA18718E1D9E/60 extra=76DA18 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=176DA18718E1D9E/60 extra=76DA18 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1168BF7AF50C340/60 extra=168BF7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1168BF7AF50C340/60 extra=168BF7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1168BF7AF50C340/60 extra=168BF7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1168BF7AF50C340/60 extra=168BF7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1168BF7AF50C340/60 extra=168BF7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1168BF7AF50C340/60 extra=168BF7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1168BF7AF50C340/60 extra=168BF7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1168BF7AF50C340/60 extra=168BF7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1168BF7AF50C340/60 extra=168BF7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=1168BF7AF50C340/60 extra=168BF7 sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=11226FA0BF467E4/60 extra=1226FA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=11226FA0BF467E4/60 extra=1226FA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=11226FA0BF467E4/60 extra=1226FA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=11226FA0BF467E4/60 extra=1226FA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=11226FA0BF467E4/60 extra=1226FA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=11226FA0BF467E4/60 extra=1226FA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=11226FA0BF467E4/60 extra=1226FA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
+VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=11226FA0BF467E4/60 extra=1226FA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
 VOLVO/Volvo S40 1999 unlock.sub | 433920000 | (none)
 acura/22_acura_rdx_l_ul_t_p_l_ul.sub | 433657070 | (none)
 buick/15_buick_lacross_t2_rs2_p2_l2_u2.sub | 314980000 | Chevrolet V0 | data=AD105394B4FDBE24/96 extra=C2B14CA8 sn=AD1053 btn=9 cnt=- crc=0 tx=0

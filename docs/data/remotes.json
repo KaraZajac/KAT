@@ -362,7 +362,206 @@
      "credit": "Sent in by the remote's owner."
     }
    ]
-  }
+  },
+  {
+   "slug": "psa-valeo-two-button",
+   "title": "Valeo two-button key (Citroën / Peugeot)",
+   "short": "Valeo two-button key",
+   "group": "psa",
+   "maker": "Valeo",
+   "protocols": [
+    "PSA 2-Button"
+   ],
+   "summary": "A two-button flip key for Citroën and Peugeot, made by Valeo: the case is moulded for both makes (`LION`, `CHEVRONS`). KAT's [PSA 2-Button](psa_two_button.md) protocol was worked out from recordings of this one key, a Citroën's. Its 76-bit frame is not the 80-bit frame of [PSA](psa.md).",
+   "facts": [
+    [
+     "Frequency",
+     "433.9 MHz in the recordings: a 13.560 MHz crystal, times 32"
+    ],
+    [
+     "Modulation",
+     "on-off keying"
+    ],
+    [
+     "Coding",
+     "Manchester, 207 µs per half bit (2415 bit/s)"
+    ],
+    [
+     "Frame",
+     "76 bits behind half a bit of carrier, closed by 2.5 ms of carrier: `CE`, a button nibble, a 64-bit code"
+    ],
+    [
+     "A press",
+     "about 78 ms of carrier, 6.9 ms of pause, one frame"
+    ],
+    [
+     "Buttons",
+     "`C` Unlock, `3` Lock"
+    ],
+    [
+     "Code",
+     "changes with every press; its bytes are XORs of the press counter, one more changing byte and values that stay. Not undone"
+    ],
+    [
+     "Case",
+     "`73841867 LION`, `CHEVRONS 73842087`, `>PA66-GF30<` (back half); `738 10594`, `>PA66-GF30.PU<` (front half); `Valeo` in both"
+    ],
+    [
+     "Board",
+     "a 20-pin NXP chip marked `22A1509`, `AZS5702`, `TnD3011`, `9221509`; a 13.560 MHz crystal; two switches"
+    ]
+   ],
+   "chips": [
+    {
+     "chip": "nxp-22a1509",
+     "note": "the 20-pin chip on the board (marking read from a picture)"
+    }
+   ],
+   "cars": "Not known beyond the make: the recorded key is a Citroën's. The NXP logo on its chip puts it at 2006 or later.",
+   "recordings": [
+    "GROUPE PSA/citroen_two_button_valeo_key_"
+   ],
+   "photos": [
+    {
+     "src": "img/fobs/psa-valeo-two-button/key.webp",
+     "thumb": "img/fobs/psa-valeo-two-button/keyt.webp",
+     "w": 1100,
+     "h": 825,
+     "caption": "The key: two buttons on the head, lock and unlock.",
+     "credit": "Sent in by the remote's owner."
+    },
+    {
+     "src": "img/fobs/psa-valeo-two-button/board.webp",
+     "thumb": "img/fobs/psa-valeo-two-button/boardt.webp",
+     "w": 761,
+     "h": 1100,
+     "caption": "The board: a 20-pin NXP chip, a 13.560 MHz crystal and the two switches.",
+     "credit": "Sent in by the remote's owner."
+    },
+    {
+     "src": "img/fobs/psa-valeo-two-button/chip.webp",
+     "thumb": "img/fobs/psa-valeo-two-button/chipt.webp",
+     "w": 840,
+     "h": 600,
+     "caption": "The chip: NXP, marked `22A1509`, `AZS5702`, `TnD3011`, `9221509`.",
+     "credit": "Sent in by the remote's owner."
+    },
+    {
+     "src": "img/fobs/psa-valeo-two-button/case-back.webp",
+     "thumb": "img/fobs/psa-valeo-two-button/case-backt.webp",
+     "w": 1096,
+     "h": 1071,
+     "caption": "Inside the back half of the case: `73841867 LION`, `Valeo`, `>PA66-GF30<`, `CHEVRONS 73842087`.",
+     "credit": "Sent in by the remote's owner."
+    },
+    {
+     "src": "img/fobs/psa-valeo-two-button/case-front.webp",
+     "thumb": "img/fobs/psa-valeo-two-button/case-frontt.webp",
+     "w": 825,
+     "h": 1100,
+     "caption": "Inside the front half, with the two buttons: `738 10594`, `>PA66-GF30.PU<`, `Valeo`.",
+     "credit": "Sent in by the remote's owner."
+    }
+   ]
+  },
+ {
+  "slug": "vw-1-flip-key",
+  "title": "Old VW flip key (VW-1)",
+  "short": "Old VW flip key",
+  "group": "vag",
+  "maker": "Motorola",
+  "protocols": [
+   "VW-1"
+  ],
+  "summary": "An old two-button Volkswagen flip key, the VW roundel on the back. KAT's [VW-1](vw_1.md) protocol was worked out from recordings of this one key. VW-1 is the oldest Volkswagen Group scheme — a 24-bit LFSR and a UID obfuscation, with no cipher — the \"VW-1\" of the study *Lock It and Still Lose It* (USENIX Security 2016). Not the newer 80-bit [VAG](vag.md) frame.",
+  "facts": [
+   [
+    "Frequency",
+    "433.93 MHz, on-off keying"
+   ],
+   [
+    "Coding",
+    "pulse-width, 667 bit/s; one unit is about 500 µs"
+   ],
+   [
+    "Frame",
+    "60 bits behind a 1500/1500 µs start: an obfuscated 32-bit UID, a 24-bit register, a button nibble"
+   ],
+   [
+    "A press",
+    "the frame two or three times, about 10 ms apart; presses about 90 ms apart"
+   ],
+   [
+    "Buttons",
+    "`1` Unlock, `2` Lock"
+   ],
+   [
+    "Rolling code",
+    "a 24-bit LFSR (feedback x²⁴ + x⁷ + x² + x + 1) clocked 23 times a press. There is no secret key, so a single capture gives the next valid code; KAT computes it"
+   ],
+   [
+    "Board",
+    "a 16-pin Motorola `ZC421689CDW` (`734 778-00`), board `734 613-02`, with a crystal and a SAW resonator"
+   ],
+   [
+    "Receiver",
+    "the matching module is marked `HLO 1J0 959 753 A`, dated 1998 — the Golf Mk4 / Bora platform"
+   ]
+  ],
+  "chips": [
+   {
+    "chip": "motorola-zc421689",
+    "note": "the controller on the board (marking read from a picture)"
+   }
+  ],
+  "cars": "A Volkswagen of roughly 1998–2005: the receiver module's `1J0` part number is the Golf Mk4 / Bora / Jetta platform. The exact model year was not given with the recordings.",
+  "recordings": [
+   "VAG/old_vw_remote_",
+   "VAG/more/old_vw_remote_"
+  ],
+  "photos": [
+   {
+    "src": "img/fobs/vw-1-flip-key/front.webp",
+    "thumb": "img/fobs/vw-1-flip-key/frontt.webp",
+    "w": 1100,
+    "h": 825,
+    "caption": "The key head: two buttons, lock and unlock.",
+    "credit": "Sent in by the remote's owner."
+   },
+   {
+    "src": "img/fobs/vw-1-flip-key/case-back.webp",
+    "thumb": "img/fobs/vw-1-flip-key/case-backt.webp",
+    "w": 1100,
+    "h": 825,
+    "caption": "The back of the key: the Volkswagen roundel.",
+    "credit": "Sent in by the remote's owner."
+   },
+   {
+    "src": "img/fobs/vw-1-flip-key/board.webp",
+    "thumb": "img/fobs/vw-1-flip-key/boardt.webp",
+    "w": 1100,
+    "h": 825,
+    "caption": "The board, component side: the controller, a crystal and a SAW resonator, and the two switches.",
+    "credit": "Sent in by the remote's owner."
+   },
+   {
+    "src": "img/fobs/vw-1-flip-key/chip.webp",
+    "thumb": "img/fobs/vw-1-flip-key/chipt.webp",
+    "w": 1100,
+    "h": 825,
+    "caption": "The controller: a Motorola custom chip `ZC421689CDW`, `734 778-00`; the board is `734 613-02`.",
+    "credit": "Sent in by the remote's owner."
+   },
+   {
+    "src": "img/fobs/vw-1-flip-key/receiver.webp",
+    "thumb": "img/fobs/vw-1-flip-key/receivert.webp",
+    "w": 1100,
+    "h": 825,
+    "caption": "The matching receiver module, marked `HLO 1J0 959 753 A` and dated 1998 — the Golf Mk4 / Bora platform.",
+    "credit": "Sent in by the remote's owner."
+   }
+  ]
+ }
  ],
  "fcc_extra": {
   "M3N5WY72XX": {

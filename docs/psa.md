@@ -11,6 +11,8 @@ layout: default
 
 ## Overview
 
+(A two-button Valeo key with a 76-bit frame and no preamble is another protocol: [PSA 2-Button](psa_two_button.md).)
+
 Groupe PSA keyfobs send an 80-bit Manchester frame (the references call it "128 bit": a 64-bit
 key1 plus a 64-bit `Key_2` of which 16 bits are used). Two crypto families share the frame:
 
@@ -327,6 +329,16 @@ What KAT 1.15.0 made of the three files, and what it reads now:
 
 The presses 1.15.0 missed had a sync LOW of 400 µs or less (7), or were taken by Chevrolet V0, to
 which a run of 218 µs pulses is a preamble and 96 bits ([Chevrolet V0](chevrolet_v0.md), 2).
+
+## A third kind of block: the older code
+
+Not every PSA frame is one of the two kinds above. The 58 frames of a 2005 Peugeot 206 remote that a write-up
+of 2011 published ("RKE Analysis", burningimage.net; the frames' first bytes are `1C AA`) pass neither: their
+64-bit block is an older code, the one of the two-button Valeo key on [PSA 2-Button](psa_two_button.md#the-same-code-in-a-peugeot-206s-frames),
+whose rule is not known. KAT shows such a frame as PSA without a serial (`key=none` after the search). The
+checks of the two known kinds are short, so now and then one of these frames passes one by chance: of the 58,
+one passes the XOR type's nibble checksum and decodes to a serial no other frame shares, and the key search
+finds a "serial" for one more. A serial that a remote's other frames do not confirm is no serial.
 
 ## Retired: PSA2 ("PSA OLD")
 

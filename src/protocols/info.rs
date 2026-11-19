@@ -224,6 +224,8 @@ pub static ALL: &[&ProtocolInfo] = &[
     &super::suzuki_ts002::INFO,
     &super::opel_rolling::INFO,
     &super::renault_one_button::INFO,
+    &super::psa_two_button::INFO,
+    &super::vw_1::INFO,
     &super::honda_v4::INFO,
     &super::honda_v7::INFO,
     &super::honda_v9::INFO,

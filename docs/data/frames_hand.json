@@ -122,6 +122,64 @@
      "note": "the XOR of the nine bytes is 0"
     }
    ]
+  },
+  "PSA 2-Button": {
+   "fields": [
+    {
+     "kind": "fixed",
+     "name": "Head",
+     "note": "`CE` in every frame of the recorded key",
+     "offset": 4,
+     "width": 8,
+     "word": "extra"
+    },
+    {
+     "kind": "button",
+     "name": "Button",
+     "note": "`C` Unlock, `3` Lock",
+     "offset": 0,
+     "width": 4,
+     "word": "extra"
+    },
+    {
+     "kind": "code",
+     "name": "Code",
+     "note": "changes with every press",
+     "offset": 0,
+     "width": 64,
+     "word": "data"
+    }
+   ],
+   "note": "The frame is 76 bits: the extra word is its first 12, the data word its last 64."
+  },
+  "VW-1": {
+   "fields": [
+    {
+     "kind": "serial",
+     "name": "UID (obfuscated)",
+     "note": "the 32-bit fob ID on the wire, each byte XORed with `m` = byte4 ^ byte5 ^ byte6; the Serial column shows it undone",
+     "offset": 0,
+     "width": 32,
+     "word": "data"
+    },
+    {
+     "kind": "code",
+     "name": "Register",
+     "note": "the 24-bit LFSR state; advances 23 ticks every press",
+     "offset": 32,
+     "width": 24,
+     "word": "data"
+    },
+    {
+     "kind": "button",
+     "name": "Button",
+     "note": "`1` Unlock, `2` Lock",
+     "offset": 56,
+     "width": 4,
+     "word": "data"
+    }
+   ],
+   "note": "The frame is 60 bits, all in the data word, sent LSB-first within each byte. There is no checksum."
   }
  }
 }

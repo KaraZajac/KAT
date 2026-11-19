@@ -150,6 +150,22 @@
    "kind": "Not identified",
    "text": "The 8-pin chip on a 1999 Renault one-button remote's board, marked `B 89AN`, `S1080`, `49004`.",
    "datasheet": null
+  },
+  {
+   "key": "nxp-22a1509",
+   "name": "NXP `22A1509`",
+   "maker": "NXP",
+   "kind": "Not identified",
+   "text": "The 20-pin NXP chip on a Valeo two-button key for Citroën and Peugeot, marked `22A1509`, `AZS5702`, `TnD3011`, `9221509` (read from a picture). The marking is a customer's, not a type KAT could look up. A 13.560 MHz crystal stands beside it and the board shows no other transmitter, so the chip makes the 433.92 MHz carrier itself.",
+   "datasheet": null
+  },
+  {
+   "key": "motorola-zc421689",
+   "name": "Motorola `ZC421689CDW`",
+   "maker": "Motorola",
+   "kind": "Remote-keyless-entry controller",
+   "text": "The 16-pin Motorola custom chip on an old VW flip key's board, marked `ZC421689CDW`, `734 778-00`, `2E30A`, `XLAD9927` (read from a picture). `ZCxxxxxx` is a Motorola customer part number, not a catalogue type. The board is marked `734 613-02`; a crystal and a SAW resonator stand beside the chip. It runs the VW-1 scheme (a 24-bit LFSR and a UID obfuscation, no cipher).",
+   "datasheet": null
   }
  ]
 }

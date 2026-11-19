@@ -273,6 +273,10 @@ VAG/more/audi_v1_3233x_unlock.sub | 433920000 | Fiat V1 | x190 | 45 distinct | f
 VAG/more/audi_v1_4412x_unlock.sub | 433920000 | Fiat V1 | x193 | 60 distinct | fnv=FEBA4043AB045996
 VAG/more/fftr.sub | 434420000 | key | VAG | data=C01E87B3D168B438/80 extra=800000010204FD2B sn=7C8F963 btn=2 cnt=4E50 crc=1 tx=1
 VAG/more/jjjhf.sub | 434420000 | key | VAG | data=C00E8D59ECC90538/80 extra=800000DB01037A47 sn=B4EFE282 btn=4 cnt=5527 crc=1 tx=1
+VAG/more/old_vw_remote_lock_x300.sub | 433930000 | VW-1 | x613 | 311 distinct | fnv=388755F3EC811061
+VAG/more/old_vw_remote_lock_x300.sub | 433930000 | Nissan V0 | x1 | 1 distinct | fnv=F06014C232E71430
+VAG/more/old_vw_remote_unlock_x300.sub | 433930000 | VW-1 | x602 | 307 distinct | fnv=D7CAA00D3E7E4C2D
+VAG/more/old_vw_remote_unlock_x300.sub | 433930000 | Nissan V0 | x1 | 1 distinct | fnv=34A9B59E2BB02AA2
 VAG/more/passatb6.roundtrip.sub | 434420000 | VAG | x10 | 1 distinct | fnv=7764C32D6B5A9281
 VAG/more/passatb6.sub | 434420000 | VAG | x94 | 11 distinct | fnv=2C6EF81208DC34B7
 VAG/more/test.sub | 434420000 | key | VAG | data=C0D70BCE2153F384/80 extra=8000000102041C2B sn=7C8F963 btn=2 cnt=4E44 crc=1 tx=1

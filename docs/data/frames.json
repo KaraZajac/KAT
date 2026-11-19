@@ -2350,6 +2350,34 @@
    "files": 2,
    "frames": 3
   },
+  "Nissan V0": {
+   "bits": 64,
+   "examples": [
+    {
+     "bits": 64,
+     "button": null,
+     "counter": null,
+     "data": "C489264442430893",
+     "extra": null,
+     "file": "VAG/more/old_vw_remote_lock_x300.sub",
+     "name": "Nissan V0",
+     "serial": null
+    },
+    {
+     "bits": 64,
+     "button": null,
+     "counter": null,
+     "data": "C6448E4C4C4E0938",
+     "extra": null,
+     "file": "VAG/more/old_vw_remote_unlock_x300.sub",
+     "name": "Nissan V0",
+     "serial": null
+    }
+   ],
+   "fields": {},
+   "files": 2,
+   "frames": 2
+  },
   "Opel Rolling": {
    "bits": 60,
    "examples": [
@@ -2481,6 +2509,63 @@
    "fields": {},
    "files": 7,
    "frames": 45
+  },
+  "PSA 2-Button": {
+   "bits": 76,
+   "examples": [
+    {
+     "bits": 76,
+     "button": 3,
+     "counter": null,
+     "data": "B378FD3A36973C21",
+     "extra": "CE3",
+     "file": "GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub",
+     "name": "PSA 2-Button",
+     "serial": null
+    },
+    {
+     "bits": 76,
+     "button": 12,
+     "counter": null,
+     "data": "B328FDAEA2033C71",
+     "extra": "CEC",
+     "file": "GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub",
+     "name": "PSA 2-Button",
+     "serial": null
+    },
+    {
+     "bits": 76,
+     "button": 3,
+     "counter": null,
+     "data": "3E6921DA47EF740A",
+     "extra": "CE3",
+     "file": "GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub",
+     "name": "PSA 2-Button",
+     "serial": null
+    },
+    {
+     "bits": 76,
+     "button": 12,
+     "counter": null,
+     "data": "BA2088F2D804495A",
+     "extra": "CEC",
+     "file": "GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub",
+     "name": "PSA 2-Button",
+     "serial": null
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 90,
+     "how": "",
+     "offset": 0,
+     "values": 2,
+     "width": 4,
+     "word": "extra"
+    }
+   },
+   "files": 2,
+   "frames": 90
   },
   "Renault 1-Button": {
    "bits": 72,
@@ -3355,6 +3440,63 @@
    "fields": {},
    "files": 9,
    "frames": 71
+  },
+  "VW-1": {
+   "bits": 60,
+   "examples": [
+    {
+     "bits": 60,
+     "button": 2,
+     "counter": null,
+     "data": "25AE2FE837CEF6C",
+     "extra": "5AE2FE",
+     "file": "VAG/more/old_vw_remote_lock_x300.sub",
+     "name": "VW-1",
+     "serial": "2AA93AC5"
+    },
+    {
+     "bits": 60,
+     "button": 1,
+     "counter": null,
+     "data": "1075D6BF40B981B",
+     "extra": "75D6B",
+     "file": "VAG/more/old_vw_remote_unlock_x300.sub",
+     "name": "VW-1",
+     "serial": "2AA93AC5"
+    },
+    {
+     "bits": 60,
+     "button": 2,
+     "counter": null,
+     "data": "27AE29FC23DAE2D",
+     "extra": "7AE29F",
+     "file": "VAG/more/old_vw_remote_lock_x300.sub",
+     "name": "VW-1",
+     "serial": "2AA93AC5"
+    },
+    {
+     "bits": 60,
+     "button": 1,
+     "counter": null,
+     "data": "15D130C8778EB68",
+     "extra": "5D130C",
+     "file": "VAG/more/old_vw_remote_unlock_x300.sub",
+     "name": "VW-1",
+     "serial": "2AA93AC5"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 1329,
+     "how": "",
+     "offset": 56,
+     "values": 2,
+     "width": 4,
+     "word": "data"
+    }
+   },
+   "files": 3,
+   "frames": 1329
   }
  },
  "source": "scripts/site_frames.py from the decodes of the recordings in IMPORTS"

@@ -56,7 +56,7 @@ for every key file and its `yield` sends nothing, so a Flipper offers Send and f
 
 ## Validation
 
-No capture decodes. Two recordings that fit the C's description of its signal are in the corpus since November 2026 (`IMPORTS/OPEL/2008_vauxhall_zafira_sri_lock.sub` and `2008_vauxhall_zafira_sri_unlock.sub`): its 830 µs "carrier cycle", its preamble and its bursts of four cycles are all there, but the bursts it takes for bits are three per press, between the two frames, and the frames themselves are something else ([Unidentified captures](unidentified_captures.md#vauxhall-zafira-2008)). The other Opel file in the corpus decodes as another protocol. Against the FoxFW C decoder
+No capture decodes. Recordings that fit the C's description of its signal are in the corpus since November 2026 (`IMPORTS/OPEL/2008_vauxhall_zafira_sri_lock.sub` and `2008_vauxhall_zafira_sri_unlock.sub`, and the same remote recorded with FM476 in `..._lock_fm476.sub` and `..._unlock_fm476.sub`): its 830 µs "carrier cycle", its preamble and its bursts of four cycles are all there, but the bursts it takes for bits are three per press, between the two frames, and the frames themselves are something else ([Unidentified captures](unidentified_captures.md#vauxhall-zafira-2008)). The other Opel file in the corpus decodes as another protocol. Against the FoxFW C decoder
 (host oracle) on made-up frames of 62, 64 and 66 bursts (some bursts split by tiny carrier gaps): identical
 `Key` and `Bit`; 61 and 67 bursts, all-zero and all-one frames and a 40 ms preamble are rejected by both.
 The `seed` of the 66-bit frame is not printed by the oracle; its value in the unit test follows the C's

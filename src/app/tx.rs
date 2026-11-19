@@ -16,8 +16,9 @@
 //! `:lock` … `:panic` commands): it decodes the frame it is about to send with the protocol's own
 //! decoder ([sent_frame]) and, once the transmission went out, stores it on the capture (counter,
 //! frame, button, encoder state; [store_sent_frame]), which the session autosave keeps. Only
-//! rolling codes change (the counter moved); fixed codes keep their capture, as the references'
-//! static protocols do. Replay re-sends the recorded pulses and changes nothing.
+//! rolling codes change ([advances]: the counter moved, or the protocol's own rolling state, such
+//! as VW-1's register); fixed codes keep their capture, as the references' static protocols do.
+//! Replay re-sends the recorded pulses and changes nothing.
 
 use std::collections::VecDeque;
 
@@ -113,10 +114,14 @@ fn with_context(registry: &ProtocolRegistry, protocol: &str, from: &DecodedSigna
         .unwrap_or(sent)
 }
 
-/// Whether the frame sent is a rolling code's next one: its counter moved. Fixed codes (whose
-/// "counter" is a DIP or channel field, if any) keep their capture, also after "Send button…".
-pub(super) fn advances(from: &DecodedSignal, sent: &DecodedSignal) -> bool {
-    sent.counter.is_some() && sent.counter != from.counter
+/// Whether the frame sent is the remote's next press, so its capture keeps it: what the protocol
+/// says ([crate::protocols::ProtocolDecoder::advances]; for a rolling code, by default, its counter
+/// moved). Fixed codes (whose "counter" is a DIP or channel field, if any) keep their capture, also
+/// after "Send button…". A name the registry does not resolve keeps the counter rule.
+pub(super) fn advances(registry: &ProtocolRegistry, protocol: &str, from: &DecodedSignal, sent: &DecodedSignal) -> bool {
+    registry
+        .get(protocol)
+        .map_or_else(|| crate::protocols::counter_moved(from, sent), |p| p.advances(from, sent))
 }
 
 /// Keep the frame sent on its capture, as the references save the last upload: counter, frame,
@@ -187,7 +192,7 @@ impl App {
         signal: &[LevelDuration],
     ) -> Option<(u32, DecodedSignal)> {
         match sent_frame(&mut self.protocols, protocol, from, button, signal) {
-            Some(sent) => advances(from, &sent).then_some((id, sent)),
+            Some(sent) => advances(&self.protocols, protocol, from, &sent).then_some((id, sent)),
             None => {
                 tracing::warn!("{protocol}: the frame sent does not decode; capture {id} keeps its counter");
                 None
@@ -432,7 +437,7 @@ mod tests {
             let from = DecodedSignal { encoder_capable: true, ..c.decoded_signal() };
             let button = button.or(from.button).unwrap_or(0);
             let upload = reg.get(&protocol)?.encode(&from, button)?;
-            let sent = sent_frame(reg, &protocol, &from, button, &upload).filter(|s| advances(&from, s))?;
+            let sent = sent_frame(reg, &protocol, &from, button, &upload).filter(|s| advances(reg, &protocol, &from, s))?;
             assert_eq!(sent.serial, from.serial, "{protocol}");
             store_sent_frame(c, &sent);
             counters.push(sent.counter?);
@@ -498,6 +503,33 @@ mod tests {
         }
     }
 
+    /// VW-1 counts no presses: its rolling state is the register (`extra`). Lock, Lock, Unlock from
+    /// the recorded remote's first press send three successive register states and the capture keeps
+    /// each one (in 1.17.0 it kept none, so every press sent the same first next code again).
+    #[test]
+    fn vw_1_advances_on_every_press() {
+        use crate::capture::{ButtonCommand, StoredLevelDuration};
+        let mut reg = ProtocolRegistry::new();
+        let mut c = Capture::from_pairs(1, 433_930_000, vec![StoredLevelDuration { level: true, duration_us: 1500 }]);
+        c.protocol = Some("VW-1".into());
+        (c.serial, c.button, c.counter, c.data, c.data_count_bit, c.data_extra) =
+            (Some(0x2AA9_3AC5), Some(2), None, 0x025A_E2FE_837C_EF6C, 60, Some(0x5A_E2FE));
+        let mut kept = Vec::new();
+        for button in [ButtonCommand::Lock, ButtonCommand::Lock, ButtonCommand::Unlock] {
+            let from = DecodedSignal { encoder_capable: true, ..c.decoded_signal() };
+            let upload = reg.get("VW-1").unwrap().encode(&from, button.code()).unwrap();
+            let sent = sent_frame(&mut reg, "VW-1", &from, button.code(), &upload).unwrap();
+            assert!(advances(&reg, "VW-1", &from, &sent), "{button:?}");
+            assert_eq!(sent.serial, Some(0x2AA9_3AC5));
+            store_sent_frame(&mut c, &sent);
+            kept.push((c.data_extra, c.button));
+        }
+        assert_eq!(kept, [(Some(0x7A_E29F), Some(2)), (Some(0x8A_FE37), Some(2)), (Some(0xE5_E1A8), Some(1))]);
+        // the capture's own frame again (a replay) is not a new press
+        let from = c.decoded_signal();
+        assert!(!advances(&reg, "VW-1", &from, &from));
+    }
+
     /// The capture keeps its recording (Replay), name, frequency and metadata; the fields become
     /// the frame sent.
     #[test]
@@ -518,14 +550,17 @@ mod tests {
             extra: Some(10),
             protocol_display_name: Some("KeeLoq".into()),
         };
-        assert!(advances(&c.decoded_signal(), &sent));
+        let reg = ProtocolRegistry::new();
+        assert!(advances(&reg, "KeeLoq (DoorHan)", &c.decoded_signal(), &sent));
         store_sent_frame(&mut c, &sent);
         assert_eq!((c.serial, c.button, c.counter, c.data, c.data_count_bit, c.data_extra), (Some(0x123), Some(4), Some(8), 0xBB, 66, Some(10)));
         assert_eq!((c.id, c.frequency, c.raw_pairs.len()), (4, 433_920_000, 1));
         assert_eq!((c.protocol.as_deref(), c.make.as_deref()), (Some("KeeLoq (DoorHan)"), Some("DoorHan")));
         // A fixed code (no counter, or one that did not move) is not a new code.
-        assert!(!advances(&c.decoded_signal(), &DecodedSignal { counter: None, ..sent.clone() }));
-        assert!(!advances(&c.decoded_signal(), &sent));
+        assert!(!advances(&reg, "KeeLoq (DoorHan)", &c.decoded_signal(), &DecodedSignal { counter: None, ..sent.clone() }));
+        assert!(!advances(&reg, "KeeLoq (DoorHan)", &c.decoded_signal(), &sent));
+        // A name the registry does not know keeps the counter rule.
+        assert!(advances(&reg, "No Such Protocol", &DecodedSignal { counter: Some(7), ..sent.clone() }, &sent));
     }
 
     #[test]

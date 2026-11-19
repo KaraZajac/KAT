@@ -168,7 +168,7 @@ the reference reads it (`src/protocols/tx_copies.rs`):
 
 | Copies | Encoders |
 |---|---|
-| 1 | CAME Atomo, Hormann HSM / BiSecur, Honda V1, Mercedes V0, Renault V0, Renault V1, Datsun Lada; and KAT's own encoders, which send the fob's press once: Honda V6 (the block twice in one frame), Mitsubishi V1 (the wake-up and four copies of the frame), Suzuki TS002 (four copies of the frame), Opel Rolling (three) |
+| 1 | CAME Atomo, Hormann HSM / BiSecur, Honda V1, Mercedes V0, Renault V0, Renault V1, Datsun Lada; and KAT's own encoders, which send the fob's press once: Honda V6 (the block twice in one frame), Mitsubishi V1 (the wake-up and four copies of the frame), Suzuki TS002 (four copies of the frame), Opel Rolling (three), VW-1 (three) |
 | 2 | Chrysler V0 |
 | 3 | the gate and home remotes (CAME, Nice FLO, Princeton, Security+ …), BMW, BMW CAS3, Hyundai/Kia RIO, SantaFe 13-16, Sheriff CFM, Mazda V2, Mazda V1 (Mazda V2's upload); and Kia V0 (Suzuki, Honda, Mitsubishi types), Honda Static, Kia V7, Fiat V0, Ford V0 / V1 / V2, Honda V2, Kia V1 / V2 / V6, Mazda V0, Subaru, VAG |
 | 4 | Ditec GOL4, Mercedes V1, Mazda Siemens |

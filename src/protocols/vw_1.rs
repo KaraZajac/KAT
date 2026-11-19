@@ -4,8 +4,9 @@
 //! **KAT's own decoder**, worked out from three recordings of one VW flip key a tester sent in
 //! (`IMPORTS/VAG/old_vw_remote_hold_5lock_5unlock.sub` and the 300-press
 //! `IMPORTS/VAG/more/old_vw_remote_{lock,unlock}_x300.sub`, 433.93 MHz, on-off keying, 628 presses
-//! read). The board carries a Motorola `ZC421689CDW` and the receiver module is marked `1J0 959
-//! 753 A` (the VW Golf Mk4 / Bora era, 1998). No reference in KAT's set reads the signal.
+//! read). The key's transmitter is Hella's (labelled `HLO 1J0 959 753 A`, the Golf Mk4 / Bora
+//! generation, radio approvals of 1998); its controller is a Motorola `ZC421689CDW`. No reference
+//! in KAT's set reads the signal.
 //!
 //! The scheme is the "VW-1" of Garcia, Oswald, Kasper & Pavlidès, *Lock It and Still Lose It*
 //! (USENIX Security 2016, §3.2): there is **no secret key** and no checksum, only an obfuscation of
@@ -16,8 +17,8 @@
 //! **Air format**: pulse-width coding at 667 bit/s; one unit is ~500 µs. A press is a start pulse
 //! of three units of carrier and three of pause, then 60 data bits sent LSB-first within each byte
 //! (a `0` is one unit of carrier and two of pause; a `1` is two of carrier and one of pause), then
-//! a trailing unit of carrier and a ~10 ms pause. The frame is sent two or three times; presses are
-//! about 90 ms apart.
+//! a stop of two units of carrier and a ~10 ms pause. The frame is sent two or three times; presses
+//! are about 90 ms apart.
 //!
 //! **Frame (60 bits)**:
 //!
@@ -39,11 +40,13 @@
 //! three-button variant sends other button codes.
 //!
 //! **Gate** (there is no checksum): the start pulse, 60 strict PWM bits each a short/long or
-//! long/short pair, a non-zero state, and a button of `1` or `2`.
+//! long/short pair, the stop carrier and a pause of 2.5 ms or more behind it (or the end of the
+//! input), a non-zero state, and a button of `1` or `2`.
 //!
 //! **Transmit**: the captured remote's next press — the state advanced one step (23 ticks), the UID
 //! re-obfuscated with the new state, and Lock or Unlock (any other command repeats the captured
-//! button). Not tried on a car.
+//! button). The capture then keeps the frame sent ([ProtocolDecoder::advances]: the register
+//! moved), so every press sends a new code. Not tried on a car.
 //!
 //! **Fields**: `data` = the 60 frame bits, `serial` = the UID, `button` = the button nibble,
 //! `extra` = the 24-bit state; no counter (the state is a register, not a linear count).
@@ -323,9 +326,17 @@ impl ProtocolDecoder for Vw1Decoder {
         None
     }
 
+    /// A frame whose stop carrier was the last pulse of the input (a recording cut right after it)
+    /// is complete: only the pause behind it is missing.
     fn flush(&mut self) -> Option<DecodedSignal> {
+        let done = self.step == Step::Gap;
         self.step = Step::Idle;
-        None
+        done.then(|| Fields::parse(self.frame).map(|f| f.signal())).flatten()
+    }
+
+    /// VW-1 has no counter: its rolling state is the register (`extra`), which every press moves.
+    fn advances(&self, from: &DecodedSignal, sent: &DecodedSignal) -> bool {
+        sent.extra.is_some() && sent.extra != from.extra
     }
 
     fn supports_encoding(&self) -> bool {
@@ -408,9 +419,16 @@ mod tests {
         bad[2 + 2 * 10].duration_us = UNIT;
         bad[2 + 2 * 10 + 1].duration_us = UNIT;
         assert_eq!(feed_all(&mut Vw1Decoder::new(), &bad).len(), COPIES - 1);
-        // 59 bits (a start pulse cut one bit short): no frame
+        // 59 bits (a start pulse cut one bit short): no frame, also at the end of the input
         let one = &wire[..2 + 2 * (FRAME_BITS - 1)];
-        assert!(feed_all(&mut Vw1Decoder::new(), one).is_empty());
+        let mut dec = Vw1Decoder::new();
+        assert!(feed_all(&mut dec, one).is_empty() && dec.flush().is_none());
+        // the input ends right after the stop carrier (a recording cut there): the flush gives it
+        let cut = &wire[..2 + 2 * FRAME_BITS + 1];
+        let mut dec = Vw1Decoder::new();
+        assert!(feed_all(&mut dec, cut).is_empty());
+        assert_eq!(dec.flush(), Some(fields(LOCK_FRAME).signal()));
+        assert!(dec.flush().is_none());
     }
 
     #[test]

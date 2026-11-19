@@ -164,7 +164,7 @@
    "name": "Motorola `ZC421689CDW`",
    "maker": "Motorola",
    "kind": "Remote-keyless-entry controller",
-   "text": "The 16-pin Motorola custom chip on an old VW flip key's board, marked `ZC421689CDW`, `734 778-00`, `2E30A`, `XLAD9927` (read from a picture). `ZCxxxxxx` is a Motorola customer part number, not a catalogue type. The board is marked `734 613-02`; a crystal and a SAW resonator stand beside the chip. It runs the VW-1 scheme (a 24-bit LFSR and a UID obfuscation, no cipher).",
+   "text": "The 16-pin Motorola custom chip on an old VW flip key's board, marked `ZC421689CDW`, `734 778-00`, `2E30A`, `XLAD9927` (read from a picture). `ZCxxxxxx` is a Motorola customer part number, not a catalogue type. The board is marked `734 613-02`; its other side carries an S+M `R707` SAW resonator and a 2.00 MHz ceramic resonator, and the unit that holds it is Hella's (`HLO 1J0 959 753 A`). It runs the VW-1 scheme (a 24-bit LFSR and a UID obfuscation, no cipher).",
    "datasheet": null
   }
  ]

@@ -16,10 +16,12 @@ of one key a tester sent in: `IMPORTS/VAG/old_vw_remote_hold_5lock_5unlock.sub`,
 `IMPORTS/VAG/more/old_vw_remote_lock_x300.sub` and `..._unlock_x300.sub`. 433.93 MHz, on-off keying;
 628 presses, all read.
 
-The board carries a Motorola `ZC421689CDW 734 778-00` controller (`734 613-02`, marked `L00233A` /
-`C00233A`), a crystal and a SAW resonator. The matching receiver module is marked `HLO 1J0 959 753 A`, dated
-1998: `1J0` is the Golf Mk4 / Bora / Jetta platform part number, so the key is from a Volkswagen of roughly
-1998–2005. The exact model year was not given with the recordings.
+The transmitter is Hella's: the unit that holds the board is labelled `HLO 1J0 959 753 A` (`HLO` is
+Volkswagen's code for Hella, and the label's edge reads `HELLA`), with European radio approvals dated 1998.
+The board carries a Motorola `ZC421689CDW 734 778-00` controller on one side (board `734 613-02`, marked
+`L00233A` / `C00233A`) and, on the other, an S+M `R707` SAW resonator, a 2.00 MHz ceramic resonator and the
+two switches. `1J0` parts are of the Golf Mk4 / Bora / Jetta generation, so the key is from a Volkswagen of
+roughly 1998–2005. The exact model year was not given with the recordings.
 
 This is **not** KAT's [VAG](vag.md) protocol. That one is the newer Volkswagen Group frame (80 Manchester
 bits, AUT64 or XTEA, at 434.4 MHz) used from about 2004. VW-1 is the oldest scheme, at 433.92 MHz, and the
@@ -80,9 +82,9 @@ each as an ordinary press.
 
 A state machine over the pulses. There is no checksum, so the gate is structural: the start pulse, exactly
 60 strict pulse-width bits (each a short-carrier/long-pause or long-carrier/short-pause pair), the two-unit
-stop carrier, and a closing pause of at least 2.5 ms. The last gate is what separates a VW-1 frame from
-another 500/1000 µs pulse-width signal that runs straight on (for example Nice One), which VW-1 would
-otherwise read 60 bits out of. A frame is reported only when its register state is non-zero and its button is
+stop carrier, and a closing pause of at least 2.5 ms (or the end of a recording cut right after the stop).
+The last gate is what separates a VW-1 frame from another 500/1000 µs pulse-width signal that runs straight
+on (for example Nice One), which VW-1 would otherwise read 60 bits out of. A frame is reported only when its register state is non-zero and its button is
 Lock or Unlock.
 
 VW-1 is placed ahead of Nissan V0 and Compustar-1WG3R in the registry; those two match a stray frame of the
@@ -92,7 +94,9 @@ recordings by chance, and the order lets VW-1 keep its own.
 
 The captured remote's next press. KAT's Lock and Unlock set the button; any other command repeats the
 captured button. The register is advanced one step and the UID re-obfuscated. The waveform is the start
-pulse, the 60 bits, the stop and a gap, sent three times. Not tried on a car.
+pulse, the 60 bits, the stop and a gap, sent three times. The capture then keeps the frame sent, as for
+every rolling code, so the next press sends the code after: VW-1 counts no presses, so KAT goes by its
+register (KAT 1.17.0 did not, and sent the same code on every press after the first). Not tried on a car.
 
 ## Field mapping
 

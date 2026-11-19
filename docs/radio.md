@@ -231,8 +231,9 @@ sample_rate=1000000
 
 Keep the two files together: KAT reads frequency and rate from the `.TXT` (before the file name's
 hints; `--freq`, `--rate` and the `:iq` arguments still win), so `kat --decode NAME.C16` or `:iq NAME.C8`
-needs nothing more. Without the `.TXT` the rate has to be given: the samples do not say it, and at a wrong
-rate nothing decodes. A capture below 200 kS/s is too slow for KAT, as any recording is.
+needs nothing more. Without the `.TXT` give the rate (`--rate`, or in the file name): the samples do not
+say it, KAT otherwise assumes 2 MS/s, and at a wrong rate nothing decodes. A capture below 200 kS/s is too
+slow for KAT and one above 40 MS/s too fast, as any recording is.
 
 **`:record [file]` / `:record stop`** writes the IQ exactly as received (HackRF `.cs8`, RTL-SDR `.cu8`)
 to the export directory, on a writer thread (the receive path never waits for the disk; if the disk

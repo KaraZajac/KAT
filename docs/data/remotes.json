@@ -469,7 +469,7 @@
   "title": "Old VW flip key (VW-1)",
   "short": "Old VW flip key",
   "group": "vag",
-  "maker": "Motorola",
+  "maker": "Hella",
   "protocols": [
    "VW-1"
   ],
@@ -501,11 +501,11 @@
    ],
    [
     "Board",
-    "a 16-pin Motorola `ZC421689CDW` (`734 778-00`), board `734 613-02`, with a crystal and a SAW resonator"
+    "a 16-pin Motorola `ZC421689CDW` (`734 778-00`) on one side of board `734 613-02`; on the other an S+M `R707` SAW resonator, a 2.00 MHz ceramic resonator and the two switches"
    ],
    [
-    "Receiver",
-    "the matching module is marked `HLO 1J0 959 753 A`, dated 1998 — the Golf Mk4 / Bora platform"
+    "Label",
+    "`HLO 1J0 959 753 A` on the unit that holds the board (`HLO` is Volkswagen's code for Hella; the label's edge reads `HELLA`), with European radio approvals dated 1998"
    ]
   ],
   "chips": [
@@ -514,7 +514,7 @@
     "note": "the controller on the board (marking read from a picture)"
    }
   ],
-  "cars": "A Volkswagen of roughly 1998–2005: the receiver module's `1J0` part number is the Golf Mk4 / Bora / Jetta platform. The exact model year was not given with the recordings.",
+  "cars": "A Volkswagen of roughly 1998–2005: the transmitter's `1J0` part number is of the Golf Mk4 / Bora / Jetta generation. The exact model year was not given with the recordings.",
   "recordings": [
    "VAG/old_vw_remote_",
    "VAG/more/old_vw_remote_"
@@ -541,7 +541,7 @@
     "thumb": "img/fobs/vw-1-flip-key/boardt.webp",
     "w": 1100,
     "h": 825,
-    "caption": "The board, component side: the controller, a crystal and a SAW resonator, and the two switches.",
+    "caption": "The board, switch side: the S+M R707 SAW resonator, the 2.00 MHz ceramic resonator (`2.00`) and the two switches.",
     "credit": "Sent in by the remote's owner."
    },
    {
@@ -553,11 +553,11 @@
     "credit": "Sent in by the remote's owner."
    },
    {
-    "src": "img/fobs/vw-1-flip-key/receiver.webp",
-    "thumb": "img/fobs/vw-1-flip-key/receivert.webp",
+    "src": "img/fobs/vw-1-flip-key/label.webp",
+    "thumb": "img/fobs/vw-1-flip-key/labelt.webp",
     "w": 1100,
     "h": 825,
-    "caption": "The matching receiver module, marked `HLO 1J0 959 753 A` and dated 1998 — the Golf Mk4 / Bora platform.",
+    "caption": "The transmitter unit's label: `HLO 1J0 959 753 A` (`HLO` is Hella) and its European radio approvals, dated 1998.",
     "credit": "Sent in by the remote's owner."
    }
   ]

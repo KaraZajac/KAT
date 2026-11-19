@@ -1,10 +1,12 @@
 //! "Recover key (HiTag2)" — qDoctor's HiTag2 Hell key recovery
 //! ([`crate::protocols::hitag2_hell`]: the attack of Verstegen, Verdult and Bokslag, on all cores)
-//! for a Fiat V1, Renault V1 or Fiat V2 remote KAT has no key for. It takes two captures of the
-//! remote (two presses, any buttons): one frame fits about 65,000 keys, the second singles out the
-//! remote's. The key is saved for the remote as Flipper-ARF and doctor-firmware save theirs
-//! (`hitag2_keys.txt`, [`crate::protocols::hitag2_keys`]), and the remote's captures then send
-//! fresh codes instead of replaying the captured frame. A search covers up to 2^19 layer-0
+//! for a Fiat V1, Renault V1, Fiat V2 or Hitag2 RKE remote KAT has no key for. It takes two captures
+//! of the remote (two presses, any buttons): one frame fits about 65,000 keys, the second singles out
+//! the remote's. The key is saved for the remote as Flipper-ARF and doctor-firmware save theirs
+//! (`hitag2_keys.txt`, [`crate::protocols::hitag2_keys`]), and a Fiat or Renault remote's captures
+//! then send fresh codes instead of replaying the captured frame. KAT does not transmit Hitag2 RKE:
+//! there the key only confirms the remote's frames, and its IV is assumed to be Renault V1's (not
+//! confirmed against a real remote). A search covers up to 2^19 layer-0
 //! candidates, about 20 minutes on a 16-thread CPU with AVX2 (an hour without), and stops at the
 //! key, so half that on average; it runs only when asked, never through `autobf`.
 
@@ -47,8 +49,8 @@ fn is_hitag2_remote(c: &Capture) -> bool {
     matches!(c.protocol_name(), "Fiat V1" | "Renault V1" | "Fiat V2" | "Hitag2")
 }
 
-/// Whether the signal menu offers the search for this capture: a Fiat V1, Renault V1 or Fiat V2
-/// frame the attack takes, whose key KAT does not know (it would be replayed).
+/// Whether the signal menu offers the search for this capture: a Fiat V1, Renault V1, Fiat V2 or
+/// Hitag2 RKE frame the attack takes, whose key KAT does not know.
 fn offered(c: &Capture) -> bool {
     is_hitag2_remote(c)
         && frame_of(c).is_ok()
@@ -209,6 +211,9 @@ impl App {
                     format!("No HiTag2 key fits #{first:02} and #{second:02} of remote {:08X} (searched in {took})", job.uid);
                 if job.remote == Hitag2Remote::FiatV2 {
                     msg += "; Fiat V2's counter and button layout is not confirmed against a real key";
+                }
+                if job.remote == Hitag2Remote::Hitag2Rke {
+                    msg += "; the Hitag2 RKE IV (counter and button, as Renault V1's) is not confirmed against a real remote";
                 }
                 self.last_error = Some(msg);
             }

@@ -99,7 +99,7 @@ fn the_decoded_side_takes_the_frames_most_captures_have() {
     let long = [decoded(1, "Acme V5", 7, 1, 1, 68), decoded(2, "Acme V5", 7, 1, 2, 68)];
     let c = decoded_side(&picks(&long), Grouping::Button, &[]).unwrap().comparison;
     assert_eq!((c.bits, c.notes.len()), (64, 1));
-    assert!(c.notes[0].starts_with("A frame is 68 bits long: these are the first 64"), "{:?}", c.notes);
+    assert!(c.notes[0].starts_with("A frame is 68 bits long: these are the 64 KAT keeps"), "{:?}", c.notes);
 
     assert!(decoded_side(&picks(&[unknown(1, 433_920_000)]), Grouping::Button, &[]).is_none());
 }

@@ -257,7 +257,7 @@ pub enum SignalAction {
     RecoverKey,
     /// KeeLoq frame no key decrypts: Flipper-ARF's magic-serial key search (app/keeloq_bf.rs).
     RecoverKeeloqKey,
-    /// Fiat V1 / Renault V1 / Fiat V2 frame without a key: qDoctor's HiTag2 Hell (app/hitag2_bf.rs).
+    /// Fiat V1 / Renault V1 / Fiat V2 / Hitag2 RKE frame without a key: qDoctor's HiTag2 Hell (app/hitag2_bf.rs).
     RecoverHitag2Key,
     /// Stop a running "Recover key".
     CancelKeyRecovery,

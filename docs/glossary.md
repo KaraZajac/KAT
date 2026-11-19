@@ -180,6 +180,14 @@ Block ciphers found in remotes: AUT64 in the Volkswagen group's keys ([VAG](vag.
 keys ([PSA](psa.md)), XTEA in Bosch remotes ([Opel V1](opel_v1.md)), AES-128 in newer smart keys
 ([Kia V6](kia_v6.md)).
 
+### LFSR
+
+A linear feedback shift register: a row of bits that moves one place at each step while the XOR of a few of them
+(its taps, written as a polynomial) is fed back in. It runs through a long but fixed sequence, so a remote can use
+one in place of a counter, and with no key involved one recorded press tells all the presses after it: the oldest
+Volkswagen keys ([VW-1](vw_1.md)) send a 24-bit register that moves 23 steps a press. The HITAG2 cipher is a
+48-bit one with a non-linear output.
+
 ### Replay
 
 Sending a recorded frame again as it was. It works on fixed-code remotes. On a rolling-code receiver it works

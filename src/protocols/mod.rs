@@ -360,6 +360,11 @@ pub(crate) fn test_frequencies(supported: &[u32]) -> Vec<u32> {
         .collect()
 }
 
+/// A rolling code's next press: its counter moved (the default [ProtocolDecoder::advances]).
+pub fn counter_moved(from: &DecodedSignal, sent: &DecodedSignal) -> bool {
+    sent.counter.is_some() && sent.counter != from.counter
+}
+
 pub trait ProtocolDecoder: Send + Sync {
     /// Get the protocol name
     fn name(&self) -> &'static str;
@@ -413,6 +418,15 @@ pub trait ProtocolDecoder: Send + Sync {
     /// the capture (`app/tx.rs`); None: the app decodes the upload instead.
     fn sent_signal(&self, _decoded: &DecodedSignal, _button: u8) -> Option<DecodedSignal> {
         None
+    }
+
+    /// Whether `sent`, the frame this protocol's encoder made from `from`, is the remote's next
+    /// press, which the app then keeps on the capture so that the press after sends the code after
+    /// (`app/tx.rs`). By default a rolling code counts its presses in `counter` ([counter_moved]);
+    /// fixed codes, whose "counter" is a DIP or channel field if anything, keep their capture. A
+    /// protocol whose rolling state is not a counter says so here (VW-1: its register, in `extra`).
+    fn advances(&self, from: &DecodedSignal, sent: &DecodedSignal) -> bool {
+        counter_moved(from, sent)
     }
 
     /// Rebuild a decode from a Flipper key file (`Protocol`/`Bit`/`Key` plus the protocol's own

@@ -75,7 +75,7 @@
       <strong>RTL-SDR</strong> (receive only) and a <strong>Flipper Zero</strong> on USB
       (receive and transmit), several at once, each on its own frequency, and decodes IQ
       recordings and Flipper Zero <code>.sub</code> files with no radio attached.
-      <span class="hero-tag-pop">{{decoders}} protocol decoders, each checked against the reference C code.</span>
+      <span class="hero-tag-pop">{{decoders}} protocol decoders, checked against the reference C code or, where no reference reads the remote, against recordings.</span>
     </p>
 
     <figure class="term-shot">
@@ -120,7 +120,9 @@
         <li>doctor-firmware</li>
         <li>Momentum</li>
         <li>RogueMaster</li>
+        <li>FoxFW</li>
         <li>rtl_433 (receive only)</li>
+        <li>recordings (KAT's own)</li>
       </ul>
     </div>
   </div>
@@ -176,7 +178,7 @@
         <img src="img/kat-actions.webp" width="2298" height="1708" loading="lazy"
           alt="The same screen with the action menu open on the Ford V0 capture: Replay, TX Lock, TX Unlock, TX Trunk, TX Panic, three exports, Timing analysis and Delete.">
       </a>
-      <figcaption><strong>A capture's actions.</strong> Transmitting needs a HackRF, and the owner's written permission.</figcaption>
+      <figcaption><strong>A capture's actions.</strong> Transmitting needs a HackRF or a Flipper Zero, and the owner's written permission.</figcaption>
     </figure>
 
     <div class="explain-annotations">
@@ -263,15 +265,17 @@
     <div class="bento">
       <article class="bento-card bento-lg">
         <div class="bento-icon">📡</div>
-        <h3>Transmit with a HackRF</h3>
+        <h3>Transmit with a HackRF or a Flipper</h3>
         <p>
           Lock, Unlock, Trunk and Panic from a decoded capture. Rolling-code
           protocols re-encode the next code with the requested button wherever
           the references do (VAG, Subaru, Chrysler V0, Kia, Ford, Mazda,
-          Renault V0 and Sheriff CFM among them); protocols without an available
-          key re-send the captured frame, as the references do. FM protocols go
-          out as continuous-phase 2-FSK at the references' deviation, OOK ones
-          as OOK, at a TX power you set.
+          Renault V0 and Sheriff CFM among them), and so do KAT's own encoders
+          for remotes no reference reads (Suzuki TS002, Opel Rolling and VW-1);
+          protocols without an available key re-send the captured frame, as the
+          references do. FM protocols go out as 2-FSK at the references' deviation
+          (a Flipper Zero uses the nearest its radio sets), OOK ones as OOK; a
+          HackRF sends at a TX power you set.
         </p>
       </article>
 
@@ -339,8 +343,9 @@
           (BF1 and BF2) on their own, in about half a second on a 16-core PC
           (<code>autobf</code>). Fiat and Renault HiTag2 remotes get the
           <a href="hitag2_hell.html">HiTag2 Hell attack</a> from two presses,
-          in about 20 minutes at most on a 16-thread CPU. KAT then encodes the next
-          code.
+          in about 20 minutes at most on a 16-thread CPU, and KAT then encodes the
+          next code. Hitag2 RKE remotes get it too, decode only and not yet tried
+          on a real one.
         </p>
       </article>
     </div>
@@ -358,7 +363,8 @@
         without the TUI, for scripts and for checking capture collections:
         Flipper <code>.sub</code> captures and key files, and IQ recordings from
         hackrf_transfer (<code>.cs8</code>), rtl_sdr and rtl_433
-        (<code>.cu8</code>), or as <code>.cf32</code>. In the TUI,
+        (<code>.cu8</code>), a PortaPack's Capture app (<code>.C8</code>,
+        <code>.C16</code>), or as <code>.cf32</code>. In the TUI,
         <code>:load</code> opens the same files, and <code>:record</code> saves
         the raw IQ while receiving.
       </p>
@@ -386,7 +392,7 @@
     </figure>
 
     <div class="code-wrap code-wide">
-<pre class="code"><span class="prompt">$</span> kat --decode captures/ fob.sub              <span class="cmt"># .sub files and IQ recordings (.cs8/.cu8/.cf32), no TUI</span>
+<pre class="code"><span class="prompt">$</span> kat --decode captures/ fob.sub              <span class="cmt"># .sub files and IQ recordings (.cs8/.cu8/.cf32/.C8/.C16), no TUI</span>
 <span class="prompt">$</span> kat --decode gfile001.cu8 --rate 250k       <span class="cmt"># a file whose name carries no sample rate needs --rate</span>
 <span class="prompt">$</span> kat --iq fob.cs8 --freq 433.92 --rate 2M    <span class="cmt"># start the TUI with an IQ recording decoded</span>
 <span class="prompt">$</span> kat --keeloq-bf captures/ --save            <span class="cmt"># recover a magic-serial KeeLoq key</span></pre>
@@ -434,7 +440,8 @@
         shutter, doorbell, sensor and key-finder protocols. They follow ProtoPirate where it has the
         protocol, then Flipper-ARF and doctor-firmware, then Momentum,
         RogueMaster and FoxFW; remotes no Flipper firmware reads are decoded with
-        receive-only ports of rtl_433. Each page covers the protocol's timing,
+        receive-only ports of rtl_433, and <a href="about.html">a few that no reference
+        reads</a> with KAT's own decoders, worked out from recordings. Each page covers the protocol's timing,
         frame layout and decoder, and its encoder where KAT has one.
         <a href="protocols.html">All of them in one table</a>, or
         <a href="makes.html">by make</a>.

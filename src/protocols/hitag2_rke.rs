@@ -105,7 +105,9 @@ impl Hitag2RkeDecoder {
     /// (HiTag2)", [`super::hitag2_hell`]) that reproduces the captured keystream:
     /// `renault_authenticator(uid, btn, lctr, key) == ks` (the Garcia-2016 HiTag2 RKE nonce
     /// `lctr<<4 | btn`; the recovered equivalent key works at epoch 0, since `lctr` is already the
-    /// counter's low 10 bits). **Decode only: KAT has no verified Hitag2 RKE transmitter** (the
+    /// counter's low 10 bits). The equivalent key absorbs the counter's high bits, so once the
+    /// remote's 10-bit counter wraps it no longer reproduces the keystream and the search is offered
+    /// again. **Decode only: KAT has no verified Hitag2 RKE transmitter** (the
     /// generic decoder spans several OEM timings; held for a measured capture), so this confirms
     /// the key — it does not enable fresh codes.
     pub(super) fn saved_key(signal: &DecodedSignal) -> Option<[u8; 6]> {
@@ -640,14 +642,17 @@ mod tests {
         crate::protocols::hitag2_keys::tests::remember_for_test(uid, key);
         assert!(Hitag2RkeDecoder::has_key(&sig));
         assert_eq!(Hitag2RkeDecoder::saved_key(&sig), Some(key));
-        // A 0 or all-ones UID is refused, as for the other HITAG2 remotes.
+        // A 0 or all-ones UID is refused, as for the other HITAG2 remotes, and so is a frame that is
+        // not the 103 bits of a Hitag2 RKE frame.
         assert!(hell::frame_of("Hitag2", &signal(0, 1, 1, 1, 0)).is_err());
         assert!(hell::frame_of("Hitag2", &signal(u32::MAX, 1, 1, 1, 0)).is_err());
+        assert!(hell::frame_of("Hitag2", &DecodedSignal { data_count_bit: 64, ..sig.clone() }).is_err());
     }
 
     /// The full HiTag2 Hell search recovers the key from two synthetic presses; the recovered
-    /// equivalent key reproduces both keystreams. Ignored (a full search is seconds in release,
-    /// minutes in debug). Proves the recovery plumbing, **not** that a real remote uses this IV.
+    /// equivalent key reproduces both keystreams. Ignored (a full search takes about 20 minutes in
+    /// release on a 16-thread CPU, far longer in debug). Proves the recovery plumbing, **not** that a
+    /// real remote uses this IV.
     #[test]
     #[ignore = "full HiTag2 Hell search"]
     fn key_recovery_round_trip() {

@@ -2,6 +2,17 @@
 
 All notable changes to KAT are documented here.
 
+## [Unreleased]
+
+### Fixed
+
+- **VW-1 sends a new code on every press.** After a transmission KAT keeps the frame sent on its capture when it is the remote's next press, and it went by the counter, which VW-1 does not have: its rolling state is a register. So 1.17.0 sent the same next code on every press after the first, a code the car had already taken, also when Unlock followed Lock. Each protocol now says what moves (the counter, or VW-1's register). A VW-1 recording cut right after a frame's stop carrier now reads that frame too.
+- **No "CRC FAIL" for protocols without a check.** VW-1, PSA 2-Button and the six KAT-own decoders of 1.15.0 (Kia Mobis, Kia Denso, Kia Forte, GM RFA, Isuzu Rolling, Isuzu Static) carry no checksum but showed a failed one in red; they now show "-", as their pages say.
+- **PortaPack `.TXT` files are read more carefully.** A byte-order mark (the file saved again in an editor) no longer hides its first line, a file that is not UTF-8 is still read, a centre frequency below 24 MHz is ignored, and a sample rate above 40 MS/s is refused rather than used.
+- **HiTag2 key recovery**: a `Hitag2` capture must be the 103 bits of a Hitag2 RKE frame, and a search that finds no key says that Hitag2 RKE's IV is not confirmed against a real remote.
+- **Compare** no longer says that a long frame's 64 bits are its first ones: which 64 KAT keeps depends on the protocol.
+- **Pages**: the VW-1 key's `1J0 959 753 A` unit is its own transmitter, made by Hella, not a receiver, and its board has a 2.00 MHz ceramic resonator, not a crystal. The home page and the README no longer say that every decoder is checked against the reference C code (KAT's own are checked against recordings), name the Flipper Zero beside the HackRF for transmitting, and list PortaPack files. The glossary explains LFSR.
+
 ## [1.17.0] - 2026-11-18
 
 Two more remotes no reference in KAT's set reads, worked out from recordings their owners sent in: the oldest Volkswagen Group flip key (the published "VW-1" scheme, a 24-bit LFSR with no key, which KAT can also send) and a two-button Valeo key for Citroën and Peugeot. HiTag2 key recovery now also takes Hitag2 RKE captures, and FM recordings settle what the 2008 Vauxhall Zafira's remote is not.

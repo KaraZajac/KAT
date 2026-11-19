@@ -1217,6 +1217,9 @@ pub fn frame_of(protocol: &str, signal: &DecodedSignal) -> Result<Hitag2Frame, S
         // extra = check<<32 | keystream. The 10-bit lctr is the counter's low bits (< 1024, which
         // the equivalent-key trick needs); the full 32-bit keystream (from extra) is the hop. The
         // IV is lctr<<4 | btn, the Garcia-2016 nonce renault_authenticator takes.
+        if signal.data_count_bit != 103 {
+            return Err(format!("not a 103-bit Hitag2 frame ({} bits)", signal.data_count_bit));
+        }
         let ks = (signal.extra.ok_or("Hitag2 frame has no keystream")? & 0xFFFF_FFFF) as u32;
         let uid = (signal.data >> 32) as u32;
         if uid == 0 || uid == u32::MAX {

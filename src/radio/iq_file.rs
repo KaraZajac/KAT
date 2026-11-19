@@ -30,6 +30,10 @@ pub const DEFAULT_FILE_RATE: u32 = 2_000_000;
 pub const IQ_EXTENSIONS: &str = ".cs8, .cu8, .cf32, .C8, .C16";
 /// Lowest sample rate the pipeline decodes (`kat --rate` checks it up front).
 pub const MIN_FILE_RATE: u32 = 200_000;
+/// Highest sample rate KAT takes from anywhere (`--rate`, a file name, a PortaPack's `.TXT`).
+pub const MAX_FILE_RATE: u32 = 40_000_000;
+/// Lowest centre frequency a PortaPack `.TXT` is believed for (the file-name hints' range).
+const MIN_SIDECAR_CENTRE: u32 = 24_000_000;
 
 /// Frequency / rate hints found in a file name.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -163,14 +167,16 @@ const SIDECAR_MAX_BYTES: u64 = 4096;
 
 /// Centre frequency and sample rate from the text of a PortaPack capture's `.TXT` (Mayhem's
 /// `metadata_file.cpp`): lines `center_frequency=<Hz>` and `sample_rate=<S/s>`, decimal. Other
-/// lines (its `latitude`, `longitude`, …) and values that are not a number above 0 are ignored.
+/// lines (its `latitude`, `longitude`, …), values that are not a number above 0 and a centre below
+/// 24 MHz are ignored; a byte-order mark (the file saved again by an editor) is skipped. The rate
+/// is kept as written: [IqFileSpec::resolve] refuses one the pipeline cannot use.
 pub fn parse_sidecar(text: &str) -> NameHints {
     let mut hints = NameHints::default();
-    for line in text.lines() {
+    for line in text.trim_start_matches('\u{feff}').lines() {
         let Some((key, value)) = line.split_once('=') else { continue };
         let Some(value) = value.trim().parse::<u32>().ok().filter(|&v| v > 0) else { continue };
         match key.trim() {
-            "center_frequency" => hints.centre = Some(value),
+            "center_frequency" if value >= MIN_SIDECAR_CENTRE => hints.centre = Some(value),
             "sample_rate" => hints.rate = Some(value),
             _ => {}
         }
@@ -183,9 +189,10 @@ pub fn parse_sidecar(text: &str) -> NameHints {
 pub fn sidecar_hints(path: &Path) -> NameHints {
     for ext in ["TXT", "txt"] {
         let Ok(file) = std::fs::File::open(path.with_extension(ext)) else { continue };
-        let mut text = String::new();
-        if file.take(SIDECAR_MAX_BYTES).read_to_string(&mut text).is_ok() {
-            let hints = parse_sidecar(&text);
+        let mut bytes = Vec::new();
+        // Lossily: a file that is not UTF-8, or whose cut falls inside a character, still reads.
+        if file.take(SIDECAR_MAX_BYTES).read_to_end(&mut bytes).is_ok() {
+            let hints = parse_sidecar(&String::from_utf8_lossy(&bytes));
             if hints != NameHints::default() {
                 return hints;
             }
@@ -224,6 +231,9 @@ impl IqFileSpec {
         let sample_rate = rate.or(side.rate).or(hints.rate).unwrap_or(DEFAULT_FILE_RATE);
         if sample_rate < MIN_FILE_RATE {
             return Err(format!("Sample rate {sample_rate} S/s is too low (need ≥ 200 kS/s)"));
+        }
+        if sample_rate > MAX_FILE_RATE {
+            return Err(format!("Sample rate {sample_rate} S/s is too high (KAT takes up to 40 MS/s)"));
         }
         Ok(Self { path, format, centre_hz: centre, target_hz: target, sample_rate })
     }
@@ -481,6 +491,10 @@ mod tests {
         for junk in ["", "notes about this fob", "center_frequency=\nsample_rate=0\n", "sample_rate=fast", "sample_rate=-5"] {
             assert_eq!(parse_sidecar(junk), NameHints::default(), "{junk:?}");
         }
+        // Saved again by an editor (a byte-order mark first); a centre no radio tunes is ignored.
+        let bom = "\u{feff}center_frequency=433650000\r\nsample_rate=1000000\r\n";
+        assert_eq!(parse_sidecar(bom), NameHints { centre: Some(433_650_000), rate: Some(1_000_000), target: None });
+        assert_eq!(parse_sidecar("center_frequency=1\nsample_rate=1000000\n"), NameHints { centre: None, rate: Some(1_000_000), target: None });
 
         let dir = std::env::temp_dir().join(format!("kat-portapack-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
@@ -499,9 +513,15 @@ mod tests {
         std::fs::write(dir.join("fob_433.92M_250k.txt"), "sample_rate=2000000\n").unwrap();
         let s = IqFileSpec::resolve(dir.join("fob_433.92M_250k.c8"), None, None, 0).unwrap();
         assert_eq!((s.centre_hz, s.sample_rate), (433_920_000, 2_000_000), "lower-case .txt; the name's frequency stays");
-        // A rate the pipeline cannot decode is refused as for any file.
+        // A rate the pipeline cannot decode is refused as for any file, too low or too high.
         std::fs::write(dir.join("slow.TXT"), "center_frequency=433920000\nsample_rate=100000\n").unwrap();
         assert!(IqFileSpec::resolve(dir.join("slow.C16"), None, None, 0).is_err());
+        std::fs::write(dir.join("huge.TXT"), "center_frequency=433920000\nsample_rate=4000000000\n").unwrap();
+        assert!(IqFileSpec::resolve(dir.join("huge.C16"), None, None, 0).is_err());
+        // A sidecar that is not UTF-8 (or cut inside a character) still gives its numbers.
+        std::fs::write(dir.join("latin.TXT"), b"center_frequency=433650000\nsample_rate=1000000\nnote=caf\xe9\n").unwrap();
+        let s = IqFileSpec::resolve(dir.join("latin.C8"), None, None, 0).unwrap();
+        assert_eq!((s.centre_hz, s.sample_rate), (433_650_000, 1_000_000));
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

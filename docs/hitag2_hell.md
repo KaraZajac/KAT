@@ -19,7 +19,10 @@ Guess-and-Determine Attacks*, WOOT 2018.
 Fiat V1, Renault V1 and Fiat V2 remotes sign each press with HITAG2, a 48-bit stream cipher, keyed per
 car. KAT transmits fresh codes for a remote whose key it knows: one of the references' embedded keys,
 the key derived from a Renault remote's serial, or a key saved for the remote. For any other remote it
-can only replay the captured frame, as the references do.
+can only replay the captured frame, as the references do. [Hitag2 RKE](hitag2_rke.md) remotes (NXP
+PCF7946/7947) sign theirs the same way: KAT recovers their key too, but only decodes them and does not
+transmit them, and takes their IV to be Renault V1's (counter and button), which is not confirmed
+against a real remote.
 
 **Recover key (HiTag2)** finds that key from two captures of the remote. One frame's 32-bit hop fits
 about 2^16 keys; a second press (another counter, any button) leaves only the remote's. KAT saves the
@@ -31,7 +34,7 @@ with the requested button and the next counter.
 1. Capture two presses of the remote (any buttons; two presses of the same button work too), or load
    them from files.
 2. Select one and press `Enter`: the signal menu offers **Recover key (HiTag2)** for a Fiat V1,
-   Renault V1 or Fiat V2 frame whose key KAT does not know. KAT pairs it with another capture of the
+   Renault V1, Fiat V2 or Hitag2 RKE frame whose key KAT does not know. KAT pairs it with another capture of the
    same remote (same UID, another hop): one with another button first, then the newest. With no second
    press in the list, it says so.
 3. The search runs in the background on every core. The status bar's title shows its progress and the

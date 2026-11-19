@@ -150,7 +150,9 @@ fn decoded_side(picks: &[Pick], grouping: Grouping, notes: &[String]) -> Option<
         .collect();
     let mut notes = notes.to_vec();
     if bits > 64 {
-        notes.push(format!("A frame is {bits} bits long: these are the first 64, which KAT keeps as its data."));
+        notes.push(format!(
+            "A frame is {bits} bits long: these are the 64 KAT keeps as its data (the protocol's page says which they are)."
+        ));
     }
     if let Some(ids) = named(picks, |c| !taken(c)) {
         notes.push(format!("{ids} {} left out: not {protocol} frames of {bits} bits.", are(&ids)));

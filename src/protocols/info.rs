@@ -337,6 +337,8 @@ pub(super) const NO_CHECKSUM: &[&str] = &[
     "Alps-FWB1U545", "Audiovox-PROOE3B", "CodeAlarm-FRDPC2002", "Opel-Mokka", "Cardin-S466",
     // FoxFW's structural-gate car remotes.
     "VAG Polo", "Chevrolet V0",
+    // KAT's own decoders whose frames carry no check (structural gates decide emission).
+    "Kia Mobis", "Kia Denso", "Kia Forte", "GM RFA", "Isuzu Rolling", "Isuzu Static", "PSA 2-Button", "VW-1",
 ];
 
 /// Whether a decode shown as `name`, with `bits` bits and `extra`, had a check at all.

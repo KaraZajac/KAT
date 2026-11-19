@@ -2,7 +2,9 @@
 
 All notable changes to KAT are documented here.
 
-## [Unreleased]
+## [1.17.1] - 2026-11-19
+
+The fixes a review of 1.16.2 and 1.17.0 found, already on `main`: VW-1 sends a new code on every press (1.17.0 sent the same one again after the first), protocols that carry no checksum no longer show "CRC FAIL", and PortaPack `.TXT` files are read more carefully. No protocol more.
 
 ### Fixed
 

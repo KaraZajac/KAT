@@ -4,6 +4,10 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+## [1.19.0] - 2026-11-20
+
+A recovered HiTag2 key is shown in both byte orders and stays in view, the encrypted Jaguar Land Rover keyless fob is recognised (decode only), every press of a long-frame remote is listed, and the list and the overlays are tidier. No protocol more.
+
 ### Added
 
 - **Ford V1 (JLR)**: KAT now recognises the encrypted Jaguar Land Rover 2015–2018 keyless fob (part BJ32-15K601, NXP PCF7953P / Hitag-Pro, 434 MHz). It sends Ford V1's frame but fills the rolling half with an AES code KAT cannot read, so it is reported as **"Ford V1 (JLR)"**, decode-only: the fixed header is the remote's identity, and KAT no longer offers to emulate it (it had wrongly claimed "complete emulation") — the rolling code is encrypted, so only Replay works. Genuine Ford V1 remotes are unaffected. See [docs/ford_v1.md](docs/ford_v1.md).

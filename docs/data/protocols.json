@@ -12,6 +12,7 @@
   "Fiat V2": "Fiat V2",
   "Ford V0": "Ford V0",
   "Ford V1": "Ford V1",
+  "Ford V1 (JLR)": "Ford V1",
   "Ford V3": "Ford V3",
   "GM RFA": "GM RFA",
   "Hitag2": "Hitag2",
@@ -822,7 +823,9 @@
    "te_short": 250
   },
   {
-   "aliases": [],
+   "aliases": [
+    "Ford V1 (JLR)"
+   ],
    "bits": 136,
    "buttons": [
     [
@@ -845,7 +848,7 @@
    "name": "Ford V1",
    "order": 9,
    "page": "ford_v1",
-   "prefix": null,
+   "prefix": "Ford V1",
    "presets": [
     "F4"
    ],
@@ -20716,5 +20719,5 @@
    "te_short": null
   }
  ],
- "version": "1.18.0"
+ "version": "1.19.0"
 }

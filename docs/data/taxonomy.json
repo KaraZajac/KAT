@@ -387,7 +387,9 @@
     "Land Rover",
     "Jaguar"
    ],
-   "folders": [],
+   "folders": [
+    "JAGUAR"
+   ],
    "catalogue": [
     "Land Rover",
     "Jaguar"

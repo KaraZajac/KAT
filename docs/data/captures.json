@@ -3196,6 +3196,192 @@
    "type": "key"
   },
   {
+   "bytes": 149146,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 38383,
+    "deviation_hz": 14282,
+    "keying": "2-FSK"
+   },
+   "folder": "JAGUAR",
+   "frequency": 433920000,
+   "more": false,
+   "path": "JAGUAR/2017_jaguar_xj_key1_lock.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 35328,
+   "reads": [
+    {
+     "buttons": [
+      "0"
+     ],
+     "crc_ok": 10,
+     "distinct": 10,
+     "frames": 10,
+     "protocol": "Ford V1 (JLR)",
+     "serial": "26008472",
+     "serials": 2
+    }
+   ],
+   "seconds": 6.57,
+   "type": "raw"
+  },
+  {
+   "bytes": 142645,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 38383,
+    "deviation_hz": 14282,
+    "keying": "2-FSK"
+   },
+   "folder": "JAGUAR",
+   "frequency": 433920000,
+   "more": false,
+   "path": "JAGUAR/2017_jaguar_xj_key1_trunk.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 33792,
+   "reads": [
+    {
+     "buttons": [
+      "0"
+     ],
+     "crc_ok": 8,
+     "distinct": 8,
+     "frames": 8,
+     "protocol": "Ford V1 (JLR)",
+     "serial": "26008472",
+     "serials": 3
+    }
+   ],
+   "seconds": 5.87,
+   "type": "raw"
+  },
+  {
+   "bytes": 152974,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 38383,
+    "deviation_hz": 14282,
+    "keying": "2-FSK"
+   },
+   "folder": "JAGUAR",
+   "frequency": 433920000,
+   "more": false,
+   "path": "JAGUAR/2017_jaguar_xj_key1_unlock.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 36293,
+   "reads": [
+    {
+     "buttons": [
+      "0"
+     ],
+     "crc_ok": 9,
+     "distinct": 9,
+     "frames": 9,
+     "protocol": "Ford V1 (JLR)",
+     "serial": "26008472",
+     "serials": 2
+    }
+   ],
+   "seconds": 6.56,
+   "type": "raw"
+  },
+  {
+   "bytes": 144703,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 38383,
+    "deviation_hz": 14282,
+    "keying": "2-FSK"
+   },
+   "folder": "JAGUAR",
+   "frequency": 433920000,
+   "more": false,
+   "path": "JAGUAR/2017_jaguar_xj_key2_lock.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 34475,
+   "reads": [
+    {
+     "buttons": [
+      "0"
+     ],
+     "crc_ok": 6,
+     "distinct": 6,
+     "frames": 6,
+     "protocol": "Ford V1 (JLR)",
+     "serial": "2600E5AE",
+     "serials": 2
+    }
+   ],
+   "seconds": 5.54,
+   "type": "raw"
+  },
+  {
+   "bytes": 130607,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 38383,
+    "deviation_hz": 14282,
+    "keying": "2-FSK"
+   },
+   "folder": "JAGUAR",
+   "frequency": 433920000,
+   "more": false,
+   "path": "JAGUAR/2017_jaguar_xj_key2_trunk.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 30720,
+   "reads": [
+    {
+     "buttons": [
+      "0"
+     ],
+     "crc_ok": 10,
+     "distinct": 10,
+     "frames": 10,
+     "protocol": "Ford V1 (JLR)",
+     "serial": "2600E5AE",
+     "serials": 2
+    }
+   ],
+   "seconds": 5.33,
+   "type": "raw"
+  },
+  {
+   "bytes": 149424,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 38383,
+    "deviation_hz": 14282,
+    "keying": "2-FSK"
+   },
+   "folder": "JAGUAR",
+   "frequency": 433920000,
+   "more": false,
+   "path": "JAGUAR/2017_jaguar_xj_key2_unlock.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 34816,
+   "reads": [
+    {
+     "buttons": [
+      "0"
+     ],
+     "crc_ok": 8,
+     "distinct": 8,
+     "frames": 8,
+     "protocol": "Ford V1 (JLR)",
+     "serial": "2600E5AE",
+     "serials": 2
+    }
+   ],
+   "seconds": 8.04,
+   "type": "raw"
+  },
+  {
    "bytes": 9525,
    "folder": "KIA",
    "frequency": 433920000,

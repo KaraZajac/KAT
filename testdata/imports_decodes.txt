@@ -789,6 +789,57 @@ Isuzu/Isuzu_fts_unlock.sub | 433920000 | Isuzu Static | data=1100183430E81FF/64 
 Isuzu/Isuzu_fts_unlock.sub | 433920000 | Isuzu Static | data=1100183430E81FF/64 sn=- btn=4 cnt=- crc=0 tx=0
 Isuzu/Isuzu_fts_unlock.sub | 433920000 | Isuzu Static | data=1100183430E81FF/64 sn=- btn=4 cnt=- crc=0 tx=0
 Isuzu/Isuzu_fts_unlock.sub | 433920000 | Isuzu Static | data=1100183430E81FF/64 sn=- btn=4 cnt=- crc=0 tx=0
+JAGUAR/2017_jaguar_xj_key1_lock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=F330ACEB22A6436E sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_lock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26088472/136 extra=F330ACEB22A6436E sn=26088472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_lock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=54F4048B2A72A260 sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_lock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=9C8BDA5A2AFE9F4D sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_lock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=A45E69D058DB1EFA sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_lock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=54CDAB1B2D743973 sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_lock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=7BC23A13280DA63 sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_lock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=BCC20CFA0119A2CF sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_lock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=BC4291A8AC1C0CC8 sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_lock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=BA6F212493755162 sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=542371E4841D6C41 sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=DDE2FC65508701B6 sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=2B95456D672F0572 sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=35EDFBD622EC8A05 sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=941DADA8D0EB3A39 sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E26088472/136 extra=19337F1BB56B59DC sn=26088472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=AA251FC26E2275D5 sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E26098472/136 extra=D95EADD1D34401C5 sn=26098472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_unlock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=AC9213CA128C2CC9 sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_unlock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=528802D71B142912 sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_unlock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=4013251519D4F93C sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_unlock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=B6F4BE990F715176 sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_unlock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=E3001441F4EAD31A sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_unlock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=AD8A18C3D0698A4 sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_unlock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=8405BCA852EDB0FC sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_unlock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26008472/136 extra=9CB48FCF5528C317 sn=26008472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key1_unlock.sub | 433920000 | Ford V1 (JLR) | data=D3950E26088472/136 extra=9CB48FCF5528C317 sn=26088472 btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_lock.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=2E60D5E7F4573A83 sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_lock.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=78AD508491E68E50 sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_lock.sub | 433920000 | Ford V1 (JLR) | data=D3950E2608E5AE/136 extra=78AD508491E68E50 sn=2608E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_lock.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=355FFECC470FEB22 sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_lock.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=DDB648CD682E2209 sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_lock.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=E59F7AAB5D72BB95 sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=73F6FCFB36470E29 sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=9AD627A8F3CE0BCA sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=8241E5A909A36A5C sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E2608E5AE/136 extra=8241E5A909A36A5C sn=2608E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=F1E81A69674B3D8D sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=B7DC6CB2973326F9 sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=5E679A172C44B100 sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E2608E5AE/136 extra=5E679A172C44B100 sn=2608E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=45AB1A1ECBAA81BC sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_trunk.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=A34188A417516E3 sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_unlock.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=81372B19E5D41BCA sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_unlock.sub | 433920000 | Ford V1 (JLR) | data=D3950E2608E5AE/136 extra=81372B19E5D41BCA sn=2608E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_unlock.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=E9C7B21D382B1EAB sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_unlock.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=652994796CF6211D sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_unlock.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=C98ED15278C88C8E sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_unlock.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=1183054E5693B318 sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_unlock.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=3F76D23F948E19AA sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
+JAGUAR/2017_jaguar_xj_key2_unlock.sub | 433920000 | Ford V1 (JLR) | data=D3950E2600E5AE/136 extra=C3557D7CB50DD58A sn=2600E5AE btn=0 cnt=0 crc=1 tx=0
 KIA/23_kia_sorento_l2_ul2_t2_p2.sub | 433920000 | (none)
 KIA/23_kia_sportage_l2_u2_t2_p2.sub | 433889000 | (none)
 KIA/24_kia_sorento_l2_u2_rs2_p2.sub | 433889000 | (none)

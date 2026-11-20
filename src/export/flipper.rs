@@ -461,10 +461,10 @@ mod tests {
         // 10 FM476 RAW captures (Kia V3/V4/V5, Suzuki V0, the undecoded Lexus UX 250 pair) + 3
         // with the Honda1 custom preset (two Honda Static, one Ford Escape) + the 7 FM476 captures
         // added 2026-11 (Mitsubishi 2, Mazda 2, Honda 3) + the 2019 Honda Civic EX (Honda1, made
-        // from a PortaPack capture) + the 2008 Vauxhall Zafira's two FM476 recordings; the 9 FM476
-        // key files have no RAW_Data.
-        // The captures in `<make>/more/` are not walked.
-        assert_eq!(fsk, 10 + 3 + 7 + 1 + 2);
+        // from a PortaPack capture) + the 2008 Vauxhall Zafira's two FM476 recordings + the 6
+        // Jaguar XJ captures (JLR keyless, a custom 2-FSK CC1101 preset); the 9 FM476 key files
+        // have no RAW_Data. The captures in `<make>/more/` are not walked.
+        assert_eq!(fsk, 10 + 3 + 7 + 1 + 2 + 6);
     }
 
     /// `.sub` export writes the capture's own preset back verbatim (stock name, or custom module +

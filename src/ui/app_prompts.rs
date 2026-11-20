@@ -56,7 +56,11 @@ pub fn help_texts(mode: InputMode) -> &'static [&'static str] {
             "Up/Down, PgUp/PgDn: Scroll | Tab: Decoded data or bits as sent | Esc: Close",
             "Up/Down: Scroll | Tab: Data or bits as sent | Esc: Close",
         ],
-        InputMode::Help | InputMode::Radios => &["Up/Down, PgUp/PgDn: Scroll | Esc: Close"],
+        // The keys of overlay_key, as Analyze's bar says them.
+        InputMode::Help | InputMode::Radios => &[
+            "Up/Down, PgUp/PgDn, Home/End: Scroll | Esc/Enter: Close",
+            "Up/Down, PgUp/PgDn: Scroll | Esc: Close",
+        ],
         InputMode::ConfirmQuit => &["y: Quit | n/Esc: Back"],
         InputMode::ConfirmDeleteAll => &["y: Delete all | n/Esc: Cancel"],
         _ => &[],
@@ -166,7 +170,8 @@ fn render_confirm_clear_prompt(frame: &mut Frame, app: &App) {
         )));
     }
     lines.extend([
-        Line::from(Span::styled("Exported .fob / .sub files are kept. This cannot be undone.", dim)),
+        Line::from(Span::styled("Exported .fob / .sub files are kept.", dim)),
+        Line::from(Span::styled("This cannot be undone.", dim)),
         Line::from(""),
         Line::from(Span::styled(
             "(y/n)",

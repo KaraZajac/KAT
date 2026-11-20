@@ -74,7 +74,9 @@ pub fn draw_ui(frame: &mut Frame, app: &App) {
     idx += 1;
 
     render_captures_list(frame, captures_area, app);
-    render_rssi_bar(frame, rssi_bar_rect, app);
+    if rssi_bar_rect.width > 0 {
+        render_rssi_bar(frame, rssi_bar_rect, app);
+    }
 
     render_status_bar(frame, rows[idx], app);
     idx += 1;
@@ -230,9 +232,13 @@ fn header_height(app: &App, height: u16) -> u16 {
 }
 
 /// The RX bar's width: one meter, or with several radios one column each with a space between
-/// (2n − 1 inside the borders).
+/// (2n − 1 inside the borders). Without a radio there is nothing to meter: no bar, and the list
+/// has its columns (KAT then works on files).
 fn rssi_bar_width(app: &App) -> u16 {
-    meters_width(app.radios().len())
+    match app.radios().len() {
+        0 => 0,
+        n => meters_width(n),
+    }
 }
 
 fn meters_width(radios: usize) -> u16 {
@@ -625,7 +631,10 @@ fn help_bar_text(
         | InputMode::CaptureMetaModel
         | InputMode::CaptureMetaRegion => &["Tab/Enter: Next field | Shift-Tab: Back | Esc: Cancel"],
         InputMode::CaptureMetaCommand => &["Enter: Save | Shift-Tab: Back | Esc: Cancel"],
-        InputMode::License | InputMode::Credits => &["Up/Down, PgUp/PgDn: Scroll | Esc: Close"],
+        InputMode::License | InputMode::Credits => &[
+            "Up/Down, PgUp/PgDn, Home/End: Scroll | Esc/Enter: Close",
+            "Up/Down, PgUp/PgDn: Scroll | Esc: Close",
+        ],
         InputMode::LoadFileBrowser => &[
             "Up/Down: Select | Enter: Open | Left/Backspace: Parent folder | Esc: Close",
             "Up/Down: Select | Enter: Open | Left: Parent | Esc: Close",
@@ -833,11 +842,17 @@ fn render_startup_import_prompt(frame: &mut Frame, app: &App) {
     let count = app.pending_fob_files.len();
     let paragraphs = [
         (
-            format!("Found {count} file{} (.fob / .sub) in import dir (incl. subfolders).", crate::plural(count)),
+            format!(
+                "Found {count} file{} (.fob / .sub) in the import folder or its subfolders.",
+                crate::plural(count)
+            ),
             Style::default().fg(Color::Yellow),
         ),
         (String::new(), theme::TEXT),
-        ("Import them? (y/n)".to_string(), theme::TEXT.add_modifier(Modifier::BOLD)),
+        (
+            format!("Import {}? (y/n)", if count == 1 { "it" } else { "them" }),
+            theme::TEXT.add_modifier(Modifier::BOLD),
+        ),
     ];
     render_message_popup(frame, "Import Saved Signals", Color::Cyan, 56, &paragraphs);
 }

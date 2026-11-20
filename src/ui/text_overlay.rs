@@ -139,6 +139,23 @@ pub(super) fn overlay_rect(area: Rect) -> Rect {
     Rect::new(x, y, width.min(area.width), height.min(area.height))
 }
 
+/// The least width of an overlay fitted to its text: its title and the position hint on its
+/// bottom border (" 100–128 of 165 · ↑↓ scroll · Esc: close ") stay whole.
+const FITTED_MIN_WIDTH: u16 = 48;
+
+/// Where an overlay of preformatted text goes: as [overlay_rect], but no wider and no taller than
+/// the text needs (two columns of room after its longest line). The help is laid out for 56
+/// columns and sat in a box 150 wide on a large terminal; the radios' few lines in one 40 rows
+/// high.
+fn fitted_rect(area: Rect, body: &str) -> Rect {
+    let full = overlay_rect(area);
+    let content = body.lines().map(text::width).max().unwrap_or(0).min(usize::from(u16::MAX) - 4) as u16;
+    let width = (content + 4).max(FITTED_MIN_WIDTH).min(full.width);
+    let lines = wrap_preformatted(body, width.saturating_sub(2) as usize).len().min(usize::from(u16::MAX) - 2) as u16;
+    let height = (lines + 2).min(full.height);
+    Rect::new(area.width.saturating_sub(width) / 2, area.height.saturating_sub(height) / 2, width, height)
+}
+
 /// Bottom-border hint of an overlay showing `rows` of `total` lines from `scroll`: the lines in
 /// view and the keys.
 fn position_hint(scroll: usize, rows: usize, total: usize) -> String {
@@ -176,6 +193,7 @@ pub fn render_text_overlay(
     let text_area = overlay_area.inner(Margin { horizontal: 2, vertical: 1 });
     let lines = text::wrap(body, text_area.width as usize);
     let rows = text_area.height as usize;
+    app.overlay_page_rows.set(rows);
     let scroll_max = lines.len().saturating_sub(rows);
     let scroll = app.overlay_scroll.min(scroll_max);
 
@@ -191,11 +209,12 @@ pub fn render_text_overlay(
 /// lines are word-wrapped here (so the line count is exact) and the scroll stops at the last line.
 /// Returns the largest useful scroll offset for this frame size.
 pub fn render_preformatted_overlay(frame: &mut Frame, app: &App, title: &str, text: &str) -> usize {
-    let overlay_area = overlay_rect(frame.area());
+    let overlay_area = fitted_rect(frame.area(), text);
     frame.render_widget(Clear, overlay_area);
 
     let lines = wrap_preformatted(text, overlay_area.width.saturating_sub(2) as usize);
     let inner_height = overlay_area.height.saturating_sub(2) as usize;
+    app.overlay_page_rows.set(inner_height);
     let scroll_max = lines.len().saturating_sub(inner_height);
     let scroll = app.overlay_scroll.min(scroll_max);
 

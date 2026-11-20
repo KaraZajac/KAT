@@ -10,6 +10,7 @@ use super::analyze_overlay::render_report;
 /// Draw the open Compare overlay and tell the app where its scroll ends.
 pub fn render_compare_overlay(frame: &mut Frame, app: &App) {
     if let Some(view) = app.compare_overlay() {
+        app.overlay_page_rows.set(super::analyze_overlay::report_rows(frame));
         app.overlay_scroll_max.set(render_view(frame, view, app.overlay_scroll));
     }
 }

@@ -306,18 +306,19 @@ fn highlight_row(actions: &[SignalAction], remembered: Option<SignalAction>) -> 
 
 // ── Overlays, forms, paths ───────────────────────────────────────────────────
 
-/// Lines PgUp / PgDn move the License, Credits, help and Analyze overlays.
-const OVERLAY_PAGE: usize = 10;
-
 /// The overlay scroll after a key (None: not a scroll key), never past `max`, the last useful
 /// offset the renderer reported (Down used to scroll without limit, so Up then seemed dead).
-pub(super) fn overlay_scrolled(scroll: usize, max: usize, code: KeyCode) -> Option<usize> {
+/// PgUp / PgDn move by `rows`, the lines the overlay shows, less one that stays in view (they
+/// moved ten lines whatever the overlay's height: five presses through the help on a tall
+/// terminal).
+pub(super) fn overlay_scrolled(scroll: usize, max: usize, rows: usize, code: KeyCode) -> Option<usize> {
     let scroll = scroll.min(max);
+    let page = rows.saturating_sub(1).max(1);
     Some(match code {
         KeyCode::Up | KeyCode::Char('k') => scroll.saturating_sub(1),
         KeyCode::Down | KeyCode::Char('j') => (scroll + 1).min(max),
-        KeyCode::PageUp => scroll.saturating_sub(OVERLAY_PAGE),
-        KeyCode::PageDown => (scroll + OVERLAY_PAGE).min(max),
+        KeyCode::PageUp => scroll.saturating_sub(page),
+        KeyCode::PageDown => (scroll + page).min(max),
         KeyCode::Home | KeyCode::Char('g') => 0,
         KeyCode::End | KeyCode::Char('G') => max,
         _ => return None,
@@ -617,7 +618,7 @@ impl App {
         if close {
             self.input_mode = InputMode::Normal;
             self.overlay_scroll = 0;
-        } else if let Some(scroll) = overlay_scrolled(self.overlay_scroll, self.overlay_scroll_max.get(), code) {
+        } else if let Some(scroll) = overlay_scrolled(self.overlay_scroll, self.overlay_scroll_max.get(), self.overlay_page_rows.get(), code) {
             self.overlay_scroll = scroll;
         }
     }
@@ -1199,15 +1200,27 @@ mod tests {
 
     #[test]
     fn overlay_scrolling_stops_at_the_end() {
-        assert_eq!(overlay_scrolled(0, 40, KeyCode::Down), Some(1));
-        assert_eq!(overlay_scrolled(40, 40, KeyCode::Down), Some(40));
-        assert_eq!(overlay_scrolled(99, 40, KeyCode::Up), Some(39), "past the end: Up moves at once");
-        assert_eq!(overlay_scrolled(35, 40, KeyCode::PageDown), Some(40));
-        assert_eq!(overlay_scrolled(5, 40, KeyCode::PageUp), Some(0));
-        assert_eq!(overlay_scrolled(5, 40, KeyCode::End), Some(40));
-        assert_eq!(overlay_scrolled(5, 40, KeyCode::Char('g')), Some(0));
-        assert_eq!(overlay_scrolled(5, 0, KeyCode::Down), Some(0), "text that fits does not scroll");
-        assert_eq!(overlay_scrolled(5, 40, KeyCode::Char('x')), None);
+        assert_eq!(overlay_scrolled(0, 40, 11, KeyCode::Down), Some(1));
+        assert_eq!(overlay_scrolled(40, 40, 11, KeyCode::Down), Some(40));
+        assert_eq!(overlay_scrolled(99, 40, 11, KeyCode::Up), Some(39), "past the end: Up moves at once");
+        assert_eq!(overlay_scrolled(35, 40, 11, KeyCode::PageDown), Some(40));
+        assert_eq!(overlay_scrolled(5, 40, 11, KeyCode::PageUp), Some(0));
+        assert_eq!(overlay_scrolled(5, 40, 11, KeyCode::End), Some(40));
+        assert_eq!(overlay_scrolled(5, 40, 11, KeyCode::Char('g')), Some(0));
+        assert_eq!(overlay_scrolled(5, 0, 11, KeyCode::Down), Some(0), "text that fits does not scroll");
+        assert_eq!(overlay_scrolled(5, 40, 11, KeyCode::Char('x')), None);
+    }
+
+    /// A page is what the overlay shows, less one line that stays in view.
+    #[test]
+    fn overlay_pages_are_as_tall_as_the_overlay() {
+        assert_eq!(overlay_scrolled(0, 100, 28, KeyCode::PageDown), Some(27));
+        assert_eq!(overlay_scrolled(27, 100, 28, KeyCode::PageDown), Some(54));
+        assert_eq!(overlay_scrolled(54, 100, 28, KeyCode::PageUp), Some(27));
+        assert_eq!(overlay_scrolled(0, 100, 11, KeyCode::PageDown), Some(10));
+        // An overlay of one row (or none drawn yet) still moves.
+        assert_eq!(overlay_scrolled(0, 100, 1, KeyCode::PageDown), Some(1));
+        assert_eq!(overlay_scrolled(0, 100, 0, KeyCode::PageDown), Some(1));
     }
 
     /// The command word comes with or without a `:` typed after the prompt's own; the rest of

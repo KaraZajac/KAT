@@ -54,8 +54,14 @@ pub(super) fn export_file(dir: &Path, typed: &str, ext: &str) -> PathBuf {
     crate::export::unique_path(&dir.join(name))
 }
 
-/// Whether the list already has this signal (same protocol, data, serial and button). Unknown
-/// signals (no protocol) are never duplicates, so they can be kept for research.
+/// Whether the list already has this signal (same protocol, data, serial, button and counter).
+/// Unknown signals (no protocol) are never duplicates, so they can be kept for research.
+///
+/// `data` is the first 64 bits of a frame: in a longer one (Honda V5's 135 bits, Ford V1,
+/// Continental) they hold the fixed part only, so every later press of a button looked like the
+/// first and was left out. The counter tells the presses apart. The rest of the frame
+/// (`data_extra`) is not compared: in some protocols it changes with every repeat of one press
+/// (Somfy Keytis), which would list a press several times.
 pub(super) fn is_duplicate(captures: &[Capture], capture: &Capture) -> bool {
     capture.protocol.is_some()
         && captures.iter().any(|c| {
@@ -63,6 +69,7 @@ pub(super) fn is_duplicate(captures: &[Capture], capture: &Capture) -> bool {
                 && c.data == capture.data
                 && c.serial == capture.serial
                 && c.button == capture.button
+                && c.counter == capture.counter
         })
 }
 
@@ -186,11 +193,13 @@ impl Importer<'_> {
         let rf = sub.preset.as_ref().and_then(|p| p.rf());
         let decodes = self.protocols.process_signal_stream_rf(&pairs, sub.frequency, rf);
         let decoded_any = !decodes.is_empty();
-        // The same signal can decode at several stream positions (e.g. Ford V0 across bursts).
-        let mut seen: HashSet<(String, u64, Option<u32>, Option<u8>)> = HashSet::new();
+        // The same signal can decode at several stream positions (e.g. Ford V0 across bursts). The
+        // counter is part of what makes it the same ([is_duplicate]): a file of several presses
+        // of a long-frame remote lists every press.
+        let mut seen: HashSet<(String, u64, Option<u32>, Option<u8>, Option<u16>)> = HashSet::new();
         let mut added = 0;
         for (protocol_name, decoded, segment) in decodes {
-            if !seen.insert((protocol_name.clone(), decoded.data, decoded.serial, decoded.button)) {
+            if !seen.insert((protocol_name.clone(), decoded.data, decoded.serial, decoded.button, decoded.counter)) {
                 continue;
             }
             let raw: Vec<StoredLevelDuration> =
@@ -402,6 +411,32 @@ mod tests {
         assert_eq!(caps.iter().map(|c| c.id).collect::<Vec<_>>(), (1..=15).collect::<Vec<_>>());
         assert_eq!(caps[0].source_file.as_deref(), Some("KIA/Kia3_5cl_5op_5tr.sub"));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Every press of a long-frame remote is listed. Honda V5's frame is 135 bits: `data`, its
+    /// first 64, is the same for every press of a button, and only the first press of each was
+    /// listed (4 captures of this file's 10: five presses, two frames each). Importing the file
+    /// again still adds nothing.
+    #[test]
+    fn every_press_of_a_long_frame_remote_is_listed() {
+        crate::protocols::keys::load_keystore_from_embedded();
+        let src = Path::new("IMPORTS/honda/2019_honda_civic_ex_lock_x3_unlock_x2.sub");
+        if !src.exists() {
+            eprintln!("Skip: {src:?} not found (run from crate root)");
+            return;
+        }
+        let (mut reg, mut caps, mut next) = (ProtocolRegistry::new(), Vec::new(), 1u32);
+        let mut imp = importer(&mut reg, &mut caps, &mut next, true);
+        assert_eq!(imp.import(src).1, FileImport::Added(10));
+        assert_eq!(imp.import(src).1, FileImport::Nothing("its signals are already in the list".to_string()));
+        let counters: Vec<u16> = caps.iter().filter_map(|c| c.counter).collect();
+        assert_eq!(counters, [0x4648, 0x4648, 0x4649, 0x4649, 0x464A, 0x464A, 0x464B, 0x464B, 0x464C, 0x464C]);
+        // The same press is still one capture: equal but for the counter is not a duplicate,
+        // equal with it is.
+        let mut next_press = caps[0].clone();
+        assert!(is_duplicate(&caps, &next_press));
+        next_press.counter = Some(0x4700);
+        assert!(!is_duplicate(&caps, &next_press));
     }
 
     /// With duplicates kept (`ignore_duplicates = false`), importing a file again adds its

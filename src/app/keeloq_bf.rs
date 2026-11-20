@@ -39,6 +39,17 @@ fn types_label(learnings: &[u32]) -> String {
     learnings.iter().map(u32::to_string).collect::<Vec<_>>().join("/")
 }
 
+/// " (GPU)" for a key search's progress line, once a search has brought the GPU up (it stays
+/// up; without one, or in a build without the `gpu` feature, the searches run on the CPU). Short:
+/// the line is the status bar's title, cut in the middle where it does not fit.
+pub(super) fn gpu_note() -> &'static str {
+    #[cfg(feature = "gpu")]
+    if crate::gpu::is_up() {
+        return " (GPU)";
+    }
+    ""
+}
+
 /// "12 s", "4 min", "1 h 05 min".
 pub(super) fn duration_label(secs: f64) -> String {
     let s = secs.max(0.0).round() as u64;
@@ -134,11 +145,12 @@ impl App {
         let rate = tested as f64 / job.started.elapsed().as_secs_f64().max(0.001);
         let left = if rate > 0.0 { duration_label(total.saturating_sub(tested) as f64 / rate) } else { "?".to_string() };
         Some(format!(
-            "Recovering the KeeLoq key of remote {:07X} (type {})… {}%, {:.0} M keys/s, {} left",
+            "Recovering the KeeLoq key of remote {:07X} (type {})… {}%, {:.0} M keys/s{}, {} left",
             job.serial,
             types_label(&job.learnings),
             (tested * 100 / total).min(99),
             rate / 1e6,
+            gpu_note(),
             left
         ))
     }

@@ -182,9 +182,10 @@ impl App {
         let rate = f64::from(done) / job.started.elapsed().as_secs_f64().max(0.001);
         let left = if done > 0 { duration_label(f64::from(total - done) / rate) } else { "?".to_string() };
         Some(format!(
-            "Recovering the HiTag2 key of remote {:08X}… {}%, at most {left} left",
+            "Recovering the HiTag2 key of remote {:08X}… {}%{}, at most {left} left",
             job.uid,
-            (u64::from(done) * 100 / u64::from(total)).min(99)
+            (u64::from(done) * 100 / u64::from(total)).min(99),
+            super::keeloq_bf::gpu_note()
         ))
     }
 

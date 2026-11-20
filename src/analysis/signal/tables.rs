@@ -167,7 +167,7 @@ impl SignalReport {
                 };
                 text.push_str(&format!("{} bits", bits.data().len()));
                 if *lead >= 2 {
-                    text.push_str(&format!(" after {} pulses", lead / 2));
+                    text.push_str(&format!(" after {} pulse{}", lead / 2, plural(lead / 2)));
                 }
                 if *tail >= 2 {
                     text.push_str(&format!(", {} more", tail / 2));

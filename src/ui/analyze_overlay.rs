@@ -33,6 +33,7 @@ fn style(tone: Tone) -> Style {
 /// Draw the open Analyze overlay and tell the app where its scroll ends.
 pub fn render_analyze_overlay(frame: &mut Frame, app: &App) {
     if let Some(view) = app.analyze_overlay() {
+        app.overlay_page_rows.set(report_rows(frame));
         app.overlay_scroll_max.set(render_view(frame, view, app.overlay_scroll));
     }
 }
@@ -40,6 +41,11 @@ pub fn render_analyze_overlay(frame: &mut Frame, app: &App) {
 /// Draw `view` from its line `scroll` on; returns the last line it can be scrolled to.
 fn render_view(frame: &mut Frame, view: &AnalyzeView, scroll: usize) -> usize {
     render_report(frame, &view.title, scroll, |width| view.lines(width))
+}
+
+/// Rows of a report the overlay shows at this frame size: the step of PgUp / PgDn.
+pub(super) fn report_rows(frame: &Frame) -> usize {
+    overlay_rect(frame.area()).height.saturating_sub(2) as usize
 }
 
 /// Draw a report overlay (Analyze, Compare) from its line `scroll` on: `lines` lays the report out

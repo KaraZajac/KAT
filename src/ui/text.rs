@@ -163,7 +163,8 @@ pub fn wrap_within(message: &str, max: usize, max_lines: usize) -> Vec<String> {
 }
 
 /// Word-wrap a styled line to `max` columns. Breaks at spaces (the spaces of a break are
-/// dropped), splits words longer than a line, starts continuation lines with `indent` spaces
+/// dropped), splits words longer than a line (after a '/' where it can: a path or an address
+/// keeps its names whole), starts continuation lines with `indent` spaces
 /// (in the style of the line's first span) and keeps each character's style (the line's own
 /// style, as `Line::styled` sets it, is carried into every span).
 pub fn wrap_line(line: Line<'_>, max: usize, indent: usize) -> Vec<Line<'static>> {
@@ -215,12 +216,33 @@ pub fn wrap_line(line: Line<'_>, max: usize, indent: usize) -> Vec<Line<'static>
             cur.extend_from_slice(spaces);
             cur_w += spaces.len();
         }
+        // Where this word's characters on the current line start.
+        let mut word_from = cur.len();
         for &(c, style) in word {
             let w = char_width(c);
             if cur_w + w > max && cur_w > indent {
+                // A word longer than a line (a path, an address) is split after its last '/' on
+                // this line, so the name after it stays whole ("…/exports/" + "a_file.fob", not
+                // "…/exports/a_fi" + "le.fob"), when the line keeps at least half its room and
+                // what moves down leaves room for this character; else where the line is full.
+                let carry = match cur[word_from..].iter().rposition(|x| x.0 == '/') {
+                    Some(p) => {
+                        let at = word_from + p + 1;
+                        let carry_w: usize = cur[at..].iter().map(|x| char_width(x.0)).sum();
+                        let kept = cur_w - carry_w - indent;
+                        if at < cur.len() && 2 * kept >= max - indent && indent + carry_w + w <= max {
+                            cur.split_off(at)
+                        } else {
+                            Vec::new()
+                        }
+                    }
+                    None => Vec::new(),
+                };
                 lines.push(std::mem::take(&mut cur));
                 cur.extend(std::iter::repeat_n((' ', indent_style), indent));
-                cur_w = indent;
+                word_from = cur.len();
+                cur_w = indent + carry.iter().map(|x| char_width(x.0)).sum::<usize>();
+                cur.extend(carry);
             }
             cur.push((c, style));
             cur_w += w;
@@ -339,8 +361,12 @@ mod tests {
                 "   must retain",
             ]
         );
-        // A word longer than the line is split; no line is ever wider than the limit.
-        assert_eq!(wrap("https://nvd.nist.gov/vuln", 10), vec!["https://nv", "d.nist.gov", "/vuln"]);
+        // A word longer than the line is split, after a '/' where it can; no line is ever wider
+        // than the limit.
+        assert_eq!(wrap("Exported to /home/user/exports/a_file.fob", 24), vec!["Exported to /home/user/", "exports/a_file.fob"]);
+        assert_eq!(wrap("https://nvd.nist.gov/vuln", 10), vec!["https://", "nvd.nist.g", "ov/vuln"]);
+        // A name longer than a line has no '/' to break at: split where the line is full.
+        assert_eq!(wrap("/a_very_long_file_name.sub", 10), vec!["/a_very_lo", "ng_file_na", "me.sub"]);
         for max in 1..30 {
             assert!(wrap(text, max).iter().all(|l| width(l) <= max), "width {max}");
         }

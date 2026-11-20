@@ -51,9 +51,10 @@ pub fn render_signal_menu(frame: &mut Frame, app: &App) {
 
     let actions = app.available_signal_actions();
 
-    // Wide enough for the title and the longest action, up to the terminal.
+    // Wide enough for the title and the longest action (" > " before it, a space after it, the
+    // borders), up to the terminal.
     let longest = actions.iter().map(|a| text::width(a.label())).max().unwrap_or(0);
-    let menu_width = (longest + 5)
+    let menu_width = (longest + 6)
         .max(text::width(&capture_info) + 6)
         .max(MIN_WIDTH)
         .min(area.width as usize) as u16;

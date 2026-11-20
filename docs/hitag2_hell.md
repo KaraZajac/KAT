@@ -113,12 +113,20 @@ Full recoveries on the same machine:
   as Renault V1 up to 1.12.0): the key found from its first two presses signs all six, in 17.3 minutes
   (81 % into the search).
 
-## Is a GPU worth it?
+## On a graphics card
 
 qDoctor runs the same kernel on a GPU (Vulkan on Android and Windows, Metal on Apple), with its CPU path
-as the fallback. KAT stays on the CPU: a full search is about 20 minutes on a 16-thread laptop CPU
-with AVX2, a one-off per remote that saves its key for good, and a GPU path would add a graphics
-dependency and drivers to a terminal tool that otherwise needs only libhackrf.
+as the fallback. Since 1.18.0 KAT does too: when the machine has a graphics card, the search runs on it
+(Vulkan on Linux and Windows, Metal on macOS, DirectX 12 on Windows, through `wgpu`; there is no driver
+or shader toolchain to install). The candidate the card reports is then worked out and checked on the
+CPU exactly as in the CPU search, so the key is the same.
+
+Measured on the same laptop's graphics card (AMD Navi 14, a Radeon Pro 5300M / 5500M): about 1200
+candidates/s, a full search in about 7 minutes, against 429/s and 20 minutes on its CPU.
+
+While a search runs on the card, the app's progress line says "(GPU)". KAT falls back to the CPU search
+above when there is no usable card (none, or only a software renderer) and in a build made with
+`--no-default-features`, which leaves the graphics code out.
 
 ## The key file
 

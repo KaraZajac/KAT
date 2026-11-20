@@ -147,13 +147,18 @@ impl Col {
 const DROP_ORDER: [Col; 6] = [Col::Time, Col::Radio, Col::Vuln, Col::Mod, Col::Status, Col::Crc];
 /// Room the Protocol column keeps before columns are left out (less when no name is that long).
 const PROTOCOL_MIN: u16 = 20;
+/// Room the Protocol column takes beyond its longest name (or [PROTOCOL_MIN]) when the table has
+/// more: on a wide terminal it took all of it, and a name stood 100 columns from its frequency.
+/// What is left stays at the end of the rows.
+const PROTOCOL_SPARE: u16 = 4;
 /// Widest Btn column; longer button names are cut with "…".
 const BTN_MAX: u16 = 14;
 
 /// The columns to show and their widths, plus the spacing between them, for a table `width`
 /// columns wide, from each column's content width (header included): every column with the
 /// widest spacing that fits, else the columns of [DROP_ORDER] left out until the Protocol column
-/// has its room. The Protocol column takes whatever is left.
+/// has its room. The Protocol column takes what is left, up to its longest name and
+/// [PROTOCOL_SPARE] more.
 fn choose_columns(width: u16, content: &[(Col, u16)]) -> (Vec<(Col, u16)>, u16) {
     let fixed = |cols: &[(Col, u16)], spacing: u16| -> u16 {
         let widths: u16 = cols.iter().filter(|(c, _)| *c != Col::Protocol).map(|&(_, w)| w).sum();
@@ -175,9 +180,10 @@ fn choose_columns(width: u16, content: &[(Col, u16)]) -> (Vec<(Col, u16)>, u16) 
         }
     };
     let rest = width.saturating_sub(fixed(&cols, spacing));
+    let wanted = protocol.max(PROTOCOL_MIN) + PROTOCOL_SPARE;
     for (c, w) in &mut cols {
         if *c == Col::Protocol {
-            *w = rest;
+            *w = rest.min(wanted);
         }
     }
     (cols, spacing)
@@ -328,6 +334,14 @@ fn render_table(frame: &mut Frame, area: Rect, app: &App) {
         .with_selected(selected_row);
     frame.render_stateful_widget(table, area, &mut state);
     app.captures_table_offset.set(state.offset());
+    // Captures out of view: how many, above and below, on the bottom border (as the menus and
+    // the file browser say it). Drawn after the table: only then is the offset known.
+    if let Some(hint) = text::more_hint(state.offset(), visible_rows, view.len()) {
+        let width = text::width(&hint) as u16;
+        if area.width > width + 2 && area.height > 2 {
+            frame.buffer_mut().set_string(area.right() - 1 - width, area.bottom() - 1, &hint, Style::default());
+        }
+    }
     // PgUp / PgDn move by what the table shows.
     app.list_page_rows.set(visible_rows.max(1));
 
@@ -450,10 +464,29 @@ fn vehicle_fields(capture: &Capture) -> Option<Vec<Field>> {
 /// gate remote whose protocol does not name its buttons: the row already says "Btn:").
 fn button_label(capture: &Capture) -> String {
     let name = capture.button_name();
+    // "Btn 0x9" (a gate remote's code) and "Btn 4" (a numbered button, as the C shows it) say
+    // nothing the code does not: "Btn: Btn 4 (0x04)" was the line.
+    let numbered = |code: u8| {
+        name.strip_prefix("Btn ").and_then(|digits| u8::from_str_radix(digits, 16).ok()) == Some(code)
+    };
     match capture.button {
-        Some(code) if name == crate::protocols::gate_buttons::hex_label(code) => capture.button_hex(),
+        Some(code) if name == crate::protocols::gate_buttons::hex_label(code) || numbered(code) => capture.button_hex(),
         Some(_) => format!("{name} ({})", capture.button_hex()),
         None => name.to_string(),
+    }
+}
+
+/// The vulnerability panel's line for a remote KAT can encode, from its protocol's code label
+/// (`ProtocolInfo::encryption`): "Encryption is broken" was said of fixed-code remotes too, which
+/// have no encryption, and of remotes that send a plain counter.
+fn emulation_banner(code: &str) -> &'static str {
+    let code = code.to_ascii_lowercase();
+    if code == "fixed code" {
+        " Static code, no encryption — complete emulation of the keyfob is available"
+    } else if code.contains("plaintext counter") {
+        " No encryption, a counter that goes up with each press — complete emulation of the keyfob is available"
+    } else {
+        " Encryption is broken — complete emulation of the keyfob is available"
     }
 }
 
@@ -495,7 +528,12 @@ fn signal_detail_lines(capture: &Capture, saved: Option<&SavedFobMatch>, searchi
     // recording, its preset
     let mut enc = vec![
         ("Enc:", value(capture.encryption_type())),
-        ("RF:", value(capture.rf_modulation().to_string())),
+        // An unknown modulation is "-" like the detail's other empty fields (its display text,
+        // "—", is what the protocol tables use).
+        ("RF:", value(match capture.rf_modulation() {
+            crate::capture::RfModulation::Unknown => "-".to_string(),
+            rf => rf.to_string(),
+        })),
     ];
     if let Some(rf) = capture.received_rf {
         enc.push(("Rx:", value(rf.to_string())));
@@ -665,13 +703,11 @@ fn vulnerability_lines(capture: &Capture, max: usize, rows: usize) -> Vec<Line<'
         None => {}
     }
 
-    // When we can encode, the encryption is broken — complete emulation is available.
+    // When we can encode: complete emulation is available, and what the remote's code has
+    // against it (a static code and a plain counter have no encryption to break).
     if capture.status == CaptureStatus::EncoderCapable {
         let emu_style = Style::default().fg(Color::Green).add_modifier(Modifier::BOLD);
-        lines.extend(wrap(Line::styled(
-            " Encryption is broken — Complete emulation of the keyfob is available",
-            emu_style,
-        )));
+        lines.extend(wrap(Line::styled(emulation_banner(capture.encryption_type()), emu_style)));
         lines.push(Line::default());
     }
 
@@ -830,9 +866,15 @@ mod tests {
         let (cols, spacing) = choose_columns(113, &content(9));
         assert_eq!(names(&cols), one_radio);
         assert_eq!(spacing, 3);
-        assert_eq!(total(&cols, spacing), 113);
+        // The Protocol column has its room and a little spare, not all that is left (32): the
+        // rest stays at the end of the rows.
+        let protocol = |cols: &[(Col, u16)]| cols.iter().find(|(c, _)| *c == Col::Protocol).unwrap().1;
+        assert_eq!(protocol(&cols), PROTOCOL_MIN + PROTOCOL_SPARE);
+        assert_eq!(total(&cols, spacing), 113 - 32 + 24);
         let (cols, spacing) = choose_columns(140, &content_radios(9));
         assert_eq!((names(&cols), spacing), (Col::ALL.to_vec(), 3));
+        // A long name gets its whole width, however wide the terminal.
+        assert_eq!(protocol(&choose_columns(213, &content(40)).0), 40 + PROTOCOL_SPARE);
     }
 
     /// With several radios the Radio column goes right after Time when the table is narrow.
@@ -908,6 +950,22 @@ mod tests {
         assert_eq!(panel.map(|p| p.height), Some(DETAIL_MAX_HEIGHT));
     }
 
+    /// The banner says what a remote's code has against emulation: nothing for a static code or a
+    /// plain counter, a cipher for the rest.
+    #[test]
+    fn the_emulation_banner_names_the_code() {
+        assert!(emulation_banner("Fixed Code").starts_with(" Static code, no encryption"));
+        assert!(emulation_banner("Rolling Code (plaintext counter)").starts_with(" No encryption, a counter"));
+        for cipher in ["Rolling Code", "KeeLoq", "AES-128", "Rolling (clear counter)", "XOR whitening"] {
+            assert!(emulation_banner(cipher).starts_with(" Encryption is broken"), "{cipher}");
+        }
+        // A capture KAT can encode, through its protocol's label (Princeton: fixed code).
+        let mut princeton = Capture::from_pairs(1, 433_920_000, Vec::new());
+        princeton.protocol = Some("Princeton".to_string());
+        assert_eq!(princeton.encryption_type(), "Fixed Code");
+        assert!(emulation_banner(princeton.encryption_type()).contains("no encryption"));
+    }
+
     /// The detail's button: its name and its code; the code alone when the name is the code.
     #[test]
     fn the_button_shows_its_name_and_code() {
@@ -920,6 +978,15 @@ mod tests {
         capture.protocol = Some("KeeLoq (NICE_MHOUSE)".to_string());
         capture.button = Some(0x09);
         assert_eq!((capture.button_name(), button_label(&capture).as_str()), ("Btn 0x9", "0x09"));
+        // A numbered button ("Btn 4", "Btn F3" as the C shows them): the code alone too.
+        capture.protocol = Some("Princeton".to_string());
+        capture.button = Some(0x04);
+        assert_eq!((capture.button_name(), button_label(&capture).as_str()), ("Btn 4", "0x04"));
+        capture.button = Some(0xF3);
+        assert_eq!((capture.button_name(), button_label(&capture).as_str()), ("Btn F3", "0xF3"));
+        // "Other" (a code with no number) keeps its name.
+        capture.button = Some(0x55);
+        assert_eq!(button_label(&capture), "Other (0x55)");
         // PSA's two frame types number their buttons differently: the frame decides the name. A
         // mode 0x23 frame (a Delphi remote's Lock and third button), then a TEA frame's code 1.
         capture.protocol = Some("PSA".to_string());

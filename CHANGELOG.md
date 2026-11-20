@@ -4,6 +4,25 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- **Key recovery says when it runs on the graphics card**: "(GPU)" in the progress line of the KeeLoq and HiTag2 searches.
+- The captures list says how many captures are out of view ("↑ 2 · ↓ 14 more"), as the menus and the file browser do.
+- The help and the radios overview are as wide and as tall as their text (they sat in a box of 80 % of the terminal), and PgUp / PgDn in the help, the reports, the license and the credits move by what the overlay shows (they moved ten lines whatever its height).
+- Without a radio there is no signal meter beside the list: the list has its columns.
+- The action menu keeps a space after its longest action.
+- **The vulnerability panel says what protects a remote KAT can send**: "Static code, no encryption" for a fixed-code remote and "No encryption, a counter that goes up with each press" for one that sends a plain counter, where it said "Encryption is broken" of every remote.
+- The list's Protocol column is as wide as its longest name, and a little more: on a wide terminal it took all the room there was, and a name stood a hundred columns from its frequency.
+- A long path in the status line (an export's) wraps after a `/`, not inside a folder's name; the site's fact boxes break file paths the same way.
+- The help, radios, license and credits overlays name all their keys in the help bar, as Analyze and Compare do.
+
+### Fixed
+
+- **Presses left out of the list.** A file of several presses of a remote with a frame longer than 64 bits (Honda V5, Ford V1, Fiat V2, the Continental Honda remotes) listed only the first press of each button: the rest were taken for repeats, because only the first 64 bits of a frame, its fixed part, were compared. The counter is compared too now, as for a burst received live. Of the 427 recordings that decode, 26 list more captures: one of 35 presses of a Continental remote listed 1 capture and lists 35, a Jeep remote's 8 presses listed 4 and list 8.
+- Wording: "Found 1 file … Import it?" at startup (was "Import them?"), the `:clear` prompt's warning on a line of its own, "Btn: 0x04" for a numbered button (was "Btn: Btn 4 (0x04)"), "RF: -" for an undecoded signal like its other empty fields, "41 bits after 1 pulse" in Analyze, and `:new`'s message without "counter -" for a remote that has no counter.
+- The changelog page's crumbs file it under Reference, as the site's menus do.
+- The HiTag2 Hell page still said KAT's search stays on the CPU; the README, the KeeLoq page and the home page did not mention the graphics card that 1.18.0 uses.
+
 ## [1.18.0] - 2026-11-19
 
 KeeLoq and HiTag2 Hell key recovery now run on a graphics card when one is present, several times faster than on the CPU, which stays the fallback. No protocol more.

@@ -68,6 +68,12 @@ pub fn available() -> bool {
     context().is_some()
 }
 
+/// Whether the GPU is up already, without starting it: for the UI thread, which must not wait
+/// for a driver (a search brings the GPU up on its own thread, the first time one runs).
+pub fn is_up() -> bool {
+    CONTEXT.get().is_some_and(Option::is_some)
+}
+
 /// A short description of the GPU KAT would use, e.g. for a startup line or `--help`.
 pub fn description() -> Option<String> {
     context().map(|c| format!("{} ({:?})", c.name, c.backend))

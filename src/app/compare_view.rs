@@ -435,7 +435,7 @@ impl App {
                 self.overlay_scroll = 0;
             }
         } else if let Some(scroll) =
-            super::input::overlay_scrolled(self.overlay_scroll, self.overlay_scroll_max.get(), code)
+            super::input::overlay_scrolled(self.overlay_scroll, self.overlay_scroll_max.get(), self.overlay_page_rows.get(), code)
         {
             self.overlay_scroll = scroll;
         }

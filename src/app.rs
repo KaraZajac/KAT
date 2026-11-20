@@ -437,6 +437,9 @@ pub struct App {
     /// Largest useful `overlay_scroll` of the License / Credits / help overlay as the renderer
     /// last drew it (set every frame), so scrolling stops at the last line.
     pub overlay_scroll_max: std::cell::Cell<usize>,
+    /// Rows of text the open overlay showed in the last frame (set by the renderer): its PgUp /
+    /// PgDn step.
+    pub overlay_page_rows: std::cell::Cell<usize>,
     /// Rows of the captures list the last frame showed (set by the renderer): PgUp / PgDn step.
     pub list_page_rows: std::cell::Cell<usize>,
     /// Signal-menu target, delete undo, transmit progress (app/input.rs)
@@ -635,6 +638,7 @@ impl App {
             signal_menu_index: 0,
             overlay_scroll: 0,
             overlay_scroll_max: std::cell::Cell::new(0),
+            overlay_page_rows: std::cell::Cell::new(10),
             list_page_rows: std::cell::Cell::new(10),
             input: input::InputState::default(),
             settings_field_index: 0,

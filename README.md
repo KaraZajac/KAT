@@ -46,9 +46,9 @@ Its 162 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPira
 
 **Recover keys**
 
-- **KeeLoq magic serial** — Flipper-ARF's KeeLoq Decrypt: finds the manufacturer key of a KeeLoq remote KAT has no key for from two captures of it, on every core — about 5 s per type for types 6 and 7, about 20 minutes for type 8 on an 8-core laptop. The key is saved, and the remote then decodes and transmits ([docs/keeloq.md](docs/keeloq.md)).
+- **KeeLoq magic serial** — Flipper-ARF's KeeLoq Decrypt: finds the manufacturer key of a KeeLoq remote KAT has no key for from two captures of it, on a graphics card when the machine has one, else on every core — about 5 s per type for types 6 and 7, about 20 minutes for type 8 on an 8-core laptop's CPU, about half that on its graphics card. The key is saved, and the remote then decodes and transmits ([docs/keeloq.md](docs/keeloq.md)).
 - **PSA (Peugeot/Citroën)** — ProtoPirate's TEA key brute force (BF1 and BF2), in under a second, and by default without being asked: every undecrypted PSA frame, received live, from an IQ recording or a file, gets the search in the background and, with its key, its serial, button and counter, export and transmit (`autobf`). The capture shows the key as recovered, or that no key fits.
-- **HiTag2 (Fiat V1, Renault V1, Fiat V2)** — the HiTag2 Hell attack, ported from qDoctor's C: finds the 48-bit key of a remote KAT has no key for from two captures of it (two presses), on every core — about 20 minutes for a full search on a 16-thread CPU with AVX2, half that on average. The key is saved per remote in `hitag2_keys.txt` (Flipper-ARF's and doctor-firmware's file), and the remote then transmits fresh codes instead of replays ([docs/hitag2_hell.md](docs/hitag2_hell.md)).
+- **HiTag2 (Fiat V1, Renault V1, Fiat V2)** — the HiTag2 Hell attack, ported from qDoctor's C: finds the 48-bit key of a remote KAT has no key for from two captures of it (two presses), on a graphics card when the machine has one, else on every core — about 20 minutes for a full search on a 16-thread CPU with AVX2, about 7 on that laptop's graphics card, and half that on average. The key is saved per remote in `hitag2_keys.txt` (Flipper-ARF's and doctor-firmware's file), and the remote then transmits fresh codes instead of replays ([docs/hitag2_hell.md](docs/hitag2_hell.md)).
 
 **Files**
 
@@ -127,7 +127,7 @@ cd KAT
 cargo build --release
 ```
 
-The binary is `target/release/kat`. Use a release build for live receive and IQ decoding: a debug build is about 20 times slower.
+The binary is `target/release/kat`. Use a release build for live receive and IQ decoding: a debug build is about 20 times slower. Key recovery on a graphics card (through `wgpu`: Vulkan, Metal or DirectX 12) is built in; `cargo build --release --no-default-features` leaves it out, and the searches then run on the CPU.
 
 ### Radio hardware
 
@@ -224,9 +224,9 @@ After an encoder transmission (Send next code, Send button…, TX Lock … Panic
 
 | Action | Description |
 |---|---|
-| Recover key (KeeLoq magic serial) | KeeLoq frame no key decrypts: search the remote's magic-serial manufacturer key using all of its captures (two or more presses), on every core (Flipper-ARF's KeeLoq Decrypt). The key is saved as `BF_<serial>` and the remote's captures decode ([docs/keeloq.md](docs/keeloq.md)) |
+| Recover key (KeeLoq magic serial) | KeeLoq frame no key decrypts: search the remote's magic-serial manufacturer key using all of its captures (two or more presses), on the graphics card or else every core (Flipper-ARF's KeeLoq Decrypt). The key is saved as `BF_<serial>` and the remote's captures decode ([docs/keeloq.md](docs/keeloq.md)) |
 | Recover key (PSA brute force) | PSA TEA frame without a key: run ProtoPirate's key brute force in the background (with `autobf`, the default, it already ran on its own). On success the capture gets its serial, button and counter, and transmit actions; the detail panel says how the key was recovered, or that no key fits |
-| Recover key (HiTag2) | Fiat V1, Renault V1 or Fiat V2 frame KAT has no key for (it would be replayed): search the remote's key with HiTag2 Hell, paired with another capture of the same remote (same UID, another press), on every core, about 20 minutes at most. The key is saved in `hitag2_keys.txt` and the remote's captures send fresh codes ([docs/hitag2_hell.md](docs/hitag2_hell.md)) |
+| Recover key (HiTag2) | Fiat V1, Renault V1 or Fiat V2 frame KAT has no key for (it would be replayed): search the remote's key with HiTag2 Hell, paired with another capture of the same remote (same UID, another press), on the graphics card or else every core, about 20 minutes at most on a CPU. The key is saved in `hitag2_keys.txt` and the remote's captures send fresh codes ([docs/hitag2_hell.md](docs/hitag2_hell.md)) |
 | Cancel key recovery | Stop a running key recovery (its progress shows in the status bar's title) |
 | Replay | Re-transmit the capture as recorded (the capture does not change) |
 | Send next code | Gate, garage and barrier remotes (instead of TX Lock … Panic): transmit the code after the stored one, which the capture then keeps, so each press sends a new code |
@@ -390,7 +390,7 @@ Switches take `true`/`false`, `yes`/`no`, `on`/`off` or `1`/`0`. A value KAT can
 - **default_lna_gain / default_vga_gain** — fitted to what the radio takes: LNA 0–40 dB in 8 dB steps, VGA 0–62 dB in 2 dB steps (rounded down). An RTL-SDR has one tuner gain and takes the VGA value for it; a Flipper Zero's gain is its receive preset's.
 - **show_unknown_signals** — when `true` (default), unknown (unidentified) signals are listed with the decoded ones; when `false`, only signals a protocol decodes appear, live, from IQ files and from imports. Older versions called it `research_mode`, which is still read when `show_unknown_signals` is absent.
 - **autobf** — when `true` (default), KAT recovers the key of every capture a brute force can crack without being asked: each undecrypted PSA (TEA) frame gets ProtoPirate's BF1/BF2 search in the background, and the frames of PSA's adaptive AM path that only the search can confirm are listed once their key is found. `false`: only the **Recover key** action runs it.
-- **ignore_duplicates** — when `true` (default), a decoded signal already in the list (same protocol, data, serial and button) is not added again. When `false`, every press is listed, as a Flipper's receive history does: a signal is only merged with the same one on the air less than 500 ms before it (one press still going, the AM and FM paths both reporting it, or both sides of a long transmission's cut). Importing a file again then adds its captures again.
+- **ignore_duplicates** — when `true` (default), a decoded signal already in the list (same protocol, data, serial, button and counter) is not added again. When `false`, every press is listed, as a Flipper's receive history does: a signal is only merged with the same one on the air less than 500 ms before it (one press still going, the AM and FM paths both reporting it, or both sides of a long transmission's cut). Importing a file again then adds its captures again.
 - **include_raw_pairs** — when `true`, .fob exports include raw level/duration pairs for replay.
 - **hop_frequencies / hop_dwell_ms** — the `:hop` list (MHz) and the time spent on a quiet frequency.
 - **tx_vga_gain / tx_amp** — transmit power (0–47 dB TX VGA, RF amp); the defaults are the HackRF's maximum, as in KAT ≤ 1.4.

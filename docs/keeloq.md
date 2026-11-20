@@ -124,8 +124,8 @@ read. KAT reports how many keys it loaded in the status line at start-up (and on
 ## Recovering a magic-serial manufacturer key
 
 Flipper-ARF's **KeeLoq Decrypt** ("BF2") finds the manufacturer key of a KeeLoq remote it has no key
-for, when the remote uses one of the "magic serial" learning types. KAT runs the same search on every
-CPU core:
+for, when the remote uses one of the "magic serial" learning types. KAT runs the same search on a
+graphics card when the machine has one (since 1.18.0), else on every CPU core:
 
 - **In the app:** select a `KeeLoq (Unknown)` capture and choose **Recover key (KeeLoq magic
   serial)**. It uses every capture of that remote in the list: same serial, different presses, at
@@ -139,13 +139,20 @@ CPU core:
 For these types the device key is the remote's `fix` combined with part of the manufacturer key, so
 only that part is unknown:
 
-| Type | Device key | Unknown | Keys | Time (8-core i9 laptop, AVX2) |
-|---|---|---|---|---|
-| 6, magic serial 1 | manufacturer key bits 0–31, serial bytes | 32 bits | 2^32 | ~5 s |
-| 7, magic serial 2 | manufacturer key bits 0–31, `fix` byte-swapped | 32 bits | 2^32 | ~5 s |
-| 8, magic serial 3 | manufacturer key bits 24–63, serial bits 0–23 | 40 bits | 2^40 | ~20 min |
+| Type | Device key | Unknown | Keys | Time (8-core i9 laptop, AVX2) | On its graphics card |
+|---|---|---|---|---|---|
+| 6, magic serial 1 | manufacturer key bits 0–31, serial bytes | 32 bits | 2^32 | ~5 s | ~3 s |
+| 7, magic serial 2 | manufacturer key bits 0–31, `fix` byte-swapped | 32 bits | 2^32 | ~5 s | ~3 s |
+| 8, magic serial 3 | manufacturer key bits 24–63, serial bits 0–23 | 40 bits | 2^40 | ~20 min | ~11 min |
 
 Auto tries type 6, then 7. Type 8 is opt-in and needs three captures.
+
+**On a graphics card.** The search runs on the machine's graphics card when it has one (Vulkan on Linux
+and Windows, Metal on macOS, DirectX 12 on Windows, through `wgpu`; nothing to install). The card keeps
+the candidates that decrypt every capture to its button and discriminator, and the checks below then
+run on the CPU, so the keys found are the same. The app's progress line says "(GPU)" and `--keeloq-bf`
+prints the card's name. With no usable card, or in a build made with `--no-default-features`, the search
+runs on the CPU. The card in the table is the laptop's AMD Navi 14 (a Radeon Pro 5300M / 5500M).
 
 **How a key is accepted.** A candidate must decrypt every capture to that frame's button (4 bits) and
 discriminator `serial & 0x3FF` (10 bits). The counters must also be distinct and within ±256 of the

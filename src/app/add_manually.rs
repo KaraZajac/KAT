@@ -157,14 +157,28 @@ impl App {
             Ok(mut capture) => {
                 capture.source_file = Some(format!("Add Manually: {}", ty.name));
                 self.next_capture_id += 1;
+                // What the remote has: a fixed-code remote has no counter ("counter -" was said),
+                // and a numbered button is its code ("button Btn 4" was said).
+                let mut parts = Vec::new();
+                if capture.serial.is_some() {
+                    parts.push(format!("serial 0x{}", capture.serial_hex()));
+                }
+                if let Some(code) = capture.button {
+                    let name = capture.button_name();
+                    parts.push(match name.strip_prefix("Btn ") {
+                        Some(_) => format!("button 0x{code:02X}"),
+                        None => format!("button {name}"),
+                    });
+                }
+                if capture.counter.is_some() {
+                    parts.push(format!("counter {}", capture.counter_str()));
+                }
                 let summary = format!(
-                    "Created #{:02} {}: {} · serial 0x{} · button {} · counter {}",
+                    "Created #{:02} {}: {}{}",
                     capture.id,
                     ty.name,
                     capture.protocol_name(),
-                    capture.serial_hex(),
-                    capture.button_name(),
-                    capture.counter_str()
+                    parts.iter().map(|p| format!(" · {p}")).collect::<String>()
                 );
                 self.captures.push(capture);
                 // A filter that would hide the new remote goes.

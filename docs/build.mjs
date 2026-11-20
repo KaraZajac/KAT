@@ -149,6 +149,10 @@ const status = (s, row) => (s === 'filed' && row && !row.filing_read
 /** Names joined by slashes ("Chevrolet/Buick/GMC/Holden") may break after one. Chromium takes such a string for
  *  one word, and one long make label set the width of its whole column. */
 const slashes = (s) => esc(s).replace(/\//g, '/<wbr>');
+// File paths in a fact box break after a slash ("src/protocols/" + "princeton.rs"), not inside a
+// name as overflow-wrap alone broke them ("princeto" + "n.rs"). Only the text of <code> changes,
+// never a link's address.
+const codeBreaks = (html) => html.replace(/<code>([^<]*)<\/code>/g, (_, t) => `<code>${t.replace(/\//g, '/<wbr>')}</code>`);
 /** A cell's text, or a dash where there is none. */
 const orDash = (s) => (s ? esc(s) : '<span class="dim">–</span>');
 /** The cell of an FCC ID: a link to its filing. The ID never breaks across lines. */
@@ -755,8 +759,8 @@ ${row('Code', uniq((p) => p.encryption).slice(0, 3).map(esc).join('; '))}
 ${row('In KAT', supportCell(main))}
 ${row('Recordings', caps.length ? `<a href="#recordings">${plural(caps.length, 'file')}</a>` : '<span class="dim">none in the library</span>')}
 ${row('FCC IDs', fcc.length ? `${fcc.slice(0, 6).map((i) => `<a href="remote-${anchor(i.id)}.html"><code>${esc(i.id)}</code></a>`).join(' ')}${fcc.length > 6 ? ` <a href="#fcc-ids">+${fcc.length - 6}</a>` : ''}` : '')}
-${row('Source', code ? code.html : '')}
-${ref.map((m) => row(esc(m.label), m.html)).join('\n')}
+${row('Source', code ? codeBreaks(code.html) : '')}
+${ref.map((m) => row(esc(m.label), codeBreaks(m.html))).join('\n')}
 </dl>
 </aside>
 `;
@@ -904,7 +908,7 @@ for (const [p, r] of rendered) {
   const guide = GUIDES.includes(p), ref = REFERENCE.includes(p);
   const trail = [['./', 'KAT'], guide ? ['guides.html', 'Guides'] : ref ? ['about.html', 'Reference'] : ['protocols.html', 'Protocols']];
   const facts = r.meta.length ? `<aside class="infobox" aria-label="Facts"><div class="infobox-title">${esc(short(r.title))}</div><dl>
-${r.meta.map((m) => `<div><dt>${esc(/^rust module/i.test(m.label) ? 'Source' : m.label)}</dt><dd>${m.html}</dd></div>`).join('\n')}
+${r.meta.map((m) => `<div><dt>${esc(/^rust module/i.test(m.label) ? 'Source' : m.label)}</dt><dd>${codeBreaks(m.html)}</dd></div>`).join('\n')}
 </dl></aside>\n` : '';
   html.set(`${p}.html`, wikiPage({
     file: `${p}.html`, title: r.title, description: r.description, trail,
@@ -1213,7 +1217,8 @@ if (made.includes('changelog')) {
   html.set('changelog.html', wikiPage({
     file: 'changelog.html', title: 'Changelog',
     description: 'What changed in each release of KAT, the Keyfob Analysis Toolkit, newest first.',
-    trail: [['./', 'KAT'], ['guides.html', 'Guides']], side: tocList(toc) + guideSide('changelog.html'), body: r.body,
+    // A reference page like the glossary (the side list, the Guides page and the search file it there).
+    trail: [['./', 'KAT'], ['about.html', 'Reference']], side: tocList(toc) + guideSide('changelog.html'), body: r.body,
     foot: `      <div class="doc-foot"><a href="guides.html">← All guides</a><span>This page is <a href="${REPO}/blob/main/CHANGELOG.md">CHANGELOG.md</a> in the KAT repository.</span></div>`,
   }, parts));
   search.push({ t: 'Changelog', u: 'changelog.html', k: 'Reference', d: 'What changed in each release' });

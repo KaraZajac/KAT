@@ -20,12 +20,18 @@ and `mazda_siemens.rs` (parity-keyed XOR whitening, b5/b6 counter interleave, ad
 Flipper-ARF's `mazda_siemens.c` encoder emit. KAT's Mazda V0 — a port of ProtoPirate's current
 decoder — decodes this format as well and completes on the 64th payload bit, before the trailer Mazda
 Infinity waits for, so on a shared frame **Mazda V0 keeps first-match priority** and Mazda Infinity only
-reports frames that Mazda V0 and Mazda Siemens both reject. A unit test runs them first-match with and
-without Mazda Infinity on 300 random frames (both polarities) and checks their results are unchanged.
+reports frames that Mazda V0 rejects. It completes on the trailer's last cell, before Mazda Siemens (which
+reports at the gap after the frame), so where both are fed a frame both read goes to Mazda Infinity; a `.sub`
+file's preset feeds only one of them (Mazda Infinity is flagged AM, Mazda Siemens FM). A unit test runs
+them first-match with and without Mazda Infinity on 300 random frames (both polarities) and checks their
+results are unchanged.
 Mazda Infinity also decodes KAT's own Mazda Siemens TX upload.
 
-**Experimental:** no IMPORTS capture contains this format (the five Mazda RAW captures look like FSK
-fobs recorded with an OOK preset and decode as nothing). Registered last in the registry.
+**Experimental:** not registered (see above). `IMPORTS/Mazda/more/Mazda_F2.sub` and `Mazda_Visteon_TS.sub`
+(FM476) hold frames this decoder reads (sync, payload, `0x5A` trailer, valid checksum); KAT reads them as
+Mazda V0 (`Mazda_F2.sub` also as Mazda Siemens), and Mazda Infinity, flagged AM, would not be fed these files
+if registered. No other recording in `IMPORTS` holds a frame it reads; the four RX-8 and the CX-50 recordings
+look like FSK fobs recorded with an OOK preset and decode as nothing.
 
 ## Timing
 
@@ -67,7 +73,7 @@ The C decodes half-bit cells itself and never calls Flipper's `manchester_advanc
 state machine is used; polarity is the level as captured.
 
 1. **Reset** — the first short/long pulse starts a collection.
-2. **Data** — push half-bit cells (short = 1 cell, long = 2) into a 384-cell (12-byte) sliding window;
+2. **Data** — push half-bit cells (short = 1 cell, long = 2) into a 192-cell (12-byte) sliding window;
    after every push decode the window as sync(3) + payload(8) + trailer(1): pairs H,L = 1 / L,H = 0,
    equal cells invalid.
 3. **Emit** when sync = `FF FF D7`, trailer = `0x5A`, all 96 pairs are valid Manchester, the
@@ -94,9 +100,10 @@ Waveform: the C upload (one frame) played 4 times (the Flipper's default repeat)
 
 ## Validation
 
-No real capture available. Unit tests cover: the C upload transcribed verbatim (unmerged) decoding for
-both whitening branches, whitening round trip, encode→decode (replay and button change with counter
-wrap), the encoder waveform pinned to the C layout, synthetic frames, rejection of bad checksum / sync /
+Real captures: `Mazda_F2.sub` and `Mazda_Visteon_TS.sub` (see Overview) were checked with a script port of
+this decoder, as no unit test runs it on them. Unit tests cover: the C upload transcribed verbatim
+(unmerged) decoding for both whitening branches, whitening round trip, encode→decode (replay and button
+change with counter wrap), the encoder waveform pinned to the C layout, synthetic frames, rejection of bad checksum / sync /
 trailer / zero UID, the measured content-gate rate (≈ 1/256), random noise, Mazda V0 / Mazda Siemens
 first-match results unchanged by Mazda Infinity, Mazda Siemens' TX upload decoding here, and every
-`IMPORTS/Mazda` capture standalone in both polarities (no decode).
+`.sub` directly in `IMPORTS/Mazda` (not `more/`) standalone in both polarities (no decode).

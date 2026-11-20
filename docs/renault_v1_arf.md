@@ -17,8 +17,11 @@ Manchester wire as Renault V0. KAT names it **Renault V1 (ARF)** to keep the two
 These types used to live in ProtoPirate's Renault V0. ProtoPirate commit 1287d10 ("move newer Renault
 variants into Renault V1") dropped them in favour of its HITAG2 decoder. Flipper-ARF instead moved them
 into this decoder, and its Renault V0, like KAT's, now only accepts type 0x13. ARF's firmware still
-decodes and replays these frames, so KAT does too (union of the references' capabilities). No capture of
-such a remote exists in `IMPORTS/`.
+decodes and replays these frames, so KAT does too (union of the references' capabilities). One recording
+in `IMPORTS/` holds such frames: `RENAULT/more/Renault_v1_000R3X.sub` (434.18 MHz), three Lock presses
+(button `0x05`, counters `0x29`-`0x2B`) that KAT lists as Dynamic `0x10`; ARF's C reads the same three
+frames. The file's presses with buttons `0x06` and `0x0A` carry the same serial and type 0x13, and decode
+as [Renault V0](renault_v0.md).
 
 ARF calls the frames "Hitag2-based rolling codes", but it can only replay them: its own comments say the
 position of the 32-bit hop inside the payload and the IV layout are unknown.
@@ -61,7 +64,8 @@ The decoder takes the **last 82 bits** of a burst; the number of bits before the
 Dynamic frames also need a non-zero serial and are reported only when two consecutive candidates are
 identical. `low6 = 0x13` is always rejected: it is Renault V0's type.
 
-**Buttons (ARF names):** low nibble 4-7 "Lock", 8-B "Unlock" (the high nibble is the type family).
+**Buttons (ARF names):** low nibble 4-7 "Lock", 8-B "Unlock" (the high nibble is the type family); KAT
+shows any other low nibble as "Other" (ARF: "??").
 
 ### KAT `DecodedSignal` packing
 
@@ -109,7 +113,8 @@ capture). The frame must still classify; the preamble is the stored one, or the 
 Upload per frame (`renault_v1_build_upload`), 3 bursts: HIGH 1000 µs; the preamble 1-bits and the 82
 frame bits through ARF's two-state emitter (state 1: bit 1 → LOW te + HIGH te, bit 0 → LOW 2·te and state
 2; state 2: bit 0 → HIGH te + LOW te, bit 1 → HIGH 2·te and state 1); a closing HIGH te in state 2; LOW
-1500 µs. Adjacent levels are merged. The upload is sent 10 times (ARF's minimum repeat). ARF builds it
+1500 µs. Adjacent levels are merged. The upload is sent 10 times (ARF's minimum repeat: its encoder reads a
+key file's `Repeat` line but raises a smaller count to 10; KAT ignores the line). ARF builds it
 in a 600-level buffer and refuses frames that do not fit (only contrived frames with long runs of equal
 bits and a 20-bit preamble); KAT reports those as not encoder-capable.
 
@@ -117,12 +122,27 @@ bits and a 20-bit preamble); KAT reports those as not encoder-capable.
 
 - *Fiat V1 key search* (`renault_v1_verify_hitag2_key` + UID key database): Fiat's 8 keys on 3 guessed
   32-bit hop positions × 4 guessed IV layouts. ARF marks these "pending validation against a real
-  capture" and only displays the result; its encoder stays replay-only anyway.
+  capture" and only displays the result; its encoder stays replay-only anyway. KAT's own HiTag2 key
+  recovery ([HiTag2 Hell](hitag2_hell.md)) does not take these frames either: they carry no fixed 32-bit
+  hop and a 24-bit serial instead of a 32-bit UID.
 - *"Seed BF" re-encoder* (`subghz_protocol_renault_v1_run_seed_bf`, `renault_v1_encoder_reencode_seed`):
   ProtoPirate's PCF seed search run on this 82-bit frame packed into 11 bytes. The search treats
   data[63:32] (serial ‖ button) as the 32-bit UID, but the re-encoder encrypts with the 24-bit serial
   as UID, a different key, so its "next code" cannot match the remote. ProtoPirate's working seed scheme
   is in KAT's HITAG2 [Renault V1](renault_v1.md).
+
+## Key file
+
+ARF's lines (`subghz_protocol_decoder_renault_v1_serialize`): `Protocol: Renault V1`, `Bit: 82`, `Key` = the 64
+data bits, then `Key2` (decimal), `Preamble`, `Serial`, `Btn`, `Cnt` and `Recovered: 00`. `Renault V1` is also
+ProtoPirate's name, for KAT's [Renault V1](renault_v1.md) (`Bit: 88`, a hex `Key_2`); that decoder hands `Bit: 82`
+files to this one. Not written: ARF's `Hop` / `Hitag2 Key` / `Hitag2 Epoch` / `Hitag2 IV` / `Hitag2 Slice` lines
+(its Fiat V1 key search, not ported) and `Seed` (only after its seed brute force). Loading follows ARF's
+deserialize: `Bit: 82` and `Key2` are required, `Preamble` is kept when it is 12, 16, 18 or 20 (else the type's
+default; a Dynamic frame has none, and cannot be sent then), and the frame is classified again. A frame that
+does not classify (e.g. Renault V0's tag 0x13) still loads, as in ARF, with `crc_valid` and `encoder_capable`
+false; it gets no display name, so the capture is named after the decoder that loaded the file, "Renault V1".
+`Serial`, `Btn` and `Cnt` are not read back.
 
 ## Validation
 
@@ -133,8 +153,9 @@ bits and a 20-bit preamble); KAT reports those as not encoder-capable.
   - **Decoder:** 2390 pulse streams, field for field: clean and jittered (±12 %, TE ×0.9-1.15) C
     uploads, other preamble lengths, gate failures, single/double/interleaved Dynamic bursts, explicit
     resets and 300 random pulse trains. 1151 decoded frames, 0 differences.
-  - **IMPORTS:** all 108 captures with RAW data, both polarities. Nothing decodes in either (the sweep is
-    unchanged).
+  - **IMPORTS:** all 108 captures with RAW data at the time, both polarities: nothing decoded in either.
+    Of the recordings added since, `RENAULT/more/Renault_v1_000R3X.sub` holds three Dynamic frames, the
+    same in KAT and in ARF's C (see Overview).
 - **Registry:**
   - All 439 replays decode only as Renault V1 (ARF) at 315/433/868 MHz, the same 395 frames as the C on
     its own (the other 44 are typed frames with a non-default preamble, which the C encodes but no

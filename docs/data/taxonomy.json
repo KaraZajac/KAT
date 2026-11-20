@@ -70,7 +70,7 @@
     "Lincoln",
     "Mercury"
    ],
-   "blurb": "Ford V0 to V3 are Manchester frames with a rolling code: V0 on-off keyed, V1 and V2 2-FSK, V3 either. Ford V3 is the smart key sold in Europe and North America."
+   "blurb": "Ford V0 to V3 are Manchester frames with a rolling code: V0 on-off keyed, V1 and V2 2-FSK, V3 either. Ford V3 is the smart key sold in Europe and North America. Ford V1 also reads the keyless fob of 2017 Jaguars, Ford V1 (JLR), whose block is encrypted with AES: KAT reads it and does not send it."
   },
   {
    "slug": "stellantis-us",
@@ -178,7 +178,7 @@
     "Lamborghini",
     "Bentley"
    ],
-   "blurb": "VAG covers the group's remote keys with the AUT64 and XTEA ciphers. VAG Polo is the newer frame of the 2017 Polo and the 2020 Atlas; Audi V3 and Porsche Cayenne are frames of their own."
+   "blurb": "VAG covers the group's remote keys with the AUT64 and XTEA ciphers. VAG Polo is the newer frame of the 2017 Polo and the 2020 Atlas; Audi V3 and Porsche Cayenne are frames of their own. VW-1 is the group's oldest remote, a flip key whose code comes from a 24-bit shift register with no key, worked out from recordings a tester sent in; KAT reads and sends it."
   },
   {
    "slug": "bmw",
@@ -212,7 +212,7 @@
     "Mercedes-Benz",
     "Mercedes"
    ],
-   "blurb": "Two 2-FSK Manchester frames with a rolling code; KAT replays a captured frame."
+   "blurb": "Two 2-FSK Manchester frames with a rolling code; KAT replays a captured frame. None of the three recordings is read: two hold only noise, and the third holds FSK bursts recorded with an AM preset."
   },
   {
    "slug": "mazda",
@@ -278,7 +278,7 @@
    "catalogue": [
     "Subaru"
    ],
-   "blurb": "A pulse-width frame with a rolling counter, which KAT decodes and sends. The recordings are of an Impreza, a 2012 Forester and a 2018 WRX."
+   "blurb": "A pulse-width frame with a rolling counter, which KAT decodes and sends. The recordings are of an Impreza, a 2012 Forester, a 2018 WRX and a 2020 Outback; the Outback's holds only noise."
   },
   {
    "slug": "suzuki",
@@ -293,7 +293,7 @@
    "catalogue": [
     "Suzuki"
    ],
-   "blurb": "Suzuki V0 is one of the four frame types of Kia V0's pulse-width format."
+   "blurb": "Suzuki V0 is one of the four frame types of Kia V0's pulse-width format. Suzuki TS002 is the two-button remote Calsonic Kansei made for Suzuki, worked out from recordings a tester sent in; KAT reads and sends it."
   },
   {
    "slug": "opel",
@@ -310,7 +310,7 @@
     "Opel",
     "Vauxhall"
    ],
-   "blurb": "Opel V1 is a Bosch remote with an XTEA-encrypted block; Opel V0 and Opel-Mokka are further frames. General Motors' 433 MHz fobs send Opel V1's outer frame with another cipher (Chevrolet V0)."
+   "blurb": "Opel V1 is a Bosch remote with an XTEA-encrypted block; Opel V0 and Opel-Mokka are further frames. Opel Rolling is an old two-button Opel remote, worked out from recordings a tester sent in; KAT reads and sends it. General Motors' 433 MHz fobs send Opel V1's outer frame with another cipher (Chevrolet V0). The recordings of a 2008 Vauxhall Zafira's remote are not read."
   },
   {
    "slug": "psa",
@@ -329,7 +329,7 @@
     "Peugeot",
     "Citroen"
    ],
-   "blurb": "One protocol, PSA: a Manchester frame encrypted with TEA, whose key KAT can recover."
+   "blurb": "PSA is the Manchester frame of Peugeot and Citroën keys, in two crypto families: an XOR stage KAT decrypts at once, and TEA, whose key KAT can recover. PSA 2-Button is a two-button Valeo key with a frame of its own, worked out from recordings a tester sent in (decode only)."
   },
   {
    "slug": "renault",
@@ -346,7 +346,7 @@
     "Renault",
     "Dacia"
    ],
-   "blurb": "Renault V0 to V4 are the frames of the card and key remotes; Renault V1 uses the HITAG2 cipher, whose key KAT can recover."
+   "blurb": "Renault V0 to V4 are the frames of the card and key remotes; Renault V1 uses the HITAG2 cipher, whose key KAT can recover. Renault 1-Button is a one-button remote from about 1999, worked out from a recording a tester sent in (decode only)."
   },
   {
    "slug": "isuzu",
@@ -394,7 +394,7 @@
     "Land Rover",
     "Jaguar"
    ],
-   "blurb": "Land Rover RKE is a port of Flipper-ARF's decoder that KAT keeps but does not register. The remote once named Land Rover V0 is Honda V2."
+   "blurb": "Six recordings of two 2017 Jaguar XJ keyless fobs, which send Ford V1's frame with an AES-encrypted block: KAT reads them as Ford V1 (JLR) and does not send them. Land Rover RKE is a port of Flipper-ARF's decoder that KAT keeps but does not register. The remote once named Land Rover V0 is Honda V2."
   },
   {
    "slug": "tesla",
@@ -437,7 +437,7 @@
    "catalogue": [
     "BYD"
    ],
-   "blurb": "Recordings of an Atto 3 and a Seal; no decoder reads them yet."
+   "blurb": "Recordings of an Atto 3, a Seal and a Sealion. None can be read: the fobs send FSK, and the files were recorded with an AM preset, outside the recorder's band, or with a preset whose settings are missing (see Unidentified captures)."
   },
   {
    "slug": "alarms",

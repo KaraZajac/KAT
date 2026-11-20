@@ -7,8 +7,8 @@ layout: default
 **Rust module:** `src/protocols/honeywell.rs`
 **Reference:** `REFERENCES/doctor-firmware/lib/subghz/protocols/honeywell.c` (HTotoo 2023, after rtl_433's
 `honeywell.c` and Logan Lamb's "DEFCON 22: Home Insecurity"; @xMasterX 2025; `SUBGHZ_PROTOCOL_HONEYWELL_NAME` =
-"Honeywell Sec"), registered by doctor-firmware, with FoxFW's copy (`REFERENCES/FoxFW/lib/subghz/protocols/
-honeywell.c`) for its Manchester reset, see below. Flipper-ARF's `lib` copy (unregistered there), its garage-app
+"Honeywell Sec"), registered by doctor-firmware, with FoxFW's copy
+(`REFERENCES/FoxFW/lib/subghz/protocols/honeywell.c`) for its Manchester reset, see below. Flipper-ARF's `lib` copy (unregistered there), its garage-app
 copy (not in the garage registry), Momentum's and RogueMaster's have doctor's feed, bit and upload code. No
 reference has a capture of it.
 

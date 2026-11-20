@@ -31,8 +31,10 @@ any pulse ≥400 µs is a frame gap here, so slower Manchester streams never ent
 | Repeat gap       | 200 ms         | encoder; 3 copies                             |
 | Frame            | 128 bits       |                                               |
 
-Any other duration resets the decoder. KAT's live demodulator debounces pulses shorter than 40 µs, so live
-capture of this 62 µs protocol needs a clean, strong signal; raw `.sub` imports are unaffected.
+Any other duration resets the decoder. With a HackRF or RTL-SDR (and for IQ files), KAT's receive chain
+(`src/radio/pipeline.rs`) keeps its first slicing pass for a frame whose element is under 100 µs: 20 µs averaging,
+levels under 30 µs dropped, no per-frame coherent pass. Live capture of this 62 µs protocol therefore needs a
+clean, strong signal; raw `.sub` imports are unaffected.
 
 ## Frame Layout (128 bits, MSB first)
 
@@ -76,12 +78,25 @@ Supported, as in the C (`bmw_get_upload`). The hop is encrypted and no key is av
 rebuilds the payload from the captured serial, counter and hop (no counter bump — the C has none) and only
 re-stamps the button for a Lock/Unlock/Trunk command (other commands keep the captured button). Upload:
 212 preamble "1" bits, the 128 frame bits (62 µs chips, adjacent levels merged) and a 200 ms LOW gap,
-repeated 3 times (the C's `BMW_REPEAT_DEFAULT`).
+repeated 3 times (the C's `BMW_REPEAT_DEFAULT`; a key file's `Repeat` line sets the count, as in the C).
+
+## Key files
+
+`bmw.c` saves through the generic writer, and the references' generic writers differ: Flipper-ARF's writes only
+`Protocol: BMW`, `Bit: 128` and `Key` (bits 127–64), so a key ARF saves loses the counter and hop. KAT writes
+doctor-firmware's lines: `Serial`, `Btn` (xx), `Cnt` (17-bit), `ValidationField` (the fixed 0x89), `TE` (62),
+`Key_2` (bits 63–0) and `Key_3` (the 47-bit hop), each left out when zero. Loading follows
+`subghz_protocol_decoder_bmw_deserialize`: exactly 128 bits, `Key_2` (or `Key2`) as the low half (zero when absent),
+an inverted-sync payload flipped back; the fields come from the payload (the file's `Serial`, `Btn`, `Cnt` are not
+read back, as in the C). Any payload loads; `crc_valid` reports the decoder's gate on it.
 
 ## Validation
 
-No local capture decodes as BMW (none of the IMPORTS captures is a 62 µs BMW fob). Unit tests cover the
-field packing, encode→decode round trips for every button mapping (3 decodes per upload), inverted-polarity
-decoding via the `0xA661` sync, a last bit completed by the gap, rejection of a corrupted fixed byte /
-button template / zero button / too-short and too-long preambles, and a registry check that BMW frames
-decode only as `BMW` while a CAS4-rate stream never leaves the BMW decoder's reset state.
+No local capture decodes as BMW (none of the IMPORTS captures is a 62 µs BMW fob; the one BMW recording, a
+2004 E60 at 868 MHz FM, reads as [BMW/Mini V3](bmw_v3.md)). Unit tests cover the field packing, encode→decode
+round trips for every button mapping (3 decodes per upload), inverted-polarity decoding via the `0xA661` sync, a
+last bit completed by the gap, rejection of a corrupted fixed byte / button template / zero button / too-short
+and too-long preambles, a registry check that BMW frames decode only as `BMW` while a CAS4-rate stream never
+leaves the BMW decoder's reset state, and key files: doctor-firmware's lines round-trip every field, a
+Flipper-ARF file (`Key` only) loads with a zero low half, an inverted-sync key is flipped back, other bit counts
+are refused, and TX from a reloaded key decodes.

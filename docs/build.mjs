@@ -50,7 +50,7 @@ const REPO = 'https://github.com/KaraZajac/KAT';
 const SKIP = new Set(['build.mjs', 'package.json', 'package-lock.json', 'node_modules', 'dist',
   '_config.yml', 'og-card.html', 'README.md']);
 // Pages that explain how to use KAT, in the order the guide list shows them.
-const GUIDES = ['recording', 'radio', 'flipper_radio', 'transmit', 'session', 'analyze', 'timing_analysis', 'compare',
+const GUIDES = ['install', 'recording', 'radio', 'flipper_radio', 'transmit', 'session', 'analyze', 'timing_analysis', 'compare',
   'add_manually', 'flipper_key_files', 'hitag2_hell', 'unidentified_captures'];
 // Pages about the reference work itself.
 const REFERENCE = ['glossary', 'about'];
@@ -69,6 +69,14 @@ const COV = data('coverage.json');
 const TAX = data('taxonomy.json');
 const RFCC = data('remotes_fcc.json');
 const ROWN = data('remotes.json');
+/** Parts installed in the car, not carried. Parts catalogues list them for the same cars as the keys, so they are in
+ *  the FCC data, but they are no remotes: the Smart Unit, SSU and LF control unit of the smart keyless systems
+ *  Mitsubishi Electric filed for Mazda (by the product name in the filing), and two told by their internal photos. */
+const CAR_UNITS = new Map([
+  ['CQOEG06330', 'a boxed module with a receiver board and an internal antenna, not a key'],
+  ['MLBHLIK6-1R', 'an immobilizer ring antenna with a connector, which mounts around the ignition lock'],
+]);
+const carUnit = (i) => CAR_UNITS.has(i?.id) || /\b(smart unit|lfu|ssu)\b/i.test(i?.product ?? '');
 const CHIPS = data('chips.json');
 const FRAMES = data('frames.json');
 const FHAND = data('frames_hand.json');
@@ -168,8 +176,10 @@ const counts = {
   car: decoders('Vehicle'), gate: decoders('Gate'), decoders: decoders('Vehicle') + decoders('Gate'),
   recordings: CAPS.captures.length, read: CAPS.captures.filter((c) => c.reads.length).length,
   fcc: FCC.ids.length, makes: TAX.groups.length,
-  remotes: FCC.ids.length + ROWN.remotes.length,
-  pictured: FCC.ids.filter((i) => RFCC.remotes[i.id]?.photos.length).length + ROWN.remotes.length,
+  // The groups that are car makers: the others (aftermarket alarms, encoder chips) have no parts catalogue.
+  carmakers: TAX.groups.filter((g) => g.catalogue.length).length,
+  remotes: FCC.ids.filter((i) => !carUnit(i)).length + ROWN.remotes.length,
+  pictured: FCC.ids.filter((i) => !carUnit(i) && RFCC.remotes[i.id]?.photos.length).length + ROWN.remotes.length,
 };
 
 // ---------------------------------------------------------------------------
@@ -304,7 +314,7 @@ for (const i of FCC.ids) {
   const x = ROWN.fcc_extra[i.id] ?? {};
   const named = r.chips.filter((k) => !(x.chips ?? []).some((c) => c.chip === k)).map((k) => ({ chip: k, note: 'named in the filing' }));
   remotes.push({
-    slug: `remote-${anchor(i.id)}`, fcc: i, title: i.id, short: i.id, maker: titleCase(i.maker),
+    slug: `remote-${anchor(i.id)}`, fcc: i, unit: carUnit(i), title: i.id, short: i.id, maker: titleCase(i.maker),
     groups: TAX.groups.filter((g) => i.makes.some((m) => g.catalogue.includes(m))),
     entries: [...new Set([...i.protocols, ...(x.protocols ?? [])])].map((n) => byName.get(n)).filter(Boolean),
     photos: [...(x.photos ?? []).map(ownPhoto), ...r.photos.map(filedPhoto(i.id))],
@@ -314,7 +324,7 @@ for (const i of FCC.ids) {
 }
 for (const o of ROWN.remotes) {
   remotes.push({
-    slug: `remote-${o.slug}`, fcc: null, title: o.title, short: o.short, maker: o.maker,
+    slug: `remote-${o.slug}`, fcc: null, unit: false, title: o.title, short: o.short, maker: o.maker,
     groups: TAX.groups.filter((g) => g.slug === o.group),
     entries: o.protocols.map((n) => byName.get(n)).filter(Boolean),
     photos: o.photos.map(ownPhoto), notes: [], chips: o.chips ?? [], facts: o.facts ?? [], cars: o.cars ?? null,
@@ -440,7 +450,7 @@ ${r.facts.map(([k, v]) => row(esc(k), inline(v))).join('\n')}
 </aside>
 `;
   const lead = i
-    ? `<p class="lead"><code>${esc(i.id)}</code> is the FCC ID of ${i.product ? `a remote its filing calls “${esc(titleCase(i.product))}”` : 'a car remote'}${r.maker ? `, by ${esc(r.maker)}` : ''}${i.granted ? `, granted in ${esc(i.granted.slice(0, 4))}` : ''}.${i.models ? ` Parts catalogues list it for the ${esc(i.models)}${i.years ? ` (${esc(i.years)})` : ''}.` : ''}</p>${r.note ? `\n<p>${inline(r.note)}</p>` : ''}`
+    ? `<p class="lead"><code>${esc(i.id)}</code> is the FCC ID of ${r.unit ? `a part installed in the car, not a remote: its filing calls it “${esc(titleCase(i.product))}”` : i.product ? `a remote its filing calls “${esc(titleCase(i.product))}”` : 'a car remote'}${r.maker ? `, by ${esc(r.maker)}` : ''}${i.granted ? `, granted in ${esc(i.granted.slice(0, 4))}` : ''}.${CAR_UNITS.has(i.id) ? ` Its internal photos show ${esc(CAR_UNITS.get(i.id))}.` : ''}${i.models ? ` Parts catalogues list it for the ${esc(i.models)}${i.years ? ` (${esc(i.years)})` : ''}${r.unit ? ', with the keys of the system' : ''}.` : ''}</p>${r.note ? `\n<p>${inline(r.note)}</p>` : ''}`
     : `<p class="lead">${inline(r.summary ?? '')}</p>`;
   const pictures = r.photos.length ? `${h2('pictures', 'Pictures')}
 <div class="shots">
@@ -473,7 +483,7 @@ ${captureTable(r.captures.slice().sort((a, b) => a.path.localeCompare(b.path)), 
   const frames = r.entries.length && !i ? r.entries.map((e) => frameSection(e.page)).join('\n') : '';
   if (frames) toc.push({ depth: 2, id: 'example-frames', text: 'Example frames' });
   const g = r.groups[0];
-  const near = remotes.filter((x) => x !== r && g && x.groups.includes(g)).sort(byInterest).slice(0, 30);
+  const near = remotes.filter((x) => x !== r && !x.unit && g && x.groups.includes(g)).sort(byInterest).slice(0, 30);
   return wikiPage({
     file: `${r.slug}.html`, title: r.title, wide: false,
     description: clip(i ? `${i.id}: ${titleCase(i.product) || 'car remote'} by ${r.maker}${i.models ? `, for the ${i.models}` : ''}. Pictures of the board, what the FCC filing says and the KAT protocol that reads it.` : unentity((r.summary ?? '').replace(/[`*\[\]]|\([^)]*\.md[^)]*\)/g, ''))),
@@ -570,7 +580,7 @@ function pathHref(text) {
  */
 function render(name, src) {
   const slug = slugger();
-  let title = null, section = '', overview = null, first = null;
+  let title = null, section = '', overview = null, first = null, figures = 0;
   const meta = [], toc = [];
   const marked = new Marked({
     gfm: true,
@@ -600,6 +610,16 @@ function render(name, src) {
           for (const m of meta) if (m.tokens) { m.html = this.parser.parseInline(m.tokens).trim(); delete m.tokens; }
           return '';
         }
+        // An image alone in its paragraph, with a title, is a numbered figure: the title is its caption
+        // (inline Markdown), the image opens full size, and "#wide" on its address lets it use the margin.
+        if (toks.length === 1 && toks[0].type === 'image' && toks[0].title) {
+          const { href, title: caption, text: alt } = toks[0];
+          const wide = href.endsWith('#wide');
+          const src = wide ? href.slice(0, -'#wide'.length) : href;
+          figures += 1;
+          return `<figure class="fig${wide ? ' wide' : ''}"><a href="${esc(src)}"><img src="${esc(src)}" alt="${esc(unentity(alt))}" loading="lazy"></a>`
+            + `<figcaption><b>Figure ${figures}.</b> ${inline(unentity(caption))}</figcaption></figure>\n`;
+        }
         // The page's description: the first paragraph under "Overview", or
         // else the first one that isn't a label line.
         const text = unentity(plain(toks)).replace(/\s+/g, ' ').trim();
@@ -618,6 +638,13 @@ function render(name, src) {
         const to = pageHref(own == null ? href : own === '' || own.startsWith('#') ? `./${own}` : own);
         const out = /^https?:/.test(to ?? '') ? ' rel="noopener"' : '';
         return `<a href="${esc(to)}"${t ? ` title="${esc(t)}"` : ''}${out}>${this.parser.parseInline(toks)}</a>`;
+      },
+      // A date in a table never breaks at its hyphens.
+      tablecell(token) {
+        const type = token.header ? 'th' : 'td';
+        const content = this.parser.parseInline(token.tokens)
+          .replace(/(^|>)([^<]+)/g, (m, open, txt) => open + txt.replace(/\b(\d{4}-\d{2}-\d{2})\b/g, '<span class="nowrap">$1</span>'));
+        return `${token.align ? `<${type} align="${token.align}">` : `<${type}>`}${content}</${type}>\n`;
       },
       // A recording or a source file named in the text opens in the repository.
       codespan({ text }) {
@@ -676,14 +703,13 @@ function shell({ file, title, description, main, type = 'article' }, parts) {
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="${ORIGIN}/og.png">
-<meta name="theme-color" content="#07070d">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131416" media="(prefers-color-scheme: dark)">
 <link rel="icon" type="image/svg+xml" href="logo.svg">
 <link rel="stylesheet" href="style.css">
 <script src="site.js" data-search="search.json" defer></script>
 </head>
 <body>
-
-${parts.mesh}
 
 ${parts.nav}
 
@@ -699,11 +725,12 @@ ${parts.footer}
 const sideList = (title, items, here) => (items.length ? `<div class="side-block"><h2>${esc(title)}</h2><ul>${items.map(([href, text]) =>
   `<li><a href="${href}"${href === here ? ' aria-current="page"' : ''}>${esc(text)}</a></li>`).join('')}</ul></div>` : '');
 
-const tocList = (toc) => (toc.length > 1 ? `<div class="side-block side-toc"><h2>On this page</h2><ul>${toc.map((t) =>
+const tocList = (toc, numbered = false) => (toc.length > 1 ? `<div class="side-block side-toc${numbered ? ' numbered' : ''}"><h2>On this page</h2><ul>${toc.map((t) =>
   `<li class="d${t.depth}"><a href="#${esc(t.id)}">${esc(t.text)}</a></li>`).join('')}</ul></div>` : '');
 
-/** A page of the reference work: the list beside it, the trail above it, the article. */
-function wikiPage({ file, title, description, trail, side = '', lead = '', body, foot = '', wide = false }, parts) {
+/** A page of the reference work: the list beside it, the trail above it, the article.
+ *  `numbered`: a long page (a protocol, a guide) whose sections carry numbers, as a report's do. */
+function wikiPage({ file, title, description, trail, side = '', lead = '', body, foot = '', wide = false, numbered = false }, parts) {
   const main = `<main class="doc wiki${wide ? ' wiki-wide' : ''}">
   <div class="container wiki-grid">
     <aside class="wiki-side" aria-label="Contents">
@@ -711,7 +738,7 @@ ${side}
     </aside>
     <div class="wiki-main">
       ${crumbs(trail)}
-      <article class="prose">
+      <article class="prose${numbered ? ' numbered' : ''}">
 <h1>${esc(title)}</h1>
 ${lead}${body}      </article>
 ${foot}
@@ -809,9 +836,9 @@ function protocolPage(page, r, parts) {
   const g = groups[0];
   const siblings = g ? g.pages.map((p) => [`${p}.html`, titles.get(p) ?? p]) : [];
   const trail = [['./', 'KAT'], ['protocols.html', 'Protocols'], ...(g ? [[g.href, g.short]] : gate ? [['makes.html#gate', 'Gate and garage remotes']] : [])];
-  const side = tocList([...r.toc, ...extra.toc]) + sideList(g ? g.short : '', siblings.slice(0, 40), `${page}.html`);
+  const side = tocList([...r.toc, ...extra.toc], true) + sideList(g ? g.short : '', siblings.slice(0, 40), `${page}.html`);
   return wikiPage({
-    file: `${page}.html`, title: r.title, description: r.description, trail, side,
+    file: `${page}.html`, title: r.title, description: r.description, trail, side, numbered: true,
     lead: infobox(page, r),
     body: `${r.body}${extra.html}`,
     foot: docFoot(page, 'protocols.html', 'All protocols'),
@@ -880,16 +907,24 @@ for (const f of files) if (!f.endsWith('.md')) cpSync(join(HERE, f), join(OUT, f
 
 // The landing page links the changelog page. Built without the repository beside this folder there is
 // none, and the links go to the file in the repository.
+// Its {{placeholders}} are the numbers the site counts itself and the version the data was written by.
+const fill = { ...counts, chips: CHIPS.chips.length, version: PROTO.version };
 const index = ((src) => (made.includes('changelog') ? src : src.replaceAll('href="changelog.html"', `href="${REPO}/blob/main/CHANGELOG.md"`)))(
-  readFileSync(join(HERE, 'index.html'), 'utf8'));
+  readFileSync(join(HERE, 'index.html'), 'utf8')).replace(/\{\{(\w+)\}\}/g, (m, k) => (k in fill ? fill[k].toLocaleString('en-US') : m));
+if (/\{\{\w+\}\}/.test(index)) throw new Error(`index.html: unknown placeholder ${/\{\{\w+\}\}/.exec(index)[0]}`);
 const parts = {
-  mesh: borrow(index, /<div class="bg-mesh"[\s\S]*?<\/div>\s*<\/div>/),
   nav: borrow(index, /<nav class="nav">[\s\S]*?<\/nav>/),
   footer: borrow(index, /<footer class="footer">[\s\S]*?<\/footer>/),
 };
 
 // Every Markdown page, read once: a page's list of its neighbours needs their titles.
 const rendered = new Map(pages.map((p) => [p, render(p, readFileSync(join(HERE, `${p}.md`), 'utf8'))]));
+// install.md names the release's archives ("kat-v1.2.3-x86_64-linux.tar.gz"): a release that forgets to
+// bump them fails here, not in a reader's shell.
+if (pages.includes('install')) {
+  const stale = [...readFileSync(join(HERE, 'install.md'), 'utf8').matchAll(/kat-v(\d+\.\d+\.\d+)-/g)].map((m) => m[1]).filter((v) => v !== PROTO.version);
+  if (stale.length) throw new Error(`install.md names archives of ${[...new Set(stale)].join(', ')}; data/protocols.json says ${PROTO.version}`);
+}
 const short = (t) => t.replace(/ Protocol(?= \(|$)/, '').replace(/ \((?:rtl_433|FoxFW)[^)]*\)$/, '');
 const titles = new Map([...rendered].map(([p, r]) => [p, short(r.title)]));
 const html = new Map(); // file name -> page
@@ -911,8 +946,8 @@ for (const [p, r] of rendered) {
 ${r.meta.map((m) => `<div><dt>${esc(/^rust module/i.test(m.label) ? 'Source' : m.label)}</dt><dd>${codeBreaks(m.html)}</dd></div>`).join('\n')}
 </dl></aside>\n` : '';
   html.set(`${p}.html`, wikiPage({
-    file: `${p}.html`, title: r.title, description: r.description, trail,
-    side: tocList(r.toc) + (guide || ref ? guideSide(`${p}.html`) : indexSide('')),
+    file: `${p}.html`, title: r.title, description: r.description, trail, numbered: !ref,
+    side: tocList(r.toc, !ref) + (guide || ref ? guideSide(`${p}.html`) : indexSide('')),
     lead: facts, body: r.body,
     foot: docFoot(p, guide || ref ? 'guides.html' : 'protocols.html', guide || ref ? 'All guides' : 'All protocols'),
   }, parts));
@@ -930,6 +965,7 @@ if (rendered.has('glossary')) for (const t of rendered.get('glossary').toc.filte
 ${filterBox('Filter: a name, a make, “manchester”, “fm”, “encode”, “keeloq” …', 'protocol')}
 ${protocolTable(list)}
 <p class="note">A decoder can read several kinds of frame and shows each under its own name (Kia V0's page is also Suzuki V0's and Honda V0's). ${list.length - list.filter((p) => p.registered).length} rows are protocols that are ported and kept in the source but not in the decoder list, as in the references they come from; MARELLI replays saved frames and decodes nothing. “Rec.” counts the files of the <a href="captures.html">recording library</a> KAT reads the protocol from.</p>
+<p class="note"><strong>Notes, not decoders.</strong> rtl_433's <a href="ford_car_remote.html">Ford-CarRemote</a>, <a href="nidec_oucg8d.html">Nidec-OUCG8D and Honda-CarRemote</a> and <a href="akhan_100f14.html">Akhan-100F14</a> read the same frames as KAT's Ford V0, Honda V0 and Princeton, so KAT does not duplicate them; these pages map their fields. <strong>Ported, not enabled.</strong> <a href="audi.html">Audi</a>, <a href="mazda_infinity.html">Mazda Infinity</a>, <a href="hyundai.html">Hyundai</a> and <a href="land_rover_rke.html">Land Rover RKE</a> stay out of KAT's registry, as they stay out of the references, and <a href="markisol.html">Markisol</a> stays out because rtl_433 ships it disabled.</p>
 `;
   html.set('protocols.html', wikiPage({
     file: 'protocols.html', title: 'Protocols', wide: true,
@@ -999,7 +1035,7 @@ ${g.captures.length ? `${h2('recordings', 'Recordings')}
 ${captureTable(g.captures.slice().sort((a, b) => a.path.localeCompare(b.path)), { folder: g.folders.length > 1 || g.captures.some((c) => c.more) })}` : ''}
 ${remotes.some((r) => r.groups.includes(g) && r.photos.length) ? `${h2('remotes', 'Remotes')}
 <p>Remotes of this make the site has pictures of: the remote, its circuit board, what is known of its chips. <a href="remotes.html">All remotes</a>.</p>
-${remoteGrid(remotes.filter((r) => r.groups.includes(g) && r.photos.length).sort(byInterest).slice(0, 18))}` : ''}
+${remoteGrid(remotes.filter((r) => !r.unit && r.groups.includes(g) && r.photos.length).sort(byInterest).slice(0, 18))}` : ''}
 ${g.fcc.length ? `${h2('fcc-ids', 'FCC IDs')}
 <p>FCC IDs that parts catalogues list for this make's cars, the family of remotes each belongs to, and whether KAT reads it. How the ties were made is on the <a href="fcc.html">FCC ID page</a>.</p>
 ${fccTable(g.fcc.slice().sort((a, b) => b.model_years - a.model_years))}` : ''}
@@ -1093,14 +1129,16 @@ ${fccTable(FCC.ids)}
 
 // --- remotes.html, a page per remote, chips.html, a page per chip
 {
-  const shown = remotes.filter((r) => r.photos.length).sort(byInterest);
-  const rest = remotes.filter((r) => !r.photos.length);
+  const units = remotes.filter((r) => r.unit);
+  const real = remotes.filter((r) => !r.unit);
+  const shown = real.filter((r) => r.photos.length).sort(byInterest);
+  const rest = real.filter((r) => !r.photos.length);
   const own = remotes.filter((r) => !r.fcc);
   html.set('remotes.html', wikiPage({
     file: 'remotes.html', title: 'Remotes', wide: true,
-    description: `${remotes.length} car remotes: pictures of the remote and its circuit board, the chips on it, what its FCC filing says about the signal, and the KAT protocol that reads it.`,
-    trail: [['./', 'KAT']], side: tocList([{ depth: 2, id: 'pictured', text: 'With pictures' }, { depth: 2, id: 'others', text: 'Without pictures' }]) + indexSide('remotes.html'),
-    body: `<p class="lead">The hardware behind the protocols: ${remotes.length} car remotes, ${shown.length} of them with pictures of the remote and its circuit board. Each has a page with what is known of it: the chips on the board, the frequency and modulation, what its FCC filing says about the signal, the cars it is sold for, and the KAT protocol that reads it.</p>
+    description: `${real.length} car remotes: pictures of the remote and its circuit board, the chips on it, what its FCC filing says about the signal, and the KAT protocol that reads it.`,
+    trail: [['./', 'KAT']], side: tocList([{ depth: 2, id: 'pictured', text: 'With pictures' }, { depth: 2, id: 'others', text: 'Without pictures' }, ...(units.length ? [{ depth: 2, id: 'units', text: 'In the car, not remotes' }] : [])]) + indexSide('remotes.html'),
+    body: `<p class="lead">The hardware behind the protocols: ${real.length} car remotes, ${shown.length} of them with pictures of the remote and its circuit board. Each has a page with what is known of it: the chips on the board, the frequency and modulation, what its FCC filing says about the signal, the cars it is sold for, and the KAT protocol that reads it.</p>
 <p>${plural(own.length, 'remote')} here ${own.length === 1 ? 'was' : 'were'} photographed and recorded by ${own.length === 1 ? 'its owner' : 'their owners'}; the pictures of the others are from the internal photos of their FCC filings, which are public records. Remotes sold outside the United States have no FCC ID and are here only when an owner sent one in. The <a href="chips.html">chips</a> have pages of their own, and the <a href="fcc.html">FCC ID table</a> lists every remote by family.</p>
 <h2 id="pictured">With pictures <span class="count">${shown.length}</span><a class="h-anchor" href="#pictured" aria-label="Link to this section">#</a></h2>
 ${filterBox('Filter: an FCC ID, a maker, a car, a protocol, a chip …', 'remote')}
@@ -1108,6 +1146,14 @@ ${remoteGrid(shown)}
 <h2 id="others">Without pictures <span class="count">${rest.length}</span><a class="h-anchor" href="#others" aria-label="Link to this section">#</a></h2>
 <p>Remotes whose filing has no public internal photos, or was not read yet.</p>
 ${fccTable(rest.map((r) => r.fcc))}
+${units.length ? `<h2 id="units">In the car, not remotes <span class="count">${units.length}</span><a class="h-anchor" href="#units" aria-label="Link to this section">#</a></h2>
+<p>Parts installed in the car, not carried: the Smart Unit, the SSU and the LF control unit (LFU) of the smart
+keyless systems Mitsubishi Electric filed for Mazda, which call the key over the low-frequency link (the filings:
+“installed in vehicles”); a DENSO Korea body unit with the keyless receiver, filed as “IBU KEYLESS”; and a Minebea
+immobilizer ring antenna filed as “Integrate Immobilizer System with RKE”. Parts catalogues list them for the same
+cars as the keys, so they are in the FCC data; they are not counted as remotes above. Each has a page with its
+filing's internal photos.</p>
+${fccTable(units.map((r) => r.fcc))}` : ''}
 `,
   }, parts));
   for (const r of remotes) html.set(`${r.slug}.html`, remotePage(r, parts));
@@ -1234,14 +1280,12 @@ for (const [f, t, d] of [['protocols.html', 'Protocols', 'Every protocol in one 
 writeFileSync(join(OUT, 'search.json'), JSON.stringify(search));
 const hashes = new Map();
 const hashFile = (rel, dir = HERE) => hashes.set(rel, createHash('sha256').update(readFileSync(join(dir, rel))).digest('hex').slice(0, 10));
-for (const f of ['style.css', 'app.js', 'site.js', 'logo.svg', 'og.png']) if (existsSync(join(HERE, f))) hashFile(f);
+for (const f of ['style.css', 'site.js', 'logo.svg', 'og.png']) if (existsSync(join(HERE, f))) hashFile(f);
 hashFile('search.json', OUT);
 const walk = (rel) => readdirSync(join(HERE, rel), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${rel}/${e.name}`) : [`${rel}/${e.name}`]));
 if (existsSync(join(HERE, 'img'))) for (const f of walk('img')) hashFile(f);
 
-const landing = index.replace(/\{\{(\w+)\}\}/g, (m, k) => (k in counts ? counts[k].toLocaleString('en-US') : m));
-if (/\{\{\w+\}\}/.test(landing)) throw new Error(`index.html: unknown placeholder ${/\{\{\w+\}\}/.exec(landing)[0]}`);
-writeFileSync(join(OUT, 'index.html'), versioned(landing, hashes));
+writeFileSync(join(OUT, 'index.html'), versioned(index, hashes));
 for (const [f, page] of html) writeFileSync(join(OUT, f), versioned(page, hashes));
 
 // The server answers a missing address with this page (Caddy's handle_errors).

@@ -40,7 +40,8 @@ Inside the data states a pulse that is neither short nor long is ignored (not a 
 
 - **Key1[63:56]:** vehicle/type byte (sent in clear)
 - **Key1[55:0] + Key2[15:8]:** encrypted block → serial (bytes 0–3, big-endian), counter (bytes 4–6, little-endian, 24 bits), button byte (byte 7)
-- **Key2[7:0]:** dispatch byte (must match the button for Types 1/2/4)
+- **Key2[7:0]:** dispatch byte (Types 1/2: one of 0x2A/0x1C/0x46, Type 4: one of 0x2B/0x1D/0x47; Types 2 and
+  4 must also match the decrypted button; Type 3: not checked)
 
 Button: Type 1 reports the whole byte (0x10 Unlock, 0x20 Lock, 0x40 Boot — ProtoPirate; ARF keeps the
 nibble), Types 2/3/4 the high nibble (1 Unlock, 2 Lock, 4 Boot). The KAT UI labels both forms
@@ -58,7 +59,7 @@ encode.
 1. **Reset** — HIGH 300 µs → Preamble1; HIGH 500 µs → Preamble2.
 2. **Preamble1 → Data1** — count 300 µs halves; a 600 µs LOW after ≥151 enters Data1. Manchester (ProtoPirate's `level ? ShortLow : ShortHigh` on Flipper's machine); at 15 bits a 0x2F3F/0x2F1C prefix sets Type 1/2 and restarts the count; at 64 bits Key1 = ~data; on the ≥4001 µs gap with 80 bits Key2 = ~data → parse.
 3. **Preamble2 → Sync2A/B/C → Data2** — count 500 µs halves (≥31), sync 1000/500, three 750 µs pairs; Data2 starts with one implied 1 bit; at 64 bits Key1; at 80 bits Key2 → Type 3 → parse.
-4. **Parse** (`vag_parse_data`) — Type 1: AUT64 keys 1,2,3 with `vag_button_valid`; Type 2: XTEA + `vag_button_matches`; Type 3: AUT64 key 3 (→ Type 4), 2, 1 with `vag_button_valid`; Type 4: key 3 + `vag_button_matches`.
+4. **Parse** (`vag_parse_data`) — Type 1: AUT64 keys 1,2,3 with `vag_button_valid`; Type 2: XTEA + `vag_button_matches`; Type 3: AUT64 key 3 (→ Type 4), 2, 1 with `vag_button_valid`; Type 4: key 3 + `vag_button_matches`. `vag_button_valid` (byte 7's high nibble 1, 2 or 4, or byte 7 = 0) passes 49 of 256 random plaintexts, so a frame can decrypt under a key tried before its fob's own and show a wrong serial, as in the C.
 
 ## Encoder
 
@@ -67,8 +68,9 @@ C), serial, button and counter + 1 (24-bit): builds the plaintext block, encrypt
 recomputes the dispatch byte and emits ProtoPirate's upload — Type 1/2: 220 × (HIGH 300, LOW 300),
 LOW 300, HIGH 300, prefix + ~Key1 + ~Key2 Manchester at 300 µs, LOW 6000 (635 entries); Type 3/4: two
 copies of 45 × (HIGH 500, LOW 500), HIGH 1000, LOW 500, 3 × (HIGH 750, LOW 750), Key1 + Key2 at 500
-µs, LOW 10000 (518 entries). The Flipper loops the upload while the button is held (ProtoPirate repeat
-10, ARF 1); KAT sends it once.
+µs, LOW 10000 (518 entries). ProtoPirate's encoder sends the upload 10 times, doctor-firmware's 3 and
+Flipper-ARF's once; KAT sends it 3 times per press. None of them reads a key file's `Repeat` line, and
+KAT ignores it too.
 
 Buttons (ProtoPirate's emulate mapping): Lock → 0x20 / 2, Unlock → 0x10 / 1, Trunk → 0x40 / 4 (full
 byte for Type 1, nibble otherwise), Panic → 8 (nibble types only); other commands keep the captured
@@ -89,18 +91,23 @@ so KAT keeps Type 1.
 ## Validation
 
 Compared with the compiled ProtoPirate `vag.c` + `aut64.c` (host harness): decoder output identical on
-every IMPORTS capture in both polarities (198 frames: Golf4 38, Test_55 69, VW_Skoda_Seat_2008 31,
-Vw_passat_b5_3bg 27, Vw pasat B7 12, Passat_2015 8, VAG_2 8, Skoda Fabia 5) and on 4508 frames from 3000
-C-encoded uploads (plain, ±70/±115 µs jitter, glitched); encoder upload identical pulse-for-pulse on 3000
-random vectors (all types, key indices, buttons, counter wrap). `IMPORTS/VAG/Passat_b5_3bg.sub` (a
-decoded key file) is one of the `Vw_passat_b5_3bg.sub` frames. The VW Atlas captures decode in no
-reference. Unit tests cover the captures, every type's encode→decode round trip, the legacy `extra`
-layout and AUT64 golden vectors.
+every IMPORTS capture of the time (v1.4.0; the recordings added since are listed under Recordings) in both
+polarities (198 frames: Golf4 38, Test_55 69, VW_Skoda_Seat_2008 31, Vw_passat_b5_3bg 27, Vw pasat B7 12,
+Passat_2015 8, VAG_2 8, Skoda Fabia 5) and on 4508 frames from 3000 C-encoded uploads (plain, ±70/±115 µs
+jitter, glitched); encoder upload identical pulse-for-pulse on 3000 random vectors (all types, key indices,
+buttons, counter wrap). `IMPORTS/VAG/Passat_b5_3bg.sub` (a decoded key file) is one of the
+`Vw_passat_b5_3bg.sub` frames. The VW Atlas captures decode in no reference (KAT reads the 2020 one as
+[VAG Polo](vag_polo.md)). Unit tests cover the captures, every type's encode→decode round trip, the legacy
+`extra` layout and AUT64 golden vectors.
 
 ## Key files
 
 ProtoPirate's lines: `Key` (Key1), `Key2`, `Type` (after parsing: 3 → 4 for key 3) and, for a decrypted frame,
-`Serial`, `Btn`, `Cnt` and `KeyIdx`. Flipper-ARF's "VAG GROUP" files carry the same lines (plus `BtnFlags`) but
-write a Type 1 button as its high nibble (`Btn: 2` for 0x20); KAT reads that form as the byte it means. Until
-v1.8.7 it compared ARF's nibble with the whole byte, rebuilt the frame around plaintext 0x02, and loaded every
-ARF-saved Type 1 fob as another, undecryptable frame.
+`Serial`, `Btn`, `Cnt` and `KeyIdx`. KAT loads `Type: 4` as the decoder parses every 500 µs frame (as Type 3,
+key 3 first); ProtoPirate's loader parses it strictly as Type 4 (dispatch 0x2B/0x1D/0x47 matching the button)
+and loses the frames that fail that. `Key_2` is read for `Key2` (`IMPORTS/VAG/Passat_b5_3bg.sub`). Serial, Btn
+or Cnt that differ from the decrypted fields rebuild the frame, as ProtoPirate's encoder transmits from them.
+Flipper-ARF's "VAG GROUP" files carry the same lines (plus `BtnFlags`) but write a Type 1 button as its high
+nibble (`Btn: 2` for 0x20); KAT reads that form as the byte it means. Until v1.8.7 it compared ARF's nibble
+with the whole byte, rebuilt the frame around plaintext 0x02, and loaded every ARF-saved Type 1 fob as another,
+undecryptable frame.

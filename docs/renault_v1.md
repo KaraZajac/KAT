@@ -151,7 +151,9 @@ second-lowest place (`((key >> 32) & 0xF0) != 0x30`, no reason given); KAT keeps
    `hitag2_encoder_hell_next_frame` builds it: the requested button (else the captured one), counter
    `epoch << 10 | cnt10` + 1, hop `hitag2::renault_authenticator(uid, btn, counter, key)` (= Fiat V1's
    cipher with the key rotated by two bytes), the captured tail bits; doctor-firmware's upload as in 3.
-   The key file (`to_flipper_key`) then gets doctor-firmware's `Hitag2 Key` + `Hitag2 Epoch` lines.
+   The key file (`to_flipper_key`) then gets doctor-firmware's `Hitag2 Key` + `Hitag2 Epoch` lines, and the
+   capture's detail panel a **HiTag2** row with the key (standard order) and its epoch when that is not 0; a frame
+   sent from its serial-derived seed has no such key and no row.
    A loaded key file's `Hitag2 Key` line (doctor-firmware's, or the key typed into ProtoPirate; both the
    standard order) becomes the remote's saved key when it reproduces the frame's hop, with the line's
    epoch or one of the next seven, else with 0 to 7 (`renault_v1_apply_stored_secret`,
@@ -166,7 +168,13 @@ second-lowest place (`((key >> 32) & 0xF0) != 0x30`, no reason given); KAT keeps
 
 ## Validation
 
-- No Renault capture exists in `IMPORTS/`; no other capture decodes as Renault V1 (sweep unchanged).
+- 22 recordings in `IMPORTS/` read as Renault V1 (1565 frames, 7 UIDs): 15 in `RENAULT/more/` (by their names a
+  2010 Duster, a Kangoo, three remotes in `Renault_v1_PSA_A5_*`, one in `lock_*`, `unlock_*` and `trunk_*`) and 7
+  in `nissan/more/`, named after a 2014 Nissan Almera's xHorse key. The three `PSA_A5` remotes are serial-derived-key
+  remotes: the seed search recovers their seed (their counters read 16 bits wide), so KAT sends fresh frames for
+  them. Most of these files also list frames as Renault/xHorse V4, and the Kangoo files as Renault V0.
+  ProtoPirate's and doctor-firmware's C read the same frames as KAT in all 22, plus one more press at the end of
+  the Duster recording (counter `0x266`) that KAT does not list.
 - The decoder was compared against ProtoPirate's `renault_v1.c` compiled on the host over ~700 randomly
   generated bursts (random fields, TE 95-165 µs, ±20 % jitter, glitches, corrupted XORs, header
   variations): every frame matched, each reported exactly one pulse after the C. Re-checked on 2400
@@ -181,9 +189,9 @@ second-lowest place (`((key >> 32) & 0xF0) != 0x30`, no reason given); KAT keeps
   nothing, also when run on its own. Up to 1.12.0 it reported every such frame and relied on Fiat V1's
   cells, earlier in the registry, to name it first, so a frame the cells missed was listed as Renault V1
   (`IMPORTS/OPEL/Opel Vectra 2008.sub`: one press of six; all six are Fiat V1 now, as in
-  doctor-firmware's merged decoder). On 262 real RAW files (IMPORTS, the Flipper unit-test folders,
-  rtl_433's recordings) no frame is Renault V1, in KAT as in doctor-firmware's C; ProtoPirate's C lists
-  all six Opel presses as Renault V1 as well.
+  doctor-firmware's merged decoder). On 262 real RAW files (IMPORTS as of 1.13.0, before the recordings
+  above, the Flipper unit-test folders, rtl_433's recordings) no frame was Renault V1, in KAT as in
+  doctor-firmware's C; ProtoPirate's C lists all six Opel presses as Renault V1 as well.
 - **One pulse later than the C:** the C fires at the mid-bit of the 104th bit; KAT reports the frame on the
   next pulse. Behind a header that is Renault's by the rule above (a lead longer than 949 µs, or the narrow
   header) Fiat V1's cells may still read the same frame and complete on exactly that pulse, so both fire

@@ -88,7 +88,8 @@ recorded pulses and export.
   folder 01 r_devices 307 and 308 finish the same frame on the same final gap and KAT reports one decode per pulse);
   1000 synthetic packages (every coding, jitter, preamble lengths, bit flips, truncation) — identical per `r_device`
   (69 / 63 / 114 / 118 / 34 / 32 frames).
-- **IMPORTS**: one new decode, `HOLDEN/Holden Barina 2016 AU.sub` (an Opel V1 fob): r_device 309 reads Opel V1's
-  120/240 µs Manchester as 100/200 µs PWM and 1 row of 4 passes the 2-bit CRC; rtl_433 decodes the same pulses the
+- **IMPORTS**: one new decode, `HOLDEN/Holden Barina 2016 AU.sub` (a GM 433 MHz fob, read by
+  [Chevrolet V0](chevrolet_v0.md); Opel V1 reads the same outer frame): r_device 309 reads its 120/240 µs
+  Manchester as 100/200 µs PWM and 1 row of 4 passes the 2-bit CRC; rtl_433 decodes the same pulses the
   same way (id 0CB3DB36, button 14, encrypted FABDAF56). No decode of another device's recording in rtl_433_tests or
   the Flipper unit-test captures.

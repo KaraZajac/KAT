@@ -67,7 +67,8 @@ Byte-exact replay of the 14 captured bytes, as in the reference (the encrypted f
 regenerated, so custom buttons are disabled; the requested button is ignored). Waveform: per bit, 300 µs
 HIGH + 300/500 µs LOW, then a 12 ms guard LOW. KAT inserts one closing 300 µs HIGH pulse before the guard:
 in the reference upload the 112th gap runs straight into the guard LOW, the two merge on air and the last
-bit is lost (the reference's own decoder would see 111 bits). The reference's 5× repeat is not replicated.
+bit is lost (the reference's own decoder would see 111 bits). KAT sends the replay 5 times per press, as the
+reference does, or as often as a key file's `Repeat` line says.
 rtl_433 needs ≥113 bits and drops the last one, so real fobs send one trailing bit after the payload; its
 value is not captured, so the replay does not synthesize it (unverified against a vehicle).
 

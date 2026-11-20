@@ -49,11 +49,22 @@ normal / mirrored normal. Accepted when the plaintext's top byte = button and by
 `gen_data` + `get_upload`: manufacturer re-derived by the same key search; counter + 1 (wraps to 0);
 `fix = button << 24 | serial`; hop encrypted per the matched entry (SIMPLE / NORMAL; UNKNOWN per matched
 mode, with the key as stored — the C ignores the mirrored copy here). Unknown manufacturer → the captured
-hop is replayed under the new fix. Upload: 6 × (1000, 1000) + 64 bits, sent 40 times (C `encoder.repeat`).
+hop is replayed under the new fix. Upload: 6 × (1000, 1000) + 64 bits, sent 40 times (C `encoder.repeat`; a
+key file's `Repeat` line sets the count, as in the C).
 
 Buttons (ARF): 0x01 Lock, 0x02 Unlock, 0x03 Trunk, 0x04 Panic; 2-way remotes 0x21 Lock, 0x22 Unlock,
 0x23 Trunk, 0x24 Start, 0x25 Stop, 0x26 Extra. KAT Lock/Unlock/Trunk/Panic → 0x01/0x02/0x03/0x04, plus
 0x20 when the captured button is a 2-way one (ARF d-pad mapping); 0x03 and 0x21..0x26 pass through.
+
+## Key files
+
+ProtoPirate's and Flipper-ARF's lines (`subghz_protocol_decoder_star_line_serialize`): `Protocol: Star Line`,
+`Bit: 64`, `Key` as one 16-digit word, then `Serial`, `Btn`, `Cnt` (decimal) and `Manufacture` (the matched keystore
+name or `Unknown`). Loading keeps the C's semantics: serial and button come from the key; a named manufacturer
+restricts the key search to that name (no match → `Unknown`, counter 0); `Unknown` keeps the file's `Cnt` without a
+search; without the line the whole keystore is searched, as on air. A zero key is refused. Transmitting from a
+loaded key searches the whole keystore again (the C's encoder searches only the file's `Manufacture`, and replays
+the hop under `Unknown`).
 
 ## Validation
 
@@ -61,4 +72,7 @@ C oracle (unmodified ARF `star_line.c`, KAT's keystore): decoder field-for-field
 pulse-for-pulse on randomized frames built with every keystore entry/mode (plus jitter and 63..67-bit
 variants) — no mismatch. A real Cenmax remote in ARF's `unit_tests/subghz/test_random_raw.sub` now
 decodes as `Star Line [Cenmax_St-5]` with consecutive counters (previously counter 0: KAT only tried one
-key). The IMPORTS sweep has no Star Line capture.
+key). The IMPORTS sweep has no Star Line capture. Unit tests also cover key files: identified and
+unidentified decodes round-trip with the C's lines, a file as ProtoPirate writes it (one-word `Key`, short preset
+name) loads, the `Manufacture` line restricts the search as in the C, a zero key is refused, and TX from a loaded
+key decodes with counter + 1.

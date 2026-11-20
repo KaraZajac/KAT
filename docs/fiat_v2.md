@@ -87,7 +87,9 @@ which the C reaches through its inverted try.
 
 - **Encoding:** Manchester
 - **RF modulation:** AM (OOK)
-- **Encryption:** rolling code (hop not recomputed — no key)
+- **Encryption:** rolling code: a 32-bit hop, which Flipper-ARF and qDoctor take for Fiat V1's HITAG2
+  authenticator (not confirmed against a real key); recomputed only when a known or saved key reproduces it,
+  replayed otherwise (see Encoder)
 - **Frequencies:** 315 MHz, 433.92 MHz
 
 ## Decoder Steps
@@ -121,7 +123,10 @@ Frame content from Flipper-ARF, waveform from doctor-firmware:
   and type nibble are kept. After ARF's keys KAT tries the key saved for the remote in `hitag2_keys.txt`
   (Fiat V1's byte order) the same way, e.g. one [Recover key (HiTag2)](hitag2_hell.md) found from two
   captures (its IV readings for Fiat V2 are Flipper-ARF's; no reference has confirmed them against a real
-  key, so a search may find nothing).
+  key, so a search may find nothing). The key that verifies a capture is shown in its detail panel's
+  **HiTag2** row, in the standard order and as **Fiat order**, the order of `hitag2_keys.txt`
+  ([HiTag2 key recovery](hitag2_hell.md#the-key-file)). KAT's Fiat V2 key files carry no `Hitag2 Key` line, and
+  KAT does not read the one Flipper-ARF writes.
 - **Replay:** otherwise (every capture in IMPORTS — no known key matches them in ARF either) the 14
   captured bytes are replayed unchanged, as ARF and doctor-firmware do.
 - **Waveform (doctor-firmware):** each of 6 copies is LOW 2000 µs, then the 112 bits as (!b, b) half-bits of

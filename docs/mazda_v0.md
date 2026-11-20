@@ -52,7 +52,7 @@ The 64-bit key (bytes b0..b7, stored in `data` exactly as ProtoPirate stores its
 | 0x1    | Lock   | 0x01             |
 | 0x2    | Unlock | 0x02             |
 | 0x4    | Trunk  | 0x04             |
-| 0x8    | Remote | 0x08 (Panic)     |
+| 0x8    | Remote | 0x08 (the Panic command; shown as "Remote") |
 
 KAT packing: `serial` 32-bit, `button` = the 4-bit code, `counter` = the low 16 bits of the 20-bit counter
 (the top nibble stays in `data`, from which the encoder recovers it), `data_count_bit` = 64.
@@ -80,8 +80,16 @@ Supported (ProtoPirate encoder + emulate scene). The captured key is decoded, th
 fields override it (as the C lets the file's Serial/Btn/Cnt override the Key). KAT's generic button maps
 1:1 onto the frame codes above; any other code keeps the captured button. The counter is bumped by one for
 the fresh press and masked to 20 bits, the key is re-encoded (`mazda_v0_encode_key`), and the upload above
-is emitted once (the Flipper repeats it 10×). Adjacent same-level half-bits are merged into single pulses;
-the waveform is otherwise pulse-for-pulse the C `mazda_v0_build_upload`.
+is built once; KAT sends it 3 times per press (ProtoPirate and Flipper-ARF repeat it 10 times, doctor-firmware
+3; a key file's `Repeat: 10` gives ProtoPirate's count, see [Copies per press](transmit.md#copies-per-press)).
+Adjacent same-level half-bits are merged into single pulses; the waveform is otherwise pulse-for-pulse the C
+`mazda_v0_build_upload`.
+
+**Key files** ([flipper_key_files.md](flipper_key_files.md)): ProtoPirate's lines (Flipper-ARF writes the
+same) — `Protocol: Mazda V0`, `Bit: 64`, `Key`, then `Checksum` (recomputed from the fields), `Serial`, `Btn`,
+`Cnt` (20 bits) and `Disp: Mazda V0 - <button name>`. Loading needs `Bit: 64` and decodes the fields from `Key`
+(hand-edited `Serial`/`Btn`/`Cnt` values are not applied); a key whose checksum byte is wrong loads, as in the
+C (shown "CRC:BAD"), with `crc_valid` false.
 
 ## Validation
 
@@ -91,8 +99,12 @@ the waveform is otherwise pulse-for-pulse the C `mazda_v0_build_upload`.
 - Unit tests: golden key vectors from the C (both whitening branches, counter extremes), upload layout,
   500-frame encode→decode round trip, button mapping + counter bump/20-bit wrap, counter-field override,
   corrupted checksum rejected, wrong sync / short preamble rejected, ±100 µs jitter, registry decode at
-  315 and 433.92 MHz.
-- Real captures: none of `IMPORTS/Mazda/*.sub` decode (with KAT or with the reference C decoders). The
-  RX-8 files never hold more than 13 consecutive pulses in the 250/500 µs classes (a frame needs ~250),
-  and the CX-50 file is 459 chopped pulses recorded with an OOK preset. No capture in `IMPORTS` produces
-  a Mazda decode.
+  315 and 433.92 MHz, key files (the C's lines round-trip; a wrong checksum loads with `crc_valid` false;
+  only `Bit: 64` loads).
+- Real captures: two FM476 recordings of one fob (serial 0x15302419) decode:
+  `IMPORTS/Mazda/more/Mazda_Visteon_TS.sub` (75 frames, buttons 1, 2, 4) and `IMPORTS/Mazda/more/Mazda_F2.sub`
+  (27 frames, buttons 0, 1, 2, 4; KAT reads 54 other frames of it as [Mazda Siemens](mazda_siemens.md)).
+  Host builds of ProtoPirate's, doctor-firmware's, Flipper-ARF's and FoxFW's C read 75 and 27 Mazda V0
+  frames there too. No other capture in `IMPORTS` decodes as Mazda V0. The RX-8 and CX-50 files decode with
+  neither KAT nor the reference C decoders: the RX-8 files never hold more than 13 consecutive pulses in the
+  250/500 µs classes (a frame needs ~250), and the CX-50 file is 459 chopped pulses recorded with an OOK preset.

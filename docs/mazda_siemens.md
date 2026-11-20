@@ -11,7 +11,8 @@ layout: default
 
 The Siemens/VDO keyfob layer used on some Mazda vehicles. Its air format is **identical** to
 [Mazda V0](mazda_v0.md): the Flipper-ARF Siemens encoder and ProtoPirate's Mazda V0 encoder emit the same
-waveform (verified by compiling both C references). What differs is the decoder — Flipper-ARF uses a
+waveform except for the LOW gaps (50 ms here, 52 ms in Mazda V0; verified by compiling both C references).
+What differs is the decoder — Flipper-ARF uses a
 pair-based state machine that ignores `level` and interprets raw durations in pairs (`process_pair`),
 collecting bits with *inverted* polarity — and the field view: an 8-bit button byte and a 16-bit counter
 instead of Mazda V0's button nibble + 20-bit counter.
@@ -21,8 +22,11 @@ bytes 5/6 — is reversed; the gate is the additive checksum `sum(data[0..7]) ==
 preamble/sync/bit-count structure.
 
 > **Registry:** Mazda V0 sits first and also completes a shared frame earlier (after the 64th data bit;
-> this decoder waits for the trailing gap), so live captures of this air format are reported as
-> "Mazda V0". Mazda Siemens only reports frames Mazda V0 rejects, and provides the Siemens-layout encoder.
+> this decoder waits for the trailing gap), so a frame both read is reported as "Mazda V0". Mazda Siemens
+> only reports frames Mazda V0 rejects (54 of the 81 frames KAT reads in `IMPORTS/Mazda/more/Mazda_F2.sub`),
+> and provides the Siemens-layout encoder. It is flagged FM (Mazda V0: AM and FM), so a `.sub` file with an
+> AM preset is not fed to it, and KAT's AM receive path tries it only when no protocol flagged for AM
+> (Mazda V0 among them) reads the burst.
 
 ## Timing
 
@@ -78,10 +82,16 @@ host, the unmodified C decoder decodes 0/2000 C-encoder frames; with only this c
 Supported (`subghz_protocol_encoder_mazda_siemens_deserialize` + `get_upload`). The cleartext is rebuilt
 from the fields — serial into bytes 0–3, the button into **byte 4**, counter + 1 (16-bit, the fresh press)
 into bytes 5–6 — the checksum is recomputed, the bytes are interleaved + XORed (`mazda_xor_obfuscate`) and
-the upload above is emitted once (the Flipper repeats it 4×). Generic buttons map like the C's D-pad remap:
-0x01 → 0x10 Lock, 0x02 → 0x20 Unlock, 0x04 → 0x40 Trunk; anything else (including Panic, which this fob
-lacks) keeps the captured button. Adjacent same-level half-bits are merged; the waveform is otherwise
+the upload above is built once; KAT sends it 4 times per press, as Flipper-ARF does (a key file's `Repeat`
+line sets the count, see [Copies per press](transmit.md#copies-per-press)). Generic buttons map like the C's
+D-pad remap: 0x01 → 0x10 Lock, 0x02 → 0x20 Unlock, 0x04 → 0x40 Trunk; anything else (including Panic, which
+this fob lacks) keeps the captured button. Adjacent same-level half-bits are merged; the waveform is otherwise
 pulse-for-pulse the C upload.
+
+**Key files** ([flipper_key_files.md](flipper_key_files.md)): `Protocol: MazdaSiemens` (Flipper-ARF's name),
+`Bit: 64`, `Key` = the cleartext, then `Serial`, `Btn` and `Cnt` (decimal). Loading needs `Bit: 64` and reads
+the fields from `Key` (the `Serial`/`Btn`/`Cnt` lines are not read back); a key whose checksum byte is wrong
+loads, as in the C, with `crc_valid` false.
 
 > Fixed in this revision: the encoder used to write the button into byte 3 (the serial's low byte, the
 > comment claimed `data >> 24`, which is byte 4), fell back to Unlock for unknown buttons, and emitted
@@ -94,6 +104,10 @@ pulse-for-pulse the C upload.
   ProtoPirate's Mazda V0 encoder.
 - Unit tests: golden cleartext/air vectors from the C, 500-frame encode→decode round trip (serial, mapped
   button, counter + 1), the byte-4 button regression, unknown/Panic buttons keep the captured one, the
-  79-bit completion pinned, corrupted checksum rejected, the obfuscation layer (both parity branches), and
-  the registry reporting a shared frame as Mazda V0 with equivalent fields.
-- Real captures: none of `IMPORTS/Mazda/*.sub` decode (see [Mazda V0](mazda_v0.md#validation)).
+  79-bit completion pinned, corrupted checksum rejected, the obfuscation layer (both parity branches), the
+  registry reporting a shared frame as Mazda V0 with equivalent fields, and key files (the C's lines
+  round-trip, also through the registry's name table; a wrong checksum loads with `crc_valid` false).
+- Real captures: in `IMPORTS/Mazda/more/Mazda_F2.sub` (FM476, one fob, serial 0x15302419) KAT reads 54 frames
+  as Mazda Siemens (button bytes 0x10, 0x20, 0x40 and 0x00) and 27 as Mazda V0; host builds of Flipper-ARF's
+  and FoxFW's C read 27 Mazda V0 and 21 MazdaSiemens frames there. No other recording in `IMPORTS` reads as
+  Mazda Siemens (see [Mazda V0](mazda_v0.md#validation)).

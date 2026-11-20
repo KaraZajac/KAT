@@ -185,6 +185,13 @@ ignored. So a file from any of the three firmwares, and a file an older KAT wrot
 doctor-firmware's own database as in KAT's (the file can be copied either way). A key read out of it by
 hand is therefore not what doctor-firmware's prompt wants: move its last two bytes to the front.
 
+**In the app.** The detail panel of a capture whose key KAT has (an embedded key, the remote's saved key, or one
+the ARF dictionary or heuristics find) shows it in a **HiTag2** row: first in the standard order, which
+doctor-firmware's prompt and KAT's `Hitag2 Key` line take, then as **Fiat order**, the order of `hitag2_keys.txt`
+and of ProtoPirate's and Flipper-ARF's `Hitag2 Key` line, and with its epoch when that is not 0. The overlay that
+opens when **Recover key (HiTag2)** finds a key shows both orders too
+([HiTag2 key recovery](hitag2_hell.md#the-key-file)).
+
 **Not ported:** a prompt for a typed-in key. A key can be added to `hitag2_keys.txt` by hand, in either
 order.
 
@@ -198,12 +205,12 @@ order.
   all six are Fiat V1, as in doctor-firmware's merged decoder. Up to 1.12.0 the press with control
   `0x057` was listed as Renault V1: each of its copies has one pulse of 251–253 µs, which no cell
   takes, and only Renault V1's reader read it (ProtoPirate's C names that press Renault V1 alone).
-- On 262 real RAW files (IMPORTS, the Flipper unit-test folders, rtl_433's recordings) KAT and
+- On 262 real RAW files (IMPORTS as of 1.13.0, the Flipper unit-test folders, rtl_433's recordings) KAT and
   doctor-firmware's merged decoder name the same presses Fiat V1: the Panda's one and the Opel's six.
 - `IMPORTS/VAG/Test_55_unlock_and_55_lock_suran.sub` (a VW Suran) was decoded twice as Fiat V1 by the
   old, checksum-less decoder; both were false matches and it no longer decodes as Fiat V1.
-- `IMPORTS/FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub` still decodes as nothing: its ~175-200 µs /
-  ~350-390 µs Manchester with 6.1 ms gaps fits neither variant.
+- `IMPORTS/FIAT/Fiat Bravo 2010 S.Croce 433.88 am650.sub` is not Fiat V1: its ~175-200 µs / ~350-390 µs
+  Manchester with 6.1 ms gaps fits neither variant. It decodes as 11 [Fiat V0](fiat_v0.md) frames.
 - The decoder was compared pulse-for-pulse with ProtoPirate's `fiat_v1.c` compiled on the host (same
   decodes at the same pulse on every IMPORTS capture, both polarities).
 - C oracles built from the unmodified reference files: key resolution equals ARF's cascade (L1-L4) on

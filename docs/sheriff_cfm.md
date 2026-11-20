@@ -9,10 +9,11 @@ layout: default
 
 ## Overview
 
-Sheriff is a Russian aftermarket car-alarm brand; CFM covers the ZX-750 and ZX-930 remotes. Flipper-ARF is
-the only copy in REFERENCES. The air format is the standard KeeLoq PWM frame (the same state machine as
-KAT's `keeloq.rs`), but the 64 bits are not bit-reversed (fix first, MSB-first) and the hop is byte-shuffled
-per model before KeeLoq decryption with that model's manufacturer key.
+Sheriff is a Russian aftermarket car-alarm brand; CFM covers the ZX-750 and ZX-930 remotes. KAT follows
+Flipper-ARF's copy; FoxFW carries the same decoder (flagged 433 MHz only; its encoder is
+`applications/main/subghz/protocols_ext/enc_sheriff_cfm.c`). The air format is the standard KeeLoq PWM frame
+(the same state machine as KAT's `keeloq.rs`), but the 64 bits are not bit-reversed (fix first, MSB-first) and
+the hop is byte-shuffled per model before KeeLoq decryption with that model's manufacturer key.
 
 Both keys are already in KAT's embedded keystore (verified equal to the reference's π-obfuscated values):
 ZX-750 = entry `ZX-730-750-1055`, ZX-930 = entry `Pandora_M101`. The module looks them up by name; no key
@@ -59,8 +60,16 @@ left twice.
 
 The reference rolling-code encoder: model from the decrypt, counter + 1 (wraps to 0 past 0xFFFF), plaintext
 re-encrypted with the model key, forward byte shuffle, fix kept. Upload: 11 × (400 HIGH, 400 LOW), 400 HIGH,
-4000 LOW, 64 PWM bits, 400 HIGH, 16 ms LOW, sent 3 times (C `encoder.repeat`). KAT buttons map 1:1 onto
-the reference codes (Lock 0x10, Unlock 0x20, Trunk 0x40, Panic 0x80).
+4000 LOW, 64 PWM bits, 400 HIGH, 16 ms LOW, sent 3 times (C `encoder.repeat`; a key file's `Repeat` line sets
+the count, as in the C). KAT buttons map 1:1 onto the reference codes (Lock 0x10, Unlock 0x20, Trunk 0x40,
+Panic 0x80).
+
+## Key files
+
+Flipper-ARF's lines (`subghz_protocol_decoder_sheriff_cfm_serialize`): `Protocol: Sheriff CFM`, `Bit: 64`, `Key`,
+then `Model` (0 ZX-750, 1 ZX-930), `Serial`, `Btn`, `Cnt` (decimal). Loading requires `Bit: 64` and takes every
+field from the decrypt, as the C decoder does (KAT ignores the file's `Model`, `Serial`, `Btn` and `Cnt`); a key
+that decrypts under neither model is refused (the C loads it with empty fields).
 
 ## Registry interaction
 
@@ -75,5 +84,7 @@ the generic KeeLoq fallback only reads 68-bit Kia V3/V4 and 250/500 µs Star Lin
 C oracle (unmodified ARF `sheriff_cfm.c`): decoder field-for-field and encoder pulse-for-pulse (3 copies)
 on randomized frames for both models and every button — no mismatch. Unit tests: keystore keys present,
 byte-shuffle inverses, synthetic decode for both models, encode→decode for every button (counter + 1, wrap
-at 0xFFFF), rejection of corrupted hop / serial bits and 63-bit frames, and a KeeLoq frame never decoding as
-Sheriff CFM. No IMPORTS capture is a Sheriff remote.
+at 0xFFFF), rejection of corrupted hop / serial bits and 63-bit frames, a KeeLoq frame never decoding as
+Sheriff CFM, and key files (both models round-trip with the C's lines; an ARF file loads with the decrypted
+fields; other bit counts and keys that do not decrypt are refused; TX from a loaded key: counter + 1, same
+model). No IMPORTS capture is a Sheriff remote.

@@ -43,12 +43,13 @@ KAT runs two readers on every pulse and reports a frame once:
 - **b4[5:0], b5[5:4]:** `rel` = rotated serial byte ⊕ b0
 
 There is no checksum: frames are reported unconditionally (ProtoPirate's extra validity expression is
-unused by the C and false on every real frame).
+unused by the C and false on every real frame), with `crc_valid` false, which the interface shows as "-".
 
 ## RF
 
 - **Encoding:** PWM (constant bit period)
-- **RF modulation:** AM (OOK)
+- **RF modulation:** AM (OOK). ProtoPirate and doctor-firmware flag AM, Flipper-ARF and FoxFW AM and FM, so KAT
+  also reads FM-preset recordings; it transmits AM650 unless the capture carries a preset of its own
 - **Encryption:** none (rolling counter obfuscated with the serial)
 - **Frequencies:** 315 MHz, 433.92 MHz
 
@@ -56,8 +57,9 @@ unused by the C and false on every real frame).
 
 Supported. Serial, button and counter + 1 are written back into the captured key (`b0` low nibble,
 `b1..b3`, `subaru_encode_count`) and sent as ProtoPirate's upload: 75 × (LOW 1600, HIGH 1600),
-LOW 2800, HIGH 2800, 64 data pairs, LOW 2800, HIGH 2800 (282 entries; the Flipper repeats it while held,
-KAT sends it once). ARF builds a different HIGH-first upload that ProtoPirate cannot read; KAT sends
+LOW 2800, HIGH 2800, 64 data pairs, LOW 2800, HIGH 2800 (282 entries). ProtoPirate sends it 10 times,
+doctor-firmware 3 times; KAT sends it 3 times (`tx_copies.rs`), and a key file's `Repeat` line sets the count,
+as in those two. ARF builds a different HIGH-first upload (10 times) that ProtoPirate cannot read; KAT sends
 ProtoPirate's, which matches the real fob. Buttons: Lock → 1, Unlock → 2, Trunk → 3, Panic → 4.
 
 **Deviation (counter encoding):** `subaru_encode_count` leaves eight bits of `T1/T2` that the decoder
@@ -66,6 +68,15 @@ bits 2,3,6,7 = `~lo` bits 0,1,4,5; `T2` bits 0,1,4,5 = `~lo` bits 2,3,6,7). KAT 
 re-encoding each of the five captured frames reproduces it bit for bit and encoding the next counter
 gives the next captured frame (9/9; ProtoPirate 0/9, ARF 0/9).
 
+## Key file
+
+ProtoPirate's lines (`subghz_protocol_decoder_subaru_serialize`): `Protocol: Subaru`, `Bit: 64`, `Key`, then
+`Serial`, `Btn`, `Cnt` (decimal) and `Disp: Subaru - <name>`, the name from the decoder's `names[btn & 3]` table,
+so button 1 is written "Unlock" (see Frame Layout). Loading needs exactly `Bit: 64` and reads everything from
+`Key`; the file's `Serial`, `Btn` and `Cnt` are not used (ProtoPirate's decoder ignores them too). Flipper-ARF and
+FoxFW name the protocol `SUBARU`: their files (the same lines without `Disp`) load in KAT, but their apps, which
+look the name up exactly, do not open KAT's `Subaru` files ([Flipper key files](flipper_key_files.md)).
+
 ## Validation
 
 Compared with the compiled ProtoPirate and Flipper-ARF `subaru.c` (host harness): on 2000 PP-encoded and
@@ -73,4 +84,9 @@ Compared with the compiled ProtoPirate and Flipper-ARF `subaru.c` (host harness)
 KAT reports exactly the union of the two C decoders' frames. The ProtoPirate upload is identical
 pulse-for-pulse (2000/2000); the key differs from ProtoPirate's only in the eight bits above (identical
 whenever the counter's low byte is 0). The Impreza capture decodes as 5 frames (serial 0xCB715E,
-counters 0xC90A–0xC90E) in KAT and both references; the Outback capture is noise.
+counters 0xC90A–0xC90E) in KAT and both references; the Outback capture is noise. Of the recordings added
+later, `Subaru WRX Impreza 2018 AU.sub` gives 3 frames (serial 0x2A90CE, button 1, counters 0x1904–0x1906), the
+same in KAT as in ProtoPirate's, doctor-firmware's and FoxFW's C, and nothing in Flipper-ARF's;
+`Subaru Forester 2012 AU.sub` has lost its header lines, and KAT reads one frame from its RAW data (serial
+0x324AFE, button 2), the frame those three references read once the header is put back (Flipper-ARF: none).
+`more/Subaru_impreza_full_fob.sub` is a key file with the Impreza fob's serial.

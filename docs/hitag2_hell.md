@@ -66,6 +66,7 @@ The attack needs a frame's UID, counter, button and 32-bit hop, as qDoctor reads
 | [Fiat V1](fiat_v1.md) | frame bytes 2–5 | 10-bit counter, 4-bit button | 32 bits | exactly qDoctor's fields |
 | [Renault V1](renault_v1.md) | same 13-byte frame | same | same | a frame whose serial-derived seed KAT recovers is not offered: KAT already transmits it |
 | [Fiat V2](fiat_v2.md) | frame bytes 2–5 | Flipper-ARF's 10-bit counter, with both of ARF's button readings in one search | 32 bits | no reference has confirmed this IV against a real key; a wrong one finds nothing |
+| [Hitag2](hitag2_rke.md) (Hitag2 RKE) | the frame's 32-bit UID | `lctr` (the counter's low 10 bits) and the 4-bit button, as Renault V1's IV | the 32-bit keystream | since 1.17.0; the IV is assumed and no recording holds two presses of one remote, so it is not verified on a real key |
 
 Fiat V1 and Renault V1 share frame and cipher, so their captures pair: the header alone decides which
 name a frame gets ([Renault V1](renault_v1.md)), and one remote can come out under both. Not offered: [Renault V1

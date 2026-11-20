@@ -6,7 +6,30 @@ All notable changes to KAT are documented here.
 
 ### Changed
 
+- **The site is set like a technical report.** A serif text face on a light page (dark when the reader's system is), tables with three rules and no boxes, numbered sections on the protocol pages and the guides, one link colour, and colour kept for what it has to say: a status, or a field of a frame. The animated background, the gradients, the emoji and the pill lists are gone. The fields of an example frame are marked with a bar under or over their digits; serial, button and counter have a hue each, chosen to stay apart for colour-blind readers.
+- **The landing page is less than a third of its length**: a title and an abstract, the figures the site counts itself, what KAT does in six entries, and the parts of the reference in one table. Its install steps are now a page of their own, [Install and run](https://kat.karazajac.io/install.html), with the command-line examples; its list of every protocol is the [protocol table](https://kat.karazajac.io/protocols.html), which also has the two notes on protocols that are mapped or ported but not decoded. The version on the landing page comes from the program's own data, so a release no longer edits it by hand.
 - **Ford V1 (JLR): the encrypted variant documented from the firmware.** The [Ford V1 page](https://kat.karazajac.io/ford_v1.html) now sets out what reverse-engineering the Jaguar Land Rover KVM established: the rolling half is `AES-128(key, P)[0:8]` (ECB of one block, encrypt-only), the 16-bit header value is the fob's transponder ID folded (`ID_high XOR ID_low`), and the plaintext is built from a monotonic counter, a command selector and fixed constants. The per-car AES key is **not** present in a flash/EEPROM dump (no key schedule, no expansion, none found by scanning), so KAT stays decode-only for these fobs.
+
+### Fixed
+
+- **The site checked against the program, page by page.** 32 protocol pages written before their decoder last
+  changed now describe the code as it is: how many copies a press sends and what a key file's `Repeat` line does
+  (most said one copy), key files, Opel V1 reporting every button as its C does, Porsche Cayenne counting only its
+  LOW sync pulses, Kia V6's sync, CRC and fields, VAG's dispatch byte, Mazda Infinity's 192-cell window, and the
+  recordings KAT now reads where a page said none did (Mazda V0, Mazda Siemens, Renault V1, Renault V1 (ARF),
+  Honda V2, Hitag2). The Hitag2 RKE page says what its key recovery assumes and that no real remote has confirmed
+  it; the HiTag2 pages describe the key shown in both byte orders. The [Feron page](https://kat.karazajac.io/feron.html)
+  says that a command's second byte is the complement of the first, which RogueMaster's C has checked since
+  2026-11-19 and KAT does not yet, so the one Feron frame in the library, in a Beninca recording, is a false match.
+  The transmit guide says which encoders take `Repeat: 0` as their default count.
+- **Makes, remotes and references on the site.** Ten makes' summaries name the decoders added since they were
+  written (VW-1, Opel Rolling, Renault 1-Button, Suzuki TS002, PSA 2-Button) and the Jaguar recordings. Seventeen
+  parts installed in the car (the units of Mazda's smart keyless systems, a Hyundai/Kia body unit, a Honda
+  immobilizer ring), which the FCC data had listed as remotes, are listed apart, so the site counts 173 remotes,
+  not 190. 38 more remotes have pictures from their FCC filings (165 of the 173), and two lost images that were a
+  test lab's letterhead or blank. The [About page](https://kat.karazajac.io/about.html) names the commit of each
+  reference the ports were last compared with, and what has changed upstream since. The Analyze and install pages
+  show the app's Analyze report and action menu.
 
 ## [1.19.0] - 2026-11-20
 

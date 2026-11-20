@@ -67,29 +67,46 @@ Suzuki V0 with the same fields.
    CRC is tried as a Honda key and reported at once; a Suzuki LOW is remembered.
 
 KAT's registry resets every decoder after any decode; Kia V0's `reset()` therefore keeps the previous-frame
-memory so the Mitsubishi rule works as in the C. Live captures report their first frame only (Kia V0 for a
-Mitsubishi transmission); `.sub` imports list both, as ProtoPirate's history does.
+memory so the Mitsubishi rule works as in the C. Live captures and `.sub` imports list each distinct decode
+of a burst, as ProtoPirate's history lists every decoded frame: a Mitsubishi transmission gives Kia V0, then
+Mitsubishi V0.
 
 ## Encoder
 
 Supported for all four types (`kia_v0_encoder_apply_fields` and the four upload builders). The frame is
 rebuilt from serial/button/counter with the counter + 1 (16 bits, the emulate scene's fresh press);
-KAT's generic button maps to the type's codes listed above (anything else keeps the captured button).
+KAT's generic button maps to the type's codes listed above (Honda: Lock → 3 "Lock2", no Panic; anything
+else keeps the captured button).
 The type comes from the bit count (61 Kia, 64 Suzuki, 72 Honda); Mitsubishi V0 captures are encoded
 through the "Mitsubishi V0" registry entry ([Mitsubishi V0](mitsubishi_v0.md)), which hands 61-bit
-signals back here. One upload per call (the C repeats it 3 times), adjacent equal levels merged:
+signals back here. One upload per call, adjacent equal levels merged; KAT sends it 3 times per press, as
+the C's TX loop does, or as often as a key file's `Repeat` line says (Mitsubishi V0, sent through its own
+entry, goes once):
 
 - **Kia:** HIGH 750, LOW 750, 319 short pairs, frame, HIGH 1500, LOW 1500, 15 short pairs, frame, HIGH 1000.
 - **Mitsubishi:** as Kia with an 80-pair second preamble and a closing HIGH 1500 + LOW 1500.
 - **Suzuki:** 320 short pairs, frame, LOW 2000, HIGH 2000, LOW 250, 15 short pairs, frame.
-- **Honda:** 40 short pairs, 4 long pairs, the 56 low bits of the byte-reversed key, HIGH 1000.
+- **Honda:** 40 short pairs, 4 long pairs, the 56 low bits of the key with every byte bit-reversed, HIGH 1000.
+
+## Key files
+
+ProtoPirate's lines (`subghz_protocol_decoder_kia_serialize`): Protocol `Kia V0` for every type, Bit 61 / 64 /
+72, Key = the frame, then Serial, Btn, Cnt and Type (1 Kia, 2 Suzuki, 3 Honda, 4 Mitsubishi), decimal.
+Loading refuses other bit counts and takes the type from `Type`, else from a legacy Protocol name (`Suzuki`,
+`Honda V0`, `Mitsu V0` …), else from the bit count (the Flipper-ARF `KIA/HYU V0` files in IMPORTS have no
+`Type`: 61 bits, Kia).
+When the file has Serial, Btn or Cnt the C rebuilds the frame from them (CRC recomputed); KAT does that only
+when they differ from the key's own fields, so a key it wrote reloads bit for bit (the C's rebuild also clears
+the sync bit the decoder leaves in bit 60 of a Kia frame: same fields, same frame on air).
 
 ## Validation
 
 C oracle (`kia_v0.c` compiled on the host): 3000 random frames of all four types — KAT's upload equals the
 C's pulse for pulse, and KAT's decoder reports exactly the C's 4487 decodes (type, key, fields) on the
 concatenated stream, including Mitsubishi detection and the C's own quirk of reading some Honda frames as
-Kia when their wire bits pass the Kia CRC. All IMPORTS captures, both polarities: identical (15 Suzuki V0).
+Kia when their wire bits pass the Kia CRC. All IMPORTS captures of the time (v1.4.0), both polarities:
+identical (15 Suzuki V0); the recordings added since are listed under Recordings. In
+`IMPORTS/MITSUBISHI/Mitsubishi pajero 2011.sub` every press reads as Kia V0, then Mitsubishi V0.
 Flipper-ARF's and doctor-firmware's decoders give the same frames (ARF names Mitsubishi frames Kia V0).
 Flipper-ARF's standalone `suzuki.c` reads only HIGH widths; it decodes the same 15 real frames, and its
 encoder sends an asymmetric waveform (LOW always 250 µs) that does not match the real fob, so it adds no

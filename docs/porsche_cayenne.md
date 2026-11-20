@@ -11,7 +11,7 @@ layout: default
 
 Porsche keyfobs (the cipher is the 24-bit rotating-register VAG rolling code also used by VW Touareg /
 Audi). PWM at 1680/3370 µs: SHORT LOW + LONG HIGH = bit 0, LONG LOW + SHORT HIGH = bit 1. 64-bit MSB-first
-frame, preceded by a 73-pulse 3370 µs sync preamble + a 5930 µs gap pair.
+frame, preceded by 73 LOW/HIGH pairs of 3370 µs sync pulses + a 5930 µs gap pair.
 
 KAT used to carry a second decoder for this frame, **Porsche Touareg** (ProtoPirate's decode-only port of
 the same `porsche_cayenne.c`). ProtoPirate removed it in September 2026, so KAT retired it as well:
@@ -27,7 +27,7 @@ older captures) to Porsche Cayenne, which can transmit them.
 | Sync        | 3370 µs | preamble pulse         |
 | Gap         | 5930 µs | preamble→data boundary |
 | Min bits    | 64      |                        |
-| Sync min    | 15 pulses| (firmware emits 73 pairs) |
+| Sync min    | 15 LOWs | LOW sync pulses counted (firmware emits 73 pairs) |
 
 ## Frame Layout (64 bits / 8 bytes)
 
@@ -57,7 +57,8 @@ depend only on serial/button/`cnt_lo` are the integrity check.
 ## Decoder Steps
 
 1. **Reset** — wait for a LOW pulse at ~3370 µs.
-2. **Sync** — count sync pulses (HIGH and LOW at 3370 µs); a 5930 µs gap with ≥15 sync pulses enters GapHigh/GapLow.
+2. **Sync** — accept 3370 µs sync pulses of either level and count the LOWs; a 5930 µs gap after ≥15 counted
+   enters GapHigh/GapLow.
 3. **GapHigh/GapLow** — expect the complementary 5930 µs gap pulse, then enter Data.
 4. **Data** — decode bit pairs; at 64 bits, recover the counter and emit.
 
@@ -65,16 +66,28 @@ depend only on serial/button/`cnt_lo` are the integrity check.
 
 Supported (`porsche_cayenne_build_upload`), for every decoded frame. Emits a 4-frame burst (frame types
 0b010/0b001/0b100/0b100, cipher counters cnt+1..cnt+4), each frame being 73 sync pairs + 1 gap pair + 64
-MSB-first PWM bits. KAT's Lock/Unlock/Trunk/Panic map to the C's D-pad codes 0x01/0x02/0x04/0x08
-(Lock/Unlock/Trunk/Open); any other request re-sends the captured button (the C's OK path does the same
-for captured codes 1/2/4/8 but sends 0x01 for any other captured code).
+MSB-first PWM bits. The burst is sent once per press (the C's `encoder.repeat` is 1; it reads no `Repeat`
+line). KAT's Lock/Unlock/Trunk/Panic map to the C's D-pad codes 0x01/0x02/0x04/0x08 (Lock/Unlock/Trunk/Open);
+any other request re-sends the captured button (the C's OK path does the same for captured codes 1/2/4/8 but
+sends 0x01 for any other captured code).
+
+## Key files
+
+The C's lines: `Protocol: Porsche AG` (Flipper-ARF's name; KAT reads it as Porsche Cayenne), `Bit: 64`, `Key` = the
+frame, then `Serial` (24-bit), `Btn`, `Counter` and `Cnt` (the same counter under both names; KAT writes the counter
+it recovers, also past 256, where the C writes 0). As in the C, a file without `Serial`, `Btn` or `Counter` is
+refused, and those three are the capture's fields (the encoder transmits from them); a `Counter` of 0 keeps the
+counter KAT recovers from the frame.
 
 ## Validation
 
 C oracle (the unmodified current `porsche_cayenne.c` compiled on the host): 4000 encoder inputs
 (serials, buttons, counters across 0–65535, every D-pad path) produce identical uploads; 2925 frames in
 1600 randomized streams (clean, jittered, glitched, inverted, short/long preambles, corrupted cipher
-bytes) plus all 123 IMPORTS captures decode with identical index, data, serial and button, and the same
-counter wherever the C recovers one (on uncorrupted frames KAT's additional counters equal the
+bytes) plus all 123 IMPORTS captures of the time decode with identical index, data, serial and button, and
+the same counter wherever the C recovers one (on uncorrupted frames KAT's additional counters equal the
 generating values).
-No IMPORTS capture contains this format. Unit tests embed C golden uploads.
+No IMPORTS capture contains this format. Unit tests embed C golden uploads and cover key files: the C's lines
+round-trip and load as Porsche Cayenne through the registry, a file missing `Serial`, `Btn` or `Counter` is
+refused, `Counter: 0` keeps the recovered counter while another value replaces it, and TX from a loaded key
+decodes.

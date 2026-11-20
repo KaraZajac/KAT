@@ -56,8 +56,9 @@ button pressed (in the Trail Blazer capture the nibble is `A` or `B` whether Loc
 Trunk is pressed). With the nibble gate, only fobs whose serial ends in `010` are read: one in eight.
 
 The block does not open with Opel V1's XTEA key: of the 285 different frames of the six fobs below, none has
-its tail byte. (The one frame of the Holden capture that Opel V1 lists is one of 168 different frames there: an
-8-bit check passes that often by chance, and its button and counter are no fob's values.)
+its tail byte. (The one frame Opel V1 lists in the Holden capture comes from a recording in which Chevrolet V0
+reads 167 different frames: an 8-bit check passes that often by chance, and its button and counter are no fob's
+values.)
 
 ## The second reading (KAT)
 

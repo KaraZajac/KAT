@@ -32,8 +32,8 @@ Each bit is a LOW then a HIGH: 1 = LOW 640 + HIGH 320, 0 = LOW 320 + HIGH 640.
 ## Frame Layout (42 bits)
 
 The 42 bits are unpacked into 7 bytes `p[0..6]` of `data << 2` (MSB first) and unscrambled
-(`subghz_protocol_prastel_unscramble`): three 40-bit right rotations over p[2..6], byte reversals, an inverted
-nibble swap of p[2], and an LCG walk (`x = 21x + 1`) that turns p[5]/p[6] back into the counter.
+(`subghz_protocol_prastel_unscramble`): three 40-bit right rotations over p[2..6], bit reversals within bytes, an
+inverted nibble swap of p[2], and an LCG walk (`x = 21x + 1`) that turns p[5]/p[6] back into the counter.
 
 - **serial** (garage copy): `(p1 & 0xF0) << 8 | p3 | (p4 << 12) & 0xF0000 | (p2 & 0x0F) << 8 | (p2 & 0x80) << 13`
   (doctor-firmware: `p0 << 24 | p1 << 8 | p3 | (p4 << 12) & 0xF0000`)
@@ -69,6 +69,11 @@ non-zero nibble and 0xC (button 0) from 0xB; anything else keeps the captured ni
 
 `Protocol: Prastel`, `Bit: 42`, `Key` (8 bytes; Flipper-ARF's generic serialize). The reference encoder writes the
 bumped Key back to the file.
+
+**Add Manually** (`:new`, RogueMaster's type "Prastel 433MHz") makes a new Prastel remote: the 21 frame bits of a
+random serial, button 1 and counter 3, as RogueMaster's `subghz_protocol_prastel_create_data` builds the key (the
+button as its raw nibble, 1..4 → 0xE / 0xD / 0xB / 0x7, then this module's `scramble`;
+[Add manually](add_manually.md)).
 
 ## Validation
 

@@ -15,11 +15,12 @@ The Pandora "new Hyundai" keyfob format, reverse-engineered from the PANDORA_MAX
 family.
 
 **Status: not registered.** The module, encoder and tests are in the tree, but the decoder is left
-out of `ProtocolRegistry::new()`: the frame carries no checksum (the C calls b8 a "possible check
-byte" but never computes or checks it), so the only content gates (UID, key index ≠ 0) pass ~15/16 of
-random bodies and a decode's validity rests entirely on framing. No IMPORTS capture contains this
-format (the Hyundai/Genesis RAW captures look like FSK fobs recorded with an OOK preset). Register it
-once a real capture confirms the layout.
+out of the registry list (`ProtocolRegistry::decoders()` in `src/protocols/mod.rs`): the frame carries
+no checksum (the C calls b8 a "possible check byte" but never computes or checks it), so the only
+content gates (UID, key index ≠ 0) pass ~15/16 of random bodies and a decode's validity rests entirely
+on framing. No IMPORTS capture contains this format (the Hyundai/Genesis RAW captures look like FSK fobs
+recorded with an OOK preset). Register it (and list it in `info::NO_CHECKSUM`) once a real capture
+confirms the layout.
 
 ## Timing
 
@@ -69,6 +70,7 @@ polarity is the level as captured.
 4. **Gate** — all 72 pairs valid; an unbroken 0x55 alternation of 128..=257 bits right before the body
    (≥ 16 preamble bytes, ≤ 32 bytes + the header pair); UID ∉ {0, 0xFFFFFFFF}; key index ≠ 0.
 5. **Emit** when the same body is decoded twice in a row (the press's two copies) — once per press.
+   `crc_valid` is false: the duplicate is a gate, not a checksum.
 
 Gating vs. the C: the C reports any tail with 4 × 0x55 + 72 valid bits + valid UID; the duplicate
 ("Dup: OK") is display only. KAT's preamble window rejects long-preamble 500/1000 µs protocols such as
@@ -90,7 +92,8 @@ Supported, mirroring the C (replay-based — rolling code with no known key):
 - Needs `extra` (b8); returns `None` without it.
 
 Waveform = the C upload: both frames (4500 µs header, then 2500 µs inter-frame header) + trailing
-LOW 2500 µs.
+LOW 2500 µs. The C's TX loop sends that upload twice by default (a key file's `Repeat` line sets the
+count); KAT's encoder returns it once.
 
 ## Validation
 
@@ -98,5 +101,6 @@ No real capture available. Unit tests cover: the C upload transcribed verbatim (
 both final-bit values, encode→decode (one decode per press), the encoder waveform pinned to the C
 layout, button change with counter/key-index rollover, a frame with only 16 preamble bytes, rejection
 of a single frame, mismatched copies, too-short/too-long preambles, zero UID, key index 0 and a
-corrupted body in both copies, random noise, Kia V2 encoder output, and every `IMPORTS/HYUNDAI`,
-`IMPORTS/genesis` and `IMPORTS/KIA` capture standalone in both polarities (no decode).
+corrupted body in both copies, random noise, Kia V2 encoder output, and every RAW capture directly in
+`IMPORTS/HYUNDAI`, `IMPORTS/genesis` and `IMPORTS/KIA` (not their `more/` folders) standalone in both
+polarities (no decode).

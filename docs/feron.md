@@ -15,7 +15,11 @@ and encode identically; they differ only in style and in the display text (docto
 
 32-bit fixed code of Feron LED-light remotes: a 16-bit serial and a 16-bit command (in the C's samples a command
 byte followed by its complement: ON `857A`, OFF `847B`, brightness up `8679` / down `8778`, scroll mode `827D`,
-colours `708F` / `1AE5` / `40BF`). No checksum.
+colours `708F` / `1AE5` / `40BF`). The decoder KAT follows checks nothing beyond the frame's shape: no reference
+checked the complement until RogueMaster's C did on 2026-11-19 (commit `99a9ba4`, "verify Feron checksum"), after
+KAT's last comparison with it. KAT does not check it yet. The one frame KAT lists from the recording library fails
+it: `15276ECF` in `GATES/more/Beninca.sub` (the complement of `6E` is `91`, not `CF`) is a false match in the
+recording of a Beninca KeeLoq remote, not a Feron frame.
 
 ## Timing / modulation
 
@@ -34,7 +38,8 @@ AM (OOK), 433.92 MHz (`SubGhzProtocolFlag_433 | AM`, Sensors).
 | Bits | Field |
 |------|-------|
 | 31..16 | serial |
-| 15..0 | command (shown by the C, not stored as a button) |
+| 15..8 | command (the C shows bits 15..0 as the command; not stored as a button) |
+| 7..0 | the complement of the command byte in every sample (RogueMaster's C checks it since 2026-11-19; KAT does not) |
 
 ## Decoder Steps
 

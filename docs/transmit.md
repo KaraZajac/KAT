@@ -168,7 +168,7 @@ the reference reads it (`src/protocols/tx_copies.rs`):
 
 | Copies | Encoders |
 |---|---|
-| 1 | CAME Atomo, Hormann HSM / BiSecur, Honda V1, Mercedes V0, Renault V0, Renault V1, Datsun Lada; and KAT's own encoders, which send the fob's press once: Honda V6 (the block twice in one frame), Mitsubishi V1 (the wake-up and four copies of the frame), Suzuki TS002 (four copies of the frame), Opel Rolling (three), VW-1 (three) |
+| 1 | CAME Atomo, Hormann HSM / BiSecur, Honda V1, Mercedes V0, Renault V0, Renault V1, Datsun Lada; and KAT's own encoders, which send the fob's press once: Honda V6 (the block twice in one frame), Mitsubishi V1 (the wake-up and four copies of the frame), Suzuki TS002 (four copies of the frame), Opel Rolling (three), VW-1 (three); and the encoders KAT has not compared with a reference's, whose upload is the whole transmission: Beninca ARC, Cham_Code, Honeywell Sec, Jarolift, X10, Toyota, and Mitsubishi V0 (a press KAT lists under that name; listed as Kia V0, the same press goes 3 times) |
 | 2 | Chrysler V0 |
 | 3 | the gate and home remotes (CAME, Nice FLO, Princeton, Security+ …), BMW, BMW CAS3, Hyundai/Kia RIO, SantaFe 13-16, Sheriff CFM, Mazda V2, Mazda V1 (Mazda V2's upload); and Kia V0 (Suzuki, Honda, Mitsubishi types), Honda Static, Kia V7, Fiat V0, Ford V0 / V1 / V2, Honda V2, Kia V1 / V2 / V6, Mazda V0, Subaru, VAG |
 | 4 | Ditec GOL4, Mercedes V1, Mazda Siemens |
@@ -187,10 +187,14 @@ the reference reads it (`src/protocols/tx_copies.rs`):
   doctor-firmware's copies of the same encoders send 3. A key file's `Repeat: 10` gives ProtoPirate's full count.
 - **`Repeat` line.** Loading a key file keeps its `Repeat` line with the capture (and saving it as a key file
   writes it back). Every listed encoder except VAG's and Kia V3/V4's reads it, as their references do; KeeLoq,
-  PSA, Porsche Cayenne, Telcoma/Cardin EDGE, Doorbell32, MARELLI and Renault V1 (ARF) ignore it, as theirs do.
-  `Repeat: 0` sends nothing, as on a Flipper. KAT reads the line wherever it is; a Flipper reads a file's lines
-  in order and finds `Repeat` only when every line its loader looks for before it is there (Princeton: an
-  optional `Guard_time`), so on such a file it ignores the line. A count whose transmission would last past the
+  PSA, Porsche Cayenne, Telcoma/Cardin EDGE, Doorbell32 and MARELLI ignore it, as theirs do; Renault V1 (ARF)
+  ignores it too, where Flipper-ARF reads it but raises a count below 10 to 10.
+  `Repeat: 0` sends nothing, as on a Flipper whose encoder reads the line straight into its count (most of the
+  firmwares' encoders); ProtoPirate's encoders, doctor-firmware's Kia V0 and Fiat V2 and Flipper-ARF's Fiat V2
+  take 0 as their default count instead, and ProtoPirate caps a larger count at 50, which KAT does not.
+  KAT reads the line wherever it is; a Flipper reads a file's lines in order and finds `Repeat` only when every
+  line its loader looks for before it is there (Princeton: an optional `Guard_time`), so on such a file it
+  ignores the line. A count whose transmission would last past the
   60 s limit is refused like any other.
 - **Measured** on the references' C (host builds, `encode` with the default count and `--repeat 1 / 2 / 3 / 5`)
   for KAT's key files of every encoder-capable decode in the test corpus, of KAT's encoder vectors and of

@@ -9,7 +9,7 @@ layout: default
 
 ## Overview
 
-> **Not registered.** Flipper-ARF ships `audi.c` disabled, and KAT mirrors that: the decoder/encoder below is ported and tested but is not in KAT's protocol registry. To enable it, add `Box::new(audi::AudiDecoder::new())` at the end of `ProtocolRegistry::new()` in `src/protocols/mod.rs`.
+> **Not registered.** Flipper-ARF ships `audi.c` disabled, and KAT mirrors that: the decoder/encoder below is ported and tested but is not in KAT's protocol registry. To enable it, add `Box::new(audi::AudiDecoder::new())` at the end of the registry list, `ProtocolRegistry::decoders()` in `src/protocols/mod.rs`.
 
 The Pandora "Audi" keyfob format, reverse-engineered from the PANDORA_MAX alarm firmware (whose units
 emulate OEM fobs): button/counter dispatcher @ 0xf152, {b3,b4,b5} scramble + parity engine @ 0xf8fc,
@@ -17,7 +17,7 @@ PWM bit-banger @ 0xbd64. It is a SEPARATE protocol from KAT's `VAG` decoder (`va
 500/1000 µs Manchester, 80 bits): Audi is 550/1100 µs PWM behind a 2500/850 µs header, 64 bits.
 
 **Experimental:** no IMPORTS capture contains this format (it decodes nothing in the sweep), so the
-RE has not been validated against a real fob. Registered last in the registry.
+RE has not been validated against a real fob.
 
 The rolling bytes b3..b5 are scrambled by 4 rounds of a 24-bit left shift whose carry-in is a parity
 of the current block; the final carry-out is dropped and recovered on decode from that parity (bit 0
@@ -87,7 +87,9 @@ Supported, mirroring the C:
 - KAT generic buttons map 1:1 (Lock 0x01, Unlock 0x02, Trunk 0x04); any other code (e.g. Panic 0x08)
   keeps the captured button.
 
-Waveform = the C upload: 5 × (HIGH 2500, LOW 850, 64 PWM bits LSB-first, LOW 850).
+Waveform = the C upload: 5 × (HIGH 2500, LOW 850, 64 PWM bits LSB-first, LOW 850). The C's TX loop
+sends that upload 5 times by default (a key file's `Repeat` line sets the count), 25 frames per press;
+KAT's encoder returns it once.
 
 ## Validation
 
@@ -97,5 +99,5 @@ bit's LOW and the 850 µs gap arrive as two LOWs) decoding every repeat, the scr
 encoder waveform pinned to the C layout (header + LSB-first PWM), button change
 re-scrambling with counter advance, a synthetic frame with known fields, rejection of a bad
 checksum / bad button / 63- and 65-bit frames, the measured content-gate rate (≈ 4.6e-5), random
-noise, VAG Type 2 encoder output and Type 3/4-shaped bursts (both polarities), and every
-`IMPORTS/VAG` capture standalone in both polarities (no decode).
+noise, VAG Type 2 encoder output and Type 3/4-shaped bursts (both polarities), and every RAW capture
+directly in `IMPORTS/VAG` (not `IMPORTS/VAG/more/`) standalone in both polarities (no decode).

@@ -193,6 +193,8 @@ A made-up remote: PWM with a TE of 480 µs, a preamble of twelve short pulses, 2
 pulse, sent four times; written as a Flipper `.sub` recording with the AM650 preset and loaded with
 `:load`. No decoder knows it. The overlay's title is `Analyze: #26 Unknown (OOK, PWM, TE ~479 us)`.
 
+![The Analyze overlay on the made-up remote: OOK, PWM, TE about 479 µs; 4 identical frames of 29 bits every 71.1 ms; the HIGH and LOW pulse widths at 1 and 2 TE with their counts, the rows of the capture, and the bits of frame 2 as hex A5C3 F170 and binary](img/kat-analyze.webp "The overlay on this capture, as the terminal shows it (KAT 1.11). The text below is the same report, scrolled to the end.")
+
 ```
 Signal #26  Unknown  433.92 MHz  2026-11-10 00:15:31 UTC-05:00
 made_up_remote.sub

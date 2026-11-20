@@ -35,11 +35,13 @@ serial/counter is extracted (the C also sets `serial = 0` and hides the counter)
 
 ## Frame Layout (112 bits, MSB first)
 
-- **bits 111..108:** command nibble (= `button`): 0xC Lock, 0x8 Unlock, 0xA "??"/Aux, 0x0 Follow-up, 0x4 (unnamed)
+- **bits 111..108:** command nibble (= `button`): 0xC Lock, 0x8 Unlock, 0xA "??"/Aux, 0x0 Follow-up, 0x4 (unnamed;
+  KAT shows it as "Other")
 - **bits 107..0:** opaque rolling payload (replayed unchanged)
 
 `DecodedSignal` packing: `data` = first 64 wire bits (command nibble on top), `extra` = last 48 wire bits
-right-aligned, `data_count_bit` = 112. `serial`/`counter` = none.
+right-aligned, `data_count_bit` = 112. `serial`/`counter` = none. `crc_valid` = false: the frame has no CRC (the
+gate decides emission; the interface shows "-", not a failed check).
 
 ## RF
 
@@ -69,7 +71,19 @@ Supported, as a replay. Burst = 3700 µs LOW + 55 × (HIGH 500 / LOW 500) + sync
 112 Manchester bits. Adjacent equal levels merge. KAT Lock → 0xC, Unlock → 0x8, Trunk → 0xA (the C's
 "Auxiliary"; its real function is unverified). Any other button keeps the captured command. When Unlock is
 selected, the C (and KAT) appends a 300 ms gap and a second burst with command 0x0 (Follow-up). There is no
-counter bump, and the upload is a single copy (the C's default `Repeat` is 1).
+counter bump, and the upload is a single copy (the C's default `Repeat` is 1; a key file's `Repeat` line sets
+the count, in the C and in KAT).
+
+## Key file
+
+The C saves with the generic serializer, and the two references' generic writers differ: Flipper-ARF's writes
+`Protocol: Mercedes V0`, `Bit: 112` and `Key` (the first 64 bits) only, losing the last 48; doctor-firmware's
+adds `Serial: 0`, `Btn` (the command nibble) and `Cnt: 0` when the command is not 0, `TE: 500`, and `Key_2` (bits
+64..111 in its top 48 bits) when that is not 0. KAT writes doctor-firmware's lines, so its files reload
+completely; ARF reads only `Bit` and `Key` from them. Loading (`mercedes_v0_deserialize`) takes `Key` and `Key_2`
+(or `Key2`; 0 when absent, so an ARF file loads with the last 48 bits 0, as in ARF) and refuses a file unless it
+has 112 bits, `Key_2`'s low 16 bits are 0 and the command nibble is in the whitelist. The degenerate-payload
+gate is a receive-side filter and does not apply to a loaded key.
 
 ## Validation
 
@@ -77,6 +91,7 @@ Verified with synthetic frames and encode→decode round trips; no decodable cap
 `IMPORTS/mercedes/24_Merc_gle350_lulu.sub` (434.075 MHz) contains only noise (longest run of chip-valid
 pulses: 2). `24_merc_gle350_luluttlulu.sub` (314.35 MHz) is an AM650 (OOK) recording of FSK bursts, so only
 the carrier envelope survives and no decoder can recover data from it (see [Mercedes V1](mercedes_v1.md)).
+`Mercedes W220 S430 1999 315.sub` (315 MHz) holds noise only ([unidentified captures](unidentified_captures.md#no-usable-signal-in-the-file)).
 Unit tests cover:
 
 - the synthetic frame, in both polarities
@@ -86,3 +101,5 @@ Unit tests cover:
 - rejection of non-whitelisted commands, preambles outside the edge window, a corrupted Manchester pair,
   and degenerate payloads
 - a registry-level decode at 433.92 MHz
+- key files: doctor-firmware's lines round-trip, an ARF file (no `Key_2`) loads with a zero tail, invalid keys
+  are refused, and a loaded key transmits

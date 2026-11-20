@@ -33,7 +33,8 @@ re-tests the latest 93-bit window. Decode-only: the C encoder is a NULL stub.
 - **bits 87..64:** serial (24-bit, plaintext)
 - **bits 63..0:** XTEA cipher block (standard XTEA, 32 cycles, big-endian words)
   - decrypted bytes: `[check, button, burst, count(32-bit BE), tail]`. The tail must be `0x05`.
-  - buttons: Trunk `0x20`, Lock `0x04`, Unlock `0x08`
+  - buttons: Trunk `0x20`, Lock `0x04`, Unlock `0x08`; any other value is reported too (the C labels it
+    "Unknown")
 
 `DecodedSignal` packing: `data` = first 64 wire bits (`framing | serial | cipher[63:29]`), `extra` = last 29
 wire bits (`cipher[28:0]`), `data_count_bit` = 93. The cipher is `((data & 0x7_FFFF_FFFF) << 29) | extra`.
@@ -53,24 +54,37 @@ wire bits (`cipher[28:0]`), `data_count_bit` = 93. The cipher is `((data & 0x7_F
 1. **Classify:** each pulse becomes a Flipper Manchester event (0/2/4/6). An out-of-range pulse resets the
    accumulator and returns the Manchester state to Mid1.
 2. **Manchester:** the canonical Flipper transition table. A same-state transition resets to Mid1; reaching
-   Mid0 emits 0 and reaching Mid1 emits 1. (KAT's shared 4-state table used by several other modules is not
-   equivalent, so this module carries the canonical one, like `psa2.rs`.)
+   Mid0 emits 0 and reaching Mid1 emits 1. (This module carries its own copy of the table, as `ford_v3.rs`
+   does; the shared port in `common.rs` is identical.)
 3. **Window:** shift bits into a 128-bit accumulator. The bit count caps at 93.
-4. **Finish:** with 93 or more bits and framing `0x02`, decrypt and clear the accumulator. Emit only if the
-   tail is `0x05` **and** the button is Trunk, Lock or Unlock. The button gate is a KAT addition: the window
-   re-tests on every bit, and the C merely labels other buttons "Unknown".
+4. **Finish:** with 93 or more bits and framing `0x02`, decrypt and clear the accumulator. Emit if the tail
+   is `0x05` (with the framing, 13 bits of check per window), whatever the button, as the C does; it labels
+   buttons other than Trunk, Lock and Unlock "Unknown". (Before v1.5.0 KAT dropped those buttons.)
 
 ## Encoder
 
 Not supported (the C reference's encoder is NULL).
 
+## Key files
+
+doctor-firmware's lines, which keep the serial: `Protocol: Opel V1`, `Bit: 64`, `Key` = the cipher block, `Serial`,
+`Btn` (the decrypted button), `Cnt` (the 32-bit count), then the C's own `XteaKey`, `Disp` ("Opel V1 -
+Trunk|Lock|Unlock|Unknown") and `Burst`. Flipper-ARF's generic writer stops after `Key`, so a key it saves reloads
+with serial 0, as in ARF. Loading follows the C: exactly 64 bits, the block decrypted with the file's `XteaKey` (the
+static key when absent), the serial from `Serial`; button and count come from the decrypt. Any block loads;
+`crc_valid` reports its tail check.
+
 ## Validation
 
-Verified with synthetic frames built from a test-only XTEA encipher; no local capture is available. Unit
-tests cover:
+Verified with synthetic frames built from a test-only XTEA encipher. The one decode in IMPORTS is a chance hit: a
+frame of `IMPORTS/HOLDEN/Holden Barina 2016 AU.sub`, a GM-family recording that [Chevrolet V0](chevrolet_v0.md)
+reads, passes the 8-bit tail check, as one frame in 256 does (button 0x73, serial 4F2679; its button, burst and
+count are no fob's values). Flipper-ARF and doctor-firmware list it as well. Unit tests cover:
 
 - the published XTEA test vector, plus an independently computed Opel-key vector
 - the canonical Manchester table semantics
 - a synthetic decode with packing and field checks, for all three buttons
-- rejection of a bad tail, wrong framing and an unknown button
+- rejection of a bad tail and wrong framing; a button the C calls "Unknown" (0x73) is reported
 - registry-level decodes in both polarities (the inverted capture decodes via the registry's inverted pass)
+- key files: doctor-firmware's lines round-trip every field, a Flipper-ARF file (no `Serial`) loads with serial 0,
+  the file's `XteaKey` is used, other bit counts are refused

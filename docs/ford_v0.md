@@ -48,7 +48,7 @@ decodes all five bits and reports KAT's generic button bits:
 | 0x02         | Lock   | 0x01 (Lock)  |
 | 0x04         | Unlock | 0x02 (Unlock)|
 | 0x08         | Boot   | 0x04 (Trunk) |
-| 0x10         | —      | 0x10 (Remote start, shown as "Other") |
+| 0x10         | —      | 0x10 (shown as "Remote start") |
 
 `DecodedSignal`: `data` = key1 (de-inverted, as the C's `generic.data`), `data_count_bit` = 64 (as the C),
 `extra` = key2, `counter` = counter bits 15..0 (the counter is 19 bits; the encoder recovers the full
@@ -75,7 +75,9 @@ value from `data` + `extra`).
 **CRC / gating:** like the C, only the low 7 bits of the CRC byte are compared — bit 7 is not the matrix
 output on real fobs (it differs on ~40% of genuine frames, which an 8-bit compare wrongly rejects). The C
 emits every 80-bit frame and only displays CRC OK/BAD; KAT emits only CRC-valid frames, so `crc_valid` is
-always true on emitted frames. Every genuine frame in `IMPORTS/FORD` passes.
+always true on emitted frames. Every genuine frame in `IMPORTS/FORD` passes. The all-zero frame (key1 = key2
+= 0, on air a run of 1 bits) passes too: the matrix output is 0, and so are the low 7 bits of its CRC byte
+XOR 0x80 (0x80).
 
 ## Encoder
 
@@ -86,10 +88,21 @@ Lock/Unlock/Trunk/Panic to the button field (the emulate scene's Up/OK/Down/Left
 captured field, e.g. Remote start), recomputes BS (`ford_v0_calculate_checksum`) and CRC (matrix ^ 0x80),
 re-scrambles key1 (`encode_ford_v0`) and emits 6 bursts: short HIGH, long LOW, 4 long pairs, short HIGH,
 3500 µs LOW, then the transition-coded `~key1` bits 62..0 and `~key2`, with a 50 ms LOW between bursts.
+KAT sends this upload 3 times per press, back to back as a Flipper repeats it (ProtoPirate and Flipper-ARF
+send 10, doctor-firmware 3; a key file's `Repeat: 10` gives ProtoPirate's count, see
+[Copies per press](transmit.md#copies-per-press)).
 
 One deviation from the C upload: a final on-air 0 bit is finished with its HIGH half, as real fobs do
 (`2008_Focus_Lock.sub` bursts end `... -504 +257 -51810`). The C stops after the LOW half, which merges
 into the inter-burst gap, so its bursts lose their last bit whenever the CRC's last on-air bit is 0.
+
+**Key files** ([flipper_key_files.md](flipper_key_files.md)): ProtoPirate's lines — `Protocol: Ford V0`,
+`Bit: 64`, `Key` = key1, `Checksum` and `CRC` (key2's two bytes, decimal), `Serial`, `Btn` (the C's 4-bit
+field: a Remote-start frame writes 0 and keeps its bit in `Key`) and `Cnt` (19 bits); Flipper-ARF's
+`FORD V0` files load too. Loading needs `Bit: 64`, rebuilds key2 from `Checksum`/`CRC` and decodes the fields
+from the frame (hand-edited `Serial`/`Btn`/`Cnt` values are not applied); a frame a reference saved with a
+failing CRC (the C emits those) loads with `crc_valid` false. A capture without key2 (an old `.fob`) cannot be
+saved as a key file.
 
 ## Validation
 
@@ -99,11 +112,15 @@ into the inter-burst gap, so its bursts lose their last bit whenever the CRC's l
   in the file names and a counter that increments per press (`decodes_real_captures`). KAT reproduces every
   frame the compiled ProtoPirate, Flipper-ARF and doctor-firmware decoders report on these files; the extra
   KAT frames all pass the CRC (the wider te_delta, see Timing).
+- KAT also reads one all-zero frame (see CRC / gating) in `IMPORTS/FIAT/more/Unstable_Fiat_v1_3.sub`, a
+  Fiat V1 recording in which none of the ProtoPirate, doctor-firmware, Flipper-ARF and FoxFW decoders
+  reports a Ford V0 frame.
 - Encoding a genuine press reproduces the fob's genuine NEXT press (counter + 1, same file) exactly: key1,
-  the checksum byte and the 7 checked CRC bits, for 7 pairs across 6 captures
+  the checksum byte and the 7 checked CRC bits, for 7 pairs across 7 captures of 5 fobs
   (`reencode_reproduces_next_genuine_press`).
 - 492 uploads (every decoded capture frame × Lock/Unlock/Trunk/Panic) equal ProtoPirate's encoder fed by
   its emulate scene pulse for pulse, except exactly the trailing-half-bit deviation above; Flipper-ARF's
   encoder produces the same uploads as ProtoPirate.
 - Encode→decode round trip through the full 6-burst waveform for each button; a corrupted key1 bit is
-  rejected by the CRC gate.
+  rejected by the CRC gate; key files (the C's lines round-trip, Flipper-ARF's `FORD V0` file loads, a
+  Remote-start frame writes `Btn: 0`, a failing CRC loads with `crc_valid` false).

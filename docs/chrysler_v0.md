@@ -67,7 +67,8 @@ seed (the C's `Cnt`), `extra` = `Key_2`.
 Supported. Recovers the plaintext from the captured frame, flips the button bits (`plain_a[5] ^= 0x0C`,
 `plain_b[3] ^= 0x30`) when the requested button differs, and emits payload A (even counter) then B
 (counter − 1), each as 24 preamble pairs + short + 15.6 ms gap + 80 PWM bits + short + 15.6 ms gap
-(424 entries; the Flipper repeats the upload twice while held, KAT sends it once). Buttons: Lock → 1,
+(424 entries; the Flipper sends the upload twice, and so does KAT, or as often as a key file's `Repeat` line
+says). Buttons: Lock → 1,
 Unlock → 2; Trunk/Panic keep the captured button (no reference models other buttons).
 
 **Counter — deviation, from real captures.** KAT's counter is seed − 1, made even:

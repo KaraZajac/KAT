@@ -4,6 +4,10 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-11-19
+
+KeeLoq and HiTag2 Hell key recovery now run on a graphics card when one is present, several times faster than on the CPU, which stays the fallback. No protocol more.
+
 ### Added
 
 - **GPU key recovery** (cargo feature `gpu`, on by default). The KeeLoq manufacturer-key search (`--keeloq-bf`) and the HiTag2 Hell key recovery run on a graphics card when one is present — Vulkan on Linux and Windows, Metal on macOS, DirectX 12 on Windows — through `wgpu`, with no driver or shader toolchain to install. The results are identical to the CPU, which stays the fallback when there is no usable GPU. On a modest laptop GPU a KeeLoq type-8 (2⁴⁰) search drops from about 21 to about 11 minutes and a full HiTag2 Hell sweep from about 20 to about 7 minutes; a desktop graphics card is several times faster again. Build with `--no-default-features` for a lean, wgpu-free KAT.

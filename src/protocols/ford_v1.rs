@@ -85,8 +85,10 @@ use super::info::prelude::*;
 pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     name: "Ford V1",
     decoder: "Ford V1",
-    aliases: &[],
-    // "Ford V1 (JLR)", the encrypted variant, resolves to this entry for its RF/coding/presets.
+    // "Ford V1 (JLR)", the encrypted variant: an alias so `ProtocolRegistry::get` (via `by_name`)
+    // resolves the display name to this decoder, as the key-file round trip needs.
+    aliases: &["Ford V1 (JLR)"],
+    // … and `name_prefix` so `info::lookup` gives it this entry's RF/coding/presets.
     name_prefix: Some("Ford V1"),
     encoding: Coding::Manchester,
     rf: Rf::FM,

@@ -21,6 +21,7 @@ All notable changes to KAT are documented here.
 - **Presses left out of the list.** A file of several presses of a remote with a frame longer than 64 bits (Honda V5, Ford V1, Fiat V2, the Continental Honda remotes) listed only the first press of each button: the rest were taken for repeats, because only the first 64 bits of a frame, its fixed part, were compared. The counter is compared too now, as for a burst received live. Of the 427 recordings that decode, 26 list more captures: one of 35 presses of a Continental remote listed 1 capture and lists 35, a Jeep remote's 8 presses listed 4 and list 8.
 - Wording: "Found 1 file … Import it?" at startup (was "Import them?"), the `:clear` prompt's warning on a line of its own, "Btn: 0x04" for a numbered button (was "Btn: Btn 4 (0x04)"), "RF: -" for an undecoded signal like its other empty fields, "41 bits after 1 pulse" in Analyze, and `:new`'s message without "counter -" for a remote that has no counter.
 - The changelog page's crumbs file it under Reference, as the site's menus do.
+- The home page's two screenshots of the app were of 1.8.0, whose action menu still offered Timing analysis; they show 1.18.0 now, at the same size.
 - The HiTag2 Hell page still said KAT's search stays on the CPU; the README, the KeeLoq page and the home page did not mention the graphics card that 1.18.0 uses.
 
 ## [1.18.0] - 2026-11-19

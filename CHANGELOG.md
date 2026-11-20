@@ -4,6 +4,10 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- **Ford V1 (JLR): the encrypted variant documented from the firmware.** The [Ford V1 page](https://kat.karazajac.io/ford_v1.html) now sets out what reverse-engineering the Jaguar Land Rover KVM established: the rolling half is `AES-128(key, P)[0:8]` (ECB of one block, encrypt-only), the 16-bit header value is the fob's transponder ID folded (`ID_high XOR ID_low`), and the plaintext is built from a monotonic counter, a command selector and fixed constants. The per-car AES key is **not** present in a flash/EEPROM dump (no key schedule, no expansion, none found by scanning), so KAT stays decode-only for these fobs.
+
 ## [1.19.0] - 2026-11-20
 
 A recovered HiTag2 key is shown in both byte orders and stays in view, the encrypted Jaguar Land Rover keyless fob is recognised (decode only), every press of a long-frame remote is listed, and the list and the overlays are tidier. No protocol more.

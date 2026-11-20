@@ -33,8 +33,12 @@
 //! **DecodedSignal**: exactly the C's saved fields — `data` = key1 (`Key`, 56 bits), `extra` =
 //! key2 (`Key_2`, 64 bits); the CRC (`Key_3`) is recomputed from them. `serial`/`button` as above,
 //! `counter` = the LOW 16 bits of the 20-bit counter (KAT's counter is u16; the top nibble is
-//! recovered from the frame), `data_count_bit` = 136. `encoder_capable` is the C encoder's
-//! precondition (`ford_v1_extract_plain_from_raw`: strict or round-trip plaintext recovered).
+//! recovered from the frame), `data_count_bit` = 136. `encoder_capable` requires the STRICT branch
+//! (real plaintext recovered) — a deliberate deviation from the C, whose round-trip
+//! `ford_v1_extract_plain_from_raw` also accepts a frame whose rolling half is encrypted and would
+//! emit a code the car rejects. A CRC-valid frame that is not strict is the JLR 2015-2018 keyless
+//! fob (Hitag-Pro / PCF7953P): Ford's frame with an AES rolling code KAT cannot read. It is
+//! reported as "Ford V1 (JLR)", decode-only (header serial, button 0, counter 0; Replay only).
 //! Exports from KAT before this port carried a different `extra` (crc16 << 48 | strict << 40 |
 //! plain[4] << 32); such an `extra` is recognised and key2 is rebuilt from the decoded fields by
 //! matching the stored CRC16 (see `legacy_key2`).
@@ -82,7 +86,8 @@ pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     name: "Ford V1",
     decoder: "Ford V1",
     aliases: &[],
-    name_prefix: None,
+    // "Ford V1 (JLR)", the encrypted variant, resolves to this entry for its RF/coding/presets.
+    name_prefix: Some("Ford V1"),
     encoding: Coding::Manchester,
     rf: Rf::FM,
     encryption: "Rolling Code",
@@ -105,6 +110,9 @@ const TE_LONG: u32 = 130;
 const TE_DELTA: u32 = 39;
 const DATA_BITS: usize = 136;
 const DATA_BYTES: usize = 17;
+/// Display name for a CRC-valid frame whose rolling half is not Ford-readable (strict fails): the
+/// JLR 2015-2018 keyless fob (Hitag-Pro / PCF7953P), AES rolling code, decode-only.
+const JLR_NAME: &str = "Ford V1 (JLR)";
 const PREAMBLE_MIN: u16 = 50;
 /// FORD_V1_DELTA_LONG (40): only the preamble long-pulse match; data/sync use te_delta (39).
 const DELTA_LONG: u32 = 40;
@@ -316,8 +324,9 @@ impl FordV1Decoder {
     /// CRC-valid frame is reported (strict → plaintext fields, otherwise header-only).
     fn process_data(raw_bytes: &[u8; DATA_BYTES]) -> Option<DecodedSignal> {
         let raw = Self::canonical_crc_ok(raw_bytes)?;
-        let (serial, button, counter) = match Self::strict_plain(&raw) {
-            Some(plain) => Self::fields_from_plain(&plain),
+        let strict = Self::strict_plain(&raw);
+        let (serial, button, counter) = match &strict {
+            Some(plain) => Self::fields_from_plain(plain),
             None => (u32::from_be_bytes([raw[3], raw[4], raw[5], raw[6]]), 0, 0),
         };
         let key1 = raw[..7].iter().fold(0u64, |k, &b| (k << 8) | b as u64);
@@ -329,9 +338,12 @@ impl FordV1Decoder {
             crc_valid: true,
             data: key1,
             data_count_bit: DATA_BITS,
-            encoder_capable: Self::extract_plain(&raw).is_some(),
+            // Only a strict frame recovered the real plaintext, so only it can be re-encoded. A
+            // CRC-valid non-strict frame is the JLR variant (AES rolling code, [JLR_NAME]): KAT
+            // reads only its header, cannot make a fresh code, and reports it decode-only.
+            encoder_capable: strict.is_some(),
             extra: Some(key2),
-            protocol_display_name: None,
+            protocol_display_name: strict.is_none().then(|| JLR_NAME.to_string()),
         })
     }
 
@@ -617,14 +629,15 @@ impl ProtocolDecoder for FordV1Decoder {
         // ford_v1_keys_file_to_canonical_raw: the C refuses frames whose plaintext cannot be
         // recovered (encryption_supported / plain_valid).
         let (raw, plain, strict) = Self::extract_plain(&Self::frame_from_keys(decoded.data, key2))?;
-
-        // The file's Serial/Btn/Cnt as the C decoder saved them (strict: plaintext fields;
-        // otherwise header serial, button 0, counter 0), overridden by the DecodedSignal fields.
-        let (frame_serial, frame_btn, frame_cnt) = if strict {
-            Self::fields_from_plain(&plain)
-        } else {
-            (u32::from_be_bytes([raw[3], raw[4], raw[5], raw[6]]), 0, 0)
-        };
+        // Only a strict frame yields plaintext that re-encodes into a code the car accepts; a keyed
+        // variant (JLR) round-trips but its recovered plaintext is garbage, so refuse it (the UI
+        // never offers it either, `encoder_capable` is false). The C would send it anyway.
+        if !strict {
+            return None;
+        }
+        // The file's Serial/Btn/Cnt as the C decoder saved them (the plaintext fields), overridden
+        // by the DecodedSignal fields.
+        let (frame_serial, frame_btn, frame_cnt) = Self::fields_from_plain(&plain);
         let serial = decoded.serial.unwrap_or(frame_serial);
         let captured = decoded.button.unwrap_or(frame_btn);
         let cnt = match decoded.counter {
@@ -829,6 +842,30 @@ mod tests {
     fn first_bit_zero_is_not_decodable() {
         let raw = build_frame([0x40, 0xFF, 0xEE, 0x1A, 0x2B], 0x1A2B_3C4D, 0x1, 0x0456, 0x10);
         assert!(feed_all(&burst_wave(&raw, ENC_GAP_REPEAT_US)).is_empty());
+    }
+
+    /// A CRC-valid frame whose rolling half is not Ford-readable (strict fails) — the JLR keyless
+    /// fob's AES-encrypted variant — is reported as "Ford V1 (JLR)", decode-only: header serial,
+    /// no plaintext fields, not encoder-capable and no fresh code. A strict frame is unaffected.
+    #[test]
+    fn jlr_encrypted_variant_is_decode_only() {
+        let raw = build_frame([0xC0, 0xFF, 0xEE, 0x1A, 0x2B], 0x1A2B_3C4D, 0x2, 0x1_2345, 0x5A);
+        let mut jlr = raw;
+        jlr[5] ^= 0x01; // break the strict plain[3] == raw[5] link, then fix the CRC
+        let c = FordV1Decoder::crc16(&jlr[3..15]);
+        jlr[15..17].copy_from_slice(&c.to_be_bytes());
+        let f = feed_all(&burst_wave(&jlr, ENC_GAP_REPEAT_US)).pop().expect("CRC-valid, decodes");
+        assert_eq!(f.protocol_display_name.as_deref(), Some("Ford V1 (JLR)"));
+        assert!(!f.encoder_capable);
+        assert_eq!((f.button, f.counter), (Some(0), Some(0)));
+        assert!(FordV1Decoder::new().encode(&f, 0x01).is_none(), "no fresh code for the encrypted variant");
+
+        let s = feed_all(&burst_wave(&raw, ENC_GAP_REPEAT_US)).pop().expect("strict frame");
+        assert_eq!(s.protocol_display_name, None);
+        assert!(s.encoder_capable);
+        // The JLR label resolves to Ford V1's RF/coding via name_prefix.
+        use crate::protocols::info::lookup;
+        assert_eq!(lookup("Ford V1 (JLR)").map(|i| (i.rf, i.encoding)), lookup("Ford V1").map(|i| (i.rf, i.encoding)));
     }
 
     /// A pre-port KAT export (extra = crc16 << 48 | strict << 40 | plain[4] << 32) still encodes:

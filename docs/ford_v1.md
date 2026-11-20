@@ -55,6 +55,25 @@ bits; `DecodedSignal.counter` holds the low 16, the top nibble is recovered from
 - **Encryption:** proprietary parity descramble cipher + CRC16/CCITT gate; rolling code
 - **Frequencies:** 315 MHz, 433.92 MHz
 
+## The JLR variant (encrypted)
+
+Jaguar Land Rover's **Keyless Entry Transmitter** of 2015–2018 (part **BJ32-15K601**, 434 MHz 2-FSK)
+sends the **same 136-bit Ford V1 frame** — the `D3950E26…` header, the CRC16 — but fills the rolling
+half with a real cipher instead of Ford's keyless parity scramble. The fob is an NXP **PCF7953P
+(Hitag-Pro)**, so the rolling code is **AES-based**: all eight payload bytes change on every press,
+with the button and counter encrypted inside and no counter in the clear, keyed by a secret shared
+only between the fob and the car. That key lives in the PCF7953P's read-protected store; it is not in
+a normal memory read of the fob or the car module (those hold the VIN, the learned IDs and the
+anti-replay counters, not the cipher key). So KAT cannot read or forge these codes.
+
+KAT recognises such a frame because its descramble does **not** reproduce the header (the strict
+branch `plain[3] == raw[5] && plain[4] == raw[6]` fails). It is reported as **`Ford V1 (JLR)`**,
+**decode-only**: the fixed header serial is shown as the remote's identity (button and counter read
+as 0, since they are encrypted), it is **not** marked encoder-capable, and KAT will not emit a fresh
+code — only **Replay** of a captured press is possible. This is a deliberate deviation from the
+reference C, whose round-trip plaintext check would accept such a frame and send a code the car
+rejects. Genuine Ford V1 frames always take the strict branch, so they are unaffected.
+
 ## Decoder Steps
 
 1. **Reset** — a long LOW pulse begins the preamble (count = 1).

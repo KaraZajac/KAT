@@ -724,6 +724,13 @@ impl RenaultV1Decoder {
         Self::payload_from_signal(decoded)
             .is_some_and(|raw| hitag2::renault_seed_recover(&raw).is_some() || Self::saved_key(&raw).is_some())
     }
+
+    /// The key saved for this decode's remote and the epoch it verifies with ([`Self::saved_key`]),
+    /// in the standard byte order: the key the detail panel shows ([`hitag2_keys::shown_key`]).
+    /// A frame KAT sends from its serial-derived seed has no such key.
+    pub(super) fn key_of(decoded: &DecodedSignal) -> Option<([u8; 6], u32)> {
+        Self::payload_from_signal(decoded).and_then(|raw| Self::saved_key(&raw))
+    }
 }
 
 impl ProtocolDecoder for RenaultV1Decoder {

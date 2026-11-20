@@ -645,6 +645,7 @@ fn help_bar_text(
         | InputMode::Compare
         | InputMode::Help
         | InputMode::Radios
+        | InputMode::Hitag2Key
         | InputMode::ConfirmQuit
         | InputMode::ConfirmDeleteAll => super::app_prompts::help_texts(mode),
         InputMode::NewRemote | InputMode::NewRemoteEdit | InputMode::SendButton => {

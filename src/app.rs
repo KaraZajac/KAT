@@ -210,6 +210,9 @@ pub enum InputMode {
     ConfirmDeleteAll,
     /// `:radios`: the radios KAT has and found, scrolled like the help (app/radios.rs)
     Radios,
+    /// The key "Recover key (HiTag2)" found, in the byte orders the other tools take
+    /// (app/hitag2_bf.rs), scrolled and closed like the help
+    Hitag2Key,
 }
 
 /// Export format being used
@@ -228,6 +231,7 @@ mod key_files;
 mod add_manually;
 mod keeloq_bf;
 mod hitag2_bf;
+pub use hitag2_bf::Hitag2KeyReport;
 mod auto_bf;
 mod input;
 pub use add_manually::{PickerRow, PICKER_VISIBLE_ROWS};
@@ -543,6 +547,13 @@ pub struct App {
     /// Whether the signal menu offers "Recover key (HiTag2)" (app/hitag2_bf.rs): the menu asks on
     /// every frame it draws.
     hitag2_offer_memo: std::cell::Cell<Option<hitag2_bf::OfferMemo>>,
+    /// The selected capture's HITAG2 key (app/hitag2_bf.rs): the detail panel asks on every frame
+    /// it draws.
+    hitag2_key_memo: std::cell::Cell<Option<hitag2_bf::ShownKeyMemo>>,
+    /// The last key "Recover key (HiTag2)" found, for its overlay.
+    hitag2_key_report: Option<hitag2_bf::Hitag2KeyReport>,
+    /// That overlay is still to open: the search finished while a menu, form or prompt was open.
+    hitag2_key_report_due: bool,
 
     // -- :load file browser --
     /// Current directory in the load file browser
@@ -682,6 +693,9 @@ impl App {
             keeloq_bf_job: None,
             hitag2_bf_job: None,
             hitag2_offer_memo: std::cell::Cell::new(None),
+            hitag2_key_memo: std::cell::Cell::new(None),
+            hitag2_key_report: None,
+            hitag2_key_report_due: false,
             load_browser_cwd: PathBuf::new(),
             load_browser_selected: 0,
             load_browser_scroll: 0,

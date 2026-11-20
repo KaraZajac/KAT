@@ -22,6 +22,7 @@ pub fn render_app_overlays(frame: &mut Frame, app: &App) {
         InputMode::ConfirmDeleteAll => render_confirm_delete_all_prompt(frame, app),
         InputMode::Analyze => super::analyze_overlay::render_analyze_overlay(frame, app),
         InputMode::Compare => super::compare_overlay::render_compare_overlay(frame, app),
+        InputMode::Hitag2Key => super::hitag2_key_overlay::render(frame, app),
         _ => {}
     }
 }
@@ -35,6 +36,7 @@ pub fn mode_label(mode: InputMode) -> (&'static str, Style) {
         InputMode::Compare => ("COMPARE", Style::default().fg(Color::Cyan)),
         InputMode::Help => ("HELP", Style::default().fg(Color::Cyan)),
         InputMode::Radios => ("RADIOS", Style::default().fg(Color::Cyan)),
+        InputMode::Hitag2Key => ("KEY", Style::default().fg(Color::Cyan)),
         InputMode::ConfirmQuit => ("QUIT", Style::default().fg(Color::Yellow)),
         InputMode::ConfirmDeleteAll => ("DELETE", Style::default().fg(Color::Red)),
         _ => ("", Style::default()),
@@ -57,7 +59,7 @@ pub fn help_texts(mode: InputMode) -> &'static [&'static str] {
             "Up/Down: Scroll | Tab: Data or bits as sent | Esc: Close",
         ],
         // The keys of overlay_key, as Analyze's bar says them.
-        InputMode::Help | InputMode::Radios => &[
+        InputMode::Help | InputMode::Radios | InputMode::Hitag2Key => &[
             "Up/Down, PgUp/PgDn, Home/End: Scroll | Esc/Enter: Close",
             "Up/Down, PgUp/PgDn: Scroll | Esc: Close",
         ],

@@ -10,6 +10,7 @@ use ratatui::{
 
 use crate::app::{App, Column, RadioState, Sort};
 use crate::capture::{Capture, CaptureStatus, KeyRecovery, ModulationType};
+use crate::protocols::hitag2_keys::{self, ShownKey};
 use crate::radio::hopper::format_mhz;
 use crate::saved_fobs::SavedFobMatch;
 use crate::vuln_db;
@@ -33,7 +34,7 @@ pub(super) const DETAIL_FLOOR: u16 = TABLE_MIN_HEIGHT + DETAIL_MIN_HEIGHT;
 pub fn render_captures_list(frame: &mut Frame, area: Rect, app: &App) {
     let selected = app.selected_capture.and_then(|i| app.captures.get(i));
     let wanted = selected.map(|c| {
-        detail_height(area.width, c, app.saved_match(c.id), app.key_search_planned(c.id))
+        detail_height(area.width, c, app.saved_match(c.id), app.key_search_planned(c.id), app.hitag2_shown_key(c))
     });
     let (table_area, detail_area) = split_captures_area(area, wanted);
     render_table(frame, table_area, app);
@@ -52,9 +53,9 @@ fn detail_halves(area: Rect) -> [Rect; 2] {
 /// Rows the detail panel takes to show all it has on `capture` in a list `width` columns wide: the
 /// taller of its halves and the borders. The captures of one remote take the same, so the table
 /// above keeps its height while the selection moves through them.
-fn detail_height(width: u16, capture: &Capture, saved: Option<&SavedFobMatch>, searching: bool) -> u16 {
+fn detail_height(width: u16, capture: &Capture, saved: Option<&SavedFobMatch>, searching: bool, hitag2: Option<ShownKey>) -> u16 {
     let [left, right] = detail_halves(Rect::new(0, 0, width, DETAIL_MAX_HEIGHT));
-    let signal = signal_detail_lines(capture, saved, searching, left.width.saturating_sub(2) as usize).len();
+    let signal = signal_detail_lines(capture, saved, searching, hitag2, left.width.saturating_sub(2) as usize).len();
     let vulns = vulnerability_lines(capture, right.width.saturating_sub(2) as usize, usize::MAX).len();
     (signal.max(vulns) as u16).saturating_add(2)
 }
@@ -392,7 +393,14 @@ fn render_detail_panel(frame: &mut Frame, area: Rect, app: &App) {
 
     let [left, right] = detail_halves(area);
 
-    render_signal_detail(frame, left, capture, app.saved_match(capture.id), app.key_search_planned(capture.id));
+    render_signal_detail(
+        frame,
+        left,
+        capture,
+        app.saved_match(capture.id),
+        app.key_search_planned(capture.id),
+        app.hitag2_shown_key(capture),
+    );
     render_vulnerability_panel(frame, right, capture);
 }
 
@@ -490,8 +498,31 @@ fn emulation_banner(code: &str) -> &'static str {
     }
 }
 
-/// The rows of the signal detail for an area `max` columns wide.
-fn signal_detail_lines(capture: &Capture, saved: Option<&SavedFobMatch>, searching: bool, max: usize) -> Vec<Line<'static>> {
+/// The "HiTag2:" row: the remote's HITAG2 key in the standard byte order, which qDoctor shows and
+/// doctor-firmware's key prompt takes, and for a Fiat remote also in the Fiat cipher's, which
+/// its line in `hitag2_keys.txt` has. Twelve digits each, as that file and the status line write
+/// a key; an epoch other than 0 is named, since the key signs the frame only with it.
+fn hitag2_key_fields(key: ShownKey) -> Vec<Field> {
+    let style = Style::default().fg(Color::Yellow);
+    let mut fields = vec![("HiTag2:", vec![Span::styled(hitag2_keys::hex(&key.standard, ""), style)])];
+    if let Some(fiat) = key.fiat_order() {
+        fields.push(("Fiat order:", vec![Span::styled(hitag2_keys::hex(&fiat, ""), style)]));
+    }
+    if key.epoch != 0 {
+        fields.push(("Epoch:", value(key.epoch.to_string())));
+    }
+    fields
+}
+
+/// The rows of the signal detail for an area `max` columns wide. `hitag2`: the remote's HITAG2
+/// key, when KAT has it.
+fn signal_detail_lines(
+    capture: &Capture,
+    saved: Option<&SavedFobMatch>,
+    searching: bool,
+    hitag2: Option<ShownKey>,
+    max: usize,
+) -> Vec<Line<'static>> {
     let accent_style = Style::default().fg(Color::Cyan);
     let dim = Style::default().fg(Color::DarkGray);
     let mut lines = Vec::new();
@@ -598,6 +629,9 @@ fn signal_detail_lines(capture: &Capture, saved: Option<&SavedFobMatch>, searchi
     if let Some(span) = search {
         lines.extend(detail_row(vec![("Recovery:", vec![span])], max));
     }
+    if let Some(key) = hitag2 {
+        lines.extend(detail_row(hitag2_key_fields(key), max));
+    }
 
     // Saved .fob this capture matches: file name, counter difference, saved vehicle info + notes
     if let Some(m) = saved {
@@ -648,7 +682,14 @@ fn signal_detail_lines(capture: &Capture, saved: Option<&SavedFobMatch>, searchi
 }
 
 /// Left half: signal information (plus the saved .fob it matches, if any)
-fn render_signal_detail(frame: &mut Frame, area: Rect, capture: &Capture, saved: Option<&SavedFobMatch>, searching: bool) {
+fn render_signal_detail(
+    frame: &mut Frame,
+    area: Rect,
+    capture: &Capture,
+    saved: Option<&SavedFobMatch>,
+    searching: bool,
+    hitag2: Option<ShownKey>,
+) {
     let border_style = match capture.status {
         CaptureStatus::EncoderCapable => Style::default().fg(Color::Green),
         CaptureStatus::Decoded => Style::default().fg(Color::Yellow),
@@ -659,7 +700,7 @@ fn render_signal_detail(frame: &mut Frame, area: Rect, capture: &Capture, saved:
         .border_style(border_style)
         .title(format!(" Signal #{:02} — {} ", capture.id, capture.protocol_name()));
     let inner = block.inner(area);
-    let lines = signal_detail_lines(capture, saved, searching, inner.width as usize);
+    let lines = signal_detail_lines(capture, saved, searching, hitag2, inner.width as usize);
     // Rows the panel has no room for (a short terminal): say so instead of dropping them silently.
     let hidden = lines.len().saturating_sub(inner.height as usize);
     if hidden > 0 {
@@ -783,6 +824,27 @@ fn render_vulnerability_panel(frame: &mut Frame, area: Rect, capture: &Capture) 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::protocols::hitag2_keys::KeyOrder;
+
+    /// The HiTag2 row: the key in the standard order, a Fiat remote's in the Fiat order too (its
+    /// first two bytes moved to the end), on one line at the panel's usual width; an epoch only
+    /// when it is not 0.
+    #[test]
+    fn the_hitag2_row_shows_the_key_in_its_orders() {
+        let text = |fields: Vec<Field>, max: usize| -> Vec<String> {
+            detail_row(fields, max).iter().map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect()).collect()
+        };
+        let inner = usize::from(SIGNAL_PREF_WIDTH) - 2;
+        let fiat = ShownKey { standard: [0xB3, 0xC1, 0x01, 0x2C, 0xF7, 0x7F], order: KeyOrder::FiatBcm, epoch: 0 };
+        assert_eq!(text(hitag2_key_fields(fiat), inner), vec![" HiTag2:    B3C1012CF77F  Fiat order: 012CF77FB3C1"]);
+        let renault = ShownKey { order: KeyOrder::Standard, epoch: 3, ..fiat };
+        assert_eq!(text(hitag2_key_fields(renault), inner), vec![" HiTag2:    B3C1012CF77F  Epoch: 3"]);
+        // Narrower than both keys: the Fiat order goes under the first, whole.
+        assert_eq!(
+            text(hitag2_key_fields(fiat), 40),
+            vec![" HiTag2:    B3C1012CF77F", "            Fiat order: 012CF77FB3C1"]
+        );
+    }
 
     /// The columns with one radio (no Radio column).
     fn content(protocol: u16) -> Vec<(Col, u16)> {
@@ -936,15 +998,18 @@ mod tests {
     fn the_detail_panel_asks_for_what_it_shows() {
         let unknown = Capture::from_pairs(1, 433_920_000, Vec::new());
         // Protocol, Freq, Enc, Serial, Counter, Key/Data, Captured, Raw Data, File.
-        assert_eq!(detail_height(98, &unknown, None, false), 9 + 2);
+        assert_eq!(detail_height(98, &unknown, None, false, None), 9 + 2);
         let mut other = Capture::from_pairs(2, 315_000_000, Vec::new());
         other.source_file = Some("a/folder/with/a/long/name/and_a_recording_in_it.sub".to_string());
-        assert_eq!(detail_height(98, &other, None, false), 9 + 2);
+        assert_eq!(detail_height(98, &other, None, false, None), 9 + 2);
         // A key search under way has a row of its own.
-        assert_eq!(detail_height(98, &unknown, None, true), 10 + 2);
+        assert_eq!(detail_height(98, &unknown, None, true, None), 10 + 2);
+        // So has a HITAG2 key KAT knows.
+        let key = ShownKey { standard: [0xB3, 0xC1, 0x01, 0x2C, 0xF7, 0x7F], order: KeyOrder::FiatBcm, epoch: 0 };
+        assert_eq!(detail_height(98, &unknown, None, false, Some(key)), 10 + 2);
         // At the narrowest the vulnerability hint wraps over more rows, never past the full height
         // once the area is split.
-        let narrow = detail_height(58, &unknown, None, false);
+        let narrow = detail_height(58, &unknown, None, false, None);
         assert!(narrow >= 11, "{narrow}");
         let (_, panel) = split_captures_area(Rect::new(0, 0, 58, 60), Some(u16::MAX));
         assert_eq!(panel.map(|p| p.height), Some(DETAIL_MAX_HEIGHT));

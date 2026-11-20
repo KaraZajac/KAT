@@ -610,8 +610,17 @@ impl FiatV1Decoder {
     /// Whether `encode()` sends fresh frames of this decode (a key resolves) instead of replaying
     /// it: "Recover key (HiTag2)" has nothing left to find.
     pub(super) fn has_key(decoded: &DecodedSignal) -> bool {
-        Self::raw_from_signal(decoded)
-            .is_some_and(|(raw, _)| Self::frame_valid(&raw) && Self::resolve_key(&Self::fields(&raw)).is_some())
+        Self::key_of(decoded).is_some()
+    }
+
+    /// The HITAG2 key [`Self::resolve_key`] finds for this decode, in the cipher's byte order,
+    /// with its epoch: the key the detail panel shows ([`hitag2_keys::shown_key`]).
+    pub(super) fn key_of(decoded: &DecodedSignal) -> Option<([u8; 6], u32)> {
+        let (raw, _) = Self::raw_from_signal(decoded)?;
+        if !Self::frame_valid(&raw) {
+            return None;
+        }
+        Self::resolve_key(&Self::fields(&raw))
     }
 
     /// Build the DecodedSignal for a validated frame (`fiat_v1_decode_fields`).

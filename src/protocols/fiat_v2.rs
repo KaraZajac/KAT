@@ -302,7 +302,17 @@ impl FiatV2Decoder {
     /// Whether `encode()` sends fresh frames of this decode (a key verifies) instead of replaying
     /// it: "Recover key (HiTag2)" has nothing left to find.
     pub(super) fn has_key(decoded: &DecodedSignal) -> bool {
-        Self::raw_from_signal(decoded).is_some_and(|raw| Self::frame_valid(&raw) && Self::find_key(&raw).is_some())
+        Self::key_of(decoded).is_some()
+    }
+
+    /// The HITAG2 key [`Self::find_key`] finds for this decode, in Fiat V1's byte order: the key
+    /// the detail panel shows ([`hitag2_keys::shown_key`]).
+    pub(super) fn key_of(decoded: &DecodedSignal) -> Option<[u8; 6]> {
+        let raw = Self::raw_from_signal(decoded)?;
+        if !Self::frame_valid(&raw) {
+            return None;
+        }
+        Self::find_key(&raw).map(|(key, _)| key)
     }
 
     /// fiat_v2_patch_button: selector into raw[7] bits 7:6.

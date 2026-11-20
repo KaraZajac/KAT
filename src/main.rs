@@ -617,7 +617,11 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                         InputMode::LoadFileBrowser => report!(app, app.load_browser_key(code)),
 
                         // Scroll within the text, Esc / Enter / q close (app/input.rs)
-                        InputMode::License | InputMode::Credits | InputMode::Help | InputMode::Radios => {
+                        InputMode::License
+                        | InputMode::Credits
+                        | InputMode::Help
+                        | InputMode::Radios
+                        | InputMode::Hitag2Key => {
                             app.overlay_key(code)
                         }
                     }

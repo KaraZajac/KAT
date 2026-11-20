@@ -40,11 +40,19 @@ with the requested button and the next counter.
 3. The search runs in the background on every core. The status bar's title shows its progress and the
    longest it can still take; **Cancel key recovery** in either capture's menu stops it, and quitting
    asks first. PSA key searches (`autobf`) keep running beside it, so PSA frames keep showing up.
-4. On success the status line names the key and where it was saved, and every capture of the remote
-   gets **Recovery: key recovered (HiTag2 Hell)** in its detail panel. TX Lock / Unlock / Trunk /
-   Panic then send fresh codes, and the remote's Flipper key files carry the key on the firmwares'
-   `Hitag2 Key` / `Hitag2 Epoch` lines. If no key fits the two captures, both say **no key (HiTag2
-   Hell searched)**.
+4. On success an overlay shows the key in the standard byte order and, for a Fiat V1 or Fiat V2
+   remote, in the Fiat order too, with what takes each ([which order is where](#the-key-file)) and
+   where it was saved. It opens once the list has the keys again, not over a menu or a form. The
+   status line names the key as well, and every capture of the remote gets **Recovery: key
+   recovered (HiTag2 Hell)** in its detail panel. TX Lock / Unlock / Trunk / Panic then send fresh
+   codes, and the remote's Flipper key files carry the key on the firmwares' `Hitag2 Key` /
+   `Hitag2 Epoch` lines. If no key fits the two captures, both say **no key (HiTag2 Hell
+   searched)**.
+
+The key stays in view after the overlay is closed: the detail panel of every capture whose key KAT
+has shows it in a **HiTag2** row, the standard order first, then **Fiat order** for a Fiat remote.
+That goes for a key from `hitag2_keys.txt`, from a loaded key file and for the references' embedded
+keys as well, not only for one a search found.
 
 It runs only when asked, never through `autobf`: a search takes minutes of every core.
 
@@ -150,16 +158,18 @@ key found from Fiat V1 captures serves the same remote decoded as Renault V1. Ev
 against the captured hop first; a line that does not verify is ignored, as in the firmwares.
 
 **Which order is where.** The status line after a search and the `Hitag2 Key` line of a key file have the
-standard order, for both protocols, as doctor-firmware's files and its key prompt do. Only this file
-has a Fiat V1 key in the cipher's order:
+standard order, for both protocols, as qDoctor, doctor-firmware's files and its key prompt do. Only this
+file has a Fiat V1 key in the cipher's order. The overlay after a search and the detail panel's **HiTag2**
+row show a Fiat key both ways:
 
 | | Fiat V1 key `4B 41 54 31 2E 38` | Renault V1 key |
 |---|---|---|
-| Status line, `Hitag2 Key` line of a key file, doctor-firmware's prompt | `4B4154312E38` | as it is |
-| `hitag2_keys.txt` (KAT's and doctor-firmware's) | `54312E384B41` | as it is |
+| Status line, `Hitag2 Key` line of a key file, qDoctor, doctor-firmware's prompt; "Standard order" in the overlay, the first key of the **HiTag2** row | `4B4154312E38` | as it is |
+| `hitag2_keys.txt` (KAT's and doctor-firmware's); **Fiat order** in the overlay and the **HiTag2** row | `54312E384B41` | as it is |
 
-So to type a Fiat V1 key from this file into doctor-firmware, move its last two bytes to the front; or
-send the capture's key file instead, which has the key in the order the firmware wants.
+So the key to type into qDoctor or doctor-firmware is the first one of the **HiTag2** row. Taken from
+this file instead, a Fiat V1 key needs its last two bytes moved to the front; or send the capture's key
+file, which has the key in the order the firmware wants.
 (ProtoPirate and Flipper-ARF want the cipher's order on that line and do not take KAT's;
 [Fiat V1](fiat_v1.md) has the comparison.)
 

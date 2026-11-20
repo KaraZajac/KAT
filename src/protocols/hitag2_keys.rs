@@ -34,6 +34,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::RwLock;
 
+use super::DecodedSignal;
+
 /// The database's file name, in KAT's config folder as in the firmwares' `subghz/assets`.
 pub const FILE_NAME: &str = "hitag2_keys.txt";
 
@@ -178,6 +180,50 @@ pub fn keys_for(uid: u32, order: KeyOrder) -> Vec<([u8; 6], u32)> {
         KeyOrder::Standard => KeyOrder::FiatBcm.standard(key),
     };
     vec![(key, epoch), (other, epoch)]
+}
+
+/// A capture's HITAG2 key as the app shows it: the detail panel's "HiTag2:" row and the overlay
+/// "Recover key (HiTag2)" opens.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ShownKey {
+    /// The key in the standard HITAG2 order: what qDoctor shows, and what doctor-firmware's key
+    /// prompt and the `Hitag2 Key` line of its key files take.
+    pub standard: [u8; 6],
+    /// The order the remote's cipher takes the key in. A [`KeyOrder::FiatBcm`] remote's key is in
+    /// that order in `hitag2_keys.txt` (module doc), so the app shows it in both.
+    pub order: KeyOrder,
+    /// The epoch the key reproduces the hop with (0 for a key "Recover key (HiTag2)" found).
+    pub epoch: u32,
+}
+
+impl ShownKey {
+    /// The key in the Fiat cipher's order, for a remote whose protocol takes it so.
+    pub fn fiat_order(&self) -> Option<[u8; 6]> {
+        (self.order == KeyOrder::FiatBcm).then(|| KeyOrder::FiatBcm.arrange(self.standard))
+    }
+}
+
+/// A key's bytes in hex with `between` between them: `""` as a line of this file has a key, `" "`
+/// as the `Hitag2 Key` line of a key file has it.
+pub fn hex(key: &[u8; 6], between: &str) -> String {
+    key.iter().map(|b| format!("{b:02X}")).collect::<Vec<_>>().join(between)
+}
+
+/// The HITAG2 key that reproduces this capture's hop, if KAT has one: the key its encoder signs
+/// fresh frames with (a reference's embedded key, or the remote's saved one), for Hitag2 RKE the
+/// saved key that confirms the frame. `None` for other protocols, for a remote without a key and
+/// for a Renault V1 frame KAT sends from its serial-derived seed (that scheme has no key of the
+/// `Hitag2 Key` kind).
+pub fn shown_key(protocol: &str, signal: &DecodedSignal) -> Option<ShownKey> {
+    let fiat = |key: [u8; 6], epoch| ShownKey { standard: KeyOrder::FiatBcm.standard(key), order: KeyOrder::FiatBcm, epoch };
+    let standard = |key: [u8; 6], epoch| ShownKey { standard: key, order: KeyOrder::Standard, epoch };
+    match protocol {
+        "Fiat V1" => super::fiat_v1::FiatV1Decoder::key_of(signal).map(|(key, epoch)| fiat(key, epoch)),
+        "Renault V1" => super::renault_v1::RenaultV1Decoder::key_of(signal).map(|(key, epoch)| standard(key, epoch)),
+        "Fiat V2" => super::fiat_v2::FiatV2Decoder::key_of(signal).map(|key| fiat(key, 0)),
+        "Hitag2" => super::hitag2_rke::Hitag2RkeDecoder::saved_key(signal).map(|key| standard(key, 0)),
+        _ => None,
+    }
 }
 
 /// Use `record` for remote `uid` for the rest of the session, in place of any earlier one.

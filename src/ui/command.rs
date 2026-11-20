@@ -60,7 +60,11 @@ pub fn render_command_line(frame: &mut Frame, area: Rect, app: &App) {
             let (label, style) = super::app_prompts::mode_label(app.input_mode);
             (String::new(), label, style)
         }
-        InputMode::Help | InputMode::Radios | InputMode::ConfirmQuit | InputMode::ConfirmDeleteAll => {
+        InputMode::Help
+        | InputMode::Radios
+        | InputMode::Hitag2Key
+        | InputMode::ConfirmQuit
+        | InputMode::ConfirmDeleteAll => {
             let (label, style) = super::app_prompts::mode_label(app.input_mode);
             (String::new(), label, style)
         }

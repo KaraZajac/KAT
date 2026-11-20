@@ -10,6 +10,7 @@ All notable changes to KAT are documented here.
 
 ### Changed
 
+- **A HiTag2 key stays in view, in both byte orders.** When "Recover key (HiTag2)" finds a key, an overlay shows it in the standard order (what qDoctor has, and what doctor-firmware's key prompt and the `Hitag2 Key` line of a key file take) and, for a Fiat V1 or Fiat V2 remote, in the Fiat order too (what the remote's line in `hitag2_keys.txt` has), each with what takes it. The detail panel of every capture whose key KAT has then shows it in a **HiTag2** row, also for a key from `hitag2_keys.txt`, a loaded key file or a reference's embedded list. Until now the key stood once in the status line, in one order, and was gone with the next message; a Fiat key read out of `hitag2_keys.txt` instead is in the other order and does not work typed into qDoctor.
 - **Key recovery says when it runs on the graphics card**: "(GPU)" in the progress line of the KeeLoq and HiTag2 searches.
 - The captures list says how many captures are out of view ("↑ 2 · ↓ 14 more"), as the menus and the file browser do.
 - The help and the radios overview are as wide and as tall as their text (they sat in a box of 80 % of the terminal), and PgUp / PgDn in the help, the reports, the license and the credits move by what the overlay shows (they moved ten lines whatever its height).

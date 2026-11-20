@@ -15,10 +15,10 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use super::keeloq_bf::duration_label;
-use super::App;
+use super::{App, InputMode};
 use crate::capture::{Capture, KeyRecovery};
 use crate::protocols::hitag2_hell::{self as hell, BruteForceControl, BruteForceOutcome, Hitag2Frame, Hitag2Remote, RecoveredKey};
-use crate::protocols::hitag2_keys;
+use crate::protocols::hitag2_keys::{self, KeyOrder, ShownKey};
 
 /// How the detail panel names the search ("Recovery: key recovered (HiTag2 Hell)").
 pub(super) const LABEL: &str = "HiTag2 Hell";
@@ -26,6 +26,26 @@ pub(super) const LABEL: &str = "HiTag2 Hell";
 /// [`App::hitag2_bf_offered`]'s last answer: (capture id, data, extra, key database version) and
 /// whether the menu offers the search.
 pub(super) type OfferMemo = ((u32, u64, Option<u64>, u64), bool);
+
+/// [`App::hitag2_shown_key`]'s last answer, keyed as [`OfferMemo`]: the capture's key, if KAT has
+/// one.
+pub(super) type ShownKeyMemo = ((u32, u64, Option<u64>, u64), Option<ShownKey>);
+
+/// What the overlay of a found key shows (ui/hitag2_key_overlay.rs): the key in the byte orders
+/// the other tools take it in, which the status line has no room to tell apart.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Hitag2KeyReport {
+    pub uid: u32,
+    pub remote: Hitag2Remote,
+    /// The key in the standard order, and for a Fiat remote in the Fiat cipher's too.
+    pub key: ShownKey,
+    /// How long the search took ("69 s", "12 min").
+    pub took: String,
+    /// "saved in <file>", or why it could not be.
+    pub saved: String,
+    /// How many of the remote's captures now carry the key.
+    pub captures: usize,
+}
 
 /// A running HiTag2 key search.
 pub(super) struct Hitag2BfJob {
@@ -83,12 +103,20 @@ fn mark_recovered(captures: &mut [Capture], uid: u32) -> usize {
     fresh
 }
 
-/// The key's bytes as the remote's firmwares save them (see `hitag2_keys.rs`): standard order for
-/// Renault V1, Fiat's for Fiat V1 and V2.
-fn saved_bytes(remote: Hitag2Remote, key: u64) -> [u8; 6] {
+/// The byte order the remote's cipher takes the key in, which is the order its firmwares save it
+/// in (see `hitag2_keys.rs`): the standard one for Renault V1, Fiat's for Fiat V1 and V2.
+fn key_order(remote: Hitag2Remote) -> KeyOrder {
     match remote {
-        Hitag2Remote::RenaultV1 | Hitag2Remote::Hitag2Rke => hell::key_bytes(key),
-        Hitag2Remote::FiatV1 | Hitag2Remote::FiatV2 => hell::fiat_bcm_key(key),
+        Hitag2Remote::RenaultV1 | Hitag2Remote::Hitag2Rke => KeyOrder::Standard,
+        Hitag2Remote::FiatV1 | Hitag2Remote::FiatV2 => KeyOrder::FiatBcm,
+    }
+}
+
+/// The key's bytes as the remote's firmwares save them ([`key_order`]).
+fn saved_bytes(remote: Hitag2Remote, key: u64) -> [u8; 6] {
+    match key_order(remote) {
+        KeyOrder::Standard => hell::key_bytes(key),
+        KeyOrder::FiatBcm => hell::fiat_bcm_key(key),
     }
 }
 
@@ -108,6 +136,29 @@ impl App {
         let is_offered = offered(c);
         self.hitag2_offer_memo.set(Some((memo_key, is_offered)));
         is_offered
+    }
+
+    /// The capture's HITAG2 key for the detail panel ([`hitag2_keys::shown_key`]), memoised: the
+    /// panel asks on every frame it draws, and a Fiat V1 frame without a key costs a pass over
+    /// the references' key lists.
+    pub fn hitag2_shown_key(&self, c: &Capture) -> Option<ShownKey> {
+        if !is_hitag2_remote(c) {
+            return None;
+        }
+        let memo_key = (c.id, c.data, c.data_extra, hitag2_keys::generation());
+        if let Some((key, shown)) = self.hitag2_key_memo.get() {
+            if key == memo_key {
+                return shown;
+            }
+        }
+        let shown = hitag2_keys::shown_key(c.protocol_name(), &c.decoded_signal());
+        self.hitag2_key_memo.set(Some((memo_key, shown)));
+        shown
+    }
+
+    /// The last key a search found, for its overlay ([`InputMode::Hitag2Key`]).
+    pub fn hitag2_key_report(&self) -> Option<&Hitag2KeyReport> {
+        self.hitag2_key_report.as_ref()
     }
 
     /// Whether a long key search (KeeLoq or HiTag2) or a PSA one the user asked for runs: the
@@ -189,17 +240,24 @@ impl App {
         ))
     }
 
-    /// The result of the search once it has finished (every tick).
+    /// The result of the search once it has finished, then the found key's overlay (every tick).
     pub(super) fn poll_hitag2_key_recovery(&mut self) {
-        let Some(job) = &self.hitag2_bf_job else {
-            return;
-        };
-        if !job.handle.is_finished() {
-            return;
+        if self.hitag2_bf_job.as_ref().is_some_and(|j| j.handle.is_finished()) {
+            if let Some(job) = self.hitag2_bf_job.take() {
+                self.finish_hitag2_key_recovery(job);
+            }
         }
-        let Some(job) = self.hitag2_bf_job.take() else {
-            return;
-        };
+        // The overlay opens once the list has the keys: over a menu, a form or a prompt it would
+        // take theirs, and close on the Enter meant for them.
+        if self.hitag2_key_report_due && self.input_mode == InputMode::Normal {
+            self.hitag2_key_report_due = false;
+            self.input_mode = InputMode::Hitag2Key;
+            self.overlay_scroll = 0;
+        }
+    }
+
+    /// What a finished search found: the key saved and shown, or why there is none.
+    fn finish_hitag2_key_recovery(&mut self, job: Hitag2BfJob) {
         let took = duration_label(job.started.elapsed().as_secs_f64());
         let [first, second] = job.capture_ids;
         match job.handle.join() {
@@ -225,8 +283,8 @@ impl App {
         }
     }
 
-    /// Save the key for the remote (this session and `hitag2_keys.txt`) and mark the remote's
-    /// captures that now send fresh codes as recovered.
+    /// Save the key for the remote (this session and `hitag2_keys.txt`), mark the remote's
+    /// captures that now send fresh codes as recovered, and have the overlay show the key.
     fn apply_hitag2_key(&mut self, uid: u32, remote: Hitag2Remote, found: &RecoveredKey, took: &str) {
         if found.uid != uid {
             // The C also accepts frames made with the complemented UID; KAT's encoders send the
@@ -255,6 +313,15 @@ impl App {
             found.key,
             crate::plural(fresh)
         ));
+        self.hitag2_key_report = Some(Hitag2KeyReport {
+            uid,
+            remote,
+            key: ShownKey { standard: hell::key_bytes(found.key), order: key_order(remote), epoch: 0 },
+            took: took.to_string(),
+            saved,
+            captures: fresh,
+        });
+        self.hitag2_key_report_due = true;
     }
 }
 
@@ -301,6 +368,8 @@ mod tests {
             fiat_v1_capture(4, UID + 1, 0x8, 0x104, KEY),
         ];
         assert!(offered(&captures[0]));
+        let shown = |c: &Capture| hitag2_keys::shown_key(c.protocol_name(), &c.decoded_signal());
+        assert_eq!(shown(&captures[0]), None, "no key yet: no row in the detail panel");
         let f1 = frame_of(&captures[0]).unwrap();
         assert_eq!((f1.uid, f1.cnt, f1.btn), (UID, 0x101, 0x4));
         let (partner, f2) = partner_of(&captures, &captures[0], &f1).unwrap();
@@ -315,13 +384,21 @@ mod tests {
         assert_eq!(mark_recovered(&mut captures, UID), 3);
         assert_eq!(captures[0].key_recovery, Some(KeyRecovery::Recovered(LABEL.to_string())));
         assert_eq!(captures[3].key_recovery, None);
+        // The detail panel's row: the key in the standard order, as the status line names it, and
+        // in the Fiat order, as it was saved.
+        let key = shown(&captures[0]).expect("the saved key signs the frame");
+        assert_eq!(key, ShownKey { standard: hell::key_bytes(KEY), order: KeyOrder::FiatBcm, epoch: 0 });
+        assert_eq!(hitag2_keys::hex(&key.standard, ""), format!("{KEY:012X}"));
+        assert_eq!(key.fiat_order(), Some(saved_bytes(Hitag2Remote::FiatV1, KEY)));
+        assert_eq!(hitag2_keys::hex(&key.fiat_order().unwrap(), " "), "54 31 2E 38 4B 41");
+        assert_eq!(shown(&captures[2]), Some(key), "every press of the remote");
+        assert_eq!(shown(&captures[3]), None, "another remote");
     }
 
     /// The key order the firmwares save: Renault V1 standard, Fiat V1 / V2 rotated (the orders of
     /// `hitag2_keys::KeyOrder`).
     #[test]
     fn keys_are_saved_in_the_protocols_order() {
-        use crate::protocols::hitag2_keys::KeyOrder;
         let std_key = [0xE9, 0x9B, 0xDE, 0x9C, 0x28, 0x13];
         assert_eq!(saved_bytes(Hitag2Remote::RenaultV1, 0xE99B_DE9C_2813), std_key);
         assert_eq!(saved_bytes(Hitag2Remote::FiatV1, 0xE99B_DE9C_2813), [0xDE, 0x9C, 0x28, 0x13, 0xE9, 0x9B]);

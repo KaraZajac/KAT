@@ -55,3 +55,14 @@ press even though KAT's registry resets its decoders after every hit.
 
 No capture of a real Lexus V0 fob exists in KAT's test files; the decoder is verified against FoxFW's C decoder
 on made-up frames (including the complement partner, degenerate serials, short frames and short preambles).
+
+## The same frame as Lexus UX
+
+The 2021 Lexus UX 250 key that KAT's own [Lexus UX](lexus_ux.md) decoder was worked out from sends this frame.
+Lexus V0's 224 bits are bits 8 to 231 of that 256-bit frame as sent, before the differential step that gives the
+frame's bits: its header is `87 00 FF 0F`, its rolling code bytes 5 to 24, its serial the key's ID as sent. The
+complement signature is that line code: the ID as sent comes out inverted when the bits before it hold an odd
+number of 1s. The CRC-16 behind the serial is not read. KAT's Lexus V0 reads nothing in the UX recordings (they
+are FM, which an AM-flagged decoder is not fed, and one tone's half bits there are 226 µs on average, under
+250 µs); on frames without that skew it reads the second, third and fourth copies of a press
+(`src/protocols/lexus_ux.rs`, `lexus_v0_reads_the_frame_as_sent`).

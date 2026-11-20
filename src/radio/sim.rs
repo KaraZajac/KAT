@@ -999,6 +999,8 @@ fn imports_real_timings_decode() {
         ("KIA/KIA V3 N1 RAW.sub", 1),
         ("honda/Lock_honda.sub", 1),
         ("SUZUKI/Suzuki_v0_kd.sub", 1),
+        // 2-FSK with the recording's skew (one tone's pulses 120 µs short, the other's long)
+        ("Toyota + Lexus/Lexus UX 250 2021 lock.sub", 2),
     ] {
         let (expected, got) = real_timings(rel, 10.0, 1_000_000.0, n, true);
         assert!(same_decodes(&expected, &got), "{rel}:\nexpected {expected:#?}\ngot {got:#?}");

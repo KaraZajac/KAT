@@ -257,7 +257,7 @@ VAG/more/Audi_v1_only_open.sub | 433920000 | Fiat V1 | x44 | 9 distinct | fnv=F7
 VAG/more/Audi_v1_only_trunk.sub | 433920000 | Fiat V1 | x50 | 11 distinct | fnv=59D6BBF649F4771A
 VAG/more/Lock_vw.sub | 434420000 | VAG | x4 | 3 distinct | fnv=4CAC70A31F85AF48
 VAG/more/Unlock_vw.sub | 434420000 | VAG | x3 | 2 distinct | fnv=DCD6522503590A81
-VAG/more/VAG_032.sub | 434420000 | key | refused: the VAG decoder does not take this "VAG" key file (0 bits): it holds no valid frame of the protocol
+VAG/more/VAG_032.sub | 434420000 | key | VAG | data=C0B4B9D110838A13/80 extra=800000000204852B sn=7C8F963 btn=2 cnt=4E4D crc=1 tx=1
 VAG/more/VAG_big_sidorovich.sub | 434190000 | key | VAG | data=F851A7077A0AB9/80 extra=80000002FF020946 sn=E3097F45 btn=4 cnt=1347 crc=1 tx=1
 VAG/more/VAG_great_kot.sub | 434190000 | key | VAG | data=335CFE47F269C0/80 extra=80000002FF02D346 sn=E3097F45 btn=4 cnt=1338 crc=1 tx=1
 VAG/more/VAG_liquid_juzyk.sub | 434190000 | key | VAG | data=26D114D7F11B6A/80 extra=80000002FF02302A sn=E3097F45 btn=2 cnt=1337 crc=1 tx=1

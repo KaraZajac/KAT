@@ -49,6 +49,40 @@ no reference's Chrysler V0 decodes them, in either polarity.
 `serial` = SnA or SnB, `button` = 1 Lock / 2 Unlock (same as KAT's generic codes), `counter` = the 6-bit
 seed (the C's `Cnt`), `extra` = `Key_2`.
 
+## The frame as the PT Cruiser fob builds it
+
+The C reads a frame as a 6-bit seed, two header bits and nine bytes under one of sixteen XOR masks. The frames of
+the Chrysler PT Cruiser 2006 fob follow a simpler rule, which accounts for every one of the 732 frames KAT reads in
+its six recordings (`IMPORTS/chrysler`: open and close, ten presses each; `more/`: four recordings, 28 to 308
+presses read). With each byte read LSB first:
+
+| Byte | Content |
+|------|---------|
+| 0 | the sum (mod 256) of `n` and `p1..p8` |
+| 1 | `n`: the low byte of a 16-bit counter, one lower with every press |
+| 2..9 | `p1 ^ n` … `p8 ^ n` |
+
+`p1..p8` are `FD 3B A1 C3`, the button (`20` Lock, `10` Unlock), the counter's high byte (`3B` down to `38` in the
+recordings, one lower each of the three times `n` passes from 0 to 255) and `A1 C3` again. When the sum is odd,
+bytes 1 to 9 go out backwards, the 72 bits last bit first: that is the C's payload B, and an even sum its payload
+A. The sum goes down by one with every press and by two where the high byte changes, so A and B alternate,
+except there.
+
+What the C's model makes of it:
+
+- Its seed is the sum's low six bits and its two header bits the sum's top two, backwards. Its counter (`Cnt`,
+  the seed) counts the sum, not the presses: it skips a value where the high byte changes.
+- Its sixteen masks stand in for `n` over runs of presses, not over the whole count. Over the six recordings KAT
+  reports 160 different serials (SnA and SnB) for this one fob; `p1..p4` are `FD 3B A1 C3` in every frame.
+- Its checks test this fob's bytes: payload A's check holds when `p4` is `C3` (and `p5` a button), payload B's
+  when `p8` equals `p4` and `p3 ^ p8` is `62`. A fob whose `p3` or `p4` differ fails them, at every count; whether
+  those two bytes are the same in every such fob, one fob cannot tell. The sum, the frame's own check, the C does
+  not test.
+
+KAT keeps the C's decoding, fields, checks and key files. The rule is what KAT's own [Volvo S40](volvo_s40.md)
+decoder reads: the same signal from a 1999 Volvo S40, with six bytes behind `n` in a 64-bit frame. The unit test
+`the_rule_in_chrysler_v0_frames` (`volvo_s40.rs`) holds the 732 frames to it.
+
 ## RF
 
 - **Encoding:** PWM (short HIGH + dual long LOW)

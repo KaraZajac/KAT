@@ -91,7 +91,7 @@ Verified with synthetic frames and encode→decode round trips; no decodable cap
 `IMPORTS/mercedes/24_Merc_gle350_lulu.sub` (434.075 MHz) contains only noise (longest run of chip-valid
 pulses: 2). `24_merc_gle350_luluttlulu.sub` (314.35 MHz) is an AM650 (OOK) recording of FSK bursts, so only
 the carrier envelope survives and no decoder can recover data from it (see [Mercedes V1](mercedes_v1.md)).
-`Mercedes W220 S430 1999 315.sub` (315 MHz) holds noise only ([unidentified captures](unidentified_captures.md#no-usable-signal-in-the-file)).
+`Mercedes W220 S430 1999 315.sub` (315 MHz) holds noise only ([Unread recordings](unidentified_captures.md#1999-mercedes-benz-s-430-w220)).
 Unit tests cover:
 
 - the synthetic frame, in both polarities

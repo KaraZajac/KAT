@@ -923,7 +923,12 @@ impl ProtocolDecoder for VagDecoder {
     /// encoder transmits from Serial/Btn/Cnt (+ KeyIdx): when those differ from the decrypted
     /// fields, KAT rebuilds Key1/Key2 from them the same way.
     fn from_flipper_key(&self, key: &FlipperKey) -> Option<DecodedSignal> {
-        if key.bits != MIN_COUNT_BIT {
+        // A writer that left `Bit: 0` (IMPORTS/VAG/more/VAG_032.sub, which has Key, Key2, Type,
+        // Serial, Btn, Cnt and KeyIdx) loses the key in every reference: their loaders want exactly
+        // 80 bits. KAT reads it as 80 bits when the frame decrypts to the file's own Serial, Btn and
+        // Cnt; a decrypt alone is no proof (the button check passes about 49 plaintexts in 256).
+        let bit_zero = key.bits == 0;
+        if key.bits != MIN_COUNT_BIT && !bit_zero {
             return None;
         }
         let key1 = key.key_u64()?;
@@ -939,6 +944,14 @@ impl ProtocolDecoder for VagDecoder {
         let p = Self::parse_data(vag_type, key1, key2);
         let d = Self::signal_from(key1, key2, &p);
         let (serial, button, counter) = (key.u32_field("Serial"), key.u32_field("Btn"), key.u32_field("Cnt"));
+        if bit_zero
+            && !(p.decrypted
+                && serial == Some(p.serial)
+                && button == Some(u32::from(p.btn))
+                && counter.map(|c| c & 0xFF_FFFF) == Some(p.cnt))
+        {
+            return None;
+        }
         if serial.is_none() && button.is_none() && counter.is_none() {
             return Some(d);
         }
@@ -1407,6 +1420,16 @@ mod tests {
         let e = dec.from_flipper_key(&key(&text.replace("Cnt: 76550", "Cnt: 76600"))).unwrap();
         assert_eq!(fields(&e), (0x0C21_578B, 2, 76600, 4, 2));
         assert!(dec.from_flipper_key(&key(&text.replace("Bit: 80", "Bit: 64"))).is_none());
+        // `Bit: 0` (IMPORTS/VAG/more/VAG_032.sub): read as 80 bits when the frame decrypts to the
+        // file's own Serial / Btn / Cnt, refused when one of them differs.
+        let zero = "Filetype: Flipper SubGhz Key File\nVersion: 1\nProtocol: VAG\nBit: 0\nKey: C0 B4 B9 D1 10 83 8A 13\n\
+                    Frequency: 434420000\nPreset: FuriHalSubGhzPresetOok650Async\nSerial: 130611555\nBtn: 2\nCnt: 20045\n\
+                    Type: 4\nKey2: 00 00 00 00 00 00 85 2B\nKeyIdx: 2\n";
+        let z = dec.from_flipper_key(&key(zero)).unwrap();
+        let (zs, zb, zc, _, _) = fields(&z);
+        assert_eq!((zs, zb, zc, z.data_count_bit), (130_611_555, 2, 20045, 80));
+        assert!(dec.from_flipper_key(&key(&zero.replace("Serial: 130611555", "Serial: 130611556"))).is_none());
+        assert!(dec.from_flipper_key(&key(&zero.replace("Cnt: 20045", "Cnt: 20046"))).is_none());
         // TX from the loaded key: counter + 1.
         let tx = decode_all(&dec.encode(&l, 0x02).unwrap());
         assert_eq!(fields(&tx[0]), (0x0C21_578B, 1, 0x012B07, 4, 2));

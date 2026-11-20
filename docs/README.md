@@ -10,7 +10,7 @@ This folder describes how each keyfob and gate/garage remote protocol supported 
 
 **Flipper key files:** [flipper_key_files.md](flipper_key_files.md) — loading and saving decoded keys (`Protocol` / `Bit` / `Key` `.sub` files, as ProtoPirate and Flipper-ARF save every decode): the name and lines each protocol writes, and what loads.
 
-**Unidentified captures:** [unidentified_captures.md](unidentified_captures.md) — the owner-collection captures in `IMPORTS/` that no decoder (KAT's or a reference's) reads: which were recorded with the wrong preset, and what is known of the formats no reference implements (VW Polo 5 2017 — now read by FoxFW's VAG Polo —, Lexus UX 250 2021, Volvo S40 1999).
+**Unread recordings:** [unidentified_captures.md](unidentified_captures.md) — every recording in `IMPORTS/` that KAT reads nothing from: what each holds, why (most were made with a preset that cannot hold the remote's signal), what the remote sends according to its FCC filing, and what to record it with.
 
 | Protocol | Rust module | Doc |
 |----------|-------------|-----|
@@ -77,6 +77,8 @@ This folder describes how each keyfob and gate/garage remote protocol supported 
 | Suzuki TS002 (KAT's own decoder and encoder) | `suzuki_ts002.rs` | [suzuki_ts002.md](suzuki_ts002.md) |
 | Opel Rolling (KAT's own decoder and encoder) | `opel_rolling.rs` | [opel_rolling.md](opel_rolling.md) |
 | Renault 1-Button (KAT's own decoder, decode only) | `renault_one_button.rs` | [renault_one_button.md](renault_one_button.md) |
+| Volvo S40 (KAT's own decoder, decode only) | `volvo_s40.rs` | [volvo_s40.md](volvo_s40.md) |
+| Lexus UX (KAT's own decoder, decode only) | `lexus_ux.rs` | [lexus_ux.md](lexus_ux.md) |
 | PSA 2-Button (KAT's own decoder, decode only) | `psa_two_button.rs` | [psa_two_button.md](psa_two_button.md) |
 | VW-1 (KAT's own decoder and encoder) | `vw_1.rs` | [vw_1.md](vw_1.md) |
 | Mitsubishi V1 (FoxFW; any fob, replay encoder) | `mitsubishi_v1.rs` | [mitsubishi_v1.md](mitsubishi_v1.md) |

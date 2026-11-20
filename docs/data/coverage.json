@@ -46,9 +46,9 @@
    "make": "Lexus",
    "maybe_read": 0,
    "model_years": 237,
-   "nothing": 113,
+   "nothing": 160,
    "recorded_no_data": 77,
-   "recorded_unread": 47,
+   "recorded_unread": 0,
    "signal_known": 0,
    "some_remote_read": 0
   },
@@ -535,7 +535,7 @@
   }
  ],
  "catalogue": {
-  "fcc_ids_known": 1297,
+  "fcc_ids_known": 1301,
   "fcc_ids_with_cars": 285,
   "filings_read": 90,
   "model_years": 4067
@@ -886,7 +886,7 @@
    ],
    "model_years": 47,
    "models": "Lexus ES250, Lexus ES300H, Lexus ES350, Lexus GX460, Lexus Hatchback, Lexus LC500, Lexus LC500H, Lexus LS500, Lexus LS500H, Lexus UX, Lexus UX200, Lexus UX250, ",
-   "status": "unread",
+   "status": "none",
    "years": "2020-2025"
   },
   {
@@ -1503,9 +1503,9 @@
   "likely_read": 307,
   "maybe_read": 0,
   "model_years": 4067,
-  "nothing": 2510,
+  "nothing": 2557,
   "recorded_no_data": 260,
-  "recorded_unread": 215,
+  "recorded_unread": 168,
   "signal_known": 0,
   "some_remote_read": 453
  }

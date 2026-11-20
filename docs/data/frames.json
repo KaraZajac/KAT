@@ -1871,6 +1871,54 @@
    "files": 1,
    "frames": 20
   },
+  "Lexus UX": {
+   "bits": 256,
+   "examples": [
+    {
+     "bits": 256,
+     "button": 2,
+     "counter": null,
+     "data": "BD58A18FC3D03C6F",
+     "extra": "9DCE65C443419258",
+     "file": "Toyota + Lexus/Lexus UX 250 2021 lock.sub",
+     "name": "Lexus UX",
+     "serial": "AFA69C8B"
+    },
+    {
+     "bits": 256,
+     "button": 4,
+     "counter": null,
+     "data": "AD01C90911F5FFC",
+     "extra": "5348971838F251F1",
+     "file": "Toyota + Lexus/Lexus UX 250 2021 unlock.sub",
+     "name": "Lexus UX",
+     "serial": "AFA69C8B"
+    },
+    {
+     "bits": 256,
+     "button": 2,
+     "counter": null,
+     "data": "2D204D0C780AF416",
+     "extra": "4AA4295913242547",
+     "file": "Toyota + Lexus/Lexus UX 250 2021 lock.sub",
+     "name": "Lexus UX",
+     "serial": "AFA69C8B"
+    },
+    {
+     "bits": 256,
+     "button": 4,
+     "counter": null,
+     "data": "2A7B876C637380EE",
+     "extra": "BF0FFF4A09824299",
+     "file": "Toyota + Lexus/Lexus UX 250 2021 unlock.sub",
+     "name": "Lexus UX",
+     "serial": "AFA69C8B"
+    }
+   ],
+   "fields": {},
+   "files": 2,
+   "frames": 10
+  },
   "Mazda Siemens": {
    "bits": 64,
    "examples": [
@@ -3390,8 +3438,8 @@
     }
    ],
    "fields": {},
-   "files": 63,
-   "frames": 1808
+   "files": 64,
+   "frames": 1809
   },
   "VAG Polo": {
    "bits": 80,
@@ -3497,6 +3545,34 @@
    },
    "files": 3,
    "frames": 1329
+  },
+  "Volvo S40": {
+   "bits": 64,
+   "examples": [
+    {
+     "bits": 64,
+     "button": null,
+     "counter": "EC",
+     "data": "2D376746E42A3386",
+     "extra": "208D",
+     "file": "VOLVO/Volvo S40 1999 unlock.sub",
+     "name": "Volvo S40",
+     "serial": "A8ECBB8"
+    },
+    {
+     "bits": 64,
+     "button": null,
+     "counter": "EB",
+     "data": "CD66CB532065E1EB",
+     "extra": "208D",
+     "file": "VOLVO/Volvo S40 1999 unlock.sub",
+     "name": "Volvo S40",
+     "serial": "A8ECBB8"
+    }
+   ],
+   "fields": {},
+   "files": 1,
+   "frames": 2
   }
  },
  "source": "scripts/site_frames.py from the decodes of the recordings in IMPORTS"

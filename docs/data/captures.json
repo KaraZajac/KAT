@@ -6301,7 +6301,19 @@
    "pinned": true,
    "preset": "FM476",
    "pulses": 39424,
-   "reads": [],
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 5,
+     "distinct": 5,
+     "frames": 5,
+     "protocol": "Lexus UX",
+     "serial": "AFA69C8B",
+     "serials": 1
+    }
+   ],
    "seconds": 11.76,
    "type": "raw"
   },
@@ -6314,7 +6326,19 @@
    "pinned": true,
    "preset": "FM476",
    "pulses": 35840,
-   "reads": [],
+   "reads": [
+    {
+     "buttons": [
+      "4"
+     ],
+     "crc_ok": 5,
+     "distinct": 5,
+     "frames": 5,
+     "protocol": "Lexus UX",
+     "serial": "AFA69C8B",
+     "serials": 1
+    }
+   ],
    "seconds": 11.3,
    "type": "raw"
   },
@@ -7925,11 +7949,23 @@
    "key_bits": "0",
    "key_protocol": "VAG",
    "more": true,
-   "note": "the VAG decoder does not take this \"VAG\" key file (0 bits): it holds no valid frame of the protocol",
    "path": "VAG/more/VAG_032.sub",
    "pinned": true,
    "preset": "AM650",
-   "reads": [],
+   "reads": [
+    {
+     "buttons": [
+      "2"
+     ],
+     "crc_ok": 1,
+     "distinct": 1,
+     "encodable": true,
+     "frames": 1,
+     "protocol": "VAG",
+     "serial": "7C8F963",
+     "serials": 1
+    }
+   ],
    "type": "key"
   },
   {
@@ -8527,7 +8563,16 @@
    "pinned": true,
    "preset": "AM650",
    "pulses": 7168,
-   "reads": [],
+   "reads": [
+    {
+     "crc_ok": 2,
+     "distinct": 2,
+     "frames": 2,
+     "protocol": "Volvo S40",
+     "serial": "A8ECBB8",
+     "serials": 1
+    }
+   ],
    "seconds": 5.1,
    "type": "raw"
   },

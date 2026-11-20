@@ -149,7 +149,7 @@
     "Lexus",
     "Scion"
    ],
-   "blurb": "Toyota and Lexus V0 are on-off-keyed rolling-code remotes. The two-channel 2-FSK keys of later cars, which by their FCC filings alternate between 312.10 and 314.35 MHz, are recorded but not read: the recordings in the library were made with presets that cannot hold their signal."
+   "blurb": "Toyota is an on-off-keyed rolling-code remote. Lexus UX is the smart key of a 2021 Lexus UX 250, the European model: 2-FSK at 433.66 MHz, a 256-bit frame with a CRC-16, worked out from a recording (decode only); FoxFW's Lexus V0, flagged AM, reads the first 224 bits of that frame as they are sent. The two-channel 2-FSK keys of later US cars, which by their FCC filings alternate between 312.10 and 314.35 MHz, are recorded but not read: the recordings in the library were made with presets that cannot hold their signal."
   },
   {
    "slug": "vag",
@@ -422,7 +422,7 @@
    "catalogue": [
     "Volvo"
    ],
-   "blurb": "One recording, of a 1999 S40, which no decoder reads."
+   "blurb": "One recording, of a 1999 S40: its remote sends the signal of Chrysler V0 with a 64-bit frame, which KAT's own Volvo S40 decoder reads (decode only)."
   },
   {
    "slug": "byd",

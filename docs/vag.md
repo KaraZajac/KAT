@@ -105,7 +105,9 @@ buttons, counter wrap). `IMPORTS/VAG/Passat_b5_3bg.sub` (a decoded key file) is 
 ProtoPirate's lines: `Key` (Key1), `Key2`, `Type` (after parsing: 3 → 4 for key 3) and, for a decrypted frame,
 `Serial`, `Btn`, `Cnt` and `KeyIdx`. KAT loads `Type: 4` as the decoder parses every 500 µs frame (as Type 3,
 key 3 first); ProtoPirate's loader parses it strictly as Type 4 (dispatch 0x2B/0x1D/0x47 matching the button)
-and loses the frames that fail that. `Key_2` is read for `Key2` (`IMPORTS/VAG/Passat_b5_3bg.sub`). Serial, Btn
+and loses the frames that fail that. `Key_2` is read for `Key2` (`IMPORTS/VAG/Passat_b5_3bg.sub`). A file with `Bit: 0` (`IMPORTS/VAG/more/VAG_032.sub`, written by a tool that left the count at zero but
+kept every other line) is read as 80 bits when its frame decrypts to the file's own `Serial`, `Btn` and `Cnt`;
+every reference's loader refuses it, as it wants exactly 80 bits. Serial, Btn
 or Cnt that differ from the decrypted fields rebuild the frame, as ProtoPirate's encoder transmits from them.
 Flipper-ARF's "VAG GROUP" files carry the same lines (plus `BtnFlags`) but write a Type 1 button as its high
 nibble (`Btn: 2` for 0x20); KAT reads that form as the byte it means. Until v1.8.7 it compared ARF's nibble

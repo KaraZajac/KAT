@@ -4,7 +4,20 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+## [1.20.0] - 2026-11-20
+
+Two decoders worked out from recordings in the library that nothing read (the European Lexus UX 250's smart key, with a CRC-16, and a 1999 Volvo S40's remote, which shows how Chrysler V0's frame is built), every recording KAT still cannot read gone through with what its remote sends and what to record it with, the presets that hold FSK keys, and the site set as a technical report and checked against the program page by page.
+
+### Added
+
+- **Volvo S40** ([volvo_s40.md](docs/volvo_s40.md)): the remote of a 1999 Volvo S40, which no reference reads. It sends Chrysler V0's signal with a 64-bit frame. The frame is not encrypted: byte 0 is the sum of seven bytes, the counter's low byte and six fixed ones, and the rest is those bytes with the counter byte XORed into each, sent backwards when the sum is odd. KAT checks the sum and shows the counter and the fixed bytes. Worked out from the one recording in `IMPORTS/VOLVO`, which holds two presses, not one: both read. Which byte is the button one button's recording cannot tell, so KAT sends nothing.
+- **Lexus UX** ([lexus_ux.md](docs/lexus_ux.md)): the smart key of a 2021 Lexus UX 250 (the European model), which no reference reads as recorded. Two-tone FSK at 433.66 MHz, differential Manchester at 1435 bit/s; a 256-bit frame four times back to back a press, every byte from the second on beginning with a 1: the key's ID and the button (lock, unlock) in the clear, 128 bits that change with every press, and a CRC-16 (polynomial 0x1021) over the rest. KAT decodes it and shows the ID and the button; the cipher of the 128 bits is not known, so there is nothing to send. FoxFW's Lexus V0 reads the first 224 bits of the same frame as sent, without the differential step. Worked out from the two recordings in `IMPORTS/Toyota + Lexus/`, which had been unidentified: ten presses, all read.
+
 ### Changed
+
+- **Chrysler V0: what its frame is made of.** The 732 frames KAT reads from the Chrysler PT Cruiser's fob are all built by the rule above, with eight fixed bytes behind a 16-bit counter's low byte ([chrysler_v0.md](docs/chrysler_v0.md#the-frame-as-the-pt-cruiser-fob-builds-it)). The C's seed is that sum's low six bits, its payload B the frame sent backwards, and its serial changes along the count: KAT reports 160 for this one fob, whose fixed bytes are the same in every frame. KAT keeps the C's decoding; the page says what it means.
+- **Unread recordings** ([unidentified_captures.md](docs/unidentified_captures.md), formerly "Unidentified captures"): every recording in `IMPORTS/` that KAT reads nothing from, 87 files, gone through one by one. 74 hold no data: the remote's carrier or noise only, because an FSK remote was recorded with an AM preset, or with an FM preset of the wrong deviation or speed, or on the wrong frequency. For each car the page gives what the remote sends according to its FCC filing (with the exhibit and page), what the recording shows, what to record it with, and which KAT decoder should read a good recording. Six hold a signal no frame has been read from (the 2008 Vauxhall Zafira and the BYD Atto 3, where the "106-bit Manchester burst" found earlier is a square wave), and seven hold nothing at all.
+- **Recording a remote: which preset** ([recording.md](docs/recording.md#which-preset)). What the Flipper's receive path keeps and drops (TI's CC1101 datasheet and the firmware's RAW recorder: pulses of 50 µs or less are lost, 20 µs on doctor-firmware), why `FM476` holds nothing of the Continental keys of Kia, Hyundai and Genesis (±47.6 kHz and 4.8 kBaud against their ±15 kHz and 15.6 kBaud), how to add a custom preset to a Flipper with the register data of "F4" and "Honda1" (proven) and "FM29F" (worked out, untried), and the settings for an SDR recording.
 
 - **The site is set like a technical report.** A serif text face on a light page (dark when the reader's system is), tables with three rules and no boxes, numbered sections on the protocol pages and the guides, one link colour, and colour kept for what it has to say: a status, or a field of a frame. The animated background, the gradients, the emoji and the pill lists are gone. The fields of an example frame are marked with a bar under or over their digits; serial, button and counter have a hue each, chosen to stay apart for colour-blind readers.
 - **The landing page is less than a third of its length**: a title and an abstract, the figures the site counts itself, what KAT does in six entries, and the parts of the reference in one table. Its install steps are now a page of their own, [Install and run](https://kat.karazajac.io/install.html), with the command-line examples; its list of every protocol is the [protocol table](https://kat.karazajac.io/protocols.html), which also has the two notes on protocols that are mapped or ported but not decoded. The version on the landing page comes from the program's own data, so a release no longer edits it by hand.
@@ -12,6 +25,7 @@ All notable changes to KAT are documented here.
 
 ### Fixed
 
+- **VAG key files saved with `Bit: 0`** (`IMPORTS/VAG/more/VAG_032.sub`, which has every other line of a Type 4 key) are read as 80 bits when the frame decrypts to the file's own serial, button and counter. Every reference's loader refuses such a file.
 - **The site checked against the program, page by page.** 32 protocol pages written before their decoder last
   changed now describe the code as it is: how many copies a press sends and what a key file's `Repeat` line does
   (most said one copy), key files, Opel V1 reporting every button as its C does, Porsche Cayenne counting only its

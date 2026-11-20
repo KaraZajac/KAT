@@ -1360,25 +1360,6 @@
    "years": "2021-2026"
   },
   {
-   "evidence": "recording of a car this ID is listed for",
-   "expect": "blind: assumed like the Denso keys above",
-   "family": "toyota-2ch-assumed",
-   "filing_read": false,
-   "frequency": "314 MHz, 315 MHz, 433 MHz",
-   "granted": "2019-08-08",
-   "id": "HYQ14FBZ",
-   "maker": "Denso Corporation",
-   "makes": [
-    "Lexus"
-   ],
-   "model_years": 47,
-   "models": "Lexus ES250, Lexus ES300H, Lexus ES350, Lexus GX460, Lexus Hatchback, Lexus LC500, Lexus LC500H, Lexus LS500, Lexus LS500H, Lexus UX, Lexus UX200, Lexus UX250, Lexus UX250H",
-   "product": "Electronic Key",
-   "protocols": [],
-   "status": "unread",
-   "years": "2020-2025"
-  },
-  {
    "evidence": "recording",
    "family": "toyota-2ch-denso",
    "filing_read": true,

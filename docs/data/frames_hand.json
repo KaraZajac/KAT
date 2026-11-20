@@ -123,6 +123,28 @@
     }
    ]
   },
+  "Volvo S40": {
+   "hide_extra": true,
+   "note": "The frame is 64 bits, all in the data word; each byte goes out LSB first. The Serial column shows `p1..p4`, the Counter `n`; `p5` and `p6` are on [the page above](volvo_s40.md#frame-64-bits).",
+   "fields": [
+    {
+     "kind": "check",
+     "name": "Sum",
+     "word": "data",
+     "offset": 56,
+     "width": 8,
+     "note": "`n + p1 + … + p6` (mod 256); when it is odd the other seven bytes come backwards"
+    },
+    {
+     "kind": "code",
+     "name": "Counter and six bytes",
+     "word": "data",
+     "offset": 0,
+     "width": 56,
+     "note": "`n`, then `p1 ^ n` … `p6 ^ n`; `n` first when the sum is even, last when it is odd"
+    }
+   ]
+  },
   "PSA 2-Button": {
    "fields": [
     {
@@ -180,6 +202,26 @@
     }
    ],
    "note": "The frame is 60 bits, all in the data word, sent LSB-first within each byte. There is no checksum."
+  },
+  "Lexus UX": {
+   "note": "The frame is 256 bits. The data and extra words hold its 128-bit code: bits 53 to 198 without the 1 that begins every byte, the first 64 in the data word, the last 64 in the extra word. The ID (the Serial column), the button (bits 49 to 52), the head and the CRC-16 are outside the words; [the page above](lexus_ux.md#frame-256-bits) has the whole frame.",
+   "fields": [
+    {
+     "kind": "code",
+     "name": "Code, first half",
+     "word": "data",
+     "offset": 0,
+     "width": 64,
+     "note": "changes with every press"
+    },
+    {
+     "kind": "code",
+     "name": "Code, second half",
+     "word": "extra",
+     "offset": 0,
+     "width": 64
+    }
+   ]
   }
  }
 }

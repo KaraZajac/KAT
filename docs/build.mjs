@@ -1075,7 +1075,7 @@ ${sections.map((s) => {
     return `<h2 id="${s.slug}">${s.href ? `<a class="plain" href="${s.href}">${esc(s.title)}</a>` : esc(s.title)} <span class="count">${s.list.length}</span><a class="h-anchor" href="#${s.slug}" aria-label="Link to this section">#</a></h2>
 ${captureTable(s.list.slice().sort((a, b) => a.path.localeCompare(b.path)), { folder: true, ids: true })}`;
   }).join('\n')}
-<p class="note">Recordings KAT does not read are kept on purpose: they are what the next decoder is worked out from. Some hold no data at all, because the preset they were made with could not hold the remote's signal; <a href="unidentified_captures.html">Unidentified captures</a> and <a href="recording.html">Recording a remote</a> say which and why.</p>
+<p class="note">Recordings KAT does not read are kept on purpose: they are what the next decoder is worked out from. Some hold no data at all, because the preset they were made with could not hold the remote's signal; <a href="unidentified_captures.html">Unread recordings</a> goes through each, and <a href="recording.html">Recording a remote</a> says which preset holds which remote.</p>
 `;
   html.set('captures.html', wikiPage({
     file: 'captures.html', title: 'Recordings', wide: true,

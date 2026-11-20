@@ -2038,8 +2038,16 @@ Toyota + Lexus/21_lexus_is300_lluulluut.sub | 314350000 | (none)
 Toyota + Lexus/21_toyota_tacoma_l_u.sub | 315000000 | (none)
 Toyota + Lexus/23_toyota_rav4_l2_ul2_t2_p2.sub | 314350000 | (none)
 Toyota + Lexus/23_toyota_tacoma_l2_u2_p2.sub | 312000000 | (none)
-Toyota + Lexus/Lexus UX 250 2021 lock.sub | 433657070 | (none)
-Toyota + Lexus/Lexus UX 250 2021 unlock.sub | 433657070 | (none)
+Toyota + Lexus/Lexus UX 250 2021 lock.sub | 433657070 | Lexus UX | data=BD58A18FC3D03C6F/256 extra=9DCE65C443419258 sn=AFA69C8B btn=2 cnt=- crc=1 tx=0
+Toyota + Lexus/Lexus UX 250 2021 lock.sub | 433657070 | Lexus UX | data=2D204D0C780AF416/256 extra=4AA4295913242547 sn=AFA69C8B btn=2 cnt=- crc=1 tx=0
+Toyota + Lexus/Lexus UX 250 2021 lock.sub | 433657070 | Lexus UX | data=A0B91E9871656046/256 extra=6D56182781C0F860 sn=AFA69C8B btn=2 cnt=- crc=1 tx=0
+Toyota + Lexus/Lexus UX 250 2021 lock.sub | 433657070 | Lexus UX | data=A0D17D8C8EC8F270/256 extra=325B9F66D48018CF sn=AFA69C8B btn=2 cnt=- crc=1 tx=0
+Toyota + Lexus/Lexus UX 250 2021 lock.sub | 433657070 | Lexus UX | data=82FF4D0AD5E58BCB/256 extra=1BB7CB387B9E7700 sn=AFA69C8B btn=2 cnt=- crc=1 tx=0
+Toyota + Lexus/Lexus UX 250 2021 unlock.sub | 433657070 | Lexus UX | data=AD01C90911F5FFC/256 extra=5348971838F251F1 sn=AFA69C8B btn=4 cnt=- crc=1 tx=0
+Toyota + Lexus/Lexus UX 250 2021 unlock.sub | 433657070 | Lexus UX | data=2A7B876C637380EE/256 extra=BF0FFF4A09824299 sn=AFA69C8B btn=4 cnt=- crc=1 tx=0
+Toyota + Lexus/Lexus UX 250 2021 unlock.sub | 433657070 | Lexus UX | data=6920C622F2A1D555/256 extra=6C205C2E7AA225EE sn=AFA69C8B btn=4 cnt=- crc=1 tx=0
+Toyota + Lexus/Lexus UX 250 2021 unlock.sub | 433657070 | Lexus UX | data=BB993317BC85751B/256 extra=9BEAB7EA71827B66 sn=AFA69C8B btn=4 cnt=- crc=1 tx=0
+Toyota + Lexus/Lexus UX 250 2021 unlock.sub | 433657070 | Lexus UX | data=E06E6E6000CE1A1C/256 extra=F4ECAD2020CA5DF0 sn=AFA69C8B btn=4 cnt=- crc=1 tx=0
 Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
 Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
 Toyota + Lexus/Toyota Estima 2000 ACR30 2.sub | 314350000 | Toyota | data=91A081A6C8A6D3/96 extra=A3D2FBA1 sn=4AB9A1 btn=D1 cnt=64 crc=1 tx=1
@@ -2492,7 +2500,8 @@ VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=11226FA0BF467
 VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=11226FA0BF467E4/60 extra=1226FA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
 VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=11226FA0BF467E4/60 extra=1226FA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
 VAG/old_vw_remote_hold_5lock_5unlock.sub | 433930000 | VW-1 | data=11226FA0BF467E4/60 extra=1226FA sn=2AA93AC5 btn=1 cnt=- crc=0 tx=1
-VOLVO/Volvo S40 1999 unlock.sub | 433920000 | (none)
+VOLVO/Volvo S40 1999 unlock.sub | 433920000 | Volvo S40 | data=2D376746E42A3386/64 extra=208D sn=A8ECBB8 btn=- cnt=EC crc=1 tx=0
+VOLVO/Volvo S40 1999 unlock.sub | 433920000 | Volvo S40 | data=CD66CB532065E1EB/64 extra=208D sn=A8ECBB8 btn=- cnt=EB crc=1 tx=0
 acura/22_acura_rdx_l_ul_t_p_l_ul.sub | 433657070 | (none)
 buick/15_buick_lacross_t2_rs2_p2_l2_u2.sub | 314980000 | Chevrolet V0 | data=AD105394B4FDBE24/96 extra=C2B14CA8 sn=AD1053 btn=9 cnt=- crc=0 tx=0
 buick/24_buick_encore_ul2_t2_l2_rs2_p2.sub | 433920000 | Chevrolet V0 | data=AA67D042E153DF62/96 extra=1E0759E7 sn=AA67D0 btn=4 cnt=- crc=0 tx=0

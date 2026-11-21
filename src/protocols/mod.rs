@@ -415,6 +415,14 @@ pub trait ProtocolDecoder: Send + Sync {
     /// Encode a signal with the given button command
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>>;
 
+    /// The next code of the captured button ("Send next code"). By default `encode` with the
+    /// captured button; an encoder whose own button codes overlap KAT's generic ones (0x01 Lock,
+    /// 0x02 Unlock, 0x04 Trunk, 0x08 Panic), and so cannot tell the captured button from a request
+    /// for another, overrides it (the Kia V0 family: Suzuki's 4 is Unlock, the generic 0x04 Trunk).
+    fn encode_next(&self, decoded: &DecodedSignal) -> Option<Vec<LevelDuration>> {
+        self.encode(decoded, decoded.button.unwrap_or(0))
+    }
+
     /// The decode of the frame `encode(decoded, button)` sends, for an encoder whose upload its
     /// own decoder cannot always read back. After a transmission the app keeps the frame sent on
     /// the capture (`app/tx.rs`); None: the app decodes the upload instead.

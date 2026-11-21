@@ -12,10 +12,12 @@
 //! Kia V1 / V2 / V6, Mazda V0, Subaru and VAG, up to 12 s for one press (a Kia V1 upload lasts
 //! 1.2 s), but its emulate screen stops at the button's release once 666 ms have passed, and
 //! doctor-firmware's copies of the same encoders send 3. KAT sends 3; a key file's `Repeat: 10` gives
-//! ProtoPirate's full count. Every other count is the module's reference's: Kia V0 / Honda Static /
-//! Kia V7 3, Kia V5 6 (ProtoPirate and doctor-firmware), Mazda Siemens 4 and GM 5 (Flipper-ARF).
-//! Chrysler V0 is not listed: its `encode` is the fob's whole press (the frame twice behind one
-//! preamble), sent once, where the references send their upload (payloads A and B) twice.
+//! ProtoPirate's full count. Every other count is the module's reference's: Honda Static / Kia V7
+//! 3, Kia V5 6 (ProtoPirate and doctor-firmware), Mazda Siemens 4 and GM 5 (Flipper-ARF).
+//! Chrysler V0 and the Kia V0 family are not listed: their `encode` is the remote's whole press,
+//! sent once (Chrysler V0: the frame twice behind one preamble, where the references send payloads
+//! A and B twice; Kia V0: the press as the recorded remotes send it, where the references send their
+//! upload 3 times).
 //!
 //! **Repeat line** — KAT reads it wherever it is in the file. A Flipper reads a file's lines in
 //! order, so it finds `Repeat` only when every line its loader looks for before it is there
@@ -56,7 +58,7 @@ const WHOLE: TxCopies = copies(1, 1, false);
 /// Mitsubishi V0, Toyota).
 const TABLE: &[(&[&str], TxCopies)] = &[
     // Car encoders returning one upload: the reference's count (ProtoPirate's 10 → 3, see above).
-    (&["Kia V0", "Honda Static", "Kia V7"], copies(1, 3, true)),
+    (&["Honda Static", "Kia V7"], copies(1, 3, true)),
     (
         &["Fiat V0", "Ford V0", "Ford V1", "Ford V2", "Honda V2", "Kia V1", "Kia V2", "Kia V6", "Mazda V0", "Subaru"],
         copies(1, 3, true),
@@ -95,16 +97,20 @@ pub fn tx_copies(decoder: &str) -> TxCopies {
     TABLE.iter().find(|(names, _)| names.contains(&decoder)).map_or(WHOLE, |&(_, c)| c)
 }
 
-/// What KAT transmits for `decoded` and `button`: `encode`'s upload sent [TxCopies::default] times,
-/// or `repeat` times (a key file's `Repeat` line) where the reference reads that line. None when the
-/// encoder has nothing to send, or for `Repeat: 0`, with which a Flipper sends nothing.
+/// What KAT transmits for `decoded` and `button` (None: the captured button, "Send next code",
+/// [ProtocolDecoder::encode_next]): the encoder's upload sent [TxCopies::default] times, or `repeat`
+/// times (a key file's `Repeat` line) where the reference reads that line. None when the encoder has
+/// nothing to send, or for `Repeat: 0`, with which a Flipper sends nothing.
 pub fn transmission(
     p: &dyn ProtocolDecoder,
     decoded: &DecodedSignal,
-    button: u8,
+    button: Option<u8>,
     repeat: Option<u32>,
 ) -> Option<Vec<LevelDuration>> {
-    let out = p.encode(decoded, button)?;
+    let out = match button {
+        Some(b) => p.encode(decoded, b)?,
+        None => p.encode_next(decoded)?,
+    };
     let c = tx_copies(p.name());
     let n = match repeat {
         Some(n) if c.repeat_line => n,
@@ -332,7 +338,7 @@ mod tests {
         let reg = ProtocolRegistry::new();
         let len = |name: &str, d: &DecodedSignal, repeat: Option<u32>| {
             let p = reg.get(name).unwrap();
-            transmission(p, d, d.button.unwrap_or(0), repeat).map(|t| t.iter().map(|l| u64::from(l.duration_us)).sum::<u64>())
+            transmission(p, d, Some(d.button.unwrap_or(0)), repeat).map(|t| t.iter().map(|l| u64::from(l.duration_us)).sum::<u64>())
         };
         let one = |name: &str, d: &DecodedSignal| {
             reg.get(name).unwrap().encode(d, d.button.unwrap_or(0)).unwrap().iter().map(|l| u64::from(l.duration_us)).sum::<u64>()

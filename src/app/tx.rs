@@ -435,8 +435,12 @@ mod tests {
         let mut counters = Vec::new();
         for _ in 0..presses {
             let from = DecodedSignal { encoder_capable: true, ..c.decoded_signal() };
+            // as `transmission`: a chosen button through `encode`, "Send next code" through `encode_next`
+            let upload = match button {
+                Some(b) => reg.get(&protocol)?.encode(&from, b)?,
+                None => reg.get(&protocol)?.encode_next(&from)?,
+            };
             let button = button.or(from.button).unwrap_or(0);
-            let upload = reg.get(&protocol)?.encode(&from, button)?;
             let sent = sent_frame(reg, &protocol, &from, button, &upload).filter(|s| advances(reg, &protocol, &from, s))?;
             assert_eq!(sent.serial, from.serial, "{protocol}");
             store_sent_frame(c, &sent);

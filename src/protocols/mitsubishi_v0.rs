@@ -56,9 +56,16 @@ pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     encryption: "Rolling Code",
     make: "Mitsubishi",
     category: Category::Vehicle,
-    buttons: Some(super::kia_v0::native_buttons),
+    buttons: Some(buttons),
     presets: &[&FM476],
 };
+
+/// Button labels: the code as a number ("Btn 0x3"). Neither format's codes are known: the 61-bit
+/// format's Pajero sends 3, 4 and 6, which the C would name with Kia's (3 Trunk, 4 Panic); ARF
+/// documents none for the 96-bit one ("button replay").
+fn buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(super::gate_buttons::hex_label(code))
+}
 
 const TE_SHORT: u32 = 250;
 const TE_LONG: u32 = 500;
@@ -292,7 +299,7 @@ impl ProtocolDecoder for MitsubishiV0Decoder {
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
         if decoded.data_count_bit == kia_v0::BIT_COUNT_KIA {
             // ProtoPirate's Mitsubishi V0 (a Kia V0 frame type).
-            return kia_v0::encode_type(decoded, button, KiaV0Type::Mitsubishi);
+            return kia_v0::encode_type(decoded, kia_v0::Request::Button(button), KiaV0Type::Mitsubishi);
         }
         if decoded.data_count_bit != BIT_COUNT {
             return None;
@@ -303,6 +310,15 @@ impl ProtocolDecoder for MitsubishiV0Decoder {
         };
         let one = upload(&payload);
         Some(one.iter().cycle().take(one.len() * TX_REPEAT).cloned().collect())
+    }
+
+    /// "Send next code": the 61-bit format through Kia V0's (the captured button); the 96-bit one
+    /// is a replay of the captured button anyway.
+    fn encode_next(&self, decoded: &DecodedSignal) -> Option<Vec<LevelDuration>> {
+        if decoded.data_count_bit == kia_v0::BIT_COUNT_KIA {
+            return kia_v0::encode_type(decoded, kia_v0::Request::Captured, KiaV0Type::Mitsubishi);
+        }
+        self.encode(decoded, decoded.button.unwrap_or(0))
     }
 
     /// Key files, 96-bit format (Flipper-ARF `subghz_protocol_encoder_mitsubishi_v0_deserialize`):

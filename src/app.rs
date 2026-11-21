@@ -1099,7 +1099,7 @@ impl App {
 
         // Generate the signal with the new button: the reference's copies, or the key file's `Repeat`
         let button_code = command.code();
-        let signal = match crate::protocols::transmission(protocol, &decoded, button_code, capture.key_repeat) {
+        let signal = match crate::protocols::transmission(protocol, &decoded, Some(button_code), capture.key_repeat) {
             Some(s) => s,
             None => {
                 self.last_error = Some(tx_failure(capture.key_repeat, "Failed to encode signal"));
@@ -1215,7 +1215,9 @@ impl App {
             protocol_display_name: capture.protocol.clone(),
         };
 
-        let signal = match crate::protocols::transmission(protocol, &decoded, button, capture.key_repeat) {
+        // "Send next code" (no native button chosen): the encoder's own next code of the captured
+        // button, which it can tell from a generic command (`encode_next`).
+        let signal = match crate::protocols::transmission(protocol, &decoded, native_button, capture.key_repeat) {
             Some(s) => s,
             None => {
                 self.last_error = Some(tx_failure(capture.key_repeat, "Failed to encode next code"));

@@ -114,7 +114,7 @@ doc comment has the details.
 
 | KAT protocol (reference) | `Protocol` / `Bit` | Lines after `Key` | Loading notes |
 |---|---|---|---|
-| Kia V0, Suzuki V0, Honda V0, Mitsubishi V0 61-bit (PP) | `Kia V0` / 61, 64, 72 | Serial, Btn, Cnt, Type (1 Kia, 2 Suzuki, 3 Honda, 4 Mitsubishi) | type from `Type`, a legacy name (`Suzuki`, `Honda V0`, `Mitsu V0` …) or the bit count; edited Serial/Btn/Cnt rebuild the key (CRC recomputed) |
+| Kia V0, Suzuki V0, Honda V0, Mitsubishi V0 61-bit (PP) | `Kia V0` / 61, 64, 72 | Serial, Btn, Cnt, Type (1 Kia, 2 Suzuki, 3 Honda, 4 Mitsubishi) | type from `Type`, a legacy name (`Suzuki`, `Honda V0`, `Mitsu V0` …) or the bit count; edited Serial/Btn/Cnt rebuild the key (CRC recomputed). Honda V0's Serial and Btn are the C's (its id bytes bit-reversed, its button numbers), which the firmwares send from; KAT shows the frame's own ([kia_v0.md](kia_v0.md#key-files)) |
 | Kia V1 (PP) | `Kia V1` / 57 | Serial, Btn, Cnt | edited fields rebuild the key |
 | Kia V2 (PP) | `Kia V2` / 53 | Serial, Btn, Cnt, CRC, RawCnt | Flipper-ARF's Key-only files load |
 | Kia V3/V4 (PP) | `Kia V3` or `Kia V4` / 68, word | Serial, Btn, Cnt, Encrypted, Decrypted, KIAVersion | must pass the KeeLoq check; Bit 64 or 68; no `CRC` line (KAT does not keep the per-repeat CRC nibble) |

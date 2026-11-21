@@ -452,6 +452,10 @@ mod tests {
 
     /// The deliberate differences from KAT 1.4: (name, field, new value). Everything else must be
     /// unchanged for every name in the fixture.
+    /// An INTENTIONAL buttons value: every code shown as its number ("Btn 0x3"), written out by the
+    /// test (256 entries).
+    const HEX_LABELS: &str = "<every code as Btn 0xN>";
+
     const INTENTIONAL: &[(&str, &str, &str)] = &[
         // Kia V2: AM in ProtoPirate's flags/catalog (and ARF/doctor), FM476 in ProtoPirate's help
         // text and README and in the two real Kia V2 key files in IMPORTS → AM/FM (see kia_v2.rs).
@@ -487,7 +491,7 @@ mod tests {
         ("Mitsu V0", "rf", "FM"),
         ("Mitsu V0", "encryption", "Rolling Code"),
         ("Mitsu V0", "make", "Mitsubishi"),
-        ("Mitsu V0", "buttons", "0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-255=Other"),
+        ("Mitsu V0", "buttons", HEX_LABELS),
         ("KIA/HYU V3", "coding", "PWM"),
         ("KIA/HYU V3", "rf", "FM"),
         ("KIA/HYU V3", "encryption", "KeeLoq"),
@@ -528,12 +532,12 @@ mod tests {
         ("Mitsu v0", "rf", "FM"),
         ("Mitsu v0", "encryption", "Rolling Code"),
         ("Mitsu v0", "make", "Mitsubishi"),
-        ("Mitsu v0", "buttons", "0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-255=Other"),
+        ("Mitsu v0", "buttons", HEX_LABELS),
         ("Mitsubishi v0", "coding", "PWM"),
         ("Mitsubishi v0", "rf", "FM"),
         ("Mitsubishi v0", "encryption", "Rolling Code"),
         ("Mitsubishi v0", "make", "Mitsubishi"),
-        ("Mitsubishi v0", "buttons", "0=Other,1=Lock,2=Unlock,3=Trunk,4=Panic,5-255=Other"),
+        ("Mitsubishi v0", "buttons", HEX_LABELS),
         ("psa2", "coding", "Manchester"),
         ("psa2", "rf", "AM/FM"),
         ("psa2", "encryption", "TEA/XOR"),
@@ -570,6 +574,11 @@ mod tests {
         // 2026-11: Chrysler V0 reports the frame's own button byte (chrysler_v0.rs), the PT Cruiser
         // fob's 0x20 Lock and 0x10 Unlock, not the C's 1 / 2.
         ("Chrysler V0", "buttons", "0-15=Other,16=Unlock,17-31=Other,32=Lock,33-255=Other"),
+        // 2026-11: Honda V0 reports the function nibble as sent, with rtl_433's names (kia_v0.rs); the C
+        // numbered its buttons from the bit-reversed byte (a real Lock was its "Unlock3"). The Mitsubishi
+        // V0 codes (the 2011 Pajero sends 3, 4 and 6) are named by no source: shown as numbers.
+        ("Honda V0", "buttons", "0-2=Other,3=Lock,4=Unlock,5=Trunk/Panic (short),6=Panic (long),7-14=Other,15=Trunk (long),16-255=Other"),
+        ("Mitsubishi V0", "buttons", HEX_LABELS),
         // Prefix arms that matched names no protocol has: a bare "Ford" / "Fiat" / "Kia".
         ("Ford", "coding", "Unknown"),
         ("Ford", "rf", "—"),
@@ -603,8 +612,13 @@ mod tests {
                 let want = match intentional.get(&key) {
                     Some(v) => {
                         used.insert(key);
-                        assert_ne!(*v, l.fields[k], "{key:?} is listed but unchanged from 1.4");
-                        v.to_string()
+                        let v = if *v == HEX_LABELS {
+                            (0..=255u16).map(|c| format!("{c}=Btn 0x{c:X}")).collect::<Vec<_>>().join(",")
+                        } else {
+                            v.to_string()
+                        };
+                        assert_ne!(v, l.fields[k], "{key:?} is listed but unchanged from 1.4");
+                        v
                     }
                     None => l.fields[k].clone(),
                 };

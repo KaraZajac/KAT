@@ -2,11 +2,14 @@
 //!
 //! Port of ProtoPirate `protocols/kia_v0.c` (HEAD 2026-10, after commits f81a706 "Refactor Kia V0 to
 //! include shared logic for Suzuki V0 and Honda V0" and 1287d10 "merge Mitsubishi protocol into Kia
-//! V0"). ProtoPirate retired its standalone `suzuki.c` and `mitsubishi_v0.c` in favour of these Kia V0
+//! V0"). Its Kia type is older than ProtoPirate: the official Flipper firmware's "KIA" decoder
+//! (Skorpionm, 2021-10, `lib/subghz/protocols/kia.c`, "KIA Seed" since 2022), of which ProtoPirate's
+//! first `kia_v0.c` is a copy; its test recording is `IMPORTS/KIA/more/kia_seed_raw.sub`.
+//! ProtoPirate retired its standalone `suzuki.c` and `mitsubishi_v0.c` in favour of these Kia V0
 //! types; doctor-firmware's `kia_v0.c` carries the same four types and Flipper-ARF's `kia_v0.c` the
-//! first three (no Mitsubishi), so this module is the union. The real `IMPORTS/SUZUKI` capture is
-//! exactly this air format (symmetric 250/500µs pairs, 2000µs LOW + 2000µs HIGH gap, 15-pair tail
-//! preamble) and the C oracle decodes all 15 of its presses as Suzuki V0, matching KAT.
+//! first three (no Mitsubishi), so this module is the union. **Where KAT departs from the C**: Honda
+//! V0 is read and built by the remote's own frame (below), and every type sends the remote's press,
+//! once; both from the recordings (`docs/kia_v0.md`).
 //!
 //! Air format: PWM pairs at 315 / 433.92 MHz (FM): each bit is HIGH+LOW of equal length,
 //! te_short = 250µs → 0, te_long = 500µs → 1 (te_delta 100, strict `<`). A run of short pairs is the
@@ -16,18 +19,34 @@
 //! |------|--------------|------|-----------------|-------|--------------|
 //! | 1 | Kia V0 | 61 | `cnt16 << 40 \| serial28 << 12 \| btn4 << 8 \| crc8` | CRC-8 poly 0x7F over bits 8..55 | HIGH 700..1700µs |
 //! | 2 | Suzuki V0 | 64 | `0xF << 60 \| cnt16 << 44 \| serial28 << 16 \| btn4 << 12 \| crc8 << 4` | CRC-8 0x7F over cnt/serial/btn | LOW then HIGH 2000..2500µs |
-//! | 3 | Honda V0 | 72 (C label; the key is 64 bits) | bytes `F0 rev(cnt_hi) rev(cnt_lo) ser24 hdr crc` | structural (nibble F/0, hdr low nibble A) | 61st bit or HIGH gap |
+//! | 3 | Honda V0 | 72 (C label; the key is 64 bits) | the C's key `F0 rev(…)`, see below | CRC-8 0x21 over cnt/btn | the 56th bit |
 //! | 4 | Mitsubishi V0 | 61 | as Kia | as Kia | as Kia, see below |
 //!
-//! Honda V0 frames arrive as 61 wire bits that fail the Kia CRC; bit-reversing every byte of the low
-//! 60 bits gives the key. Mitsubishi V0 is the Kia frame sent twice, the second copy behind a 72..88
-//! pair preamble (the C's `last_kia_data` memory): the first copy decodes as Kia V0, an identical
-//! second one with that preamble length as Mitsubishi V0.
+//! **Honda V0** is the Nidec / Omron G8D remote of Hondas and Acuras (OUCG8D-344H-A and kin; rtl_433's
+//! `nidec_car_remote.c` and `hondaremote.c`). After 320 short pairs and 4 long pairs (Omron's filings:
+//! "324 bit codes … for the receiver to wake up") it sends 56 bits, `counter16 | id24 | 0x5 | button4 |
+//! check8`, MSB first; the check is a CRC-8 (polynomial 0x21, init 0) over the counter and the button
+//! nibble ([HondaFrame::check_of]), which every frame of the OEM and tool-made remotes recorded passes
+//! (aftermarket "TS" clones send wrong ones) and rtl_433's OEM recordings too. Buttons (rtl_433's
+//! names; the recordings' file names): 3 Lock, 4 Unlock, 5 a trunk or panic press, then F for the
+//! trunk's long press, 6 for the panic's. The decoder reads the 61 bits as the C does; `data` stays
+//! the C's key (`F0`, then the 56 bits with every byte bit-reversed), which the key files carry, and
+//! the fields are the frame's: `serial` = the id, `button` = the nibble, `counter`, `crc_valid` = the
+//! check. The C reads the id bytes bit-reversed, numbers the buttons from the reversed byte (a Lock is
+//! its "Unlock3", a Panic its "Lock2"), checks with a table that is this CRC for 3, 4, 5 and F, and
+//! sends Lock as 6 (Panic's long press) and Trunk as 2 (no remote's code), behind 40 preamble pairs.
+//! Its decoder also loses a Honda frame whose 61 bits pass the Kia CRC (one in 256), waiting for a Kia
+//! gap that never comes; KAT holds such a frame until the next HIGH (`honda_pending`).
+//!
+//! Mitsubishi V0 is the Kia frame sent twice, the second copy behind a 72..88 pair preamble (the C's
+//! `last_kia_data` memory): the first copy decodes as Kia V0, an identical second one with that
+//! preamble length as Mitsubishi V0.
 //!
 //! Decoder (`subghz_protocol_decoder_kia_feed`), ported step for step: Reset → Preamble (counts
 //! short pairs, >14 then a long pair starts data with `11`) → SaveDuration (HIGH) / CheckDuration
 //! (LOW). It emits on the same pulse as the C: the Kia gap (Kia / Mitsubishi / Honda), the Suzuki
-//! HIGH gap, or the LOW completing a Honda-valid 61st bit.
+//! HIGH gap, or the LOW completing a Honda-valid 61st bit; and, for a frame that is both, on the
+//! HIGH after it.
 //!
 //! KAT deviation (registry semantics only): the registry resets every decoder after any decode,
 //! which in the C would only clear the state machine (`kia_v0_decoder_state_clear`). `reset()`
@@ -36,22 +55,27 @@
 //! its first decode only, which for a Mitsubishi transmission is the first copy (Kia V0); `.sub`
 //! imports list both, as ProtoPirate's history does.
 //!
-//! Encoder (`kia_v0_encoder_apply_fields` + upload builders), one upload per call, which KAT sends 3
-//! times as the C's TX loop does (`tx_copies.rs`), adjacent equal levels merged (identical on air):
-//! - Kia: HIGH 750, LOW 750, 319 short pairs, frame, HIGH 1500, LOW 1500, 15 short pairs, frame, HIGH 1000.
-//! - Mitsubishi: as Kia but an 80-pair second preamble and a closing HIGH 1500 + LOW 1500.
+//! Encoder: the remote's press, sent once (`tx_copies.rs`; the C's TX loop sends its upload 3 times),
+//! adjacent equal levels merged (identical on air). Each is the recordings' press pulse for pulse
+//! (test `reencode_reproduces_the_next_press`):
+//! - Kia: HIGH 750, LOW 750, 319 short pairs, frame (its bit 60, 0, is the 320th short pair),
+//!   HIGH 1500, LOW 1500, 15 short pairs (+ bit 60: 16), frame, HIGH 1500 (the C: 1000).
+//! - Mitsubishi: as Kia with a 79-pair second preamble (80 with bit 60, as the Pajero sends; the C's
+//!   80 make 81) and a closing HIGH 1500 + LOW 1500.
 //! - Suzuki: 320 short pairs, frame, LOW 2000, HIGH 2000, LOW 250, 15 short pairs, frame.
-//! - Honda: 40 short pairs, 4 long pairs, the 56 low bits of the byte-reversed key, HIGH 1000.
+//! - Honda: 320 short pairs, 4 long pairs, the 56 bits, HIGH 500; a trunk or panic request sends the
+//!   press's 5 and then its long press's F or 6, one count apart, 100 ms between them.
 //!
-//! The frame is rebuilt from serial/button/counter (CRC recomputed); like ProtoPirate's emulate scene
-//! the counter is bumped by one per press (16 bits). KAT's generic button maps to the type's codes as
-//! the C names them: Kia/Mitsubishi Lock 1, Unlock 2, Trunk 3, Panic 4 (emulate D-pad Left);
-//! Suzuki Lock 3, Unlock 4, Trunk 2, Panic 1; Honda Lock 3 ("Lock2"), Unlock 1, Trunk 2 (no Panic);
-//! anything else keeps the captured button. The type comes from the bit count (61 Kia, 64 Suzuki,
-//! 72 Honda); Mitsubishi V0 captures reach [`encode_type`] through the "Mitsubishi V0" registry entry
-//! (`mitsubishi_v0.rs`), which owns that name.
+//! The frame is rebuilt from serial/button/counter (CRC recomputed) with the counter + 1 per frame
+//! (16 bits). "Send next code" ([ProtocolDecoder::encode_next]) keeps the captured button; KAT's
+//! generic buttons map to the type's codes: Kia Lock 1, Unlock 2, Trunk 3, Panic 4 and Suzuki Lock 3,
+//! Unlock 4, Trunk 2, Panic 1 (the C's names), Honda Lock 3, Unlock 4, Trunk 5 + F, Panic 5 + 6
+//! (rtl_433's), Mitsubishi none (the Pajero sends 3, 4 and 6, named by no source: the captured
+//! button); anything else keeps the captured button. The type comes from the bit count (61 Kia, 64
+//! Suzuki, 72 Honda); Mitsubishi V0 captures reach [`encode_type`] through the "Mitsubishi V0"
+//! registry entry (`mitsubishi_v0.rs`), which owns that name.
 
-use super::common::crc8_kia;
+use super::common::{crc8, crc8_kia};
 use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
 use crate::radio::demodulator::LevelDuration;
@@ -125,16 +149,16 @@ fn suzuki_buttons(_name: &str, code: u8) -> Option<&'static str> {
     })
 }
 
-/// Honda V0 buttons (kia_v0_button_name, Honda type).
+/// Honda V0 buttons: the function nibble as sent, with rtl_433's names (`nidec_car_remote.c`); the
+/// recordings' file names give 3, 4, 5 and F. A trunk or panic press sends 5, its long press then F
+/// (trunk) or 6 (panic).
 fn honda_buttons(_name: &str, code: u8) -> Option<&'static str> {
     Some(match code {
-        1 => "Unlock",
-        2 => "Trunk",
-        3 => "Lock2",
-        4 => "Unlock2",
-        5 => "Trunk2",
-        6 => "Unlock3",
-        7 => "Trunk3",
+        0x3 => "Lock",
+        0x4 => "Unlock",
+        0x5 => "Trunk/Panic (short)",
+        0x6 => "Panic (long)",
+        0xF => "Trunk (long)",
         _ => "Other",
     })
 }
@@ -147,6 +171,9 @@ pub(super) const BIT_COUNT_KIA: usize = 61;
 pub(super) const BIT_COUNT_SUZUKI: usize = 64;
 pub(super) const BIT_COUNT_HONDA: usize = 72;
 
+/// A Kia gap the decoder takes (700–1700 µs; the C's encoder closed a Kia press with it), for the
+/// tests.
+#[cfg(test)]
 const KIA_GAP: u32 = 1000;
 const KIA_GAP_BASE: u32 = 700;
 const KIA_GAP_SPAN: u32 = 1000;
@@ -157,13 +184,22 @@ const TYPE1_SYNC: u32 = 750;
 const TYPE1_PREAMBLE_PAIRS: usize = 0x13F;
 const TYPE2_PREAMBLE_PAIRS: usize = 0x140;
 const TAIL_PREAMBLE_PAIRS: usize = 0x0F;
-const MITSU_TAIL_PREAMBLE_PAIRS: usize = 0x50;
+/// 79 pairs, then the frame's bit 60 (0) is the 80th: the Pajero's 80 (the C's 0x50 sends 81).
+const MITSU_TAIL_PREAMBLE_PAIRS: usize = 0x4F;
 const MITSU_PREAMBLE_MIN: u16 = 72;
 const MITSU_PREAMBLE_MAX: u16 = 88;
+/// The HIGH and LOW between two copies of a Kia / Mitsubishi frame, and the HIGH that ends the Kia
+/// press (both Kia fobs; the C ends with 1000 µs).
 const KIA_FRAME_GAP: u32 = 1500;
-const HONDA_PREAMBLE_PAIRS: usize = 40;
+/// Honda V0: 320 short pairs and the 4 long pairs, Omron's "324 bit codes" of wake-up (the C: 40).
+const HONDA_PREAMBLE_PAIRS: usize = 320;
 const HONDA_SYNC_PAIRS: usize = 4;
 const HONDA_WIRE_BITS: u32 = 56;
+/// The HIGH that ends a Honda press (the OEM Civic remote and rtl_433's second OEM recording).
+const HONDA_END: u32 = 500;
+/// The silence between a trunk or panic press's two frames (the recordings: 297–310 ms from the
+/// start of one to the start of the next, a frame lasting about 205 ms).
+const HONDA_LONG_PRESS_GAP: u32 = 100_000;
 
 /// Honda CRC fold table (`kia_v0_honda_crc_table`).
 const HONDA_CRC_TABLE: [u8; 16] = [
@@ -349,6 +385,54 @@ fn honda_header(button: u8) -> u8 {
     ((b << 5) & 0xE0) | base
 }
 
+/// A Honda V0 frame as the remote sends it (see the module doc): the 56 bits after the four long
+/// sync pairs, `counter16 | id24 | five4 | button4 | check8`, MSB first.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct HondaFrame {
+    counter: u16,
+    id: u32,
+    /// 5 in every frame of every remote recorded.
+    five: u8,
+    button: u8,
+    check: u8,
+}
+
+impl HondaFrame {
+    /// From the C's 64-bit key: `F0`, then the 56 bits with every byte bit-reversed.
+    fn from_key(key: u64) -> Self {
+        let b = key.to_be_bytes().map(rev8);
+        Self {
+            counter: u16::from_be_bytes([b[1], b[2]]),
+            id: u32::from_be_bytes([0, b[3], b[4], b[5]]),
+            five: b[6] >> 4,
+            button: b[6] & 0x0F,
+            check: b[7],
+        }
+    }
+
+    /// The C's key of this frame (what `data` and the key files hold).
+    fn key(self) -> u64 {
+        let [_, i2, i1, i0] = self.id.to_be_bytes();
+        let [c1, c0] = self.counter.to_be_bytes();
+        u64::from_be_bytes([0x0F, c1, c0, i2, i1, i0, (self.five << 4) | self.button, self.check].map(rev8))
+    }
+
+    /// The check: CRC-8, polynomial 0x21, init 0, over the counter and the button nibble (20 bits).
+    fn check_of(counter: u16, button: u8) -> u8 {
+        crc8(&[(counter >> 12) as u8, (counter >> 4) as u8, ((counter as u8) << 4) | (button & 0x0F)], 0x21, 0)
+    }
+
+    fn check_ok(self) -> bool {
+        self.check == Self::check_of(self.counter, self.button)
+    }
+
+    /// The remote's next frame with button `button`: the counter one higher, the check recomputed.
+    fn next(self, button: u8) -> Self {
+        let counter = self.counter.wrapping_add(1);
+        Self { counter, button: button & 0x0F, check: Self::check_of(counter, button), ..self }
+    }
+}
+
 /// `kia_v0_build_kia_raw`.
 fn build_kia_raw(serial: u32, button: u8, counter: u16, crc: u8) -> u64 {
     let high = 0x0F00_0000u32 | ((counter as u32) << 8) | ((serial >> 20) & 0xFF);
@@ -408,9 +492,15 @@ fn parse_fields(data: u64, ty: KiaV0Type) -> Fields {
     }
 }
 
-/// The decode reported for frame `data` of type `ty` (`kia_v0_decoder_commit` → `kia_v0_parse_data`).
+/// The decode reported for frame `data` of type `ty` (`kia_v0_decoder_commit` → `kia_v0_parse_data`;
+/// Honda V0: the frame's fields as sent, see the module doc).
 fn signal(data: u64, ty: KiaV0Type) -> DecodedSignal {
-    let f = parse_fields(data, ty);
+    let f = if ty == KiaV0Type::Honda {
+        let h = HondaFrame::from_key(data);
+        Fields { serial: h.id, counter: h.counter, button: h.button, crc: h.check, crc_valid: h.check_ok() }
+    } else {
+        parse_fields(data, ty)
+    };
     DecodedSignal {
         serial: Some(f.serial),
         button: Some(f.button),
@@ -443,6 +533,9 @@ pub struct KiaV0Decoder {
     preamble_pairs: u16,
     last_kia_data: u64,
     have_last_kia: bool,
+    /// A 61-bit frame that passes both the Kia CRC and the Honda check (Honda key), waiting for
+    /// the next HIGH: a Kia gap makes it Kia V0, anything else Honda V0.
+    honda_pending: Option<u64>,
 }
 
 impl KiaV0Decoder {
@@ -455,6 +548,7 @@ impl KiaV0Decoder {
             preamble_pairs: 0,
             last_kia_data: 0,
             have_last_kia: false,
+            honda_pending: None,
         }
     }
 
@@ -465,6 +559,7 @@ impl KiaV0Decoder {
         self.decode_data = 0;
         self.decode_count_bit = 0;
         self.preamble_pairs = 0;
+        self.honda_pending = None;
     }
 
     /// `subghz_protocol_blocks_add_bit`.
@@ -507,16 +602,25 @@ impl KiaV0Decoder {
         None
     }
 
-    /// `kia_v0_decoder_try_honda`: a 61-bit frame that fails the Kia CRC but is a valid Honda key.
+    /// `kia_v0_decoder_try_honda`: a 61-bit frame that fails the Kia CRC but is a valid Honda key is
+    /// Honda V0 at once. One that passes the Kia CRC too (one Honda frame in 256 does) and also the
+    /// Honda check waits for the next HIGH (`honda_pending`); the C waits for a Kia gap only, which a
+    /// Honda frame never has, and loses it.
     fn try_honda(&mut self) -> Option<DecodedSignal> {
-        if self.decode_count_bit as usize != BIT_COUNT_KIA || verify_crc_poly(self.decode_data) {
+        if self.decode_count_bit as usize != BIT_COUNT_KIA {
             return None;
         }
         let key = honda_transform(self.decode_data & 0x0FFF_FFFF_FFFF_FFFF);
         if !honda_key_valid(key) {
             return None;
         }
-        Some(self.commit(key, KiaV0Type::Honda))
+        if !verify_crc_poly(self.decode_data) {
+            return Some(self.commit(key, KiaV0Type::Honda));
+        }
+        if HondaFrame::from_key(key).check_ok() {
+            self.honda_pending = Some(key);
+        }
+        None
     }
 }
 
@@ -585,6 +689,9 @@ impl ProtocolDecoder for KiaV0Decoder {
                 if is_kia_gap(duration) {
                     return self.finish_at_gap();
                 }
+                if let Some(key) = self.honda_pending.take() {
+                    return Some(self.commit(key, KiaV0Type::Honda));
+                }
                 if is_suzuki_gap(duration) && is_suzuki_gap(self.te_last) {
                     if self.decode_count_bit as usize == BIT_COUNT_SUZUKI {
                         if let Some(shifted) = suzuki_resolve_shifted(self.decode_data) {
@@ -641,7 +748,12 @@ impl ProtocolDecoder for KiaV0Decoder {
     }
 
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
-        encode_type(decoded, button, KiaV0Type::from_bits(decoded.data_count_bit)?)
+        encode_type(decoded, Request::Button(button), KiaV0Type::from_bits(decoded.data_count_bit)?)
+    }
+
+    /// "Send next code": the captured button (the types' codes overlap KAT's generic ones).
+    fn encode_next(&self, decoded: &DecodedSignal) -> Option<Vec<LevelDuration>> {
+        encode_type(decoded, Request::Captured, KiaV0Type::from_bits(decoded.data_count_bit)?)
     }
 
     /// `subghz_protocol_decoder_kia_deserialize`: Bit must be 61, 64 or 72; the type comes from
@@ -715,20 +827,19 @@ impl Default for KiaV0Decoder {
 }
 
 /// KAT generic button (0x01 Lock, 0x02 Unlock, 0x04 Trunk, 0x08 Panic) → the type's code, from the
-/// C's button names and the emulate scene's D-pad map; `None` keeps the captured button.
+/// C's button names and the emulate scene's D-pad map; `None` keeps the captured button. Mitsubishi
+/// V0 maps none: the Pajero recorded sends 3, 4 and 6, and no source says which is which (the C gives
+/// it Kia's 1 and 2). Honda V0 is [encode_honda]'s.
 fn map_button(ty: KiaV0Type, button: u8) -> Option<u8> {
     match (ty, button) {
-        (KiaV0Type::Kia | KiaV0Type::Mitsubishi, 0x01) => Some(0x1),
-        (KiaV0Type::Kia | KiaV0Type::Mitsubishi, 0x02) => Some(0x2),
-        (KiaV0Type::Kia | KiaV0Type::Mitsubishi, 0x04) => Some(0x3),
-        (KiaV0Type::Kia | KiaV0Type::Mitsubishi, 0x08) => Some(0x4),
+        (KiaV0Type::Kia, 0x01) => Some(0x1),
+        (KiaV0Type::Kia, 0x02) => Some(0x2),
+        (KiaV0Type::Kia, 0x04) => Some(0x3),
+        (KiaV0Type::Kia, 0x08) => Some(0x4),
         (KiaV0Type::Suzuki, 0x01) => Some(0x3),
         (KiaV0Type::Suzuki, 0x02) => Some(0x4),
         (KiaV0Type::Suzuki, 0x04) => Some(0x2),
         (KiaV0Type::Suzuki, 0x08) => Some(0x1),
-        (KiaV0Type::Honda, 0x01) => Some(0x3),
-        (KiaV0Type::Honda, 0x02) => Some(0x1),
-        (KiaV0Type::Honda, 0x04) => Some(0x2),
         _ => None,
     }
 }
@@ -784,7 +895,7 @@ fn build_upload(ty: KiaV0Type, frame: u64) -> Vec<LevelDuration> {
             let (tail, end) = if ty == KiaV0Type::Mitsubishi {
                 (MITSU_TAIL_PREAMBLE_PAIRS, [(true, KIA_FRAME_GAP), (false, KIA_FRAME_GAP)])
             } else {
-                (TAIL_PREAMBLE_PAIRS, [(true, KIA_GAP), (false, 0)])
+                (TAIL_PREAMBLE_PAIRS, [(true, KIA_FRAME_GAP), (false, 0)])
             };
             push(&mut out, true, TYPE1_SYNC);
             push(&mut out, false, TYPE1_SYNC);
@@ -809,30 +920,81 @@ fn build_upload(ty: KiaV0Type, frame: u64) -> Vec<LevelDuration> {
             push_short_pairs(&mut out, TAIL_PREAMBLE_PAIRS);
             push_data_pairs(&mut out, frame, BIT_COUNT_SUZUKI as u32);
         }
-        KiaV0Type::Honda => {
-            push_short_pairs(&mut out, HONDA_PREAMBLE_PAIRS);
-            for _ in 0..HONDA_SYNC_PAIRS {
-                push(&mut out, true, TE_LONG);
-                push(&mut out, false, TE_LONG);
-            }
-            push_data_pairs(&mut out, honda_transform(frame), HONDA_WIRE_BITS);
-            push(&mut out, true, KIA_GAP);
-        }
+        KiaV0Type::Honda => push_honda_press(&mut out, frame),
     }
     out
+}
+
+/// One Honda V0 frame (the C's key `key`) as the remote sends it: 320 short pairs, the 4 long sync
+/// pairs, the 56 bits, HIGH 500 µs.
+fn push_honda_press(out: &mut Vec<LevelDuration>, key: u64) {
+    push_short_pairs(out, HONDA_PREAMBLE_PAIRS);
+    for _ in 0..HONDA_SYNC_PAIRS {
+        push(out, true, TE_LONG);
+        push(out, false, TE_LONG);
+    }
+    push_data_pairs(out, honda_transform(key), HONDA_WIRE_BITS);
+    push(out, true, HONDA_END);
+}
+
+/// What a transmission asks of [encode_type]: KAT's generic button (TX Lock 0x01, Unlock 0x02,
+/// Trunk 0x04, Panic 0x08; any other value keeps the captured button), or the captured button
+/// ("Send next code", [ProtocolDecoder::encode_next]). The types' own codes overlap the generic
+/// ones (Suzuki's 4 is Unlock, the generic 0x04 Trunk), so the two must not be told apart by value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Request {
+    Button(u8),
+    Captured,
+}
+
+/// Honda V0: the remote's next frame of the requested button, or for trunk and panic its long
+/// press, 5 then F or 6, each frame one count higher (see the module doc).
+fn encode_honda(decoded: &DecodedSignal, request: Request) -> Option<Vec<LevelDuration>> {
+    // The decode's fields (the frame's as sent), else the key's; the nibble after the id is 5 in
+    // every remote's frames.
+    let key = HondaFrame::from_key(decoded.data);
+    let mut frame = HondaFrame {
+        counter: decoded.counter.unwrap_or(key.counter),
+        id: decoded.serial.map_or(key.id, |s| s & 0x00FF_FFFF),
+        five: 0x5,
+        button: decoded.button.unwrap_or(key.button) & 0x0F,
+        check: 0,
+    };
+    let buttons: &[u8] = match request {
+        Request::Button(0x01) => &[0x3],
+        Request::Button(0x02) => &[0x4],
+        Request::Button(0x04) => &[0x5, 0xF],
+        Request::Button(0x08) => &[0x5, 0x6],
+        Request::Button(_) | Request::Captured => &[frame.button],
+    };
+    let mut out = Vec::with_capacity(1600);
+    for (i, &button) in buttons.iter().enumerate() {
+        frame = frame.next(button);
+        if i > 0 {
+            push(&mut out, false, HONDA_LONG_PRESS_GAP);
+        }
+        push_honda_press(&mut out, frame.key());
+    }
+    Some(out)
 }
 
 /// Encode a Kia V0 family frame of type `ty` for KAT's generic `button` (see the module docs).
 /// Fields missing from `decoded` are parsed from its `data` (the C's raw-key path).
 pub(super) fn encode_type(
     decoded: &DecodedSignal,
-    button: u8,
+    request: Request,
     ty: KiaV0Type,
 ) -> Option<Vec<LevelDuration>> {
+    if ty == KiaV0Type::Honda {
+        return encode_honda(decoded, request);
+    }
     let parsed = parse_fields(decoded.data, ty);
     let serial = decoded.serial.unwrap_or(parsed.serial);
     let captured_button = decoded.button.unwrap_or(parsed.button);
-    let button = map_button(ty, button).unwrap_or(captured_button);
+    let button = match request {
+        Request::Button(b) => map_button(ty, b).unwrap_or(captured_button),
+        Request::Captured => captured_button,
+    };
     let counter = decoded.counter.unwrap_or(parsed.counter).wrapping_add(1);
     Some(build_upload(ty, build_frame(ty, serial, button, counter)))
 }
@@ -888,6 +1050,10 @@ mod tests {
         (4, 0x00000001, 0x2, 0x1234, 0x0F12340000001276, 2, 4, 0x1F12340000001276, 0x0000001, 0x2, 0x1234, true),
     ];
 
+    /// The C's key builder (the key files' rebuild) gives the C's keys; the decoder reads them back.
+    /// Honda V0 is reported with the frame's own fields (the C's are still those of the key, which
+    /// `to_flipper_key` writes); the C's encoder sends Honda buttons 4, 7, 0 and 1 as the nibbles 1, F,
+    /// 0 and 4, of which only F and 4 are a remote's.
     #[test]
     fn c_vectors_encode_and_decode() {
         for &(ty, serial, btn, cnt, key, n, dty, dkey, dser, dbtn, dcnt, dok) in C_VECTORS {
@@ -899,11 +1065,17 @@ mod tests {
             let name = last.protocol_display_name.as_deref().unwrap_or("Kia V0");
             assert_eq!(name, ty_of(dty).display_name());
             assert_eq!(last.data, dkey);
-            assert_eq!(last.serial, Some(dser));
-            assert_eq!(last.button, Some(dbtn));
-            assert_eq!(last.counter, Some(dcnt));
-            assert_eq!(last.crc_valid, dok);
             assert_eq!(last.data_count_bit, ty.bit_count());
+            let c = parse_fields(dkey, ty);
+            assert_eq!((c.serial, c.button, c.counter), (dser, dbtn, dcnt), "the C's fields of the key");
+            if ty == KiaV0Type::Honda {
+                let h = HondaFrame::from_key(dkey);
+                assert_eq!(h.five, 5);
+                assert_eq!((last.serial, last.button, last.counter), (Some(h.id), Some(h.button), Some(h.counter)));
+                assert_eq!(last.crc_valid, h.check_ok());
+            } else {
+                assert_eq!((last.serial, last.button, last.counter, last.crc_valid), (Some(dser), Some(dbtn), Some(dcnt), dok));
+            }
         }
     }
 
@@ -918,33 +1090,67 @@ mod tests {
 
     /// encode(): counter + 1 and KAT's generic button mapped to the type's code (unknown keeps the
     /// captured one); the result decodes to exactly those fields.
+    /// encode(): the counter + 1 per frame and KAT's generic button mapped to the type's codes
+    /// (unknown keeps the captured one); Honda's trunk and panic send the long press, 5 then F or 6;
+    /// the frames sent decode to exactly those fields. Mitsubishi V0 keeps the captured button.
     #[test]
     fn encode_bumps_counter_and_maps_buttons() {
-        let cases: &[(KiaV0Type, u8, u8)] = &[
-            (KiaV0Type::Kia, 0x01, 0x1),
-            (KiaV0Type::Kia, 0x02, 0x2),
-            (KiaV0Type::Kia, 0x04, 0x3),
-            (KiaV0Type::Kia, 0x08, 0x4),
-            (KiaV0Type::Kia, 0x40, 0x9),
-            (KiaV0Type::Suzuki, 0x01, 0x3),
-            (KiaV0Type::Suzuki, 0x02, 0x4),
-            (KiaV0Type::Suzuki, 0x04, 0x2),
-            (KiaV0Type::Suzuki, 0x08, 0x1),
-            (KiaV0Type::Honda, 0x01, 0x3),
-            (KiaV0Type::Honda, 0x02, 0x1),
-            (KiaV0Type::Honda, 0x04, 0x2),
-            (KiaV0Type::Honda, 0x08, 0x5),
+        let cases: &[(KiaV0Type, u8, &[u8])] = &[
+            (KiaV0Type::Kia, 0x01, &[0x1]),
+            (KiaV0Type::Kia, 0x02, &[0x2]),
+            (KiaV0Type::Kia, 0x04, &[0x3]),
+            (KiaV0Type::Kia, 0x08, &[0x4]),
+            (KiaV0Type::Kia, 0x40, &[0x9]),
+            (KiaV0Type::Suzuki, 0x01, &[0x3]),
+            (KiaV0Type::Suzuki, 0x02, &[0x4]),
+            (KiaV0Type::Suzuki, 0x04, &[0x2]),
+            (KiaV0Type::Suzuki, 0x08, &[0x1]),
+            (KiaV0Type::Honda, 0x01, &[0x3]),
+            (KiaV0Type::Honda, 0x02, &[0x4]),
+            (KiaV0Type::Honda, 0x04, &[0x5, 0xF]),
+            (KiaV0Type::Honda, 0x08, &[0x5, 0x6]),
+            (KiaV0Type::Honda, 0x40, &[0x5]),
         ];
         for &(ty, generic, want) in cases {
             let serial = if ty == KiaV0Type::Honda { 0x00AB_CDEF } else { 0x0ABC_DEF1 };
             let src = signal(ty, serial, if ty == KiaV0Type::Honda { 0x5 } else { 0x9 }, 0xFFFF);
             let wire = KiaV0Decoder::new().encode(&src, generic).unwrap();
+            let mut got = feed_all(&mut KiaV0Decoder::new(), &wire);
+            got.dedup(); // a Kia / Suzuki press holds its frame twice
+            let fields: Vec<(Option<u8>, Option<u16>)> = got.iter().map(|d| (d.button, d.counter)).collect();
+            let expected: Vec<(Option<u8>, Option<u16>)> = (0..).zip(want).map(|(i, &b)| (Some(b), Some(i))).collect();
+            assert_eq!(fields, expected, "{ty:?} generic {generic:#x}: 0xFFFF + 1 wraps, one count a frame");
+            assert!(got.iter().all(|d| d.serial == Some(serial) && d.crc_valid), "{ty:?} {got:?}");
+        }
+        // Mitsubishi V0 (its registry entry): every request keeps the captured button.
+        let reg = ProtocolRegistry::new();
+        let src = signal(KiaV0Type::Mitsubishi, 0x0123_4567, 0x6, 0x0041);
+        for generic in [0x01u8, 0x02, 0x04, 0x08] {
+            let wire = reg.get("Mitsubishi V0").unwrap().encode(&src, generic).unwrap();
+            assert!(feed_all(&mut KiaV0Decoder::new(), &wire).iter().all(|d| d.button == Some(0x6) && d.counter == Some(0x42)));
+        }
+    }
+
+    /// "Send next code" (`encode_next`) keeps the captured button even where its code is a generic
+    /// one of another button: Kia's Panic 4 (generic Trunk), Suzuki's Panic 1, Trunk 2 and Unlock 4
+    /// (generic Lock, Unlock and Trunk), Honda's Unlock 4, Mitsubishi's 4.
+    #[test]
+    fn send_next_code_keeps_the_captured_button() {
+        let reg = ProtocolRegistry::new();
+        for (ty, captured) in [
+            (KiaV0Type::Kia, 0x4u8),
+            (KiaV0Type::Suzuki, 0x1),
+            (KiaV0Type::Suzuki, 0x2),
+            (KiaV0Type::Suzuki, 0x4),
+            (KiaV0Type::Honda, 0x4),
+            (KiaV0Type::Mitsubishi, 0x4),
+        ] {
+            let serial = if ty == KiaV0Type::Honda { 0x00AB_CDEF } else { 0x0ABC_DEF1 };
+            let src = DecodedSignal { protocol_display_name: Some(ty.display_name().into()), ..signal(ty, serial, captured, 0x0100) };
+            let entry = if ty == KiaV0Type::Mitsubishi { "Mitsubishi V0" } else { "Kia V0" };
+            let wire = super::super::tx_copies::transmission(reg.get(entry).unwrap(), &src, None, None).unwrap();
             let got = feed_all(&mut KiaV0Decoder::new(), &wire);
-            let d = got.first().expect("decodes");
-            assert_eq!(d.serial, Some(serial), "{ty:?}");
-            assert_eq!(d.button, Some(want), "{ty:?} generic {generic:#x}");
-            assert_eq!(d.counter, Some(0x0000), "{ty:?}: 0xFFFF + 1 wraps");
-            assert!(d.crc_valid);
+            assert!(!got.is_empty() && got.iter().all(|d| d.button == Some(captured) && d.counter == Some(0x0101)), "{ty:?} {captured}: {got:?}");
         }
     }
 
@@ -999,10 +1205,13 @@ mod tests {
     fn native_button_names() {
         use crate::protocols::native_button_name as n;
         assert_eq!(n("Kia V0", 0x3), Some("Trunk"));
-        assert_eq!(n("Mitsubishi V0", 0x4), Some("Panic"));
+        assert_eq!(n("Mitsubishi V0", 0x4), Some("Btn 0x4"), "no source names the Mitsubishi codes");
         assert_eq!(n("Suzuki V0", 0x3), Some("Lock"));
         assert_eq!(n("Suzuki", 0x4), Some("Unlock"));
-        assert_eq!(n("Honda V0", 0x3), Some("Lock2"));
+        assert_eq!(n("Honda V0", 0x3), Some("Lock"), "rtl_433's names of the nibble sent");
+        assert_eq!(n("Honda V0", 0x4), Some("Unlock"));
+        assert_eq!(n("Honda V0", 0xF), Some("Trunk (long)"));
+        assert_eq!(n("Honda V0", 0x6), Some("Panic (long)"));
         assert_eq!(n("Kia V1", 0x3), Some("Trunk"));
         assert_eq!(n("Kia V4", 0x8), Some("Horn"));
         assert_eq!(n("Kia V3/V4", 0x3), Some("Trunk"));
@@ -1115,5 +1324,157 @@ mod tests {
             assert_eq!((f.serial, f.button), (0x67B_D75B, 0x2));
             assert_eq!(build_frame(KiaV0Type::Kia, f.serial, f.button, f.counter), key);
         }
+    }
+
+    /// A Honda V0 frame from its 56 bits as sent.
+    fn honda(wire: u64) -> HondaFrame {
+        HondaFrame::from_key(honda_transform((0x0F << 56) | wire))
+    }
+
+    /// The Honda check is a CRC-8 (polynomial 0x21, init 0) over the counter and the button nibble:
+    /// recorded frames (IMPORTS/honda/more: an OEM 2005 Civic remote, KEYDIY- and Xhorse-made ones, a
+    /// 300-press set) and rtl_433's two OEM remotes (rtl_433_tests, Nidec OUCG8D-344H-A), every button
+    /// seen (3, 4, 5, 6, F). An aftermarket "TS" clone sends a wrong check. The C's table check is this
+    /// CRC for 3, 4, 5 and F, not for 6.
+    #[test]
+    fn honda_check_is_a_crc8_over_counter_and_button() {
+        for (wire, what) in [
+            (0x0470_BD66_F853_5Eu64, "HondaV0_BD661FCA_300lck #0"),
+            (0x0471_BD66_F853_0C, "HondaV0_BD661FCA_300lck #1"),
+            (0x059D_BD66_F854_F8, "HondaV0_BD661FCA_300ulk #0"),
+            (0x059E_BD66_F854_0E, "HondaV0_BD661FCA_300ulk #1"),
+            (0x02F2_1530_2455_A7, "Honda_v0_1tr_kd_hnd #0, trunk"),
+            (0x02F3_1530_245F_9E, "Honda_v0_1tr_kd_hnd #1, trunk long"),
+            (0x2C55_816B_B053_0B, "honda_civic_2005_27 #11, OEM"),
+            (0x0090_12B7_4356_EF, "HondaV0_xHorse_LUTP #2, panic long"),
+        ] {
+            let h = honda(wire);
+            assert!(h.check_ok() && h.five == 5, "{what}");
+            let c = honda_crc(rev8((h.five << 4) | h.button), h.counter);
+            assert_eq!(c == rev8(h.check), h.button != 6, "{what}: the C's table check");
+        }
+        // rtl_433's OEM recordings: counter, button, check.
+        for (cnt, btn, check) in
+            [(0x8647u16, 0x3u8, 0x46u8), (0x864A, 0xF, 0x02), (0x8649, 0x5, 0x9F), (0x8648, 0x4, 0xEC), (0x1545, 0x3, 0xC5), (0x154A, 0x6, 0x2D)]
+        {
+            assert_eq!(HondaFrame::check_of(cnt, btn), check, "{cnt:04X} {btn:X}");
+        }
+        // Honda_v0_Invalid_Chk_Honda_TS_sn3_300 #9: a clone at the OEM remote's counter, check 00.
+        assert!(!honda(0x2C55_816B_B053_00).check_ok());
+    }
+
+    /// One Honda frame in 256 also passes the Kia CRC (its 61 decoder bits); the C then waits for a
+    /// Kia gap that never comes and loses it. These five, from the recordings, are read now, and the
+    /// same 61 bits closed by a Kia gap are still Kia V0.
+    #[test]
+    fn honda_frames_that_pass_the_kia_crc() {
+        for wire in [0x058B_BD66_F853_57u64, 0x05C6_BD66_F854_0F, 0x0664_BD66_F854_A7, 0x038A_5F29_9755_F4, 0x0393_5F29_975F_9A] {
+            assert!(verify_crc_poly((0x1F << 56) | wire), "{wire:014X} passes the Kia CRC");
+            let h = honda(wire);
+            assert!(h.check_ok());
+            let mut press = Vec::new();
+            push_honda_press(&mut press, h.key());
+            let got = feed_all(&mut KiaV0Decoder::new(), &press);
+            assert_eq!(got.len(), 1, "{wire:014X}");
+            assert_eq!(got[0].protocol_display_name.as_deref(), Some("Honda V0"));
+            assert_eq!(
+                (got[0].serial, got[0].button, got[0].counter, got[0].crc_valid),
+                (Some(h.id), Some(h.button), Some(h.counter), true)
+            );
+            let mut kia = press.clone();
+            kia.pop();
+            push(&mut kia, true, KIA_FRAME_GAP);
+            let got = feed_all(&mut KiaV0Decoder::new(), &kia);
+            assert_eq!((got.len(), got[0].protocol_display_name.as_deref()), (1, None), "Kia V0");
+        }
+    }
+
+    /// Pulse kinds, HIGH upper case: short `s`, long `l`, the Kia gap `g`, the Suzuki gap `w`.
+    fn kinds(wire: &[LevelDuration]) -> String {
+        wire.iter()
+            .map(|p| {
+                let c = match p.duration_us {
+                    151..=349 => 's',
+                    401..=599 => 'l',
+                    1300..=1700 => 'g',
+                    1900..=2500 => 'w',
+                    _ => '?',
+                };
+                if p.level { c.to_ascii_uppercase() } else { c }
+            })
+            .collect()
+    }
+
+    /// Every press re-encoded with its own button ("Send next code") is the remote's next press, all
+    /// its bits, wherever the recording holds it (one count higher): Kia (two fobs), Suzuki (a
+    /// KEYDIY-made remote), Mitsubishi (the 2011 Pajero), Honda (an OEM 2005 Civic, KEYDIY- and
+    /// Xhorse-made remotes, two complete 300-press sets). A Honda trunk press is 5 then F, and TX Trunk
+    /// from the press before sends both. The upload is also the remote's press pulse for pulse by kind,
+    /// from 300 short pairs before its first long pair to its last data HIGH (the recordings cut the
+    /// start of each preamble; the closing HIGH differs between Honda remotes, 250 or 500 µs).
+    #[test]
+    fn reencode_reproduces_the_next_press() {
+        use super::super::f_common::test_support::{feed_resetting, sub_pulses};
+        let (mut pairs, mut trunk, mut shapes) = (0, 0, 0);
+        for rel in [
+            "KIA/more/Kia_0_orig.sub",
+            "KIA/more/kia_seed_raw.sub",
+            "SUZUKI/Suzuki_v0_kd.sub",
+            "MITSUBISHI/Mitsubishi pajero 2011.sub",
+            "honda/more/honda_civic_2005_27.sub",
+            "honda/more/honda_civic_2005_28.sub",
+            "honda/more/honda_civic_2005_29.sub",
+            "honda/more/honda_civic_2005_30.sub",
+            "honda/more/Honda_V0_kd_10_10_10.sub",
+            "honda/more/Honda_v0_1tr_kd_hnd.sub",
+            "honda/more/HondaV0_xHorse_20lck.sub",
+            "honda/more/HondaV0_xHorse_20trk.sub",
+            "honda/more/HondaV0_BD661FCA_300lck.sub",
+            "honda/more/HondaV0_BD661FCA_300ulk.sub",
+        ] {
+            let path = std::path::Path::new("IMPORTS").join(rel);
+            if !path.is_file() {
+                eprintln!("Skip: IMPORTS not found (run from crate root)");
+                return;
+            }
+            let (_, wire) = sub_pulses(&path);
+            let recording = kinds(&wire);
+            let mut got = feed_resetting(&mut KiaV0Decoder::new(), &wire);
+            got.retain(|d| d.protocol_display_name.as_deref() != Some("Mitsubishi V0")); // the Pajero's second copies
+            got.dedup(); // a Kia / Suzuki press holds its frame two or three times
+            let reg = ProtocolRegistry::new();
+            let p = reg.get(if rel.contains("pajero") { "Mitsubishi V0" } else { "Kia V0" }).unwrap();
+            let honda = got.first().and_then(|d| d.protocol_display_name.as_deref()) == Some("Honda V0");
+            for (i, w) in got.windows(2).enumerate() {
+                let (now, next) = (&w[0], &w[1]);
+                if next.serial != now.serial || next.counter != now.counter.map(|c| c.wrapping_add(1)) {
+                    continue;
+                }
+                if next.button == now.button {
+                    let upload = p.encode_next(now).unwrap();
+                    let mut sent = feed_all(&mut KiaV0Decoder::new(), &upload);
+                    sent.retain(|d| d.protocol_display_name.as_deref() != Some("Mitsubishi V0"));
+                    sent.dedup();
+                    assert_eq!(sent, [next.clone()], "{rel} #{i}");
+                    pairs += 1;
+                    // from 300 short pairs before the first long HIGH to the last data HIGH
+                    let us = kinds(&upload);
+                    let b = us.as_bytes();
+                    let start = us.find('L').unwrap() - 600;
+                    let end = (0..b.len() - 1).rev().find(|&k| matches!(b[k], b'S' | b'L') && matches!(b[k + 1], b's' | b'l')).unwrap() + 1;
+                    shapes += usize::from(recording.contains(&us[start..end]));
+                } else if honda && next.button == Some(0x5) {
+                    let after = got.get(i + 2).filter(|a| a.button == Some(0xF) && a.counter == next.counter.map(|c| c.wrapping_add(1)));
+                    if let Some(after) = after {
+                        let sent = feed_all(&mut KiaV0Decoder::new(), &p.encode(now, 0x04).unwrap());
+                        assert_eq!(sent, [next.clone(), after.clone()], "{rel} #{i}: a trunk press");
+                        trunk += 1;
+                    }
+                }
+            }
+        }
+        // The 35 presses whose shape is not found have noise inside their recorded preamble (fewer than
+        // 300 clean pairs before the sync: two of the Civic files, both Xhorse files); their frames match.
+        assert_eq!((pairs, trunk, shapes), (760, 10, 725), "next presses, trunk presses, shapes found");
     }
 }

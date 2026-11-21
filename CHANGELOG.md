@@ -4,6 +4,44 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+## [1.21.0] - 2026-11-20
+
+The Kia V0 family checked against its recordings and against sources outside the Flipper firmwares: Honda V0 read and sent by the remote's own frame and check (its Lock no longer goes out as a Panic), every type's press sent once as the recorded remotes send it, and "Send next code" keeping the captured button.
+
+### Changed
+
+- **Honda V0 is read by its own frame** ([kia_v0.md](docs/kia_v0.md)), the Nidec / Omron remote of Hondas and
+  Acuras that rtl_433 decodes on its own: a 16-bit counter, the 24-bit id, a constant 5, the button and a check,
+  which is a CRC-8 (polynomial 0x21) over the counter and the button (rtl_433 calls it "not a checksum"). Every
+  one of the 1,360 frames KAT reads from nine remotes in the recordings passes it, and rtl_433's OEM recordings
+  do too. KAT now shows the id as sent (the references show its bytes bit-reversed), the check, and rtl_433's
+  button names: 3 Lock, 4 Unlock, 5 a trunk or panic press, F and 6 their long presses (the references called
+  a Lock "Unlock3" and a Panic "Lock2").
+- **The Kia V0 family sends the press the remotes send, once** (Kia, Suzuki, Mitsubishi and Honda V0). Re-encoded,
+  every recorded press is the remote's next press, all its bits, in all 760 cases the recordings hold, and the
+  upload is the recorded press pulse for pulse. The references send their upload three times; Kia's press now
+  closes with 1.5 ms as the fobs do (was 1.0), Mitsubishi's repeat follows 80 short pairs (was 81), and Honda's
+  preamble is the remote's 320 short pairs (was 40).
+- **Mitsubishi V0 buttons are shown as numbers**, and every TX command keeps the captured button. The 2011 Pajero
+  recorded sends 3, 4 and 6, which the references named with Kia's names (Trunk, Panic), and their Lock and
+  Unlock sent Kia's 1 and 2, which it never sends.
+
+### Fixed
+
+- **Honda V0 transmit sent the wrong buttons.** Lock went out as the panic button's long press and Trunk as a
+  code no remote sends, both with wrong checks, behind 40 preamble pairs where Omron's filings give 324 for the
+  receiver to wake up. Lock, Unlock, Trunk (5 then F) and Panic (5 then 6) now send the remote's codes.
+- **"Send next code" could send another button** for the Kia V0 family: the types' own codes overlap KAT's generic
+  ones (Suzuki's 4 is Unlock, the generic 4 Trunk), so a Suzuki Panic, Trunk or Unlock capture, a Kia Panic or a
+  Honda Unlock capture went out as another button. Encoders can now tell the captured button from a command
+  (`encode_next`).
+- **Honda V0 frames that also pass the Kia CRC** (one in 256) were lost, as in the references: the decoder waited
+  for a Kia gap that never comes. The five in the recordings are read now.
+- **The coverage map tied the 2005 Civic recordings to NHVWB1U521**, a Tohoku Alps remote whose filing gives
+  another signal (1 kbit/s, 256 ms a press); the recordings are a 433.92 MHz remote sending the Omron frame. The tie
+  is dropped (17 model-years less counted as read), and OUCG8D-387H-A, an Omron remote whose filing describes this
+  signal ("324 bit codes" of wake-up), joins the list with the pictures from its filing.
+
 ## [1.20.1] - 2026-11-20
 
 Chrysler V0 read and sent the way its fob builds its frames: the fob's own fixed code, button and 16-bit counter, checked by the frame's sum, where the references' model showed 160 serials for one fob; and transmit sends the fob's next press as the fob sends it.

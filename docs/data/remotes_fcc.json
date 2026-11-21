@@ -9640,6 +9640,34 @@
    ],
    "photos": []
   },
+  "OUCG8D-387H-A": {
+   "chips": [],
+   "notes": [],
+   "photos": [
+    {
+     "date": "2002-08-12",
+     "doc": 262738,
+     "exhibit": "Internal Photos",
+     "h": 584,
+     "page": 1,
+     "source": "https://fccid.io/OUCG8D-387H-A/Internal-Photos/Internal-Photos-262738.pdf",
+     "src": "img/fobs/oucg8d-387h-a/1.webp",
+     "thumb": "img/fobs/oucg8d-387h-a/1t.webp",
+     "w": 299
+    },
+    {
+     "date": "2002-08-12",
+     "doc": 262738,
+     "exhibit": "Internal Photos",
+     "h": 594,
+     "page": 2,
+     "source": "https://fccid.io/OUCG8D-387H-A/Internal-Photos/Internal-Photos-262738.pdf",
+     "src": "img/fobs/oucg8d-387h-a/2.webp",
+     "thumb": "img/fobs/oucg8d-387h-a/2t.webp",
+     "w": 282
+    }
+   ]
+  },
   "OUCG8D-399H-A": {
    "chips": [
     "upd789860",

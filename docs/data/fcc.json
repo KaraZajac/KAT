@@ -77,7 +77,7 @@
     "Honda V0",
     "Nidec RKE"
    ],
-   "signal": "313.85 MHz FSK, 1000 or 2000 bps, 324 sync bits + 64 data bits, one ~205 ms burst",
+   "signal": "313.85 MHz FSK, 1000 or 2000 bps, 324 sync bits + 56 data bits (a 16-bit counter, the 24-bit id, the button, a CRC-8; some remotes 8 more), one ~205 ms burst",
    "status": "read",
    "title": "Honda remotes (Omron G8D)"
   },
@@ -2186,25 +2186,6 @@
    "years": "2006-2017"
   },
   {
-   "evidence": "recording (the only remote listed for that car)",
-   "filing_read": false,
-   "frequency": "433 MHz",
-   "granted": "2000-02-25",
-   "id": "NHVWB1U521",
-   "maker": "Tohoku Alps Co Ltd",
-   "makes": [
-    "Honda"
-   ],
-   "model_years": 17,
-   "models": "Honda Accord, Honda Civic, Honda Element, Honda FIT, Honda Pilot",
-   "product": "Remote Keyless Entry TX",
-   "protocols": [
-    "Honda V0"
-   ],
-   "status": "read",
-   "years": "2001-2008"
-  },
-  {
    "evidence": "signal",
    "family": "gm-global-a",
    "filing_read": true,
@@ -2404,6 +2385,25 @@
    "frequency": "313.85 MHz",
    "granted": "2002-02-13",
    "id": "OUCG8D-380H-A",
+   "maker": "NIDEC MOBILITY CORPORATION",
+   "makes": [],
+   "model_years": 0,
+   "models": "",
+   "product": "Automotive Security Transmitter",
+   "protocols": [
+    "Honda V0",
+    "Nidec RKE"
+   ],
+   "status": "read",
+   "years": ""
+  },
+  {
+   "evidence": "reference",
+   "family": "honda-omron",
+   "filing_read": false,
+   "frequency": "",
+   "granted": "2002-08-12",
+   "id": "OUCG8D-387H-A",
    "maker": "NIDEC MOBILITY CORPORATION",
    "makes": [],
    "model_years": 0,

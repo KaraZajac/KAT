@@ -750,13 +750,13 @@
    "examples": [
     {
      "bits": 72,
-     "button": 6,
+     "button": 3,
      "counter": "1ABA",
      "data": "F0585D72D9E4CA9C",
      "extra": null,
      "file": "honda/more/HondaV0_72D9E4CA_300lck.sub",
      "name": "Honda V0",
-     "serial": "72D9E4"
+     "serial": "4E9B27"
     },
     {
      "bits": 72,
@@ -766,49 +766,41 @@
      "extra": null,
      "file": "honda/more/HondaV0_72D9E4CA_300trk.sub",
      "name": "Honda V0",
-     "serial": "72D9E4"
+     "serial": "4E9B27"
     },
     {
      "bits": 72,
-     "button": 7,
+     "button": 15,
      "counter": "1D05",
      "data": "F0B8A072D9E4FAA9",
      "extra": null,
      "file": "honda/more/HondaV0_72D9E4CA_300trk.sub",
      "name": "Honda V0",
-     "serial": "72D9E4"
+     "serial": "4E9B27"
     },
     {
      "bits": 72,
-     "button": 1,
+     "button": 4,
      "counter": "1BDC",
      "data": "F0D83B72D9E42AE8",
      "extra": null,
      "file": "honda/more/HondaV0_72D9E4CA_300ulk.sub",
      "name": "Honda V0",
-     "serial": "72D9E4"
+     "serial": "4E9B27"
     }
    ],
    "fields": {
     "button": {
-     "frames": 1453,
-     "how": "",
-     "offset": 13,
+     "frames": 1458,
+     "how": "reversed",
+     "offset": 12,
      "values": 5,
-     "width": 3,
-     "word": "data"
-    },
-    "serial": {
-     "frames": 1453,
-     "how": "",
-     "offset": 16,
-     "values": 10,
-     "width": 24,
+     "width": 4,
      "word": "data"
     }
    },
    "files": 24,
-   "frames": 1453
+   "frames": 1458
   },
   "Honda V1": {
    "bits": 68,
@@ -2335,59 +2327,6 @@
    },
    "files": 10,
    "frames": 958
-  },
-  "Nidec RKE": {
-   "bits": 57,
-   "examples": [
-    {
-     "bits": 57,
-     "button": 5,
-     "counter": "38A",
-     "data": "38A5F299755F400",
-     "extra": "F400",
-     "file": "honda/more/HondaV0_FA94E9CA_300trk.sub",
-     "name": "Nidec RKE",
-     "serial": "5F2997"
-    },
-    {
-     "bits": 57,
-     "button": 15,
-     "counter": "393",
-     "data": "3935F29975F9A00",
-     "extra": "9A00",
-     "file": "honda/more/HondaV0_FA94E9CA_300trk.sub",
-     "name": "Nidec RKE",
-     "serial": "5F2997"
-    }
-   ],
-   "fields": {
-    "button": {
-     "frames": 3,
-     "how": "",
-     "offset": 16,
-     "values": 3,
-     "width": 4,
-     "word": "data"
-    },
-    "counter": {
-     "frames": 3,
-     "how": "",
-     "offset": 48,
-     "values": 3,
-     "width": 12,
-     "word": "data"
-    },
-    "serial": {
-     "frames": 3,
-     "how": "",
-     "offset": 24,
-     "values": 2,
-     "width": 24,
-     "word": "data"
-    }
-   },
-   "files": 2,
-   "frames": 3
   },
   "Nissan V0": {
    "bits": 64,

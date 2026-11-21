@@ -34,10 +34,14 @@ bits (the missing tail is zero-padded, as rtl_433 does).
 | 0..1 | **counter** (16-bit sequence) |
 | 2..4 | **serial** (24-bit remote id) |
 | 5 | `5` (high nibble) and the 4-bit **button** |
-| 6..7 | security word (`extra`), a keyed authenticator that no CRC reproduces |
+| 6..7 | security word (`extra`), in FoxFW and rtl_433 a keyed authenticator |
 
-There is no checksum, so the decoder uses rtl_433's structural gate: high nibble of byte 5 is 5, id is not 0 or
-0xFFFFFF, sequence and security are not 0 or 0xFFFF, button is 3, 4, 5, 6 or 0xF. `crc_valid` stays false.
+The decoder uses rtl_433's structural gate, as FoxFW does: high nibble of byte 5 is 5, id is not 0 or 0xFFFFFF,
+sequence and security are not 0 or 0xFFFF, button is 3, 4, 5, 6 or 0xF. `crc_valid` stays false. The security word
+is not what the references say: its first byte is a CRC-8 (polynomial 0x21, init 0) over the sequence and the
+button, which every frame of the recorded remotes carries, and its second the extra byte some remotes send after
+Lock ([Kia V0](kia_v0.md#frame-layouts)). KAT's Honda V0, earlier in the registry, reads, checks and sends these
+remotes; this port of FoxFW's decoder is kept as FoxFW has it.
 `data` is the 8 bytes left-aligned, `data_count_bit` the bits captured (56..64).
 
 ## Transmit
@@ -52,11 +56,12 @@ decode or loaded key is encoder-capable (Replay of a recording still works).
 
 - **Encoding:** PWM (pulse width)
 - **RF modulation:** FM (FM476)
-- **Encryption:** rolling code with a keyed authenticator (not verifiable)
+- **Encryption:** none: a 16-bit counter and a CRC-8 over counter and button (FoxFW: a keyed authenticator)
 
 ## Validation
 
-- No capture exists in the corpus.
+- IMPORTS holds many recordings of these remotes (`honda/more/`); Honda V0 reads every frame of them first. Up to
+  1.20.1 it lost three, which this decoder then read.
 - Transmit: FoxFW's encoder on the host oracle (`subghz_oracle_foxfwenc encode`) refuses all of 117 made-up key files
   (56 to 64 bits with every button, frames its decoder's gate refuses, 55, 65 and 0 bits, a short Key: "deserialize
   failed", status -12), and KAT transmits none of them.

@@ -9749,14 +9749,9 @@
    "pulses": 266390,
    "reads": [
     {
-     "distinct": 299,
-     "frames": 299,
+     "distinct": 300,
+     "frames": 300,
      "protocol": "Honda V0"
-    },
-    {
-     "distinct": 1,
-     "frames": 1,
-     "protocol": "Nidec RKE"
     }
    ],
    "seconds": 293.95,
@@ -9773,8 +9768,8 @@
    "pulses": 323558,
    "reads": [
     {
-     "distinct": 308,
-     "frames": 308,
+     "distinct": 310,
+     "frames": 310,
      "protocol": "Honda V0"
     }
    ],
@@ -9792,14 +9787,9 @@
    "pulses": 70223,
    "reads": [
     {
-     "distinct": 23,
-     "frames": 23,
+     "distinct": 25,
+     "frames": 25,
      "protocol": "Honda V0"
-    },
-    {
-     "distinct": 2,
-     "frames": 2,
-     "protocol": "Nidec RKE"
     }
    ],
    "seconds": 22.32,

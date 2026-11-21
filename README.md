@@ -92,18 +92,18 @@ On Windows there is nothing to install here: the `.zip` carries the HackRF libra
 Then check, unpack and run (with your version and platform):
 
 ```bash
-sha256sum -c kat-v1.20.1-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
-tar xzf kat-v1.20.1-x86_64-linux.tar.gz
-./kat-v1.20.1-x86_64-linux/kat
+sha256sum -c kat-v1.21.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.21.0-x86_64-linux.tar.gz
+./kat-v1.21.0-x86_64-linux/kat
 ```
 
 On Windows, in PowerShell (Windows Terminal):
 
 ```powershell
-$want = (Get-Content kat-v1.20.1-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.20.1-x86_64-windows.zip).Hash -eq $want    # True
-Expand-Archive kat-v1.20.1-x86_64-windows.zip .
-.\kat-v1.20.1-x86_64-windows\kat.exe
+$want = (Get-Content kat-v1.21.0-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.21.0-x86_64-windows.zip).Hash -eq $want    # True
+Expand-Archive kat-v1.21.0-x86_64-windows.zip .
+.\kat-v1.21.0-x86_64-windows\kat.exe
 ```
 
 The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. The Windows build isn't signed, so SmartScreen may stop its first start ("More info", then "Run anyway"). Intel Macs and other platforms build from source.
@@ -408,7 +408,7 @@ Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference; pr
 
 | Protocol | Encoding | RF | Encryption | Frequency |
 |---|---|---|---|---|
-| Kia V0 / Suzuki V0 / Honda V0 / Mitsubishi V0 (61-bit) | PWM | AM/FM | Rolling Code (CRC8; encoder: counter + 1) | 315 / 433.92 MHz |
+| Kia V0 / Suzuki V0 / Honda V0 / Mitsubishi V0 (61-bit) | PWM | AM/FM | Rolling Code, not encrypted: a 16-bit counter and a CRC-8 (Honda: over counter and button); encoder: the remote's next press | 315 / 433.92 MHz |
 | Kia V1 | Manchester | AM | Rolling Code (CRC; encoder: counter + 1) | 315 / 433.92 MHz |
 | Kia V2 | Manchester | AM/FM | Rolling Code (CRC; encoder: counter + 1) | 315 / 433.92 MHz |
 | Kia V3 / Kia V4 | PWM | FM | KeeLoq (KIA key check, as in the references) | 315 / 433.92 MHz |

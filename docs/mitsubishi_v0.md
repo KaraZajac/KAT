@@ -22,6 +22,22 @@ name:
 The registry entry owns the name for TX: a 61-bit signal is encoded by Kia V0's Mitsubishi upload, a 96-bit
 one by the ARF encoder below.
 
+## 61-bit format
+
+The frame and its CRC-8 are Kia V0's ([Kia V0](kia_v0.md)). A press, as the 2011 Pajero recorded sends it (all
+four presses): a carrier of about 2.5 ms, 320 short pairs, the frame, HIGH 1.5 ms and LOW 1.5 ms, 80 short pairs,
+the frame again, HIGH 1.5 ms and LOW 1.5 ms. Its counter goes up by one with every press.
+
+- **Transmit:** the fob's next press, sent once: the counter + 1 and the press above (the second preamble 80 pairs;
+  the C sends 81, its 80 plus the short pair of the frame's cleared bit 60). Built from the press before, it is
+  the Pajero's next press pulse for pulse.
+- **Buttons:** shown as numbers ("Btn 0x3"). The Pajero sends 3, 4 and 6; no recording names its buttons and no
+  source gives the codes, so Lock, Unlock, Trunk and Panic all keep the captured button. (The C gives Mitsubishi
+  Kia's codes, 1 Lock and 2 Unlock, which this fob never sends.) The 96-bit format's codes are not known either.
+- **Remotes:** Omron's OUCG8D-620M-A (Outlander 2007–12, Endeavor, Eclipse and Galant 2006–07 in the parts
+  catalogues; FSK, 0.30 s a press) and OUCG8D-571M-A (433.92 MHz, 0.325 s; its test report's pulses fit the
+  80-pair repeat after a 1.5 ms gap) file this kind of signal. Which one the Pajero has is not known.
+
 ## 96-bit format
 
 | Parameter | Value | Notes |
@@ -77,3 +93,6 @@ does, and the C's reset forgets the first copy (`last_kia_data`). ProtoPirate's 
 
 **CRC column.** A 61-bit frame carries Kia V0's CRC-8 and shows OK or FAIL; a 96-bit frame has no check and shows
 "-". Up to 1.13.0 both showed "-".
+
+Up to 1.20.1 KAT named the 61-bit buttons with Kia's names (the Pajero's 3, 4 and 6 showed as Trunk, Panic and
+Other), sent Kia's 1 and 2 for Lock and Unlock, and put 81 short pairs before the second copy.

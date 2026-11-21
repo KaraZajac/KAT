@@ -79,17 +79,17 @@
    "some_remote_read": 0
   },
   {
-   "all_remotes_read": 64,
-   "filing_only": 27,
+   "all_remotes_read": 51,
+   "filing_only": 29,
    "likely_read": 4,
    "make": "Honda",
    "maybe_read": 0,
    "model_years": 170,
-   "nothing": 57,
+   "nothing": 72,
    "recorded_no_data": 0,
    "recorded_unread": 0,
    "signal_known": 0,
-   "some_remote_read": 82
+   "some_remote_read": 65
   },
   {
    "all_remotes_read": 1,
@@ -535,7 +535,7 @@
   }
  ],
  "catalogue": {
-  "fcc_ids_known": 1301,
+  "fcc_ids_known": 1303,
   "fcc_ids_with_cars": 285,
   "filings_read": 90,
   "model_years": 4067
@@ -1498,15 +1498,15 @@
   }
  ],
  "totals": {
-  "all_remotes_read": 296,
-  "filing_only": 322,
+  "all_remotes_read": 283,
+  "filing_only": 324,
   "likely_read": 307,
   "maybe_read": 0,
   "model_years": 4067,
-  "nothing": 2557,
+  "nothing": 2572,
   "recorded_no_data": 260,
   "recorded_unread": 168,
   "signal_known": 0,
-  "some_remote_read": 453
+  "some_remote_read": 436
  }
 }

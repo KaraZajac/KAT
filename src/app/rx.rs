@@ -264,6 +264,7 @@ impl RadioDevice {
             RadioDevice::HackRf(h) => h.iq_format(),
             RadioDevice::RtlSdr(r) => r.iq_format(),
             RadioDevice::Flipper(f) => f.iq_format(),
+            RadioDevice::Soapy(s) => s.iq_format(),
         }
     }
 
@@ -272,6 +273,7 @@ impl RadioDevice {
             RadioDevice::HackRf(h) => h.sample_rate(),
             RadioDevice::RtlSdr(r) => r.sample_rate(),
             RadioDevice::Flipper(f) => f.sample_rate(),
+            RadioDevice::Soapy(s) => s.sample_rate(),
         }
     }
 
@@ -281,6 +283,7 @@ impl RadioDevice {
             RadioDevice::HackRf(h) => h.rx_frequency(),
             RadioDevice::RtlSdr(r) => r.rx_frequency(),
             RadioDevice::Flipper(f) => f.rx_frequency(),
+            RadioDevice::Soapy(s) => s.rx_frequency(),
         }
     }
 
@@ -289,6 +292,7 @@ impl RadioDevice {
             RadioDevice::HackRf(h) => h.set_hopping(plan),
             RadioDevice::RtlSdr(r) => r.set_hopping(plan),
             RadioDevice::Flipper(f) => f.set_hopping(plan),
+            RadioDevice::Soapy(s) => s.set_hopping(plan),
         }
     }
 
@@ -297,6 +301,7 @@ impl RadioDevice {
             RadioDevice::HackRf(h) => h.hop_state(),
             RadioDevice::RtlSdr(r) => r.hop_state(),
             RadioDevice::Flipper(f) => f.hop_state(),
+            RadioDevice::Soapy(s) => s.hop_state(),
         }
     }
 
@@ -305,6 +310,7 @@ impl RadioDevice {
             RadioDevice::HackRf(h) => h.hop_pause(dwells),
             RadioDevice::RtlSdr(r) => r.hop_pause(dwells),
             RadioDevice::Flipper(f) => f.hop_pause(dwells),
+            RadioDevice::Soapy(s) => s.hop_pause(dwells),
         }
     }
 
@@ -313,6 +319,7 @@ impl RadioDevice {
             RadioDevice::HackRf(h) => h.start_recording(path),
             RadioDevice::RtlSdr(r) => r.start_recording(path),
             RadioDevice::Flipper(f) => f.start_recording(path),
+            RadioDevice::Soapy(s) => s.start_recording(path),
         }
     }
 
@@ -321,6 +328,7 @@ impl RadioDevice {
             RadioDevice::HackRf(h) => h.stop_recording(),
             RadioDevice::RtlSdr(r) => r.stop_recording(),
             RadioDevice::Flipper(f) => f.stop_recording(),
+            RadioDevice::Soapy(s) => s.stop_recording(),
         }
     }
 
@@ -329,6 +337,7 @@ impl RadioDevice {
             RadioDevice::HackRf(h) => h.recording_status(),
             RadioDevice::RtlSdr(r) => r.recording_status(),
             RadioDevice::Flipper(f) => f.recording_status(),
+            RadioDevice::Soapy(s) => s.recording_status(),
         }
     }
 
@@ -337,6 +346,7 @@ impl RadioDevice {
             RadioDevice::HackRf(h) => h.take_ended_recording(),
             RadioDevice::RtlSdr(r) => r.take_ended_recording(),
             RadioDevice::Flipper(f) => f.take_ended_recording(),
+            RadioDevice::Soapy(s) => s.take_ended_recording(),
         }
     }
 }

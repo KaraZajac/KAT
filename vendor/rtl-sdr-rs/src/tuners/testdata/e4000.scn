@@ -1,0 +1,93 @@
+# librtlsdr's E4000 driver: init, tuning across its bands with the PLL reported locked, then
+# not locked, IF filter bandwidths, gains, standby, and a clock it refuses.
+tuner e4000
+init
+ovr c8 07 ff 01
+freq 50000000
+freq 52000000
+freq 72399999
+freq 72400000
+freq 81200000
+freq 100000000
+freq 108300000
+freq 139999999
+freq 140000000
+freq 162500000
+freq 200000000
+freq 216600000
+freq 300000000
+freq 325000000
+freq 349999999
+freq 350000000
+freq 390000000
+freq 431999999
+freq 432000000
+freq 500000000
+freq 666999999
+freq 667000000
+freq 1000000000
+freq 1134999999
+freq 1135000000
+freq 1199999999
+freq 1200000000
+freq 1300000000
+freq 1500000000
+freq 1700000000
+freq 1760000000
+freq 2200000000
+freq 299750000
+freq 303625000
+freq 309750000
+freq 314750000
+freq 317750000
+freq 389750000
+freq 417750000
+freq 433170000
+freq 433670000
+freq 434170000
+freq 868100000
+freq 914750000
+ovr c8 07 fe 00
+freq 433670000
+ovr c8 07 ff 01
+bw 1000000
+bw 2000000
+bw 2400000
+bw 2560000
+bw 3200000
+bw 5000000
+bw 8000000
+bw 27000000
+gainmode 1
+gain -10
+gain 15
+gain 40
+gain 65
+gain 90
+gain 115
+gain 140
+gain 165
+gain 190
+gain 215
+gain 240
+gain 290
+gain 340
+gain 420
+gain 0
+gain 100
+gain 500
+gain -50
+gainmode 0
+gainmode 1
+exit
+init
+freq 868100000
+tuner e4000
+xtal 15000000
+init
+freq 433670000
+tuner e4000
+xtal 28801000
+init
+ovr c8 07 ff 01
+freq 433670000

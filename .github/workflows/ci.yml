@@ -31,6 +31,10 @@ jobs:
       - name: Test
         run: cargo test --locked
 
+      # The vendored RTL-SDR driver: its ported tuner drivers against librtlsdr's I2C traces.
+      - name: Test the RTL-SDR driver
+        run: cargo test --locked -p rtl-sdr-rs --features rtl-sdr-rs/gpl-tuners
+
   # Windows x64 with MSYS2's UCRT64 environment, which packages Rust, libusb and the HackRF
   # library. Each run also uploads a test build: kat.exe with the DLLs it loads.
   windows:
@@ -64,7 +68,7 @@ jobs:
           cargo build --release --locked
           name="kat-${GITHUB_SHA::7}-x86_64-windows"
           mkdir -p "dist/$name"
-          cp target/release/kat.exe README.md LICENSE CHANGELOG.md "dist/$name/"
+          cp target/release/kat.exe README.md LICENSE COPYING CHANGELOG.md "dist/$name/"
           # The DLLs kat.exe loads from MSYS2: libhackrf, libusb and winpthreads.
           ldd target/release/kat.exe | awk '$3 ~ /^\/ucrt64\// {print $3}' | sort -u | xargs -r cp -t "dist/$name/"
           ls -l "dist/$name"

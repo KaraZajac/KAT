@@ -22,10 +22,32 @@ use super::hopper::HopPlan;
 use super::recorder::{RecordingStatus, RecordingSummary};
 use super::rx::{lo_for, LiveRx, LiveShared};
 
+use rtl_sdr_rs::error::RtlsdrError;
 use rtl_sdr_rs::{DeviceId, RtlSdr, TunerGain};
 
 /// Sample rate (2 MHz, same as HackRF path for keyfob signals)
 const SAMPLE_RATE: u32 = 2_000_000;
+
+/// What KAT says of a dongle whose tuner its RTL-SDR driver (vendor/rtl-sdr-rs) does not know.
+#[cfg(feature = "gpl-tuners")]
+const UNKNOWN_TUNER: &str = "its tuner is not one KAT knows (KAT reads dongles with an R820T, R820T2, \
+R828D, E4000, FC0012, FC0013 or FC2580 tuner)";
+#[cfg(not(feature = "gpl-tuners"))]
+const UNKNOWN_TUNER: &str = "its tuner is not one this KAT knows (built without the gpl-tuners \
+feature, it reads only R820T, R820T2 and R828D dongles)";
+
+/// `RtlSdr::open`, with a tuner the driver does not know put in words.
+fn open_dongle(id: DeviceId<'_>) -> Result<RtlSdr> {
+    RtlSdr::open(id).map_err(open_error)
+}
+
+/// The driver's open error, a tuner it does not know in words.
+fn open_error(e: RtlsdrError) -> anyhow::Error {
+    match e {
+        RtlsdrError::UnknownTuner => anyhow::anyhow!(UNKNOWN_TUNER),
+        e => e.into(),
+    }
+}
 
 /// Tuner gain setting for RTL-SDR (manual gain in 0.1 dB units; None = auto)
 #[derive(Debug, Clone, Copy, Default)]
@@ -236,6 +258,10 @@ fn check_rtlsdr_available() -> Result<(), String> {
             }
             Ok(())
         }
+        Err(RtlsdrError::UnknownTuner) => {
+            tracing::warn!("RTL-SDR not available: no tuner its driver knows");
+            Err(format!("found, but {UNKNOWN_TUNER}"))
+        }
         Err(e) => {
             // Logged at warn (the default `kat=info` filter drops debug), so kat.log tells a
             // permission problem or the DVB-T driver from a missing dongle.
@@ -294,10 +320,11 @@ fn run_receiver_rtlsdr(
 
     tracing::info!("RTL-SDR receiver thread starting ({device:?})...");
 
-    let mut sdr = RtlSdr::open(device.id()).with_context(|| match device {
+    let mut sdr = open_dongle(device.id()).with_context(|| match device {
         RtlDevice::Serial(s) => format!("Failed to open RTL-SDR {s}"),
         RtlDevice::Index(i) => format!("Failed to open RTL-SDR #{i}"),
     })?;
+    tracing::info!("RTL-SDR tuner: {}", sdr.get_tuner_id().unwrap_or("?"));
 
     let freq = live.start_frequency();
     live.target.store(freq, Ordering::SeqCst);
@@ -467,5 +494,14 @@ mod tests {
         assert!(describe_open_error("Error: NotSupported").contains(super::super::USB_ACCESS_HINT));
         assert!(describe_open_error("Resource busy").contains(if cfg!(windows) { "another program" } else { "dvb_usb_rtl28xxu" }));
         assert_eq!(describe_open_error("Pipe error"), "cannot be opened (Pipe error)");
+    }
+
+    /// A dongle whose tuner the driver does not know (it used to panic: "Failed to find tuner,
+    /// aborting", and take the terminal with it) is an error that names the tuners KAT reads.
+    #[test]
+    fn an_unknown_tuner_in_words() {
+        let words = format!("{:#}", open_error(RtlsdrError::UnknownTuner));
+        assert!(words.contains("R820T") && words.contains("R828D"), "{words}");
+        assert_eq!(words.contains("FC0013"), cfg!(feature = "gpl-tuners"), "{words}");
     }
 }

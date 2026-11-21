@@ -238,6 +238,10 @@ impl Drop for TerminalGuard {
 }
 
 fn main() -> Result<()> {
+    // KAT's SoapySDR helper (src/radio/soapy): a process of its own, started by KAT, never a TUI.
+    if std::env::args().nth(1).as_deref() == Some(radio::SOAPY_HELPER_FLAG) {
+        std::process::exit(radio::soapy_helper_main(std::env::args().skip(2)));
+    }
     let cli = match parse_args(std::env::args().skip(1)) {
         Ok(CliAction::Run(opts)) => opts,
         Ok(CliAction::Decode(opts)) => std::process::exit(headless::run(&opts)),

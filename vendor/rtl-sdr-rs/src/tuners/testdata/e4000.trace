@@ -1,0 +1,1347 @@
+> tuner e4000
+> init
+W c8: 00
+R c8: 00
+W c8: 00 07
+W c8: 05 00
+W c8: 06 00
+W c8: 7a 96
+W c8: 7e 01
+W c8: 7f fe
+W c8: 82 00
+W c8: 86 50
+W c8: 87 20
+W c8: 88 01
+W c8: 9f 7f
+W c8: a0 07
+W c8: 1d 10
+W c8: 1e 04
+W c8: 1f 1a
+W c8: 1a
+R c8: 00
+W c8: 20
+R c8: 00
+W c8: 1a
+R c8: 00
+W c8: 1a 09
+W c8: 20
+R c8: 00
+W c8: 20 01
+W c8: 24
+R c8: 00
+W c8: 16
+R c8: 00
+W c8: 16 01
+W c8: 16
+R c8: 01
+W c8: 16
+R c8: 01
+W c8: 16
+R c8: 01
+W c8: 17
+R c8: 00
+W c8: 17 02
+W c8: 17
+R c8: 02
+W c8: 17 12
+W c8: 11
+R c8: 00
+W c8: 11
+R c8: 00
+W c8: 11 f0
+W c8: 11
+R c8: f0
+W c8: 11
+R c8: f0
+W c8: 11 ff
+W c8: 12
+R c8: 00
+W c8: 12
+R c8: 00
+W c8: 12 1f
+W c8: 12
+R c8: 1f
+W c8: 2d
+R c8: 00
+W c8: 70
+R c8: 00
+W c8: 71
+R c8: 00
+= ok
+> ovr c8 07 ff 01
+> freq 50000000
+W c8: 0d 0f
+W c8: 09 53
+W c8: 0a 55
+W c8: 0b 55
+W c8: 78 03
+W c8: 07
+R c8: 01
+W c8: 07
+R c8: 01
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 01
+= ok
+> freq 52000000
+W c8: 0d 0f
+W c8: 09 56
+W c8: 0a aa
+W c8: 0b aa
+W c8: 78 03
+W c8: 07
+R c8: 01
+W c8: 07
+R c8: 01
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 01
+= ok
+> freq 72399999
+W c8: 0d 0f
+W c8: 09 78
+W c8: 0a aa
+W c8: 0b aa
+W c8: 78 03
+W c8: 07
+R c8: 01
+W c8: 07
+R c8: 01
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 01
+= ok
+> freq 72400000
+W c8: 0d 0e
+W c8: 09 64
+W c8: 0a 38
+W c8: 0b 8e
+W c8: 78 03
+W c8: 07
+R c8: 01
+W c8: 07
+R c8: 01
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 01
+= ok
+> freq 81200000
+W c8: 0d 0d
+W c8: 09 5a
+W c8: 0a e3
+W c8: 0b 38
+W c8: 78 03
+W c8: 07
+R c8: 01
+W c8: 07
+R c8: 01
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 01
+= ok
+> freq 100000000
+W c8: 0d 0d
+W c8: 09 6f
+W c8: 0a 71
+W c8: 0b 1c
+W c8: 78 03
+W c8: 07
+R c8: 01
+W c8: 07
+R c8: 01
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 01
+= ok
+> freq 108300000
+W c8: 0d 0c
+W c8: 09 5a
+W c8: 0a 00
+W c8: 0b 40
+W c8: 78 03
+W c8: 07
+R c8: 01
+W c8: 07
+R c8: 01
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 01
+= ok
+> freq 139999999
+W c8: 0d 0c
+W c8: 09 74
+W c8: 0a aa
+W c8: 0b aa
+W c8: 78 03
+W c8: 07
+R c8: 01
+W c8: 07
+R c8: 01
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 01
+= ok
+> freq 140000000
+W c8: 0d 0c
+W c8: 09 74
+W c8: 0a aa
+W c8: 0b aa
+W c8: 78 03
+W c8: 07
+R c8: 01
+W c8: 07
+R c8: 01
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 01
+= ok
+> freq 162500000
+W c8: 0d 0b
+W c8: 09 5a
+W c8: 0a 1c
+W c8: 0b 47
+W c8: 78 03
+W c8: 07
+R c8: 01
+W c8: 07
+R c8: 01
+W c8: 07 03
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 03
+= ok
+> freq 200000000
+W c8: 0d 0b
+W c8: 09 6f
+W c8: 0a 71
+W c8: 0b 1c
+W c8: 78 03
+W c8: 07
+R c8: 03
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 03
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 03
+= ok
+> freq 216600000
+W c8: 0d 0a
+W c8: 09 5a
+W c8: 0a 00
+W c8: 0b 40
+W c8: 78 03
+W c8: 07
+R c8: 03
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 03
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 03
+= ok
+> freq 300000000
+W c8: 0d 0a
+W c8: 09 7d
+W c8: 0a 00
+W c8: 0b 00
+W c8: 78 03
+W c8: 07
+R c8: 03
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 03
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 03
+= ok
+> freq 325000000
+W c8: 0d 09
+W c8: 09 5a
+W c8: 0a 1c
+W c8: 0b 47
+W c8: 78 03
+W c8: 07
+R c8: 03
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 03
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 03
+= ok
+> freq 349999999
+W c8: 0d 09
+W c8: 09 61
+W c8: 0a e3
+W c8: 0b 38
+W c8: 78 03
+W c8: 07
+R c8: 03
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 03
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 03
+= ok
+> freq 350000000
+W c8: 0d 03
+W c8: 09 61
+W c8: 0a e3
+W c8: 0b 38
+W c8: 78 03
+W c8: 07
+R c8: 03
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 03
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 03
+= ok
+> freq 390000000
+W c8: 0d 03
+W c8: 09 6c
+W c8: 0a 55
+W c8: 0b 55
+W c8: 78 03
+W c8: 07
+R c8: 03
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 00
+W c8: 10 01
+W c8: 07
+R c8: 05
+= ok
+> freq 431999999
+W c8: 0d 03
+W c8: 09 77
+W c8: 0a ff
+W c8: 0b ff
+W c8: 78 03
+W c8: 07
+R c8: 05
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 01
+W c8: 10 03
+W c8: 07
+R c8: 05
+= ok
+> freq 432000000
+W c8: 0d 02
+W c8: 09 5a
+W c8: 0a 00
+W c8: 0b 00
+W c8: 78 03
+W c8: 07
+R c8: 05
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 03
+W c8: 07
+R c8: 05
+= ok
+> freq 500000000
+W c8: 0d 02
+W c8: 09 68
+W c8: 0a aa
+W c8: 0b 2a
+W c8: 78 03
+W c8: 07
+R c8: 05
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 03
+W c8: 10 06
+W c8: 07
+R c8: 05
+= ok
+> freq 666999999
+W c8: 0d 02
+W c8: 09 8a
+W c8: 0a 55
+W c8: 0b f5
+W c8: 78 03
+W c8: 07
+R c8: 05
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 06
+W c8: 10 0a
+W c8: 07
+R c8: 05
+= ok
+> freq 667000000
+W c8: 0d 01
+W c8: 09 5c
+W c8: 0a 8e
+W c8: 0b a3
+W c8: 78 03
+W c8: 07
+R c8: 05
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 0a
+W c8: 07
+R c8: 05
+= ok
+> freq 1000000000
+W c8: 0d 01
+W c8: 09 8a
+W c8: 0a 8e
+W c8: 0b e3
+W c8: 78 03
+W c8: 07
+R c8: 05
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 0a
+W c8: 10 0f
+W c8: 07
+R c8: 05
+= ok
+> freq 1134999999
+W c8: 0d 01
+W c8: 09 9d
+W c8: 0a 8e
+W c8: 0b a3
+W c8: 78 03
+W c8: 07
+R c8: 05
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 0f
+W c8: 07
+R c8: 05
+= ok
+> freq 1135000000
+W c8: 0d 01
+W c8: 09 9d
+W c8: 0a 8e
+W c8: 0b a3
+W c8: 78 03
+W c8: 07
+R c8: 05
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 0f
+W c8: 07
+R c8: 05
+= ok
+> freq 1199999999
+W c8: 0d 01
+W c8: 09 a6
+W c8: 0a aa
+W c8: 0b aa
+W c8: 78 00
+W c8: 07
+R c8: 05
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 07
+W c8: 10
+R c8: 0f
+W c8: 10 00
+W c8: 07
+R c8: 07
+= ok
+> freq 1200000000
+W c8: 0d 00
+W c8: 09 53
+W c8: 0a 55
+W c8: 0b 55
+W c8: 78 00
+W c8: 07
+R c8: 07
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 07
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 07
+= ok
+> freq 1300000000
+W c8: 0d 00
+W c8: 09 5a
+W c8: 0a 1c
+W c8: 0b 47
+W c8: 78 00
+W c8: 07
+R c8: 07
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 07
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 07
+= ok
+> freq 1500000000
+W c8: 0d 00
+W c8: 09 68
+W c8: 0a aa
+W c8: 0b 2a
+W c8: 78 00
+W c8: 07
+R c8: 07
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 07
+W c8: 10
+R c8: 00
+W c8: 10 06
+W c8: 07
+R c8: 07
+= ok
+> freq 1700000000
+W c8: 0d 00
+W c8: 09 76
+W c8: 0a 38
+W c8: 0b 0e
+W c8: 78 00
+W c8: 07
+R c8: 07
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 07
+W c8: 10
+R c8: 06
+W c8: 10 0d
+W c8: 07
+R c8: 07
+= ok
+> freq 1760000000
+W c8: 0d 00
+W c8: 09 7a
+W c8: 0a e3
+W c8: 0b 38
+W c8: 78 00
+W c8: 07
+R c8: 07
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 07
+W c8: 10
+R c8: 0d
+W c8: 10 0f
+W c8: 07
+R c8: 07
+= ok
+> freq 2200000000
+W c8: 0d 00
+W c8: 09 98
+W c8: 0a 1c
+W c8: 0b c7
+W c8: 78 00
+W c8: 07
+R c8: 07
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 07
+W c8: 10
+R c8: 0f
+W c8: 07
+R c8: 07
+= ok
+> freq 299750000
+W c8: 0d 0a
+W c8: 09 7c
+W c8: 0a 55
+W c8: 0b e5
+W c8: 78 03
+W c8: 07
+R c8: 07
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 03
+W c8: 10
+R c8: 0f
+W c8: 10 00
+W c8: 07
+R c8: 03
+= ok
+> freq 303625000
+W c8: 0d 0a
+W c8: 09 7e
+W c8: 0a aa
+W c8: 0b 82
+W c8: 78 03
+W c8: 07
+R c8: 03
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 03
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 03
+= ok
+> freq 309750000
+W c8: 0d 0a
+W c8: 09 81
+W c8: 0a 00
+W c8: 0b 10
+W c8: 78 03
+W c8: 07
+R c8: 03
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 03
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 03
+= ok
+> freq 314750000
+W c8: 0d 0a
+W c8: 09 83
+W c8: 0a 55
+W c8: 0b 25
+W c8: 78 03
+W c8: 07
+R c8: 03
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 03
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 03
+= ok
+> freq 317750000
+W c8: 0d 0a
+W c8: 09 84
+W c8: 0a 55
+W c8: 0b 65
+W c8: 78 03
+W c8: 07
+R c8: 03
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 03
+W c8: 10
+R c8: 00
+W c8: 07
+R c8: 03
+= ok
+> freq 389750000
+W c8: 0d 03
+W c8: 09 6c
+W c8: 0a 8e
+W c8: 0b 43
+W c8: 78 03
+W c8: 07
+R c8: 03
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 00
+W c8: 10 01
+W c8: 07
+R c8: 05
+= ok
+> freq 417750000
+W c8: 0d 03
+W c8: 09 74
+W c8: 0a aa
+W c8: 0b 0a
+W c8: 78 03
+W c8: 07
+R c8: 05
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 01
+W c8: 10 03
+W c8: 07
+R c8: 05
+= ok
+> freq 433170000
+W c8: 0d 02
+W c8: 09 5a
+W c8: 0a 66
+W c8: 0b 3e
+W c8: 78 03
+W c8: 07
+R c8: 05
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 03
+W c8: 07
+R c8: 05
+= ok
+> freq 433670000
+W c8: 0d 02
+W c8: 09 5a
+W c8: 0a 11
+W c8: 0b 59
+W c8: 78 03
+W c8: 07
+R c8: 05
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 03
+W c8: 07
+R c8: 05
+= ok
+> freq 434170000
+W c8: 0d 02
+W c8: 09 5a
+W c8: 0a bb
+W c8: 0b 73
+W c8: 78 03
+W c8: 07
+R c8: 05
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 03
+W c8: 07
+R c8: 05
+= ok
+> freq 868100000
+W c8: 0d 01
+W c8: 09 78
+W c8: 0a c7
+W c8: 0b 91
+W c8: 78 03
+W c8: 07
+R c8: 05
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 03
+W c8: 10 0e
+W c8: 07
+R c8: 05
+= ok
+> freq 914750000
+W c8: 0d 01
+W c8: 09 7f
+W c8: 0a 71
+W c8: 0b 0c
+W c8: 78 03
+W c8: 07
+R c8: 05
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 0e
+W c8: 07
+R c8: 05
+= ok
+> ovr c8 07 fe 00
+> freq 433670000
+W c8: 0d 02
+W c8: 09 5a
+W c8: 0a 11
+W c8: 0b 59
+W c8: 78 03
+W c8: 07
+R c8: 04
+W c8: 07 00
+W c8: 07
+R c8: 00
+W c8: 07 04
+W c8: 10
+R c8: 0e
+W c8: 10 03
+W c8: 07
+R c8: 04
+= err
+> ovr c8 07 ff 01
+> bw 1000000
+W c8: 11
+R c8: ff
+W c8: 11
+R c8: ff
+W c8: 11
+R c8: ff
+W c8: 11
+R c8: ff
+W c8: 12
+R c8: 1f
+W c8: 12
+R c8: 1f
+= ok
+> bw 2000000
+W c8: 11
+R c8: ff
+W c8: 11
+R c8: ff
+W c8: 11
+R c8: ff
+W c8: 11
+R c8: ff
+W c8: 11 fd
+W c8: 12
+R c8: 1f
+W c8: 12
+R c8: 1f
+= ok
+> bw 2400000
+W c8: 11
+R c8: fd
+W c8: 11
+R c8: fd
+W c8: 11 ed
+W c8: 11
+R c8: ed
+W c8: 11
+R c8: ed
+W c8: 11 ec
+W c8: 12
+R c8: 1f
+W c8: 12
+R c8: 1f
+W c8: 12 1a
+= ok
+> bw 2560000
+W c8: 11
+R c8: ec
+W c8: 11
+R c8: ec
+W c8: 11 dc
+W c8: 11
+R c8: dc
+W c8: 11
+R c8: dc
+W c8: 12
+R c8: 1a
+W c8: 12
+R c8: 1a
+W c8: 12 17
+= ok
+> bw 3200000
+W c8: 11
+R c8: dc
+W c8: 11
+R c8: dc
+W c8: 11 cc
+W c8: 11
+R c8: cc
+W c8: 11
+R c8: cc
+W c8: 11 cb
+W c8: 12
+R c8: 17
+W c8: 12
+R c8: 17
+W c8: 12 0e
+= ok
+> bw 5000000
+W c8: 11
+R c8: cb
+W c8: 11
+R c8: cb
+W c8: 11 8b
+W c8: 11
+R c8: 8b
+W c8: 11
+R c8: 8b
+W c8: 11 89
+W c8: 12
+R c8: 0e
+W c8: 12
+R c8: 0e
+W c8: 12 02
+= ok
+> bw 8000000
+W c8: 11
+R c8: 89
+W c8: 11
+R c8: 89
+W c8: 11
+R c8: 89
+W c8: 11
+R c8: 89
+W c8: 11 87
+W c8: 12
+R c8: 02
+W c8: 12
+R c8: 02
+W c8: 12 00
+= ok
+> bw 27000000
+W c8: 11
+R c8: 87
+W c8: 11
+R c8: 87
+W c8: 11 07
+W c8: 11
+R c8: 07
+W c8: 11
+R c8: 07
+W c8: 11 00
+W c8: 12
+R c8: 00
+W c8: 12
+R c8: 00
+= ok
+> gainmode 1
+W c8: 1a
+R c8: 09
+W c8: 1a 00
+W c8: 20
+R c8: 01
+W c8: 20 00
+= ok
+> gain -10
+W c8: 14
+R c8: 00
+W c8: 15
+R c8: 00
+= ok
+> gain 15
+W c8: 14
+R c8: 00
+W c8: 14 01
+W c8: 15
+R c8: 00
+= ok
+> gain 40
+W c8: 14
+R c8: 01
+W c8: 14 04
+W c8: 15
+R c8: 00
+= ok
+> gain 65
+W c8: 14
+R c8: 04
+W c8: 14 05
+W c8: 15
+R c8: 00
+= ok
+> gain 90
+W c8: 14
+R c8: 05
+W c8: 14 06
+W c8: 15
+R c8: 00
+= ok
+> gain 115
+W c8: 14
+R c8: 06
+W c8: 14 07
+W c8: 15
+R c8: 00
+= ok
+> gain 140
+W c8: 14
+R c8: 07
+W c8: 14 08
+W c8: 15
+R c8: 00
+= ok
+> gain 165
+W c8: 14
+R c8: 08
+W c8: 14 09
+W c8: 15
+R c8: 00
+= ok
+> gain 190
+W c8: 14
+R c8: 09
+W c8: 14 0a
+W c8: 15
+R c8: 00
+= ok
+> gain 215
+W c8: 14
+R c8: 0a
+W c8: 14 0b
+W c8: 15
+R c8: 00
+= ok
+> gain 240
+W c8: 14
+R c8: 0b
+W c8: 14 0c
+W c8: 15
+R c8: 00
+= ok
+> gain 290
+W c8: 14
+R c8: 0c
+W c8: 14 0d
+W c8: 15
+R c8: 00
+= ok
+> gain 340
+W c8: 14
+R c8: 0d
+W c8: 14 0e
+W c8: 15
+R c8: 00
+= ok
+> gain 420
+W c8: 14
+R c8: 0e
+W c8: 15
+R c8: 00
+W c8: 15 01
+= ok
+> gain 0
+= err
+> gain 100
+= err
+> gain 500
+W c8: 14
+R c8: 0e
+W c8: 15
+R c8: 01
+= ok
+> gain -50
+= err
+> gainmode 0
+W c8: 1a
+R c8: 00
+W c8: 1a 09
+W c8: 20
+R c8: 00
+W c8: 20 01
+W c8: 24
+R c8: 00
+= ok
+> gainmode 1
+W c8: 1a
+R c8: 09
+W c8: 1a 00
+W c8: 20
+R c8: 01
+W c8: 20 00
+= ok
+> exit
+W c8: 00
+R c8: 07
+W c8: 00 05
+= ok
+> init
+W c8: 00
+R c8: 05
+W c8: 00 07
+W c8: 05 00
+W c8: 06 00
+W c8: 7a 96
+W c8: 7e 01
+W c8: 7f fe
+W c8: 82 00
+W c8: 86 50
+W c8: 87 20
+W c8: 88 01
+W c8: 9f 7f
+W c8: a0 07
+W c8: 1d 10
+W c8: 1e 04
+W c8: 1f 1a
+W c8: 1a
+R c8: 00
+W c8: 20
+R c8: 00
+W c8: 1a
+R c8: 00
+W c8: 1a 09
+W c8: 20
+R c8: 00
+W c8: 20 01
+W c8: 24
+R c8: 00
+W c8: 16
+R c8: 01
+W c8: 16
+R c8: 01
+W c8: 16
+R c8: 01
+W c8: 16
+R c8: 01
+W c8: 17
+R c8: 12
+W c8: 17
+R c8: 12
+W c8: 11
+R c8: 00
+W c8: 11
+R c8: 00
+W c8: 11 f0
+W c8: 11
+R c8: f0
+W c8: 11
+R c8: f0
+W c8: 11 ff
+W c8: 12
+R c8: 00
+W c8: 12
+R c8: 00
+W c8: 12 1f
+W c8: 12
+R c8: 1f
+W c8: 2d
+R c8: 00
+W c8: 70
+R c8: 00
+W c8: 71
+R c8: 00
+= ok
+> freq 868100000
+W c8: 0d 01
+W c8: 09 78
+W c8: 0a c7
+W c8: 0b 91
+W c8: 78 03
+W c8: 07
+R c8: 05
+W c8: 07 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 03
+W c8: 10 0e
+W c8: 07
+R c8: 05
+= ok
+> tuner e4000
+> xtal 15000000
+> init
+W c8: 00
+R c8: 00
+W c8: 00 07
+W c8: 05 00
+W c8: 06 00
+W c8: 7a 96
+W c8: 7e 01
+W c8: 7f fe
+W c8: 82 00
+W c8: 86 50
+W c8: 87 20
+W c8: 88 01
+W c8: 9f 7f
+W c8: a0 07
+W c8: 1d 10
+W c8: 1e 04
+W c8: 1f 1a
+W c8: 1a
+R c8: 00
+W c8: 20
+R c8: 00
+W c8: 1a
+R c8: 00
+W c8: 1a 09
+W c8: 20
+R c8: 00
+W c8: 20 01
+W c8: 24
+R c8: 00
+W c8: 16
+R c8: 00
+W c8: 16 01
+W c8: 16
+R c8: 01
+W c8: 16
+R c8: 01
+W c8: 16
+R c8: 01
+W c8: 17
+R c8: 00
+W c8: 17 02
+W c8: 17
+R c8: 02
+W c8: 17 12
+W c8: 11
+R c8: 00
+W c8: 11
+R c8: 00
+W c8: 11 f0
+W c8: 11
+R c8: f0
+W c8: 11
+R c8: f0
+W c8: 11 ff
+W c8: 12
+R c8: 00
+W c8: 12
+R c8: 00
+W c8: 12 1f
+W c8: 12
+R c8: 1f
+W c8: 2d
+R c8: 00
+W c8: 70
+R c8: 00
+W c8: 71
+R c8: 00
+= ok
+> freq 433670000
+= err
+> tuner e4000
+> xtal 28801000
+> init
+W c8: 00
+R c8: 00
+W c8: 00 07
+W c8: 05 00
+W c8: 06 00
+W c8: 7a 96
+W c8: 7e 01
+W c8: 7f fe
+W c8: 82 00
+W c8: 86 50
+W c8: 87 20
+W c8: 88 01
+W c8: 9f 7f
+W c8: a0 07
+W c8: 1d 10
+W c8: 1e 04
+W c8: 1f 1a
+W c8: 1a
+R c8: 00
+W c8: 20
+R c8: 00
+W c8: 1a
+R c8: 00
+W c8: 1a 09
+W c8: 20
+R c8: 00
+W c8: 20 01
+W c8: 24
+R c8: 00
+W c8: 16
+R c8: 00
+W c8: 16 01
+W c8: 16
+R c8: 01
+W c8: 16
+R c8: 01
+W c8: 16
+R c8: 01
+W c8: 17
+R c8: 00
+W c8: 17 02
+W c8: 17
+R c8: 02
+W c8: 17 12
+W c8: 11
+R c8: 00
+W c8: 11
+R c8: 00
+W c8: 11 f0
+W c8: 11
+R c8: f0
+W c8: 11
+R c8: f0
+W c8: 11 ff
+W c8: 12
+R c8: 00
+W c8: 12
+R c8: 00
+W c8: 12 1f
+W c8: 12
+R c8: 1f
+W c8: 2d
+R c8: 00
+W c8: 70
+R c8: 00
+W c8: 71
+R c8: 00
+= ok
+> ovr c8 07 ff 01
+> freq 433670000
+W c8: 0d 02
+W c8: 09 5a
+W c8: 0a 43
+W c8: 0b 58
+W c8: 78 03
+W c8: 07
+R c8: 01
+W c8: 07
+R c8: 01
+W c8: 07 05
+W c8: 10
+R c8: 00
+W c8: 10 03
+W c8: 07
+R c8: 05
+= ok

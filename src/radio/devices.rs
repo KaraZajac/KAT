@@ -1,6 +1,6 @@
-//! Which radios are plugged in: HackRFs, RTL-SDRs and Flipper Zeros, each with what tells it from
-//! another of its kind (a serial number, a serial port), so KAT opens that one every time it
-//! receives or transmits with it.
+//! Which radios are plugged in: HackRFs, RTL-SDRs, Flipper Zeros and the radios SoapySDR drives,
+//! each with what tells it from another of its kind (a serial number, a serial port, SoapySDR's
+//! arguments), so KAT opens that one every time it receives or transmits with it.
 //!
 //! Finding a radio does not claim it: the SDRs are opened for each receive run and each
 //! transmission, a Flipper's console when KAT first uses it ([super::FlipperController]).
@@ -11,11 +11,13 @@ pub enum RadioKind {
     HackRf,
     RtlSdr,
     Flipper,
+    /// A radio SoapySDR drives (receive only), when SoapySDR is installed.
+    Soapy,
 }
 
 impl RadioKind {
     /// In the order KAT lists them (and used to pick its one radio).
-    pub const ALL: [RadioKind; 3] = [RadioKind::HackRf, RadioKind::RtlSdr, RadioKind::Flipper];
+    pub const ALL: [RadioKind; 4] = [RadioKind::HackRf, RadioKind::RtlSdr, RadioKind::Flipper, RadioKind::Soapy];
 
     /// Name on screen.
     pub fn label(self) -> &'static str {
@@ -23,6 +25,7 @@ impl RadioKind {
             RadioKind::HackRf => "HackRF",
             RadioKind::RtlSdr => "RTL-SDR",
             RadioKind::Flipper => "Flipper",
+            RadioKind::Soapy => "SoapySDR",
         }
     }
 
@@ -32,15 +35,18 @@ impl RadioKind {
             RadioKind::HackRf => "hackrf",
             RadioKind::RtlSdr => "rtlsdr",
             RadioKind::Flipper => "flipper",
+            RadioKind::Soapy => "soapy",
         }
     }
 
-    /// `hackrf`, `rtlsdr` (`RTL-SDR`, `rtl`), `flipper` (`Flipper Zero`), in any case.
+    /// `hackrf`, `rtlsdr` (`RTL-SDR`, `rtl`), `flipper` (`Flipper Zero`), `soapy` (`SoapySDR`), in
+    /// any case.
     pub fn parse(word: &str) -> Option<Self> {
         match word.trim().to_ascii_lowercase().replace(['-', '_', ' '], "").as_str() {
             "hackrf" | "hackrfone" => Some(RadioKind::HackRf),
             "rtlsdr" | "rtl" => Some(RadioKind::RtlSdr),
             "flipper" | "flipperzero" => Some(RadioKind::Flipper),
+            "soapy" | "soapysdr" => Some(RadioKind::Soapy),
             _ => None,
         }
     }
@@ -54,6 +60,7 @@ impl RadioKind {
         match self {
             RadioKind::HackRf | RadioKind::RtlSdr => "300–928 MHz",
             RadioKind::Flipper => "300–348, 387–464, 779–928 MHz",
+            RadioKind::Soapy => "what the radio tunes",
         }
     }
 }
@@ -72,19 +79,32 @@ pub struct FoundRadio {
     pub index: usize,
     /// RTL-SDR: no other dongle has its serial, so it is opened by it (stable when USB order changes).
     pub serial_unique: bool,
+    /// SoapySDR: the arguments that open it (driver, serial, label …, as SoapySDR lists them).
+    pub soapy_args: Vec<(String, String)>,
 }
 
 impl FoundRadio {
     pub fn hackrf(serial: Option<String>) -> Self {
-        Self { kind: RadioKind::HackRf, serial, port: None, index: 0, serial_unique: true }
+        Self { kind: RadioKind::HackRf, serial, port: None, index: 0, serial_unique: true, soapy_args: Vec::new() }
     }
 
     pub fn rtlsdr(index: usize, serial: Option<String>, serial_unique: bool) -> Self {
-        Self { kind: RadioKind::RtlSdr, serial, port: None, index, serial_unique }
+        Self { kind: RadioKind::RtlSdr, serial, port: None, index, serial_unique, soapy_args: Vec::new() }
     }
 
     pub fn flipper(port: String, serial: Option<String>) -> Self {
-        Self { kind: RadioKind::Flipper, serial, port: Some(port), index: 0, serial_unique: true }
+        Self { kind: RadioKind::Flipper, serial, port: Some(port), index: 0, serial_unique: true, soapy_args: Vec::new() }
+    }
+
+    /// A radio SoapySDR listed, by the arguments that open it; its serial is SoapySDR's `serial`.
+    pub fn soapy(args: Vec<(String, String)>) -> Self {
+        let serial = args.iter().find(|(k, _)| k == "serial").map(|(_, v)| v.trim().to_string()).filter(|s| !s.is_empty());
+        Self { kind: RadioKind::Soapy, serial, port: None, index: 0, serial_unique: true, soapy_args: args }
+    }
+
+    /// One of SoapySDR's arguments for this radio.
+    fn soapy_arg(&self, key: &str) -> Option<&str> {
+        self.soapy_args.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str()).filter(|v| !v.trim().is_empty())
     }
 
     /// The same device as `other` (a rescan adds only the new ones).
@@ -94,6 +114,7 @@ impl FoundRadio {
         }
         match self.kind {
             RadioKind::Flipper => self.port == other.port,
+            RadioKind::Soapy => self.soapy_args == other.soapy_args,
             RadioKind::RtlSdr if !(self.serial_unique && other.serial_unique) => {
                 self.serial == other.serial && self.index == other.index
             }
@@ -101,8 +122,17 @@ impl FoundRadio {
         }
     }
 
-    /// The identity `:radios` shows: the serial (a HackRF's last 8 digits), else the port.
+    /// The identity `:radios` shows: the serial (a HackRF's last 8 digits), else the port; for a
+    /// SoapySDR radio its label (which names it and has its serial), else its driver and serial.
     pub fn identity(&self) -> String {
+        if self.kind == RadioKind::Soapy {
+            return match (self.soapy_arg("label"), self.soapy_arg("driver"), self.serial.as_deref()) {
+                (Some(label), _, _) => label.to_string(),
+                (None, Some(d), Some(s)) => format!("{d} {s}"),
+                (None, Some(d), None) => d.to_string(),
+                (None, None, s) => s.unwrap_or("-").to_string(),
+            };
+        }
         let serial = self.serial.as_deref().map(str::trim).filter(|s| !s.is_empty());
         match (self.kind, serial) {
             (RadioKind::HackRf, Some(s)) if s.chars().count() > 8 => {
@@ -147,6 +177,7 @@ pub fn discover(kinds: &[RadioKind], flipper_port: Option<&str>) -> Discovery {
             RadioKind::HackRf => super::hackrf::find_devices(),
             RadioKind::RtlSdr => super::rtlsdr::find_devices(),
             RadioKind::Flipper => super::flipper::find_devices(flipper_port),
+            RadioKind::Soapy => super::soapy::find_devices(),
         };
         d.radios.extend(found);
         d.problems.extend(problem.map(|why| format!("{}: {why}", kind_name(kind))));
@@ -188,6 +219,8 @@ mod tests {
             ("rtl_sdr", RadioKind::RtlSdr),
             ("Flipper Zero", RadioKind::Flipper),
             ("flipper", RadioKind::Flipper),
+            ("SoapySDR", RadioKind::Soapy),
+            ("soapy", RadioKind::Soapy),
         ] {
             assert_eq!(RadioKind::parse(word), Some(kind), "{word}");
         }
@@ -196,6 +229,7 @@ mod tests {
             assert_eq!(RadioKind::parse(k.config_name()), Some(k));
         }
         assert!(RadioKind::HackRf.can_transmit() && RadioKind::Flipper.can_transmit() && !RadioKind::RtlSdr.can_transmit());
+        assert!(!RadioKind::Soapy.can_transmit());
     }
 
     /// Two dongles with the factory serial are told apart by their USB order; a unique serial is

@@ -1,0 +1,52 @@
+# librtlsdr's FC2580 driver: init with the filter calibration never done (0x2f reads 0) and
+# done at once (0xc0), tuning across its VHF, UHF and L bands, and the bandwidth call.
+tuner fc2580
+init
+ovr ac 2f 00 c0
+init
+freq 100000000
+freq 146000000
+freq 200000000
+freq 308000000
+freq 399999999
+freq 400000000
+freq 400000500
+freq 400500000
+freq 438000000
+freq 537999499
+freq 537999500
+freq 600000000
+freq 649999000
+freq 650000000
+freq 793999000
+freq 794000000
+freq 794000500
+freq 794500000
+freq 924000000
+freq 1000000000
+freq 1000000500
+freq 1000500000
+freq 1300000000
+freq 1500000000
+freq 2600000000
+freq 299750000
+freq 303625000
+freq 309750000
+freq 314750000
+freq 317750000
+freq 389750000
+freq 417750000
+freq 433170000
+freq 433670000
+freq 434170000
+freq 868100000
+freq 914750000
+ovr ac 2f 00 40
+freq 433670000
+bw 2000000
+ovr ac 2f 00 c0
+bw 2000000
+gainmode 1
+gain 100
+gainmode 0
+exit

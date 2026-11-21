@@ -4,6 +4,44 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+## [1.22.0] - 2026-11-21
+
+More radios: RTL-SDR dongles with the older E4000, FC0012, FC0013 and FC2580 tuners, one of which used to take KAT's terminal down, and, to receive, any radio SoapySDR drives. The tuner drivers come from librtlsdr, so the release binaries are now distributed under the GNU GPL, version 3 or later.
+
+### Added
+
+- **RTL-SDR dongles with an E4000, FC0012, FC0013 or FC2580 tuner** ([radio.md](docs/radio.md#rtl-sdr-tuners)).
+  KAT's RTL-SDR driver, rtl-sdr-rs, knows only the R820T, R820T2 and R828D; it is now vendored
+  ([vendor/rtl-sdr-rs](https://github.com/KaraZajac/KAT/tree/main/vendor/rtl-sdr-rs)) with librtlsdr's drivers for the four older tuners ported to Rust. On
+  every scenario of their tests they make the C drivers' I2C transactions byte for byte (tuning across each
+  tuner's bands, the gains, the filters, the frequencies they refuse); they have not been tried on a dongle yet,
+  so a report from anyone who has one is welcome. A manual gain goes to the tuner's nearest step, as librtlsdr's
+  tools do, and `kat.log` names the tuner of each dongle KAT opens.
+- **SoapySDR radios, receiving** ([radio.md](docs/radio.md#soapysdr-radios)): an Airspy, SDRplay, LimeSDR,
+  PlutoSDR, USRP, bladeRF or any radio SoapySDR has a module for, when SoapySDR is installed (`device = soapy`
+  for those alone). KAT does not link SoapySDR: a helper process of its own (`kat --soapy-helper`) loads the
+  system's library (ABI 0.7, 0.8 or 0.9), so the radios' libraries print to `kat.log`, not the screen, and a
+  crash in one cannot take KAT down. It works as an RTL-SDR in KAT: one gain, hopping, `:record` (`.cf32`), at
+  2 MS/s or the nearest rate the radio has. KAT leaves out the RTL-SDRs and HackRFs SoapySDR lists, which it
+  drives itself. Checked end to end with a SoapySDR module made for the test, not yet with a real radio.
+
+### Changed
+
+- **The release binaries are distributed under the GNU GPL, version 3 or later** (README, License): the ported
+  tuner drivers are GPL-2.0-or-later. KAT's own code stays BSD-3-Clause, `:license` says what the build
+  contains, and the release archives carry the GPL as `COPYING`. `cargo build --release --no-default-features
+  --features gpu` builds KAT without those drivers, under the BSD license.
+- **The site and docs name the new radios**: the receive chain page has sections on RTL-SDR tuners (which tuner
+  hears what, with osmocom's ranges) and SoapySDR radios; the install guide, the home page, the glossary and the
+  credits (README, `:credits`, the site's footer) follow.
+
+### Fixed
+
+- **An RTL-SDR whose tuner KAT did not know took the terminal down** when it started receiving ("Failed to find
+  tuner, aborting", from a tester's RTL-SDR with an FC0013): the driver panicked in the receive thread. A dongle
+  with a tuner KAT does not know is now reported in the status line ("its tuner is not one KAT knows", and
+  which tuners it reads).
+
 ## [1.21.0] - 2026-11-20
 
 The Kia V0 family checked against its recordings and against sources outside the Flipper firmwares: Honda V0 read and sent by the remote's own frame and check (its Lock no longer goes out as a Panic), every type's press sent once as the recorded remotes send it, and "Send next code" keeping the captured button.

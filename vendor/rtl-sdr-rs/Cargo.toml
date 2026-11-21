@@ -1,0 +1,33 @@
+[package]
+edition = "2021"
+name = "rtl-sdr-rs"
+version = "0.3.1"
+description = "RTL-SDR USB software defined radio library (patched for KAT: the E4000, FC0012, FC0013 and FC2580 tuners, ported from librtlsdr, behind the gpl-tuners feature; an unknown tuner is an error, not a panic)"
+readme = "readme.md"
+keywords = ["rtl-sdr", "sdr", "radio"]
+# The crate's own files are MPL-2.0; src/tuners/{e4k,fc0012,fc0013,fc2580}.rs and
+# tools/tuner_trace.c are GPL-2.0-or-later (ported from librtlsdr) and build only with gpl-tuners.
+license = "MPL-2.0 AND GPL-2.0-or-later"
+repository = "https://github.com/ccostes/rtl-sdr-rs"
+
+[lib]
+name = "rtl_sdr_rs"
+path = "src/lib.rs"
+doctest = false
+
+[features]
+default = []
+# The E4000, FC0012, FC0013 and FC2580 drivers ported from librtlsdr. They are GPL-2.0-or-later:
+# a binary built with them is distributed under the GPL.
+gpl-tuners = []
+disable-simd = []
+rtl_sdr_blog = []
+
+[dependencies]
+byteorder = "1"
+log = "0.4"
+rusb = "0.9"
+
+[dev-dependencies]
+# Only the device tests (src/device/device_test.rs) use it; upstream lists it as a dependency.
+mockall = "0.11"

@@ -1,0 +1,1435 @@
+> tuner fc2580
+> init
+W ac: 00 00
+W ac: 12 86
+W ac: 14 5c
+W ac: 16 3c
+W ac: 1f d2
+W ac: 09 d7
+W ac: 0b d5
+W ac: 0c 32
+W ac: 0e 43
+W ac: 21 0a
+W ac: 22 82
+W ac: 45 20
+W ac: 4c 02
+W ac: 3f 88
+W ac: 02 0e
+W ac: 58 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: 00
+W ac: 2e 01
+W ac: 2e 09
+W ac: 2f
+R ac: 00
+W ac: 2e 01
+W ac: 2e 09
+W ac: 2f
+R ac: 00
+W ac: 2e 01
+W ac: 2e 09
+W ac: 2f
+R ac: 00
+W ac: 2e 01
+W ac: 2e 09
+W ac: 2f
+R ac: 00
+W ac: 2e 01
+W ac: 2e 09
+W ac: 2e 01
+= ok
+> ovr ac 2f 00 c0
+> init
+W ac: 00 00
+W ac: 12 86
+W ac: 14 5c
+W ac: 16 3c
+W ac: 1f d2
+W ac: 09 d7
+W ac: 0b d5
+W ac: 0c 32
+W ac: 0e 43
+W ac: 21 0a
+W ac: 22 82
+W ac: 45 20
+W ac: 4c 02
+W ac: 3f 88
+W ac: 02 0e
+W ac: 58 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+= ok
+> freq 100000000
+W ac: 27 77
+W ac: 28 33
+W ac: 29 40
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 0f
+W ac: 61 07
+W ac: 62 00
+W ac: 63 15
+W ac: 67 03
+W ac: 68 05
+W ac: 69 10
+W ac: 6a 12
+W ac: 6b 08
+W ac: 6c 0a
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 54
+W ac: 36 18
+W ac: 37 40
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 86
+W ac: 18 27
+W ac: 1a c0
+W ac: 1b 00
+W ac: 1c 92
+= ok
+> freq 146000000
+W ac: 27 77
+W ac: 28 33
+W ac: 29 40
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 0f
+W ac: 61 07
+W ac: 62 00
+W ac: 63 15
+W ac: 67 03
+W ac: 68 05
+W ac: 69 10
+W ac: 6a 12
+W ac: 6b 08
+W ac: 6c 0a
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 54
+W ac: 36 18
+W ac: 37 40
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 86
+W ac: 18 1e
+W ac: 1a f0
+W ac: 1b 00
+W ac: 1c 6a
+= ok
+> freq 200000000
+W ac: 27 77
+W ac: 28 33
+W ac: 29 40
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 0f
+W ac: 61 07
+W ac: 62 00
+W ac: 63 15
+W ac: 67 03
+W ac: 68 05
+W ac: 69 10
+W ac: 6a 12
+W ac: 6b 08
+W ac: 6c 0a
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 54
+W ac: 36 18
+W ac: 37 40
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 86
+W ac: 18 17
+W ac: 1a c0
+W ac: 1b 00
+W ac: 1c 92
+= ok
+> freq 308000000
+W ac: 27 77
+W ac: 28 33
+W ac: 29 40
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 0f
+W ac: 61 07
+W ac: 62 00
+W ac: 63 15
+W ac: 67 03
+W ac: 68 05
+W ac: 69 10
+W ac: 6a 12
+W ac: 6b 08
+W ac: 6c 0a
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 54
+W ac: 36 18
+W ac: 37 40
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 8e
+W ac: 18 0c
+W ac: 1a b0
+W ac: 1b 00
+W ac: 1c 70
+= ok
+> freq 399999999
+W ac: 27 77
+W ac: 28 33
+W ac: 29 40
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 0f
+W ac: 61 07
+W ac: 62 00
+W ac: 63 15
+W ac: 67 03
+W ac: 68 05
+W ac: 69 10
+W ac: 6a 12
+W ac: 6b 08
+W ac: 6c 0a
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 54
+W ac: 36 18
+W ac: 37 40
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 8e
+W ac: 18 07
+W ac: 1a c0
+W ac: 1b 00
+W ac: 1c 92
+= ok
+> freq 400000000
+W ac: 27 77
+W ac: 28 33
+W ac: 29 40
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 0f
+W ac: 61 07
+W ac: 62 00
+W ac: 63 15
+W ac: 67 03
+W ac: 68 05
+W ac: 69 10
+W ac: 6a 12
+W ac: 6b 08
+W ac: 6c 0a
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 54
+W ac: 36 18
+W ac: 37 40
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 8e
+W ac: 18 07
+W ac: 1a c0
+W ac: 1b 00
+W ac: 1c 92
+= ok
+> freq 400000500
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 13
+W ac: 61 07
+W ac: 62 06
+W ac: 67 06
+W ac: 68 08
+W ac: 69 10
+W ac: 6a 12
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 06
+W ac: 18 1a
+W ac: 1a 81
+W ac: 1b 00
+W ac: 1c 61
+W ac: 2d 9f
+= ok
+> freq 400500000
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 13
+W ac: 61 07
+W ac: 62 06
+W ac: 67 06
+W ac: 68 08
+W ac: 69 10
+W ac: 6a 12
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 06
+W ac: 18 1c
+W ac: 1a 74
+W ac: 1b 00
+W ac: 1c 61
+W ac: 2d 9f
+= ok
+> freq 438000000
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 13
+W ac: 61 07
+W ac: 62 06
+W ac: 67 06
+W ac: 68 08
+W ac: 69 10
+W ac: 6a 12
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 06
+W ac: 18 1e
+W ac: 1a f0
+W ac: 1b 00
+W ac: 1c 6a
+W ac: 2d 9f
+= ok
+> freq 537999499
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 13
+W ac: 61 07
+W ac: 62 06
+W ac: 67 06
+W ac: 68 08
+W ac: 69 10
+W ac: 6a 12
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 06
+W ac: 18 15
+W ac: 1a 8f
+W ac: 1b 00
+W ac: 1c 83
+W ac: 2d 9f
+= ok
+> freq 537999500
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 15
+W ac: 61 03
+W ac: 62 03
+W ac: 67 03
+W ac: 68 05
+W ac: 69 0c
+W ac: 6a 0e
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 06
+W ac: 18 15
+W ac: 1a 90
+W ac: 1b 00
+W ac: 1c 83
+W ac: 2d 9f
+= ok
+> freq 600000000
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 15
+W ac: 61 03
+W ac: 62 03
+W ac: 67 03
+W ac: 68 05
+W ac: 69 0c
+W ac: 6a 0e
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 06
+W ac: 18 17
+W ac: 1a c0
+W ac: 1b 00
+W ac: 1c 92
+W ac: 2d 9f
+= ok
+> freq 649999000
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 15
+W ac: 61 03
+W ac: 62 03
+W ac: 67 03
+W ac: 68 05
+W ac: 69 0c
+W ac: 6a 0e
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 06
+W ac: 18 05
+W ac: 1a 87
+W ac: 1b 80
+W ac: 1c 4f
+W ac: 2d 9f
+= ok
+> freq 650000000
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 15
+W ac: 61 03
+W ac: 62 03
+W ac: 67 03
+W ac: 68 05
+W ac: 69 0c
+W ac: 6a 0e
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 0e
+W ac: 18 05
+W ac: 1a 88
+W ac: 1b 00
+W ac: 1c 4f
+W ac: 2d 9f
+= ok
+> freq 793999000
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 15
+W ac: 61 03
+W ac: 62 03
+W ac: 67 03
+W ac: 68 05
+W ac: 69 0c
+W ac: 6a 0e
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 0e
+W ac: 18 0e
+W ac: 1a c7
+W ac: 1b 80
+W ac: 1c 60
+W ac: 2d 9f
+= ok
+> freq 794000000
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 15
+W ac: 61 07
+W ac: 62 06
+W ac: 67 07
+W ac: 68 09
+W ac: 69 10
+W ac: 6a 12
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 0e
+W ac: 18 0e
+W ac: 1a c8
+W ac: 1b 00
+W ac: 1c 60
+W ac: 2d 9f
+= ok
+> freq 794000500
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 15
+W ac: 61 07
+W ac: 62 06
+W ac: 67 07
+W ac: 68 09
+W ac: 69 10
+W ac: 6a 12
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 0e
+W ac: 18 0e
+W ac: 1a c8
+W ac: 1b 80
+W ac: 1c 60
+W ac: 2d 8f
+= ok
+> freq 794500000
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 15
+W ac: 61 07
+W ac: 62 06
+W ac: 67 07
+W ac: 68 09
+W ac: 69 10
+W ac: 6a 12
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 0e
+W ac: 18 0f
+W ac: 1a c2
+W ac: 1b 00
+W ac: 1c 60
+W ac: 2d 8f
+= ok
+> freq 924000000
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 15
+W ac: 61 07
+W ac: 62 06
+W ac: 67 07
+W ac: 68 09
+W ac: 69 10
+W ac: 6a 12
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 0e
+W ac: 18 0c
+W ac: 1a b0
+W ac: 1b 00
+W ac: 1c 70
+W ac: 2d 8f
+= ok
+> freq 1000000000
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 15
+W ac: 61 07
+W ac: 62 06
+W ac: 67 07
+W ac: 68 09
+W ac: 69 10
+W ac: 6a 12
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 0e
+W ac: 18 01
+W ac: 1a 20
+W ac: 1b 00
+W ac: 1c 7a
+W ac: 2d 8f
+= ok
+> freq 1000000500
+W ac: 2b 70
+W ac: 2c 37
+W ac: 2d e7
+W ac: 30 09
+W ac: 44 20
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 0f
+W ac: 61 0f
+W ac: 62 00
+W ac: 63 13
+W ac: 67 00
+W ac: 68 02
+W ac: 69 0c
+W ac: 6a 0e
+W ac: 6b 08
+W ac: 6c 0a
+W ac: 6d a0
+W ac: 6e 50
+W ac: 6f 14
+W ac: 36 1c
+W ac: 37 44
+W ac: 39 00
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 46
+W ac: 18 11
+W ac: 1a 20
+W ac: 1b 80
+W ac: 1c 7a
+= ok
+> freq 1000500000
+W ac: 2b 70
+W ac: 2c 37
+W ac: 2d e7
+W ac: 30 09
+W ac: 44 20
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 0f
+W ac: 61 0f
+W ac: 62 00
+W ac: 63 13
+W ac: 67 00
+W ac: 68 02
+W ac: 69 0c
+W ac: 6a 0e
+W ac: 6b 08
+W ac: 6c 0a
+W ac: 6d a0
+W ac: 6e 50
+W ac: 6f 14
+W ac: 36 1c
+W ac: 37 44
+W ac: 39 00
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 46
+W ac: 18 12
+W ac: 1a 1a
+W ac: 1b 00
+W ac: 1c 7a
+= ok
+> freq 1300000000
+W ac: 2b 70
+W ac: 2c 37
+W ac: 2d e7
+W ac: 30 09
+W ac: 44 20
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 0f
+W ac: 61 0f
+W ac: 62 00
+W ac: 63 13
+W ac: 67 00
+W ac: 68 02
+W ac: 69 0c
+W ac: 6a 0e
+W ac: 6b 08
+W ac: 6c 0a
+W ac: 6d a0
+W ac: 6e 50
+W ac: 6f 14
+W ac: 36 1c
+W ac: 37 44
+W ac: 39 00
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 4e
+W ac: 18 05
+W ac: 1a 88
+W ac: 1b 00
+W ac: 1c 4f
+= ok
+> freq 1500000000
+W ac: 2b 70
+W ac: 2c 37
+W ac: 2d e7
+W ac: 30 09
+W ac: 44 20
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 0f
+W ac: 61 0f
+W ac: 62 00
+W ac: 63 13
+W ac: 67 00
+W ac: 68 02
+W ac: 69 0c
+W ac: 6a 0e
+W ac: 6b 08
+W ac: 6c 0a
+W ac: 6d a0
+W ac: 6e 50
+W ac: 6f 14
+W ac: 36 1c
+W ac: 37 44
+W ac: 39 00
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 4e
+W ac: 18 08
+W ac: 1a d8
+W ac: 1b 00
+W ac: 1c 5b
+= ok
+> freq 2600000000
+W ac: 2b 70
+W ac: 2c 37
+W ac: 2d e7
+W ac: 30 09
+W ac: 44 20
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 0f
+W ac: 61 0f
+W ac: 62 00
+W ac: 63 13
+W ac: 67 00
+W ac: 68 02
+W ac: 69 0c
+W ac: 6a 0e
+W ac: 6b 08
+W ac: 6c 0a
+W ac: 6d a0
+W ac: 6e 50
+W ac: 6f 14
+W ac: 36 1c
+W ac: 37 44
+W ac: 39 00
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 4e
+W ac: 18 0b
+W ac: 1a 10
+W ac: 1b 00
+W ac: 1c 9e
+= ok
+> freq 299750000
+W ac: 27 77
+W ac: 28 33
+W ac: 29 40
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 0f
+W ac: 61 07
+W ac: 62 00
+W ac: 63 15
+W ac: 67 03
+W ac: 68 05
+W ac: 69 10
+W ac: 6a 12
+W ac: 6b 08
+W ac: 6c 0a
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 54
+W ac: 36 18
+W ac: 37 40
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 8e
+W ac: 18 0c
+W ac: 1a 59
+W ac: 1b 00
+W ac: 1c 6d
+= ok
+> freq 303625000
+W ac: 27 77
+W ac: 28 33
+W ac: 29 40
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 0f
+W ac: 61 07
+W ac: 62 00
+W ac: 63 15
+W ac: 67 03
+W ac: 68 05
+W ac: 69 10
+W ac: 6a 12
+W ac: 6b 08
+W ac: 6c 0a
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 54
+W ac: 36 18
+W ac: 37 40
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 8e
+W ac: 18 03
+W ac: 1a 0d
+W ac: 1b 80
+W ac: 1c 6f
+= ok
+> freq 309750000
+W ac: 27 77
+W ac: 28 33
+W ac: 29 40
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 0f
+W ac: 61 07
+W ac: 62 00
+W ac: 63 15
+W ac: 67 03
+W ac: 68 05
+W ac: 69 10
+W ac: 6a 12
+W ac: 6b 08
+W ac: 6c 0a
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 54
+W ac: 36 18
+W ac: 37 40
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 8e
+W ac: 18 06
+W ac: 1a f1
+W ac: 1b 00
+W ac: 1c 71
+= ok
+> freq 314750000
+W ac: 27 77
+W ac: 28 33
+W ac: 29 40
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 0f
+W ac: 61 07
+W ac: 62 00
+W ac: 63 15
+W ac: 67 03
+W ac: 68 05
+W ac: 69 10
+W ac: 6a 12
+W ac: 6b 08
+W ac: 6c 0a
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 54
+W ac: 36 18
+W ac: 37 40
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 8e
+W ac: 18 04
+W ac: 1a 3d
+W ac: 1b 00
+W ac: 1c 73
+= ok
+> freq 317750000
+W ac: 27 77
+W ac: 28 33
+W ac: 29 40
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 0f
+W ac: 61 07
+W ac: 62 00
+W ac: 63 15
+W ac: 67 03
+W ac: 68 05
+W ac: 69 10
+W ac: 6a 12
+W ac: 6b 08
+W ac: 6c 0a
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 54
+W ac: 36 18
+W ac: 37 40
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 8e
+W ac: 18 05
+W ac: 1a d1
+W ac: 1b 00
+W ac: 1c 74
+= ok
+> freq 389750000
+W ac: 27 77
+W ac: 28 33
+W ac: 29 40
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 0f
+W ac: 61 07
+W ac: 62 00
+W ac: 63 15
+W ac: 67 03
+W ac: 68 05
+W ac: 69 10
+W ac: 6a 12
+W ac: 6b 08
+W ac: 6c 0a
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 54
+W ac: 36 18
+W ac: 37 40
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 8e
+W ac: 18 0b
+W ac: 1a b1
+W ac: 1b 00
+W ac: 1c 8e
+= ok
+> freq 417750000
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 13
+W ac: 61 07
+W ac: 62 06
+W ac: 67 06
+W ac: 68 08
+W ac: 69 10
+W ac: 6a 12
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 06
+W ac: 18 1f
+W ac: 1a d6
+W ac: 1b 00
+W ac: 1c 65
+W ac: 2d 9f
+= ok
+> freq 433170000
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 13
+W ac: 61 07
+W ac: 62 06
+W ac: 67 06
+W ac: 68 08
+W ac: 69 10
+W ac: 6a 12
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 06
+W ac: 18 1c
+W ac: 1a 12
+W ac: 1b 00
+W ac: 1c 69
+W ac: 2d 9f
+= ok
+> freq 433670000
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 13
+W ac: 61 07
+W ac: 62 06
+W ac: 67 06
+W ac: 68 08
+W ac: 69 10
+W ac: 6a 12
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 06
+W ac: 18 1e
+W ac: 1a 06
+W ac: 1b 00
+W ac: 1c 69
+W ac: 2d 9f
+= ok
+> freq 434170000
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 13
+W ac: 61 07
+W ac: 62 06
+W ac: 67 06
+W ac: 68 08
+W ac: 69 10
+W ac: 6a 12
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 06
+W ac: 18 1f
+W ac: 1a fa
+W ac: 1b 00
+W ac: 1c 69
+W ac: 2d 9f
+= ok
+> freq 868100000
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 15
+W ac: 61 07
+W ac: 62 06
+W ac: 67 07
+W ac: 68 09
+W ac: 69 10
+W ac: 6a 12
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 0e
+W ac: 18 0f
+W ac: 1a 82
+W ac: 1b 00
+W ac: 1c 69
+W ac: 2d 8f
+= ok
+> freq 914750000
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 15
+W ac: 61 07
+W ac: 62 06
+W ac: 67 07
+W ac: 68 09
+W ac: 69 10
+W ac: 6a 12
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+W ac: 02 0e
+W ac: 18 0a
+W ac: 1a 9f
+W ac: 1b 00
+W ac: 1c 6f
+W ac: 2d 8f
+= ok
+> ovr ac 2f 00 40
+> freq 433670000
+W ac: 25 f0
+W ac: 27 77
+W ac: 28 53
+W ac: 29 60
+W ac: 30 09
+W ac: 50 8c
+W ac: 53 50
+W ac: 5f 13
+W ac: 61 07
+W ac: 62 06
+W ac: 67 06
+W ac: 68 08
+W ac: 69 10
+W ac: 6a 12
+W ac: 63 15
+W ac: 6b 0b
+W ac: 6c 0c
+W ac: 6d 78
+W ac: 6e 32
+W ac: 6f 14
+W ac: 36 18
+W ac: 37 36
+W ac: 39 80
+W ac: 2e 09
+W ac: 2f
+R ac: 40
+W ac: 2e 01
+W ac: 2e 09
+W ac: 2f
+R ac: 40
+W ac: 2e 01
+W ac: 2e 09
+W ac: 2f
+R ac: 40
+W ac: 2e 01
+W ac: 2e 09
+W ac: 2f
+R ac: 40
+W ac: 2e 01
+W ac: 2e 09
+W ac: 2f
+R ac: 40
+W ac: 2e 01
+W ac: 2e 09
+W ac: 2e 01
+W ac: 02 06
+W ac: 18 1e
+W ac: 1a 06
+W ac: 1b 00
+W ac: 1c 69
+W ac: 2d 9f
+= ok
+> bw 2000000
+W ac: 36 1c
+W ac: 37 44
+W ac: 39 00
+W ac: 2e 09
+W ac: 2f
+R ac: 40
+W ac: 2e 01
+W ac: 2e 09
+W ac: 2f
+R ac: 40
+W ac: 2e 01
+W ac: 2e 09
+W ac: 2f
+R ac: 40
+W ac: 2e 01
+W ac: 2e 09
+W ac: 2f
+R ac: 40
+W ac: 2e 01
+W ac: 2e 09
+W ac: 2f
+R ac: 40
+W ac: 2e 01
+W ac: 2e 09
+W ac: 2e 01
+= ok
+> ovr ac 2f 00 c0
+> bw 2000000
+W ac: 36 1c
+W ac: 37 44
+W ac: 39 00
+W ac: 2e 09
+W ac: 2f
+R ac: c0
+W ac: 2e 01
+= ok
+> gainmode 1
+= ok
+> gain 100
+= ok
+> gainmode 0
+= ok
+> exit
+= ok

@@ -754,7 +754,7 @@ dependencies = [
 
 [[package]]
 name = "kat"
-version = "1.21.0"
+version = "1.22.0"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -763,6 +763,7 @@ dependencies = [
  "crossterm",
  "dirs",
  "libhackrf",
+ "libloading 0.8.9",
  "num-complex",
  "pkg-config",
  "pollster",
@@ -1270,8 +1271,6 @@ checksum = "19b30a45b0cd0bcca8037f3d0dc3421eaf95327a17cad11964fb8179b4fc4832"
 [[package]]
 name = "rtl-sdr-rs"
 version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3e39d1d957178d9bc3d2641e41ea083205f304b6b2db4f6efd60bc45498aa82"
 dependencies = [
  "byteorder",
  "log",

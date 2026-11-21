@@ -1,6 +1,6 @@
 # KAT — Keyfob Analysis Toolkit
 
-KAT captures, decodes and retransmits car key fob and garage door, gate and barrier remote signals from a terminal. It works with a **HackRF One** (receive and transmit), an **RTL-SDR** dongle (receive only) and a **Flipper Zero** on USB (receive and transmit through its console), several at once, each on its own frequency, and decodes IQ recordings and Flipper Zero `.sub` files with no radio attached. It is written in Rust, with a [ratatui](https://ratatui.rs) interface.
+KAT captures, decodes and retransmits car key fob and garage door, gate and barrier remote signals from a terminal. It works with a **HackRF One** (receive and transmit), an **RTL-SDR** dongle (receive only), a **Flipper Zero** on USB (receive and transmit through its console) and, receiving, any radio **SoapySDR** drives, several at once, each on its own frequency, and decodes IQ recordings and Flipper Zero `.sub` files with no radio attached. It is written in Rust, with a [ratatui](https://ratatui.rs) interface.
 
 Its 164 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate), [Flipper-ARF](https://github.com/D4C1-Labs/Flipper-ARF), [doctor-firmware](https://github.com/thedoctorz/doctor-firmware), [Momentum](https://github.com/Next-Flip/Momentum-Firmware), [RogueMaster](https://github.com/RogueMaster/flipperzero-firmware-wPlugins) and FoxFW, with receive-only decoders from [rtl_433](https://github.com/merbanan/rtl_433) for remotes no Flipper firmware reads, and each port is checked against the reference C code compiled on a PC. A few are KAT's own, worked out from recordings where no reference reads the signal ([the list](docs/about.md)).
 
@@ -24,7 +24,7 @@ Its 164 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPira
 
 - **HackRF, RTL-SDR or a recording** — one receive chain for all three, AM/OOK and FM/2-FSK. A wide-band detector finds fobs anywhere in the received band (at 2 MS/s from 1.15 MHz below to 0.65 MHz above the tuned frequency, two at once included), and each burst is filtered and sliced around its own carrier, so fobs decode up to ±325 kHz off frequency ([docs/radio.md](docs/radio.md)).
 - **A Flipper Zero as the radio** — plugged in over USB, with no app to install: KAT reads the pulses its receiver streams (`subghz rx_raw`), cuts each decoded frame out of the receiver's noise and lists it like an SDR's, and transmits its own encoders' output as a RAW `.sub` played with `subghz tx_from_file` (OOK or 2-FSK). FM reception needs doctor-firmware ([docs/flipper_radio.md](docs/flipper_radio.md)).
-- **Several radios at once** — every HackRF, RTL-SDR and Flipper Zero plugged in, each tuned on its own (frequency, gains, hopping, recording): listen on 315 and 433.92 MHz at once, or transmit with one radio while another listens and shows the transmission decodes. The header has a line per radio, each capture says which radio heard it, and `:radios` lists what is plugged in and what each can do ([docs/radio.md](docs/radio.md#several-radios)).
+- **Several radios at once** — every HackRF, RTL-SDR, Flipper Zero and SoapySDR radio plugged in, each tuned on its own (frequency, gains, hopping, recording): listen on 315 and 433.92 MHz at once, or transmit with one radio while another listens and shows the transmission decodes. The header has a line per radio, each capture says which radio heard it, and `:radios` lists what is plugged in and what each can do ([docs/radio.md](docs/radio.md#several-radios)).
 - **Frequency hopping** — `:hop` cycles Flipper's hopper list (315.00, 390.00, 430.50, 433.92, 434.25, 434.42, 868.35 MHz) and stays on a frequency while a signal is on air, like ProtoPirate.
 - **IQ recordings** — decode `.cs8` (hackrf_transfer), `.cu8` (rtl_sdr / rtl_433), `.cf32` and PortaPack `.C8` / `.C16` recordings without a radio, and record the raw IQ while receiving (`:record`).
 
@@ -92,18 +92,18 @@ On Windows there is nothing to install here: the `.zip` carries the HackRF libra
 Then check, unpack and run (with your version and platform):
 
 ```bash
-sha256sum -c kat-v1.21.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
-tar xzf kat-v1.21.0-x86_64-linux.tar.gz
-./kat-v1.21.0-x86_64-linux/kat
+sha256sum -c kat-v1.22.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.22.0-x86_64-linux.tar.gz
+./kat-v1.22.0-x86_64-linux/kat
 ```
 
 On Windows, in PowerShell (Windows Terminal):
 
 ```powershell
-$want = (Get-Content kat-v1.21.0-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.21.0-x86_64-windows.zip).Hash -eq $want    # True
-Expand-Archive kat-v1.21.0-x86_64-windows.zip .
-.\kat-v1.21.0-x86_64-windows\kat.exe
+$want = (Get-Content kat-v1.22.0-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.22.0-x86_64-windows.zip).Hash -eq $want    # True
+Expand-Archive kat-v1.22.0-x86_64-windows.zip .
+.\kat-v1.22.0-x86_64-windows\kat.exe
 ```
 
 The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. The Windows build isn't signed, so SmartScreen may stop its first start ("More info", then "Run anyway"). Intel Macs and other platforms build from source.
@@ -132,10 +132,11 @@ The binary is `target/release/kat`. Use a release build for live receive and IQ 
 ### Radio hardware
 
 - **HackRF One** (or compatible) — receive and transmit.
-- **RTL-SDR** dongle — receive only.
+- **RTL-SDR** dongle — receive only. Dongles with an R820T, R820T2 or R828D tuner (the RTL-SDR Blog V3 and V4, most dongles sold now) and the older E4000, FC0012, FC0013 and FC2580 ones ([docs/radio.md](docs/radio.md#rtl-sdr-tuners); an FC2580's range stops short of 315 and 433.92 MHz).
+- **SoapySDR** radios — receive only: an Airspy, SDRplay, LimeSDR, PlutoSDR, USRP, bladeRF or any radio SoapySDR has a module for, when SoapySDR and that module are installed. KAT loads SoapySDR when it runs, in a helper process of its own, and leaves out the RTL-SDRs and HackRFs it drives itself ([docs/radio.md](docs/radio.md#soapysdr-radios)).
 - **Flipper Zero** on USB — receive and transmit through its console; decoded signals only (no signal meter, `:record` or hopping), FM reception with doctor-firmware ([docs/flipper_radio.md](docs/flipper_radio.md)). Close qFlipper first; on Linux, join the `dialout` group.
 
-KAT uses every radio it finds; `device` in `config.ini` limits it to some kinds. Starting KAT opens none of them: an SDR is opened for each receive run and each transmission, a Flipper's console the first time you receive or transmit with it (so qFlipper or another program can keep using a Flipper you do not use in KAT). With no radio, it warns at startup and then runs without one: you can still open, decode, analyse and export captures. The warning names the reason for each kind — not found, no USB permission (install the udev rules your HackRF or rtl-sdr package provides), or in use by another program — and `~/.config/KAT/kat.log` has the details. The header shows the radio in use: **HackRF**, **RTL-SDR (RX only)**, **Flipper Zero** or **No device** (status DISCONNECTED, in red).
+KAT uses every radio it finds; `device` in `config.ini` limits it to some kinds. Starting KAT opens none of them: an SDR is opened for each receive run and each transmission, a Flipper's console the first time you receive or transmit with it (so qFlipper or another program can keep using a Flipper you do not use in KAT). With no radio, it warns at startup and then runs without one: you can still open, decode, analyse and export captures. The warning names the reason for each kind — not found, no USB permission (install the udev rules your HackRF or rtl-sdr package provides), or in use by another program — and `~/.config/KAT/kat.log` has the details. The header shows the radio in use: **HackRF**, **RTL-SDR (RX only)**, **Flipper Zero**, **SoapySDR (RX only)** or **No device** (status DISCONNECTED, in red).
 
 **Several radios.** With more than one radio the header has a line for each, the RX meter a column for each, and the captures list a Radio column. The keys and commands that tune a radio (`r`, `:freq`, `:lna`, `:vga`, `:amp`, `:hop`, `:record`, the `Tab` settings) act on the selected one, marked ▸: pick it with `1`–`9`, `:radio <n>` or the settings' Radio tab. Each radio has the settings of its kind: a HackRF its LNA, VGA and amplifier, an RTL-SDR one gain, a Flipper Zero the frequency alone. `R` starts or stops them all. One radio transmits, marked TX: the first HackRF, else a Flipper; `:txradio <n>` or `tx_radio` in `config.ini` chooses another. It alone pauses receiving to transmit, and a capture another radio hears while it transmits nearby is KAT's own transmission, marked "Own TX". `:radios` lists every radio with its serial number or port and looks for ones plugged in since. Each radio starts on `default_frequency` with the default gains unless a `[radio.<kind>]` or `[radio.<kind>.<serial>]` section says otherwise ([Configuration](#configuration), [docs/radio.md](docs/radio.md#several-radios)).
 
@@ -394,7 +395,7 @@ Switches take `true`/`false`, `yes`/`no`, `on`/`off` or `1`/`0`. A value KAT can
 - **include_raw_pairs** — when `true`, .fob exports include raw level/duration pairs for replay.
 - **hop_frequencies / hop_dwell_ms** — the `:hop` list (MHz) and the time spent on a quiet frequency.
 - **tx_vga_gain / tx_amp** — transmit power (0–47 dB TX VGA, RF amp); the defaults are the HackRF's maximum, as in KAT ≤ 1.4.
-- **device** — the radios KAT uses: `auto` (every HackRF, RTL-SDR and Flipper Zero it finds), or the kinds to use, such as `hackrf, rtlsdr`.
+- **device** — the radios KAT uses: `auto` (every HackRF, RTL-SDR, Flipper Zero and SoapySDR radio it finds), or the kinds to use, such as `hackrf, rtlsdr` (`soapy` for SoapySDR's).
 - **tx_radio** — the radio that transmits: `auto` (the first HackRF, else a Flipper), `hackrf` or `flipper`, followed by a serial number (or its last digits, as `:radios` shows them) when there are two of a kind: `tx_radio = hackrf 2e5a1f3d`. Also `:txradio` while KAT runs.
 - **[radio.&lt;kind&gt;] / [radio.&lt;kind&gt;.&lt;serial&gt;]** — how radios start: `frequency`, `lna_gain`, `vga_gain` and `amp` (a HackRF has them all; an RTL-SDR the frequency and `vga_gain`, its one gain; a Flipper Zero the frequency) for every radio of a kind (`hackrf`, `rtlsdr`, `flipper`), or for one radio by its serial number or the serial's last digits (a Flipper also by its port). A radio's own section wins over its kind's, and both over the general defaults. Cheap RTL-SDRs often share the serial `00000001`; give each its own with `rtl_eeprom -s` to tell them apart.
 - **flipper_port / flipper_preset** — a Flipper Zero's console port when KAT does not find it by its USB name, and the receive preset of doctor-firmware's `rx_raw` (`FM476`, `FM238`, `AM650`, …; other firmwares receive with their own AM preset only). See [docs/flipper_radio.md](docs/flipper_radio.md).
@@ -676,6 +677,7 @@ src/
 │   ├── devices.rs       # The radios plugged in, and what tells two of a kind apart (serial, port)
 │   ├── hackrf.rs        # HackRF device control (RX/TX)
 │   ├── rtlsdr.rs        # RTL-SDR device control (RX only)
+│   ├── soapy/           # SoapySDR radios (RX only): the helper process that loads SoapySDR, the pipe to it
 │   ├── flipper.rs       # Flipper Zero over its USB console (rx_raw stream, tx_from_file)
 │   ├── dsp.rs           # IQ formats, DC removal, mixer, decimating FIR filters
 │   ├── pipeline.rs      # Receive pipeline: wide-band detector, per-burst channel filter, AM/FM slicing -> bursts
@@ -715,10 +717,12 @@ The [FOB Research Library](https://github.com/KaraZajac/FOB_Research_Library) is
 
 ## Credits
 
-KAT is developed by **Kara Zajac (.kara)**. KAT would not be possible without [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate)—the protocol decoders, reference implementations, and community work are the foundation this tool is built on. Protocols that ProtoPirate does not carry are ported from [Flipper-ARF](https://github.com/D4C1-Labs/Flipper-ARF), [The Doctor’s firmware](https://github.com/thedoctorz/doctor-firmware), [Momentum](https://github.com/Next-Flip/Momentum-Firmware) and [RogueMaster](https://github.com/RogueMaster/flipperzero-firmware-wPlugins), and the receive-only decoders from [rtl_433](https://github.com/merbanan/rtl_433) by Benjamin Larsson, Christian W. Zuckschwerdt and its contributors, checked on the recordings of [rtl_433_tests](https://github.com/merbanan/rtl_433_tests). I am truly standing on the shoulders of giants.
+KAT is developed by **Kara Zajac (.kara)**. KAT would not be possible without [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate)—the protocol decoders, reference implementations, and community work are the foundation this tool is built on. Protocols that ProtoPirate does not carry are ported from [Flipper-ARF](https://github.com/D4C1-Labs/Flipper-ARF), [The Doctor’s firmware](https://github.com/thedoctorz/doctor-firmware), [Momentum](https://github.com/Next-Flip/Momentum-Firmware) and [RogueMaster](https://github.com/RogueMaster/flipperzero-firmware-wPlugins), and the receive-only decoders from [rtl_433](https://github.com/merbanan/rtl_433) by Benjamin Larsson, Christian W. Zuckschwerdt and its contributors, checked on the recordings of [rtl_433_tests](https://github.com/merbanan/rtl_433_tests). The RTL-SDR driver is [rtl-sdr-rs](https://github.com/ccostes/rtl-sdr-rs) (ccostes and contributors), whose E4000, FC0012, FC0013 and FC2580 tuner drivers are ported from osmocom's [librtlsdr](https://gitea.osmocom.org/sdr/rtl-sdr) (Steve Markgraf, Hans-Frieder Vogt, Harald Welte, Sylvain Munaut, Hoernchen and contributors), and other SDRs are reached through Pothosware's [SoapySDR](https://github.com/pothosware/SoapySDR). I am truly standing on the shoulders of giants.
 
 ---
 
 ## License
 
-KAT is released under the [BSD 3-Clause License](LICENSE).
+KAT's own code is released under the [BSD 3-Clause License](LICENSE).
+
+KAT as built by default, and so its release binaries, also contains the drivers for RTL-SDR dongles with an E4000, FC0012, FC0013 or FC2580 tuner ([vendor/rtl-sdr-rs](vendor/rtl-sdr-rs)). They are ported from librtlsdr and licensed under the GNU General Public License, version 2 or later, and the rtl-sdr-rs library they are part of under the [Mozilla Public License 2.0](vendor/rtl-sdr-rs/LICENSE). A KAT built with them is therefore distributed under the [GNU General Public License, version 3 or later](COPYING) — version 3 because two of the libraries the GPU key recovery uses are under the Apache License 2.0, which version 2 does not admit. `cargo build --release --no-default-features --features gpu` builds KAT without those drivers (it then reads R820T, R820T2 and R828D dongles only), under the BSD license and its libraries' own.

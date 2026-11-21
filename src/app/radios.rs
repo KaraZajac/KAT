@@ -1,4 +1,4 @@
-//! KAT's radios: every HackRF, RTL-SDR and Flipper Zero it finds (config `device`), each tuned on
+//! KAT's radios: every HackRF, RTL-SDR, Flipper Zero and SoapySDR radio it finds (config `device`), each tuned on
 //! its own (frequency, gains, hopping, recording, receiving on or off). The commands and keys that
 //! tune a radio act on the selected one (`1`–`9`, `:radio`, the Radio settings tab); one radio
 //! transmits (`:txradio`, config `tx_radio`), and only it pauses receiving to do so. Captures say
@@ -18,7 +18,7 @@ use super::{App, InputMode, RadioDevice, RadioEvent, RadioState, SettingsField};
 use crate::capture::Capture;
 use crate::radio::devices::{discover, FoundRadio, RadioKind};
 use crate::radio::hopper::{format_mhz, HopPlan};
-use crate::radio::{FlipperController, HackRfController, RtlDevice, RtlSdrController};
+use crate::radio::{FlipperController, HackRfController, RtlDevice, RtlSdrController, SoapyController};
 use crate::storage::{Config, RadioPick};
 
 /// How a radio is tuned.
@@ -40,7 +40,7 @@ pub fn kind_settings(kind: Option<RadioKind>) -> &'static [SettingsField] {
     use SettingsField::{Amp, Gain, Hop, Lna, Vga};
     match kind {
         None | Some(RadioKind::HackRf) => &[Hop, Lna, Vga, Amp],
-        Some(RadioKind::RtlSdr) => &[Hop, Gain],
+        Some(RadioKind::RtlSdr) | Some(RadioKind::Soapy) => &[Hop, Gain],
         Some(RadioKind::Flipper) => &[],
     }
 }
@@ -55,8 +55,8 @@ pub fn missing_setting(kind: RadioKind, name: &str, field: SettingsField) -> Opt
         (RadioKind::Flipper, Lna | Vga | Gain | Amp) => {
             Some(format!("{name} has no gain settings (its receive preset sets them)"))
         }
-        (RadioKind::RtlSdr, Lna) => Some(format!("{name} has one gain: :vga <0-62> sets it")),
-        (RadioKind::RtlSdr, Amp) => Some(format!("{name} has no amplifier (its one gain: :vga <0-62>)")),
+        (RadioKind::RtlSdr | RadioKind::Soapy, Lna) => Some(format!("{name} has one gain: :vga <0-62> sets it")),
+        (RadioKind::RtlSdr | RadioKind::Soapy, Amp) => Some(format!("{name} has no amplifier (its one gain: :vga <0-62>)")),
         _ => None,
     }
 }
@@ -128,6 +128,7 @@ impl Radio {
         let mut device = match found.kind {
             RadioKind::HackRf => RadioDevice::HackRf(HackRfController::new(tx, found.serial.clone())),
             RadioKind::RtlSdr => RadioDevice::RtlSdr(RtlSdrController::new(tx, RtlDevice::of(&found))),
+            RadioKind::Soapy => RadioDevice::Soapy(SoapyController::new(tx, found.soapy_args.clone())),
             RadioKind::Flipper => RadioDevice::Flipper(FlipperController::on_port(
                 tx,
                 found.port.clone().unwrap_or_default(),
@@ -163,7 +164,7 @@ impl Radio {
     pub fn settings_label(&self, flipper_preset: Option<&str>) -> String {
         match self.kind() {
             RadioKind::Flipper => format!("Preset: {}", flipper_preset.unwrap_or("firmware's AM")),
-            RadioKind::RtlSdr => format!("Gain:{}", self.tuning.vga_gain),
+            RadioKind::RtlSdr | RadioKind::Soapy => format!("Gain:{}", self.tuning.vga_gain),
             RadioKind::HackRf => format!(
                 "LNA:{} VGA:{} AMP:{}",
                 self.tuning.lna_gain,

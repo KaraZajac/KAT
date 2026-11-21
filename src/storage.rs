@@ -291,8 +291,8 @@ default_amp = {amp}
 tx_vga_gain = {tx_vga}
 tx_amp = {tx_amp}
 
-; The radios KAT uses: auto (every HackRF, RTL-SDR and Flipper Zero it finds; :radios lists
-; them), or the kinds to use, e.g. hackrf, rtlsdr.
+; The radios KAT uses: auto (every HackRF, RTL-SDR, Flipper Zero and SoapySDR radio it finds;
+; :radios lists them), or the kinds to use, e.g. hackrf, rtlsdr (soapy: SoapySDR's).
 device = {device}
 
 ; The radio that transmits: auto (the first that can: a HackRF, else a Flipper), hackrf or
@@ -377,7 +377,7 @@ session_autosave = {session_autosave}
 /// `device`: `auto` (or `all`) for every kind, else the kinds named (commas or spaces between
 /// them), in [RadioKind::ALL] order.
 fn parse_device_list(value: &str) -> Result<Vec<RadioKind>, String> {
-    let why = || "is not auto or a list of hackrf, rtlsdr and flipper".to_string();
+    let why = || "is not auto or a list of hackrf, rtlsdr, flipper and soapy".to_string();
     if matches!(value.trim().to_ascii_lowercase().as_str(), "auto" | "all") {
         return Ok(RadioKind::ALL.to_vec());
     }
@@ -976,9 +976,9 @@ mod config_warning_tests {
     /// with them set loads back as it was.
     #[test]
     fn radio_device_and_flipper_settings() {
-        use RadioKind::{Flipper, HackRf, RtlSdr};
+        use RadioKind::{Flipper, HackRf, RtlSdr, Soapy};
         let (cfg, warnings) = parse("[radio]\ntx_amp = true\n");
-        assert_eq!((cfg.radio_devices.clone(), cfg.flipper_port.as_deref(), cfg.flipper_preset.as_deref()), (vec![HackRf, RtlSdr, Flipper], None, None));
+        assert_eq!((cfg.radio_devices.clone(), cfg.flipper_port.as_deref(), cfg.flipper_preset.as_deref()), (vec![HackRf, RtlSdr, Flipper, Soapy], None, None));
         assert_eq!(cfg.tx_radio, None);
         assert!(warnings.is_empty(), "{warnings:?}");
         for (word, want) in [
@@ -988,14 +988,16 @@ mod config_warning_tests {
             ("hackrf", vec![HackRf]),
             ("flipper, hackrf", vec![HackRf, Flipper]),
             ("rtlsdr hackrf", vec![HackRf, RtlSdr]),
-            ("all", vec![HackRf, RtlSdr, Flipper]),
+            ("all", vec![HackRf, RtlSdr, Flipper, Soapy]),
+            ("soapy", vec![Soapy]),
+            ("SoapySDR, rtl", vec![RtlSdr, Soapy]),
         ] {
             let (cfg, warnings) = parse(&format!("[radio]\ndevice = {word}\n"));
             assert_eq!(cfg.radio_devices, want, "{word}");
             assert!(warnings.is_empty(), "{warnings:?}");
         }
         let (cfg, warnings) = parse("[radio]\ndevice = bladerf\n");
-        assert_eq!(cfg.radio_devices, vec![HackRf, RtlSdr, Flipper]);
+        assert_eq!(cfg.radio_devices, vec![HackRf, RtlSdr, Flipper, Soapy]);
         assert!(warnings.iter().any(|w| w.contains("device = bladerf")), "{warnings:?}");
 
         let pick = |kind, serial: Option<&str>| Some(RadioPick { kind, serial: serial.map(str::to_string) });
@@ -1004,9 +1006,11 @@ mod config_warning_tests {
             assert_eq!(cfg.tx_radio, want, "{word}");
             assert!(warnings.is_empty(), "{warnings:?}");
         }
-        let (cfg, warnings) = parse("[radio]\ntx_radio = rtlsdr\n");
-        assert_eq!(cfg.tx_radio, None);
-        assert!(warnings.iter().any(|w| w.contains("cannot transmit")), "{warnings:?}");
+        for word in ["rtlsdr", "soapy"] {
+            let (cfg, warnings) = parse(&format!("[radio]\ntx_radio = {word}\n"));
+            assert_eq!(cfg.tx_radio, None);
+            assert!(warnings.iter().any(|w| w.contains("cannot transmit")), "{word}: {warnings:?}");
+        }
 
         let dir = std::env::temp_dir().join(format!("kat_cfg_flipper_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();

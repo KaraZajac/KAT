@@ -11,7 +11,7 @@ use crate::protocols::{
     is_keeloq_non_car, psa_recover_key, ProtocolRegistry, PsaBruteForceControl, PsaBruteForceOutcome,
     PSA_BRUTE_FORCE_TOTAL,
 };
-use crate::radio::{FlipperController, HackRfController, LevelDuration, RtlSdrController};
+use crate::radio::{FlipperController, HackRfController, LevelDuration, RtlSdrController, SoapyController};
 use crate::storage::Storage;
 
 mod rx;
@@ -19,12 +19,14 @@ mod files;
 mod radios;
 pub use radios::{Radio, Tuning};
 
-/// Active radio device: HackRF (full TX/RX), RTL-SDR (receive-only) or a Flipper Zero on USB (TX/RX
-/// through its console, pulses instead of IQ: see [crate::radio::flipper]).
+/// Active radio device: HackRF (full TX/RX), RTL-SDR (receive-only), a Flipper Zero on USB (TX/RX
+/// through its console, pulses instead of IQ: see [crate::radio::flipper]) or a radio SoapySDR
+/// drives (receive-only, through KAT's SoapySDR helper: see [crate::radio::soapy]).
 pub enum RadioDevice {
     HackRf(HackRfController),
     RtlSdr(RtlSdrController),
     Flipper(FlipperController),
+    Soapy(SoapyController),
 }
 
 impl RadioDevice {
@@ -33,6 +35,7 @@ impl RadioDevice {
             RadioDevice::HackRf(h) => h.supports_tx(),
             RadioDevice::RtlSdr(r) => r.supports_tx(),
             RadioDevice::Flipper(f) => f.supports_tx(),
+            RadioDevice::Soapy(s) => s.supports_tx(),
         }
     }
 
@@ -51,6 +54,7 @@ impl RadioDevice {
             RadioDevice::HackRf(h) => h.start_receiving(frequency),
             RadioDevice::RtlSdr(r) => r.start_receiving(frequency),
             RadioDevice::Flipper(f) => f.start_receiving(frequency),
+            RadioDevice::Soapy(s) => s.start_receiving(frequency),
         }
     }
 
@@ -59,6 +63,7 @@ impl RadioDevice {
             RadioDevice::HackRf(h) => h.stop_receiving(),
             RadioDevice::RtlSdr(r) => r.stop_receiving(),
             RadioDevice::Flipper(f) => f.stop_receiving(),
+            RadioDevice::Soapy(s) => s.stop_receiving(),
         }
     }
 
@@ -67,6 +72,7 @@ impl RadioDevice {
             RadioDevice::HackRf(h) => h.set_frequency(frequency),
             RadioDevice::RtlSdr(r) => r.set_frequency(frequency),
             RadioDevice::Flipper(f) => f.set_frequency(frequency),
+            RadioDevice::Soapy(s) => s.set_frequency(frequency),
         }
     }
 
@@ -78,6 +84,8 @@ impl RadioDevice {
             RadioDevice::RtlSdr(_) => Ok(()),
             // The Flipper's gain is its preset's.
             RadioDevice::Flipper(_) => Ok(()),
+            // A SoapySDR radio gets one gain from KAT too (the VGA setting).
+            RadioDevice::Soapy(_) => Ok(()),
         }
     }
 
@@ -86,14 +94,15 @@ impl RadioDevice {
             RadioDevice::HackRf(h) => h.set_vga_gain(gain),
             RadioDevice::RtlSdr(r) => r.set_gain(gain),
             RadioDevice::Flipper(_) => Ok(()),
+            RadioDevice::Soapy(s) => s.set_gain(gain),
         }
     }
 
     pub fn set_amp_enable(&mut self, enabled: bool) -> anyhow::Result<()> {
         match self {
             RadioDevice::HackRf(h) => h.set_amp_enable(enabled),
-            // Neither has an amplifier to switch.
-            RadioDevice::RtlSdr(_) | RadioDevice::Flipper(_) => Ok(()),
+            // None has an amplifier KAT switches.
+            RadioDevice::RtlSdr(_) | RadioDevice::Flipper(_) | RadioDevice::Soapy(_) => Ok(()),
         }
     }
 
@@ -107,6 +116,7 @@ impl RadioDevice {
             RadioDevice::HackRf(h) => h.transmit(signal, frequency, settings),
             RadioDevice::RtlSdr(r) => r.transmit(signal, frequency),
             RadioDevice::Flipper(f) => f.transmit(signal, frequency, settings),
+            RadioDevice::Soapy(s) => s.transmit(signal, frequency),
         }
     }
 
@@ -116,6 +126,7 @@ impl RadioDevice {
             RadioDevice::HackRf(_) => "HackRF",
             RadioDevice::RtlSdr(_) => "RTL-SDR (RX only)",
             RadioDevice::Flipper(_) => "Flipper Zero",
+            RadioDevice::Soapy(_) => "SoapySDR (RX only)",
         }
     }
 
@@ -126,6 +137,7 @@ impl RadioDevice {
             RadioDevice::HackRf(h) => Some(h.rssi_source()),
             RadioDevice::RtlSdr(r) => Some(r.rssi_source()),
             RadioDevice::Flipper(_) => None,
+            RadioDevice::Soapy(s) => Some(s.rssi_source()),
         }
     }
 }
@@ -393,7 +405,23 @@ pub enum RadioEvent {
 }
 
 /// License text (embedded at compile time)
+#[cfg(not(feature = "gpl-tuners"))]
 pub const LICENSE_TEXT: &str = include_str!("../LICENSE");
+/// With the gpl-tuners feature, KAT's license and what the GPL drivers make of the whole.
+#[cfg(feature = "gpl-tuners")]
+pub const LICENSE_TEXT: &str = concat!(
+    include_str!("../LICENSE"),
+    "\n---\n\n",
+    "This build of KAT also contains the drivers for RTL-SDR dongles with an E4000, FC0012, FC0013 ",
+    "or FC2580 tuner, ported from librtlsdr and licensed under the GNU General Public License, ",
+    "version 2 or (at your option) any later version, and the rtl-sdr-rs library they are part of, ",
+    "licensed under the Mozilla Public License 2.0. This program as a whole is therefore distributed ",
+    "under the terms of the GNU General Public License, version 3 or (at your option) any later ",
+    "version: version 3 because some of the libraries of its GPU key recovery are under the Apache ",
+    "License 2.0. The COPYING file next to it holds that license. It comes with ABSOLUTELY NO ",
+    "WARRANTY. Its source code is at https://github.com/KaraZajac/KAT. KAT's own source files stay ",
+    "available under the BSD 3-Clause License above.\n",
+);
 
 /// A running PSA key brute force (ProtoPirate's `psa_brute_force_run`, on a thread so the UI stays
 /// responsive; ≈0.5 s worst case on a 16-core PC, longer on small machines): the "Recover key"
@@ -594,7 +622,7 @@ impl App {
         protocols.set_auto_key_search(storage.config.autobf);
         let (radio_event_tx, radio_event_rx) = mpsc::channel();
 
-        // The radios (config `device`: every HackRF, RTL-SDR and Flipper Zero found, app/radios.rs);
+        // The radios (config `device`: every HackRF, RTL-SDR, Flipper Zero and SoapySDR radio found, app/radios.rs);
         // keep why each kind could not be used (no-device popup, `:radios`).
         let (radios, radio_problems) = radios::open_radios(&storage.config);
         let radio_open_error = (radios.is_empty() && !radio_problems.is_empty()).then(|| radio_problems.join(" · "));

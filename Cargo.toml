@@ -1,6 +1,6 @@
 [package]
 name = "kat"
-version = "1.21.0"
+version = "1.22.0"
 edition = "2021"
 description = "Keyfob Analysis Toolkit - key fob signal capture, decode and transmit with a HackRF, an RTL-SDR (receive only) or a Flipper Zero"
 authors = ["KAT Team"]
@@ -14,8 +14,9 @@ crossterm = "0.28"
 # HackRF library
 libhackrf = "0.1"
 
-# RTL-SDR (receive-only support, e.g. RTL433 hardware)
-rtl-sdr-rs = "0.3"
+# RTL-SDR (receive-only support, e.g. RTL433 hardware). Vendored (see [patch.crates-io]); its
+# E4000, FC0012, FC0013 and FC2580 drivers come with the `gpl-tuners` feature.
+rtl-sdr-rs = { version = "0.3", default-features = false }
 
 # Signal processing
 num-complex = "0.4"
@@ -44,6 +45,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # details on Linux) would need its headers to build; KAT finds the port under /dev/serial/by-id.
 serialport = { version = "4.10.1", default-features = false }
 
+# SoapySDR radios (receive): KAT's SoapySDR helper loads the system's libSoapySDR at run time, so
+# KAT neither links it nor needs it installed (src/radio/soapy).
+libloading = "0.8"
+
 # GPU key recovery (optional, cargo feature `gpu`): a compute backend over wgpu (Vulkan on
 # Linux/Windows, Metal on macOS, DX12 on Windows), shaders compiled in-process by naga — no
 # external toolchain or runtime is shipped. The CPU search is always built and is the correctness
@@ -55,10 +60,21 @@ bytemuck = { version = "1", optional = true, features = ["derive"] }
 
 [features]
 # On by default: KAT ships with GPU recovery, and CI then builds and checks it on every platform.
-# The CPU search is always the fallback. Build with --no-default-features for a lean, wgpu-free KAT.
-default = ["gpu"]
+# The CPU search is always the fallback. Build with --no-default-features for a lean, wgpu-free KAT
+# (which also leaves out gpl-tuners below; add `--features gpl-tuners` to keep them).
+default = ["gpu", "gpl-tuners"]
 gpu = ["dep:wgpu", "dep:pollster", "dep:bytemuck"]
+# RTL-SDR dongles with an E4000, FC0012, FC0013 or FC2580 tuner (vendor/rtl-sdr-rs, drivers ported
+# from librtlsdr). Those drivers are GPL-2.0-or-later, so a KAT built with them (the default, and
+# the release binaries) is distributed under the GPL; without them KAT reads R820T, R820T2 and
+# R828D dongles only.
+gpl-tuners = ["rtl-sdr-rs/gpl-tuners"]
 
+
+[workspace]
+# The vendored RTL-SDR driver is a member so that its tests can run (`cargo test -p rtl-sdr-rs
+# --features rtl-sdr-rs/gpl-tuners`, as CI does); `cargo build` and `cargo test` alone mean KAT.
+members = ["vendor/rtl-sdr-rs"]
 
 [build-dependencies]
 pkg-config = "0.3"
@@ -66,6 +82,9 @@ pkg-config = "0.3"
 [patch.crates-io]
 # Vendored with ARM fix: c_char is u8 on ARM, so the upstream transmute fails
 libhackrf = { path = "vendor/libhackrf" }
+# Vendored from rtl-sdr-rs 0.3.1 (MPL-2.0): more tuners (feature gpl-tuners), and an unknown tuner
+# is an error instead of a panic
+rtl-sdr-rs = { path = "vendor/rtl-sdr-rs" }
 
 [profile.release]
 opt-level = 3

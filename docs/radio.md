@@ -281,10 +281,59 @@ and `kat.log` has the libraries' errors.
   RTL-SDR: the reader thread retunes between 16 ms reads and tags every buffer with its frequency,
   dropping the first 6 ms after a retune. Each capture carries the frequency it was heard on.
 
+## RTL-SDR tuners
+
+An RTL-SDR dongle is a Realtek RTL2832U behind a tuner chip, and the tuner decides what the dongle
+hears. KAT's RTL-SDR driver ([vendor/rtl-sdr-rs](https://github.com/KaraZajac/KAT/tree/main/vendor/rtl-sdr-rs), rtl-sdr-rs 0.3.1 with more
+tuners) finds the tuner when it opens the dongle, writes it to `kat.log` ("RTL-SDR tuner: fc0013"),
+and reads these (ranges from osmocom's rtl-sdr page):
+
+| Tuner | Found on | Range | Gain KAT sets |
+|---|---|---|---|
+| Rafael Micro R820T, R820T2 | RTL-SDR Blog V3, most dongles sold now | 24–1766 MHz | 0–49.6 dB |
+| Rafael Micro R828D | RTL-SDR Blog V4 | 24–1766 MHz | 0–49.6 dB |
+| Elonics E4000 | early dongles | 52–2200 MHz, with a gap from about 1100 to 1250 MHz | −1–42 dB |
+| Fitipower FC0013 | early dongles | 22–1100 MHz | −9.9–19.7 dB |
+| Fitipower FC0012 | early dongles | 22–948.6 MHz | −9.9–19.2 dB |
+| FCI FC2580 | a few dongles | 146–308 and 438–924 MHz | none |
+
+The gain is the radio's VGA value (`:vga`), rounded to the tuner's nearest step as librtlsdr's tools
+do. The FC2580's range stops short of 315 and 433.92 MHz, so it may hear remotes there badly or not
+at all. The E4000, FC0012, FC0013 and FC2580 drivers are librtlsdr's (rtl-sdr 2.0.3), ported to Rust:
+on every scenario of their tests they make the C drivers' I2C transactions byte for byte, but they
+have not been tried on a dongle yet. All four are zero-IF tuners, whose spike at 0 Hz the offset
+tuning above keeps away from the remote. They are GPL-2.0-or-later ([License](https://github.com/KaraZajac/KAT#license) in the README); a
+KAT built without the `gpl-tuners` feature reads R820T, R820T2 and R828D dongles only. A dongle with
+a tuner KAT does not know says so ("its tuner is not one KAT knows"); KAT 1.21 and earlier stopped
+the terminal on it ("Failed to find tuner, aborting").
+
+## SoapySDR radios
+
+[SoapySDR](https://github.com/pothosware/SoapySDR) drives most other SDRs through a module per kind:
+an Airspy, SDRplay, LimeSDR, PlutoSDR, USRP, bladeRF and more. When SoapySDR and a radio's module are
+installed (a distribution's packages, such as `soapysdr-module-airspy`; PothosSDR on Windows), KAT
+receives with that radio: `device = auto` takes it, `device = soapy` takes only those. KAT does not
+link SoapySDR. It starts a helper, itself run as `kat --soapy-helper`, which loads the system's
+SoapySDR library (ABI 0.7, 0.8 or 0.9; `KAT_SOAPYSDR=<path>` names another), lists the radios, or
+opens one and streams its samples to KAT through a pipe. The radios' own libraries thus run in the
+helper: what they print goes to `kat.log` (lines "SoapySDR: …") instead of the screen, and a crash
+in one ends the helper with an error in the status line, not KAT. KAT leaves out the RTL-SDRs and
+HackRFs SoapySDR finds, and the modules that wrap them again (osmosdr): it drives those itself, a
+HackRF with transmit.
+
+A SoapySDR radio works as an RTL-SDR in KAT: receive only, one gain (the VGA value, `:vga`, taken
+into the radio's range; the header's "Gain:20"), offset tuning, hopping, `:record` (complex float
+samples, `.cf32`). KAT asks for 2 MS/s; a radio without that rate runs at the lowest it has above
+it up to 10 MS/s (an Airspy R2 at 2.5 MS/s, a Mini at 3 MS/s), else the highest below. After a
+retune the helper drops 20 ms of samples, which the radio may still hold from the old frequency.
+`:radios` shows each by SoapySDR's label ("AirSpy One [a74068c8…]"), and its `serial` names it in a
+`[radio.soapy.<serial>]` section. Checked with a SoapySDR module made for the test, which streams a
+recording only while tuned where KAT should tune it; not yet with a real radio.
+
 ## Several radios
 
-KAT uses every HackRF, RTL-SDR and Flipper Zero it finds (config `device`: `auto`, or the kinds to
-use, such as `hackrf, rtlsdr`), each with its own receiver, frequency, gains, hop list and
+KAT uses every HackRF, RTL-SDR, Flipper Zero and SoapySDR radio it finds (config `device`: `auto`, or
+the kinds to use, such as `hackrf, rtlsdr`), each with its own receiver, frequency, gains, hop list and
 recording. They run side by side: a HackRF on 433.92 MHz and an RTL-SDR on 315 MHz miss nothing on
 either band, which hopping between them would. Two frequencies within the band one SDR already hears
 (about 1.15 MHz below to 0.65 MHz above its frequency) need no second radio.

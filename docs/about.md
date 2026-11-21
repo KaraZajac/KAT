@@ -116,6 +116,7 @@ correction to anything a page says. The repository's
 
 ## Licence and use
 
-KAT is released under the BSD 3-Clause licence. Use the program and what this site describes only on systems
-and vehicles you own or have explicit, written permission to test
+KAT's own code is released under the BSD 3-Clause licence; its release binaries, which also contain RTL-SDR
+tuner drivers ported from librtlsdr, are distributed under the GNU GPL, version 3 or later. Use the program and
+what this site describes only on systems and vehicles you own or have explicit, written permission to test
 ([the full notice](https://kat.karazajac.io/#legal)).

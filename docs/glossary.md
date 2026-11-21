@@ -64,7 +64,9 @@ signal as levels and durations, not as samples, so what it filtered away is gone
 ### SDR: HackRF One, RTL-SDR
 
 Software-defined radios: they deliver raw samples of a slice of spectrum and leave the demodulating to the
-computer. KAT receives with either and transmits with a HackRF One ([Receive chain](radio.md)).
+computer. KAT receives with either and transmits with a HackRF One ([Receive chain](radio.md)). What an RTL-SDR
+hears depends on its tuner chip ([RTL-SDR tuners](radio.md#rtl-sdr-tuners)); other SDRs reach KAT through
+SoapySDR, to receive ([SoapySDR radios](radio.md#soapysdr-radios)).
 
 ### IQ recording
 

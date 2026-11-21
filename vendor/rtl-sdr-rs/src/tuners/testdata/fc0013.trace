@@ -1,0 +1,1571 @@
+> tuner fc0013
+> reg c6 1d ff
+> init
+W c6: 01 09
+W c6: 02 16
+W c6: 03 00
+W c6: 04 00
+W c6: 05 17
+W c6: 06 02
+W c6: 07 2a
+W c6: 08 ff
+W c6: 09 6e
+W c6: 0a b8
+W c6: 0b 82
+W c6: 0c fe
+W c6: 0d 01
+W c6: 0e 00
+W c6: 0f 00
+W c6: 10 00
+W c6: 11 00
+W c6: 12 00
+W c6: 13 00
+W c6: 14 50
+W c6: 15 01
+= ok
+> ovr c6 0e 00 20
+> freq 22000000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 3a
+W c6: 14
+R c6: 50
+W c6: 14 10
+W c6: 01 03
+W c6: 02 12
+W c6: 03 d5
+W c6: 04 55
+W c6: 05 87
+W c6: 06 a0
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 30000000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 08
+W c6: 02 18
+W c6: 03 00
+W c6: 04 00
+W c6: 05 87
+W c6: 06 a0
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 37083999
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 07
+W c6: 02 1e
+W c6: 03 1d
+W c6: 04 01
+W c6: 05 87
+W c6: 06 a8
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 37084000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 05
+W c6: 02 14
+W c6: 03 e8
+W c6: 04 ac
+W c6: 05 07
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 04
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 50000000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 06
+W c6: 02 1b
+W c6: 03 1c
+W c6: 04 71
+W c6: 05 07
+W c6: 06 aa
+W c6: 11
+R c6: 04
+W c6: 11 04
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 55625000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 09
+W c6: 02 16
+W c6: 03 35
+W c6: 04 55
+W c6: 05 47
+W c6: 06 a0
+W c6: 11
+R c6: 04
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 70000000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 09
+W c6: 02 1c
+W c6: 03 2a
+W c6: 04 aa
+W c6: 05 47
+W c6: 06 a8
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 74167000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 05
+W c6: 02 14
+W c6: 03 e8
+W c6: 04 64
+W c6: 05 87
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 100000000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 06
+W c6: 02 1b
+W c6: 03 1c
+W c6: 04 71
+W c6: 05 87
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 111250000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 09
+W c6: 02 16
+W c6: 03 35
+W c6: 04 55
+W c6: 05 27
+W c6: 06 a0
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 140000000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 09
+W c6: 02 1c
+W c6: 03 2a
+W c6: 04 aa
+W c6: 05 27
+W c6: 06 a8
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 148334000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 05
+W c6: 02 14
+W c6: 03 e8
+W c6: 04 64
+W c6: 05 47
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 177500000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 05
+W c6: 02 18
+W c6: 03 1c
+W c6: 04 71
+W c6: 05 47
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 184000000
+W c6: 1d
+R c6: ff
+W c6: 1d fb
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 04
+W c6: 02 19
+W c6: 03 38
+W c6: 04 e3
+W c6: 05 47
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 191000000
+W c6: 1d
+R c6: fb
+W c6: 1d f7
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 04
+W c6: 02 1a
+W c6: 03 1c
+W c6: 04 71
+W c6: 05 47
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 198000000
+W c6: 1d
+R c6: f7
+W c6: 1d f3
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 04
+W c6: 02 1b
+W c6: 03 00
+W c6: 04 00
+W c6: 05 47
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 205000000
+W c6: 1d
+R c6: f3
+W c6: 1d ef
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 04
+W c6: 02 1c
+W c6: 03 e3
+W c6: 04 8e
+W c6: 05 47
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 219000000
+W c6: 1d
+R c6: ef
+W c6: 1d eb
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 03
+W c6: 02 1e
+W c6: 03 2a
+W c6: 04 aa
+W c6: 05 47
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 222500000
+W c6: 1d
+R c6: eb
+W c6: 1d e7
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 09
+W c6: 02 16
+W c6: 03 35
+W c6: 04 55
+W c6: 05 17
+W c6: 06 a0
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 280000000
+W c6: 1d
+R c6: e7
+W c6: 1d e7
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 09
+W c6: 02 1c
+W c6: 03 2a
+W c6: 04 aa
+W c6: 05 17
+W c6: 06 a8
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 296667000
+W c6: 1d
+R c6: e7
+W c6: 1d e7
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 05
+W c6: 02 14
+W c6: 03 e8
+W c6: 04 51
+W c6: 05 27
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 299999999
+W c6: 1d
+R c6: e7
+W c6: 1d e7
+W c6: 07
+R c6: 3a
+W c6: 07 3a
+W c6: 14
+R c6: 10
+W c6: 14 10
+W c6: 01 07
+W c6: 02 14
+W c6: 03 d5
+W c6: 04 53
+W c6: 05 27
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 300000000
+W c6: 1d
+R c6: e7
+W c6: 1d ff
+W c6: 07
+R c6: 3a
+W c6: 07 2a
+W c6: 14
+R c6: 10
+W c6: 14 50
+W c6: 01 07
+W c6: 02 14
+W c6: 03 d5
+W c6: 04 55
+W c6: 05 27
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 445000000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 09
+W c6: 02 16
+W c6: 03 35
+W c6: 04 55
+W c6: 05 0f
+W c6: 06 a0
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 500000000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 08
+W c6: 02 19
+W c6: 03 2a
+W c6: 04 aa
+W c6: 05 0f
+W c6: 06 a0
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 593334000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 05
+W c6: 02 14
+W c6: 03 e8
+W c6: 04 51
+W c6: 05 17
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 862000000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 07
+W c6: 02 1d
+W c6: 03 38
+W c6: 04 e3
+W c6: 05 17
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 862000001
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 07
+W c6: 02 1d
+W c6: 03 38
+W c6: 04 e3
+W c6: 05 17
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 949999999
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+= err
+> freq 950000000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 04
+W c6: 02 10
+W c6: 03 f8
+W c6: 04 e3
+W c6: 05 0f
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 1090000000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 07
+W c6: 02 12
+W c6: 03 31
+W c6: 04 c7
+W c6: 05 0f
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 299750000
+W c6: 1d
+R c6: ff
+W c6: 1d e7
+W c6: 07
+R c6: 2a
+W c6: 07 3a
+W c6: 14
+R c6: 50
+W c6: 14 10
+W c6: 01 07
+W c6: 02 14
+W c6: 03 c3
+W c6: 04 8e
+W c6: 05 27
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 303625000
+W c6: 1d
+R c6: e7
+W c6: 1d ff
+W c6: 07
+R c6: 3a
+W c6: 07 2a
+W c6: 14
+R c6: 10
+W c6: 14 50
+W c6: 01 09
+W c6: 02 14
+W c6: 03 d7
+W c6: 04 1c
+W c6: 05 27
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 309750000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 04
+W c6: 02 15
+W c6: 03 0a
+W c6: 04 aa
+W c6: 05 27
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 314750000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 07
+W c6: 02 15
+W c6: 03 ee
+W c6: 04 38
+W c6: 05 27
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 317750000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 09
+W c6: 02 15
+W c6: 03 c3
+W c6: 04 8e
+W c6: 05 27
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 389750000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 09
+W c6: 02 1a
+W c6: 03 c3
+W c6: 04 8e
+W c6: 05 27
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 417750000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 08
+W c6: 02 1c
+W c6: 03 0a
+W c6: 04 aa
+W c6: 05 27
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 433170000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 09
+W c6: 02 1d
+W c6: 03 d3
+W c6: 04 33
+W c6: 05 27
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 433670000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 09
+W c6: 02 1d
+W c6: 03 f6
+W c6: 04 c1
+W c6: 05 27
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 434170000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 09
+W c6: 02 1d
+W c6: 03 1a
+W c6: 04 4f
+W c6: 05 27
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 868100000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 09
+W c6: 02 1d
+W c6: 03 11
+W c6: 04 c7
+W c6: 05 17
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> freq 914750000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 06
+W c6: 02 1f
+W c6: 03 0c
+W c6: 04 71
+W c6: 05 17
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 20
+= ok
+> ovr c6 0e 00 00
+> freq 100000000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 3a
+W c6: 14
+R c6: 50
+W c6: 14 10
+W c6: 01 06
+W c6: 02 1b
+W c6: 03 1c
+W c6: 04 71
+W c6: 05 87
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 00
+= ok
+> freq 433670000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 3a
+W c6: 07 2a
+W c6: 14
+R c6: 10
+W c6: 14 50
+W c6: 01 09
+W c6: 02 1d
+W c6: 03 f6
+W c6: 04 c1
+W c6: 05 27
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 00
+= ok
+> freq 868100000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 09
+W c6: 02 1d
+W c6: 03 11
+W c6: 04 c7
+W c6: 05 17
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 00
+= ok
+> freq 950000000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 04
+W c6: 02 10
+W c6: 03 f8
+W c6: 04 e3
+W c6: 05 0f
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 00
+W c6: 06 aa
+W c6: 0e 80
+W c6: 0e 00
+= ok
+> ovr c6 0e 00 3f
+> freq 100000000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 3a
+W c6: 14
+R c6: 50
+W c6: 14 10
+W c6: 01 06
+W c6: 02 1b
+W c6: 03 1c
+W c6: 04 71
+W c6: 05 87
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 3f
+W c6: 06 a2
+W c6: 0e 80
+W c6: 0e 00
+= ok
+> freq 433670000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 3a
+W c6: 07 2a
+W c6: 14
+R c6: 10
+W c6: 14 50
+W c6: 01 09
+W c6: 02 1d
+W c6: 03 f6
+W c6: 04 c1
+W c6: 05 27
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 3f
+W c6: 06 a2
+W c6: 0e 80
+W c6: 0e 00
+= ok
+> freq 868100000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 09
+W c6: 02 1d
+W c6: 03 11
+W c6: 04 c7
+W c6: 05 17
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 3f
+W c6: 06 a2
+W c6: 0e 80
+W c6: 0e 00
+= ok
+> freq 950000000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 04
+W c6: 02 10
+W c6: 03 f8
+W c6: 04 e3
+W c6: 05 0f
+W c6: 06 a2
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 3f
+= ok
+> freq 1800000000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 02
+W c6: 02 1f
+W c6: 03 00
+W c6: 04 00
+W c6: 05 0f
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 3f
+W c6: 06 a2
+W c6: 0e 80
+W c6: 0e 00
+= ok
+> freq 2000000000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+= err
+> gainmode 1
+W c6: 0d
+R c6: 01
+W c6: 0d 09
+W c6: 13 0a
+= ok
+> gain -120
+W c6: 14
+R c6: 50
+W c6: 14 42
+= ok
+> gain -99
+W c6: 14
+R c6: 42
+W c6: 14 42
+= ok
+> gain -98
+W c6: 14
+R c6: 42
+W c6: 14 43
+= ok
+> gain -73
+W c6: 14
+R c6: 43
+W c6: 14 43
+= ok
+> gain -66
+W c6: 14
+R c6: 43
+W c6: 14 45
+= ok
+> gain -64
+W c6: 14
+R c6: 45
+W c6: 14 44
+= ok
+> gain -63
+W c6: 14
+R c6: 44
+W c6: 14 44
+= ok
+> gain -62
+W c6: 14
+R c6: 44
+W c6: 14 47
+= ok
+> gain -59
+W c6: 14
+R c6: 47
+W c6: 14 41
+= ok
+> gain -55
+W c6: 14
+R c6: 41
+W c6: 14 46
+= ok
+> gain -54
+W c6: 14
+R c6: 46
+W c6: 14 46
+= ok
+> gain 0
+W c6: 14
+R c6: 46
+W c6: 14 4f
+= ok
+> gain 57
+W c6: 14
+R c6: 4f
+W c6: 14 4f
+= ok
+> gain 58
+W c6: 14
+R c6: 4f
+W c6: 14 4f
+= ok
+> gain 59
+W c6: 14
+R c6: 4f
+W c6: 14 4e
+= ok
+> gain 62
+W c6: 14
+R c6: 4e
+W c6: 14 4d
+= ok
+> gain 64
+W c6: 14
+R c6: 4d
+W c6: 14 4c
+= ok
+> gain 66
+W c6: 14
+R c6: 4c
+W c6: 14 4b
+= ok
+> gain 68
+W c6: 14
+R c6: 4b
+W c6: 14 4a
+= ok
+> gain 69
+W c6: 14
+R c6: 4a
+W c6: 14 49
+= ok
+> gain 71
+W c6: 14
+R c6: 49
+W c6: 14 48
+= ok
+> gain 72
+W c6: 14
+R c6: 48
+W c6: 14 57
+= ok
+> gain 100
+W c6: 14
+R c6: 57
+W c6: 14 57
+= ok
+> gain 178
+W c6: 14
+R c6: 57
+W c6: 14 57
+= ok
+> gain 179
+W c6: 14
+R c6: 57
+W c6: 14 57
+= ok
+> gain 180
+W c6: 14
+R c6: 57
+W c6: 14 56
+= ok
+> gain 181
+W c6: 14
+R c6: 56
+W c6: 14 56
+= ok
+> gain 183
+W c6: 14
+R c6: 56
+W c6: 14 54
+= ok
+> gain 185
+W c6: 14
+R c6: 54
+W c6: 14 53
+= ok
+> gain 187
+W c6: 14
+R c6: 53
+W c6: 14 52
+= ok
+> gain 189
+W c6: 14
+R c6: 52
+W c6: 14 51
+= ok
+> gain 190
+W c6: 14
+R c6: 51
+W c6: 14 51
+= ok
+> gain 196
+W c6: 14
+R c6: 51
+W c6: 14 50
+= ok
+> gain 197
+W c6: 14
+R c6: 50
+W c6: 14 50
+= ok
+> gain 198
+W c6: 14
+R c6: 50
+W c6: 14 50
+= ok
+> gain 300
+W c6: 14
+R c6: 50
+W c6: 14 50
+= ok
+> gainmode 0
+W c6: 0d
+R c6: 09
+W c6: 0d 01
+W c6: 13 0a
+= ok
+> gainmode 1
+W c6: 0d
+R c6: 01
+W c6: 0d 09
+W c6: 13 0a
+= ok
+> bw 2000000
+= ok
+> xtal 28801000
+> freq 433670000
+W c6: 1d
+R c6: ff
+W c6: 1d ff
+W c6: 07
+R c6: 2a
+W c6: 07 2a
+W c6: 14
+R c6: 50
+W c6: 14 50
+W c6: 01 09
+W c6: 02 1d
+W c6: 03 f5
+W c6: 04 b0
+W c6: 05 27
+W c6: 06 aa
+W c6: 11
+R c6: 00
+W c6: 11 00
+W c6: 0e 80
+W c6: 0e 00
+W c6: 0e 00
+W c6: 0e
+R c6: 3f
+W c6: 06 a2
+W c6: 0e 80
+W c6: 0e 00
+= ok
+> exit
+= ok

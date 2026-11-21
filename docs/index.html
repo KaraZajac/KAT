@@ -63,7 +63,7 @@
       <p class="kicker">Software and reference work</p>
       <h1>KAT: Keyfob Analysis Toolkit</h1>
       <p class="subtitle">A terminal application for capturing, decoding and retransmitting the signals of car key fobs and of garage, gate and barrier remotes.</p>
-      <p class="meta">Version {{version}} · BSD-3-Clause · Linux, macOS and Windows · <a href="changelog.html">Changelog</a></p>
+      <p class="meta">Version {{version}} · BSD-3-Clause, release builds GPL-3.0 · Linux, macOS and Windows · <a href="changelog.html">Changelog</a></p>
       <p class="actions">
         <a class="btn btn-primary" href="https://github.com/KaraZajac/KAT/releases/latest">Download {{version}}</a>
         <a class="btn" href="install.html">Install and run</a>
@@ -77,8 +77,9 @@
         KAT is a terminal application that captures, decodes and retransmits the
         radio signals of car key fobs and of garage-door, gate, barrier and shutter
         remotes. It works with a HackRF One (receive and transmit), an RTL-SDR
-        (receive only) and a Flipper Zero on USB (receive and transmit), several
-        at once and each on its own frequency, and it decodes IQ recordings and
+        (receive only), a Flipper Zero on USB (receive and transmit) and, to
+        receive, any radio SoapySDR drives, several at once and each on its own
+        frequency, and it decodes IQ recordings and
         Flipper Zero <code>.sub</code> files with no radio attached. It has
         {{decoders}} protocol decoders, {{car}} for car key fobs and alarms and
         {{gate}} for garage, gate, home and sensor remotes, each checked against
@@ -114,8 +115,8 @@
       <dl class="deflist">
         <div>
           <dt>Receive</dt>
-          <dd>One receive chain for a HackRF, an RTL-SDR and IQ recordings, AM/OOK and FM/2-FSK; a Flipper Zero hands over the pulses it demodulates itself. A wide-band detector finds remotes anywhere in the received band, two at once included, with no loss of sensitivity measured out to ±325&nbsp;kHz off the tuned frequency. Over the air it caught 239 of 250 frames a Flipper Zero replayed.
-          <span class="more"><a href="radio.html">Receive chain and its measurements</a> · <a href="flipper_radio.html">Flipper as the radio</a> · <a href="recording.html">Recording a remote</a></span></dd>
+          <dd>One receive chain for a HackRF, an RTL-SDR (any of six tuners), a radio SoapySDR drives (Airspy, SDRplay, LimeSDR, PlutoSDR …) and IQ recordings, AM/OOK and FM/2-FSK; a Flipper Zero hands over the pulses it demodulates itself. A wide-band detector finds remotes anywhere in the received band, two at once included, with no loss of sensitivity measured out to ±325&nbsp;kHz off the tuned frequency. Over the air it caught 239 of 250 frames a Flipper Zero replayed.
+          <span class="more"><a href="radio.html">Receive chain and its measurements</a> · <a href="radio.html#rtl-sdr-tuners">RTL-SDR tuners</a> · <a href="radio.html#soapysdr-radios">SoapySDR radios</a> · <a href="flipper_radio.html">Flipper as the radio</a> · <a href="recording.html">Recording a remote</a></span></dd>
         </div>
         <div>
           <dt>Decode</dt>
@@ -172,8 +173,8 @@
         Each <a href="https://github.com/KaraZajac/KAT/releases/latest">release</a>
         has an archive for 64-bit Linux on Intel, AMD and ARM, for Apple Silicon
         Macs and for Windows, with a checksum beside it. Unpack it and run
-        <code>kat</code>: it uses every HackRF, RTL-SDR and Flipper Zero it finds,
-        or runs with files alone.
+        <code>kat</code>: it uses every HackRF, RTL-SDR, Flipper Zero and SoapySDR
+        radio it finds, or runs with files alone.
       </p>
 <pre><code>kat                                        # the interface; ? is help
 kat --decode captures/ fob.sub             # what KAT reads from files
@@ -251,13 +252,14 @@ kat --iq fob.cs8 --freq 433.92 --rate 2M   # open an IQ recording</code></pre>
         <li><a href="https://github.com/D4C1-Labs/Flipper-ARF">Flipper-ARF</a> · <a href="https://github.com/thedoctorz/doctor-firmware">doctor-firmware</a></li>
         <li><a href="https://github.com/Next-Flip/Momentum-Firmware">Momentum</a> · <a href="https://github.com/RogueMaster/flipperzero-firmware-wPlugins">RogueMaster</a></li>
         <li><a href="https://github.com/merbanan/rtl_433">rtl_433</a> · <a href="https://ratatui.rs">ratatui</a></li>
+        <li><a href="https://github.com/ccostes/rtl-sdr-rs">rtl-sdr-rs</a> · <a href="https://gitea.osmocom.org/sdr/rtl-sdr">librtlsdr</a> · <a href="https://github.com/pothosware/SoapySDR">SoapySDR</a></li>
       </ul>
     </div>
   </div>
   <div class="container footer-bottom">
     <p>Use KAT only on systems and vehicles you own or have explicit, written permission to test. <a href="./#legal">The full notice.</a></p>
     <p class="footer-meta">
-      Version {{version}} · <a href="https://github.com/KaraZajac/KAT">github.com/KaraZajac/KAT</a> · <a href="https://github.com/KaraZajac/KAT/blob/main/LICENSE">BSD-3-Clause</a>
+      Version {{version}} · <a href="https://github.com/KaraZajac/KAT">github.com/KaraZajac/KAT</a> · <a href="https://github.com/KaraZajac/KAT/blob/main/LICENSE">BSD-3-Clause</a>, release builds <a href="https://github.com/KaraZajac/KAT/blob/main/COPYING">GPL-3.0</a>
     </p>
     <div class="onion-line">
       <span class="onion-label">Also on Tor</span>

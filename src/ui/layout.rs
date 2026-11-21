@@ -796,6 +796,7 @@ fn no_device_message(kinds: &[RadioKind], open_error: Option<&str>) -> Vec<(Stri
             RadioKind::HackRf => "HackRF",
             RadioKind::RtlSdr => "RTL-SDR",
             RadioKind::Flipper => "Flipper Zero",
+            RadioKind::Soapy => "SoapySDR radio",
         })
         .collect();
     let connect: Vec<&str> = used
@@ -804,6 +805,7 @@ fn no_device_message(kinds: &[RadioKind], open_error: Option<&str>) -> Vec<(Stri
             RadioKind::HackRf => "a HackRF (TX+RX)",
             RadioKind::RtlSdr => "an RTL-SDR (RX only)",
             RadioKind::Flipper => "a Flipper Zero (TX+RX over USB)",
+            RadioKind::Soapy => "a SoapySDR radio (RX only)",
         })
         .collect();
     // A kind the config leaves out is not looked for: say so, or plugging one in looks broken.
@@ -1188,7 +1190,8 @@ mod tests {
                 render_message_popup(f, "Warning", Color::Red, 60, &no_device_message(&RadioKind::ALL, None))
             });
             let text = rows.join("\n");
-            for words in ["No HackRF, RTL-SDR or Flipper Zero detected.", "Press any key to continue.", ":radios", "exports."] {
+            // (the first line wraps in the 60-column popup)
+            for words in ["No HackRF, RTL-SDR, Flipper Zero or SoapySDR radio", "detected.", "Press any key to continue.", ":radios", "exports."] {
                 assert!(text.contains(words), "{width}×{height}: {words:?} missing\n{text}");
             }
             assert!(!text.contains("config.ini"), "{width}×{height}: every kind is in use\n{text}");

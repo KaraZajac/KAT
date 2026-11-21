@@ -22,6 +22,8 @@ KAT would not be possible without ProtoPirate. The protocol decoders, reference 
 
 Protocols ProtoPirate does not carry are ported from Flipper-ARF (D4C1-Labs), The Doctor's firmware (thedoctorz), Momentum (Next-Flip) and RogueMaster, and the receive-only decoders from rtl_433 (Benjamin Larsson, Christian W. Zuckschwerdt and contributors), checked on the rtl_433_tests recordings.
 
+The RTL-SDR driver is rtl-sdr-rs (ccostes and contributors, MPL-2.0); its E4000, FC0012, FC0013 and FC2580 tuner drivers are ported from osmocom's librtlsdr (Steve Markgraf, Hans-Frieder Vogt, Harald Welte, Sylvain Munaut, Hoernchen and contributors, GPL-2.0-or-later). Other SDRs are reached through SoapySDR (Pothosware) when it is installed.
+
 ProtoPirate Development Team
 ----
 RocketGod

@@ -2041,7 +2041,16 @@
   {
    "aliases": [],
    "bits": 80,
-   "buttons": [],
+   "buttons": [
+    [
+     16,
+     "Unlock"
+    ],
+    [
+     32,
+     "Lock"
+    ]
+   ],
    "category": "Vehicle",
    "coding": "Pwm",
    "decoder": "Chrysler V0",
@@ -2051,7 +2060,7 @@
     315000000,
     433920000
    ],
-   "generic_buttons": true,
+   "generic_buttons": false,
    "make": "Chrysler/Dodge/Jeep",
    "module": "chrysler_v0",
    "name": "Chrysler V0",
@@ -20788,5 +20797,5 @@
    "te_short": null
   }
  ],
- "version": "1.20.0"
+ "version": "1.20.1"
 }

@@ -1,64 +1,66 @@
 //! Chrysler V0 protocol decoder/encoder
 //!
-//! Port of ProtoPirate `protocols/chrysler_v0.c` (HEAD). Flipper-ARF ships the same file as
-//! `lib/subghz/protocols/chrysler.c` ("Chrysler", FOBIK GQ43VT) and doctor-firmware as
-//! `chrysler_v0.c`; their decoders are identical to ProtoPirate's, their encoders differ only in the
-//! counter step and D-pad buttons (below). Used by older Chrysler/Dodge/Jeep FOBIK keyfobs. (The
-//! newer FCA fobs in `IMPORTS/chrysler` and `IMPORTS/jeep` are Fiat V2 frames; no reference's
-//! Chrysler V0 decodes them, in either polarity.)
+//! The signal and the key files are ProtoPirate's `protocols/chrysler_v0.c` (HEAD); Flipper-ARF
+//! ships the same file as `lib/subghz/protocols/chrysler.c` ("Chrysler", FOBIK GQ43VT) and
+//! doctor-firmware as `chrysler_v0.c`, with the same decoder. Used by older Chrysler/Dodge/Jeep
+//! FOBIK keyfobs. (The newer FCA fobs in `IMPORTS/chrysler` and `IMPORTS/jeep` are Fiat V2 frames;
+//! no reference's Chrysler V0 decodes them, in either polarity.) **KAT reads the frame by the rule
+//! it is built by, not by the references' model** (below; `docs/chrysler_v0.md`).
 //!
-//! Protocol: PWM with a short HIGH pulse and TWO long-LOW symbols. A "1" payload bit is
-//! HIGH≈600µs (te_one_short) + LOW≈3400µs (te_long_a); a "0" payload bit is HIGH≈300µs
-//! (te_short) + LOW≈3700µs (te_long_b). te_delta≈150, long_delta≈400, te_gap≈8000,
-//! frame_gap≈15600. ~24 preamble pairs (short HIGH + long_b LOW) precede each frame.
+//! **Signal** (the C's): PWM with a short HIGH pulse and TWO long-LOW symbols. A "1" bit is
+//! HIGH≈600µs (te_one_short) + LOW≈3400µs (te_long_a); a "0" bit is HIGH≈300µs (te_short) +
+//! LOW≈3700µs (te_long_b). te_delta≈150, long_delta≈400, te_gap≈8000, frame_gap≈15600. A press of
+//! the fob is 24 preamble pairs (short HIGH + long_b LOW), then twice a short HIGH, the 15.6 ms
+//! frame gap and the 80 bits; it ends at the second copy's last bit. The C's state machine, which
+//! KAT keeps, reads the copy behind the preamble.
 //!
-//! Frame: 80 bits. The first 64 bits are `decode_data` (payload bytes 0..7), the last 16 bits
-//! are `data_2` (payload bytes 8,9). The 80-bit frame exceeds u64, so [DecodedSignal::data]
-//! reports the most-significant 64 bits and `data_count_bit = 80` (matches psa.rs/kia_v6.rs).
+//! **Frame**: 80 bits, the first 64 in `data`, the last 16 (the C's `Key_2`) in `extra`. Each byte
+//! is sent LSB first. Byte 0 is the sum (mod 256) of `n` and `p1..p8`; byte 1 is `n`, the low byte
+//! of a 16-bit counter that goes down by one with every press; bytes 2..9 are `p1 ^ n` … `p8 ^ n`.
+//! When the sum is odd, bytes 1..9 go out backwards, the 72 bits last bit first (the C's payload
+//! B; an even sum is its payload A). In the one fob recorded, the Chrysler PT Cruiser 2006's
+//! (`IMPORTS/chrysler`: 732 frames in six recordings), `p1..p4` are `FD 3B A1 C3`, `p5` is the
+//! button (`20` Lock, `10` Unlock), `p6` the counter's high byte and `p7 p8` `A1 C3` again. Every
+//! one of its frames is built so, and each press re-encoded is the next press it sent, all 80 bits
+//! (tests below). [Volvo S40](super::volvo_s40) reads the same rule in a 64-bit frame.
 //!
-//! Crypto (proprietary seed-XOR, ported exactly from chrysler_v0.c `decode`):
-//! - `seed = reverse6(key[0] >> 2)` — a 6-bit reversed counter used as the transform key.
-//! - `transform_block`: XOR all 9 transformed bytes with `xor_table[seed & 0x0F]`, with an extra
-//!   nibble flip when the (Lock) button is set.
-//! - Dual payload A (seed even, plaintext SnA) / B (seed odd, plaintext SnB). The frame is
-//!   reported only when the structural `check_ok` passes (as in the C), so it does not false-match
-//!   other protocols. `crc_valid` reflects that `check_ok`.
+//! **Fields**: `serial` = `p1..p4`, `button` = `p5` (named for the two codes the fob sends; any
+//! other is "Other"), `counter` = `p6 << 8 | n`, `crc_valid` = the sum. The decoder reports a frame
+//! whose sum holds and whose `p1..p4` are not `00000000` or `FFFFFFFF`.
 //!
-//! Fields (as the C serializes them): `serial` = SnA (payload A: plaintext bytes 0..3) or SnB
-//! (payload B: plaintext bytes 0,1,2,7); `button` = 1 Lock / 2 Unlock (same as KAT's generic
-//! codes); `counter` = the 6-bit seed (the C's `Cnt`); `extra` = the last 16 frame bits (`Key_2`).
+//! **Where KAT departs from the references.** The C reads byte 0 as a 6-bit seed
+//! (`reverse6(key[0] >> 2)`: the sum's low six bits) and two header bits (the sum's top two,
+//! backwards), and bytes 1..9 under one of sixteen XOR masks (`xor_table[seed & 0x0F]`, a nibble of
+//! it flipped for Lock) that stand in for `n` over runs of presses. So its serials (SnA, plaintext
+//! bytes 0..3 of payload A; SnB, bytes 0, 1, 2 and 7 of payload B) change with the count, 160 for
+//! the one fob; its counter (`Cnt`) is the seed; its checks (A: `p0 ^ 0xC3 == p4` and `p0 ^ p5`
+//! 0x04 / 0x08; B: `p0 == p4` and `p0 ^ p5 == 0x62`) hold for that fob's bytes and fail for a fob
+//! whose `p3` or `p4` differ; and it does not test the sum. KAT reads a frame whose sum holds,
+//! whatever its fixed bytes, and none whose sum fails (one the C reads when a bit its checks do not
+//! cover is wrong).
 //!
-//! RF: AM, 315 + 433.92 MHz. Encoder (`subghz_protocol_encoder_chrysler_v0_deserialize` +
-//! `chrysler_v0_build_upload`): plaintext recovered from the captured frame, button flip
-//! (`plain_a[5] ^= 0x0C`, `plain_b[3] ^= 0x30`) when the requested button differs, then payload A
-//! (even counter) and B (counter − 1) each sent as 24 preamble pairs + short + 15.6ms gap + 80
-//! PWM bits + short + 15.6ms gap (424 entries; the Flipper sends the upload `repeat` = 2 times while
-//! held; `encode` returns it once and KAT sends it twice, `tx_copies.rs`). Buttons: KAT Lock → 1, Unlock → 2 (ProtoPirate emulate, ARF and
-//! doctor D-pads); Trunk/Panic keep the captured button.
-//!
-//! **Deviation (counter), from real captures:** KAT sends seed − 1, made even: A(N−2) + B(N−3)
-//! from a payload-A capture, A(N−1) + B(N−2) from payload B. The payload of the captured type is
-//! then the fob's next press of that type; the other one carries the captured plaintext, as in the
-//! C, which A and B frames don't share. The Chrysler PT Cruiser 2006 fob in `IMPORTS/chrysler`
-//! sends one payload per press, alternating A and B with the seed counting **down** by one (A(N),
-//! B(N−1), A(N−2)…), and re-encoding each of its presses reproduces its press two later bit for
-//! bit. The references count up: ProtoPirate's emulate scene and doctor-firmware's encoder add 1
-//! to `Cnt`, which re-sends the captured press; Flipper-ARF adds 2, which sends an earlier press.
-//! A fob counting down has already sent both.
+//! **Encoder**: the fob's next press. The counter one lower (borrowing from `p6`), `p5` the
+//! requested button (KAT's Lock and Unlock: `20` and `10`; Trunk and Panic, whose codes no
+//! recording shows, keep the captured one), the other bytes as captured, the new sum and the order
+//! it gives; sent as the fob sends a press, once (`tx_copies.rs`: the upload is a whole press). The
+//! references build payload A from the captured plaintext with the seed + 1 (ProtoPirate's emulate
+//! scene, doctor-firmware: the captured press again) or + 2 (Flipper-ARF: an earlier press), then
+//! payload B from A's plaintext, a frame no fob sends.
 //!
 //! **Key files** (`subghz_protocol_decoder_chrysler_v0_serialize` / `_deserialize`; Flipper-ARF's
-//! "Chrysler" writes the same lines): `Protocol: Chrysler V0`, `Bit: 80`, `Key` =
-//! the first 64 frame bits, then `Key_2` (the last 16 bits, big-endian), `Plain_A` (frame A) or
-//! `Plain_B` (frame B) — the frame's 9 plaintext bytes — and `Serial` (SnA / SnB), `Btn`, `Cnt`
-//! (the 6-bit seed). Two reference quirks are not copied: the C writes Key_2/Plain_x after
-//! `flipper_format_rewind`, i.e. over the start of its own buffer (KAT writes them after Key, the
-//! order the C means and doctor-firmware's fixed copy writes), and its decoder instance keeps the
-//! plaintext of earlier frames — even ones that failed the check — so a reference file may also
-//! carry the other frame's Plain_x, with that frame's SnB as Serial (KAT writes what a fresh
-//! decoder writes; on load the frame decides). Loading (`_deserialize`) reads Key + Key_2 (required)
-//! with any Bit (the C forces 80) and decodes the frame as the decoder does; the C loads frames
-//! whose structure check fails too (shown as `Chk: ERR`), so KAT loads them with `crc_valid`
-//! false. The file's Serial/Btn/Cnt are not applied (the C's decoder derives them from the frame).
+//! "Chrysler" writes the same lines): the C's, written with the C's model, since the firmwares read
+//! `Plain_x`, `Btn` and `Cnt` back when they send from a file: `Protocol: Chrysler V0`, `Bit: 80`,
+//! `Key` = the first 64 frame bits, then `Key_2` (the last 16 bits, big-endian), `Plain_A` (frame
+//! A) or `Plain_B` (frame B) — the C's 9 plaintext bytes — and `Serial` (SnA / SnB), `Btn` (1 Lock,
+//! 2 Unlock), `Cnt` (the 6-bit seed). Two reference quirks are not copied: the C writes
+//! Key_2/Plain_x after `flipper_format_rewind`, i.e. over the start of its own buffer (KAT writes
+//! them after Key, the order the C means and doctor-firmware's fixed copy writes), and its decoder
+//! instance keeps the plaintext of earlier frames — even ones that failed the check — so a
+//! reference file may also carry the other frame's Plain_x, with that frame's SnB as Serial (KAT
+//! writes what a fresh decoder writes). Loading (`_deserialize`) reads Key + Key_2 (required) with
+//! any Bit (the C forces 80) and reads the frame by the rule; the file's other lines are not
+//! applied. A frame whose sum fails loads with `crc_valid` false (the C loads frames whose check
+//! fails too, shown as `Chk: ERR`) and is not sent on.
 
 use super::{ProtocolDecoder, ProtocolTiming, DecodedSignal, FlipperKey};
 use crate::radio::demodulator::LevelDuration;
@@ -77,9 +79,22 @@ pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     encryption: "Rolling Code",
     make: "Chrysler/Dodge/Jeep",
     category: Category::Vehicle,
-    buttons: None,
+    buttons: Some(buttons),
     presets: &[&AM650],
 };
+
+/// The button byte `p5` of the one fob recorded: Lock and Unlock.
+const LOCK: u8 = 0x20;
+const UNLOCK: u8 = 0x10;
+
+/// Names of the button byte: the two codes the recorded fob sends; any other is not known.
+fn buttons(_name: &str, code: u8) -> Option<&'static str> {
+    Some(match code {
+        LOCK => "Lock",
+        UNLOCK => "Unlock",
+        _ => "Other",
+    })
+}
 
 const TE_SHORT: u32 = 0x12C; // 300
 const TE_DELTA: u32 = 0x96; // 150
@@ -92,7 +107,88 @@ const FRAME_GAP: u32 = 0x3CF0; // 15600
 const PREAMBLE_PAIRS: usize = 24;
 const DECODE_BIT_COUNT: usize = 0x50; // 80
 
-/// XOR table (chrysler_v0_xor_table) — indexed by `seed & 0x0F`.
+/// The rule read back from `frame`, the sum byte and the bytes behind it as received (MSB first),
+/// of any length (Volvo S40's frame is 8 bytes): the counter byte `n`, the plaintext bytes behind
+/// it, and whether the sum holds. None for a frame of fewer than two bytes. Each byte is sent LSB
+/// first; when the sum is odd the bytes behind it go out backwards, so as received they are the
+/// bytes in reverse order, each MSB first.
+pub(super) fn unmask(frame: &[u8]) -> Option<(u8, Vec<u8>, bool)> {
+    let (&first, body) = frame.split_first()?;
+    let sum = first.reverse_bits();
+    let bytes: Vec<u8> = if sum & 1 == 0 {
+        body.iter().map(|b| b.reverse_bits()).collect()
+    } else {
+        body.iter().rev().copied().collect()
+    };
+    let (&n, rest) = bytes.split_first()?;
+    let plain: Vec<u8> = rest.iter().map(|b| b ^ n).collect();
+    let total = plain.iter().fold(n, |s, &b| s.wrapping_add(b));
+    Some((n, plain, total == sum))
+}
+
+/// The rule: the frame of counter byte `n` and the plaintext bytes, as received (MSB first).
+pub(super) fn mask(n: u8, plain: &[u8]) -> Vec<u8> {
+    let sum = plain.iter().fold(n, |s, &b| s.wrapping_add(b));
+    let natural: Vec<u8> = std::iter::once(n).chain(plain.iter().map(|b| b ^ n)).collect();
+    let body: Vec<u8> = if sum & 1 == 0 {
+        natural.iter().map(|b| b.reverse_bits()).collect()
+    } else {
+        natural.iter().rev().copied().collect()
+    };
+    std::iter::once(sum.reverse_bits()).chain(body).collect()
+}
+
+/// An 80-bit frame read by the rule.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Frame {
+    /// The counter's low byte.
+    n: u8,
+    /// `p1..p8`: the fixed code, the button, the counter's high byte, two more fixed bytes.
+    plain: [u8; 8],
+    /// Whether byte 0 is the sum of `n` and `p1..p8`.
+    sum_ok: bool,
+}
+
+impl Frame {
+    /// The frame `data` (its first 64 bits) + `data_2` (the last 16).
+    fn read(data: u64, data_2: u16) -> Self {
+        let mut bytes = data.to_be_bytes().to_vec();
+        bytes.extend(data_2.to_be_bytes());
+        let (n, plain, sum_ok) = unmask(&bytes).expect("ten bytes");
+        Self { n, plain: plain.try_into().expect("eight bytes"), sum_ok }
+    }
+
+    /// The bits the fob sends for `n` and `plain` (with their sum): the first 64 and the last 16.
+    fn bits(&self) -> (u64, u16) {
+        let b = mask(self.n, &self.plain);
+        (u64::from_be_bytes(b[..8].try_into().expect("ten bytes")), u16::from_be_bytes([b[8], b[9]]))
+    }
+
+    fn serial(&self) -> u32 {
+        u32::from_be_bytes([self.plain[0], self.plain[1], self.plain[2], self.plain[3]])
+    }
+
+    fn counter(&self) -> u16 {
+        u16::from_be_bytes([self.plain[5], self.n])
+    }
+
+    /// The decoder reports the frame (and the encoder sends on from it): the sum holds and the ID
+    /// is neither `00000000` nor `FFFFFFFF`.
+    fn readable(&self) -> bool {
+        self.sum_ok && self.serial() != 0 && self.serial() != u32::MAX
+    }
+
+    /// The fob's next press with button byte `button`: the counter one lower.
+    fn next(&self, button: u8) -> Self {
+        let [hi, n] = self.counter().wrapping_sub(1).to_be_bytes();
+        let mut plain = self.plain;
+        plain[4] = button;
+        plain[5] = hi;
+        Self { n, plain, sum_ok: true }
+    }
+}
+
+/// XOR table (chrysler_v0_xor_table) — indexed by `seed & 0x0F`. The C's model, for key files.
 const XOR_TABLE: [u8; 16] = [
     0x0F, 0x02, 0x40, 0x0C, 0x30, 0x0E, 0x70, 0x08, 0x10, 0x0A, 0x50, 0xF4, 0x2F, 0xF6, 0x6F, 0xF0,
 ];
@@ -115,8 +211,10 @@ pub struct ChryslerV0Decoder {
     data_2: u16,
 }
 
-/// Result of `decode_packet`: structural fields extracted from a candidate frame.
+/// What the C's `decode_packet` makes of a frame (the key files' lines).
 struct Decoded {
+    /// The C's structural check (`Chk`); KAT does not gate on it.
+    #[cfg_attr(not(test), allow(dead_code))]
     check_ok: bool,
     button: u8,
     /// Transform seed (reversed 6-bit counter); the C's `Cnt` field.
@@ -170,8 +268,9 @@ impl ChryslerV0Decoder {
         out
     }
 
-    /// Port of chrysler_v0_decode_packet: extract seed/button/check_ok/serial/counter from the
-    /// 64-bit `data` (payload bytes 0..7) plus the 16-bit `data_2` (payload bytes 8,9).
+    /// The C's model, port of chrysler_v0_decode_packet (for the key files' lines): seed, button,
+    /// check and serial from the 64-bit `data` (payload bytes 0..7) plus the 16-bit `data_2`
+    /// (payload bytes 8,9).
     fn decode_packet(data: u64, data_2: u16) -> Decoded {
         let key = data.to_be_bytes();
         let key2 = data_2;
@@ -206,18 +305,7 @@ impl ChryslerV0Decoder {
             // (b1_xor_b6 == 0x04 with mismatched key[5]: button stays 1, check_ok stays false.)
         }
 
-        let encoded: [u8; 9] = [
-            key[1],
-            key[2],
-            key[3],
-            key[4],
-            key[5],
-            key[6],
-            key[7],
-            (key2 >> 8) as u8,
-            (key2 & 0xFF) as u8,
-        ];
-        let decoded = Self::transform_block(&encoded, seed, button);
+        let decoded = Self::transform_block(&Self::encoded(data, data_2), seed, button);
 
         let serial = if (seed & 1) != 0 {
             // Payload B: SnB = plaintext bytes 0, 1, 2, 7.
@@ -241,46 +329,52 @@ impl ChryslerV0Decoder {
         }
     }
 
-    /// Build a DecodedSignal from a committed frame, if the structural check passes.
-    fn commit(&self) -> Option<DecodedSignal> {
-        let s = Self::frame_signal(self.decode_data, self.data_2);
-        s.crc_valid.then_some(s)
+    /// The nine frame bytes behind byte 0, as received (`encoded` in the C).
+    fn encoded(data: u64, data_2: u16) -> [u8; 9] {
+        let key = data.to_be_bytes();
+        [key[1], key[2], key[3], key[4], key[5], key[6], key[7], (data_2 >> 8) as u8, data_2 as u8]
     }
 
-    /// The decode of frame `data` + `data_2` (`crc_valid` = the C's `check_ok`).
-    fn frame_signal(data: u64, data_2: u16) -> DecodedSignal {
+    /// The C's 9 plaintext bytes of the frame (`decoded` in `chrysler_v0_decode_packet`: Plain_A
+    /// for an even seed, Plain_B for an odd one).
+    fn plaintext(data: u64, data_2: u16) -> [u8; 9] {
         let d = Self::decode_packet(data, data_2);
+        Self::transform_block(&Self::encoded(data, data_2), d.seed, d.button)
+    }
+
+    /// Build a DecodedSignal from a committed frame, if the decoder reports it.
+    fn commit(&self) -> Option<DecodedSignal> {
+        let s = Self::frame_signal(self.decode_data, self.data_2);
+        s.encoder_capable.then_some(s)
+    }
+
+    /// The decode of frame `data` + `data_2` by the rule (`crc_valid` = the sum).
+    fn frame_signal(data: u64, data_2: u16) -> DecodedSignal {
+        let f = Frame::read(data, data_2);
         DecodedSignal {
-            serial: Some(d.serial),
-            button: Some(d.button),
-            counter: Some(d.seed as u16),
-            crc_valid: d.check_ok,
+            serial: Some(f.serial()),
+            button: Some(f.plain[4]),
+            counter: Some(f.counter()),
+            crc_valid: f.sum_ok,
             // 80-bit frame: report the most-significant 64 bits (payload bytes 0..7).
             data,
             data_count_bit: DECODE_BIT_COUNT,
-            encoder_capable: true,
-            // Stash the low 16 bits (data_2 = payload bytes 8,9) for the encoder.
-            extra: Some(data_2 as u64),
+            encoder_capable: f.readable(),
+            // The low 16 bits (data_2 = payload bytes 8,9), for the encoder and the key file.
+            extra: Some(u64::from(data_2)),
             protocol_display_name: None,
         }
     }
 
-    /// The frame's 9 plaintext bytes (`decoded` in `chrysler_v0_decode_packet`: Plain_A for an even
-    /// seed, Plain_B for an odd one).
-    fn plaintext(data: u64, data_2: u16) -> [u8; 9] {
-        let d = Self::decode_packet(data, data_2);
-        let key = data.to_be_bytes();
-        let encoded = [key[1], key[2], key[3], key[4], key[5], key[6], key[7], (data_2 >> 8) as u8, data_2 as u8];
-        Self::transform_block(&encoded, d.seed, d.button)
-    }
-
-    /// Map a KAT generic button to a Chrysler button code (1 = Lock, 2 = Unlock); the fob has no
-    /// other buttons in any reference, so anything else keeps the captured one.
-    fn map_button(button: u8, original: u8) -> u8 {
+    /// The button byte for KAT's `button`: Lock (0x01) and Unlock (0x02) are the recorded fob's
+    /// `20` and `10`, either native code itself; the captured code, and any other button (Trunk,
+    /// Panic: their codes are not known), keep the captured byte.
+    fn button_byte(button: u8, captured: u8) -> u8 {
         match button {
-            0x01 => 1,
-            0x02 => 2,
-            _ => original,
+            _ if button == captured => captured,
+            0x01 | LOCK => LOCK,
+            0x02 | UNLOCK => UNLOCK,
+            _ => captured,
         }
     }
 
@@ -289,15 +383,6 @@ impl ChryslerV0Decoder {
         let byte = payload[(index >> 3) as usize];
         let shift = 7 - (index & 7);
         (byte >> shift) & 1
-    }
-
-    /// Build a 10-byte payload from the 9 plaintext bytes (chrysler_v0_build_payload).
-    fn build_payload(plain: &[u8; 9], counter: u8, button: u8, header_low2: u8) -> [u8; 10] {
-        let transformed = Self::transform_block(plain, counter, button);
-        let mut out = [0u8; 10];
-        out[0] = (Self::reverse6(counter as u32) << 2) | (header_low2 & 0x03);
-        out[1..10].copy_from_slice(&transformed);
-        out
     }
 
     /// ADD_LEVEL-style merge: combine adjacent same-level pulses.
@@ -331,6 +416,23 @@ impl ChryslerV0Decoder {
             Self::add_level(signal, true, TE_SHORT);
             Self::add_level(signal, false, TE_LONG_B);
         }
+    }
+
+    /// One press as the fob sends it: the preamble, then twice a short HIGH, the frame gap and the
+    /// 80 bits; the frame gap closes it (the fob's last bit runs into silence). 372 pulses.
+    fn press(data: u64, data_2: u16) -> Vec<LevelDuration> {
+        let mut payload = [0u8; 10];
+        payload[..8].copy_from_slice(&data.to_be_bytes());
+        payload[8..].copy_from_slice(&data_2.to_be_bytes());
+        let mut signal = Vec::with_capacity(PREAMBLE_PAIRS * 2 + 2 * (2 + 160));
+        Self::emit_preamble(&mut signal);
+        for _ in 0..2 {
+            Self::add_level(&mut signal, true, TE_SHORT);
+            Self::add_level(&mut signal, false, FRAME_GAP);
+            Self::emit_payload(&mut signal, &payload);
+        }
+        Self::add_level(&mut signal, false, FRAME_GAP);
+        signal
     }
 }
 
@@ -469,90 +571,17 @@ impl ProtocolDecoder for ChryslerV0Decoder {
         true
     }
 
+    /// The fob's next press (see the module doc, "Encoder").
     fn encode(&self, decoded: &DecodedSignal, button: u8) -> Option<Vec<LevelDuration>> {
-        // Rebuild the 10-byte payload from the captured frame, re-derive seed/plaintext, then emit
-        // preamble + dual PWM frames (subghz_protocol_encoder_chrysler_v0_deserialize +
-        // chrysler_v0_build_upload).
         if decoded.data_count_bit != DECODE_BIT_COUNT {
             return None;
         }
-        let data = decoded.data;
-        let data_2 = decoded.extra.unwrap_or(0) as u16;
-        let key = data.to_be_bytes();
-        let key2 = data_2;
-
-        // Header low-2 bits live in the top byte's low nibble (matches encoder deserialize:
-        // plain_header = (data >> 56) & 0x03).
-        let header_low2 = (key[0]) & 0x03;
-        let seed = Self::reverse6((key[0] >> 2) as u32);
-
-        // Determine the originally-transmitted button (matches encoder deserialize).
-        let original_button: u8 = if (key[0] & 0x80) == 0 {
-            if (key[1] ^ key[6]) == 0x08 { 2 } else { 1 }
-        } else if (((key2 & 0xFF) as u8) ^ key[4]) == 0x10 {
-            2
-        } else {
-            1
-        };
-
-        // Recover the plaintext (Plain_A/Plain_B both default to this in the C when no explicit
-        // Plain_A/B is stored — which is our case).
-        let encoded: [u8; 9] = [
-            key[1],
-            key[2],
-            key[3],
-            key[4],
-            key[5],
-            key[6],
-            key[7],
-            (key2 >> 8) as u8,
-            (key2 & 0xFF) as u8,
-        ];
-        let generated = Self::transform_block(&encoded, seed, original_button);
-        let mut plain_a = generated;
-        let mut plain_b = generated;
-
-        // Apply the requested button (KAT button → Chrysler 1/2).
-        let tx_button = Self::map_button(button, original_button);
-        if tx_button != original_button {
-            plain_a[5] ^= 0x0C;
-            plain_b[3] ^= 0x30;
+        let frame = Frame::read(decoded.data, u16::try_from(decoded.extra?).ok()?);
+        if !frame.readable() {
+            return None;
         }
-
-        // Counter: seed − 1 (6-bit), made even = counter_a; counter_b = counter_a − 1. The payload
-        // of the captured type is then the fob's next press of that type (real fobs count the seed
-        // down; see the module doc — the references count up). The seed comes from the frame
-        // itself (the C's default `Cnt`; it equals `decoded.counter`, which older KAT .fob files
-        // filled with SnA instead).
-        let counter = ((seed as u32) + 0x3F) & 0x3F;
-        let mut counter_a = (counter & 0x3F) as u8;
-        if (counter_a & 1) != 0 {
-            counter_a = counter_a.wrapping_sub(1) & 0x3F;
-        }
-        let counter_b = if counter_a == 0 { 0x3F } else { counter_a - 1 };
-
-        let payload_a = Self::build_payload(&plain_a, counter_a, tx_button, header_low2);
-        let payload_b = Self::build_payload(&plain_b, counter_b, tx_button, header_low2);
-
-        let mut signal = Vec::with_capacity(PREAMBLE_PAIRS * 4 + 80 * 4 + 16);
-
-        // Frame A: preamble, short + frame_gap, payload A, short + frame_gap.
-        Self::emit_preamble(&mut signal);
-        Self::add_level(&mut signal, true, TE_SHORT);
-        Self::add_level(&mut signal, false, FRAME_GAP);
-        Self::emit_payload(&mut signal, &payload_a);
-        Self::add_level(&mut signal, true, TE_SHORT);
-        Self::add_level(&mut signal, false, FRAME_GAP);
-
-        // Frame B: preamble, short + frame_gap, payload B, short + frame_gap.
-        Self::emit_preamble(&mut signal);
-        Self::add_level(&mut signal, true, TE_SHORT);
-        Self::add_level(&mut signal, false, FRAME_GAP);
-        Self::emit_payload(&mut signal, &payload_b);
-        Self::add_level(&mut signal, true, TE_SHORT);
-        Self::add_level(&mut signal, false, FRAME_GAP);
-
-        Some(signal)
+        let (data, data_2) = frame.next(Self::button_byte(button, frame.plain[4])).bits();
+        Some(Self::press(data, data_2))
     }
 
     /// `subghz_protocol_decoder_chrysler_v0_deserialize` (see the module doc, "Key files").
@@ -562,7 +591,8 @@ impl ProtocolDecoder for ChryslerV0Decoder {
         Some(Self::frame_signal(data, u16::from_be_bytes(key2)))
     }
 
-    /// `subghz_protocol_decoder_chrysler_v0_serialize` (see the module doc, "Key files").
+    /// `subghz_protocol_decoder_chrysler_v0_serialize`: the C's lines, from the C's model (see the
+    /// module doc, "Key files").
     fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
         if decoded.data_count_bit != DECODE_BIT_COUNT {
             return None;
@@ -588,17 +618,28 @@ impl Default for ChryslerV0Decoder {
 
 #[cfg(test)]
 mod tests {
+    use super::super::f_common::test_support::*;
     use super::*;
 
-    /// Decode a stream of pairs with a fresh decoder, returning the first frame.
-    fn decode_stream(pairs: &[LevelDuration]) -> Option<DecodedSignal> {
-        let mut dec = ChryslerV0Decoder::new();
-        for p in pairs {
-            if let Some(sig) = dec.feed(p.level, p.duration_us) {
-                return Some(sig);
-            }
-        }
-        None
+    /// The first two presses of `IMPORTS/chrysler/Chrysler PT Cruiser 2006 close.sub` (`data`,
+    /// `extra`): counters 3B85 and 3B84, sums E0 (even: sent forwards, the C's payload A) and DF
+    /// (odd: backwards, payload B).
+    const CLOSE_1: (u64, u16) = (0x07A1_1E7D_2462_A57D, 0x2462);
+    const CLOSE_2: (u64, u16) = (0xFB47_25BF_A447_25BF, 0x7984);
+
+    /// The PT Cruiser fob's bytes behind `n` for a button and the counter's high byte.
+    fn pt(button: u8, hi: u8) -> [u8; 8] {
+        [0xFD, 0x3B, 0xA1, 0xC3, button, hi, 0xA1, 0xC3]
+    }
+
+    /// The frame the rule makes of `n` and `plain`, as a decode.
+    fn signal(n: u8, plain: &[u8; 8]) -> DecodedSignal {
+        let (data, data_2) = Frame { n, plain: *plain, sum_ok: true }.bits();
+        ChryslerV0Decoder::frame_signal(data, data_2)
+    }
+
+    fn data_2(d: &DecodedSignal) -> u16 {
+        d.extra.unwrap() as u16
     }
 
     /// reverse6 is its own inverse on 6-bit values.
@@ -622,123 +663,238 @@ mod tests {
             }
         }
     }
-    /// A captured payload-A frame (plaintext satisfying the A check for `button`), as the fob
-    /// would send it with seed `counter_a`.
-    fn captured_a(counter_a: u8, button: u8) -> (DecodedSignal, [u8; 9]) {
-        let p0 = 0x5Au8;
-        let mut plain = [0u8; 9];
-        plain[0] = p0;
-        plain[1] = 0x11;
-        plain[2] = 0x22;
-        plain[3] = 0x33;
-        plain[4] = p0 ^ 0xC3; // plain[0]^0xC3 == plain[4]
-        plain[5] = p0 ^ if button == 1 { 0x04 } else { 0x08 }; // b1^b6: 0x04 Lock / 0x08 Unlock
-        plain[6] = 0x66;
-        plain[7] = 0x77;
-        plain[8] = 0x88;
-        let payload = ChryslerV0Decoder::build_payload(&plain, counter_a, button, 0x02);
-        let data = u64::from_be_bytes(payload[..8].try_into().unwrap());
-        let data_2 = (payload[8] as u16) << 8 | payload[9] as u16;
-        let d = ChryslerV0Decoder::decode_packet(data, data_2);
-        assert!(d.check_ok && d.button == button && d.seed == counter_a);
-        let sig = DecodedSignal {
-            serial: Some(d.serial),
-            button: Some(d.button),
-            counter: Some(d.seed as u16),
-            crc_valid: true,
-            data,
-            data_count_bit: DECODE_BIT_COUNT,
-            encoder_capable: true,
-            extra: Some(data_2 as u64),
-            protocol_display_name: None,
-        };
-        (sig, plain)
+
+    /// Two recorded frames by the rule (`docs/chrysler_v0.md`, "Frame"), and what the C makes of
+    /// them: payloads A and B, seeds 20 and 1F, serials A11E7D24 and 4725BF79.
+    #[test]
+    fn two_recorded_frames() {
+        for ((data, data_2), n, sum_odd, c_seed, c_serial) in
+            [(CLOSE_1, 0x85u8, false, 0x20u8, 0xA11E_7D24u32), (CLOSE_2, 0x84, true, 0x1F, 0x4725_BF79)]
+        {
+            let f = Frame::read(data, data_2);
+            assert_eq!((f.n, f.plain, f.sum_ok), (n, pt(LOCK, 0x3B), true));
+            assert_eq!(data >> 63 == 1, sum_odd, "the sum's lowest bit is sent first");
+            assert_eq!(f.bits(), (data, data_2));
+            let d = ChryslerV0Decoder::frame_signal(data, data_2);
+            assert_eq!(
+                (d.serial, d.button, d.counter, d.crc_valid, d.encoder_capable),
+                (Some(0xFD3B_A1C3), Some(LOCK), Some(0x3B00 | u16::from(n)), true, true)
+            );
+            let c = ChryslerV0Decoder::decode_packet(data, data_2);
+            assert_eq!((c.check_ok, c.seed, c.serial, c.button), (true, c_seed, c_serial, 1));
+        }
     }
 
-    /// Decoding reports the C's fields: SnA as serial, the 6-bit seed as counter.
+    /// Frames of any count and of other fixed bytes read back, sent either way round, and one bit
+    /// changed anywhere fails the sum.
     #[test]
-    fn decodes_payload_a_fields() {
-        let (sig, plain) = captured_a(0x14, 1);
-        let mut burst = Vec::new();
-        ChryslerV0Decoder::emit_preamble(&mut burst);
-        ChryslerV0Decoder::add_level(&mut burst, true, TE_SHORT);
-        ChryslerV0Decoder::add_level(&mut burst, false, FRAME_GAP);
-        let mut payload = [0u8; 10];
-        payload[..8].copy_from_slice(&sig.data.to_be_bytes());
-        payload[8..].copy_from_slice(&(sig.extra.unwrap() as u16).to_be_bytes());
-        ChryslerV0Decoder::emit_payload(&mut burst, &payload);
-        ChryslerV0Decoder::add_level(&mut burst, true, TE_SHORT);
-        ChryslerV0Decoder::add_level(&mut burst, false, FRAME_GAP);
-        let got = decode_stream(&burst).expect("frame decodes");
-        assert_eq!(got.data, sig.data);
-        assert_eq!(got.extra, sig.extra);
-        assert_eq!(got.serial, Some(u32::from_be_bytes([plain[0], plain[1], plain[2], plain[3]])));
-        assert_eq!((got.button, got.counter, got.crc_valid), (Some(1), Some(0x14), true));
-    }
-
-    /// Transmitting from a payload-A capture of seed N sends A(N − 2), the fob's next payload-A
-    /// press, with the same plaintext; Lock/Unlock select the button, Trunk/Panic keep the captured
-    /// one.
-    #[test]
-    fn encode_sends_next_seed_and_requested_button() {
-        for counter_a in (0..64u8).step_by(2) {
-            for captured_button in [1u8, 2] {
-                let (sig, _) = captured_a(counter_a, captured_button);
-                for (cmd, want) in [(0x01u8, 1u8), (0x02, 2), (0x04, captured_button), (0x08, captured_button)] {
-                    let burst = ChryslerV0Decoder::new().encode(&sig, cmd).expect("encodes");
-                    assert_eq!(burst.len(), 424);
-                    let got = decode_stream(&burst).expect("payload A decodes");
-                    assert_eq!(got.counter, Some(((counter_a + 62) & 0x3F) as u16));
-                    assert_eq!(got.button, Some(want));
-                    assert_eq!(got.serial, sig.serial);
+    fn the_rule_reads_back() {
+        for counter in [0u16, 1, 0x00FF, 0x0100, 0x3B84, 0x3B85, 0x8000, 0xFFFF] {
+            let [hi, n] = counter.to_be_bytes();
+            for plain in [pt(LOCK, hi), pt(UNLOCK, hi), [0x12, 0x34, 0x56, 0x78, 0x40, hi, 0x9A, 0xBC]] {
+                let d = signal(n, &plain);
+                let serial = u32::from_be_bytes([plain[0], plain[1], plain[2], plain[3]]);
+                assert_eq!((d.serial, d.button, d.counter, d.crc_valid), (Some(serial), Some(plain[4]), Some(counter), true));
+                for bit in 0..80 {
+                    let (x, y) = if bit < 16 { (d.data, data_2(&d) ^ 1 << bit) } else { (d.data ^ 1 << (bit - 16), data_2(&d)) };
+                    assert!(!Frame::read(x, y).sum_ok, "{counter:04X} {plain:02X?}: bit {bit}");
                 }
             }
         }
     }
 
-    /// Every decode of an upload, in order.
-    fn decode_all(pairs: &[LevelDuration]) -> Vec<DecodedSignal> {
-        let mut dec = ChryslerV0Decoder::new();
-        pairs.iter().filter_map(|p| dec.feed(p.level, p.duration_us)).collect()
+    /// The press `press` builds of `frame`.
+    fn press_of(frame: (u64, u16)) -> Vec<LevelDuration> {
+        ChryslerV0Decoder::press(frame.0, frame.1)
     }
 
-    /// Key files (ProtoPirate `subghz_protocol_decoder_chrysler_v0_serialize` / `_deserialize`):
-    /// frames A and B round-trip with the C's lines (Key_2 big-endian, the frame's Plain_x),
-    /// Flipper-ARF's "Chrysler" name loads, a frame failing the check loads flagged, Key_2 is
-    /// required, and TX from a loaded key decodes back.
+    /// What the decoder reports: a frame whose sum holds, of any fixed bytes (another fob's, which
+    /// the C's checks reject), and not one whose sum fails (a recorded frame with a bit the C's
+    /// checks do not cover changed: the C reads it, with another serial), nor an ID of 00000000 or
+    /// FFFFFFFF.
+    #[test]
+    fn what_the_decoder_reports() {
+        let read = |frame: (u64, u16)| feed_all(&mut ChryslerV0Decoder::new(), &press_of(frame));
+        let got = read(CLOSE_1);
+        assert_eq!(got, [ChryslerV0Decoder::frame_signal(CLOSE_1.0, CLOSE_1.1)], "the copy behind the preamble, once");
+        assert_eq!(feed_resetting(&mut ChryslerV0Decoder::new(), &press_of(CLOSE_1)), got);
+        // byte 2 (the C's plaintext byte 1): no check of the C's covers it
+        let bad = (CLOSE_1.0 ^ 1 << 47, CLOSE_1.1);
+        let c = ChryslerV0Decoder::decode_packet(bad.0, bad.1);
+        assert!(c.check_ok && c.serial != 0xA11E_7D24, "the C reads it, with another serial");
+        assert!(read(bad).is_empty());
+        // another fob's bytes: the sum holds, the C's checks fail
+        let other = signal(0x42, &[0x12, 0x34, 0x56, 0x78, LOCK, 0x05, 0x9A, 0xBC]);
+        assert!(!ChryslerV0Decoder::decode_packet(other.data, data_2(&other)).check_ok);
+        assert_eq!(read((other.data, data_2(&other))), [other]);
+        // the ID 00000000 and FFFFFFFF
+        for id in [0u8, 0xFF] {
+            let s = signal(0x42, &[id, id, id, id, LOCK, 0x05, 0xA1, 0xC3]);
+            assert!(s.crc_valid && !s.encoder_capable);
+            assert!(read((s.data, data_2(&s))).is_empty());
+        }
+    }
+
+    /// The recordings of the PT Cruiser fob, the presses each holds and the button its name gives.
+    const RECORDINGS: [(&str, u8, usize); 6] = [
+        ("Chrysler PT Cruiser 2006 open.sub", UNLOCK, 10),
+        ("Chrysler PT Cruiser 2006 close.sub", LOCK, 10),
+        ("more/PT_300xLCK.sub", LOCK, 308),
+        ("more/PT_300xUNL.sub", UNLOCK, 28),
+        ("more/PT_LCK100.sub", LOCK, 105),
+        ("more/PT_LCK250.sub", LOCK, 271),
+    ];
+
+    /// Each recording's presses, in order; None without IMPORTS.
+    fn recorded() -> Option<Vec<(&'static str, u8, Vec<DecodedSignal>)>> {
+        let mut out = Vec::new();
+        for (rel, button, count) in RECORDINGS {
+            let path = std::path::Path::new("IMPORTS/chrysler").join(rel);
+            if !path.is_file() {
+                eprintln!("Skip: IMPORTS not found (run from crate root)");
+                return None;
+            }
+            let (_, wire) = sub_pulses(&path);
+            let got = feed_resetting(&mut ChryslerV0Decoder::new(), &wire);
+            assert_eq!(got.len(), count, "{rel}");
+            out.push((rel, button, got));
+        }
+        Some(out)
+    }
+
+    /// Every frame of the PT Cruiser fob (`IMPORTS/chrysler`, 732 in six recordings) follows the
+    /// rule with `FD 3B A1 C3`, the recording's button, the counter's high byte and `A1 C3` again;
+    /// the counter goes down from press to press (by one, or by as many as the recording missed).
+    /// KAT shows one serial where the C's model shows 160.
+    #[test]
+    fn the_pt_cruiser_recordings() {
+        let Some(files) = recorded() else { return };
+        let mut c_serials = std::collections::HashSet::new();
+        let mut frames = 0;
+        for (rel, button, got) in &files {
+            for (i, d) in got.iter().enumerate() {
+                let f = Frame::read(d.data, data_2(d));
+                assert!(f.sum_ok, "{rel}");
+                assert_eq!(f.plain, pt(*button, f.plain[5]), "{rel}");
+                assert_eq!((d.serial, d.button), (Some(0xFD3B_A1C3), Some(*button)), "{rel}");
+                if i > 0 {
+                    assert!(d.counter < got[i - 1].counter, "{rel}: the counter goes down");
+                }
+                c_serials.insert(ChryslerV0Decoder::decode_packet(d.data, data_2(d)).serial);
+                frames += 1;
+            }
+        }
+        assert_eq!(frames, 732);
+        assert_eq!(c_serials.len(), 160);
+    }
+
+    /// Re-encoding each press with its own button gives the next press the fob sent, all 80 bits,
+    /// wherever the recording holds it (the counter one lower).
+    #[test]
+    fn reencode_reproduces_the_fobs_next_press() {
+        let Some(files) = recorded() else { return };
+        let mut pairs = 0;
+        for (rel, _, got) in &files {
+            for w in got.windows(2) {
+                let (now, next) = (&w[0], &w[1]);
+                if next.counter != Some(now.counter.unwrap().wrapping_sub(1)) {
+                    continue;
+                }
+                let sent = feed_all(&mut ChryslerV0Decoder::new(), &ChryslerV0Decoder::new().encode(now, now.button.unwrap()).unwrap());
+                assert_eq!(sent, [next.clone()], "{rel}");
+                pairs += 1;
+            }
+        }
+        assert_eq!(pairs, 721);
+    }
+
+    /// One counter for every button: the open recording's last press (Unlock, 3B86) and the close
+    /// recording's first (Lock, 3B85) are one count apart, and that Unlock press re-encoded with
+    /// Lock is the Lock press, all 80 bits.
+    #[test]
+    fn a_button_change_continues_the_count() {
+        let Some(files) = recorded() else { return };
+        let (last_open, first_close) = (files[0].2.last().unwrap(), &files[1].2[0]);
+        assert_eq!((last_open.button, last_open.counter), (Some(UNLOCK), Some(0x3B86)));
+        assert_eq!((first_close.button, first_close.counter), (Some(LOCK), Some(0x3B85)));
+        assert_eq!((first_close.data, data_2(first_close)), CLOSE_1);
+        let sent = feed_all(&mut ChryslerV0Decoder::new(), &ChryslerV0Decoder::new().encode(last_open, 0x01).unwrap());
+        assert_eq!(sent, [first_close.clone()]);
+    }
+
+    /// The upload is a press as the fob sends it: pulse for pulse, by kind, the second press of the
+    /// close recording (24 preamble pairs; a short carrier and the 15.6 ms gap before each of the
+    /// two copies of the frame), ending at the frame gap.
+    #[test]
+    fn the_upload_is_the_fobs_press() {
+        let path = std::path::Path::new("IMPORTS/chrysler/Chrysler PT Cruiser 2006 close.sub");
+        if !path.is_file() {
+            eprintln!("Skip: IMPORTS not found (run from crate root)");
+            return;
+        }
+        let kind = |p: &LevelDuration| match (p.level, p.duration_us) {
+            (true, 150..=450) => 's',
+            (true, 451..=750) => 'l',
+            (false, 3_000..=4_100) => 'p',
+            (false, 12_000..=20_000) => 'g',
+            _ => '?',
+        };
+        let up = ChryslerV0Decoder::new().encode(&ChryslerV0Decoder::frame_signal(CLOSE_1.0, CLOSE_1.1), 0x01).unwrap();
+        assert_eq!(up.len(), 372);
+        let shape: String = up.iter().map(kind).collect();
+        assert_eq!(&shape[..50], format!("{}sg", "sp".repeat(24)));
+        assert_eq!(&shape[210..212], "sg", "the second copy");
+        assert!(shape[50..210].chars().chain(shape[212..371].chars()).all(|c| "slp".contains(c)));
+        assert!(shape.ends_with('g'), "the frame gap closes it");
+        let (_, wire) = sub_pulses(path);
+        let recording: String = wire.iter().map(kind).collect();
+        assert!(recording.contains(&shape[..371]), "the recording's second press");
+        assert_eq!(feed_all(&mut ChryslerV0Decoder::new(), &up), [ChryslerV0Decoder::frame_signal(CLOSE_2.0, CLOSE_2.1)]);
+    }
+
+    /// Lock and Unlock set the button byte (and with it the sum and the order); Trunk, Panic and
+    /// the captured code keep it; the counter borrows from its high byte and wraps at zero; a frame
+    /// whose sum fails is not sent on.
+    #[test]
+    fn encode_sends_the_next_count_and_the_requested_button() {
+        for (counter, next) in [(0x3B85u16, 0x3B84u16), (0x3B00, 0x3AFF), (0x0000, 0xFFFF)] {
+            let [hi, n] = counter.to_be_bytes();
+            for captured in [LOCK, UNLOCK, 0x40] {
+                let now = signal(n, &pt(captured, hi));
+                for (cmd, want) in [(0x01u8, LOCK), (0x02, UNLOCK), (0x04, captured), (0x08, captured), (captured, captured), (LOCK, LOCK), (UNLOCK, UNLOCK)] {
+                    let got = feed_all(&mut ChryslerV0Decoder::new(), &ChryslerV0Decoder::new().encode(&now, cmd).unwrap());
+                    assert_eq!(got, [signal(next.to_be_bytes()[1], &pt(want, next.to_be_bytes()[0]))], "{counter:04X} {captured:02X} {cmd:02X}");
+                }
+            }
+        }
+        let bad = ChryslerV0Decoder::frame_signal(CLOSE_1.0 ^ 1 << 47, CLOSE_1.1);
+        assert!(!bad.crc_valid && !bad.encoder_capable);
+        assert!(ChryslerV0Decoder::new().encode(&bad, 0x01).is_none());
+        let mut short = ChryslerV0Decoder::frame_signal(CLOSE_1.0, CLOSE_1.1);
+        short.data_count_bit = 64;
+        assert!(ChryslerV0Decoder::new().encode(&short, 0x01).is_none());
+    }
+
+    /// Key files keep the C's lines (its plaintext, SnA / SnB, button and seed, which the firmwares
+    /// read back when they send from a file); frames A and B round-trip; Flipper-ARF's "Chrysler"
+    /// name loads; Key_2 is required and any Bit is taken; a frame whose sum fails loads flagged and
+    /// is not sent on; TX from a loaded key sends the next press.
     #[test]
     fn flipper_key_files() {
         use crate::protocols::flipper_key::testing::{assert_round_trip, key};
         let dec = ChryslerV0Decoder::new();
-        let (sig, plain) = captured_a(0x14, 1);
+        let sig = ChryslerV0Decoder::frame_signal(CLOSE_1.0, CLOSE_1.1);
         let text = assert_round_trip(&dec, &sig);
-        let k = sig.data.to_be_bytes();
-        let p: Vec<String> = plain.iter().map(|b| format!("{b:02X}")).collect();
-        let x = sig.extra.unwrap() as u16;
         let want = format!(
-            "Protocol: Chrysler V0\nBit: 80\nKey: {}\nKey_2: {:02X} {:02X}\nPlain_A: {}\nSerial: {}\nBtn: 1\nCnt: 20\n",
-            k.iter().map(|b| format!("{b:02X}")).collect::<Vec<_>>().join(" "),
-            x >> 8,
-            x & 0xFF,
-            p.join(" "),
-            sig.serial.unwrap()
+            "Protocol: Chrysler V0\nBit: 80\nKey: 07 A1 1E 7D 24 62 A5 7D\nKey_2: 24 62\n\
+             Plain_A: A1 1E 7D 24 62 A5 7D 24 62\nSerial: {}\nBtn: 1\nCnt: 32\n",
+            0xA11E_7D24u32
         );
         assert!(text.ends_with(&want), "{text}\nwant tail:\n{want}");
-
-        // A payload-B frame (odd seed; B check: plain[4] == plain[0], plain[5] ^ plain[0] == 0x62,
-        // Unlock when plain[8] ^ plain[3] == 0x10) writes Plain_B and SnB.
-        for button in [1u8, 2] {
-            let mut plain = [0x5A, 0x11, 0x22, 0x33, 0x5A, 0x5A ^ 0x62, 0x66, 0x77, 0x00];
-            plain[8] = plain[3] ^ if button == 2 { 0x10 } else { 0x20 };
-            let payload = ChryslerV0Decoder::build_payload(&plain, 0x15, button, 0x02);
-            let data = u64::from_be_bytes(payload[..8].try_into().unwrap());
-            let b = ChryslerV0Decoder::frame_signal(data, u16::from_be_bytes([payload[8], payload[9]]));
-            assert!(b.crc_valid && b.button == Some(button) && b.counter == Some(0x15));
-            assert_eq!(b.serial, Some(0x5A11_2277), "SnB = plaintext bytes 0, 1, 2, 7");
-            let text = assert_round_trip(&dec, &b);
-            let p: Vec<String> = plain.iter().map(|x| format!("{x:02X}")).collect();
-            assert!(text.contains(&format!("\nPlain_B: {}\nSerial: 1511072375\n", p.join(" "))), "{text}");
-        }
+        let b = ChryslerV0Decoder::frame_signal(CLOSE_2.0, CLOSE_2.1);
+        let text_b = assert_round_trip(&dec, &b);
+        let want_b = format!("Plain_B: 47 25 BF A4 47 25 BF 79 84\nSerial: {}\nBtn: 1\nCnt: 31\n", 0x4725_BF79u32);
+        assert!(text_b.ends_with(&want_b), "{text_b}\nwant tail:\n{want_b}");
 
         // Flipper-ARF's name, through the registry.
         let arf = key(&text.replace("Protocol: Chrysler V0", "Protocol: Chrysler"));
@@ -751,54 +907,17 @@ mod tests {
         let mut no_key2 = arf.clone();
         no_key2.fields.retain(|(n, _)| n != "Key_2");
         assert!(dec.from_flipper_key(&no_key2).is_none());
-        // A frame failing the structure check loads (the C shows Chk: ERR).
+        // A frame whose sum fails loads flagged and is not sent on.
         let mut bad = arf.clone();
-        bad.key ^= 0x00FF_0000_0000_0000;
+        bad.key ^= 1 << 47;
         bad.key_bytes = bad.key.to_be_bytes().to_vec();
-        assert!(!dec.from_flipper_key(&bad).unwrap().crc_valid);
+        let loaded_bad = dec.from_flipper_key(&bad).unwrap();
+        assert!(!loaded_bad.crc_valid && !loaded_bad.encoder_capable);
+        assert!(dec.encode(&loaded_bad, 0x01).is_none());
 
-        // TX from the loaded key: the next payload-A press (seed − 2) decodes back.
-        let next = decode_all(&dec.encode(&loaded, 0x01).unwrap()).remove(0);
-        assert_eq!((next.serial, next.counter), (sig.serial, Some(0x12)));
-    }
-
-    /// The real PT Cruiser 2006 fob (`IMPORTS/chrysler`, ten presses per file, ~1.5 s apart): one
-    /// payload per press, A and B alternating, the seed counting down by one. Re-encoding each
-    /// press with its own button reproduces, in the payload of its type, the fob's press two later
-    /// bit for bit.
-    #[test]
-    fn reencode_reproduces_the_fobs_next_press() {
-        for rel in ["Chrysler PT Cruiser 2006 open.sub", "Chrysler PT Cruiser 2006 close.sub"] {
-            let path = std::path::Path::new("IMPORTS/chrysler").join(rel);
-            if !path.exists() {
-                eprintln!("Skip: {path:?} not found (run from crate root)");
-                return;
-            }
-            let (freq, raw) = crate::export::flipper::import_sub_raw(&path).unwrap();
-            let pairs: Vec<LevelDuration> =
-                raw.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
-            let presses: Vec<DecodedSignal> = crate::protocols::ProtocolRegistry::new()
-                .process_signal_stream(&pairs, freq)
-                .into_iter()
-                .map(|(name, d, _)| {
-                    assert_eq!(name, "Chrysler V0", "{rel}");
-                    d
-                })
-                .collect();
-            assert_eq!(presses.len(), 10, "{rel}");
-            for w in presses.windows(2) {
-                assert_eq!(w[1].counter, Some((w[0].counter.unwrap() + 63) & 0x3F), "{rel}: seed − 1 per press");
-            }
-            for (now, later) in presses.iter().zip(&presses[2..]) {
-                let button = now.button.unwrap(); // 1 Lock / 2 Unlock = KAT's codes 0x01 / 0x02
-                let sent = decode_all(&ChryslerV0Decoder::new().encode(now, button).unwrap());
-                let same_type = sent
-                    .iter()
-                    .find(|d| d.counter.unwrap() % 2 == now.counter.unwrap() % 2)
-                    .unwrap_or_else(|| panic!("{rel}: no payload of the captured type in {sent:?}"));
-                assert_eq!((same_type.data, same_type.extra), (later.data, later.extra), "{rel}");
-            }
-        }
+        // TX from the loaded key: the fob's next press.
+        let next = feed_all(&mut ChryslerV0Decoder::new(), &dec.encode(&loaded, 0x01).unwrap());
+        assert_eq!(next, [b]);
     }
 
     /// Reference-oracle vectors: `KAT_KEY_VECTORS=<dir> cargo test oracle_vectors -- --ignored`.
@@ -806,10 +925,9 @@ mod tests {
     #[ignore]
     fn oracle_vectors() {
         let dec = ChryslerV0Decoder::new();
-        for (n, (seed, button)) in [(0x14u8, 1u8), (0x22, 2)].into_iter().enumerate() {
-            let (sig, _) = captured_a(seed, button);
-            let upload = dec.encode(&sig, 0x40).unwrap();
-            let sent = decode_all(&upload).remove(0);
+        for (n, (frame, button)) in [(CLOSE_1, 0x01u8), (CLOSE_2, 0x02)].into_iter().enumerate() {
+            let upload = dec.encode(&ChryslerV0Decoder::frame_signal(frame.0, frame.1), button).unwrap();
+            let sent = feed_all(&mut ChryslerV0Decoder::new(), &upload).remove(0);
             let mut key = dec.to_flipper_key(&sent).unwrap();
             key.frequency = 433_920_000;
             key.set_preset(&crate::radio::preset::RfPreset::from_def(INFO.presets[0]));

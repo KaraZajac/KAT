@@ -161,55 +161,46 @@
    "examples": [
     {
      "bits": 80,
-     "button": 1,
-     "counter": "20",
+     "button": 32,
+     "counter": "3B85",
      "data": "7A11E7D2462A57D",
      "extra": "2462",
      "file": "chrysler/Chrysler PT Cruiser 2006 close.sub",
      "name": "Chrysler V0",
-     "serial": "A11E7D24"
+     "serial": "FD3BA1C3"
     },
     {
      "bits": 80,
-     "button": 2,
-     "counter": "1A",
+     "button": 16,
+     "counter": "3B8F",
      "data": "5BF14E2D7432F92D",
      "extra": "7432",
      "file": "chrysler/Chrysler PT Cruiser 2006 open.sub",
      "name": "Chrysler V0",
-     "serial": "A11E7D24"
+     "serial": "FD3BA1C3"
     },
     {
      "bits": 80,
-     "button": 1,
-     "counter": "1F",
+     "button": 32,
+     "counter": "3B84",
      "data": "FB4725BFA44725BF",
      "extra": "7984",
      "file": "chrysler/Chrysler PT Cruiser 2006 close.sub",
      "name": "Chrysler V0",
-     "serial": "4725BF79"
+     "serial": "FD3BA1C3"
     },
     {
      "bits": 80,
-     "button": 2,
-     "counter": "19",
+     "button": 16,
+     "counter": "3B8E",
      "data": "9B4D2FB59E4D2FB5",
      "extra": "738E",
      "file": "chrysler/Chrysler PT Cruiser 2006 open.sub",
      "name": "Chrysler V0",
-     "serial": "4725BF79"
+     "serial": "FD3BA1C3"
     }
    ],
-   "fields": {
-    "counter": {
-     "frames": 732,
-     "how": "reversed",
-     "offset": 58,
-     "values": 64,
-     "width": 6,
-     "word": "data"
-    }
-   },
+   "fields": {},
    "files": 6,
    "frames": 732
   },

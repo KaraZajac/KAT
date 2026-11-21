@@ -285,10 +285,10 @@ VAG/more/vw.sub | 434420000 | key | VAG | data=C0446B3BDD5EE13B/80 extra=8000000
 VAG/more/vw2.sub | 434420000 | key | VAG | data=C04BD2912006F9DB/80 extra=800000000204D02B sn=7C8F963 btn=2 cnt=4EA2 crc=1 tx=1
 VAG/more/yyyy.sub | 434420000 | key | VAG | data=C0A85B55AD5465B9/80 extra=8000000002040B1D sn=7C8F963 btn=1 cnt=4EA8 crc=1 tx=1
 cadillac/more/2008-2012_Cadilla_CTS_315mhz_AM650.sub | 315000000 | GM RFA | x25 | 15 distinct | fnv=12F7E2BAA100F656
-chrysler/more/PT_300xLCK.sub | 433889000 | Chrysler V0 | x308 | 308 distinct | fnv=258A746587518C26
-chrysler/more/PT_300xUNL.sub | 433889000 | Chrysler V0 | x28 | 28 distinct | fnv=837103B8201799D6
-chrysler/more/PT_LCK100.sub | 433889000 | Chrysler V0 | x105 | 105 distinct | fnv=6A22593629EDCC4A
-chrysler/more/PT_LCK250.sub | 433889000 | Chrysler V0 | x271 | 271 distinct | fnv=8511477EB82BB145
+chrysler/more/PT_300xLCK.sub | 433889000 | Chrysler V0 | x308 | 308 distinct | fnv=1A70C28DBC14BE5E
+chrysler/more/PT_300xUNL.sub | 433889000 | Chrysler V0 | x28 | 28 distinct | fnv=D23A7A42F7657F86
+chrysler/more/PT_LCK100.sub | 433889000 | Chrysler V0 | x105 | 105 distinct | fnv=8AA16A942AEA2E10
+chrysler/more/PT_LCK250.sub | 433889000 | Chrysler V0 | x271 | 271 distinct | fnv=CFB1D1E64EFE985D
 chrysler/more/fca_siemens_5wy72xx_door_button_10_x50.sub | 314925000 | Siemens-5WY72XX | x133 | 50 distinct | fnv=120EA82A067DE0E1
 chrysler/more/fca_siemens_5wy72xx_door_button_20_x51.sub | 315000000 | Siemens-5WY72XX | x150 | 51 distinct | fnv=71787FFF6438E28C
 chrysler/more/fca_siemens_5wy72xx_lock_x49.sub | 314925000 | Siemens-5WY72XX | x147 | 49 distinct | fnv=AEF68F148F41CA6F

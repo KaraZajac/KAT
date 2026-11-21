@@ -15,7 +15,7 @@ key-captures collection, `IMPORTS/VOLVO/Volvo S40 1999 unlock.sub` (Flipper pres
 apart, of the button the file name calls unlock.
 
 The signal is Chrysler V0's, with 64-bit frames instead of 80, and the frame is built by the rule that the frames
-of the Chrysler PT Cruiser 2006 fob follow ([Chrysler V0](chrysler_v0.md#the-frame-as-the-pt-cruiser-fob-builds-it)):
+of the Chrysler PT Cruiser 2006 fob follow ([Chrysler V0](chrysler_v0.md#frame-80-bits)):
 a sum byte, then the low byte of a press counter, then six bytes each XORed with that counter byte, sent
 backwards when the sum is odd. Nothing in it is encrypted. The decoder checks the sum and shows the counter and
 the six bytes. **Decode and display only**: with one button recorded, which byte is the button is not known.
@@ -123,5 +123,6 @@ If the remote has not been pressed since the recording, its next presses of the 
 - Unit tests: both presses rebuilt from `n` and the six bytes, and frames of other bytes read back either way
   round; a press read once, two presses in a row; the gate (any one bit changed, 15 preamble pairs, a gap of 11
   or 21 ms, 63 bits, 80 bits, a long carrier or none closing the frame, a pulse of another length, an ID of 0 or
-  of all ones); Chrysler V0 uploads and the PT Cruiser recordings not read; the recording; and the rule in all
-  732 Chrysler V0 frames KAT reads in `IMPORTS/chrysler` (`the_rule_in_chrysler_v0_frames`).
+  of all ones); Chrysler V0 uploads and the PT Cruiser recordings not read; and the recording. The rule itself,
+  one function for both decoders, is tested on all 732 Chrysler V0 frames in `IMPORTS/chrysler`
+  (`chrysler_v0.rs`).

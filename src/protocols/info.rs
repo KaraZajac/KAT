@@ -567,6 +567,9 @@ mod tests {
             "buttons",
             "0=Other,1=Panic,2=Lock,3=Trunk,4=Unlock,5=Sliding door 1,6=Sliding door 2,7=Remote start,8-63=Other,64-127=Trunk,128-191=Lock,192-255=Unlock",
         ),
+        // 2026-11: Chrysler V0 reports the frame's own button byte (chrysler_v0.rs), the PT Cruiser
+        // fob's 0x20 Lock and 0x10 Unlock, not the C's 1 / 2.
+        ("Chrysler V0", "buttons", "0-15=Other,16=Unlock,17-31=Other,32=Lock,33-255=Other"),
         // Prefix arms that matched names no protocol has: a bare "Ford" / "Fiat" / "Kia".
         ("Ford", "coding", "Unknown"),
         ("Ford", "rf", "—"),

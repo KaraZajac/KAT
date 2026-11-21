@@ -491,7 +491,7 @@ fn short_pulses_between_long_lows_survive() {
         }
     }
     let spec = Spec { fs: 250_000.0, tune: 0.0, ..Spec::live(Modu::Ook, 10e3, 25.0) };
-    for (k, cnt) in [(1, 0x1F), (5, 0x1B), (7, 0x19), (9, 0x17)] {
+    for (k, cnt) in [(1, 0x3B84), (5, 0x3B80), (7, 0x3B7E), (9, 0x3B7C)] {
         let iq = synth(&frames[k], &spec, &mut seed(k as u64));
         let bursts = run_pipeline(&iq, &spec, freq);
         let got = burst_names(&bursts, freq);

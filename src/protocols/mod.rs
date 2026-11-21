@@ -661,7 +661,8 @@ impl ProtocolRegistry {
             Box::new(psa::PsaDecoder::new()),
             // Chrysler V0 (ProtoPirate chrysler_v0.c = ARF chrysler.c = doctor chrysler_v0.c):
             // 300/600µs HIGH + 3400/3700µs LOW PWM, 80 bits. Timing is unique and emission is gated
-            // on the frame's own structural check (`check_ok`), so placement here is low-risk.
+            // on the frame's own sum (KAT reads the frame by its rule, not the C's model), so
+            // placement here is low-risk.
             Box::new(chrysler_v0::ChryslerV0Decoder::new()),
             // Honda V2 (formerly "Land Rover V0"; ProtoPirate renamed it): differential Manchester
             // 250/500µs, 81 bits. Emission is gated on a 3-bit check polynomial + 16-bit tail + zero
@@ -2023,7 +2024,9 @@ mod tests {
         assert_eq!(native_button_name("VAG", 0x20), Some("Lock"));
         assert_eq!(native_button_name("VAG", 0x40), Some("Trunk"));
         assert_eq!(native_button_name("Subaru", 0x4), Some("Panic"));
-        assert_eq!(native_button_name("Chrysler V0", 0x2), None); // generic Unlock
+        assert_eq!(native_button_name("Chrysler V0", 0x20), Some("Lock")); // the frame's button byte
+        assert_eq!(native_button_name("Chrysler V0", 0x10), Some("Unlock"));
+        assert_eq!(native_button_name("Chrysler V0", 0x2), Some("Other"));
         assert_eq!(native_button_name("Scher-Khan [MAGIC CODE PRO1]", 0x8), Some("Start"));
         assert_eq!(native_button_name("Star Line [SL_A2-A4]", 0x03), Some("Trunk"));
         assert_eq!(native_button_name("Star Line", 0x24), Some("Start"));

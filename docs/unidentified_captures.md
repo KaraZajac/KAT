@@ -156,12 +156,12 @@ the file name calls unlock. The air format is Chrysler V0's, as in `chrysler/Chr
 - the frame, a short HIGH and a 15.9 ms gap, and the frame again, without a preamble.
 
 The frames are 64 bits long instead of 80: `2D376746E42A3386` in the first press, `CD66CB532065E1EB` in the
-second. Read as Chrysler V0, their first bytes hold the seeds 52 and 51, its payloads A and B, and the other
-bytes fail its checks. The two were once taken for the A/B pair of one press, which is what Chrysler V0's
-encoder sends; but each has its own preamble and its own second copy, and the PT Cruiser's fob too sends one
-payload per press.
+second. Read by the references' Chrysler V0 model, their first bytes hold the seeds 52 and 51, its payloads A
+and B, and the other bytes fail its checks. The two were once taken for the A/B pair of one press, which is what
+the references' Chrysler V0 encoders send; but each has its own preamble and its own second copy, and the PT
+Cruiser's fob too sends one payload per press.
 
-They follow the rule of the PT Cruiser's frames ([Chrysler V0](chrysler_v0.md#the-frame-as-the-pt-cruiser-fob-builds-it)),
+They follow the rule of the PT Cruiser's frames ([Chrysler V0](chrysler_v0.md#frame-80-bits)),
 with six fixed bytes instead of eight. With each byte read LSB first, the remote holds seven bytes: `n`, the low
 byte of a counter (236 in the first press, 235 in the second), and `0A 8E CB B8 20 8D`. Byte 0 of the frame is
 their sum (180, 179); then come `n` and the six bytes each XORed with `n`, the 56 bits backwards when the sum is

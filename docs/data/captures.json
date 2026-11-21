@@ -8775,15 +8775,15 @@
    "reads": [
     {
      "buttons": [
-      "1"
+      "20"
      ],
      "crc_ok": 10,
      "distinct": 10,
      "encodable": true,
      "frames": 10,
      "protocol": "Chrysler V0",
-     "serial": "A11E7D24",
-     "serials": 2
+     "serial": "FD3BA1C3",
+     "serials": 1
     }
    ],
    "seconds": 16.23,
@@ -8801,15 +8801,15 @@
    "reads": [
     {
      "buttons": [
-      "2"
+      "10"
      ],
      "crc_ok": 10,
      "distinct": 10,
      "encodable": true,
      "frames": 10,
      "protocol": "Chrysler V0",
-     "serial": "A11E7D24",
-     "serials": 2
+     "serial": "FD3BA1C3",
+     "serials": 1
     }
    ],
    "seconds": 15.23,

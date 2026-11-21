@@ -4,6 +4,25 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+## [1.20.1] - 2026-11-20
+
+Chrysler V0 read and sent the way its fob builds its frames: the fob's own fixed code, button and 16-bit counter, checked by the frame's sum, where the references' model showed 160 serials for one fob; and transmit sends the fob's next press as the fob sends it.
+
+### Changed
+
+- **Chrysler V0 reads its frames by the rule they are built by** ([chrysler_v0.md](docs/chrysler_v0.md)), not by
+  the references' model. The frame is a sum byte, the low byte of a 16-bit press counter and eight bytes XORed
+  with it, sent backwards when the sum is odd; all 732 frames in the six recordings of the PT Cruiser's fob
+  follow it. KAT now shows that fob's fixed code (`FD3BA1C3`, where the references' model gives 160 different
+  serials), its button byte (`20` Lock, `10` Unlock) and its counter (`3B85`, one lower with every press, where
+  theirs is the sum's low six bits). It reads a frame whose sum holds, whatever its fixed bytes (the references'
+  checks hold only for this fob's), and none whose sum fails. **Transmit sends the fob's next press**, as the fob
+  sends it: the counter one lower, the requested button, the frame twice behind one preamble, once. Each recorded
+  press re-encoded is the fob's next press, all 80 bits, in all 721 cases the recordings hold, and a Lock after
+  the last Unlock press of the open recording is the close recording's first press. Before, KAT sent the
+  references' payloads A and B, twice; B is a frame no fob sends. Key files are unchanged: the references' lines,
+  which their firmwares read back when they send from a file.
+
 ## [1.20.0] - 2026-11-20
 
 Two decoders worked out from recordings in the library that nothing read (the European Lexus UX 250's smart key, with a CRC-16, and a 1999 Volvo S40's remote, which shows how Chrysler V0's frame is built), every recording KAT still cannot read gone through with what its remote sends and what to record it with, the presets that hold FSK keys, and the site set as a technical report and checked against the program page by page.
@@ -15,7 +34,7 @@ Two decoders worked out from recordings in the library that nothing read (the Eu
 
 ### Changed
 
-- **Chrysler V0: what its frame is made of.** The 732 frames KAT reads from the Chrysler PT Cruiser's fob are all built by the rule above, with eight fixed bytes behind a 16-bit counter's low byte ([chrysler_v0.md](docs/chrysler_v0.md#the-frame-as-the-pt-cruiser-fob-builds-it)). The C's seed is that sum's low six bits, its payload B the frame sent backwards, and its serial changes along the count: KAT reports 160 for this one fob, whose fixed bytes are the same in every frame. KAT keeps the C's decoding; the page says what it means.
+- **Chrysler V0: what its frame is made of.** The 732 frames KAT reads from the Chrysler PT Cruiser's fob are all built by the rule above, with eight fixed bytes behind a 16-bit counter's low byte ([chrysler_v0.md](docs/chrysler_v0.md#frame-80-bits)). The C's seed is that sum's low six bits, its payload B the frame sent backwards, and its serial changes along the count: KAT reports 160 for this one fob, whose fixed bytes are the same in every frame. KAT keeps the C's decoding; the page says what it means.
 - **Unread recordings** ([unidentified_captures.md](docs/unidentified_captures.md), formerly "Unidentified captures"): every recording in `IMPORTS/` that KAT reads nothing from, 87 files, gone through one by one. 74 hold no data: the remote's carrier or noise only, because an FSK remote was recorded with an AM preset, or with an FM preset of the wrong deviation or speed, or on the wrong frequency. For each car the page gives what the remote sends according to its FCC filing (with the exhibit and page), what the recording shows, what to record it with, and which KAT decoder should read a good recording. Six hold a signal no frame has been read from (the 2008 Vauxhall Zafira and the BYD Atto 3, where the "106-bit Manchester burst" found earlier is a square wave), and seven hold nothing at all.
 - **Recording a remote: which preset** ([recording.md](docs/recording.md#which-preset)). What the Flipper's receive path keeps and drops (TI's CC1101 datasheet and the firmware's RAW recorder: pulses of 50 µs or less are lost, 20 µs on doctor-firmware), why `FM476` holds nothing of the Continental keys of Kia, Hyundai and Genesis (±47.6 kHz and 4.8 kBaud against their ±15 kHz and 15.6 kBaud), how to add a custom preset to a Flipper with the register data of "F4" and "Honda1" (proven) and "FM29F" (worked out, untried), and the settings for an SDR recording.
 

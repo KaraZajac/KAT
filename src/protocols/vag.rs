@@ -1325,21 +1325,11 @@ mod tests {
                 check("Subaru", &subaru.encode(&cap, cmd).unwrap(), 1);
             }
         }
-        // Chrysler V0: a payload-A capture (plaintext 5A 11 22 33 99 5E 66 77 88, Lock, seed 0x14).
-        // The encoder's payload B reuses A's plaintext, which B's check rejects (as in the C), so
-        // one frame per upload.
+        // Chrysler V0: the first press of the PT Cruiser fob's close recording (Lock, counter 3B85).
+        // The encoder sends the next press, its frame twice behind one preamble: read once.
         let chrysler = reg0.get("Chrysler V0").unwrap();
-        let cap = DecodedSignal {
-            serial: Some(0x5A11_2233),
-            button: Some(1),
-            counter: Some(0x14),
-            crc_valid: true,
-            data: 0x2A65_2E1D_0CA6_6159,
-            data_count_bit: 80,
-            encoder_capable: true,
-            extra: Some(0x48B7),
-            protocol_display_name: None,
-        };
+        let mut cap = DecodedSignal::new(0x07A1_1E7D_2462_A57D, 80);
+        cap.extra = Some(0x2462);
         for cmd in [0x01u8, 0x02, 0x04] {
             check("Chrysler V0", &chrysler.encode(&cap, cmd).unwrap(), 1);
         }

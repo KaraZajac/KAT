@@ -12,9 +12,10 @@
 //! Kia V1 / V2 / V6, Mazda V0, Subaru and VAG, up to 12 s for one press (a Kia V1 upload lasts
 //! 1.2 s), but its emulate screen stops at the button's release once 666 ms have passed, and
 //! doctor-firmware's copies of the same encoders send 3. KAT sends 3; a key file's `Repeat: 10` gives
-//! ProtoPirate's full count. Every other count is the module's reference's: Chrysler V0 2, Kia V0 /
-//! Honda Static / Kia V7 3, Kia V5 6 (ProtoPirate and doctor-firmware), Mazda Siemens 4 and GM 5
-//! (Flipper-ARF).
+//! ProtoPirate's full count. Every other count is the module's reference's: Kia V0 / Honda Static /
+//! Kia V7 3, Kia V5 6 (ProtoPirate and doctor-firmware), Mazda Siemens 4 and GM 5 (Flipper-ARF).
+//! Chrysler V0 is not listed: its `encode` is the fob's whole press (the frame twice behind one
+//! preamble), sent once, where the references send their upload (payloads A and B) twice.
 //!
 //! **Repeat line** — KAT reads it wherever it is in the file. A Flipper reads a file's lines in
 //! order, so it finds `Repeat` only when every line its loader looks for before it is there
@@ -55,7 +56,6 @@ const WHOLE: TxCopies = copies(1, 1, false);
 /// Mitsubishi V0, Toyota).
 const TABLE: &[(&[&str], TxCopies)] = &[
     // Car encoders returning one upload: the reference's count (ProtoPirate's 10 → 3, see above).
-    (&["Chrysler V0"], copies(1, 2, true)),
     (&["Kia V0", "Honda Static", "Kia V7"], copies(1, 3, true)),
     (
         &["Fiat V0", "Ford V0", "Ford V1", "Ford V2", "Honda V2", "Kia V1", "Kia V2", "Kia V6", "Mazda V0", "Subaru"],

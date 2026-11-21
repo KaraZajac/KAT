@@ -136,7 +136,7 @@ doc comment has the details.
 | Scher-Khan (PP) | `Scher-Khan` / 35–64, word | Serial, Btn, Cnt | frames over 64 bits are not written (the C keeps only 64) |
 | Star Line (PP) | `Star Line` / 64, word | Serial, Btn, Cnt, Manufacture | Manufacture restricts the key search, as in the C |
 | PSA (PP) | `PSA` / 128, word | Key_2 (word), ValidationField; when decrypted Serial, Btn, Cnt, Type, CRC, Seed | a TEA frame with its Serial loads recovered; ARF's `PSA GROUP` files and doctor-firmware's `Bit: 80` files load |
-| Chrysler V0 (PP) | `Chrysler V0` / 80 | Key_2, Plain_A or Plain_B, Serial, Btn, Cnt | |
+| Chrysler V0 (PP) | `Chrysler V0` / 80 | Key_2, Plain_A or Plain_B, Serial, Btn, Cnt | the lines are the C's model, which the firmwares send from; KAT reads Key and Key_2 and shows the frame's own fields ([chrysler_v0.md](chrysler_v0.md#key-files)) |
 | Mazda V0 (PP) | `Mazda V0` / 64 | Checksum, Serial, Btn, Cnt, Disp | |
 | Renault V0 (PP) | `Renault V0` / 82 | Serial, Btn, Cnt, Key2, Disp | checksum required |
 | Renault V1 (PP) | `Renault V1` / 88 | Key_2, Recovered, Seed, Serial, Btn, Cnt, Hop, Hitag2 Key + Epoch (when a saved key verifies) | the seed search reruns on load; a `Hitag2 Key` line that fits the frame is used; `Bit: 82` keys go to Renault V1 (ARF) |

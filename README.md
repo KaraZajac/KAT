@@ -92,18 +92,18 @@ On Windows there is nothing to install here: the `.zip` carries the HackRF libra
 Then check, unpack and run (with your version and platform):
 
 ```bash
-sha256sum -c kat-v1.20.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
-tar xzf kat-v1.20.0-x86_64-linux.tar.gz
-./kat-v1.20.0-x86_64-linux/kat
+sha256sum -c kat-v1.20.1-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.20.1-x86_64-linux.tar.gz
+./kat-v1.20.1-x86_64-linux/kat
 ```
 
 On Windows, in PowerShell (Windows Terminal):
 
 ```powershell
-$want = (Get-Content kat-v1.20.0-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.20.0-x86_64-windows.zip).Hash -eq $want    # True
-Expand-Archive kat-v1.20.0-x86_64-windows.zip .
-.\kat-v1.20.0-x86_64-windows\kat.exe
+$want = (Get-Content kat-v1.20.1-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.20.1-x86_64-windows.zip).Hash -eq $want    # True
+Expand-Archive kat-v1.20.1-x86_64-windows.zip .
+.\kat-v1.20.1-x86_64-windows\kat.exe
 ```
 
 The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. The Windows build isn't signed, so SmartScreen may stop its first start ("More info", then "Run anyway"). Intel Macs and other platforms build from source.
@@ -419,7 +419,7 @@ Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference; pr
 | Ford V1 | Manchester | FM | Rolling Code (descramble + CRC16) | 315 / 433.92 MHz |
 | Ford V2 | Manchester | FM | Rolling Code (plaintext 16-bit counter; encoder: counter + 1) | 315 / 433.92 MHz |
 | Ford V3 (EU + US) | Manchester | AM/FM | Rolling Code (decode-only) | 315 / 433.92 MHz |
-| Chrysler V0 (Dodge/Jeep) | PWM | AM | Rolling Code (seed-XOR) | 315 / 433.92 MHz |
+| Chrysler V0 (Dodge/Jeep) | PWM | AM | Rolling Code, not encrypted: a 16-bit counter, its low byte XORed into fixed bytes, sum check | 315 / 433.92 MHz |
 | Honda Static | Manchester | FM | Fixed Code | 315 / 433.92 MHz |
 | Honda V1 | PWM | AM | Rolling Code (check nibble; encoder: counter + 1) | 315 / 433.92 MHz |
 | Honda V5 | Manchester | AM/FM | Rolling Code (CRC-8; decode-only) | 315 / 433.92 MHz |

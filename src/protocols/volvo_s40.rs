@@ -4,9 +4,9 @@
 //! **KAT's own decoder**, worked out from one recording of one remote
 //! (`IMPORTS/VOLVO/Volvo S40 1999 unlock.sub`, AM650, two presses of one button). No reference reads
 //! the signal; the name is the recording's. The air format is [Chrysler V0](super::chrysler_v0)'s,
-//! with 64-bit frames instead of 80, and the frame follows the rule every frame of the Chrysler PT
-//! Cruiser 2006 fob in `IMPORTS/chrysler` follows (`the_rule_in_chrysler_v0_frames` below;
-//! `docs/chrysler_v0.md`), which Chrysler V0's C does not use.
+//! with 64-bit frames instead of 80, and the frame follows the rule KAT's Chrysler V0 reads every
+//! frame of the Chrysler PT Cruiser 2006 fob in `IMPORTS/chrysler` by ([`super::chrysler_v0::unmask`];
+//! `docs/chrysler_v0.md`), which the references' C does not use.
 //!
 //! **Air format**: pulse-width coding, 4 ms a bit: carrier 300 µs and pause 3.7 ms is a 0, carrier
 //! 600 µs and pause 3.4 ms a 1. A press is 24 preamble pairs (300 µs, 3.7 ms), a short carrier and a
@@ -85,27 +85,10 @@ fn is_pause(d: u32) -> bool {
     (PAUSE_MIN..=PAUSE_MAX).contains(&d)
 }
 
-/// The rule of the frame, for any number of bytes (`frame`: the sum byte and the bytes behind it,
-/// as received, MSB first): the counter byte `n` and the plaintext bytes behind it, or None when
-/// the sum is wrong. Each byte is sent LSB first; when the sum is odd the bytes behind it come
-/// backwards, so as received they are the bytes in reverse order, each MSB first.
-fn unmask(frame: &[u8]) -> Option<(u8, Vec<u8>)> {
-    let (&first, body) = frame.split_first()?;
-    let sum = first.reverse_bits();
-    let bytes: Vec<u8> = if sum & 1 == 0 {
-        body.iter().map(|b| b.reverse_bits()).collect()
-    } else {
-        body.iter().rev().copied().collect()
-    };
-    let (&n, rest) = bytes.split_first()?;
-    let plain: Vec<u8> = rest.iter().map(|b| b ^ n).collect();
-    let total = plain.iter().fold(n, |s, &b| s.wrapping_add(b));
-    (total == sum).then_some((n, plain))
-}
-
-/// The decode of 64 frame bits that pass the sum and the ID gate.
+/// The decode of 64 frame bits that pass the sum and the ID gate (the rule: Chrysler V0's
+/// [`super::chrysler_v0::unmask`]).
 fn signal(frame: u64) -> Option<DecodedSignal> {
-    let (n, p) = unmask(&frame.to_be_bytes())?;
+    let Some((n, p, true)) = super::chrysler_v0::unmask(&frame.to_be_bytes()) else { return None };
     let id = u32::from_be_bytes([p[0], p[1], p[2], p[3]]);
     (id != 0 && id != u32::MAX).then(|| DecodedSignal {
         serial: Some(id),
@@ -244,21 +227,9 @@ mod tests {
     const PRESS_2: u64 = 0xCD66_CB53_2065_E1EB;
     const PLAIN: [u8; 6] = [0x0A, 0x8E, 0xCB, 0xB8, 0x20, 0x8D];
 
-    /// The frame the rule makes of `n` and `plain` (any number of plaintext bytes): the sum byte
-    /// and the bytes behind it, as sent.
-    fn frame_bytes(n: u8, plain: &[u8]) -> Vec<u8> {
-        let sum = plain.iter().fold(n, |s, &b| s.wrapping_add(b));
-        let natural: Vec<u8> = std::iter::once(n).chain(plain.iter().map(|b| b ^ n)).collect();
-        let body: Vec<u8> = if sum & 1 == 0 {
-            natural.iter().map(|b| b.reverse_bits()).collect()
-        } else {
-            natural.iter().rev().copied().collect()
-        };
-        std::iter::once(sum.reverse_bits()).chain(body).collect()
-    }
-
+    /// The frame the rule makes of `n` and `plain`, as received.
     fn frame(n: u8, plain: &[u8; 6]) -> u64 {
-        u64::from_be_bytes(frame_bytes(n, plain).try_into().unwrap())
+        u64::from_be_bytes(super::super::chrysler_v0::mask(n, plain).try_into().unwrap())
     }
 
     /// One copy's 64 bits as pulses (each bit a carrier and its pause), without what comes after.
@@ -410,49 +381,5 @@ mod tests {
         let got = feed_resetting(&mut VolvoS40Decoder::new(), &wire);
         assert_eq!(got.iter().map(|d| d.data).collect::<Vec<_>>(), [PRESS_1, PRESS_2]);
         assert!(got.iter().all(|d| d.serial == Some(0x0A8E_CBB8) && d.extra == Some(0x208D)));
-    }
-
-    /// Where the rule comes from: every frame KAT's Chrysler V0 reads in the PT Cruiser 2006 fob's
-    /// recordings (`IMPORTS/chrysler`, 732 frames) is built by it, with eight plaintext bytes behind
-    /// the counter byte: `FD 3B A1 C3`, the button (`20` Lock, `10` Unlock: KAT's 1 and 2), the
-    /// counter's high byte (one lower each time `n` passes from 0 to 255) and `A1 C3` again.
-    #[test]
-    fn the_rule_in_chrysler_v0_frames() {
-        let dir = std::path::Path::new("IMPORTS/chrysler");
-        let files = [
-            "Chrysler PT Cruiser 2006 open.sub",
-            "Chrysler PT Cruiser 2006 close.sub",
-            "more/PT_300xLCK.sub",
-            "more/PT_300xUNL.sub",
-            "more/PT_LCK100.sub",
-            "more/PT_LCK250.sub",
-        ];
-        let mut frames = 0;
-        for rel in files {
-            let path = dir.join(rel);
-            if !path.is_file() {
-                eprintln!("Skip: IMPORTS not found (run from crate root)");
-                return;
-            }
-            let (_, wire) = sub_pulses(&path);
-            let got = feed_resetting(&mut super::super::chrysler_v0::ChryslerV0Decoder::new(), &wire);
-            let mut last: Option<(u8, u8)> = None;
-            for d in &got {
-                let mut bytes = d.data.to_be_bytes().to_vec();
-                bytes.extend((d.extra.unwrap() as u16).to_be_bytes());
-                let (n, p) = unmask(&bytes).unwrap_or_else(|| panic!("{rel}: {:016X} {:?}: the sum", d.data, d.extra));
-                assert_eq!([p[0], p[1], p[2], p[3], p[6], p[7]], [0xFD, 0x3B, 0xA1, 0xC3, 0xA1, 0xC3], "{rel}");
-                assert_eq!(p[4], if d.button == Some(1) { 0x20 } else { 0x10 }, "{rel}");
-                if let Some((n0, hi0)) = last {
-                    // one press on: n one lower, and the high byte one lower when n passed 0
-                    if n == n0.wrapping_sub(1) {
-                        assert_eq!(p[5], if n0 == 0 { hi0.wrapping_sub(1) } else { hi0 }, "{rel}");
-                    }
-                }
-                last = Some((n, p[5]));
-                frames += 1;
-            }
-        }
-        assert_eq!(frames, 732);
     }
 }

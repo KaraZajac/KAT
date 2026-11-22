@@ -4,6 +4,10 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+## [1.22.1] - 2026-11-21
+
+Hopping and Jaguar fixes: a note when a hop or listening frequency misses the fob frequency next to it (`433` is not 433.92), no more stall on an RTL-SDR or SoapySDR radio after the hop list changes, one serial per Jaguar Land Rover keyless fob, and a page of its own for that fob.
+
 ### Changed
 
 - **`:hop` and `:freq` say when a fob frequency close by is not heard** ([radio.md](docs/radio.md#frequency-hopping)).

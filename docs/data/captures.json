@@ -3219,8 +3219,8 @@
      "distinct": 10,
      "frames": 10,
      "protocol": "Ford V1 (JLR)",
-     "serial": "26008472",
-     "serials": 2
+     "serial": "8472",
+     "serials": 1
     }
    ],
    "seconds": 6.57,
@@ -3250,8 +3250,8 @@
      "distinct": 8,
      "frames": 8,
      "protocol": "Ford V1 (JLR)",
-     "serial": "26008472",
-     "serials": 3
+     "serial": "8472",
+     "serials": 1
     }
    ],
    "seconds": 5.87,
@@ -3281,8 +3281,8 @@
      "distinct": 9,
      "frames": 9,
      "protocol": "Ford V1 (JLR)",
-     "serial": "26008472",
-     "serials": 2
+     "serial": "8472",
+     "serials": 1
     }
    ],
    "seconds": 6.56,
@@ -3312,8 +3312,8 @@
      "distinct": 6,
      "frames": 6,
      "protocol": "Ford V1 (JLR)",
-     "serial": "2600E5AE",
-     "serials": 2
+     "serial": "E5AE",
+     "serials": 1
     }
    ],
    "seconds": 5.54,
@@ -3343,8 +3343,8 @@
      "distinct": 10,
      "frames": 10,
      "protocol": "Ford V1 (JLR)",
-     "serial": "2600E5AE",
-     "serials": 2
+     "serial": "E5AE",
+     "serials": 1
     }
    ],
    "seconds": 5.33,
@@ -3374,8 +3374,8 @@
      "distinct": 8,
      "frames": 8,
      "protocol": "Ford V1 (JLR)",
-     "serial": "2600E5AE",
-     "serials": 2
+     "serial": "E5AE",
+     "serials": 1
     }
    ],
    "seconds": 8.04,

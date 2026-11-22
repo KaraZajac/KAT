@@ -191,8 +191,9 @@ any answer within minutes.
 
 - A frame whose CRC matches and whose 8 bytes do not unscramble the Ford way (Ford V1's strict check fails) is
   shown as **Ford V1 (JLR)**. Ford's own Ford V1 frames always pass the strict check, so they are not affected.
-- **Serial:** bytes 3–6 of the frame (`26`, the flags byte, the folded ID). A repeat therefore shows a second serial
-  beside the first (`26088472` beside `26008472`). The folded ID is bytes 5–6.
+- **Serial:** the folded ID, bytes 5–6 (`8472`, `E5AE`), the same for a press and its repeat. Up to KAT 1.22.0 it
+  was bytes 3–6 with the flags byte in it, so a repeat showed a second serial. A key file KAT writes still
+  carries the reference C's `Serial`, bytes 3–6, as ProtoPirate's files do.
 - **Button and counter:** 0; they are in the encrypted bytes.
 - **Encode:** none. The reference C's round-trip check would accept these frames and send codes the car refuses;
   KAT does not offer Encode for them.

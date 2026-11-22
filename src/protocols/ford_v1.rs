@@ -27,7 +27,9 @@
 //! (`ford_v1_decode_with_flag`, flag 0/1); "strict" when `plain[3] == raw[5] && plain[4] ==
 //! raw[6]`, which yields serial = plain[1..4]‖plain[0], button = plain[5] >> 4, counter = 20 bits
 //! (plain[5] & 0x0F, plain[6], plain[7]). Otherwise (encrypted/rolling via the encode round trip,
-//! or unresolved) the C reports serial = raw[3..7], button 0, counter 0. The C emits every
+//! or unresolved) the C reports serial = raw[3..7], button 0, counter 0; KAT reports serial =
+//! raw[5..7] instead, the JLR fob's folded transponder ID, since raw[4] is a flags byte (00 for a
+//! press, 08 for its repeat) and the C's serial differs between the two. The C emits every
 //! CRC-valid frame and so does KAT.
 //!
 //! **DecodedSignal**: exactly the C's saved fields — `data` = key1 (`Key`, 56 bits), `extra` =
@@ -37,8 +39,9 @@
 //! (real plaintext recovered) — a deliberate deviation from the C, whose round-trip
 //! `ford_v1_extract_plain_from_raw` also accepts a frame whose rolling half is encrypted and would
 //! emit a code the car rejects. A CRC-valid frame that is not strict is the JLR 2015-2018 keyless
-//! fob (Hitag-Pro / PCF7953P): Ford's frame with an AES rolling code KAT cannot read. It is
-//! reported as "Ford V1 (JLR)", decode-only (header serial, button 0, counter 0; Replay only).
+//! fob (Hitag-Pro / PCF7953P): Ford's frame with an encrypted rolling code KAT cannot read
+//! (`docs/ford_v1_jlr.md`). It is reported as "Ford V1 (JLR)", decode-only (serial = the folded
+//! ID raw[5..7], button 0, counter 0; Replay only).
 //! Exports from KAT before this port carried a different `extra` (crc16 << 48 | strict << 40 |
 //! plain[4] << 32); such an `extra` is recognised and key2 is rebuilt from the decoded fields by
 //! matching the stored CRC16 (see `legacy_key2`).
@@ -329,7 +332,11 @@ impl FordV1Decoder {
         let strict = Self::strict_plain(&raw);
         let (serial, button, counter) = match &strict {
             Some(plain) => Self::fields_from_plain(plain),
-            None => (u32::from_be_bytes([raw[3], raw[4], raw[5], raw[6]]), 0, 0),
+            // The JLR variant: button and counter are encrypted; the fob is known by its transponder
+            // ID folded to 16 bits (raw[5..7] = ID high XOR ID low). raw[3] (0x26) and the flags byte
+            // raw[4] (00 a press, 08 its repeat) stay out, or a repeat would show a second serial.
+            // Key files keep the C's Serial, raw[3..7] (`to_flipper_key`).
+            None => (u32::from(u16::from_be_bytes([raw[5], raw[6]])), 0, 0),
         };
         let key1 = raw[..7].iter().fold(0u64, |k, &b| (k << 8) | b as u64);
         let key2 = raw[7..15].iter().fold(0u64, |k, &b| (k << 8) | b as u64);
@@ -847,8 +854,9 @@ mod tests {
     }
 
     /// A CRC-valid frame whose rolling half is not Ford-readable (strict fails) — the JLR keyless
-    /// fob's AES-encrypted variant — is reported as "Ford V1 (JLR)", decode-only: header serial,
-    /// no plaintext fields, not encoder-capable and no fresh code. A strict frame is unaffected.
+    /// fob's encrypted variant — is reported as "Ford V1 (JLR)", decode-only: the folded ID as its
+    /// serial (the same for a press and its repeat), no plaintext fields, not encoder-capable and no
+    /// fresh code. A strict frame is unaffected.
     #[test]
     fn jlr_encrypted_variant_is_decode_only() {
         let raw = build_frame([0xC0, 0xFF, 0xEE, 0x1A, 0x2B], 0x1A2B_3C4D, 0x2, 0x1_2345, 0x5A);
@@ -860,7 +868,16 @@ mod tests {
         assert_eq!(f.protocol_display_name.as_deref(), Some("Ford V1 (JLR)"));
         assert!(!f.encoder_capable);
         assert_eq!((f.button, f.counter), (Some(0), Some(0)));
+        assert_eq!(f.serial, Some(u32::from(u16::from_be_bytes([jlr[5], jlr[6]]))), "the folded ID, bytes 5-6");
         assert!(FordV1Decoder::new().encode(&f, 0x01).is_none(), "no fresh code for the encrypted variant");
+        // Its repeat (flags byte 08) is the same fob: the same serial.
+        let mut repeat = jlr;
+        repeat[4] = 0x08;
+        let c = FordV1Decoder::crc16(&repeat[3..15]);
+        repeat[15..17].copy_from_slice(&c.to_be_bytes());
+        let r = feed_all(&burst_wave(&repeat, ENC_GAP_REPEAT_US)).pop().expect("the repeat decodes");
+        assert_eq!(r.protocol_display_name.as_deref(), Some("Ford V1 (JLR)"));
+        assert_eq!(r.serial, f.serial);
 
         let s = feed_all(&burst_wave(&raw, ENC_GAP_REPEAT_US)).pop().expect("strict frame");
         assert_eq!(s.protocol_display_name, None);

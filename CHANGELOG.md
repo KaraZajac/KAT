@@ -28,6 +28,9 @@ All notable changes to KAT are documented here.
   the old list that landed under the new one moved the hopper one place along its list, so it asked next for
   the frequency the radio was already on, a retune these radios' readers never report, and waited for it.
   The hopper now goes on from the frequency the radio is on. A HackRF only lost one dwell to it.
+- **Ford V1 (JLR) shows one serial per fob**: the fob's folded ID, bytes 5–6 of the frame (`8472`, `E5AE` in the
+  library). It was bytes 3–6, which hold the flags byte too, so the repeat of a press showed a second serial
+  (`26088472` beside `26008472`). Key files keep the reference C's `Serial`, bytes 3–6.
 
 ## [1.22.0] - 2026-11-21
 

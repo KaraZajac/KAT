@@ -224,7 +224,7 @@
    ]
   },
   "Ford V1 (JLR)": {
-   "note": "KAT's serial is bytes 3–6 of the frame: `26`, the flags byte and the folded ID, so a repeat (flags `08`) shows a second serial. The button and the counter are inside the 8 encrypted bytes (Extra), and KAT shows 0 for both. [The page above](ford_v1_jlr.md#frame) has the frame byte by byte.",
+   "note": "KAT's serial is the folded ID, bytes 5–6 of the frame, the same for a press and its repeat (flags `08`). The button and the counter are inside the 8 encrypted bytes (Extra), and KAT shows 0 for both. [The page above](ford_v1_jlr.md#frame) has the frame byte by byte.",
    "fields": [
     {
      "kind": "fixed",

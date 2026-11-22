@@ -4,6 +4,10 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+## [1.22.3] - 2026-11-22
+
+RTL-SDR dongles open as librtlsdr opens them: a USB transfer the dongle stalls while it opens no longer stops it (a tester's dongle with an FC0013 tuner: "Pipe error"), and `kat.log` says how far the open got.
+
 ### Fixed
 
 - **RTL-SDR dongles that stall a USB transfer while they open now open** ([radio.md](docs/radio.md#rtl-sdr-tuners)).

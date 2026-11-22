@@ -754,7 +754,7 @@ dependencies = [
 
 [[package]]
 name = "kat"
-version = "1.22.2"
+version = "1.22.3"
 dependencies = [
  "anyhow",
  "bytemuck",

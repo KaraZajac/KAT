@@ -767,7 +767,6 @@ impl RxPipeline {
 
     /// Range of carrier offsets from the target (Hz) where a burst can be found (edges of the
     /// detector band; with offset tuning there is also a blind spot of ±1 bin at the LO).
-    #[allow(dead_code)]
     pub fn search_range_hz(&self) -> (f64, f64) {
         let d = &self.det;
         let bins: Vec<f64> =

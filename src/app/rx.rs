@@ -11,7 +11,7 @@ use anyhow::Result;
 use super::{App, RadioDevice, RadioState};
 use crate::capture::{Capture, OnAir};
 use crate::radio::dsp::IqFormat;
-use crate::radio::hopper::{format_mhz, parse_frequency_list, HopPlan, DECODE_PAUSE_DWELLS};
+use crate::radio::hopper::{fob_not_heard, format_mhz, parse_frequency_list, HopPlan, DECODE_PAUSE_DWELLS};
 use crate::radio::iq_file::{find_file, parse_frequency_arg, parse_rate_arg, IqFileJob, IqFileSpec};
 use crate::radio::recorder::{recording_file_name, resolve_record_path, RecordingStatus, RecordingSummary};
 use crate::radio::rx::lo_for;
@@ -33,6 +33,23 @@ pub struct RxExtras {
 
 /// A decoded signal for [RxExtras::repeat_of_recent]: protocol, data, serial, button.
 type SignalKey = (String, u64, Option<u32>, Option<u8>);
+
+/// "A fob on 433.92 MHz is not heard: 433.00 MHz hears 431.86–433.64 MHz (use 433.92)", when a
+/// fob frequency of the default hop list is near `targets` but none of them hears it
+/// ([fob_not_heard]). `433` is 433.000 MHz, and a receiver hears only 0.64 MHz above it.
+pub(super) fn not_heard_note(device: &RadioDevice, targets: &[u32]) -> Option<String> {
+    let heard = device.heard_range()?;
+    let (fob, target) = fob_not_heard(targets, heard)?;
+    let edge = |d: f64| format_mhz(((f64::from(target) + d) / 1e4).round() as u32 * 10_000);
+    Some(format!(
+        "A fob on {} MHz is not heard: {} MHz hears {}–{} MHz (use {})",
+        format_mhz(fob),
+        format_mhz(target),
+        edge(heard.0),
+        edge(heard.1),
+        format_mhz(fob)
+    ))
+}
 
 /// Receive sessions [RxExtras::repeat_of_recent] remembers (the newest: several radios receive
 /// at once, and every retune starts a session).
@@ -274,6 +291,15 @@ impl RadioDevice {
             RadioDevice::RtlSdr(r) => r.sample_rate(),
             RadioDevice::Flipper(f) => f.sample_rate(),
             RadioDevice::Soapy(s) => s.sample_rate(),
+        }
+    }
+
+    /// What it hears around the frequency it is tuned to, in Hz from it; None for a Flipper (its
+    /// CC1101 hears the preset's bandwidth, not KAT's detector band).
+    pub fn heard_range(&self) -> Option<(f64, f64)> {
+        match self {
+            RadioDevice::Flipper(_) => None,
+            _ => Some(crate::radio::rx::heard_range(self.sample_rate())),
         }
     }
 
@@ -604,11 +630,12 @@ impl App {
                 return;
             }
             let desc = plan.describe();
+            let note = not_heard_note(&radio.device, &plan.frequencies).map(|n| format!(". {n}")).unwrap_or_default();
             radio.device.set_hopping(Some(plan));
             radio.hop.enabled = true;
             radio.hop.home = radio.tuning.frequency;
             let when = if radio.state == RadioState::Receiving { "" } else { " (starts with RX: r)" };
-            self.status_message = Some(format!("Hopping{on_radio}: {desc}{when}"));
+            self.status_message = Some(format!("Hopping{on_radio}: {desc}{when}{note}"));
         } else {
             radio.device.set_hopping(None);
             radio.hop.enabled = false;
@@ -692,6 +719,29 @@ mod tests {
             panic!("{path}: not RAW");
         };
         Capture::from_pairs_with_rf(0, sub.frequency, sub.pairs, Some(RfModulation::AM))
+    }
+
+    /// `:hop 315 433` and `:freq 433` (433.000 MHz) say that a fob on 433.92 MHz is not heard
+    /// (a tester's hopping heard nothing at all); the frequencies fobs are on say nothing.
+    #[test]
+    fn a_frequency_that_misses_the_fobs_near_it_says_so() {
+        use crate::radio::devices::FoundRadio;
+        let config = crate::storage::Config::default();
+        let t = super::super::radios::Tuning { frequency: 433_920_000, lna_gain: 24, vga_gain: 20, amp: false };
+        let hackrf = super::super::Radio::new(FoundRadio::hackrf(None), "HackRF".to_string(), t, &config);
+        let rtl = super::super::Radio::new(FoundRadio::rtlsdr(0, None, false), "RTL-SDR".to_string(), t, &config);
+        for radio in [&hackrf, &rtl] {
+            assert_eq!(
+                not_heard_note(&radio.device, &[315_000_000, 433_000_000]).as_deref(),
+                Some("A fob on 433.92 MHz is not heard: 433.00 MHz hears 431.86–433.64 MHz (use 433.92)")
+            );
+            assert!(not_heard_note(&radio.device, &[433_000_000]).is_some());
+            assert_eq!(not_heard_note(&radio.device, &[315_000_000, 433_920_000]), None);
+            assert_eq!(not_heard_note(&radio.device, &crate::radio::hopper::DEFAULT_HOP_FREQUENCIES), None);
+            assert_eq!(not_heard_note(&radio.device, &[434_000_000]), None, "hears 433.92 and 434.42");
+        }
+        let flipper = super::super::Radio::new(FoundRadio::flipper("/dev/ttyACM0".to_string(), None), "Flipper".to_string(), t, &config);
+        assert_eq!(not_heard_note(&flipper.device, &[433_000_000]), None, "not KAT's detector band");
     }
 
     #[test]

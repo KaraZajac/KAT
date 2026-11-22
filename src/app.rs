@@ -955,7 +955,8 @@ impl App {
             radio.device.set_frequency(hz)?;
         }
         let on = if several { format!(" on {}", radio.name) } else { String::new() };
-        self.status_message = Some(format!("Frequency set to {} MHz{on}", crate::radio::hopper::format_mhz(hz)));
+        let note = rx::not_heard_note(&radio.device, &[hz]).map(|n| format!(". {n}")).unwrap_or_default();
+        self.status_message = Some(format!("Frequency set to {} MHz{on}{note}", crate::radio::hopper::format_mhz(hz)));
         Ok(())
     }
 

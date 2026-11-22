@@ -36,6 +36,13 @@ pub fn lo_for(target: u32, sample_rate: u32) -> u32 {
     (target as f64 - tuning_offset(sample_rate)).round().max(0.0) as u32
 }
 
+/// What a live receiver at `sample_rate` hears around its target, in Hz from it (low, high): the
+/// detector's band with the target fs/8 above the LO, −1.14 to +0.64 MHz at 2 MS/s. So `:freq 433`
+/// (433.000 MHz) does not hear a fob on 433.92 MHz.
+pub fn heard_range(sample_rate: u32) -> (f64, f64) {
+    RxPipeline::new(sample_rate, tuning_offset(sample_rate), 0).search_range_hz()
+}
+
 fn stored(pairs: &[LevelDuration]) -> Vec<StoredLevelDuration> {
     pairs.iter().map(|p| StoredLevelDuration { level: p.level, duration_us: p.duration_us }).collect()
 }
@@ -303,7 +310,7 @@ impl LiveRx {
         self.emit(bursts);
         self.homing = false;
         if let Some(h) = self.hopper.as_mut() {
-            h.hopped();
+            h.hopped(target);
             if let Some(i) = h.plan().frequencies.iter().position(|&f| f == target) {
                 shared.hop_index.store(i as u32, Ordering::SeqCst);
             }
@@ -327,6 +334,21 @@ mod tests {
         assert_eq!(tuning_offset(2_000_000), 250_000.0);
         assert_eq!(lo_for(433_920_000, 2_000_000), 433_670_000);
         assert_eq!(lo_for(433_920_000, 2_048_000), 433_664_000);
+        // What docs/radio.md gives as "1.15 MHz below to 0.65 MHz above the target".
+        assert_eq!(heard_range(2_000_000), (-1_140_625.0, 640_625.0));
+    }
+
+    /// `n` bytes of near-silence (tiny noise), cs8.
+    fn quiet(n: usize) -> Vec<u8> {
+        let mut x = 0x2545_F491_4F6C_DD1Du64;
+        (0..n)
+            .map(|_| {
+                x ^= x << 13;
+                x ^= x >> 7;
+                x ^= x << 17;
+                ((x >> 61) as i8 - 4) as u8
+            })
+            .collect()
     }
 
     /// Hop plan → retune requests → `retuned` → bursts tagged with the frequency they were heard on.
@@ -336,16 +358,8 @@ mod tests {
         let shared = LiveShared::new(Arc::new(AtomicBool::new(true)), Arc::new(AtomicU32::new(0)), 433_920_000);
         let mut live = LiveRx::new(2_000_000, IqFormat::Cs8, 433_920_000, tx);
         shared.set_hop_plan(Some(HopPlan::new(vec![433_920_000, 868_350_000], 50)));
-        // 60 ms of near-silence (tiny noise) → one hop request to 868.35 after the 50 ms dwell.
-        let mut x = 0x2545_F491_4F6C_DD1Du64;
-        let quiet: Vec<u8> = (0..240_000)
-            .map(|_| {
-                x ^= x << 13;
-                x ^= x >> 7;
-                x ^= x << 17;
-                ((x >> 61) as i8 - 4) as u8
-            })
-            .collect();
+        // 60 ms of near-silence → one hop request to 868.35 after the 50 ms dwell.
+        let quiet = quiet(240_000);
         live.process(&quiet, &shared);
         assert_eq!(shared.hop_request.swap(0, Ordering::SeqCst), 868_350_000);
         live.retuned(868_350_000, 2_000, &shared);
@@ -365,5 +379,43 @@ mod tests {
         live.process(&quiet[..1000], &shared);
         assert_eq!(shared.hop_request.load(Ordering::SeqCst), 0);
         assert!(rx.try_recv().is_err(), "no captures from silence");
+    }
+
+    /// A retune asked for under the previous hop plan that lands after a new one was installed (a
+    /// `:hop` while hopping) leaves the hopper where the radio is, and hopping goes on. The hopper
+    /// used to count that retune as its own next hop, then ask for the frequency the radio was
+    /// already on: the RTL-SDR and SoapySDR readers report a retune only when the frequency tag
+    /// changes, so it waited for it forever and hopping stopped.
+    #[test]
+    fn a_retune_asked_for_under_the_previous_plan_does_not_stop_hopping() {
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let shared = LiveShared::new(Arc::new(AtomicBool::new(true)), Arc::new(AtomicU32::new(0)), 315_000_000);
+        let mut live = LiveRx::new(2_000_000, IqFormat::Cs8, 315_000_000, tx);
+        let plan = HopPlan::new(vec![315_000_000, 433_920_000], 50);
+        shared.set_hop_plan(Some(plan.clone()));
+        let quiet = quiet(240_000); // 60 ms: one dwell
+        live.process(&quiet, &shared);
+        let asked = shared.hop_request.swap(0, Ordering::SeqCst);
+        assert_eq!(asked, 433_920_000);
+        // The plan comes again before the radio has retuned; the next buffer is still from 315 MHz.
+        shared.set_hop_plan(Some(plan));
+        live.process(&quiet[..1000], &shared);
+        // The radio then retunes to 433.92 MHz. From here on, the RTL-SDR reader's loop.
+        let (mut tag, mut current) = (asked, 315_000_000);
+        let mut visits = Vec::new();
+        for _ in 0..12 {
+            if tag != current {
+                live.retuned(tag, 0, &shared);
+                current = tag;
+                visits.push(current);
+            }
+            live.process(&quiet, &shared);
+            let req = shared.hop_request.swap(0, Ordering::SeqCst);
+            if req != 0 {
+                tag = req;
+            }
+        }
+        assert!(visits.len() >= 10, "hopping stopped: {visits:?}");
+        assert!(visits.windows(2).all(|w| w[0] != w[1]), "{visits:?}");
     }
 }

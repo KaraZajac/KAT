@@ -275,6 +275,20 @@ and `kat.log` has the libraries' errors.
   test: a quiet frequency is left after one dwell; while a burst is open anywhere in the band the
   hopper holds, then holds 10 dwells more (ProtoPirate's RSSI time-out); after a decode it pauses
   50 dwells (ProtoPirate's "key found" pause). `:freq` (or the Freq setting) switches hopping off.
+- Each frequency of the list hears what a receiver tuned there hears: from about 1.15 MHz below it
+  to 0.65 MHz above it at 2 MS/s (offset tuning, above). List the fobs' own frequencies: `433` is
+  433.000 MHz, which hears 431.86–433.64 MHz and so not a fob on 433.92 MHz. `:hop` and `:freq` say
+  so when a frequency of the default list lies within 1.5 MHz of one you gave and none of yours
+  hears it ("A fob on 433.92 MHz is not heard: 433.00 MHz hears 431.86–433.64 MHz (use 433.92)").
+- Checked on a HackRF One (`hackrf_hopping_live` in `src/radio/hackrf.rs`, receive only,
+  `cargo test --release hackrf_hopping_live -- --ignored --nocapture`, `KAT_HOP_LIST="315 433.92"`):
+  hopping 315.00 ↔ 433.92 MHz retunes about every 130 ms (dwell 100 ms plus the retune), none
+  fails, and a 433.92 MHz sensor that sends every 16 s was caught all 11 times in 3 minutes, though
+  the receiver was on its frequency only half the time (the detector holds it there once a burst is
+  open). Hopping 315 ↔ 433 caught it 0 times in 66 s, and so did `:freq 433` in 50 s. In
+  simulation (`sweep_hopping` in `src/radio/sim.rs`), every press of a Kia V5 fob (FSK, 433.92 MHz)
+  and of a Kia V1 fob (OOK, 315 MHz) is caught hopping 315.00 ↔ 433.92 MHz, with the HackRF's and
+  the RTL-SDR's way of retuning.
 - Retuning keeps the stream running. HackRF: `set_freq` while streaming; the receive callback works out
   from the buffer arrival times which sample the new frequency starts at and drops 2 ms before to
   10 ms after that point (HackRF buffers are 65 ms long, so the switch can't be seen directly).

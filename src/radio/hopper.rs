@@ -91,6 +91,21 @@ pub fn parse_frequency_list(text: &str) -> Result<Vec<u32>, String> {
     Ok(out)
 }
 
+/// A fob frequency of the default list that lies near `targets` (within 1.5 MHz of one) but
+/// outside what all of them hear (`heard`: Hz from a target, low and high), as (fob, the target
+/// nearest it); the nearest such pair. A receiver hears 1.14 MHz below its frequency but only
+/// 0.64 MHz above it (2 MS/s, offset tuning), so `433` (433.000 MHz, as `:hop 315 433` takes it)
+/// never hears a fob on 433.92 MHz.
+pub fn fob_not_heard(targets: &[u32], heard: (f64, f64)) -> Option<(u32, u32)> {
+    let hears = |target: u32, fob: u32| (heard.0..=heard.1).contains(&(f64::from(fob) - f64::from(target)));
+    DEFAULT_HOP_FREQUENCIES
+        .iter()
+        .filter(|&&fob| !targets.iter().any(|&t| hears(t, fob)))
+        .filter_map(|&fob| targets.iter().map(|&t| (fob.abs_diff(t), fob, t)).filter(|p| p.0 <= 1_500_000).min())
+        .min()
+        .map(|(_, fob, target)| (fob, target))
+}
+
 /// Sample-clock driven hop state machine.
 #[derive(Debug, Clone)]
 pub struct Hopper {
@@ -152,10 +167,14 @@ impl Hopper {
         Some(self.plan.frequencies[(self.index + 1) % self.plan.frequencies.len()])
     }
 
-    /// The retune asked for by [`Hopper::advance`] took effect.
-    pub fn hopped(&mut self) {
-        if self.pending {
-            self.index = (self.index + 1) % self.plan.frequencies.len().max(1);
+    /// The radio now delivers `target`: go on from its place in the list. Usually that is the hop
+    /// [`Hopper::advance`] asked for, but a retune asked for before this plan was installed (a
+    /// `:hop` while hopping) can land instead. Counted as the next hop, that one put the hopper a
+    /// place off, so it asked next for the frequency the radio was already on, a retune the RTL-SDR
+    /// and SoapySDR readers never report: hopping stopped for good.
+    pub fn hopped(&mut self, target: u32) {
+        if let Some(i) = self.plan.frequencies.iter().position(|&f| f == target) {
+            self.index = i;
         }
         self.pending = false;
         self.on_freq = 0;
@@ -192,13 +211,30 @@ mod tests {
         assert_eq!(h.advance(1, false), Some(433_920_000));
         // Nothing more until the retune is confirmed.
         assert_eq!(h.advance(500, false), None);
-        h.hopped();
+        h.hopped(433_920_000);
         assert_eq!(h.current(), 433_920_000);
         assert_eq!(h.advance(100, false), Some(868_350_000));
-        h.hopped();
+        h.hopped(868_350_000);
         assert_eq!(h.advance(100, false), Some(315_000_000));
-        h.hopped();
+        h.hopped(315_000_000);
         assert_eq!(h.current(), 315_000_000);
+    }
+
+    /// A retune it did not ask for (from before its plan) puts it where the radio is: the next hop
+    /// is never to the frequency the radio is on.
+    #[test]
+    fn goes_on_from_where_the_radio_is() {
+        let mut h = Hopper::new(plan(), FS, 0);
+        h.hopped(433_920_000);
+        assert_eq!(h.current(), 433_920_000);
+        assert_eq!(h.advance(100, false), Some(868_350_000));
+        // Its own hop was asked for, another one landed: it goes on from there.
+        h.hopped(315_000_000);
+        assert_eq!(h.advance(100, false), Some(433_920_000));
+        // Off the list (the way home, before hopping was switched back on): on to the list again.
+        h.hopped(433_920_000);
+        h.hopped(390_000_000);
+        assert_eq!(h.advance(100, false), Some(868_350_000));
     }
 
     #[test]
@@ -217,6 +253,20 @@ mod tests {
         h.pause_dwells(DECODE_PAUSE_DWELLS);
         assert_eq!(h.advance(4_999, false), None);
         assert_eq!(h.advance(2, false), Some(433_920_000));
+    }
+
+    /// What 2 MS/s hears (−1.14 to +0.64 MHz): `433` misses the 433.92 MHz fobs above it, the
+    /// default list and the frequencies fobs are on miss nothing, and nothing far away counts.
+    #[test]
+    fn a_fob_frequency_near_the_list_that_none_of_it_hears() {
+        let heard = (-1_140_625.0, 640_625.0);
+        assert_eq!(fob_not_heard(&[315_000_000, 433_000_000], heard), Some((433_920_000, 433_000_000)));
+        assert_eq!(fob_not_heard(&[314_000_000], heard), Some((315_000_000, 314_000_000)));
+        assert_eq!(fob_not_heard(&[433_500_000], heard), Some((434_250_000, 433_500_000)), "433.92 heard, 434.25 not");
+        assert_eq!(fob_not_heard(&DEFAULT_HOP_FREQUENCIES, heard), None);
+        assert_eq!(fob_not_heard(&[315_000_000, 433_920_000], heard), None);
+        assert_eq!(fob_not_heard(&[433_920_000, 868_000_000], heard), None, "868.35 is 0.35 MHz above");
+        assert_eq!(fob_not_heard(&[300_000_000, 920_000_000], heard), None, "no fob frequency near");
     }
 
     #[test]

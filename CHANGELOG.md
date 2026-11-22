@@ -6,6 +6,11 @@ All notable changes to KAT are documented here.
 
 ### Changed
 
+- **`:hop` and `:freq` say when a fob frequency close by is not heard** ([radio.md](docs/radio.md#frequency-hopping)).
+  A tester's hopping "between 315 and 433" caught nothing: `433` is 433.000 MHz, and a receiver hears from
+  about 1.15 MHz below its frequency to only 0.65 MHz above it, so a fob on 433.92 MHz goes unheard, on any radio.
+  `:hop 315 433` now adds "A fob on 433.92 MHz is not heard: 433.00 MHz hears 431.86–433.64 MHz (use 433.92)",
+  for any frequency of the default hop list that lies within 1.5 MHz of what you gave and that none of it hears.
 - **Ford V1 (JLR) has its own page** ([ford_v1_jlr.md](docs/ford_v1_jlr.md)), with a row of its own in the
   site's protocol tables, its recordings and its make (Land Rover and Jaguar); the Ford V1 page points to it. New
   from flash and EEPROM images of three cars' keyless modules, one of them before and after a fob was learned:
@@ -15,6 +20,14 @@ All notable changes to KAT are documented here.
   a constant, the key's slot, a random 29-bit challenge and the fob's ID; button presses are checked by the
   XGATE co-processor, whose code is in flash the usual image leaves out. This corrects the section added in
   1.20.0, which took the keyless-entry block for the button code and said the key was not in a memory dump.
+
+### Fixed
+
+- **Hopping on an RTL-SDR or a SoapySDR radio could stop for good on one frequency** after the hop list was
+  changed while it hopped (`:hop <list>`, `:hop dwell`, the Hop setting off and on): a retune asked for under
+  the old list that landed under the new one moved the hopper one place along its list, so it asked next for
+  the frequency the radio was already on, a retune these radios' readers never report, and waited for it.
+  The hopper now goes on from the frequency the radio is on. A HackRF only lost one dwell to it.
 
 ## [1.22.0] - 2026-11-21
 

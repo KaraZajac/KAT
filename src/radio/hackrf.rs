@@ -808,4 +808,125 @@ mod rx_tests {
         }
         assert_eq!(rx.try_iter().count(), 3);
     }
+
+    /// Hardware check, RECEIVE ONLY (nothing here can transmit): KAT's HackRF receive path with
+    /// hopping, on the first HackRF. Env: KAT_HOP_LIST ("315 433.92"; "off": no hopping; unset: the
+    /// default list), KAT_HOP_DWELL (ms), KAT_HOP_SECS, KAT_HOP_HOME (MHz), KAT_HOP_LNA / _VGA / _AMP.
+    /// Prints every hop (when the processing reports the new frequency), every capture and a
+    /// summary; RUST_LOG=kat=debug adds the pipeline's bursts and the retunes.
+    #[test]
+    #[ignore]
+    fn hackrf_hopping_live() {
+        use crate::radio::hopper::{format_mhz, parse_frequency_list, HopPlan, DECODE_PAUSE_DWELLS, DEFAULT_HOP_FREQUENCIES};
+        use crate::radio::LevelDuration;
+        use std::collections::BTreeMap;
+        use std::time::{Duration, Instant};
+        let _ = tracing_subscriber::fmt()
+            .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "kat=info".into()))
+            .with_writer(std::io::stderr)
+            .with_target(false)
+            .try_init();
+        crate::protocols::keys::load_keystore_from_embedded();
+        let env = |k: &str| std::env::var(k).ok();
+        let secs: f64 = env("KAT_HOP_SECS").and_then(|v| v.parse().ok()).unwrap_or(20.0);
+        let dwell: u32 = env("KAT_HOP_DWELL").and_then(|v| v.parse().ok()).unwrap_or(100);
+        let home =
+            env("KAT_HOP_HOME").and_then(|v| crate::radio::iq_file::parse_frequency_arg(&v)).unwrap_or(433_920_000);
+        let plan = match env("KAT_HOP_LIST").as_deref() {
+            Some("off") => None,
+            Some(list) => Some(HopPlan::new(parse_frequency_list(list).expect("hop list"), dwell)),
+            None => Some(HopPlan::new(DEFAULT_HOP_FREQUENCIES.to_vec(), dwell)),
+        };
+        let (tx, events) = std::sync::mpsc::channel();
+        let mut ctl = HackRfController::new(tx, None);
+        ctl.set_lna_gain(env("KAT_HOP_LNA").and_then(|v| v.parse().ok()).unwrap_or(24)).unwrap();
+        ctl.set_vga_gain(env("KAT_HOP_VGA").and_then(|v| v.parse().ok()).unwrap_or(20)).unwrap();
+        ctl.set_amp_enable(env("KAT_HOP_AMP").is_some_and(|v| v == "1")).unwrap();
+        eprintln!(
+            "RX only. home {} MHz, hopping: {}, {secs} s",
+            format_mhz(home),
+            plan.as_ref().map_or("off".to_string(), HopPlan::describe)
+        );
+        ctl.set_hopping(plan.clone());
+        ctl.start_receiving(home).unwrap();
+        let mut reg = crate::protocols::ProtocolRegistry::new();
+        let t0 = Instant::now();
+        let mut hops: Vec<(f64, u32)> = Vec::new();
+        let mut last = 0u32;
+        let mut caps: BTreeMap<u32, (usize, usize)> = BTreeMap::new();
+        let mut errors = 0;
+        while t0.elapsed().as_secs_f64() < secs {
+            let f = ctl.rx_frequency();
+            let now = t0.elapsed().as_secs_f64();
+            if f != last {
+                hops.push((now, f));
+                last = f;
+            }
+            while let Ok(ev) = events.try_recv() {
+                match ev {
+                    RadioEvent::SignalCaptured(cap) => {
+                        let pairs: Vec<LevelDuration> =
+                            cap.raw_pairs.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
+                        let mut names: Vec<String> = reg
+                            .process_signal_stream_path(&pairs, cap.frequency, cap.received_rf)
+                            .into_iter()
+                            .map(|(n, _, _)| n)
+                            .collect();
+                        if names.is_empty() {
+                            if let Some((n, _)) = reg.process_signal_path(&pairs, cap.frequency, cap.received_rf) {
+                                names.push(n);
+                            }
+                        }
+                        names.dedup();
+                        let e = caps.entry(cap.frequency).or_default();
+                        e.0 += 1;
+                        if !names.is_empty() {
+                            e.1 += 1;
+                            ctl.hop_pause(DECODE_PAUSE_DWELLS as u32);
+                        }
+                        let m = cap.measured.map(|m| format!("{:+.1} kHz, SNR {:.1} dB, {:.1} ms", m.offset_hz / 1e3, m.snr_db, m.burst_us as f64 / 1e3));
+                        eprintln!(
+                            "{now:7.3} s capture on {} MHz ({:?}, {} pairs) {} {}",
+                            format_mhz(cap.frequency),
+                            cap.received_rf,
+                            pairs.len(),
+                            m.unwrap_or_default(),
+                            if names.is_empty() { "unknown".to_string() } else { names.join(", ") }
+                        );
+                    }
+                    RadioEvent::Error(e) => {
+                        errors += 1;
+                        eprintln!("{now:7.3} s RX ERROR: {e}");
+                    }
+                    RadioEvent::StateChanged(_) => {}
+                }
+            }
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        ctl.stop_receiving().unwrap();
+        // Time on each frequency, from the hop log.
+        let end = t0.elapsed().as_secs_f64();
+        let mut on: BTreeMap<u32, (usize, f64)> = BTreeMap::new();
+        for (k, &(t, f)) in hops.iter().enumerate() {
+            let until = hops.get(k + 1).map_or(end, |h| h.0);
+            let e = on.entry(f).or_default();
+            e.0 += 1;
+            e.1 += until - t;
+        }
+        let shown: Vec<String> = hops.iter().take(40).map(|(t, f)| format!("{t:.3}:{}", format_mhz(*f))).collect();
+        eprintln!("first hops: {}", shown.join(" "));
+        eprintln!("{} frequency changes in {end:.1} s; RX errors {errors}", hops.len().saturating_sub(1));
+        for (f, (visits, time)) in &on {
+            let (c, d) = caps.get(f).copied().unwrap_or_default();
+            eprintln!(
+                "  {:>8} MHz: {visits:4} visits, {time:6.2} s ({:4.1} %), mean visit {:6.1} ms, captures {c}, decoded {d}",
+                format_mhz(*f),
+                100.0 * time / end,
+                1e3 * time / *visits as f64
+            );
+        }
+        for (f, (c, d)) in caps.iter().filter(|(f, _)| !on.contains_key(f)) {
+            eprintln!("  {:>8} MHz (never tuned?): captures {c}, decoded {d}", format_mhz(*f));
+        }
+    }
 }

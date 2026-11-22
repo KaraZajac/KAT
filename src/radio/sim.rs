@@ -1983,3 +1983,162 @@ fn sweep_psa_key_files() {
     }
     eprintln!("total: {}/{} presses decoded with their exact frame", grand.0, grand.1);
 }
+
+// ───────────────────────────── hopping ─────────────────────────────
+
+/// How the simulated device delivers samples and retunes, as `hackrf.rs` and `rtlsdr.rs` do.
+#[derive(Clone, Copy, Debug)]
+enum SimDevice {
+    /// 131072-sample buffers; a hop is retuned 8 ms into the next buffer, and the processing is
+    /// told 2 ms before that point and blanks 12 ms (RETUNE_GUARD_PRE_US / _POST_US).
+    HackRf,
+    /// 32768-sample reads; a hop is retuned between reads, 8192 samples are read and dropped, and
+    /// the next buffer carries the new frequency and blanks 4000 samples.
+    RtlSdr,
+}
+
+/// A receive run: `clean` (int8 IQ of the fob alone, as a receiver tuned to `fob_freq` gets it)
+/// plus noise (σ per tuned frequency) through [`LiveRx`](super::rx::LiveRx) with `plan`, the device
+/// retuning when asked; a decode pauses the hopper as the app does. The fob is heard only while
+/// the receiver is tuned to `fob_freq` itself. Returns (sample at which each decode of `c` came,
+/// frequency changes, captures that were not `c`).
+#[allow(clippy::too_many_arguments)]
+fn hop_run(
+    c: &Case,
+    clean: &[u8],
+    fob_freq: u32,
+    plan: Option<super::hopper::HopPlan>,
+    home: u32,
+    sigma: &dyn Fn(u32) -> f64,
+    dev: SimDevice,
+    rng: &mut Rng,
+) -> (Vec<usize>, usize, usize) {
+    use super::rx::{LiveRx, LiveShared};
+    use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+    use std::sync::Arc;
+    let (tx, events) = std::sync::mpsc::channel();
+    let shared = LiveShared::new(Arc::new(AtomicBool::new(true)), Arc::new(AtomicU32::new(0)), home);
+    shared.set_hop_plan(plan);
+    let mut tuned = shared.start_frequency();
+    let mut live = LiveRx::new(2_000_000, IqFormat::Cs8, tuned, tx);
+    let n = clean.len() / 2;
+    let (mut decodes, mut hops, mut other) = (Vec::new(), 0, 0);
+    let mut pending: Option<(u32, usize)> = None;
+    let mut t = 0usize;
+    let sample = |s: usize, f: u32, rng: &mut Rng, out: &mut Vec<u8>| {
+        let sg = sigma(f);
+        let (gi, gq) = rng.gauss2();
+        let (ci, cq) = if f == fob_freq { (clean[2 * s] as i8 as f64, clean[2 * s + 1] as i8 as f64) } else { (0.0, 0.0) };
+        out.push((ci + sg * gi).round().clamp(-127.0, 127.0) as i8 as u8);
+        out.push((cq + sg * gq).round().clamp(-127.0, 127.0) as i8 as u8);
+    };
+    let mut take = |events: &std::sync::mpsc::Receiver<crate::app::RadioEvent>, at: usize, decodes: &mut Vec<usize>| {
+        while let Ok(crate::app::RadioEvent::SignalCaptured(cap)) = events.try_recv() {
+            let pairs: Vec<LevelDuration> = cap.raw_pairs.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
+            if decodes_as(&pairs, c) {
+                decodes.push(at);
+                shared.hop_pause_dwells.store(super::hopper::DECODE_PAUSE_DWELLS as u32, Ordering::SeqCst);
+            } else {
+                other += 1;
+            }
+        }
+    };
+    while t < n {
+        let req = shared.hop_request.swap(0, Ordering::SeqCst);
+        if req != 0 {
+            match dev {
+                SimDevice::HackRf => pending = Some((req, t + 16_000)),
+                SimDevice::RtlSdr => {
+                    tuned = req;
+                    t = (t + 8192).min(n);
+                    live.retuned(req, 4000, &shared);
+                    hops += 1;
+                }
+            }
+        }
+        let len = match dev {
+            SimDevice::HackRf => 131_072,
+            SimDevice::RtlSdr => 32_768,
+        };
+        let end = (t + len).min(n);
+        let mut bytes = Vec::with_capacity((end - t) * 2);
+        let mut cut = None;
+        for s in t..end {
+            if let Some((target, at)) = pending {
+                if s == at.max(t) {
+                    let from = at.saturating_sub(4000).max(t);
+                    cut = Some((from - t, target, (at + 20_000 - from) as u64));
+                    tuned = target;
+                    hops += 1;
+                    pending = None;
+                }
+            }
+            sample(s, tuned, rng, &mut bytes);
+        }
+        match cut {
+            Some((k, target, blank)) => {
+                live.process(&bytes[..2 * k], &shared);
+                live.retuned(target, blank, &shared);
+                live.process(&bytes[2 * k..], &shared);
+            }
+            None => live.process(&bytes, &shared),
+        }
+        t = end;
+        take(&events, t, &mut decodes);
+    }
+    live.finish();
+    take(&events, n, &mut decodes);
+    (decodes, hops, other)
+}
+
+/// `presses` presses of `c` (its frame `reps` times, 15 ms apart), the k-th starting at
+/// `first + k·every` seconds, in a `secs` s timeline: (int8 IQ of the fob alone, press starts).
+#[allow(clippy::too_many_arguments)]
+fn press_timeline(c: &Case, spec: &Spec, reps: usize, first: f64, every: f64, presses: usize, secs: f64, rng: &mut Rng) -> (Vec<u8>, Vec<usize>) {
+    let mut out = vec![0u8; (secs * spec.fs) as usize * 2];
+    let clean = Spec { sigma: 0.0, lead_ms: 0.0, tail_ms: 0.0, ..*spec };
+    let frames: Vec<&[LevelDuration]> = (0..reps).map(|_| &c.truth[..]).collect();
+    let mut starts = Vec::new();
+    for k in 0..presses {
+        let at = ((first + k as f64 * every) * spec.fs) as usize;
+        let iq = synth_bursts(&frames, &clean, 15.0, rng);
+        if 2 * at + iq.len() > out.len() {
+            break;
+        }
+        out[2 * at..2 * at + iq.len()].copy_from_slice(&iq);
+        starts.push(at);
+    }
+    (out, starts)
+}
+
+/// Hopping end to end: presses of a fob caught without hopping, hopping between 315.00 and
+/// 433.92 MHz (the Kia V5 fob on 433.92, the Kia V1 fob on 315), and over the default list, with
+/// the HackRF's and the RTL-SDR's way of retuning. Every press is caught hopping 315 ↔ 433.92 (a
+/// tester's hopping "between 315 and 433" caught nothing: `433` is 433.000 MHz, which does not
+/// hear 433.92 MHz).
+#[test]
+#[ignore]
+fn sweep_hopping() {
+    use super::hopper::{HopPlan, DEFAULT_HOP_FREQUENCIES};
+    for (name, c, modu) in [("Kia V5 FSK", kia_v5(), Modu::Fsk(47_600.0)), ("Kia V1 OOK", short(&kia_v1()), Modu::Ook)] {
+        let spec = Spec::live(modu, -10e3, 10.0);
+        let (clean, starts) = press_timeline(&c, &spec, 3, 0.53, 1.37, 9, 13.0, &mut seed(7));
+        let sigma = |f: u32| if f == c.freq { spec.sigma } else { spec.sigma * 1.5 };
+        eprintln!("{name} on {} MHz: {} presses, 1.37 s apart", super::hopper::format_mhz(c.freq), starts.len());
+        for (list, plan) in [
+            ("no hopping", None),
+            ("315↔433.92", Some(HopPlan::new(vec![315_000_000, 433_920_000], 100))),
+            ("default", Some(HopPlan::new(DEFAULT_HOP_FREQUENCIES.to_vec(), 100))),
+        ] {
+            for dev in [SimDevice::HackRf, SimDevice::RtlSdr] {
+                let (decodes, hops, other) = hop_run(&c, &clean, c.freq, plan.clone(), c.freq, &sigma, dev, &mut seed(11));
+                let caught: std::collections::BTreeSet<usize> =
+                    decodes.iter().filter_map(|&t| starts.iter().rposition(|&s| s < t)).collect();
+                eprintln!("  {list:<10} {:<7} presses caught {}/{}, {hops} hops, {other} other captures", format!("{dev:?}"), caught.len(), starts.len());
+                if list != "default" {
+                    assert_eq!(caught.len(), starts.len(), "{name}, {list}, {dev:?}");
+                }
+            }
+        }
+    }
+}

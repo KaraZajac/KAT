@@ -4,6 +4,10 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+## [1.22.2] - 2026-11-22
+
+Ford V3 no longer cuts other remotes' frames short: its frames are held back like the rtl_433 ports', which gives the library four Honda presses more and reads the LDV T80 recordings as LDV V0, with their buttons. The Jaguar Land Rover page adds the keyless module's record of a fob's key, its transport key and a second key.
+
 ### Changed
 
 - **Ford V1 (JLR) page** ([ford_v1_jlr.md](docs/ford_v1_jlr.md)): the record the keyless module builds for a fob

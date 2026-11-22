@@ -11,6 +11,22 @@ All notable changes to KAT are documented here.
   with (tried as the recorded fobs' button key: no match), a second key beside the first, and that the module
   offers no way to read its key back over diagnostics.
 
+### Fixed
+
+- **Ford V3 no longer cuts other remotes' frames short** ([ford_v3.md](docs/ford_v3.md#validation)). Its EU path
+  takes any 104 Manchester bits at 240/480 µs behind 30 short pulses, the reference C checks nothing else, and an
+  Xhorse Honda V0 remote sends that kind of signal: on the library's three recordings of one, Ford V3 read 7 frames
+  of noise inside the presses (all zeros, all ones, serial 0), and each of them reset every decoder, Honda V0 in the
+  middle of a press. KAT now holds Ford V3's frames back as it does the rtl_433 ports': one is listed unless another
+  decoder reads the same signal, and its hit resets only the decoders held back this way (the rtl_433 ports and
+  itself). The three recordings now list 4 more Honda V0 presses, one more press as Nidec RKE (the remote's serial,
+  button and counter), and no Ford V3 frame. The 2022 Ford Escape's 20 frames are unchanged.
+- **The LDV T80 recordings read as LDV V0** ([ldv_v0.md](docs/ldv_v0.md)), with the fob's button and a counter
+  that differs in every press. Ford V3 completes the same frame 24 bits sooner and listed it with button 1 and
+  counter FFFF in every press, lock and unlock alike; with Ford V3's frames held back, LDV V0's stand. A stored
+  frame (a capture, a `.fob`) imports as LDV V0 too. LDV V0 names its buttons as the recordings do, 2 Lock and
+  1 Unlock (FoxFW names none, and KAT's generic names had them the other way round).
+
 ## [1.22.1] - 2026-11-21
 
 Hopping and Jaguar fixes: a note when a hop or listening frequency misses the fob frequency next to it (`433` is not 433.92), no more stall on an RTL-SDR or SoapySDR radio after the hop list changes, one serial per Jaguar Land Rover keyless fob, and a page of its own for that fob.

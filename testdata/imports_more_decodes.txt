@@ -316,12 +316,10 @@ honda/more/HondaV0_BD661FCA_300lck.sub | 433920000 | Honda V0 | x300 | 300 disti
 honda/more/HondaV0_BD661FCA_300ulk.sub | 433920000 | Honda V0 | x310 | 310 distinct | fnv=5E920C20C308F70B
 honda/more/HondaV0_FA94E9CA_300trk.sub | 433920000 | Honda V0 | x25 | 25 distinct | fnv=3288689402052834
 honda/more/HondaV0_FA94E9CA_300ulk.sub | 433920000 | Honda V0 | x300 | 300 distinct | fnv=5783EE4333D26A8D
-honda/more/HondaV0_xHorse_20lck.sub | 313850000 | Honda V0 | x16 | 16 distinct | fnv=4A10A15EE5551C36
-honda/more/HondaV0_xHorse_20lck.sub | 313850000 | Ford V3 | x3 | 3 distinct | fnv=C3486E83E3414BE9
-honda/more/HondaV0_xHorse_20trk.sub | 313850000 | Honda V0 | x15 | 15 distinct | fnv=56E2FCF2C641C501
-honda/more/HondaV0_xHorse_20trk.sub | 313850000 | Ford V3 | x3 | 3 distinct | fnv=091216B952A75F0A
+honda/more/HondaV0_xHorse_20lck.sub | 313850000 | Honda V0 | x18 | 18 distinct | fnv=8A123353E8A80936
+honda/more/HondaV0_xHorse_20trk.sub | 313850000 | Honda V0 | x17 | 17 distinct | fnv=A3195FF9180AD765
+honda/more/HondaV0_xHorse_20trk.sub | 313850000 | Nidec RKE | x1 | 1 distinct | fnv=3F944337CEA3B330
 honda/more/HondaV0_xHorse_LUTP.sub | 313850000 | Honda V0 | x3 | 3 distinct | fnv=A80DF2B0C1C0374C
-honda/more/HondaV0_xHorse_LUTP.sub | 313850000 | Ford V3 | x1 | 1 distinct | fnv=CAE578735C54AB19
 honda/more/HondaV2H4_OEM2_300lck.sub | 433920000 | Continental-KR5V2X | x30 | 17 distinct | fnv=60EEE50627EA2834
 honda/more/HondaV2H4_OEM2_300ulk.sub | 433920000 | Continental-KR5V2X | x51 | 27 distinct | fnv=CEDF88A4AF5C61F3
 honda/more/HondaV2_3lck.sub | 433920000 | Continental-KR5V2X | x6 | 3 distinct | fnv=A484A0FD9D3F6241

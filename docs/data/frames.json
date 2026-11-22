@@ -631,17 +631,25 @@
     }
    ],
    "fields": {
+    "button": {
+     "frames": 20,
+     "how": "",
+     "offset": 8,
+     "values": 4,
+     "width": 4,
+     "word": "data"
+    },
     "serial": {
-     "frames": 34,
+     "frames": 20,
      "how": "",
      "offset": 24,
-     "values": 7,
+     "values": 1,
      "width": 32,
      "word": "data"
     }
    },
-   "files": 6,
-   "frames": 34
+   "files": 1,
+   "frames": 20
   },
   "GM RFA": {
    "bits": 84,
@@ -791,7 +799,7 @@
    ],
    "fields": {
     "button": {
-     "frames": 1458,
+     "frames": 1462,
      "how": "reversed",
      "offset": 12,
      "values": 5,
@@ -800,7 +808,7 @@
     }
    },
    "files": 24,
-   "frames": 1458
+   "frames": 1462
   },
   "Honda V1": {
    "bits": 68,
@@ -1854,6 +1862,59 @@
    "files": 1,
    "frames": 20
   },
+  "LDV V0": {
+   "bits": 128,
+   "examples": [
+    {
+     "bits": 128,
+     "button": 2,
+     "counter": "7B5",
+     "data": "BBBC57706F9A97FF",
+     "extra": "FFF6B712282CC6AA",
+     "file": "LDV/LDV-T80_lock.sub",
+     "name": "LDV V0",
+     "serial": "BBBC5770"
+    },
+    {
+     "bits": 128,
+     "button": 1,
+     "counter": "7B8",
+     "data": "BBBC57706F9A8FFF",
+     "extra": "FFF70FF9F2CC1624",
+     "file": "LDV/LDV-T80_unlock.sub",
+     "name": "LDV V0",
+     "serial": "BBBC5770"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 7,
+     "how": "",
+     "offset": 11,
+     "values": 2,
+     "width": 4,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 7,
+     "how": "",
+     "offset": 45,
+     "values": 7,
+     "width": 11,
+     "word": "extra"
+    },
+    "serial": {
+     "frames": 7,
+     "how": "",
+     "offset": 32,
+     "values": 1,
+     "width": 32,
+     "word": "data"
+    }
+   },
+   "files": 2,
+   "frames": 7
+  },
   "Lexus UX": {
    "bits": 256,
    "examples": [
@@ -2327,6 +2388,24 @@
    },
    "files": 10,
    "frames": 958
+  },
+  "Nidec RKE": {
+   "bits": 64,
+   "examples": [
+    {
+     "bits": 64,
+     "button": 5,
+     "counter": "6B",
+     "data": "6B12B74355FC00",
+     "extra": "FC00",
+     "file": "honda/more/HondaV0_xHorse_20trk.sub",
+     "name": "Nidec RKE",
+     "serial": "12B743"
+    }
+   ],
+   "fields": {},
+   "files": 1,
+   "frames": 1
   },
   "Nissan V0": {
    "bits": 64,

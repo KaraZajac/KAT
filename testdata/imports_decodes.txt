@@ -1286,13 +1286,13 @@ KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E02970D/57 sn=B444706E 
 KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E029804/57 sn=B444706E btn=2 cnt=98 crc=1 tx=1
 KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E029903/57 sn=B444706E btn=2 cnt=99 crc=1 tx=1
 KIA/KiaV1_5cl_5op.sub | 315000000 | Kia V1 | data=B444706E029A02/57 sn=B444706E btn=2 cnt=9A crc=1 tx=1
-LDV/LDV-T80_lock.sub | 433889000 | Ford V3 | data=4443A88F90656800/104 extra=948EDD7 sn=43A88F90 btn=1 cnt=FFFF crc=0 tx=0
-LDV/LDV-T80_lock.sub | 433889000 | Ford V3 | data=4443A88F90656800/104 extra=9686DA9 sn=43A88F90 btn=1 cnt=FFFF crc=0 tx=0
-LDV/LDV-T80_lock.sub | 433889000 | Ford V3 | data=4443A88F90656800/104 extra=9880F60 sn=43A88F90 btn=1 cnt=FFFF crc=0 tx=0
-LDV/LDV-T80_lock.sub | 433889000 | Ford V3 | data=4443A88F90656800/104 extra=9A99BFC sn=43A88F90 btn=1 cnt=FFFF crc=0 tx=0
-LDV/LDV-T80_unlock.sub | 433889000 | Ford V3 | data=4443A88F90657000/104 extra=8F0060D sn=43A88F90 btn=1 cnt=FFFF crc=0 tx=0
-LDV/LDV-T80_unlock.sub | 433889000 | Ford V3 | data=4443A88F90657000/104 extra=9109804 sn=43A88F90 btn=1 cnt=FFFF crc=0 tx=0
-LDV/LDV-T80_unlock.sub | 433889000 | Ford V3 | data=4443A88F90657000/104 extra=93093CD sn=43A88F90 btn=1 cnt=FFFF crc=0 tx=0
+LDV/LDV-T80_lock.sub | 433889000 | LDV V0 | data=BBBC57706F9A97FF/128 extra=FFF6B712282CC6AA sn=BBBC5770 btn=2 cnt=7B5 crc=0 tx=0
+LDV/LDV-T80_lock.sub | 433889000 | LDV V0 | data=BBBC57706F9A97FF/128 extra=FFF697925615D48E sn=BBBC5770 btn=2 cnt=7B4 crc=0 tx=0
+LDV/LDV-T80_lock.sub | 433889000 | LDV V0 | data=BBBC57706F9A97FF/128 extra=FFF677F09F907FD4 sn=BBBC5770 btn=2 cnt=7B3 crc=0 tx=0
+LDV/LDV-T80_lock.sub | 433889000 | LDV V0 | data=BBBC57706F9A97FF/128 extra=FFF6566403758270 sn=BBBC5770 btn=2 cnt=7B2 crc=0 tx=0
+LDV/LDV-T80_unlock.sub | 433889000 | LDV V0 | data=BBBC57706F9A8FFF/128 extra=FFF70FF9F2CC1624 sn=BBBC5770 btn=1 cnt=7B8 crc=0 tx=0
+LDV/LDV-T80_unlock.sub | 433889000 | LDV V0 | data=BBBC57706F9A8FFF/128 extra=FFF6EF67FBCD5442 sn=BBBC5770 btn=1 cnt=7B7 crc=0 tx=0
+LDV/LDV-T80_unlock.sub | 433889000 | LDV V0 | data=BBBC57706F9A8FFF/128 extra=FFF6CF6C324DE4B4 sn=BBBC5770 btn=1 cnt=7B6 crc=0 tx=0
 Lamborghini/Lambo_Lock.sub | 315000000 | (none)
 Lamborghini/Lambo_Trunk.sub | 315000000 | (none)
 Lamborghini/Lambo_Unlock.sub | 315000000 | (none)

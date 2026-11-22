@@ -484,8 +484,10 @@ pub struct ProtocolRegistry {
     /// Whether each decoder is a gate/garage protocol (`Category::Gate`): those take part in the
     /// inverted-polarity pass only for FSK input (see [Self::process_signal_stream_opts]).
     gate: Vec<bool>,
-    /// Whether each decoder is an rtl_433 port ([RTL433_PORTS]): receive-only ports that run after
-    /// every Flipper reference's decoder and never reset them (see
+    /// Whether each decoder's frames are held back: the rtl_433 ports ([RTL433_PORTS]), receive-only
+    /// ports that run after every Flipper reference's decoder, and the reference decoders that
+    /// check nothing ([HELD_LIKE_PORTS]). Their hits never reset the other decoders, and a frame of
+    /// theirs is dropped when another decoder reads the same signal (see
     /// [Self::process_signal_stream_inner]).
     rtl: Vec<bool>,
     /// A second set of the decoders, fed only by [Self::replays]: a decoder's state that survives
@@ -494,6 +496,17 @@ pub struct ProtocolRegistry {
     /// Key searches run on their own (config `autobf`): [Self::set_auto_key_search].
     auto_key_search: bool,
 }
+
+/// Reference decoders that take a frame with no check of it at all, so they also read other remotes'
+/// signals. Their frames are held back as the rtl_433 ports' are
+/// ([ProtocolRegistry::process_signal_stream], and [ProtocolRegistry::process_signal] for a stored
+/// frame): a frame is reported unless another decoder reads the same signal, and their hit resets
+/// only these and the ports, not a decoder in the middle of another remote's frame. Ford V3's EU
+/// path takes any 104 Manchester bits at
+/// 240/480 µs behind 30 short pulses (the C checks nothing else), and an Xhorse Honda V0 remote
+/// sends exactly that kind of signal: on its recordings (`IMPORTS/honda/more/HondaV0_xHorse_*`)
+/// Ford V3 read noise frames inside the presses and its hits reset Honda V0 mid-frame.
+pub(crate) const HELD_LIKE_PORTS: &[&str] = &["Ford V3"];
 
 /// The rtl_433 ports (receive only; registered last).
 pub(crate) const RTL433_PORTS: &[&str] = &[
@@ -548,8 +561,8 @@ const NOT_FINAL_ON_GATED_PASS: &[&str] = &["Toyota (FoxFW)"];
 /// The copies and repeats of one press follow each other within about 100 ms.
 const SEPARATE_US: u64 = 250_000;
 
-/// A frame an rtl_433 port read, held back until it is clear that no Flipper decoder reads the
-/// signal ([ProtocolRegistry::process_signal_stream_inner]).
+/// A frame an rtl_433 port (or a [HELD_LIKE_PORTS] decoder) read, held back until it is clear that
+/// no Flipper decoder reads the signal ([ProtocolRegistry::process_signal_stream_inner]).
 struct Held {
     /// The port's index, the frame's first and last pulse.
     port: usize,
@@ -1175,7 +1188,7 @@ impl ProtocolRegistry {
             .iter()
             .map(|d| info::lookup(d.name()).is_some_and(|i| i.category == info::Category::Gate))
             .collect();
-        let rtl = decoders.iter().map(|d| RTL433_PORTS.contains(&d.name())).collect();
+        let rtl = decoders.iter().map(|d| RTL433_PORTS.contains(&d.name()) || HELD_LIKE_PORTS.contains(&d.name())).collect();
         Self { decoders, probe, rf, gate, rtl, auto_key_search: false }
     }
 
@@ -1368,7 +1381,9 @@ impl ProtocolRegistry {
             // also opens the next frame, keeps that state through this reset with a one-shot
             // `just_emitted` flag (Legrand, Renault V0, BMW CAS3, Toyota (FoxFW)). An rtl_433 port's
             // hit resets the rtl_433 ports only: rtl_433 runs its devices independently, and the
-            // Flipper references keep first-match priority over any frame both read.
+            // Flipper references keep first-match priority over any frame both read. A
+            // [HELD_LIKE_PORTS] decoder counts as a port here: its frames are held back the same
+            // way, and its hit (on noise, often) does not cut another remote's frame short.
             let mut hit: Option<(usize, String, DecodedSignal)> = None;
             let mut unchecked: Option<(usize, String, DecodedSignal)> = None;
             #[allow(clippy::needless_range_loop)] // the reset below borrows every decoder
@@ -1381,13 +1396,24 @@ impl ProtocolRegistry {
                     None => self.decoders[k].flush(),
                 };
                 let Some(decoded) = decoded else { continue };
-                if hit.is_some() {
-                    continue;
-                }
+                // A held decoder's frame (an rtl_433 port's, a [HELD_LIKE_PORTS] decoder's) gives
+                // way to a reference decoder's completed on the same pulse: both read the same
+                // signal, and the held frame would be dropped for it below anyway. (The ports are
+                // registered last; Ford V3 is not.)
+                let superseded = match &hit {
+                    None => None,
+                    Some((h, _, _)) if self.rtl[*h] && !self.rtl[k] => Some(*h),
+                    Some(_) => continue,
+                };
                 let (name, decoded) = listed(self.decoders[k].as_ref(), decoded);
                 if name == PSA_UNCHECKED_NAME {
-                    unchecked.get_or_insert((k, name, decoded));
+                    if superseded.is_none() {
+                        unchecked.get_or_insert((k, name, decoded));
+                    }
                     continue;
+                }
+                if let Some(h) = superseded {
+                    shadowed[h] = true;
                 }
                 let rtl = self.rtl[k];
                 for (d, &r) in self.decoders.iter_mut().zip(&self.rtl) {
@@ -1540,28 +1566,35 @@ impl ProtocolRegistry {
         for decoder in &mut self.decoders {
             decoder.reset();
         }
+        // A held decoder's frame (an rtl_433 port's, a [HELD_LIKE_PORTS] decoder's) is the answer
+        // only when no reference decoder reads the pulses, as in [Self::process_signal_stream_inner]:
+        // a stored LDV V0 frame, whose first 104 bits Ford V3 reads, imports as LDV V0 again.
+        let mut held: Option<(String, DecodedSignal)> = None;
 
         for pair in pairs {
             let level = if invert_level { !pair.level } else { pair.level };
             let duration_us = pair.duration_us;
 
             // Feed this pulse to all decoders; report first valid frame (Flipper-style).
-            let mut hits: Vec<(String, DecodedSignal)> = Vec::new();
-            for (decoder, &ok) in self.decoders.iter_mut().zip(&allowed) {
+            let mut hits: Vec<(bool, (String, DecodedSignal))> = Vec::new();
+            for ((decoder, &ok), &rtl) in self.decoders.iter_mut().zip(&allowed).zip(&self.rtl) {
                 if !ok || !frequency_supported(decoder.supported_frequencies(), frequency) {
                     continue;
                 }
 
                 if let Some(decoded) = decoder.feed(level, duration_us) {
-                    hits.push(listed(decoder.as_ref(), decoded));
+                    hits.push((rtl, listed(decoder.as_ref(), decoded)));
                 }
             }
-            if let Some((name, decoded)) = hits.into_iter().next() {
-                return Some((name.to_string(), decoded));
+            if let Some(pos) = hits.iter().position(|(rtl, _)| !rtl) {
+                return Some(hits.swap_remove(pos).1);
+            }
+            if held.is_none() {
+                held = hits.into_iter().next().map(|(_, hit)| hit);
             }
         }
 
-        None
+        held
     }
 
     /// Try to decode a capture (for compatibility with old interface)
@@ -1719,25 +1752,67 @@ mod tests {
     }
 
     #[test]
-    fn ford_v3_decodes_ldv_t80_sub() {
-        // LDV T80 keyfobs use a Ford-V3-style 240/480µs Manchester frame.
-        let path = Path::new("IMPORTS/LDV/LDV-T80_lock.sub");
-        if !path.exists() {
-            eprintln!("Skip: {:?} not found (run from crate root)", path);
-            return;
+    fn ldv_t80_subs_read_as_ldv_v0() {
+        // The LDV T80 fob's frame is also a Ford V3 EU frame (240/480 µs Manchester; Ford V3's 104
+        // bits are the inverse of LDV V0's first 104), which Ford V3 completes first and checks
+        // nothing in. Ford V3's frames are held back ([HELD_LIKE_PORTS]), so LDV V0, which reads
+        // the whole frame and gates on its fixed fields, lists every press: in a stream, and from a
+        // frame's stored pulses (a capture, a `.fob`) alike.
+        for file in ["IMPORTS/LDV/LDV-T80_lock.sub", "IMPORTS/LDV/LDV-T80_unlock.sub"] {
+            let path = Path::new(file);
+            if !path.exists() {
+                eprintln!("Skip: {:?} not found (run from crate root)", path);
+                return;
+            }
+            let (freq, raw_pairs) = import_sub_raw(path).unwrap();
+            let pairs: Vec<LevelDuration> =
+                raw_pairs.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
+            let mut reg = ProtocolRegistry::new();
+            let results = reg.process_signal_stream(&pairs, freq);
+            let names: Vec<&str> = results.iter().map(|(n, _, _)| n.as_str()).collect();
+            assert!(names.len() >= 3 && names.iter().all(|&n| n == "LDV V0"), "{file}: {names:?}");
+            let button = if file.contains("unlock") { "Unlock" } else { "Lock" };
+            for (_, d, segment) in &results {
+                let (name, again) = reg.process_signal(segment, freq).expect("a stored frame decodes again");
+                assert_eq!((name.as_str(), again.data, again.extra), ("LDV V0", d.data, d.extra), "{file}");
+                // The button names follow the recordings' names (ldv_v0.rs `buttons`).
+                assert_eq!(capture_button_name("LDV V0", d.button.unwrap(), d.data, d.extra), Some(button), "{file}");
+            }
+            // Ford V3 on its own still reads the frames (its EU path is unchanged).
+            let mut ford = ford_v3::FordV3Decoder::new();
+            assert!(pairs.iter().any(|p| ford.feed(p.level, p.duration_us).is_some()), "{file}: no Ford V3 frame");
         }
-        let (freq, raw_pairs) = import_sub_raw(path).unwrap();
-        let pairs: Vec<LevelDuration> = raw_pairs
-            .iter()
-            .map(|p| LevelDuration::new(p.level, p.duration_us))
-            .collect();
-        let mut reg = ProtocolRegistry::new();
-        let results = reg.process_signal_stream(&pairs, freq);
-        assert!(
-            results.iter().any(|(n, _, _)| n == "Ford V3"),
-            "expected at least one Ford V3 decode from LDV-T80_lock.sub, got: {:?}",
-            results.iter().map(|(n, _, _)| n.as_str()).collect::<Vec<_>>()
-        );
+    }
+
+    #[test]
+    fn xhorse_honda_v0_presses_survive_ford_v3_noise() {
+        // An Xhorse Honda V0 remote (313.85 MHz) sends stretches that Ford V3's unchecked EU path
+        // reads as frames (all zeros, all ones, serial 0). Each such hit used to reset every
+        // decoder, Honda V0 in the middle of a press, and 5 presses of these files were lost. Ford
+        // V3's frames are held back now ([HELD_LIKE_PORTS]) and dropped where Honda V0 reads the
+        // signal: Honda V0 lists 4 of those presses, and Nidec RKE the fifth (20trk's 0x6B, which
+        // Honda V0 does not read; it shows the remote's serial, button and that counter).
+        for (file, honda) in [("HondaV0_xHorse_20lck.sub", 18), ("HondaV0_xHorse_20trk.sub", 17), ("HondaV0_xHorse_LUTP.sub", 3)] {
+            let path = Path::new("IMPORTS/honda/more").join(file);
+            if !path.exists() {
+                eprintln!("Skip: {:?} not found (run from crate root)", path);
+                return;
+            }
+            let mut reg = ProtocolRegistry::new();
+            let (_, results) = decode_import(&mut reg, &path).unwrap();
+            let names: Vec<&str> = results.iter().map(|(n, _)| n.as_str()).collect();
+            assert!(!names.contains(&"Ford V3"), "{file}: {names:?}");
+            assert_eq!(names.iter().filter(|&&n| n == "Honda V0").count(), honda, "{file}: {names:?}");
+        }
+    }
+
+    #[test]
+    fn held_like_ports_are_registered_reference_decoders() {
+        let names: Vec<&str> = ProtocolRegistry::decoders().iter().map(|d| d.name()).collect();
+        for held in HELD_LIKE_PORTS {
+            assert!(names.contains(held), "{held} is not a registered decoder");
+            assert!(!RTL433_PORTS.contains(held), "{held} is an rtl_433 port already");
+        }
     }
 
     #[test]

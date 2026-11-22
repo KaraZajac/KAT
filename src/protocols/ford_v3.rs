@@ -765,22 +765,27 @@ mod tests {
     #[test]
     fn ldv_t80_frames_match_protopirate_fields() {
         // With Flipper's manchester_advance the LDV-T80 frames decode to the same bits as the C
-        // (serial 43A88F90 in both captures, button byte 0x68 lock / 0x70 unlock).
+        // (serial 43A88F90 in both captures, button byte 0x68 lock / 0x70 unlock). The decoder on
+        // its own, reset after each frame as the registry resets it: in the registry these frames
+        // list as LDV V0, which reads the whole frame (Ford V3's frames are held back there).
         for (rel, count, b6) in [("LDV/LDV-T80_lock.sub", 4, 0x68u64), ("LDV/LDV-T80_unlock.sub", 3, 0x70)] {
             let path = Path::new("IMPORTS").join(rel);
             if !path.exists() {
                 eprintln!("Skip: {:?} not found (run from crate root)", path);
                 continue;
             }
-            let (freq, raw_pairs) = import_sub_raw(&path).unwrap();
-            let pairs: Vec<LevelDuration> = raw_pairs
-                .iter()
-                .map(|p| LevelDuration::new(p.level, p.duration_us))
-                .collect();
-            let results = ProtocolRegistry::new().process_signal_stream(&pairs, freq);
-            let ford: Vec<_> = results.iter().filter(|(n, _, _)| n == "Ford V3").collect();
+            let (_, raw_pairs) = import_sub_raw(&path).unwrap();
+            let mut decoder = FordV3Decoder::new();
+            let mut ford = Vec::new();
+            for p in &raw_pairs {
+                if let Some(d) = decoder.feed(p.level, p.duration_us) {
+                    ford.push(d);
+                    decoder.reset();
+                }
+            }
+            ford.extend(decoder.flush());
             assert_eq!(ford.len(), count, "{rel}");
-            for (_, d, _) in ford {
+            for d in ford {
                 assert_eq!(d.serial, Some(0x43A8_8F90), "{rel}");
                 assert_eq!(d.data >> 56, 0x44, "{rel}");
                 assert_eq!((d.data >> 8) & 0xFF, b6, "{rel}");

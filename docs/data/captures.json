@@ -4122,12 +4122,12 @@
    "reads": [
     {
      "buttons": [
-      "1"
+      "2"
      ],
      "distinct": 4,
      "frames": 4,
-     "protocol": "Ford V3",
-     "serial": "43A88F90",
+     "protocol": "LDV V0",
+     "serial": "BBBC5770",
      "serials": 1
     }
    ],
@@ -4150,8 +4150,8 @@
      ],
      "distinct": 3,
      "frames": 3,
-     "protocol": "Ford V3",
-     "serial": "43A88F90",
+     "protocol": "LDV V0",
+     "serial": "BBBC5770",
      "serials": 1
     }
    ],
@@ -9825,14 +9825,9 @@
    "pulses": 116728,
    "reads": [
     {
-     "distinct": 16,
-     "frames": 16,
+     "distinct": 18,
+     "frames": 18,
      "protocol": "Honda V0"
-    },
-    {
-     "distinct": 3,
-     "frames": 3,
-     "protocol": "Ford V3"
     }
    ],
    "seconds": 29.14,
@@ -9849,14 +9844,14 @@
    "pulses": 204621,
    "reads": [
     {
-     "distinct": 15,
-     "frames": 15,
+     "distinct": 17,
+     "frames": 17,
      "protocol": "Honda V0"
     },
     {
-     "distinct": 3,
-     "frames": 3,
-     "protocol": "Ford V3"
+     "distinct": 1,
+     "frames": 1,
+     "protocol": "Nidec RKE"
     }
    ],
    "seconds": 47.59,
@@ -9876,11 +9871,6 @@
      "distinct": 3,
      "frames": 3,
      "protocol": "Honda V0"
-    },
-    {
-     "distinct": 1,
-     "frames": 1,
-     "protocol": "Ford V3"
     }
    ],
    "seconds": 7.14,

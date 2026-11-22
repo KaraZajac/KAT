@@ -13,8 +13,11 @@ A 128-bit Manchester rolling-code frame at 250/500 µs, gated on its fixed field
 
 **Relation to Ford V3.** The LDV T80 captures in `IMPORTS/LDV` are the same on-air frame that Ford V3's EU path
 reads (Ford V3's 104-bit key there is the bit-inverse of this decoder's 128-bit key). Ford V3 (240/480 µs) is
-registered first and completes at bit 104, before this decoder reaches bit 128, so Ford V3 keeps every frame it
-accepts, as in FoxFW. This decoder adds what Ford V3 lacks: the timing tolerance (short 131..=369 µs, long
+registered first and completes at bit 104, before this decoder reaches bit 128, so in FoxFW Ford V3 keeps every
+frame it accepts. KAT holds Ford V3's frames back, as it does the rtl_433 ports' (Ford V3 checks nothing): where
+this decoder reads the same signal, its frame stands and Ford V3's is dropped. The LDV captures therefore read
+as LDV V0; KAT 1.22.1 and earlier listed them as Ford V3, with button 1 and counter FFFF in every frame. This
+decoder adds what Ford V3 lacks: the timing tolerance (short 131..=369 µs, long
 381..=619 µs, against Ford V3's 180..=300 / 420..=540), the whole 128-bit frame, the LDV fields (serial, 2-bit
 button, 11-bit counter, 40-bit hop) and a check on the fixed fields.
 
@@ -38,6 +41,9 @@ Gate: `byte6` bit 7 set, `byte6 & 7 == 7`, bytes 7 and 8 both `0xFF`, and the bu
 equals the button duplicated in the counter field (`((byte9 << 8) | byte10) >> 3 & 3`).
 `counter = ((byte9 << 8) | byte10) >> 5`. No CRC.
 
+**Buttons:** 1 Unlock, 2 Lock, as the two LDV T80 recordings name them (`LDV-T80_lock.sub` sends 2 in every press,
+`LDV-T80_unlock.sub` 1). FoxFW names none, and KAT's generic names (1 Lock, 2 Unlock) are the other way round.
+
 **KAT packing:** `data` = bytes 0..7, `extra` = bytes 8..15 (the hop is its low 40 bits), `data_count_bit` = 128.
 
 ## RF
@@ -49,4 +55,6 @@ equals the button duplicated in the counter field (`((byte9 << 8) | byte10) >> 3
 - **Check:** none (fixed-field gate); the CRC column shows "-"
 
 Verified against FoxFW's C decoder on made-up frames. On `IMPORTS/LDV` the FoxFW decoder reads the same frames
-Ford V3 does; in KAT's registry Ford V3 reports them, as in FoxFW.
+Ford V3 does. In KAT they read as LDV V0 (Ford V3's are dropped, see above): one serial, `BBBC5770`, button 2 in
+the lock file and 1 in the unlock file, and a counter that differs in every press (0x7B2–0x7B5 in the lock file,
+0x7B6–0x7B8 in the unlock file).

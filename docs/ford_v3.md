@@ -18,6 +18,10 @@ see every pulse, in the C's order:
 - **EU variant:** the original Manchester decoder (≥30-short preamble, then 104 bits). The C has no further
   checks; KAT has one, for the stream of a Revers RB2 gate remote (Decoder Steps).
 
+Since the EU path checks nothing, KAT holds Ford V3's frames back in a recording or a received burst: a frame is
+listed unless another decoder reads the same signal, and a Ford V3 hit resets only the decoders held back this
+way (the rtl_433 ports and itself; see Validation).
+
 Decode-only: the ProtoPirate encoder is NULL, so KAT does not transmit Ford V3 (Replay still works on the raw
 capture).
 
@@ -110,6 +114,15 @@ own decoder reads them as another frame with another serial, and so does KAT's.
   `0x43A88F90`, `raw[6]` `0x68` lock / `0x70` unlock, and the same values in every repeat. These bits match
   ProtoPirate and a direct half-bit decode of the capture. The earlier port used KAT's shared Manchester table,
   which is not Flipper's, and produced serial `0xDF56FD7D` instead.
+- **Held back in a stream (KAT).** The EU path checks nothing, so it also reads other remotes' Manchester at
+  250/500 µs. On an Xhorse Honda V0 remote's three recordings (`IMPORTS/honda/more/HondaV0_xHorse_*`) it read 7
+  noise frames inside the presses (all zeros, all ones, serial 0), and each of its hits reset every decoder,
+  Honda V0 in the middle of its frame. KAT now holds Ford V3's frames back as it does the rtl_433 ports'
+  (`HELD_LIKE_PORTS`): a frame stands unless another decoder reads the same signal, and a Ford V3 hit resets
+  only the held decoders. The Honda recordings now list 4 more Honda V0 presses, one more as Nidec RKE (a press
+  Honda V0 does not read; it shows the remote's serial, button and that press's counter), and no Ford V3 frame.
+  The LDV captures read as [LDV V0](ldv_v0.md), whose decoder checks the frame's fixed fields, also from a
+  stored frame. The 2022 Ford Escape's 20 frames are unchanged.
 - **US path:** decodes the REAL 2022 Ford Escape capture `IMPORTS/FORD/22_ford_escape_u2_l2_t2_p2.sub`
   (315 MHz): serial `0x4E2464E4` in every frame, the counter rising by one per press (`0xEB0D` → `0xEB16`),
   and buttons `0x02`, `0x01`, `0x07`, `0x06` in exactly the order the file name records (unlock ×2, lock ×2,
@@ -131,7 +144,8 @@ own decoder reads them as another frame with another serial, and so does KAT's.
   (`rtl_433_tests/tests/revers/rb2/01`, pulses within 60 µs of 240 and 480 µs) are Ford V3 in ProtoPirate's
   and doctor-firmware's C, three frames each; up to 1.12.0 KAT listed them the same way. They are Revers_RB2 now, 7 messages each, and never Ford V3
   (`rtl433_recordings_decode`). Flipper's capture of a real remote (`revers_rb2_raw.sub`) was never taken: its
-  pulses are wider apart. The LDV captures, the only real EU frames, decode as before.
+  pulses are wider apart. The LDV captures, the only real EU frames, decode as before (and are listed as LDV V0,
+  see above).
 - **C oracle:** on the LDV captures every frame (fields and all 13 bytes) equals the compiled ProtoPirate and
   Flipper-ARF decoders; on 2000 randomized EU/US bursts the only differences are frames admitted by the US
   relaxation above. No reference has a Ford V3 encoder (all three register `.encoder` with NULL alloc).

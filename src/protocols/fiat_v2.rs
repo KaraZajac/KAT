@@ -1030,14 +1030,15 @@ mod tests {
     }
 
     #[test]
-    fn does_not_steal_ldv_ford_v3_frames() {
+    fn does_not_steal_the_ldv_frames() {
+        // The LDV T80's frames, which Ford V3's EU path reads too (they list as LDV V0).
         for rel in ["LDV/LDV-T80_lock.sub", "LDV/LDV-T80_unlock.sub"] {
             let Some(results) = registry_decodes(rel) else {
                 continue;
             };
             let names: Vec<&str> = results.iter().map(|(n, _)| n.as_str()).collect();
             assert!(!names.contains(&"Fiat V2"), "{rel}: {names:?}");
-            assert!(names.contains(&"Ford V3"), "{rel}: {names:?}");
+            assert!(names.contains(&"LDV V0"), "{rel}: {names:?}");
         }
     }
 }

@@ -61,7 +61,9 @@ decode or loaded key is encoder-capable (Replay of a recording still works).
 ## Validation
 
 - IMPORTS holds many recordings of these remotes (`honda/more/`); Honda V0 reads every frame of them first. Up to
-  1.20.1 it lost three, which this decoder then read.
+  1.20.1 it lost three, which this decoder then read. One press Honda V0 does not read even on its own, counter 0x6B
+  of `HondaV0_xHorse_20trk.sub`: this decoder lists it, with the remote's serial and button. (Up to 1.22.1 a Ford V3
+  frame read from noise cut that press short; Ford V3's frames are held back now, [ford_v3.md](ford_v3.md#validation).)
 - Transmit: FoxFW's encoder on the host oracle (`subghz_oracle_foxfwenc encode`) refuses all of 117 made-up key files
   (56 to 64 bits with every button, frames its decoder's gate refuses, 55, 65 and 0 bits, a short Key: "deserialize
   failed", status -12), and KAT transmits none of them.

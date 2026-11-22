@@ -54,10 +54,10 @@ None: no capture of this protocol exists in the test corpus, so the port is vali
 the FoxFW oracle (with `--protocol HondaV2&V3`) and KAT give the same Key, variant fields and counter on a V2 unlock
 frame and on a fixed and a hopping V3 frame; a corrupted V3 CRC, a wrong sync byte, a V3 frame cut at 10 bytes, an
 unknown V2 button pair, a damaged V2 sync and a short V2 frame are rejected. In the full oracle registry other
-protocols (Hitag2, Fiat V2) read these synthetic pulses first. In KAT's registry the V3 frames go to Ford V3 instead,
-whose EU path (250/500 µs Manchester, no check) completes on the 104th bit, before the 120-bit V3 frame ends: of
-29 copies of the fixed and hopping V3 frames that FoxFW's decoder reads alone, KAT lists 11 as HondaV2&V3: those
-jittered by 10 %, stretched by 8-14 % or with one pulse split, which break Ford V3's frame first. The clean copies and
-those jittered by 5 %, compressed, doubled or behind noise are Ford V3's. A genuine V3 capture would show whether
-HondaV2&V3 needs priority over Ford V3. The IMPORTS sweep shows no
-change.
+protocols (Hitag2, Fiat V2) read these synthetic pulses first. In KAT's registry Ford V3's EU path (250/500 µs
+Manchester, no check) completes on the 104th bit of a V3 frame, before the frame's 120th. Up to KAT 1.22.1 that gave
+Ford V3 the frame: of 29 copies of the fixed and hopping V3 frames that FoxFW's decoder reads alone, KAT listed 11 as
+HondaV2&V3, those jittered by 10 %, stretched by 8-14 % or with one pulse split, which break Ford V3's frame first.
+KAT now holds Ford V3's frames back ([ford_v3.md](ford_v3.md#validation)): one is dropped when another decoder reads
+the same signal, so a V3 frame this decoder reads is listed as HondaV2&V3, the clean fixed and hopping frames
+included (`the_registry_lists_v3_frames_that_ford_v3_reads_too`). The IMPORTS sweep shows no change.

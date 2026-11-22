@@ -50,6 +50,7 @@
   "Kia V5": "Kia V5",
   "Kia V6": "Kia V6",
   "Kia V7": "Kia V7",
+  "LDV V0": "LDV V0",
   "Lexus UX": "Lexus UX",
   "Mazda Siemens": "Mazda Siemens",
   "Mazda V0": "Mazda V0",
@@ -58,6 +59,7 @@
   "Microchip-HCS361 [KeeLoq (Unknown)]": "Microchip-HCS361",
   "Mitsubishi V0": "Mitsubishi V0",
   "Mitsubishi V1": "Mitsubishi V1",
+  "Nidec RKE": "Nidec RKE",
   "Nissan V0": "Nissan V0",
   "Opel Rolling": "Opel Rolling",
   "Opel V1": "Opel V1",
@@ -14846,7 +14848,16 @@
   {
    "aliases": [],
    "bits": 128,
-   "buttons": [],
+   "buttons": [
+    [
+     1,
+     "Unlock"
+    ],
+    [
+     2,
+     "Lock"
+    ]
+   ],
    "category": "Vehicle",
    "coding": "Manchester",
    "decoder": "LDV V0",
@@ -14856,7 +14867,7 @@
     315000000,
     433920000
    ],
-   "generic_buttons": true,
+   "generic_buttons": false,
    "make": "LDV",
    "module": "ldv_v0",
    "name": "LDV V0",

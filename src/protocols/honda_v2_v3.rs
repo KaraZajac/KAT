@@ -486,6 +486,19 @@ mod tests {
     }
 
     #[test]
+    fn the_registry_lists_v3_frames_that_ford_v3_reads_too() {
+        // Ford V3's EU path (Manchester at 240/480 µs, no check) completes on the 104th bit of a V3
+        // frame, before its 120th. Its frame is held back (`HELD_LIKE_PORTS` in mod.rs) and dropped
+        // when this decoder reads the frame; up to 1.22.1 Ford V3 took the frame.
+        let fixed = v3_frame(0x3D, [0xAB, 0xCD, 0x8C, 0x82, 1, 2, 3, 4, 5, 6, 7, 8]);
+        let hop = v3_frame(0x41, [0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x01, 0x02, 0x03, 0x04, 0x05]);
+        for frame in [fixed, hop] {
+            let pulses = manchester_burst(&frame, 17, 250, 4000);
+            assert_eq!(crate::protocols::dd_testutil::registry_names(&pulses, 433_920_000), [NAME]);
+        }
+    }
+
+    #[test]
     fn v3_crc_fold_has_the_constant_term() {
         // All-zero frame: the CRC-16 is 0, every parity is 0, so the result is the constant.
         assert_eq!(v3_compute_crc(&[0u8; 15]), 0x1B);

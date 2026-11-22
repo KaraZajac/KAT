@@ -107,8 +107,8 @@ which the C reaches through its inverted try.
 
 The end-of-burst gate is the one deviation from the C. The C's sliding window also matches 15 bits of any
 Manchester preamble plus the first 97 bits of a longer frame. On `LDV/LDV-T80_unlock` it would complete before
-Ford V3 does and steal that frame in KAT's first-match registry. Genuine FCA bursts always end with the frame,
-so all 47 Pacifica and 29 Renegade frames still decode. doctor-firmware's extra type-nibble exclusions
+Ford V3 does and steal that frame (LDV V0's now) in KAT's first-match registry. Genuine FCA bursts always end
+with the frame, so all 47 Pacifica and 29 Renegade frames still decode. doctor-firmware's extra type-nibble exclusions
 (0x1/0x7/0xA) were not adopted, because the genuine Renegade frames have type 7.
 
 ## Encoder

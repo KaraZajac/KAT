@@ -8,8 +8,11 @@
 //! on-air frame that Ford V3's EU path reads (its 104-bit key there is the bit-inverse of this
 //! decoder's 128-bit key, e.g. `44 43 A8 8F 90 …` vs `BB BC 57 70 6F …`), at 250/500 µs against Ford
 //! V3's 240/480. Ford V3 is registered first and completes at bit 104, before this decoder reaches
-//! bit 128, so on a capture whose pulses Ford V3 accepts, Ford V3 keeps the frame, exactly as in
-//! FoxFW. What this decoder adds: it tolerates the timing Ford V3 rejects (short 131..=369 µs, long
+//! bit 128; in FoxFW Ford V3 therefore keeps every frame it accepts. KAT holds Ford V3's frames back
+//! (`HELD_LIKE_PORTS` in `mod.rs`: it checks nothing), so where this decoder reads the same signal,
+//! as on every LDV capture, this decoder's frame stands and Ford V3's is dropped (KAT 1.22.1 and
+//! earlier listed these captures as Ford V3, with button 1 and counter FFFF in every frame). What
+//! this decoder adds: it tolerates the timing Ford V3 rejects (short 131..=369 µs, long
 //! 381..=619 µs against Ford V3's 180..=300 / 420..=540), it reads the whole 128-bit frame, and it
 //! gates on the frame's fixed fields (below), where Ford V3 has no check at all. Its fields are the
 //! LDV ones (serial = the first 32 bits, 2-bit button, 11-bit counter, 40-bit hop).
@@ -48,9 +51,20 @@ pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     encryption: "Rolling Code",
     make: "LDV",
     category: Category::Vehicle,
-    buttons: None,
+    buttons: Some(buttons),
     presets: &[&AM650],
 };
+
+/// The buttons as the two LDV T80 recordings name them: `IMPORTS/LDV/LDV-T80_lock.sub` sends 2 in
+/// every press, `LDV-T80_unlock.sub` 1. FoxFW names none, and KAT's generic names (1 Lock, 2 Unlock)
+/// are the other way round.
+fn buttons(_name: &str, code: u8) -> Option<&'static str> {
+    match code {
+        1 => Some("Unlock"),
+        2 => Some("Lock"),
+        _ => None,
+    }
+}
 
 const TE_SHORT: u32 = 250;
 const TE_LONG: u32 = 500;
@@ -313,14 +327,18 @@ mod tests {
     }
 
     #[test]
-    fn the_registry_leaves_nominal_timing_to_ford_v3() {
+    fn the_registry_lists_ldv_v0_where_ford_v3_reads_the_frame_too() {
         let names = crate::protocols::dd_testutil::registry_names;
         let bytes = frame(0x0102_0304, 1, 1, 0x7FF, 1, 0xFF);
-        // 250/500 µs: Ford V3 completes at bit 104, before this decoder reaches bit 128.
-        let got = names(&wire(&bytes, 250, 60), 433_920_000);
-        assert!(!got.is_empty() && got.iter().all(|n| n == "Ford V3"), "{got:?}");
+        // 250/500 µs: Ford V3 completes at bit 104, before this decoder reaches bit 128. Its frame
+        // is held back (`HELD_LIKE_PORTS` in mod.rs) and dropped when this decoder reads the frame.
+        assert_eq!(names(&wire(&bytes, 250, 60), 433_920_000), ["LDV V0"]);
         // 300/600 µs is outside Ford V3's windows, inside this decoder's.
         assert_eq!(names(&wire(&bytes, 300, 60), 433_920_000), ["LDV V0"]);
+        // A frame this decoder rejects (separator byte 0xFE) is still Ford V3's.
+        let bad_sep = frame(0x0102_0304, 2, 2, 0x155, 1, 0xFE);
+        let got = names(&wire(&bad_sep, 250, 60), 433_920_000);
+        assert!(!got.is_empty() && got.iter().all(|n| n == "Ford V3"), "{got:?}");
     }
 
     #[test]

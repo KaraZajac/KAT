@@ -222,6 +222,43 @@
      "width": 64
     }
    ]
+  },
+  "Ford V1 (JLR)": {
+   "note": "KAT's serial is bytes 3–6 of the frame: `26`, the flags byte and the folded ID, so a repeat (flags `08`) shows a second serial. The button and the counter are inside the 8 encrypted bytes (Extra), and KAT shows 0 for both. [The page above](ford_v1_jlr.md#frame) has the frame byte by byte.",
+   "fields": [
+    {
+     "kind": "fixed",
+     "name": "Header",
+     "word": "data",
+     "offset": 24,
+     "width": 32,
+     "note": "`D3950E26`, as in Ford's own frames"
+    },
+    {
+     "kind": "code",
+     "name": "Flags",
+     "word": "data",
+     "offset": 16,
+     "width": 8,
+     "note": "`00` the first send of a press, `08` the same press again"
+    },
+    {
+     "kind": "serial",
+     "name": "Folded ID",
+     "word": "data",
+     "offset": 0,
+     "width": 16,
+     "note": "the fob's transponder ID, high half XOR low half"
+    },
+    {
+     "kind": "code",
+     "name": "Encrypted",
+     "word": "extra",
+     "offset": 0,
+     "width": 64,
+     "note": "button and counter inside; every byte changes with every press"
+    }
+   ]
   }
  }
 }

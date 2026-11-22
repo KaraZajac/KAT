@@ -1,0 +1,19 @@
+{
+ "about": "Names KAT shows for a kind of remote that one of its decoders reads but that has a page of its own (docs/<page>.md). build.mjs makes each an entry beside its base: a row in the protocol tables, the recordings and example frames KAT shows under this name, the makes. Facts not given here are the base entry's. The decoder count does not change: the decoder is the base's.",
+ "variants": [
+  {
+   "name": "Ford V1 (JLR)",
+   "base": "Ford V1",
+   "page": "ford_v1_jlr",
+   "make": "Jaguar/Land Rover",
+   "encryption": "Rolling code (128-bit key)",
+   "encoder": false,
+   "frequencies": [
+    433920000
+   ],
+   "buttons": [],
+   "generic_buttons": false,
+   "presets": []
+  }
+ ]
+}

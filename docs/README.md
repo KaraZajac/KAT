@@ -23,6 +23,7 @@ This folder describes how each keyfob and gate/garage remote protocol supported 
 | Kia V7 | `kia_v7.rs` | [kia_v7.md](kia_v7.md) |
 | Ford V0 | `ford_v0.rs` | [ford_v0.md](ford_v0.md) |
 | Ford V1 | `ford_v1.rs` | [ford_v1.md](ford_v1.md) |
+| Ford V1 (JLR) | `ford_v1.rs` | [ford_v1_jlr.md](ford_v1_jlr.md) |
 | Ford V2 | `ford_v2.rs` | [ford_v2.md](ford_v2.md) |
 | Ford V3 | `ford_v3.rs` | [ford_v3.md](ford_v3.md) |
 | Honda Static | `honda_static.rs` | [honda_static.md](honda_static.md) |

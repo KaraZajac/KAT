@@ -70,7 +70,7 @@
     "Lincoln",
     "Mercury"
    ],
-   "blurb": "Ford V0 to V3 are Manchester frames with a rolling code: V0 on-off keyed, V1 and V2 2-FSK, V3 either. Ford V3 is the smart key sold in Europe and North America. Ford V1 also reads the keyless fob of 2017 Jaguars, Ford V1 (JLR), whose block is encrypted with AES: KAT reads it and does not send it."
+   "blurb": "Ford V0 to V3 are Manchester frames with a rolling code: V0 on-off keyed, V1 and V2 2-FSK, V3 either. Ford V3 is the smart key sold in Europe and North America. Ford V1 also reads Jaguar Land Rover's keyless fobs, Ford V1 (JLR), whose 8 rolling bytes are encrypted under a 128-bit key: KAT reads them and does not send them."
   },
   {
    "slug": "stellantis-us",
@@ -394,7 +394,7 @@
     "Land Rover",
     "Jaguar"
    ],
-   "blurb": "Six recordings of two 2017 Jaguar XJ keyless fobs, which send Ford V1's frame with an AES-encrypted block: KAT reads them as Ford V1 (JLR) and does not send them. Land Rover RKE is a port of Flipper-ARF's decoder that KAT keeps but does not register. The remote once named Land Rover V0 is Honda V2."
+   "blurb": "Six recordings of two 2017 Jaguar XJ keyless fobs, which send Ford V1's frame with 8 bytes encrypted under a 128-bit key: KAT reads them as Ford V1 (JLR) and does not send them. Land Rover RKE is a port of Flipper-ARF's decoder that KAT keeps but does not register. The remote once named Land Rover V0 is Honda V2."
   },
   {
    "slug": "tesla",

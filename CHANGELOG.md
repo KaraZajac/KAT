@@ -4,6 +4,18 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- **Ford V1 (JLR) has its own page** ([ford_v1_jlr.md](docs/ford_v1_jlr.md)), with a row of its own in the
+  site's protocol tables, its recordings and its make (Land Rover and Jaguar); the Ford V1 page points to it. New
+  from flash and EEPROM images of three cars' keyless modules, one of them before and after a fob was learned:
+  a module learns a fob from its transponder ID alone (the ID, a count, a state byte and two checksums,
+  CRC-16/ARC and Fletcher-16); one fob was learned into three modules; every check of the fobs uses one 16-byte
+  key that sits 0x70 bytes before the EEPROM area key programmers export; the keyless-entry check is AES-128 over
+  a constant, the key's slot, a random 29-bit challenge and the fob's ID; button presses are checked by the
+  XGATE co-processor, whose code is in flash the usual image leaves out. This corrects the section added in
+  1.20.0, which took the keyless-entry block for the button code and said the key was not in a memory dump.
+
 ## [1.22.0] - 2026-11-21
 
 More radios: RTL-SDR dongles with the older E4000, FC0012, FC0013 and FC2580 tuners, one of which used to take KAT's terminal down, and, to receive, any radio SoapySDR drives. The tuner drivers come from librtlsdr, so the release binaries are now distributed under the GNU GPL, version 3 or later.

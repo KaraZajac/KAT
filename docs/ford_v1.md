@@ -55,48 +55,13 @@ bits; `DecodedSignal.counter` holds the low 16, the top nibble is recovered from
 - **Encryption:** proprietary parity descramble cipher + CRC16/CCITT gate; rolling code
 - **Frequencies:** 315 MHz, 433.92 MHz
 
-## The JLR variant (encrypted)
+## The JLR variant
 
-Jaguar Land Rover's **Keyless Entry Transmitter** of 2015–2018 (part **BJ32-15K601**, 434 MHz 2-FSK)
-sends the **same 136-bit Ford V1 frame** — the `D3950E26…` header, the CRC16 — but fills the rolling
-half with a real cipher instead of Ford's keyless parity scramble. The fob is an NXP **PCF7953P
-(Hitag-Pro)**. KAT recognises such a frame because its descramble does **not** reproduce the header
-(the strict branch `plain[3] == raw[5] && plain[4] == raw[6]` fails). It is reported as
-**`Ford V1 (JLR)`**, **decode-only**: the fixed header serial is shown as the remote's identity
-(button and counter read as 0, since they are encrypted), it is **not** marked encoder-capable, and
-KAT will not emit a fresh code — only **Replay** of a captured press is possible. This is a deliberate
-deviation from the reference C, whose round-trip plaintext check would accept such a frame and send a
-code the car rejects. Genuine Ford V1 frames always take the strict branch, so they are unaffected.
-
-### What the reverse engineering found
-
-The scheme was worked out from captures of two 2017 Jaguar XJ fobs plus a flash/EEPROM dump of the
-car's key module (a NXP S12X / MC9S12XE KVM). The AES routine in the module firmware was located and
-decompiled, which settles the construction:
-
-- The 7-byte header is a constant `D3 95 0E 26`, a flags byte (`00`; `08` marks a repeat of the same
-  press), and a 16-bit value that is simply the **fob's transponder ID folded in half** —
-  `ID_high XOR ID_low` (fob `2F47AB35` → `8472`, `A6964338` → `E5AE`). It is an identity tag, not a
-  secret.
-- The 8 rolling bytes are **half of one AES-128 block**: `transmitted = AES-128(key, P)[0:8]`,
-  essentially ECB of a single 16-byte plaintext `P`. The firmware's AES is textbook (SubBytes through
-  the standard S-box, ShiftRows, MixColumns), encrypt-only — the module recomputes the expected code
-  and compares, it never decrypts.
-- The plaintext `P` is built per press from a **monotonic counter** (a ~7-digit value in the module
-  that advances by thousands between saves), a 3-bit **command selector**, two fixed constants
-  (`0x50FE`, `0x47DD`), and command-indexed table bytes. There is no counter in the clear on air, and
-  every one of the eight bytes changes each press.
-
-So the cipher is not the weakness: the security rests entirely on the **per-car AES key**. That key is
-**not present in a normal memory dump** of the module. The firmware contains no key schedule and no key
-expansion (the AES round-constant table is never used at runtime), and a scan of the whole flash,
-data-flash and EEPROM finds no stored key schedule. The round keys are placed in RAM by secure boot
-code / the module's protected store; the dump holds only the VIN, the learned transponder IDs and the
-anti-replay counters. This is consistent with why aftermarket "all keys lost" tools work through the
-module's live secure interface rather than a static image — and it is why **KAT stays decode-only** for
-these remotes: with the key absent from the capture and from a dump, fresh codes cannot be computed or
-forged, only a captured press replayed (which the car's counter window rejects after the real fob is
-next used).
+Jaguar Land Rover's keyless fobs of about 2015–2018 send this frame with the 8 rolling bytes encrypted under a
+128-bit key instead of Ford's scramble. KAT tells them apart by the strict check (the descramble does not give the
+header back), shows them as **Ford V1 (JLR)** and only reads them: no Encode, Replay at most. Their frame, the
+cars' keyless modules, what learning a fob writes, the firmware's checks and what is still missing are on their own
+page, [Ford V1 (JLR)](ford_v1_jlr.md). Ford's own frames always pass the strict check and are not affected.
 
 ## Decoder Steps
 

@@ -23,7 +23,9 @@
 // the FCC filings that were read, taxonomy.json by hand; remotes_fcc.json (the
 // filings' pictures and notes), remotes.json and chips.json (by hand: remotes
 // whose owners sent pictures, and the chips), frames.json (example frames,
-// scripts/site_frames.py) and frames_hand.json (field maps by hand). Nothing
+// scripts/site_frames.py), frames_hand.json (field maps by hand) and
+// variants.json (by hand: names a decoder shows for a kind of remote that has
+// a page of its own, such as Ford V1 (JLR)). Nothing
 // outside this folder is needed but ../CHANGELOG.md, and the site builds
 // without it.
 //
@@ -80,6 +82,7 @@ const carUnit = (i) => CAR_UNITS.has(i?.id) || /\b(smart unit|lfu|ssu)\b/i.test(
 const CHIPS = data('chips.json');
 const FRAMES = data('frames.json');
 const FHAND = data('frames_hand.json');
+const VARIANTS = data('variants.json');
 
 const CODING = { Pwm: 'PWM', Manchester: 'Manchester', DifferentialManchester: 'Differential Manchester', Nrz: 'NRZ', Miller: 'Miller' };
 const RF = { AM: 'AM (on-off keying)', FM: 'FM (2-FSK)', Both: 'AM and FM' };
@@ -94,11 +97,36 @@ const anchor = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').r
 
 // The entries of a page, and the page of a name.
 const entries = PROTO.protocols.filter((p) => p.page);
+// A name KAT shows for a kind of remote with a page of its own (data/variants.json) is an entry of its own: the base
+// entry with the facts that differ. It is still the base's decoder, so the decoder count stays as it is.
+const variantOf = new Map();
+for (const v of VARIANTS.variants) {
+  const base = entries.find((p) => p.name === v.base);
+  if (!base) throw new Error(`variants.json: ${v.name}: no entry named ${v.base}`);
+  if (!existsSync(join(HERE, `${v.page}.md`))) throw new Error(`variants.json: ${v.name}: no page ${v.page}.md`);
+  const { base: _, ...facts } = v;
+  const e = { ...base, aliases: [], ...facts, variant_of: base.name };
+  base.aliases = base.aliases.filter((a) => a !== v.name);
+  entries.splice(entries.indexOf(base) + 1, 0, e);
+  variantOf.set(v.name, e);
+}
 const byPage = new Map();
 for (const p of entries) (byPage.get(p.page) ?? byPage.set(p.page, []).get(p.page)).push(p);
 const byName = new Map(entries.map((p) => [p.name, p]));
 /** The entry a display name in a recording's decode belongs to ("KeeLoq (DoorHan)" is KeeLoq's). */
-const resolve = (display) => byName.get(PROTO.display_names[display] ?? display) ?? byName.get(display);
+const resolve = (display) => variantOf.get(display) ?? byName.get(PROTO.display_names[display] ?? display) ?? byName.get(display);
+// A variant's example frames are those KAT showed under its name, taken out of its base's.
+for (const [name, e] of variantOf) {
+  const f = FRAMES.protocols[e.variant_of];
+  const mine = f?.examples.filter((x) => x.name === name) ?? [];
+  if (!mine.length) continue;
+  const reads = CAPS.captures.flatMap((c) => c.reads.filter((r) => r.protocol === name).map((r) => [c.path, r.frames]));
+  const frames = reads.reduce((n, [, k]) => n + k, 0), files = new Set(reads.map(([p]) => p)).size;
+  FRAMES.protocols[name] = { bits: f.bits, examples: mine, fields: {}, files, frames };
+  f.examples = f.examples.filter((x) => x.name !== name);
+  f.frames -= frames;
+  f.files -= files;
+}
 
 // Recordings.
 for (const c of CAPS.captures) {
@@ -130,7 +158,8 @@ const groupOfFolder = (folder) => TAX.groups.find((g) => g.folders.includes(fold
 // FCC IDs.
 const famByKey = new Map(FCC.families.map((f) => [f.key, f]));
 const fccOfPage = (page) => {
-  const names = new Set((byPage.get(page) ?? []).flatMap((p) => [p.name, p.decoder]));
+  // A variant's remotes are those filed under its own name, not its base decoder's.
+  const names = new Set((byPage.get(page) ?? []).flatMap((p) => (p.variant_of ? [p.name] : [p.name, p.decoder])));
   return FCC.ids.filter((i) => i.protocols.some((n) => names.has(n)));
 };
 const EVIDENCE = {

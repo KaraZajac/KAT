@@ -4,6 +4,13 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- **Ford V1 (JLR) page** ([ford_v1_jlr.md](docs/ford_v1_jlr.md)): the record the keyless module builds for a fob
+  (its ID, a 2-byte tag and the 16-byte key), the transport key in the firmware that a fob without a slot is met
+  with (tried as the recorded fobs' button key: no match), a second key beside the first, and that the module
+  offers no way to read its key back over diagnostics.
+
 ## [1.22.1] - 2026-11-21
 
 Hopping and Jaguar fixes: a note when a hop or listening frequency misses the fob frequency next to it (`433` is not 433.92), no more stall on an RTL-SDR or SoapySDR radio after the hop list changes, one serial per Jaguar Land Rover keyless fob, and a page of its own for that fob.

@@ -26,7 +26,8 @@ What the recordings and the module images show, each in its section below:
 - One fob sits in **three different cars' modules**, and its recordings from all three look the same: nothing in
   its frames is tied to a car.
 - The module has **one 16-byte key** for all its fobs. The firmware keeps it in the emulated EEPROM, **0x70 bytes
-  before** the area the usual EEPROM read exports, which is why no image so far contains it.
+  before** the area the usual EEPROM read exports, which is why no image so far contains it, and offers no way to
+  read it back over diagnostics. A fob being learned is met with a fixed transport key from the firmware instead.
 - The **keyless-entry check** (the car asks, the fob answers) is AES-128 over a block the firmware builds from a
   constant, the key's slot, a 29-bit random challenge and the fob's ID: fully traced.
 - **Button presses** are checked by the chip's XGATE co-processor with the same key. Its code is in a part of the
@@ -137,11 +138,41 @@ no other code writes it. It is read by:
 | `F5:A6F2` → `F8:90D4` | the same block, handed to the XGATE (software trigger 2) |
 | `F3:A1E1` → `F8:9139` | the button-press check, handed to the XGATE (software trigger 3) |
 
-Its key-handling routine (`F3:AB68`) also copies the 16 bytes, behind a learned key's ID, into a buffer at RAM
-0x3638–0x364F, byte by byte through a pointer from `F3:BBEA`: the module hands its key on, most likely to a fob it
-learns. Because the module has a single key for all its fobs and puts the fob's own ID into the block it encrypts,
-a fob that works in several cars means **those modules hold the same key**: one common to these modules, or one the
+Because the module has a single key for all its fobs and puts the fob's own ID into the block it encrypts, a fob
+that works in several cars means **those modules hold the same key**: one common to these modules, or one the
 programming tool writes into each.
+
+### A fob's key record, and the transport key
+
+The module's key-handling routine (`F3:AB68`) builds a record for a fob in RAM: its 4-byte ID (0x35C6), a 2-byte
+tag (0x35CA) and a 16-byte key (0x3640), the key copied byte by byte through a pointer from `F3:BBEA`. What goes in
+depends on the fob:
+
+| Fob | ID | Tag | Key |
+|-----|----|-----|-----|
+| a learned one (its slot number at 0x254F) | its ID from the key table | the 2 bytes stored right after the key (0x13F6EC) | the car's key, 0x13F6DC |
+| one with no slot | the ID it gave (RAM 0x257E, with bit 0 of 0x2582 set) | `FFFF` | a 16-byte constant in the firmware |
+
+The constant (at `FF:CD6D`, copied by `F3:BBC4`; also used with bit 4 of 0x252A set) has 16 different byte values
+and is named nowhere else: most likely the **transport key** a new fob carries until the module gives it the car's
+key. Its bytes are not given here. It is not the key of the recorded fobs' button presses, at least not with the
+block of the keyless-entry check below: tried with every value of the 3 top bits and the 29 below them, either half
+of the result, the 8 bytes as sent or reversed, the key as stored or reversed, and standard or transposed AES,
+against all 92 presses, it matches none (an answer planted the same way is found, so the search works).
+
+### A second key
+
+A second 16-byte key sits at 0x13F730. It feeds the same AES (`F6:B7A5`, also through `F8:90D4`) over a block made
+of a 5-byte value from RAM 0x2453 repeated three times, one more byte and a single set bit: not a fob's frame. It
+may be the module's diagnostic security access; that path was not traced. `F7:AFB0` only checks whether the key is
+set.
+
+### No way to read the key back
+
+The module's table of diagnostic data entries (`E8:BB60`–`E8:BD80`: entries of one to four handlers, an ID, and for
+some a length and an 18-byte RAM record) names the key's writer (ID 0x700E, `F7:92B5`) but no reader. No table or
+code names the key's address apart from its writer and the routines above, and no service that reads memory by
+address was found. From the image alone, the key cannot be read back over diagnostics.
 
 ### Keyless entry: the challenge check
 
@@ -182,10 +213,12 @@ Two things, and where they are:
 | the 16-byte key | EEE at 0x13F6DC–0x13F6EB | the EEE images start at 0x13F74C, the key table (the firmware reads the number of keys at 0x13F78C, the images' 0x40); the key is 0x70 bytes before their first byte |
 | the button-press cipher | XGATE code at 0x780EE0 | the P-Flash image starts at 0x7A0000; the chip has flash below it (the firmware reads 0x788002 and compares it with 0xDEAD) |
 
-These reads would settle it: the whole P-Flash from 0x780000, or the P-Flash of a DPLA module (an MC9S12XET256,
-whose flash does not reach the XGATE's flash window, so its XGATE code should be copied to RAM from its P-Flash
-image); and the EEE including the 16 bytes at 0x13F6DC. With the key and the code, the 92 recorded presses check
-any answer within minutes.
+The second key (0x13F730–0x13F73F) is missing from the images too, 0x1C bytes before their first byte; the fobs'
+frames do not need it. These reads would settle it: the whole P-Flash from 0x780000, or the P-Flash of a DPLA module
+(an MC9S12XET256, whose flash does not reach the XGATE's flash window, so its XGATE code should be copied to RAM
+from its P-Flash image); and the EEE from 0x13F6DC on. With the key and the code, the 92 recorded presses check any
+answer within minutes. As the module offers no way to read the key back over diagnostics (above), it takes a
+programmer on the module's chip.
 
 ## In KAT
 

@@ -343,3 +343,49 @@ fn test_device_id_enum_variants() {
     assert_eq!(format!("{:?}", index_device_id), "Index(0)");
     assert_eq!(format!("{:?}", fd_device_id), "Fd(42)");
 }
+
+/// librtlsdr resets a dongle whose dummy write fails and goes on: some stall it (Pipe error).
+#[test]
+fn test_write_resets_the_device_when_the_dummy_write_fails() {
+    let mut mock_handle = MockDeviceHandle::new();
+    mock_handle
+        .expect_write_control()
+        .times(1)
+        .returning(|_, _, _, _, _, _| Err(crate::error::RtlsdrError::Usb(rusb::Error::Pipe)));
+    mock_handle.expect_reset().times(1).returning(|| Ok(()));
+    let mut device = Device {
+        handle: mock_handle,
+    };
+    device.test_write().unwrap();
+}
+
+#[test]
+fn test_write_goes_on_when_the_reset_fails_too() {
+    let mut mock_handle = MockDeviceHandle::new();
+    mock_handle
+        .expect_write_control()
+        .times(1)
+        .returning(|_, _, _, _, _, _| Err(crate::error::RtlsdrError::Usb(rusb::Error::Pipe)));
+    mock_handle
+        .expect_reset()
+        .times(1)
+        .returning(|| Err(crate::error::RtlsdrError::Usb(rusb::Error::NotFound)));
+    let mut device = Device {
+        handle: mock_handle,
+    };
+    device.test_write().unwrap();
+}
+
+#[test]
+fn test_write_leaves_a_dongle_that_takes_it_alone() {
+    let mut mock_handle = MockDeviceHandle::new();
+    mock_handle
+        .expect_write_control()
+        .times(1)
+        .returning(|_, _, _, _, data, _| Ok(data.len()));
+    mock_handle.expect_reset().times(0);
+    let mut device = Device {
+        handle: mock_handle,
+    };
+    device.test_write().unwrap();
+}

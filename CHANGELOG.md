@@ -4,6 +4,17 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **RTL-SDR dongles that stall a USB transfer while they open now open** ([radio.md](docs/radio.md#rtl-sdr-tuners)).
+  A tester's dongle with an FC0013 tuner stopped with "Failed to open RTL-SDR …: Pipe error" on Linux and Windows,
+  where rtl_433 works with it. Three steps of opening a dongle failed the open where librtlsdr, which rtl_433 uses,
+  goes on: the dummy write at the start (librtlsdr resets the dongle when it fails), reading the EEPROM (a dongle
+  without one stalls it) and the tuner's first setup. KAT now goes on as librtlsdr does and writes a warning to
+  `kat.log`; an EEPROM that cannot be read no longer counts as one that turns the bias tee on. `kat.log` also has
+  the RTL-SDR driver's own lines now (the tuner it found, how far the open got, the step that failed), and the
+  error no longer says "Pipe error" twice.
+
 ## [1.22.2] - 2026-11-22
 
 Ford V3 no longer cuts other remotes' frames short: its frames are held back like the rtl_433 ports', which gives the library four Honda presses more and reads the LDV T80 recordings as LDV V0, with their buttons. The Jaguar Land Rover page adds the keyless module's record of a fob's key, its transport key and a second key.

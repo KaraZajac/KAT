@@ -321,6 +321,14 @@ KAT built without the `gpl-tuners` feature reads R820T, R820T2 and R828D dongles
 a tuner KAT does not know says so ("its tuner is not one KAT knows"); KAT 1.21 and earlier stopped
 the terminal on it ("Failed to find tuner, aborting").
 
+Opening a dongle goes on where librtlsdr goes on, and stops where it stops. A first write the dongle
+stalls resets it ("Resetting device..." in rtl_test), an EEPROM that cannot be read sets no bias-tee
+setting, and a tuner that refuses a register of its first setup still opens; each leaves a warning
+in `kat.log`. KAT 1.22.2 and earlier failed the open on all three, with "Failed to open RTL-SDR
+…: Pipe error" (a stalled USB transfer). A step that does stop the open is named in `kat.log`
+("Initialising the demodulator failed: …"), which also has the driver's own lines since 1.22.3:
+the tuner it found ("Got tuner Fc0013") and how far the open got ("Init tuner", "Init complete").
+
 ## SoapySDR radios
 
 [SoapySDR](https://github.com/pothosware/SoapySDR) drives most other SDRs through a module per kind:

@@ -40,9 +40,9 @@ impl From<String> for RtlsdrError {
 
 impl error::Error for RtlsdrError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        match self {
-            RtlsdrError::Usb(e) => Some(e),
-            RtlsdrError::RtlsdrErr(_) | RtlsdrError::UnknownTuner => None,
-        }
+        // A USB error's text is this error's own text (Display above), so it is no cause behind
+        // it: a chain printed whole said it twice ("Failed to open RTL-SDR …: Pipe error: Pipe
+        // error"). The `Usb` variant still holds it.
+        None
     }
 }

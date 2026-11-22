@@ -19,7 +19,7 @@ use crate::error::Result;
 use crate::DeviceId;
 use byteorder::{ByteOrder, LittleEndian};
 /// Low-level io functions for interfacing with rusb(libusb)
-use log::{error, info};
+use log::{error, info, warn};
 use std::time::Duration;
 
 #[cfg(test)]
@@ -45,12 +45,19 @@ impl Device {
         self.handle.claim_interface(iface)
     }
 
+    /// librtlsdr's dummy write when it opens a dongle: "perform a dummy write, if it fails, reset
+    /// the device". Any failure resets it, as there (upstream reset only on an empty write and
+    /// failed the open on an error): some dongles stall this first transfer, after another program
+    /// or the DVB-T driver had them, which libusb reports as a Pipe error. librtlsdr goes on after
+    /// the reset whatever it gives, and so does this.
     pub fn test_write(&mut self) -> Result<()> {
-        // try a dummy write and reset device if it fails
-        let len: usize = self.write_reg(BLOCK_USB, USB_SYSCTL, 0x09, 1)?;
-        if len == 0 {
-            info!("Resetting device...");
-            self.handle.reset()?;
+        match self.write_reg(BLOCK_USB, USB_SYSCTL, 0x09, 1) {
+            Ok(len) if len > 0 => return Ok(()),
+            Ok(_) => info!("Resetting device..."),
+            Err(e) => warn!("The dummy write failed ({}): resetting the device", e),
+        }
+        if let Err(e) = self.handle.reset() {
+            warn!("Resetting the device failed: {}", e);
         }
         Ok(())
     }

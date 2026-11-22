@@ -12,6 +12,10 @@ This is [rtl-sdr-rs](https://github.com/ccostes/rtl-sdr-rs) 0.3.1 (MPL-2.0) with
   scenarios (`*.trace`, from `tools/tuner_trace.c`, whose header says how to remake them):
   `cargo test -p rtl-sdr-rs --features rtl-sdr-rs/gpl-tuners` from KAT's root.
 - A dongle with no tuner the crate knows is an error, `RtlsdrError::UnknownTuner`, not a panic.
+- Opening a dongle goes on where librtlsdr's `rtlsdr_open` goes on: a failed dummy write resets the device
+  (upstream failed the open on it), a failed EEPROM read sets neither EEPROM flag, and a failed tuner init is
+  a warning. A step that still fails the open is logged by name. A USB error is no `source()` of itself (a
+  chain printed whole said "Pipe error: Pipe error").
 - `mockall` is a dev-dependency (only the device tests use it); the examples are left out.
 
 The original readme follows.

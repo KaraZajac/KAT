@@ -16,7 +16,7 @@ use crate::tuners::r82xx::{
 #[cfg(feature = "gpl-tuners")]
 use crate::tuners::{e4k, fc0012, fc0013, fc2580, Ported};
 use crate::tuners::{i2c_read_reg, NoTuner, Tuner, TunerBus, TunerInfo};
-use log::{error, info};
+use log::{error, info, warn};
 
 const INTERFACE_ID: u8 = 0;
 
@@ -70,10 +70,10 @@ impl RtlSdr {
     }
 
     pub fn init(&mut self) -> Result<()> {
-        self.handle.claim_interface(INTERFACE_ID)?;
+        step("Claiming the USB interface", self.handle.claim_interface(INTERFACE_ID))?;
         self.handle.test_write()?;
-        self.init_baseband()?;
-        self.set_i2c_repeater(true)?;
+        step("Initialising the demodulator", self.init_baseband())?;
+        step("Turning the I2C repeater on", self.set_i2c_repeater(true))?;
 
         let is_blog_v4 = self
             .handle
@@ -118,6 +118,37 @@ impl RtlSdr {
         self.tuner = tuner;
         self.tuner.set_xtal_freq(self.get_tuner_xtal_freq())?;
 
+        step("Setting the demodulator up for the tuner", self.set_up_for_tuner(kind))?;
+
+        // The EEPROM's bias-tee and direct-sampling flags (RTL-SDR Blog's librtlsdr reads them
+        // here). That library does not look at whether the read worked, and osmocom's does not read
+        // the EEPROM at all; a dongle without one stalls the read (Pipe error), which upstream made
+        // a failed open. A failed read sets neither flag: the zeroed buffer reads as "bias tee
+        // forced on".
+        let mut buf: [u8; EEPROM_SIZE] = [0; EEPROM_SIZE];
+        let read = self.handle.read_eeprom(&mut buf, 0, EEPROM_SIZE);
+        if let Err(e) = &read {
+            warn!("The EEPROM could not be read ({}): no bias-tee or direct-sampling setting from it", e);
+        }
+        (self.force_bt, self.force_ds) = eeprom_flags(read.ok().map(|_| &buf));
+        // TODO: if(force_ds){tuner_type = TUNER_UNKNOWN}
+        info!("Init tuner");
+        // librtlsdr does not look at the tuner's init result either (`r = dev->tuner->init(dev)`,
+        // then `return 0`), and rtl_433 then tunes and receives: a write the tuner does not take
+        // here is no reason not to open.
+        if let Err(e) = self.tuner.init(&self.handle) {
+            warn!("The tuner's init failed ({}); going on, as librtlsdr does", e);
+        }
+
+        // Finished Init
+        step("Turning the I2C repeater off", self.set_i2c_repeater(false))?;
+        info!("Init complete");
+        Ok(())
+    }
+
+    /// The demodulator's settings for the tuner `kind` (librtlsdr's `switch (dev->tuner_type)` in
+    /// `rtlsdr_open`).
+    fn set_up_for_tuner(&mut self, kind: TunerKind) -> Result<()> {
         if kind.is_r82xx() {
             // disable Zero-IF mode
             self.handle.demod_write_reg(1, 0xb1, 0x1a, 1)?;
@@ -139,20 +170,6 @@ impl RtlSdr {
             self.handle.demod_write_reg(0, 0x08, 0xcd, 1)?;
             self.handle.demod_write_reg(1, 0xb1, 0x1b, 1)?;
         }
-
-        // Hack to force the Bias T to always be on if we set the IR-Endpoint bit in the EEPROM to 0. Default on EEPROM is 1.
-        let mut buf: [u8; EEPROM_SIZE] = [0; EEPROM_SIZE];
-        self.handle.read_eeprom(&mut buf, 0, EEPROM_SIZE)?;
-        self.force_bt = buf[7] & 0x02 == 0;
-        // Hack to force direct sampling mode to always be on if we set the remote-enabled bit in the EEPROM to 1. Default on EEPROM is 0.
-        self.force_ds = buf[7] & 0x01 != 0;
-        // TODO: if(force_ds){tuner_type = TUNER_UNKNOWN}
-        info!("Init tuner");
-        self.tuner.init(&self.handle)?;
-
-        // Finished Init
-        self.set_i2c_repeater(false)?;
-        info!("Init complete");
         Ok(())
     }
 
@@ -612,6 +629,26 @@ impl TunerKind {
     }
 }
 
+/// A step of opening a dongle that fails the open: its error, named in the log first (KAT's log
+/// keeps this crate's messages), so a failed open says where it failed.
+fn step<T>(what: &str, r: Result<T>) -> Result<T> {
+    if let Err(e) = &r {
+        error!("{} failed: {}", what, e);
+    }
+    r
+}
+
+/// The EEPROM's flags in byte 7, as RTL-SDR Blog's librtlsdr reads them: bit 0x02 (the IR
+/// endpoint) cleared forces the bias tee on, bit 0x01 (remote wakeup) set forces direct sampling
+/// (only [RtlSdr::set_direct_sampling] looks at it). None of them when the EEPROM could not be
+/// read.
+fn eeprom_flags(eeprom: Option<&[u8; EEPROM_SIZE]>) -> (bool, bool) {
+    match eeprom {
+        Some(buf) => (buf[7] & 0x02 == 0, buf[7] & 0x01 != 0),
+        None => (false, false),
+    }
+}
+
 /// Find the tuner on the dongle's I2C bus (the I2C repeater on). The R820T and R828D are tried
 /// first, as upstream does. Then the tuners ported from librtlsdr, in librtlsdr's order: the
 /// E4000 and the FC0013; then GPIO 4 is pulsed, which resets the tuner on the dongles that need
@@ -658,4 +695,33 @@ pub(crate) fn probe_tuner(bus: &dyn TunerBus) -> Option<TunerKind> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The EEPROM's byte 7 as RTL-SDR Blog's librtlsdr reads it; a failed read sets no flag (its
+    /// zeroed buffer would read as "bias tee forced on").
+    #[test]
+    fn eeprom_flags_come_only_from_a_read_eeprom() {
+        let mut buf = [0u8; EEPROM_SIZE];
+        assert_eq!(eeprom_flags(None), (false, false));
+        // rtl_eeprom writes 0x14 plus the two bits. Its Realtek profile sets 0x02: neither flag.
+        buf[7] = 0x16;
+        assert_eq!(eeprom_flags(Some(&buf)), (false, false));
+        // Its "generic" profile sets only remote wakeup (0x01): both.
+        buf[7] = 0x15;
+        assert_eq!(eeprom_flags(Some(&buf)), (true, true));
+        buf[7] = 0x14;
+        assert_eq!(eeprom_flags(Some(&buf)), (true, false));
+    }
+
+    /// A step that fails the open keeps its error (and logs it).
+    #[test]
+    fn a_failed_step_keeps_its_error() {
+        let r: Result<()> = step("Testing", Err(RtlsdrError::Usb(rusb::Error::Pipe)));
+        assert!(matches!(r, Err(RtlsdrError::Usb(rusb::Error::Pipe))));
+        assert_eq!(step("Testing", Ok(7)).unwrap(), 7);
+    }
 }

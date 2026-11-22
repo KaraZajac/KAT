@@ -302,7 +302,9 @@ fn main() -> Result<()> {
         tracing_subscriber::registry()
             .with(
                 tracing_subscriber::EnvFilter::try_from_default_env()
-                    .unwrap_or_else(|_| "kat=info".into()),
+                    // The RTL-SDR driver's own messages too (the tuner it found, a step of opening
+                    // a dongle that failed), but not the R820T driver's line per retune.
+                    .unwrap_or_else(|_| "kat=info,rtl_sdr_rs=info,rtl_sdr_rs::tuners::r82xx=warn".into()),
             )
             .with(
                 tracing_subscriber::fmt::layer()

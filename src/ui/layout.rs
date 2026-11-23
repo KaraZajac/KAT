@@ -928,7 +928,7 @@ fn form_capture_summary(capture: &Capture, width: usize) -> Vec<Line<'static>> {
     let signal = super::signal_menu::join_words([Some(name), Some(tuning), serial]);
     // An unknown capture has no decoded bits: its files hold the recorded pulses.
     let key = if capture.data_count_bit > 0 {
-        format!("0x{} ({})", capture.data_hex(), capture.encryption_type())
+        format!("0x{} ({})", capture.frame_hex().0, capture.encryption_type())
     } else if capture.has_raw_data() {
         "none decoded (the recorded pulses are saved)".to_string()
     } else {

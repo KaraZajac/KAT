@@ -55,7 +55,7 @@ impl App {
         }
         for id in ids {
             let Some(c) = self.captures.iter().find(|c| c.id == id) else { continue };
-            if c.key_recovery.is_some() || !psa_needs_key_search(c.protocol_name(), c.serial, c.data_extra) {
+            if c.key_recovery.is_some() || !psa_needs_key_search(c.protocol_name(), c.serial, c.data, c.data_extra) {
                 continue;
             }
             if !self.key_search_planned(id) {
@@ -97,7 +97,7 @@ impl App {
                 Waiting::Listed { id, asked } => {
                     // Deleted, or decrypted meanwhile: nothing to search.
                     let Some(c) = self.captures.iter().find(|c| c.id == id) else { continue };
-                    if !psa_needs_key_search(c.protocol_name(), c.serial, c.data_extra) {
+                    if !psa_needs_key_search(c.protocol_name(), c.serial, c.data, c.data_extra) {
                         continue;
                     }
                     let (data, extra) = (c.data, c.data_extra.unwrap_or_default());
@@ -191,6 +191,6 @@ mod tests {
         assert_eq!((c.protocol.as_deref(), c.serial), (Some("PSA"), Some(0x01124A)));
         assert_eq!(c.status, CaptureStatus::EncoderCapable);
         assert_eq!(c.key_recovery, Some(KeyRecovery::Recovered("PSA BF1".to_string())));
-        assert!(!psa_needs_key_search(c.protocol_name(), c.serial, c.data_extra));
+        assert!(!psa_needs_key_search(c.protocol_name(), c.serial, c.data, c.data_extra));
     }
 }

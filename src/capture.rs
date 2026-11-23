@@ -287,6 +287,8 @@ impl Capture {
         self.protocol
             .as_deref()
             .is_some_and(|p| crate::protocols::has_checksum_for(p, self.data_count_bit, self.data_extra))
+            // A frame of the older PSA code: its checksum is under the scrambling, unread.
+            && !self.psa_older_code().is_some_and(|(_, remote)| remote.is_some())
     }
 
     /// Get CRC status as a string: "-" when there is nothing to check (an unknown signal, or a
@@ -359,6 +361,20 @@ impl Capture {
         } else {
             "-".to_string()
         }
+    }
+
+    /// The frame as sent, in hex, and its bits on air: the whole of a long frame whose protocol
+    /// keeps the rest in `data_extra` as plain bits ([crate::protocols::frame_hex]: PSA's 80 bits,
+    /// not 64), else [Capture::data_hex] and `data_count_bit`.
+    pub fn frame_hex(&self) -> (String, usize) {
+        crate::protocols::frame_hex(self.protocol_name(), self.data, self.data_extra)
+            .unwrap_or_else(|| (self.data_hex(), self.data_count_bit))
+    }
+
+    /// The older PSA code's remote type in the frame's header, and the remote it is for and its
+    /// part numbers when known ([crate::protocols::psa_older_code]).
+    pub fn psa_older_code(&self) -> Option<(u16, Option<(&'static str, &'static str)>)> {
+        crate::protocols::psa_older_code(self.protocol_name(), self.serial, self.data)
     }
 
     /// The protocol's metadata (line coding, RF, encryption, make, buttons, TX presets), resolved
@@ -437,15 +453,6 @@ impl Capture {
         match self.button {
             Some(b) => format!("0x{:02X}", b),
             None => "-".to_string(),
-        }
-    }
-
-    /// Get data bits description
-    pub fn data_bits_str(&self) -> String {
-        if self.data_count_bit > 0 {
-            format!("{} bits", self.data_count_bit)
-        } else {
-            "-".to_string()
         }
     }
 
@@ -542,5 +549,30 @@ mod tests {
         assert_eq!(c.data_hex(), "F3397867405845F1");
         c.data_count_bit = 176;
         assert_eq!(c.data_hex(), "F3397867405845F1");
+        // No protocol says its extra is plain frame bits: the frame is what data_hex shows.
+        assert_eq!(c.frame_hex(), ("F3397867405845F1".to_string(), 176));
+    }
+
+    /// A PSA frame is 80 bits on air: key1 and key2's 16-bit validation word (GitHub issue #6:
+    /// "only 8 of the 10 bytes"). An older-code frame's header names its remote, and its checksum
+    /// counts as unread, not failed.
+    #[test]
+    fn a_psa_frame_shows_its_80_bits_and_its_remote_type() {
+        let mut c = Capture::from_pairs(0, 433_920_000, Vec::new());
+        c.protocol = Some("PSA".to_string());
+        (c.data, c.data_count_bit, c.data_extra) = (0xC1AA_18C8_F715_6A8A, 128, Some(0x0D09));
+        assert_eq!(c.frame_hex(), ("C1AA18C8F7156A8A0D09".to_string(), 80));
+        assert_eq!(c.data_hex(), "C1AA18C8F7156A8A", "key files keep key1 alone");
+        let (ty, remote) = c.psa_older_code().unwrap();
+        assert_eq!(ty, 0x0C1A);
+        assert!(remote.is_some_and(|(r, p)| r.contains("C3 XTR") && p == "6554RE"));
+        assert!(!c.crc_checked());
+        // A TEA frame (header F47A): no type, its checksum is checked.
+        c.data = 0xF47A_2EA1_1A4C_7CAF;
+        assert_eq!(c.psa_older_code(), None);
+        assert!(c.crc_checked());
+        // A decrypted frame has no older-code reading.
+        (c.data, c.serial) = (0xC1AA_18C8_F715_6A8A, Some(0x123456));
+        assert_eq!(c.psa_older_code(), None);
     }
 }

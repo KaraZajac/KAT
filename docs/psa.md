@@ -21,6 +21,10 @@ key1 plus a 64-bit `Key_2` of which 16 bits are used). Two crypto families share
   `0x23000000 | serial`, two TEA encryptions of constants; BF2: `0xF3000000 | serial` XORed into a
   fixed schedule). The serial is unknown until a 2 × 2^24 brute force finds it.
 
+The two-button remotes of about 2002 to the CAN cars send an older code in the same frame, with the
+remote's type in the header. KAT shows such a frame whole, with the remote its type names, but
+cannot read it ([the older code](#a-third-kind-of-block-the-older-code)).
+
 ProtoPirate decodes 0x23 frames and marks the rest "Type 0x36 — brute force deferred" for a manual
 "Brute force" action; Flipper-ARF (`decrypt_file`) and doctor-firmware (in-app helper) do the same.
 KAT does the same: a TEA frame is reported undecrypted (no serial, not encoder-capable), and the signal
@@ -69,10 +73,13 @@ encrypted; the low nibble of `b1` is the **0xA sync** every genuine frame carrie
   (`psa_direct_xor_allowed_by_key2`); any other frame is a TEA frame.
 - **mode 0x36:** `b2..b9` = TEA(v0, v1); v0 = serial << 8 | button << 4 | counter >> 24, v1 =
   counter << 8 | byte-sum CRC (28-bit counter). BF2 frames carry a CRC-16 (poly 0x8005) instead.
+- **the older code:** `b0` and `b1`'s high nibble are the remote's type, so `b1` is `0xAA`; `b2..b9`
+  are scrambled ([the older code](#a-third-kind-of-block-the-older-code)).
 
 `DecodedSignal`: `data` = key1, `extra` = key2 (the 64-bit `Key_2`, 16 bits used),
 `data_count_bit` = 128, `serial`/`button`/`counter` (low 16 bits of the 28-bit TEA counter) when
-decrypted.
+decrypted. The detail panel's **Key/Data** row shows the whole frame, key1 and the 16 bits of key2,
+as 80 bits; up to 1.22.3 it showed key1 alone, "128 bits".
 
 ## Buttons
 
@@ -303,6 +310,12 @@ Deviations).
 - **BF2 CRC comparison: either variant.** PP/doctor compare the CRC-16 with `b8:b9`, ARF with
   `b7:b9`; no genuine BF2 frame exists to settle it, so both are accepted (a spurious hit would need
   a ~2^-40 coincidence).
+- **A frame of the older code is neither decrypted nor searched.** A frame whose header is a
+  listed type of the older code ([below](#a-third-kind-of-block-the-older-code)) is not given to
+  the XOR check and gets no key search. The references treat it like any frame, and each check
+  gave one false result on the Peugeot 206's 58 frames, which was then counted as decrypted and
+  offered for sending. None of the five XOR and TEA remotes KAT has frames of has such a header
+  (`6EDA`, `B6DA`, `F47A`, `FF5A`, `F1BA`).
 
 ## The Delphi remote
 
@@ -332,13 +345,56 @@ which a run of 218 µs pulses is a preamble and 96 bits ([Chevrolet V0](chevrole
 
 ## A third kind of block: the older code
 
-Not every PSA frame is one of the two kinds above. The 58 frames of a 2005 Peugeot 206 remote that a write-up
-of 2011 published ("RKE Analysis", burningimage.net; the frames' first bytes are `1C AA`) pass neither: their
-64-bit block is an older code, the one of the two-button Valeo key on [PSA 2-Button](psa_two_button.md#the-same-code-in-a-peugeot-206s-frames),
-whose rule is not known. KAT shows such a frame as PSA without a serial (`key=none` after the search). The
-checks of the two known kinds are short, so now and then one of these frames passes one by chance: of the 58,
-one passes the XOR type's nibble checksum and decodes to a serial no other frame shares, and the key search
-finds a "serial" for one more. A serial that a remote's other frames do not confirm is no serial.
+Not every PSA frame is one of the two kinds above. The two-button remotes of about 2002 to the CAN cars
+(Berlingo and Partner, Xsara Picasso, 206, 307, 406, C2, C3; a PCF7936 transponder in the key) send an
+older code in the same 80-bit frame. What KAT knows of it comes from three remotes: the 58 frames of a
+2005 Peugeot 206 that a write-up of 2011 published ("RKE Analysis", burningimage.net), and two keys of a
+reader who wrote about them in [GitHub issue #6](https://github.com/KaraZajac/KAT/issues/6), a Citroën
+Xsara Picasso key and a C3 XTR key.
+
+**The header is the remote's type.** `b0` and the high nibble of `b1` hold the remote's type, a 16-bit
+value `0x0XYA` that the remote's transponder also holds (page 6). Every type ends in `A`, and the sync
+nibble follows it, so the header of such a frame is `XY AA`. Key programmers keep a list of the types;
+the reader sent this one, which KAT uses:
+
+| Type | Header | Remote | Part no. |
+|---|---|---|---|
+| 069A | `69 AA` | Citroën Berlingo 2002–2008, Peugeot Partner | 6554RH, 6554RG |
+| 07CA | `7C AA` | Citroën Xsara Picasso | 6554RF |
+| 0A5A | `A5 AA` | Peugeot 307 | 6554RC |
+| 0C1A | `C1 AA` | Citroën C3 XTR with front fog lights, 2002 to the CAN cars | 6554RE |
+| 04DA | `4D AA` | Peugeot 406 phase 2 | 6554RA |
+| 096A | `96 AA` | Citroën C2/C3 Pluriel, 2003 to the CAN cars (flip key) | 6554RJ |
+| 01CA | `1C AA` | Peugeot 206 without front fog lights, 2002–2005 | 6554YL |
+| 0B8A | `B8 AA` | Peugeot 206 without front fog lights, 2005–2007 | 6554YQ |
+| 0C7A | `C7 AA` | Peugeot 206 with front fog lights, from 2002 (the end year is not on the list) | 6554YR |
+| 0DBA | `DB AA` | Peugeot 206+, 2009–2012 | 6554YV |
+
+All three remotes agree with it: the reader's Xsara Picasso key sends `7C AA`, their C3 XTR key
+`C1 AA`, and the 2005 Peugeot 206's 58 frames all start `1C AA`. The write-up's "serial 0xFD1CAA" is
+the end of the preamble and this header, not a serial; KAT read it so in November 2026, and the
+reader came to the same conclusion.
+
+**The block.** `b2..b9` are scrambled, by a rule that is not known. The reader had one frame together
+with its unscrambled form, from a key programmer. In that form the block holds the remote's 24-bit ID
+in its bytes 0, 4 and 5 (the frame's bytes 2, 6 and 7), and its last byte is the XOR of the seven
+before it. What the other four bytes hold is not known. A spare key needs the ID: the transponder's
+page 4 holds `55` and the ID, page 5 the same word inverted, page 6 the type and `FFFF`, and a new
+transponder is set up with the remote's ID and type. Left half XOR right half of the block shows the
+structure that [PSA 2-Button](psa_two_button.md#the-same-code-in-a-peugeot-206s-frames) describes,
+with each remote's own constants: two of the three C3 XTR frames the reader sent have `40 D1` in the
+same two bytes of it.
+
+**What KAT does with it.** The detail panel shows the whole frame, `Enc: older code, not decoded`,
+the remote with its type and part number (`Remote: Citroën C3 XTR, front fog lights, 2002 to CAN`,
+`Type: 0C1A  Part no.: 6554RE`), and the CRC as `none` (the check byte is under the scrambling). A frame whose header is a listed type is not given to the XOR check
+and gets no key search. Both checks are short, and on the 206's 58 frames each gave one false
+result, which KAT then counted as decrypted and offered to send: one frame passed the XOR checksum
+with "serial" 0xBFC300, and the key search found "serial" 0xD2C31E for another. A frame with an
+`XY AA` header whose type is not on the list is read as before, XOR check and key search included,
+as a TEA remote may have such a header; the panel shows its type all the same. A listed type's
+frame that only one of the added machines read (those whose frames must decrypt) is dropped, as no
+search can confirm it.
 
 ## Retired: PSA2 ("PSA OLD")
 

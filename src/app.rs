@@ -1332,7 +1332,7 @@ impl App {
         }
         // A PSA search (well under a second) runs beside a long one, or waits for the PSA search
         // that runs (app/auto_bf.rs).
-        if crate::protocols::psa_needs_key_search(c.protocol_name(), c.serial, c.data_extra) {
+        if crate::protocols::psa_needs_key_search(c.protocol_name(), c.serial, c.data, c.data_extra) {
             return Some(SignalAction::RecoverKey);
         }
         if self.long_key_search_runs() {

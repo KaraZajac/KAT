@@ -98,6 +98,16 @@
 //! - BF2's CRC-16 comparison differs: PP/doctor compare with `dec_v1 & 0xFFFF`, ARF with
 //!   `(byte(dec_v1 >> 16) << 8) | byte(dec_v1)`. No genuine BF2 capture exists to settle it; KAT
 //!   accepts either (union), which cannot change a PP result except by a ~2^-40 coincidence.
+//! - The older code (KAT's own, from a reader's GitHub issue #6): a frame whose header is a known
+//!   type of the older two-button remotes ([OLDER_CODE_TYPES], header `XY AA`) is not given to the
+//!   XOR fast path and gets no key search ([kat_decrypt], [needs_key_search]). The references
+//!   treat it like any frame, and both checks are short: of the 58 frames of a 2005 Peugeot 206
+//!   remote (type 01CA, burningimage.net 2011), one passes the XOR checksum with a serial no other
+//!   frame has, and the key search finds a "serial" for another; either one is then counted as
+//!   decrypted and offered for transmission. None of the five XOR/TEA remotes KAT has frames of
+//!   has such a header (`6EDA`, `B6DA`, `F47A`, `FF5A`, `F1BA`). A frame that only a machine whose
+//!   frames must decrypt read is dropped when its header is a known type, as no search can confirm
+//!   it. An `AA` header whose type is not in the list is read as before: a TEA remote may have one.
 //!
 //! Frame (80 bits on air, "128 bit" in the references): key1 (64) + key2 / validation word (16).
 //! `DecodedSignal.data` = key1, `extra` = key2 (the references' 64-bit `Key_2`, right-aligned),
@@ -110,6 +120,10 @@
 //!   crc8 (28-bit counter; `DecodedSignal.counter` shows its low 16 bits). The serial is unknown
 //!   until the 2^24-per-range brute force finds it; afterwards everything is O(1) from
 //!   (key1, key2, serial) ([`tea_decrypt_with_serial`]), which is all `encode()` needs.
+//! - the older code (two-button remotes of 2002 to the CAN cars, transponder PCF7936): b0 and b1's
+//!   high nibble are the remote's type (`0x0XYA`, so b1 = 0xAA), b2..b9 a scrambled block whose
+//!   rule is not known ([OLDER_CODE_TYPES], `docs/psa.md`). Shown as the whole 80-bit frame
+//!   ([frame_hex]) with the type; nothing is decrypted.
 //!
 //! **Key files** (ProtoPirate `subghz_protocol_decoder_psa_serialize` / `_deserialize`):
 //! `Protocol: PSA`, `Bit: 128`, `Key` (key1), `Key_2` (key2, 8 bytes), `ValidationField` (key2's
@@ -175,7 +189,7 @@ pub fn button_name(mode: u8, code: u8) -> &'static str {
 /// The label of a capture's button: the frame type is read off the frame itself (mode 0x23 when
 /// the XOR fast path decrypts it, or when the capture has no key2: the retired PSA2 decoder's).
 pub fn capture_button_name(data: u64, extra: Option<u64>, code: u8) -> &'static str {
-    let xor = extra.map_or(true, |key2| fast_decrypt(data, key2 as u32).is_some());
+    let xor = extra.map_or(true, |key2| kat_decrypt(data, key2 as u32).is_some());
     button_name(if xor { MODE_XOR } else { MODE_TEA }, code)
 }
 
@@ -494,6 +508,62 @@ fn fast_decrypt(key1: u64, key2_low: u32) -> Option<PsaFields> {
     fast_decrypt_c(key1, key2_low)
 }
 
+// ---------------------------------------------------------------------------------------------
+// The older code (KAT's own; GitHub issue #6)
+// ---------------------------------------------------------------------------------------------
+
+/// The types of the older two-button remotes (2002 to the CAN cars) and the remotes they are for,
+/// from a list key programmers keep that a reader sent (GitHub issue #6). The type is what the
+/// remote's transponder (PCF7936) holds in its page 6, `0x0XYA`; a frame carries it in its first
+/// 12 bits, so its header is `XY AA` (the type's last nibble, then the sync nibble). Two remotes
+/// confirm the list: the reader's Xsara Picasso key sends `7C AA`, and a 2005 Peugeot 206's 58
+/// published frames (burningimage.net, 2011) all start `1C AA`. (type, remote, part numbers); the
+/// remote's name is kept short enough for the detail panel's row.
+pub const OLDER_CODE_TYPES: &[(u16, &str, &str)] = &[
+    (0x069A, "Citroën Berlingo 2002–2008 / Peugeot Partner", "6554RH / 6554RG"),
+    (0x07CA, "Citroën Xsara Picasso", "6554RF"),
+    (0x0A5A, "Peugeot 307", "6554RC"),
+    (0x0C1A, "Citroën C3 XTR, front fog lights, 2002 to CAN", "6554RE"),
+    (0x04DA, "Peugeot 406 phase 2", "6554RA"),
+    (0x096A, "Citroën C2/C3 Pluriel flip key, 2003 to CAN", "6554RJ"),
+    (0x01CA, "Peugeot 206, no front fog lights, 2002–2005", "6554YL"),
+    (0x0B8A, "Peugeot 206, no front fog lights, 2005–2007", "6554YQ"),
+    (0x0C7A, "Peugeot 206, front fog lights, from 2002", "6554YR"),
+    (0x0DBA, "Peugeot 206+, 2009–2012", "6554YV"),
+];
+
+/// The type in a frame's header when the header has the older code's form (b1 = 0xAA), as
+/// `0x0XYA`. Any frame may have such a header by chance; [older_code_remote] is what decides.
+pub fn older_code_type(key1: u64) -> Option<u16> {
+    let [b0, b1, ..] = key1.to_be_bytes();
+    (b1 == 0xAA).then(|| (u16::from(b0) << 4) | u16::from(b1 >> 4))
+}
+
+/// The remote a frame is from, and its part numbers, when its header is a known type of the older
+/// code ([OLDER_CODE_TYPES]). Such a frame is read as the older code: no XOR decrypt, no key search.
+pub fn older_code_remote(key1: u64) -> Option<(&'static str, &'static str)> {
+    let ty = older_code_type(key1)?;
+    OLDER_CODE_TYPES.iter().find(|&&(t, ..)| t == ty).map(|&(_, remote, part)| (remote, part))
+}
+
+/// KAT's reading of a frame: one whose header is a known older-code type is the older code
+/// whatever the XOR checksum says (module doc, Deviations); any other goes to [fast_decrypt].
+fn kat_decrypt(key1: u64, key2_low: u32) -> Option<PsaFields> {
+    if older_code_remote(key1).is_some() {
+        return None;
+    }
+    fast_decrypt(key1, key2_low)
+}
+
+/// Bits a frame has on air: key1 and the 16-bit validation word.
+pub const FRAME_BITS: usize = 80;
+
+/// The frame as sent, in hex: key1 and the 16-bit validation word (b8, b9), the part of key2 a
+/// frame carries. `data_count_bit` stays the references' 128.
+pub fn frame_hex(key1: u64, key2: u64) -> String {
+    format!("{key1:016X}{:04X}", key2 & 0xFFFF)
+}
+
 /// `psa_extract_fields_mode36` on the TEA plaintext words.
 fn tea_fields(v0: u32, v1: u32) -> PsaFields {
     let b = [v0.to_be_bytes(), v1.to_be_bytes()].concat(); // b2..b9
@@ -583,9 +653,10 @@ pub fn search_label(hit: &BruteForceHit) -> String {
 pub const SEARCH_LABEL_ALL: &str = "PSA BF1/BF2";
 
 /// Whether the key search applies to a decode: a PSA frame (listed, or [UNCHECKED_NAME]) with
-/// key2 and no serial, i.e. an undecrypted TEA frame.
-pub fn needs_key_search(name: &str, serial: Option<u32>, extra: Option<u64>) -> bool {
-    (name == "PSA" || name == UNCHECKED_NAME) && serial.is_none() && extra.is_some()
+/// key2 and no serial, i.e. an undecrypted TEA frame, unless its header is a known type of the
+/// older code ([older_code_remote]), which no key opens and the search finds false keys for.
+pub fn needs_key_search(name: &str, serial: Option<u32>, data: u64, extra: Option<u64>) -> bool {
+    (name == "PSA" || name == UNCHECKED_NAME) && serial.is_none() && extra.is_some() && older_code_remote(data).is_none()
 }
 
 /// `d` with the fields a brute-force hit decrypted: plain PSA, encoder-capable.
@@ -618,7 +689,7 @@ pub enum AutoKeySearch {
 
 /// Run the PSA key search on `d` (decoded as `name`) in line, if it applies.
 pub fn auto_key_search(name: &str, d: &DecodedSignal) -> AutoKeySearch {
-    let (true, Some(extra)) = (needs_key_search(name, d.serial, d.extra), d.extra) else {
+    let (true, Some(extra)) = (needs_key_search(name, d.serial, d.data, d.extra), d.extra) else {
         return AutoKeySearch::NotNeeded;
     };
     match recover_key(d.data, extra, &BruteForceControl::default()) {
@@ -1680,14 +1751,16 @@ impl PsaDecoder {
     /// reports the same window), which decrypts neither by XOR nor by BF1/BF2. One the fast path
     /// cannot decrypt is dropped, or with `autobf` reported as [UNCHECKED_NAME] for the brute force
     /// to decide: a genuine TEA frame decrypts in a fraction of a second, that window never does.
+    /// A frame of the older code ([older_code_remote]) is read without a decrypt; one such a
+    /// machine read alone is dropped even with `autobf`, as no key search can confirm it.
     fn emit(&self, frame: RawFrame) -> Option<DecodedSignal> {
         let fields = if self.kat_extensions {
-            fast_decrypt(frame.key1, frame.key2_low)
+            kat_decrypt(frame.key1, frame.key2_low)
         } else {
             fast_decrypt_c(frame.key1, frame.key2_low)
         };
         let unchecked = frame.am && self.kat_extensions && fields.is_none();
-        if unchecked && !self.report_unchecked {
+        if unchecked && (!self.report_unchecked || older_code_remote(frame.key1).is_some()) {
             return None;
         }
         Some(DecodedSignal {
@@ -1872,7 +1945,7 @@ impl ProtocolDecoder for PsaDecoder {
     fn to_flipper_key(&self, decoded: &DecodedSignal) -> Option<FlipperKey> {
         let key2 = decoded.extra?;
         let (key1, key2_low) = (decoded.data, key2 as u32);
-        let fields = fast_decrypt(key1, key2_low).or_else(|| {
+        let fields = kat_decrypt(key1, key2_low).or_else(|| {
             decoded.serial.and_then(|s| tea_decrypt_with_serial(key1, key2_low, s).map(|(f, _)| f))
         });
         let mut key = FlipperKey::for_protocol("PSA", MIN_COUNT_BIT, key1);
@@ -1990,7 +2063,7 @@ fn next_fields(decoded: &DecodedSignal, button: u8) -> Option<PsaFields> {
         decoded
             .serial
             .and_then(|serial| tea_decrypt_with_serial(key1, key2_low, serial).map(|(f, _)| f))
-            .or_else(|| fast_decrypt(key1, key2_low))
+            .or_else(|| kat_decrypt(key1, key2_low))
     });
     let fields = decrypted.or_else(|| {
         // No key material to decrypt (a capture saved without key2, e.g. by the retired
@@ -2903,6 +2976,89 @@ mod tests {
         }
         // The same window without the 0xA sync nibble is rejected by ARF's own check.
         assert!(decode_all(&am_frame(100, 0x6EDB_E3B4_785F_7BC6, 0x70F6)).is_empty());
+    }
+
+    /// The older code (GitHub issue #6): the reader's Xsara Picasso frame (published with its
+    /// unscrambled form), three rtl_433 frames of their C3 XTR key, and the two frames of the 2005
+    /// Peugeot 206 (burningimage.net, 2011) ProtoPirate's routing misreads: one passes the XOR
+    /// checksum, the key search finds a "serial" for the other.
+    const XSARA_PICASSO: (u64, u16) = (0x7CAA_A2C5_8774_1C19, 0xB7BB);
+    const C3_XTR: [(u64, u16); 3] = [(0xC1AA_18C8_F715_6A8A, 0x0D09), (0xC1AA_0226_18ED_981D, 0x583C), (0xC1AA_0825_127E_988D, 0x52AF)];
+    const P206_XOR_BY_CHANCE: (u64, u16) = (0x1CAA_572B_C5E8_9257, 0x703A);
+    const P206_BF1_BY_CHANCE: (u64, u16) = (0x1CAA_C4B9_9D93_C4C5, 0x287B);
+
+    #[test]
+    fn older_code_frames_read_as_their_remote_type() {
+        let (key1, key2) = XSARA_PICASSO;
+        assert_eq!(older_code_type(key1), Some(0x07CA));
+        assert_eq!(older_code_remote(key1), Some(("Citroën Xsara Picasso", "6554RF")));
+        assert_eq!(frame_hex(key1, key2.into()), "7CAAA2C587741C19B7BB");
+        for (key1, _) in C3_XTR {
+            assert_eq!(older_code_type(key1), Some(0x0C1A));
+            assert!(older_code_remote(key1).is_some_and(|(r, p)| r.contains("C3 XTR") && p == "6554RE"));
+        }
+        for (key1, _) in [P206_XOR_BY_CHANCE, P206_BF1_BY_CHANCE] {
+            assert!(older_code_remote(key1).is_some_and(|(r, p)| r.contains("206") && p == "6554YL"));
+        }
+        // Every listed type reads back from its header `XY AA`, and its remote's name fits the
+        // detail panel's row on a 120-column terminal (58 columns, the value from the 13th).
+        for &(ty, remote, _) in OLDER_CODE_TYPES {
+            assert_eq!(older_code_type((u64::from(ty >> 4) << 56) | (0xAA << 48)), Some(ty), "{ty:04X}");
+            assert!(remote.chars().count() <= 46, "{remote}");
+        }
+        // The XOR and TEA remotes KAT has frames of have no such header.
+        for key1 in [0x6EDA_E3B4_785F_7BC6, 0xB6DA_FAEE_20BD_48CF, 0xF47A_2EA1_1A4C_7CAF, 0xFF5A_0000_0000_0000, 0xF1BA_BAE6_408C_36EE] {
+            assert_eq!(older_code_type(key1), None, "{key1:X}");
+        }
+    }
+
+    #[test]
+    fn older_code_frames_are_neither_decrypted_nor_searched() {
+        // What ProtoPirate's routing made of the two 206 frames: a serial each (the second only
+        // once the search found it), both then offered for transmission.
+        let (key1, key2) = P206_XOR_BY_CHANCE;
+        assert_eq!(fast_decrypt_c(key1, key2.into()).map(|f| f.serial), Some(0xBFC300));
+        let (key1, key2) = P206_BF1_BY_CHANCE;
+        assert_eq!(tea_decrypt_with_serial(key1, key2.into(), 0xD2C31E).map(|(f, range)| (f.serial, range)), Some((0xD2C31E, 1)));
+        // On air with the end HIGH (ProtoPirate's machine): the whole frame, no serial, nothing to
+        // send, no key search; the same with autobf.
+        for (key1, key2) in [XSARA_PICASSO, P206_XOR_BY_CHANCE, P206_BF1_BY_CHANCE].into_iter().chain(C3_XTR) {
+            let pulses = press(250, key1, key2, 80, Some(900));
+            for got in [decode_all(&pulses), decode_all_autobf(&pulses)] {
+                assert_eq!(got.len(), 1, "{key1:X}");
+                let d = &got[0];
+                assert_eq!((d.data, d.extra), (key1, Some(u64::from(key2))), "{key1:X}");
+                assert_eq!((d.serial, d.encoder_capable, d.protocol_display_name.as_deref()), (None, false, None), "{key1:X}");
+                assert!(!needs_key_search("PSA", d.serial, d.data, d.extra), "{key1:X}");
+                assert_eq!(auto_key_search("PSA", d), AutoKeySearch::NotNeeded, "{key1:X}");
+            }
+        }
+        // Read only by a machine whose frames must decrypt (no end pulse: doctor-firmware's
+        // 80th-bit rule): dropped, with autobf too, where it used to wait for a key search.
+        for (key1, key2) in [XSARA_PICASSO, P206_BF1_BY_CHANCE] {
+            let pulses = press(250, key1, key2, 80, None);
+            assert!(decode_all(&pulses).is_empty(), "{key1:X}");
+            assert!(decode_all_autobf(&pulses).is_empty(), "{key1:X} autobf");
+        }
+        // A key file of such a frame carries no decrypted fields and reads back the same, and
+        // nothing is encoded from it.
+        let dec = PsaDecoder::new();
+        let (key1, key2) = P206_XOR_BY_CHANCE;
+        let key = dec.to_flipper_key(&psa_from(key1, key2.into(), None)).unwrap();
+        assert_eq!(key.u32_field("Serial"), None);
+        let back = dec.from_flipper_key(&key).unwrap();
+        assert_eq!((back.data, back.extra, back.serial), (key1, Some(u64::from(key2)), None));
+        assert!(dec.encode(&psa_from(key1, key2.into(), None), 1).is_none());
+    }
+
+    /// A header of the older code's form whose type is not in the list is read as before (the
+    /// fast path, then the key search): a TEA remote may have such a header.
+    #[test]
+    fn an_unlisted_aa_header_keeps_the_key_search() {
+        let key1 = 0x5EAA_A2C5_8774_1C19;
+        assert_eq!((older_code_type(key1), older_code_remote(key1)), (Some(0x05EA), None));
+        assert!(needs_key_search("PSA", None, key1, Some(0xB7BB)));
+        assert!(needs_key_search(UNCHECKED_NAME, None, key1, Some(0xB7BB)));
     }
 
     #[test]

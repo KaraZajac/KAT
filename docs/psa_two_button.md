@@ -188,7 +188,10 @@ is the frame of [PSA](psa.md): Manchester at about 250 µs per half bit behind a
 decoder prints are the end of the preamble (`FD`), the frame's first two bytes (`1C AA` in all 58; the write-up
 takes the three bytes for a serial) and a 64-bit block. The block is neither of PSA's two kinds: KAT's XOR
 check and key search open none of the 58 (one passes the XOR check by chance, one gets a chance hit from the
-search).
+search). `1C AA` is the remote's type, 01CA: by the list a reader sent ([GitHub issue #6](https://github.com/KaraZajac/KAT/issues/6)),
+a 206 of 2002–2005 without front fog lights. Since then KAT reads such a frame as the older code, with no XOR
+check or key search ([PSA: the older code](psa.md#a-third-kind-of-block-the-older-code)), and the reader's
+C3 XTR key shows the same structure in `D`.
 
 It is the code of this page. `D`, the left half XOR the right half, shows the same families of constants,
 with this remote's values in them:

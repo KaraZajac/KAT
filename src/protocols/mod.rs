@@ -1710,6 +1710,26 @@ pub fn capture_button_name(protocol: &str, code: u8, data: u64, extra: Option<u6
     native_button_name(protocol, code)
 }
 
+/// A frame longer than `data`'s 64 bits whose protocol keeps the rest in `extra` as plain frame
+/// bits, as sent: its hex digits and its bits on air. PSA: key1 and the 16-bit validation word,
+/// 80 bits (its key files say 128). None for the others: `data` is what they show.
+pub fn frame_hex(protocol: &str, data: u64, extra: Option<u64>) -> Option<(String, usize)> {
+    if info::lookup(protocol).is_some_and(|i| i.decoder == "PSA") {
+        return extra.map(|key2| (psa::frame_hex(data, key2), psa::FRAME_BITS));
+    }
+    None
+}
+
+/// The type in an undecrypted PSA frame's header when it has the older code's form (`XY AA`,
+/// `0x0XYA`), and the remote it is for and its part numbers when the type is known
+/// (`psa::OLDER_CODE_TYPES`).
+pub fn psa_older_code(protocol: &str, serial: Option<u32>, data: u64) -> Option<(u16, Option<(&'static str, &'static str)>)> {
+    if serial.is_some() || !info::lookup(protocol).is_some_and(|i| i.decoder == "PSA") {
+        return None;
+    }
+    Some((psa::older_code_type(data)?, psa::older_code_remote(data)))
+}
+
 /// Helper macro for duration comparison (matches protopirate's DURATION_DIFF)
 #[macro_export]
 macro_rules! duration_diff {

@@ -557,8 +557,11 @@ fn signal_detail_lines(
 
     // Enc + RF (the protocol's AM/FM) + Rx (the demodulator path that received it) or, for a
     // recording, its preset
+    // A frame of the older PSA code is neither of PSA's two kinds (TEA/XOR).
+    let older_code = capture.psa_older_code();
+    let listed_older_code = older_code.is_some_and(|(_, remote)| remote.is_some());
     let mut enc = vec![
-        ("Enc:", value(capture.encryption_type())),
+        ("Enc:", value(if listed_older_code { "older code, not decoded" } else { capture.encryption_type() })),
         // An unknown modulation is "-" like the detail's other empty fields (its display text,
         // "—", is what the protocol tables use).
         ("RF:", value(match capture.rf_modulation() {
@@ -609,15 +612,32 @@ fn signal_detail_lines(
         max,
     ));
 
+    // The whole frame: a PSA frame's last 16 bits are in `data_extra` (issue #6: "only 8 of the
+    // 10 bytes").
     let key = if capture.data_count_bit > 0 {
+        let (hex, bits) = capture.frame_hex();
         vec![
-            Span::styled(format!("0x{}", capture.data_hex()), Style::default().fg(Color::Yellow)),
-            Span::styled(format!("  ({})", capture.data_bits_str()), dim),
+            Span::styled(format!("0x{hex}"), Style::default().fg(Color::Yellow)),
+            Span::styled(format!("  ({bits} bits)"), dim),
         ]
     } else {
         vec![Span::styled("-", dim)]
     };
     lines.extend(detail_row(vec![("Key/Data:", key)], max));
+
+    // The older PSA code: the remote's type is in the frame's header (separate fields, so a narrow
+    // panel wraps between them rather than cutting the part number off).
+    if let Some((ty, remote)) = older_code {
+        let mut fields = vec![match remote {
+            Some((remote, _)) => ("Remote:", value(remote)),
+            None => ("Remote:", vec![Span::styled("a type not in KAT's list", dim)]),
+        }];
+        fields.push(("Type:", vec![Span::styled(format!("{ty:04X}"), accent_style)]));
+        if let Some((_, part)) = remote {
+            fields.push(("Part no.:", value(part)));
+        }
+        lines.extend(detail_row(fields, max));
+    }
 
     // A key search's result (a "Recover key" action, or autobf), or that one is under way.
     let search = match &capture.key_recovery {
@@ -1097,5 +1117,37 @@ mod tests {
         );
         // Too narrow even for one field: cut with "…".
         assert_eq!(strings(detail_row(row(), 18)), vec![" Protocol:  Kia V…", "            Make:…"]);
+    }
+
+    /// A PSA frame of the older code (GitHub issue #6): all 80 bits on the Key/Data row (it showed
+    /// key1's 64, "128 bits"), the remote its header names, and its CRC as unread, not failed.
+    #[test]
+    fn the_detail_shows_a_psa_frame_whole_and_its_remote() {
+        let text = |c: &Capture, max: usize| -> Vec<String> {
+            signal_detail_lines(c, None, false, None, max).iter().map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect()).collect()
+        };
+        let mut capture = Capture::from_pairs(1, 433_920_000, Vec::new());
+        capture.protocol = Some("PSA".to_string());
+        (capture.data, capture.data_count_bit, capture.data_extra) = (0x7CAA_A2C5_8774_1C19, 128, Some(0xB7BB));
+        let wide = text(&capture, 200);
+        let row = |label: &str| wide.iter().find(|l| l.trim_start().starts_with(label)).cloned().unwrap_or_default();
+        assert!(row("Key/Data:").contains("0x7CAAA2C587741C19B7BB  (80 bits)"), "{wide:?}");
+        assert!(row("Enc:").contains("older code, not decoded"), "{wide:?}");
+        assert!(row("Remote:").contains("Citroën Xsara Picasso  Type: 07CA  Part no.: 6554RF"), "{wide:?}");
+        assert!(row("Counter:").contains("CRC: none"), "{wide:?}");
+        // The longest names (C3 XTR, Berlingo/Partner): whole in a 120-column terminal's panel (58
+        // columns); in an 80-column one's (52) the name may be cut, never the type or part number.
+        for (data, ty, part) in [(0xC1AA_18C8_F715_6A8A, "0C1A", "6554RE"), (0x69AA_0000_0000_0000, "069A", "6554RH / 6554RG")] {
+            capture.data = data;
+            let lines = text(&capture, 58);
+            assert!(lines.iter().all(|l| !l.contains('…')), "{lines:?}");
+            let lines = text(&capture, 52);
+            assert!(lines.iter().any(|l| l.contains(&format!("Type: {ty}  Part no.: {part}"))), "{lines:?}");
+        }
+        // A newer frame (TEA, header F47A): no Remote row, its encryption as before.
+        (capture.data, capture.data_extra) = (0xF47A_2EA1_1A4C_7CAF, Some(0x2927));
+        let lines = text(&capture, 200);
+        assert!(!lines.iter().any(|l| l.contains("Remote:")), "{lines:?}");
+        assert!(lines.iter().any(|l| l.trim_start().starts_with("Enc:") && l.contains("TEA/XOR")), "{lines:?}");
     }
 }

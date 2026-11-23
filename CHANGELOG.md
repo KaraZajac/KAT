@@ -4,6 +4,28 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **PSA: the older two-button remotes' type** ([psa.md](docs/psa.md#a-third-kind-of-block-the-older-code)).
+  The two-button remotes of about 2002 to the CAN cars (Berlingo/Partner, Xsara Picasso, 206, 307, 406,
+  C2, C3) send an older code in PSA's frame, with the remote's type in its header. The detail panel now
+  names the remote with its type and part number (e.g. "Citroën C3 XTR, front fog lights, 2002 to CAN",
+  type 0C1A, 6554RE), from a list of ten types a reader sent ([issue #6](https://github.com/KaraZajac/KAT/issues/6)),
+  and gives "older code, not decoded" as its encryption: the rest of such a frame is scrambled by a rule
+  that is not known.
+
+### Fixed
+
+- **PSA: the whole 80-bit frame in the detail panel** ([psa.md](docs/psa.md#frame-layout)). The Key/Data
+  row showed the frame's first 64 bits and said "128 bits" (the references' count); the last 16, which KAT
+  always received, showed nowhere ([issue #6](https://github.com/KaraZajac/KAT/issues/6): "only capturing
+  8 of the 10 bytes"). It now shows all 80, as rtl_433 does.
+- **PSA: an older-code frame is no longer taken for a decrypted one.** The XOR check and the key search
+  ran on these frames too, and both are short: of a 2005 Peugeot 206's 58 published frames, one passed
+  the XOR checksum and the search found a key for another, each with a "serial" no other frame had, and
+  KAT offered to send both. A frame whose header is a listed older-code type is now neither checked nor
+  searched, and its CRC shows as `none`.
+
 ## [1.22.3] - 2026-11-22
 
 RTL-SDR dongles open as librtlsdr opens them: a USB transfer the dongle stalls while it opens no longer stops it (a tester's dongle with an FC0013 tuner: "Pipe error"), and `kat.log` says how far the open got.

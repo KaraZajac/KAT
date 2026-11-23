@@ -1,3 +1,9 @@
+ALFA ROMEO/more/2016-2025_alfa_romeo_giulia_lock.sub | 433920000 | Fiat V2 | x92 | 20 distinct | fnv=67CB8AFF63219258
+ALFA ROMEO/more/2016-2025_alfa_romeo_giulia_trunk.sub | 433920000 | Fiat V2 | x108 | 20 distinct | fnv=7E883036B40B3A52
+ALFA ROMEO/more/2016-2025_alfa_romeo_giulia_unlock.sub | 433920000 | Fiat V2 | x101 | 20 distinct | fnv=B3BD8D89F99093DD
+ALFA ROMEO/more/2016-2025_alfa_romeo_stelvio_lock.sub | 433920000 | Fiat V2 | x80 | 20 distinct | fnv=D9C2C04B00A29B39
+ALFA ROMEO/more/2016-2025_alfa_romeo_stelvio_trunk.sub | 433920000 | Fiat V2 | x80 | 20 distinct | fnv=AB21CF381C196B15
+ALFA ROMEO/more/2016-2025_alfa_romeo_stelvio_unlock.sub | 433920000 | Fiat V2 | x79 | 20 distinct | fnv=4A2B9E59E63417FF
 ALFA ROMEO/more/Giulietta_Close.sub | 433920000 | Fiat V1 | x50 | 20 distinct | fnv=07731A97A8D07FEE
 ALFA ROMEO/more/Giulietta_Open.sub | 433920000 | Fiat V1 | x50 | 20 distinct | fnv=43F921206FBCA2C9
 ALFA ROMEO/more/Giulietta_Trunk.sub | 433920000 | Fiat V1 | x55 | 20 distinct | fnv=B42276E86F601617
@@ -119,6 +125,12 @@ KIA/more/kia_v6.sub | 433920000 | Kia V6 | x20 | 20 distinct | fnv=575A41EE0A441
 KIA/more/kia_v6_DXL_2_10.sub | 433920000 | Kia V6 | x8 | 8 distinct | fnv=88102B3457BBE740
 KIA/more/kia_v6_KD_2_10.sub | 433920000 | Kia V6 | x10 | 10 distinct | fnv=88E703F6F515E395
 KIA/more/kia_v7_Korea_H6_DXL.sub | 433920000 | Kia V7 | x20 | 10 distinct | fnv=ACA07AB6A5A1A5E9
+MASERATI/more/2012-2021_maserati_levante_lock_possibly_damaged.sub | 433920000 | (none)
+MASERATI/more/2012-2021_maserati_levante_trunk_possibly_damaged.sub | 433920000 | (none)
+MASERATI/more/2012-2021_maserati_levante_unlock_possibly_damaged.sub | 433920000 | (none)
+MASERATI/more/2016-2021_maserati_ghibli_lock.sub | 433920000 | Fiat V2 | x87 | 20 distinct | fnv=8BDBD88B33859E06
+MASERATI/more/2016-2021_maserati_ghibli_trunk.sub | 433920000 | Fiat V2 | x78 | 20 distinct | fnv=B80B697A50F59E7D
+MASERATI/more/2016-2021_maserati_ghibli_unlock.sub | 433920000 | Fiat V2 | x76 | 20 distinct | fnv=DB47F0237E3A7028
 MISC/more/36 Audiovox PRO.sub | 433920000 | key | refused: the Audiovox-PROOE3B decoder does not take this "Audiovox PRO" key file (25 bits): it holds no valid frame of the protocol
 MISC/more/vag_1_2_3_4__kia_0_1_3_4_5.sub | 434420000 | VAG | x4 | 4 distinct | fnv=DC1B61BA6C1B16FB
 MISC/more/vag_1_2_3_4__kia_0_1_3_4_5.sub | 434420000 | Toyota (FoxFW) | x1 | 1 distinct | fnv=85DC58A3B1F9336A
@@ -213,6 +225,9 @@ Toyota + Lexus/more/Tundra19_unlock2.sub | 312100000 | (none)
 VAG/more/1.sub | 434420000 | key | VAG | data=C06BAC39D8F9F360/80 extra=800000000204732B sn=7C8F963 btn=2 cnt=4E84 crc=1 tx=1
 VAG/more/1_2.sub | 434420000 | key | VAG | data=C0A4801786138067/80 extra=8000000002042C2B sn=7C8F963 btn=2 cnt=4EFD crc=1 tx=1
 VAG/more/2.sub | 434420000 | key | VAG | data=C0D5C8CF0B83C733/80 extra=800000000204571D sn=7C8F963 btn=1 cnt=4E88 crc=1 tx=1
+VAG/more/2008-2015_audi_a4_bcm2_lock.sub | 868350000 | Audi V3 | x21 | 21 distinct | fnv=3A733893DCA81959
+VAG/more/2008-2015_audi_a4_bcm2_trunk.sub | 868350000 | Audi V3 | x20 | 20 distinct | fnv=778105AC9634C9FC
+VAG/more/2008-2015_audi_a4_bcm2_unlock.sub | 868350000 | Audi V3 | x20 | 20 distinct | fnv=29A9BED57B825B4F
 VAG/more/2_2.sub | 434420000 | key | VAG | data=C0F61F121EF99164/80 extra=800000000204001D sn=7C8F963 btn=1 cnt=4E92 crc=1 tx=1
 VAG/more/32 Audi V1.sub | 433920000 | key | refused: no decoder reads "Audi V1" key files (88 bits)
 VAG/more/A120LL.sub | 434420000 | VAG | x80 | 20 distinct | fnv=61261DDF0EC5AD21
@@ -360,6 +375,10 @@ honda/more/honda_civic_2005_27.sub | 433920000 | Honda V0 | x21 | 21 distinct | 
 honda/more/honda_civic_2005_28.sub | 433920000 | Honda V0 | x20 | 20 distinct | fnv=5E19D46D61103B6D
 honda/more/honda_civic_2005_29.sub | 433920000 | Honda V0 | x20 | 20 distinct | fnv=46C6060AF77CA643
 honda/more/honda_civic_2005_30.sub | 433920000 | Honda V0 | x20 | 20 distinct | fnv=BB0E77C83A43BE65
+jeep/more/2019-2025_jeep_wrangler_lock.sub | 433920000 | Fiat V2 | x84 | 20 distinct | fnv=3EC03F106EEF3CEF
+jeep/more/2019-2025_jeep_wrangler_unlock.sub | 433920000 | Fiat V2 | x80 | 20 distinct | fnv=FE320E72AEC585E0
+mercedes/more/2015_mercedes_fbs3_lock.sub | 433920000 | (none)
+mercedes/more/2015_mercedes_fbs3_unlock.sub | 433920000 | (none)
 nissan/more/Nissan_Almera_2014_xHorse_300lck.sub | 433920000 | Renault V1 | x53 | 29 distinct | fnv=2A377775267DBFCB
 nissan/more/Nissan_Almera_2014_xHorse_300lck.sub | 433920000 | Renault/xHorse V4 | x34 | 17 distinct | fnv=3F048A31717E96F5
 nissan/more/Nissan_Almera_2014_xHorse_5lck_hold10s.sub | 433920000 | Renault V1 | x11 | 5 distinct | fnv=DBB1E6D6B1E2BCA1

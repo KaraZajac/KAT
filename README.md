@@ -481,7 +481,7 @@ Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference; pr
 | Toyota (FoxFW: Prius 2006 / Tundra, KeeLoq layout) | PWM | AM | Rolling Code, button whitelist (decode-only) | 315 / 433.92 MHz |
 | BMW V2 (FoxFW) | Manchester | AM | Rolling Code (decode-only) | 315 / 433.92 MHz |
 | BMW/Mini V3 (FoxFW) | Manchester | AM/FM | Rolling Code (decode-only) | 315 / 433.92 MHz |
-| Audi V3 (FoxFW) | Manchester | AM/FM | Rolling Code (decode-only) | 315 / 433.92 MHz |
+| Audi V3 (FoxFW) | Manchester | AM/FM | Rolling Code (decode-only) | 315 / 433.92 / 868.35 MHz |
 | BMW CAS3 (FoxFW) | PWM | AM | AES rolling code (FoxFW encoder: replay of the saved frame) | 315 / 433.92 / 868 MHz |
 | Porsche Cayenne (ARF “Porsche AG”) | PWM | AM | VAG rolling register (encoder) | 315 / 433.92 / 868.35 MHz |
 | Subaru | PWM | AM | Rolling Code (encoder: counter + 1) | 315 / 433.92 MHz |

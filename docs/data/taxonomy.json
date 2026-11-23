@@ -92,27 +92,30 @@
     "Jeep",
     "Ram"
    ],
-   "blurb": "The key fobs of the Chrysler group send the frame filed under Fiat V2, with their own layout of button flags and a 16-bit counter. Chrysler V0 is an older pulse-width remote; the Siemens and Chrysler remotes ported from rtl_433 are receive only."
+   "blurb": "The key fobs of the Chrysler group send the frame filed under Fiat V2, with their own layout of button flags and a 14-bit counter. Chrysler V0 is an older pulse-width remote; the Siemens and Chrysler remotes ported from rtl_433 are receive only."
   },
   {
    "slug": "fiat",
-   "title": "Fiat, Alfa Romeo and Lancia",
+   "title": "Fiat, Alfa Romeo, Lancia and Maserati",
    "short": "Fiat / Alfa Romeo",
    "tokens": [
     "Fiat",
     "Alfa Romeo",
-    "Lancia"
+    "Lancia",
+    "Maserati"
    ],
    "folders": [
     "FIAT",
-    "ALFA ROMEO"
+    "ALFA ROMEO",
+    "MASERATI"
    ],
    "catalogue": [
     "Fiat",
     "Alfa Romeo",
-    "Lancia"
+    "Lancia",
+    "Maserati"
    ],
-   "blurb": "Fiat V0 and Fiat V1 are Manchester remote keys (V1 with the HITAG2 cipher, whose key KAT can recover). MARELLI stores and replays the frames of Magneti Marelli keys, Fiat Ducato V0 is the van's HITAG2 remote, and Fiat V2 is the frame shared with the Chrysler group."
+   "blurb": "Fiat V0 and Fiat V1 are Manchester remote keys (V1 with the HITAG2 cipher, whose key KAT can recover). MARELLI stores and replays the frames of Magneti Marelli keys, Fiat Ducato V0 is the van's HITAG2 remote, and Fiat V2 is the frame shared with the Chrysler group, which the Alfa Romeo Giulia and Stelvio keys send too; a Maserati Ghibli's key sends it in the references' own layout. Three recordings of a Maserati Levante key that may be damaged hold no signal."
   },
   {
    "slug": "honda",
@@ -178,7 +181,7 @@
     "Lamborghini",
     "Bentley"
    ],
-   "blurb": "VAG covers the group's remote keys with the AUT64 and XTEA ciphers. VAG Polo is the newer frame of the 2017 Polo and the 2020 Atlas; Audi V3 and Porsche Cayenne are frames of their own. VW-1 is the group's oldest remote, a flip key whose code comes from a 24-bit shift register with no key, worked out from recordings a tester sent in; KAT reads and sends it."
+   "blurb": "VAG covers the group's remote keys with the AUT64 and XTEA ciphers. VAG Polo is the newer frame of the 2017 Polo and the 2020 Atlas; Audi V3 and Porsche Cayenne are frames of their own. Audi V3 is the 868 MHz frame of a 2008–2015 Audi A4's key (BCM2), whose button, counter and checksum KAT reads. VW-1 is the group's oldest remote, a flip key whose code comes from a 24-bit shift register with no key, worked out from recordings a tester sent in; KAT reads and sends it."
   },
   {
    "slug": "bmw",
@@ -212,7 +215,7 @@
     "Mercedes-Benz",
     "Mercedes"
    ],
-   "blurb": "Two 2-FSK Manchester frames with a rolling code; KAT replays a captured frame. None of the three recordings is read: two hold only noise, and the third holds FSK bursts recorded with an AM preset."
+   "blurb": "Two 2-FSK Manchester frames with a rolling code; KAT replays a captured frame. None of the five recordings is read: two hold only noise, one holds FSK bursts recorded with an AM preset, and in the two of a 2015 key (FBS3) the FSK receiver held one level through every burst, so no bits were kept."
   },
   {
    "slug": "mazda",

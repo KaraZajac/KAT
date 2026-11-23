@@ -4,6 +4,31 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Audi V3: the 2008–2015 Audi A4's key (BCM2)** ([audi_v3.md](docs/audi_v3.md#the-bcm2-keys-frame-kats-from-the-captures)).
+  The key sends Audi V3's signal at 868.35 MHz with a frame FoxFW's decoder does not read: a start bit and 12
+  bytes, the last the sum of the others. KAT now reads it: the button (Lock, Unlock, Trunk), a 32-bit counter
+  that goes up by 3 with every press, and the sum, which it checks. These are the first Audi V3 frames in the
+  library.
+- **Recordings of seven keys from a key specialist**, 20 presses of each button: an Alfa Romeo Giulia's, an
+  Alfa Romeo Stelvio's, a Jeep Wrangler's and a Maserati Ghibli's (`IMPORTS/ALFA ROMEO/more/2016-2025_*`,
+  `IMPORTS/jeep/more/2019-2025_*`, `IMPORTS/MASERATI/more/2016-2021_*`), all read as Fiat V2, the Ghibli's in the
+  references' own layout; and a 2008–2015 Audi A4's (`IMPORTS/VAG/more/2008-2015_*`), read as Audi V3. With them
+  came two recordings of a 2015 Mercedes FBS3 key and three of a Maserati Levante key that may be damaged. KAT
+  reads nothing from those, and [Unread recordings](docs/unidentified_captures.md) says what they hold and how to
+  record the keys again.
+
+### Fixed
+
+- **Fiat V2: the button and counter of every FCA key** ([fiat_v2.md](docs/fiat_v2.md#the-fca-fobs-layout-kats-from-the-captures)).
+  KAT read the Chrysler and Jeep keys' own layout (button flags and counter) only on the top nibbles of the two
+  keys it knew, so the new Stelvio's and Wrangler's presses showed the raw button byte (251, 187 or 123) and one
+  counter for the whole recording. The nibble differs from key to key; the layout is now read on any frame whose
+  flag word has its shape. The counter is now the top 14 bits of the word KAT showed: they go up by exactly one
+  with every press on all five keys in the library, where the 16 bits went up by 1 to 7. They are also the
+  counter of ProtoPirate's "FCA layout", which opens on one top nibble only.
+
 ## [1.22.4] - 2026-11-23
 
 PSA frames show all 80 bits, and a frame of PSA's older two-button remotes (2002 to the CAN cars) names its remote and no longer passes for a decrypted one ([issue #6](https://github.com/KaraZajac/KAT/issues/6)).

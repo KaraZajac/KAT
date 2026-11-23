@@ -9,9 +9,9 @@ which signal, and how to tell on the spot whether a recording is worth keeping.
 
 ## Overview
 
-A decoder starts with a recording. KAT 1.22 reads 437 of the library's 524 files. Of the other 87, seven hold
-nothing (empty files, and key files of zeros), six hold a remote's signal from which no frame has been read yet,
-and 74 hold no data at all: a pass that looks for nothing but pulses of regular width finds stretches of carrier
+A decoder starts with a recording. KAT reads 451 of the library's 543 files. Of the other 92, seven hold
+nothing (empty files, and key files of zeros), eight hold a remote's signal from which no frame has been read yet,
+and 77 hold no data at all: a pass that looks for nothing but pulses of regular width finds stretches of carrier
 and noise in them, and no bits. Those remotes were recorded with a radio setting that could not hold their signal,
 or on the wrong frequency, and no decoder will ever read those files; [Unread recordings](unidentified_captures.md)
 goes through each. This page is about not making more of them.

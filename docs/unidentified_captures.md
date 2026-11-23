@@ -17,15 +17,15 @@ these). If a decoder ever starts claiming one, rightly or as a false match, they
 
 How the files were sorted: a file holds data when it has runs of pulses whose widths fall into a few classes, as
 the bits of a frame do. In a sample of 20 recordings KAT reads, the longest such run was 109 to 1,864 pulses; in
-the 74 files that hold no data it is 56 at most, the length noise reaches by chance. Where there is no data, the
+the 77 files that hold no data it is 56 at most, the length noise reaches by chance. Where there is no data, the
 bursts of a remote still show as stretches of carrier: their lengths and spacing were measured and compared with
-the remote's filing. Of the 524 recordings in the library, KAT reads
-437.
+the remote's filing. Of the 543 recordings in the library, KAT reads
+451.
 
 | What the files hold | Files | Section |
 |---|---|---|
-| The remote's signal, from which no frame has been read yet | 6 | [A signal, no frame yet](#a-signal-no-frame-yet) |
-| No data: only the carrier, or noise | 74 | [Recordings that hold no data](#recordings-that-hold-no-data) |
+| The remote's signal, from which no frame has been read yet | 8 | [A signal, no frame yet](#a-signal-no-frame-yet) |
+| No data: only the carrier, or noise | 77 | [Recordings that hold no data](#recordings-that-hold-no-data) |
 | Nothing: an empty file, or a key file holding zeros | 7 | [Files with nothing in them](#files-with-nothing-in-them), [Key files](#key-files) |
 | Read since this page was last written (four files) | – | [Read now](#read-now) |
 
@@ -126,6 +126,31 @@ What would settle it: an IQ recording (a PortaPack's Capture app, a HackRF or an
 frequencies the fob sends and how it modulates them, which a receiver tuned to one frequency does not. The
 preset's register values, if the original file still has its `Custom_preset_data` line, would show only what
 this recording's receiver was set to.
+
+### Mercedes-Benz 2015, FBS3 key
+
+`mercedes/more/2015_mercedes_fbs3_lock.sub` (13.7 s) and `mercedes/more/2015_mercedes_fbs3_unlock.sub` (11.6 s),
+433.92 MHz, sent in by a key specialist with the year, the key system (FBS3) and the protocol expected, Mercedes
+V1; the model is not given. The preset is a custom 2-FSK one, whose register values the files keep: 19.99 kBaud,
+±19 kHz deviation, 270 kHz receive bandwidth.
+
+- **Long stretches at one level.** LOW for 64.3 to 67.1 ms (six times in lock, four in unlock), and stretches of
+  the same length cut into two or three parts by a HIGH. A [Mercedes V1](mercedes_v1.md) burst is 683 bits of
+  100 µs: 68.3 ms.
+- **Pieces of Manchester.** Between them the output is noise, except for 34 pieces of 4.2 to 7.0 ms (23 in lock,
+  11 in unlock) of clean Manchester with half bits of 50 µs, Mercedes V1's chip: pulses of 52 and 98 to 102 µs
+  and nothing else. Each is a few bits alike, then bits that alternate, then noise again: never more than 70 bits,
+  and never a frame. Five in lock begin 46 to 52 ms after a long stretch ends; Mercedes V1 leaves 50 ms between
+  the bursts of a press.
+
+A receiver set for FSK holds one level while the signal stays on one side of the frequency it is tuned to. So for
+most of each burst this key's carrier was further from 433.92 MHz than its deviation, and it crossed the
+receiver's centre only for those few milliseconds: the key sends off frequency, or drifts during a press.
+
+What would settle it: an IQ recording (a PortaPack's Capture app, a HackRF or an RTL-SDR; KAT opens all three) at
+433.92 MHz, 1 MHz wide or more, which holds the key's signal wherever it sits. With a Flipper, find the key's
+frequency first with the Frequency Analyzer, then record there with the same preset. If the specialist is right,
+[Mercedes V1](mercedes_v1.md) reads a good recording.
 
 ## Read now
 
@@ -427,6 +452,20 @@ AM270); `KIA/more/2019-2022_KIA_Soul_433.92_FM.sub`, `KIA/more/2020-2022_Kia_Sor
 - **Record with.** An SDR at 315.00 MHz. With a Flipper: `FM476`, then "FM12K"; both untested.
 - **Decoder.** None.
 
+### 2012–2021 Maserati Levante
+
+`MASERATI/more/2012-2021_maserati_levante_lock_possibly_damaged.sub`, `..._unlock_possibly_damaged.sub`,
+`..._trunk_possibly_damaged.sub` (433.92 MHz, AM650), sent in by a key specialist, who notes that the key may be
+damaged.
+
+- **Key.** Not tied to an FCC ID. The specialist files it under Fiat V2.
+- **Recording.** 1.5 to 1.6 s each, 44 to 58 pulses: single pulses of about 0.5 ms, up to 138 ms apart, and no
+  carrier. Nothing from the key reached the receiver: it did not send, or it sent on another frequency.
+- **Record with.** A new battery first, then the Flipper's Frequency Analyzer, which shows whether the key sends
+  and where; then `AM650` at that frequency.
+- **Decoder.** [Fiat V2](fiat_v2.md), if the specialist is right: it reads the Alfa Romeo Giulia's and Stelvio's
+  keys.
+
 ### 2025 Mazda CX-50
 
 `Mazda/25mazda_cx50_ll_uu_tt_pp_x2.sub` (314.98 MHz, AM270).
@@ -634,6 +673,7 @@ Neither the Fiat file nor the Kia file says which car it is from.
 | Kia Sorento 2024, Carnival 2025, Hyundai Sonata 2025 | 3 | FSK through AM | SDR; "FM476F" (untested) | none yet |
 | Kia Sorento, Sportage, Soul, Carnival 2019–23 | 6 | FSK through AM; `FM476` pinned | "F4" or "Honda1" on doctor-firmware (untested); SDR | none yet |
 | Lamborghini | 3 | FSK (by inference) through AM650 | SDR at 315.00; `FM476`, "FM12K" (untested) | none |
+| Maserati Levante 2012–2021 | 3 | nothing from the key; it may be damaged | new battery, Frequency Analyzer, then `AM650` | Fiat V2 (the specialist's word) |
 | Mazda CX-50 2025 | 1 | wide FSK through AM270 | SDR; "FM476F" (untested) | none yet |
 | Mazda RX-8 2007 | 4 | FSK (by inference) through AM650 | `FM476` at 433.92 (untested) | Mazda V0 or Mazda Siemens (perhaps) |
 | Mercedes GLE 350 2024 | 2 | FSK through AM650; second file 0.1 s | SDR centred on 314.45; "FM20K" on doctor-firmware (untested) | Mercedes V1 (perhaps) |

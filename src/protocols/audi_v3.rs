@@ -20,8 +20,27 @@
 //!
 //! The frame is gated only by the button whitelist and the non-degenerate hop. A gap, or a long
 //! pulse between a bit's two shorts, ends the window and reports a frame only if all 96 bits are in
-//! (`audi_v3_process` returns below 96). No deviation from the C. IMPORTS holds no Audi V3 capture
-//! (the oracle finds none).
+//! (`audi_v3_process` returns below 96).
+//!
+//! **Deviation: the BCM2 key's frame.** A key specialist's 2008–2015 Audi A4 key (BCM2 system,
+//! 868.35 MHz; `IMPORTS/VAG/more/2008-2015_audi_a4_bcm2_*`, 20 presses of each button) sends this
+//! signal, with a frame the C does not read: its first eight bits are 0x05 or 0x04, outside the
+//! whitelist. The frame is 97 bits, the opening long pulse's bit (0, a start bit) and 12 bytes:
+//! ```text
+//! byte 0        button: 0x0A Lock, 0x08 Unlock, 0x09 Trunk (as the recordings are named)
+//! bytes 1..7    48 bits that change from press to press with no pattern (encrypted)
+//! bytes 7..11   counter, 32 bits: up by 3 with every press, on from one recording to the next
+//! byte 11       the sum of bytes 0..11, mod 256
+//! ```
+//! All 61 frames pass the sum. Read from the start bit, as the C reads, the fields straddle these
+//! bytes; whether FoxFW's key (0x0C / 0x0D) sent a start bit is not known, so its frames are read
+//! as the C reads them. KAT tries this layout first: the 97 bits (a 97th bit lost in the closing
+//! gap is the gap's, `level ? 0 : 1`, as for any bit) with a start bit of 0 (a recording of the
+//! other polarity, start bit 1, is read inverted), byte 0 in 0x08..=0x0B and the sum. Such a frame
+//! is packed as the C packs its 96 bits (`data` = bytes 0..8, `extra` = bytes 8..11 << 8 | byte
+//! 11, so key files are the C's), with bit [BCM2_FLAG] of `extra` set; `button` = byte 0,
+//! `counter` = the counter's low 16 bits, `crc_valid` = the sum, which `info.rs` checks for these
+//! frames only (`PARTIAL_CHECK`).
 
 use super::info::prelude::*;
 use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
@@ -42,11 +61,13 @@ pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     presets: &[&AM650, &FM476],
 };
 
-/// The two buttons the C accepts (its header: 0x0C Unlock, 0x0D Lock).
+/// The two buttons the C accepts (its header: 0x0C Unlock, 0x0D Lock), and the BCM2 key's
+/// button bytes (module doc).
 fn buttons(_name: &str, code: u8) -> Option<&'static str> {
     match code {
-        0x0C => Some("Unlock"),
-        0x0D => Some("Lock"),
+        0x0C | 0x08 => Some("Unlock"),
+        0x0D | 0x0A => Some("Lock"),
+        0x09 => Some("Trunk"),
         _ => None,
     }
 }
@@ -59,6 +80,29 @@ const LONG_HI: u32 = 980;
 const GAP: u32 = 980;
 const MIN_PRE: u16 = 20;
 const DATA_BITS: usize = 96;
+/// The BCM2 key's frame: a start bit and 12 bytes (module doc).
+const FRAME_BITS: usize = DATA_BITS + 1;
+/// Bit of `extra` set on a frame read in the BCM2 key's layout (checked by its sum).
+pub(super) const BCM2_FLAG: u32 = 40;
+
+/// The BCM2 key's 12 bytes pass: button byte 0x08..=0x0B, and byte 11 = the sum of the others.
+fn bcm2_valid(bytes: &[u8; 12]) -> bool {
+    bytes[0] & 0xFC == 0x08 && bytes[..11].iter().fold(0u8, |sum, &b| sum.wrapping_add(b)) == bytes[11]
+}
+
+/// The 12 bytes of a frame in the BCM2 key's layout: 97 bits, a start bit of 0 (1 = a recording of
+/// the other polarity, read inverted), then the bytes, which must pass [bcm2_valid].
+fn bcm2_bytes(bits: &[u8]) -> Option<[u8; 12]> {
+    if bits.len() != FRAME_BITS {
+        return None;
+    }
+    let invert = bits[0] & 1;
+    let mut bytes = [0u8; 12];
+    for (i, &bit) in bits[1..].iter().enumerate() {
+        bytes[i / 8] = (bytes[i / 8] << 1) | ((bit ^ invert) & 1);
+    }
+    bcm2_valid(&bytes).then_some(bytes)
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Step {
@@ -72,7 +116,8 @@ pub struct AudiV3Decoder {
     step: Step,
     pre: u16,
     half: bool,
-    bits: [u8; DATA_BITS],
+    /// The C's 96 bits, and the BCM2 key's 97th (module doc).
+    bits: [u8; FRAME_BITS],
     nbits: usize,
 }
 
@@ -82,7 +127,7 @@ impl AudiV3Decoder {
             step: Step::Reset,
             pre: 0,
             half: false,
-            bits: [0; DATA_BITS],
+            bits: [0; FRAME_BITS],
             nbits: 0,
         }
     }
@@ -96,14 +141,25 @@ impl AudiV3Decoder {
 
     /// `audi_v3_append`: the bit is `level ? 0 : 1`.
     fn append(&mut self, level: bool) {
-        if self.nbits < DATA_BITS {
+        if self.nbits < FRAME_BITS {
             self.bits[self.nbits] = u8::from(!level);
             self.nbits += 1;
         }
     }
 
-    /// `audi_v3_process`: the frame, if all 96 bits are in and the button and hop pass.
-    fn process(&self) -> Option<DecodedSignal> {
+    /// The frame in the BCM2 key's layout (KAT, module doc), else `audi_v3_process`: the C's
+    /// frame, if all 96 bits are in and the button and hop pass. `gap` = the level of the gap that
+    /// ended the window, whose bit is the 97th when only 96 came before it.
+    fn process(&self, gap: Option<bool>) -> Option<DecodedSignal> {
+        let mut bits = self.bits[..self.nbits].to_vec();
+        if let (DATA_BITS, Some(level)) = (bits.len(), gap) {
+            bits.push(u8::from(!level));
+        }
+        if let Some(bytes) = bcm2_bytes(&bits) {
+            let data = u64::from_be_bytes(bytes[..8].try_into().unwrap());
+            let counter = u32::from_be_bytes([0, bytes[8], bytes[9], bytes[10]]);
+            return Some(signal(data, counter, bytes[11]));
+        }
         if self.nbits < DATA_BITS {
             return None;
         }
@@ -182,14 +238,14 @@ impl ProtocolDecoder for AudiV3Decoder {
             }
             Step::Data => {
                 if duration >= GAP {
-                    let out = self.process();
+                    let out = self.process(Some(level));
                     self.clear();
                     self.step = Step::Reset;
                     return out;
                 }
                 if is_long {
                     if self.half {
-                        let out = self.process();
+                        let out = self.process(None);
                         self.clear();
                         self.step = Step::Reset;
                         return out;
@@ -203,8 +259,10 @@ impl ProtocolDecoder for AudiV3Decoder {
                         self.half = true;
                     }
                 }
-                if self.nbits >= DATA_BITS {
-                    let out = self.process();
+                // The C stops at 96 bits; KAT reads on to the BCM2 key's 97th (module doc). A
+                // 96-bit frame of the C's ends at the gap, or at the next bit, with the same fields.
+                if self.nbits >= FRAME_BITS {
+                    let out = self.process(None);
                     self.clear();
                     self.step = Step::Reset;
                     return out;
@@ -247,17 +305,23 @@ impl ProtocolDecoder for AudiV3Decoder {
     }
 }
 
-/// A decode of `data` (`button << 56 | hop`), the 24-bit counter and the check byte.
+/// A decode of `data` (`button << 56 | hop`), the 24-bit counter and the check byte. When the 12
+/// bytes are a frame in the BCM2 key's layout (module doc), its sum is checked and [BCM2_FLAG] set.
 fn signal(data: u64, counter: u32, chk: u8) -> DecodedSignal {
+    let mut bytes = [0u8; 12];
+    bytes[..8].copy_from_slice(&data.to_be_bytes());
+    bytes[8..11].copy_from_slice(&counter.to_be_bytes()[1..]);
+    bytes[11] = chk;
+    let bcm2 = bcm2_valid(&bytes);
     DecodedSignal {
         serial: None,
         button: Some((data >> 56) as u8),
         counter: Some((counter & 0xFFFF) as u16),
-        crc_valid: false,
+        crc_valid: bcm2,
         data,
         data_count_bit: DATA_BITS,
         encoder_capable: false,
-        extra: Some((u64::from(counter) << 8) | u64::from(chk)),
+        extra: Some((u64::from(bcm2) << BCM2_FLAG) | (u64::from(counter & 0xFF_FFFF) << 8) | u64::from(chk)),
         protocol_display_name: None,
     }
 }
@@ -279,6 +343,18 @@ pub(super) mod testing {
         bits.extend(bits_of(hop, 56));
         bits.extend(bits_of(u64::from(counter), 24));
         bits.extend(bits_of(u64::from(chk), 8));
+        frame_bits(&bits, n_pre)
+    }
+
+    /// A frame in the BCM2 key's layout: the start bit (0), then the 12 bytes.
+    pub fn bcm2_frame(bytes: [u8; 12], n_pre: usize) -> Vec<LevelDuration> {
+        let mut bits = vec![false];
+        bits.extend(bytes.iter().flat_map(|&b| bits_of(u64::from(b), 8)));
+        frame_bits(&bits, n_pre)
+    }
+
+    /// Pulses of any bit string, as [frame] builds them.
+    pub fn frame_bits(bits: &[bool], n_pre: usize) -> Vec<LevelDuration> {
         // The opening long pulse's level gives bit 0 (`level ? 0 : 1`); the preamble alternates
         // up to it.
         let level = !bits[0];
@@ -343,6 +419,79 @@ mod tests {
         wrong_bits.bits = 64;
         assert!(dec.from_flipper_key(&wrong_bits).is_none());
         assert!(!dec.supports_encoding() && dec.encode(&d, 1).is_none());
+    }
+
+    /// 12 bytes in the BCM2 key's layout: `button`, a made-up encrypted part, the counter, the sum.
+    fn bcm2_bytes_for(button: u8, counter: u32) -> [u8; 12] {
+        let mut b = [button, 0x3C, 0xA5, 0x0F, 0x96, 0x5A, 0xC3, 0, 0, 0, 0, 0];
+        b[7..11].copy_from_slice(&counter.to_be_bytes());
+        b[11] = b[..11].iter().fold(0u8, |s, &x| s.wrapping_add(x));
+        b
+    }
+
+    /// The BCM2 key's frame (module doc): read with its button, counter and sum; also when its
+    /// 97th bit is lost in the closing gap, and in the other polarity. A wrong sum is not read, by
+    /// this layout or the C's (whose whitelist the first eight bits, 0x05, fail).
+    #[test]
+    fn the_bcm2_keys_frame_reads_with_its_sum() {
+        for (button, counter) in [(0x0A, 0x0004_4769u32), (0x08, 0x0004_47A8), (0x09, 0x0004_47ED)] {
+            let bytes = bcm2_bytes_for(button, counter);
+            let mut lost = testing::bcm2_frame(bytes, 274);
+            // The last bit's second half merged into the closing LOW (a bit 1 ends LOW).
+            let gap = lost.pop().unwrap();
+            if !lost.last().unwrap().level {
+                lost.last_mut().unwrap().duration_us += gap.duration_us;
+            } else {
+                lost.push(gap);
+            }
+            let inverted: Vec<LevelDuration> =
+                testing::bcm2_frame(bytes, 274).iter().map(|p| LevelDuration::new(!p.level, p.duration_us)).collect();
+            for (case, wire) in [("whole", testing::bcm2_frame(bytes, 274)), ("lost bit", lost), ("inverted", inverted)] {
+                let got = decode_all(&mut AudiV3Decoder::new(), &wire);
+                assert_eq!(got.len(), 1, "{button:#04x} {case}");
+                let d = &got[0];
+                assert_eq!((d.button, d.counter, d.crc_valid), (Some(button), Some((counter & 0xFFFF) as u16), true), "{case}");
+                assert_eq!(d.data, u64::from_be_bytes(bytes[..8].try_into().unwrap()), "{case}");
+                assert_eq!(d.extra, Some((1 << BCM2_FLAG) | (u64::from(counter & 0xFF_FFFF) << 8) | u64::from(bytes[11])));
+                assert!(crate::protocols::info::has_checksum_for(NAME, d.data_count_bit, d.extra));
+            }
+            let mut bad = bytes;
+            bad[11] ^= 0x10;
+            assert!(decode_all(&mut AudiV3Decoder::new(), &testing::bcm2_frame(bad, 274)).is_empty(), "{button:#04x}");
+        }
+        assert_eq!([buttons(NAME, 0x0A), buttons(NAME, 0x08), buttons(NAME, 0x09)], [Some("Lock"), Some("Unlock"), Some("Trunk")]);
+        // The C's frames keep the C's fields and are not checked.
+        let d = signal(0x0C11_2233_4455_6677, 0x00AB_CDEF, 0x5A);
+        assert!(!d.crc_valid && !crate::protocols::info::has_checksum_for(NAME, d.data_count_bit, d.extra));
+    }
+
+    /// The key specialist's 2008–2015 Audi A4 (BCM2) recordings: every press reads with the button
+    /// its recording is named after and a valid sum, and the counter goes up by 3 with every press
+    /// and on from one recording to the next (presses between them were not recorded).
+    #[test]
+    fn the_a4_bcm2_recordings_read_as_their_buttons() {
+        let mut last: Option<u32> = None;
+        for (rel, button, presses) in [
+            ("VAG/more/2008-2015_audi_a4_bcm2_lock.sub", 0x0A, 21),
+            ("VAG/more/2008-2015_audi_a4_bcm2_unlock.sub", 0x08, 20),
+            ("VAG/more/2008-2015_audi_a4_bcm2_trunk.sub", 0x09, 20),
+        ] {
+            let path = std::path::Path::new("IMPORTS").join(rel);
+            if !path.exists() {
+                eprintln!("Skip: {path:?} not found (run from crate root)");
+                return;
+            }
+            let (_, pairs) = crate::export::flipper::import_sub_raw(&path).unwrap();
+            let mut dec = AudiV3Decoder::new();
+            let got: Vec<DecodedSignal> = pairs.iter().filter_map(|p| dec.feed(p.level, p.duration_us)).collect();
+            assert_eq!(got.len(), presses, "{rel}");
+            assert!(got.iter().all(|d| d.button == Some(button) && d.crc_valid), "{rel}");
+            let counters: Vec<u32> =
+                got.iter().map(|d| ((d.data as u32 & 0xFF) << 24) | (d.extra.unwrap() >> 8) as u32 & 0xFF_FFFF).collect();
+            assert!(counters.windows(2).all(|w| w[1] == w[0] + 3), "{rel}: {counters:?}");
+            assert!(last.is_none_or(|prev| counters[0] > prev), "{rel}");
+            last = counters.last().copied();
+        }
     }
 
     #[test]

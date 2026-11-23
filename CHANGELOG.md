@@ -4,6 +4,10 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+## [1.22.4] - 2026-11-23
+
+PSA frames show all 80 bits, and a frame of PSA's older two-button remotes (2002 to the CAN cars) names its remote and no longer passes for a decrypted one ([issue #6](https://github.com/KaraZajac/KAT/issues/6)).
+
 ### Added
 
 - **PSA: the older two-button remotes' type** ([psa.md](docs/psa.md#a-third-kind-of-block-the-older-code)).

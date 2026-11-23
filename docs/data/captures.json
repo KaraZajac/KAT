@@ -2,6 +2,120 @@
  "branch": "main",
  "captures": [
   {
+   "bytes": 98784,
+   "folder": "ALFA ROMEO",
+   "frequency": 433920000,
+   "more": true,
+   "path": "ALFA ROMEO/more/2016-2025_alfa_romeo_giulia_lock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 21780,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 92,
+     "protocol": "Fiat V2"
+    }
+   ],
+   "seconds": 13.56,
+   "type": "raw"
+  },
+  {
+   "bytes": 112113,
+   "folder": "ALFA ROMEO",
+   "frequency": 433920000,
+   "more": true,
+   "path": "ALFA ROMEO/more/2016-2025_alfa_romeo_giulia_trunk.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 24720,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 108,
+     "protocol": "Fiat V2"
+    }
+   ],
+   "seconds": 15.76,
+   "type": "raw"
+  },
+  {
+   "bytes": 104482,
+   "folder": "ALFA ROMEO",
+   "frequency": 433920000,
+   "more": true,
+   "path": "ALFA ROMEO/more/2016-2025_alfa_romeo_giulia_unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 23038,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 101,
+     "protocol": "Fiat V2"
+    }
+   ],
+   "seconds": 14.64,
+   "type": "raw"
+  },
+  {
+   "bytes": 93548,
+   "folder": "ALFA ROMEO",
+   "frequency": 433920000,
+   "more": true,
+   "path": "ALFA ROMEO/more/2016-2025_alfa_romeo_stelvio_lock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 20612,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 80,
+     "protocol": "Fiat V2"
+    }
+   ],
+   "seconds": 13.85,
+   "type": "raw"
+  },
+  {
+   "bytes": 99287,
+   "folder": "ALFA ROMEO",
+   "frequency": 433920000,
+   "more": true,
+   "path": "ALFA ROMEO/more/2016-2025_alfa_romeo_stelvio_trunk.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 21882,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 80,
+     "protocol": "Fiat V2"
+    }
+   ],
+   "seconds": 14.18,
+   "type": "raw"
+  },
+  {
+   "bytes": 97075,
+   "folder": "ALFA ROMEO",
+   "frequency": 433920000,
+   "more": true,
+   "path": "ALFA ROMEO/more/2016-2025_alfa_romeo_stelvio_unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 21394,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 79,
+     "protocol": "Fiat V2"
+    }
+   ],
+   "seconds": 13.73,
+   "type": "raw"
+  },
+  {
    "bytes": 226549,
    "folder": "ALFA ROMEO",
    "frequency": 433920000,
@@ -4198,6 +4312,102 @@
    "type": "raw"
   },
   {
+   "bytes": 373,
+   "folder": "MASERATI",
+   "frequency": 433920000,
+   "more": true,
+   "path": "MASERATI/more/2012-2021_maserati_levante_lock_possibly_damaged.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 44,
+   "reads": [],
+   "seconds": 1.49,
+   "type": "raw"
+  },
+  {
+   "bytes": 372,
+   "folder": "MASERATI",
+   "frequency": 433920000,
+   "more": true,
+   "path": "MASERATI/more/2012-2021_maserati_levante_trunk_possibly_damaged.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 44,
+   "reads": [],
+   "seconds": 1.52,
+   "type": "raw"
+  },
+  {
+   "bytes": 443,
+   "folder": "MASERATI",
+   "frequency": 433920000,
+   "more": true,
+   "path": "MASERATI/more/2012-2021_maserati_levante_unlock_possibly_damaged.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 58,
+   "reads": [],
+   "seconds": 1.64,
+   "type": "raw"
+  },
+  {
+   "bytes": 132991,
+   "folder": "MASERATI",
+   "frequency": 433920000,
+   "more": true,
+   "path": "MASERATI/more/2016-2021_maserati_ghibli_lock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 29353,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 87,
+     "protocol": "Fiat V2"
+    }
+   ],
+   "seconds": 14.97,
+   "type": "raw"
+  },
+  {
+   "bytes": 115285,
+   "folder": "MASERATI",
+   "frequency": 433920000,
+   "more": true,
+   "path": "MASERATI/more/2016-2021_maserati_ghibli_trunk.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 25435,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 78,
+     "protocol": "Fiat V2"
+    }
+   ],
+   "seconds": 20.17,
+   "type": "raw"
+  },
+  {
+   "bytes": 118029,
+   "folder": "MASERATI",
+   "frequency": 433920000,
+   "more": true,
+   "path": "MASERATI/more/2016-2021_maserati_ghibli_unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 26049,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 76,
+     "protocol": "Fiat V2"
+    }
+   ],
+   "seconds": 14.63,
+   "type": "raw"
+  },
+  {
    "bytes": 165,
    "folder": "MISC",
    "frequency": 433920000,
@@ -7081,6 +7291,81 @@
     }
    ],
    "type": "key"
+  },
+  {
+   "bytes": 162984,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 4798,
+    "deviation_hz": 9521,
+    "keying": "2-FSK"
+   },
+   "folder": "VAG",
+   "frequency": 868350000,
+   "more": true,
+   "path": "VAG/more/2008-2015_audi_a4_bcm2_lock.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 35630,
+   "reads": [
+    {
+     "distinct": 21,
+     "frames": 21,
+     "protocol": "Audi V3"
+    }
+   ],
+   "seconds": 46.47,
+   "type": "raw"
+  },
+  {
+   "bytes": 107317,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 4798,
+    "deviation_hz": 9521,
+    "keying": "2-FSK"
+   },
+   "folder": "VAG",
+   "frequency": 868350000,
+   "more": true,
+   "path": "VAG/more/2008-2015_audi_a4_bcm2_trunk.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 23371,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 20,
+     "protocol": "Audi V3"
+    }
+   ],
+   "seconds": 42.49,
+   "type": "raw"
+  },
+  {
+   "bytes": 118241,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 4798,
+    "deviation_hz": 9521,
+    "keying": "2-FSK"
+   },
+   "folder": "VAG",
+   "frequency": 868350000,
+   "more": true,
+   "path": "VAG/more/2008-2015_audi_a4_bcm2_unlock.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 25793,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 20,
+     "protocol": "Audi V3"
+    }
+   ],
+   "seconds": 40.73,
+   "type": "raw"
   },
   {
    "bytes": 240,
@@ -10709,6 +10994,44 @@
    "type": "raw"
   },
   {
+   "bytes": 100158,
+   "folder": "jeep",
+   "frequency": 433920000,
+   "more": true,
+   "path": "jeep/more/2019-2025_jeep_wrangler_lock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 22072,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 84,
+     "protocol": "Fiat V2"
+    }
+   ],
+   "seconds": 14.69,
+   "type": "raw"
+  },
+  {
+   "bytes": 93874,
+   "folder": "jeep",
+   "frequency": 433920000,
+   "more": true,
+   "path": "jeep/more/2019-2025_jeep_wrangler_unlock.sub",
+   "pinned": true,
+   "preset": "AM650",
+   "pulses": 20686,
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 80,
+     "protocol": "Fiat V2"
+    }
+   ],
+   "seconds": 13.43,
+   "type": "raw"
+  },
+  {
    "bytes": 826,
    "folder": "mercedes",
    "frequency": 434075000,
@@ -10745,6 +11068,44 @@
    "pulses": 35167,
    "reads": [],
    "seconds": 32.71,
+   "type": "raw"
+  },
+  {
+   "bytes": 348522,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 19985,
+    "deviation_hz": 19043,
+    "keying": "2-FSK"
+   },
+   "folder": "mercedes",
+   "frequency": 433920000,
+   "more": true,
+   "path": "mercedes/more/2015_mercedes_fbs3_lock.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 84799,
+   "reads": [],
+   "seconds": 13.66,
+   "type": "raw"
+  },
+  {
+   "bytes": 280115,
+   "custom": {
+    "bandwidth_hz": 270833,
+    "baud": 19985,
+    "deviation_hz": 19043,
+    "keying": "2-FSK"
+   },
+   "folder": "mercedes",
+   "frequency": 433920000,
+   "more": true,
+   "path": "mercedes/more/2015_mercedes_fbs3_unlock.sub",
+   "pinned": true,
+   "preset": "Custom",
+   "pulses": 68096,
+   "reads": [],
+   "seconds": 11.63,
    "type": "raw"
   },
   {

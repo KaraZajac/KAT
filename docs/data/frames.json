@@ -1,5 +1,70 @@
 {
  "protocols": {
+  "Audi V3": {
+   "bits": 96,
+   "examples": [
+    {
+     "bits": 96,
+     "button": 10,
+     "counter": "4769",
+     "data": "A1E8FC5E5228F00",
+     "extra": "100044769C6",
+     "file": "VAG/more/2008-2015_audi_a4_bcm2_lock.sub",
+     "name": "Audi V3",
+     "serial": null
+    },
+    {
+     "bits": 96,
+     "button": 9,
+     "counter": "47ED",
+     "data": "948F3E04DEE0D00",
+     "extra": "1000447EDA4",
+     "file": "VAG/more/2008-2015_audi_a4_bcm2_trunk.sub",
+     "name": "Audi V3",
+     "serial": null
+    },
+    {
+     "bits": 96,
+     "button": 8,
+     "counter": "47AE",
+     "data": "815B4EE9CD21A00",
+     "extra": "1000447AE40",
+     "file": "VAG/more/2008-2015_audi_a4_bcm2_unlock.sub",
+     "name": "Audi V3",
+     "serial": null
+    },
+    {
+     "bits": 96,
+     "button": 10,
+     "counter": "476C",
+     "data": "A14E705CF6E9300",
+     "extra": "10004476C91",
+     "file": "VAG/more/2008-2015_audi_a4_bcm2_lock.sub",
+     "name": "Audi V3",
+     "serial": null
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 61,
+     "how": "",
+     "offset": 56,
+     "values": 3,
+     "width": 4,
+     "word": "data"
+    },
+    "counter": {
+     "frames": 61,
+     "how": "",
+     "offset": 8,
+     "values": 61,
+     "width": 16,
+     "word": "extra"
+    }
+   },
+   "files": 3,
+   "frames": 61
+  },
   "BMW/Mini V3": {
    "bits": 64,
    "examples": [
@@ -430,65 +495,57 @@
    "examples": [
     {
      "bits": 112,
-     "button": 4,
-     "counter": "DFDC",
-     "data": "1D737A2C35EFB",
-     "extra": "20235C167DE9",
-     "file": "chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub",
-     "name": "Fiat V2",
-     "serial": "D737A2C3"
-    },
-    {
-     "bits": 112,
      "button": 2,
-     "counter": "DFE6",
-     "data": "1D737A2C35FBB",
-     "extra": "2019F11FE069",
-     "file": "chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub",
+     "counter": "97",
+     "data": "1D62D5EC25FBB",
+     "extra": "FDA0B9E80739",
+     "file": "ALFA ROMEO/more/2016-2025_alfa_romeo_giulia_lock.sub",
      "name": "Fiat V2",
-     "serial": "D737A2C3"
+     "serial": "D62D5EC2"
     },
     {
      "bits": 112,
      "button": 3,
-     "counter": "DFED",
-     "data": "1D737A2C35F7B",
-     "extra": "2012C634A3F5",
-     "file": "chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub",
+     "counter": "BF",
+     "data": "1D62D5EC25F7B",
+     "extra": "FD00598E2775",
+     "file": "ALFA ROMEO/more/2016-2025_alfa_romeo_giulia_trunk.sub",
      "name": "Fiat V2",
-     "serial": "D737A2C3"
+     "serial": "D62D5EC2"
     },
     {
      "bits": 112,
-     "button": 7,
-     "counter": "DFF5",
-     "data": "1D737A2C357FB",
-     "extra": "200A55E511ED",
-     "file": "chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub",
+     "button": 4,
+     "counter": "AB",
+     "data": "1D62D5EC25EFB",
+     "extra": "FD53DA001505",
+     "file": "ALFA ROMEO/more/2016-2025_alfa_romeo_giulia_unlock.sub",
      "name": "Fiat V2",
-     "serial": "D737A2C3"
+     "serial": "D62D5EC2"
+    },
+    {
+     "bits": 112,
+     "button": 180,
+     "counter": "160",
+     "data": "1CCD219CC3FB4",
+     "extra": "F93BA4609355",
+     "file": "MASERATI/more/2016-2021_maserati_ghibli_lock.sub",
+     "name": "Fiat V2",
+     "serial": "CCD219CC"
     }
    ],
    "fields": {
-    "counter": {
-     "frames": 76,
-     "how": "inverted",
-     "offset": 32,
-     "values": 23,
-     "width": 16,
-     "word": "extra"
-    },
     "serial": {
-     "frames": 76,
+     "frames": 1021,
      "how": "",
      "offset": 16,
-     "values": 2,
+     "values": 6,
      "width": 32,
      "word": "data"
     }
    },
-   "files": 2,
-   "frames": 76
+   "files": 13,
+   "frames": 1021
   },
   "Ford V0": {
    "bits": 64,

@@ -1,6 +1,6 @@
 [package]
 name = "kat"
-version = "1.22.4"
+version = "1.23.0"
 edition = "2021"
 description = "Keyfob Analysis Toolkit - key fob signal capture, decode and transmit with a HackRF, an RTL-SDR (receive only) or a Flipper Zero"
 authors = ["KAT Team"]

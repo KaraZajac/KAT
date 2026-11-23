@@ -1650,6 +1650,25 @@
   {
    "evidence": "recording (the only remote listed for that car)",
    "filing_read": false,
+   "frequency": "433 MHz",
+   "granted": "2015-10-22",
+   "id": "KR5ALFA434",
+   "maker": "AUMOVIO Germany GmbH",
+   "makes": [
+    "Alfa Romeo"
+   ],
+   "model_years": 20,
+   "models": "Alfa Romeo Giulia, Alfa Romeo Romeo, Alfa Romeo Stelvio",
+   "product": "Radio frequency transmitter used in vehicle locking/unlocking systems",
+   "protocols": [
+    "Fiat V2"
+   ],
+   "status": "read",
+   "years": "2017-2024"
+  },
+  {
+   "evidence": "recording (the only remote listed for that car)",
+   "filing_read": false,
    "frequency": "315 MHz",
    "granted": "2014-12-05",
    "id": "KR5FS14",
@@ -1917,6 +1936,25 @@
    ],
    "status": "read",
    "years": "2011-2023"
+  },
+  {
+   "evidence": "recording (the only remote listed for that car)",
+   "filing_read": false,
+   "frequency": "433 MHz",
+   "granted": "2013-05-28",
+   "id": "M3N-7393490",
+   "maker": "AUMOVIO Systems, Inc.",
+   "makes": [
+    "Maserati"
+   ],
+   "model_years": 7,
+   "models": "Maserati Ghibli",
+   "product": "RF Hub FobIK",
+   "protocols": [
+    "Fiat V2"
+   ],
+   "status": "read",
+   "years": "2014-2020"
   },
   {
    "evidence": "recording",

@@ -1,6 +1,7 @@
 {
  "decoders": 165,
  "display_names": {
+  "Audi V3": "Audi V3",
   "BMW/Mini V3": "BMW/Mini V3",
   "CAME Atomo": "CAME Atomo",
   "Chevrolet V0": "Chevrolet V0",
@@ -15121,6 +15122,18 @@
    "bits": 96,
    "buttons": [
     [
+     8,
+     "Unlock"
+    ],
+    [
+     9,
+     "Trunk"
+    ],
+    [
+     10,
+     "Lock"
+    ],
+    [
      12,
      "Unlock"
     ],
@@ -21807,5 +21820,5 @@
    "te_short": null
   }
  ],
- "version": "1.22.4"
+ "version": "1.23.0"
 }

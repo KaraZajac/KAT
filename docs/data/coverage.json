@@ -430,30 +430,30 @@
    "some_remote_read": 0
   },
   {
-   "all_remotes_read": 0,
+   "all_remotes_read": 7,
    "filing_only": 0,
    "likely_read": 0,
    "make": "Maserati",
    "maybe_read": 0,
    "model_years": 21,
-   "nothing": 21,
+   "nothing": 14,
    "recorded_no_data": 0,
    "recorded_unread": 0,
    "signal_known": 0,
-   "some_remote_read": 0
+   "some_remote_read": 7
   },
   {
-   "all_remotes_read": 0,
+   "all_remotes_read": 20,
    "filing_only": 0,
    "likely_read": 0,
    "make": "Alfa Romeo",
    "maybe_read": 0,
    "model_years": 20,
-   "nothing": 20,
+   "nothing": 0,
    "recorded_no_data": 0,
    "recorded_unread": 0,
    "signal_known": 0,
-   "some_remote_read": 0
+   "some_remote_read": 20
   },
   {
    "all_remotes_read": 0,
@@ -1498,15 +1498,15 @@
   }
  ],
  "totals": {
-  "all_remotes_read": 283,
+  "all_remotes_read": 310,
   "filing_only": 324,
   "likely_read": 307,
   "maybe_read": 0,
   "model_years": 4067,
-  "nothing": 2572,
+  "nothing": 2545,
   "recorded_no_data": 260,
   "recorded_unread": 168,
   "signal_known": 0,
-  "some_remote_read": 436
+  "some_remote_read": 463
  }
 }

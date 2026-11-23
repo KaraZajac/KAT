@@ -4,6 +4,10 @@ All notable changes to KAT are documented here.
 
 ## [Unreleased]
 
+## [1.23.0] - 2026-11-23
+
+Fiat V2 reads the button and counter of every FCA key, and Audi V3 reads a 2008–2015 Audi A4's key, both from a key specialist's recordings of seven keys, which are now in the library.
+
 ### Added
 
 - **Audi V3: the 2008–2015 Audi A4's key (BCM2)** ([audi_v3.md](docs/audi_v3.md#the-bcm2-keys-frame-kats-from-the-captures)).

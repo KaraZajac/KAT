@@ -329,7 +329,7 @@ pub(super) const NO_CHECKSUM: &[&str] = &[
     "Security+ 1.0",
     // Car protocols whose frames carry no checksum: structural gates decide emission.
     // (Hyundai, unregistered, verifies nothing either: list it here when it is registered.)
-    "Fiat V0", "Fiat V2", "Ford V2", "Ford V3", "Mercedes V0", "Subaru",
+    "Fiat V0", "Ford V2", "Ford V3", "Mercedes V0", "Subaru",
     // Key files only: the file never holds the frame's CRC byte (see fiat_marelli.rs).
     "MARELLI",
     // FoxFW decoders whose C has no integrity check (structural gates, button whitelists, framing bytes).
@@ -373,6 +373,9 @@ const PARTIAL_CHECK: &[(&str, Checked)] = &[
     // Audi V3: a frame in the BCM2 key's layout (flag in `extra`) ends in a sum; the C's frames
     // (FoxFW, 0x0C / 0x0D) carry no check KAT knows (audi_v3.rs).
     ("Audi V3", |_, _, extra| extra.is_some_and(|e| (e >> super::audi_v3::BCM2_FLAG) & 1 == 1)),
+    // Fiat V2: the Maserati keys' HiTag2 frame (flag in `extra`) carries an XOR check; the FCA fobs'
+    // frames and the C's layouts carry none (fiat_v2.rs).
+    ("Fiat V2", |_, _, extra| extra.is_some_and(|e| (e >> super::fiat_v2::HITAG2_FLAG) & 1 == 1)),
 ];
 
 /// Whether `name`'s protocol has a checksum (or another check) KAT verifies, so that a frame
@@ -567,8 +570,9 @@ mod tests {
         // Flipper-ARF and FoxFW flag Subaru AM + FM (ProtoPirate AM; November 2026).
         ("Subaru", "rf", "AM/FM"),
         ("Hyundai", "buttons", "0=Other,1=Lock,2=Unlock,3-8=Other,9=Trunk,10-255=Other"),
-        // 2026-11: the FCA fobs' own layout (Chrysler, Jeep, Alfa Romeo) has button codes 1..7
-        // (fiat_v2.rs); a selector byte, the other layouts' button, is never below 0x40.
+        // 2026-11: the FCA fobs' own layout (Chrysler, Jeep, Alfa Romeo) and the Maserati keys'
+        // HiTag2 frame have button codes 1..7 (fiat_v2.rs); a selector byte, the C's layouts'
+        // button, is never below 0x40.
         (
             "Fiat V2",
             "buttons",

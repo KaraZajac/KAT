@@ -118,7 +118,10 @@
 //!   the plain ones with the key XOR `0x3FF << 4`, and likewise the two button readings give
 //!   equivalent keys when both presses use the same button (the selector reading then wins): such
 //!   a key is proven for that button only. No reference has confirmed Fiat V2's IV against a real
-//!   key.
+//!   key. A Fiat V2 frame in the Maserati keys' HiTag2 frame (`fiat_v2.rs`, with its XOR check) is
+//!   refused: that frame is 7 bits longer than the references' and its 32 hop bits do not sit at the
+//!   C's offset (fixed bits fall inside the region), so KAT has no hop to feed the search. Reading
+//!   the hop from that frame is an open task; see `fiat_v2.rs`.
 //! - Not mapped: Renault V1 (ARF) (82-bit type-table frames: no fixed 32-bit hop — ARF guesses three
 //!   slices — and a 24-bit serial instead of a 32-bit UID; KAT does not port ARF's hop model, see
 //!   `renault_v1_arf.rs`) and Datsun Lada (its key is fixed: 0x4606 + the serial, nothing to
@@ -312,8 +315,11 @@ fn finish_state(raw: u64) -> u64 {
 }
 
 /// `hitag2hell_equiv_key`: the key that leaves the register at `init` after the init rounds
-/// for `(uid, cnt, btn)`, with nonce bits 31..14 taken as zero (see the module doc).
-fn equiv_key(init: u64, uid: u32, cnt: u32, btn: u8) -> u64 {
+/// for `(uid, cnt, btn)`. By default nonce bits 31..14 are taken as zero (see the module doc): the
+/// caller passes the low counter bits and gets an equivalent key. With `full_nonce` every nonce bit
+/// is used, so a caller that knows the whole nonce (e.g. a counter packed into higher nonce bits,
+/// as in a remote whose IV layout differs) gets the exact key.
+fn equiv_key(init: u64, uid: u32, cnt: u32, btn: u8, full_nonce: bool) -> u64 {
     let key_hi16 = rev16(init & 0xFFFF);
     let key = key_hi16 << 32;
     let mut state = 0u64;
@@ -328,7 +334,7 @@ fn equiv_key(init: u64, uid: u32, cnt: u32, btn: u8) -> u64 {
     for i in 0..32 {
         let inj = (init >> (16 + i)) & 1;
         let f = f20(state);
-        let nbit = if i < 18 { 0 } else { ((nonce >> (31 - i)) & 1) as u64 };
+        let nbit = if !full_nonce && i < 18 { 0 } else { ((nonce >> (31 - i)) & 1) as u64 };
         key_lo |= (inj ^ f ^ nbit) << (31 - i);
         state = (state >> 1) | (inj << 47);
     }
@@ -370,6 +376,11 @@ pub struct Hitag2Request {
     pub cnt: u32,
     pub btn: u8,
     pub second: Option<SecondFrame>,
+    /// Use every nonce bit in key reconstruction ([`equiv_key`]) instead of taking bits 31..14 as
+    /// zero. False for the usual Fiat V1 / Renault / Fiat V2 frames (counter < 1024, in the low
+    /// nonce bits); true only when the caller passes a full nonce with the counter in higher bits
+    /// (a remote whose IV layout differs). Kept out of the GPU fast path unless set.
+    pub full_nonce: bool,
 }
 
 /// A recovered key (`Hitag2HellResult`).
@@ -392,7 +403,7 @@ pub struct RecoveredKey {
 fn verify_state(req: &Hitag2Request, raw: u64) -> Option<(u64, u32, u64)> {
     let init = finish_state(raw);
     for uid in [req.uid, !req.uid] {
-        let key = equiv_key(init, uid, req.cnt, req.btn);
+        let key = equiv_key(init, uid, req.cnt, req.btn, req.full_nonce);
         if authenticator(key, uid, req.cnt, req.btn) != req.hop {
             continue;
         }
@@ -1084,7 +1095,7 @@ fn recover_with(kernel: &Kernel, reqs: &[Hitag2Request], range: Range<u32>, ctl:
                 s_hop: r.second.map_or(0, |s| s.hop),
                 s_cnt: r.second.map_or(0, |s| s.cnt),
                 s_btn: r.second.map_or(0, |s| u32::from(s.btn)),
-                _pad: 0,
+                full_nonce: u32::from(r.full_nonce),
             })
             .collect();
         match crate::gpu::hitag2::lowest_hit(first.hop, &gpu_reqs, &kernel.candidates, range.clone(), &ctl.cancel, &ctl.progress) {
@@ -1198,13 +1209,14 @@ fn frame13(signal: &DecodedSignal) -> Option<[u8; 13]> {
     (raw[0] == 0x00 && raw[1] == 0x01 && xor == raw[12]).then_some(raw)
 }
 
-/// The 112-bit Fiat V2 frame from a decode (`data` = bytes 0..8, `extra` = bytes 8..14).
+/// The 112-bit Fiat V2 frame from a decode (`data` = bytes 0..8, `extra` = bytes 8..14, and the
+/// flag fiat_v2.rs sets above them on a Maserati key's HiTag2 frame).
 fn frame14(signal: &DecodedSignal) -> Option<[u8; 14]> {
     if signal.data_count_bit != 112 {
         return None;
     }
     let extra = signal.extra?;
-    if extra >> 48 != 0 {
+    if extra >> (super::fiat_v2::HITAG2_FLAG + 1) != 0 {
         return None;
     }
     let mut raw = [0u8; 14];
@@ -1230,6 +1242,9 @@ pub fn frame_of(protocol: &str, signal: &DecodedSignal) -> Result<Hitag2Frame, S
     };
     if remote == Hitag2Remote::FiatV2 {
         let raw = frame14(signal).ok_or("not a valid Fiat V2 frame")?;
+        if super::fiat_v2::FiatV2Decoder::sends_hitag2_frame(&raw) {
+            return Err("a Maserati key's HiTag2 frame: its hop bit-layout in this longer frame is not decoded, so there is nothing to search".into());
+        }
         let fca = raw[6] & 0xF0 == 0xD0;
         let (hop, cnt) = if fca {
             let raw_cnt = (u32::from(raw[8]) << 6) | u32::from(raw[9] >> 2);
@@ -1302,6 +1317,7 @@ pub fn requests_for(first: &Hitag2Frame, second: Option<&Hitag2Frame>) -> Result
             cnt,
             btn,
             second: second.zip(r2.as_ref()).map(|(f2, r2)| SecondFrame { hop: f2.hop, cnt: r2[i].0, btn: r2[i].1 }),
+            full_nonce: false,
         })
         .collect())
 }
@@ -1372,7 +1388,7 @@ mod tests {
 
     fn known_request(k: &KnownFrames) -> Hitag2Request {
         let (_, uid, (cnt, btn, hop), (cnt2, btn2, hop2), ..) = *k;
-        Hitag2Request { hop, uid, cnt, btn, second: Some(SecondFrame { hop: hop2, cnt: cnt2, btn: btn2 }) }
+        Hitag2Request { hop, uid, cnt, btn, second: Some(SecondFrame { hop: hop2, cnt: cnt2, btn: btn2 }), full_nonce: false }
     }
 
     /// The GPU search (feature `gpu`) recovers each C-verified known frame over a window around its
@@ -1483,14 +1499,14 @@ mod tests {
         assert_eq!(lfsr_inv(0x1234_5678_9ABC), 0x2468_ACF1_3578);
         assert_eq!(finish_state(0x1234_5678_9ABC), 0x48D1_59E2_6AF1);
         assert_eq!((lfsr_inv(MASK48), finish_state(MASK48)), (0xFFFF_FFFF_FFFE, 0xFFFF_FFFF_FFFC));
-        assert_eq!(equiv_key(0x3D32_6E0A_27A5, 0x9496_06B3, 0x13D, 8), 0xA5E4_2428_CA6D);
-        assert_eq!(equiv_key(0x3D32_6E0A_27A5, 0x9496_06B3, 0x4D3D, 8), 0xA5E4_2428_CA6D);
-        assert_eq!(equiv_key(0x9E37_79B9_7F4A, 0x0BAD_F00D, 0x2A5, 0xC), 0x52FE_023D_A743);
+        assert_eq!(equiv_key(0x3D32_6E0A_27A5, 0x9496_06B3, 0x13D, 8, false), 0xA5E4_2428_CA6D);
+        assert_eq!(equiv_key(0x3D32_6E0A_27A5, 0x9496_06B3, 0x4D3D, 8, false), 0xA5E4_2428_CA6D);
+        assert_eq!(equiv_key(0x9E37_79B9_7F4A, 0x0BAD_F00D, 0x2A5, 0xC, false), 0x52FE_023D_A743);
         for k in &KNOWN {
             let (key, uid, (cnt, btn, _), _, init_state, layer2, _) = *k;
             assert_eq!(lfsr(lfsr(init_state)), layer2);
             assert_eq!(finish_state(layer2), init_state);
-            assert_eq!(equiv_key(init_state, uid, cnt, btn), key);
+            assert_eq!(equiv_key(init_state, uid, cnt, btn, false), key);
         }
         let mut rng = XorShift(0x0BAC_CA11_0000_0001);
         for _ in 0..1000 {
@@ -1498,7 +1514,7 @@ mod tests {
             assert_eq!(lfsr_inv(lfsr(s)), s);
             // Any register is some key's: equiv_key inverts init for counters below 1024.
             let (uid, cnt, btn) = (rng.next() as u32, (rng.next() & 0x3FF) as u32, (rng.next() & 0xF) as u8);
-            assert_eq!(init(equiv_key(s, uid, cnt, btn), uid, cnt, btn), s);
+            assert_eq!(init(equiv_key(s, uid, cnt, btn, false), uid, cnt, btn), s);
         }
     }
 
@@ -1622,7 +1638,7 @@ mod tests {
         assert_eq!(panda, want);
         assert_eq!(
             requests_for(&panda, None).unwrap(),
-            [Hitag2Request { hop: 0x299B_D53E, uid: 0xEFB8_2D66, cnt: 0x8D, btn: 2, second: None }]
+            [Hitag2Request { hop: 0x299B_D53E, uid: 0xEFB8_2D66, cnt: 0x8D, btn: 2, second: None, full_nonce: false }]
         );
         // OPEL/Opel Vectra 2008.sub (variant B): one remote under Fiat V1 and Renault V1.
         let v53 = frame_of("Fiat V1", &sig(0x0001_468F_5D25_114D, 0x01C2_6188_AE68, 104)).unwrap();
@@ -1901,6 +1917,7 @@ mod tests {
             cnt: 0x231,
             btn: 2,
             second: Some(SecondFrame { hop: 0x7AB0_EC32, cnt: 0x232, btn: 2 }),
+            full_nonce: false,
         };
         let (out, secs, searched) = timed_recovery(&[req]);
         log_recovery("qDoctor sample", &out, secs, searched);

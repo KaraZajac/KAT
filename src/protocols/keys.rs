@@ -45,6 +45,24 @@ pub struct KeyStore {
     pub vag_keys: Vec<Aut64Key>,
     /// Whether VAG keys have been loaded
     pub vag_keys_loaded: bool,
+    /// Audi BCM2 car keys the user supplied — for the Audi V3 (BCM2) rolling code's MAC. KAT ships
+    /// none; each is a car's own secrets, read from the owner's BCM2 module (see [`crate::audi_v3`]).
+    pub audi_bcm2_keys: Vec<AudiBcm2Car>,
+}
+
+/// The secrets of one Audi BCM2 car, needed to recompute and forge the RF frame's AES-128 MAC
+/// (see [`crate::protocols::audi_v3`]). All of it is read from the car's own module (the immobiliser
+/// block and key slots); KAT ships none and cannot derive them from the air.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AudiBcm2Car {
+    /// A label for the car (from the key file).
+    pub name: String,
+    /// The 128-bit MAC key `K` (immobiliser block, rec07[0x10..0x20]).
+    pub key: [u8; 16],
+    /// The 4-byte per-car value folded into every MAC (rec13[12..16]).
+    pub car_value: [u8; 4],
+    /// The 4-byte ID of each learned key, in key-number order (key 1 first); up to 8.
+    pub key_ids: Vec<[u8; 4]>,
 }
 
 impl KeyStore {
@@ -124,6 +142,16 @@ impl KeyStore {
     /// Get the Star Line manufacturer key
     pub fn get_star_line_mf_key(&self) -> u64 {
         self.star_line_mf_key
+    }
+
+    /// Replace the user's Audi BCM2 car keys.
+    pub fn load_audi_bcm2_keys(&mut self, cars: Vec<AudiBcm2Car>) {
+        self.audi_bcm2_keys = cars;
+    }
+
+    /// The user's Audi BCM2 car keys. Empty unless the user loaded a key file.
+    pub fn audi_bcm2_keys(&self) -> &[AudiBcm2Car] {
+        &self.audi_bcm2_keys
     }
 }
 

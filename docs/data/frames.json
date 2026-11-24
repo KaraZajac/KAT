@@ -525,27 +525,27 @@
     },
     {
      "bits": 112,
-     "button": 180,
-     "counter": "160",
-     "data": "1CCD219CC3FB4",
-     "extra": "F93BA4609355",
-     "file": "MASERATI/more/2016-2021_maserati_ghibli_lock.sub",
+     "button": 7,
+     "counter": "37FD",
+     "data": "1D737A2C357FB",
+     "extra": "200A55E511ED",
+     "file": "chrysler/19_chrysler_pacifica_ul2_l2_t2_rs2_sd2_sd2_p2_t2.sub",
      "name": "Fiat V2",
-     "serial": "CCD219CC"
+     "serial": "D737A2C3"
     }
    ],
    "fields": {
     "serial": {
-     "frames": 1021,
+     "frames": 1351,
      "how": "",
      "offset": 16,
-     "values": 6,
+     "values": 7,
      "width": 32,
      "word": "data"
     }
    },
-   "files": 13,
-   "frames": 1021
+   "files": 19,
+   "frames": 1351
   },
   "Ford V0": {
    "bits": 64,
@@ -688,25 +688,17 @@
     }
    ],
    "fields": {
-    "button": {
-     "frames": 20,
-     "how": "",
-     "offset": 8,
-     "values": 4,
-     "width": 4,
-     "word": "data"
-    },
     "serial": {
-     "frames": 20,
+     "frames": 100,
      "how": "",
      "offset": 24,
-     "values": 1,
+     "values": 2,
      "width": 32,
      "word": "data"
     }
    },
-   "files": 1,
-   "frames": 20
+   "files": 3,
+   "frames": 100
   },
   "GM RFA": {
    "bits": 84,
@@ -2262,6 +2254,71 @@
    },
    "files": 24,
    "frames": 4417
+  },
+  "Mercedes V1": {
+   "bits": 122,
+   "examples": [
+    {
+     "bits": 122,
+     "button": 0,
+     "counter": "155",
+     "data": "95402A1973806055",
+     "extra": "4564127EA88833",
+     "file": "mercedes/more/2015_mercedes_fbs3_lock_2.sub",
+     "name": "Mercedes V1",
+     "serial": "2A197380"
+    },
+    {
+     "bits": 122,
+     "button": 1,
+     "counter": "15A",
+     "data": "C5402A197380602D",
+     "extra": "128261C2324C0B",
+     "file": "mercedes/more/2015_mercedes_fbs3_unlock_2.sub",
+     "name": "Mercedes V1",
+     "serial": "2A197380"
+    },
+    {
+     "bits": 122,
+     "button": 0,
+     "counter": "157",
+     "data": "95402A1973806075",
+     "extra": "76C04C1948BA15",
+     "file": "mercedes/more/2015_mercedes_fbs3_lock_2.sub",
+     "name": "Mercedes V1",
+     "serial": "2A197380"
+    },
+    {
+     "bits": 122,
+     "button": 1,
+     "counter": "15B",
+     "data": "C5402A197380606D",
+     "extra": "7ABFE0AE1C4BA5",
+     "file": "mercedes/more/2015_mercedes_fbs3_unlock_2.sub",
+     "name": "Mercedes V1",
+     "serial": "2A197380"
+    }
+   ],
+   "fields": {
+    "button": {
+     "frames": 13,
+     "how": "",
+     "offset": 62,
+     "values": 2,
+     "width": 1,
+     "word": "data"
+    },
+    "serial": {
+     "frames": 13,
+     "how": "",
+     "offset": 16,
+     "values": 1,
+     "width": 32,
+     "word": "data"
+    }
+   },
+   "files": 2,
+   "frames": 13
   },
   "Microchip-HCS361": {
    "bits": 67,

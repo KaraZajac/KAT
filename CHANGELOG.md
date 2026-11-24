@@ -2,7 +2,55 @@
 
 All notable changes to KAT are documented here.
 
-## [Unreleased]
+## [1.24.0] - 2026-11-24
+
+An ECU & immobiliser reference section on the site, an encoder for the Audi V3 BCM2 frame, and the Maserati keys read with their check — plus recordings of a Maserati Levante, a 2026 VW Amarok and a 2015 Mercedes FBS3 key.
+
+### Added
+
+- **ECU & immobiliser reference** ([ecu.md](docs/ecu.md)). A companion to the RF protocol pages for the
+  wired side of the car: how engine ECUs and body modules hold their immobiliser secret, the
+  memory‑device families, how a dump is read, and family pages for PSA, Magneti Marelli IAW (TMS374),
+  Mercedes Temic and BMW. The PSA page documents where the legacy Peugeot/Citroën ECUs keep the PIN,
+  recovered by reverse‑engineering the trade "PSA Calculator" tool; concrete per‑vehicle codes are kept
+  out, as the RF pages keep real key IDs out.
+- **Recordings of a Maserati Levante key, and more of the Maserati Ghibli key**, from the key specialist
+  (`IMPORTS/MASERATI/more/2016-2021_maserati_levante_*`, `IMPORTS/MASERATI/more/2016-2021_maserati_ghibli_*_2.sub`):
+  32 and 30 presses, all read as Fiat V2.
+- **Recordings of a 2026 VW Amarok key**, from a tester's PortaPack IQ captures, converted to Flipper files
+  (`IMPORTS/VAG/more/2026_vw_amarok_{lock,unlock}.sub`): the Ford-built Amarok's key sends Ford V3 at about
+  434.24 MHz, 20 Lock and 20 Unlock presses, all read ([ford_v3.md](docs/ford_v3.md#validation)).
+- **Recordings of the 2015 Mercedes FBS3 key that read**, from the key specialist, made at 433.95 MHz
+  (`IMPORTS/mercedes/more/2015_mercedes_fbs3_{lock,unlock}_2.sub`): 4 lock and 5 unlock presses, all
+  Mercedes V1. The key's first recordings, at 433.92 MHz, stay unread: the key sends about 30 kHz higher
+  ([unidentified_captures.md](docs/unidentified_captures.md#mercedes-benz-2015-fbs3-key)).
+- **Audi V3: an encoder for the BCM2 frame** ([audi_v3.md](docs/audi_v3.md#encoding-the-bcm2-frame)).
+  With the car's secrets in an `audi_bcm2_keys` file (read from the owner's BCM2 module; KAT ships
+  none), KAT makes a key's real next press — it recomputes the frame's AES-128 MAC to confirm the key
+  fits a capture, then raises the counter and re-signs for "Send next code" or a chosen button. The
+  MAC is read from the module's firmware and not yet confirmed against a real car's frames, so the
+  encoder is experimental until recordings of a dumped car's own keys verify it. Without a matching
+  key, and for the older FoxFW-style frames (encrypted hop), KAT offers Replay only.
+
+### Changed
+
+- **Audi V3: every key of a BCM2 car reads, named with its key** ([audi_v3.md](docs/audi_v3.md#the-modules-side-from-its-firmware)).
+  The firmware of an Audi BCM2 module, read by the key specialist, shows what the frame's first byte is: which of
+  the car's keys sent it (1–8), the key's status and the button; the 48 bits after it are an AES-128 MAC. KAT
+  read only the first key's frames; it now reads every key, status and button, with the sum checked, and names
+  them "Lock, key 2". FoxFW's Audi V3 turns out to be a second key's frames read one bit early: FoxFW's own
+  decoder reads them as its two buttons, which KAT now reads whole, with their key and sum.
+
+### Fixed
+
+- **Fiat V2: the Maserati keys' frame and its check** ([fiat_v2.md](docs/fiat_v2.md#the-maserati-keys-hitag2-frame-kats-from-the-captures)).
+  The Ghibli and Levante keys send the frame of the HiTag2 remotes in the 2016 paper "Lock It and Still Lose It",
+  with an XOR check, which KAT now verifies (122 of 122 presses). KAT shows the button from the button flags the
+  FCA keys also send, and the frame's 10-bit counter. Before, it showed the raw button byte, whose low bits are
+  the counter's. A Maserati frame with a counter of 0x080–0x09F would have been read in the FCA keys' layout; the
+  check is now tried first. KAT reads no rolling-code hop from this frame (it is 7 bits longer than the references'
+  and the hop does not sit at their offset), so the frames are replayed, not forward-encoded, and "Recover key
+  (HiTag2)" is not offered for them.
 
 ## [1.23.0] - 2026-11-23
 

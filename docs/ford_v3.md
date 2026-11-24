@@ -56,7 +56,8 @@ US.
 - **Encoding:** Manchester
 - **RF modulation:** AM and FM (ProtoPirate flags `AM | FM`)
 - **Encryption:** none (plaintext)
-- **Frequencies:** 315 MHz, 433.92 MHz (the ±2 % match covers 312–315 MHz US captures)
+- **Frequencies:** 315 MHz, 433.92 MHz (the ±2 % match covers 312–315 MHz US captures); a 2026 VW Amarok's key
+  sends at about 434.24 MHz (2-FSK, ±24 kHz)
 
 Neither path verifies anything (there is no checksum), so the CRC column shows "none" for Ford V3 captures, and
 the EU path takes part only in the normal-polarity pass of KAT's registry: with no check at all, a 240/480 µs
@@ -114,6 +115,16 @@ own decoder reads them as another frame with another serial, and so does KAT's.
   `0x43A88F90`, `raw[6]` `0x68` lock / `0x70` unlock, and the same values in every repeat. These bits match
   ProtoPirate and a direct half-bit decode of the capture. The earlier port used KAT's shared Manchester table,
   which is not Flipper's, and produced serial `0xDF56FD7D` instead.
+- **EU path, a 2026 VW Amarok key.** The second-generation Amarok shares the Ford Ranger's platform and is built
+  by Ford; a tester's key (a Valeo flip key, board B6681-2, NXP chip marked F7345FL1020) sends Ford V3 EU
+  frames. Recorded with a PortaPack as IQ (centre 434.25 MHz, 250 kS/s) and converted to
+  `VAG/more/2026_vw_amarok_lock.sub` / `..._unlock.sub` with an FM discriminator (hysteresis slicer, pulses
+  under 30 µs merged): 2-FSK at about 434.24 MHz, ±24 kHz, half bit 240 µs; each press sends the frame three
+  times, 100 ms long and 100 ms apart. Header `0x00`, serial, `raw[5]` `0x9B`, button `0xFE` Lock / `0xFD`
+  Unlock, the counter inverted and one up per press (20 Lock and 20 Unlock presses, none missing), then the
+  32-bit hop. In the IQ files the middle copy of every press has a gap of 0.4 to 1.7 ms at a different place
+  (most likely samples the recorder dropped); read straight from the IQ file, one such copy passes as a frame
+  with another serial and counter, since the EU path checks nothing.
 - **Held back in a stream (KAT).** The EU path checks nothing, so it also reads other remotes' Manchester at
   250/500 µs. On an Xhorse Honda V0 remote's three recordings (`IMPORTS/honda/more/HondaV0_xHorse_*`) it read 7
   noise frames inside the presses (all zeros, all ones, serial 0), and each of its hits reset every decoder,
@@ -144,8 +155,8 @@ own decoder reads them as another frame with another serial, and so does KAT's.
   (`rtl_433_tests/tests/revers/rb2/01`, pulses within 60 µs of 240 and 480 µs) are Ford V3 in ProtoPirate's
   and doctor-firmware's C, three frames each; up to 1.12.0 KAT listed them the same way. They are Revers_RB2 now, 7 messages each, and never Ford V3
   (`rtl433_recordings_decode`). Flipper's capture of a real remote (`revers_rb2_raw.sub`) was never taken: its
-  pulses are wider apart. The LDV captures, the only real EU frames, decode as before (and are listed as LDV V0,
-  see above).
+  pulses are wider apart. The LDV captures, the only real EU frames at the time, decode as before (and are
+  listed as LDV V0, see above).
 - **C oracle:** on the LDV captures every frame (fields and all 13 bytes) equals the compiled ProtoPirate and
   Flipper-ARF decoders; on 2000 randomized EU/US bursts the only differences are frames admitted by the US
   relaxation above. No reference has a Ford V3 encoder (all three register `.encoder` with NULL alloc).

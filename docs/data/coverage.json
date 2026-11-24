@@ -274,19 +274,6 @@
    "some_remote_read": 0
   },
   {
-   "all_remotes_read": 0,
-   "filing_only": 0,
-   "likely_read": 0,
-   "make": "Land Rover",
-   "maybe_read": 0,
-   "model_years": 57,
-   "nothing": 55,
-   "recorded_no_data": 2,
-   "recorded_unread": 0,
-   "signal_known": 0,
-   "some_remote_read": 0
-  },
-  {
    "all_remotes_read": 26,
    "filing_only": 0,
    "likely_read": 0,
@@ -298,6 +285,19 @@
    "recorded_unread": 0,
    "signal_known": 0,
    "some_remote_read": 26
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Land Rover",
+   "maybe_read": 0,
+   "model_years": 46,
+   "nothing": 44,
+   "recorded_no_data": 2,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
   },
   {
    "all_remotes_read": 0,
@@ -333,19 +333,6 @@
    "maybe_read": 0,
    "model_years": 40,
    "nothing": 40,
-   "recorded_no_data": 0,
-   "recorded_unread": 0,
-   "signal_known": 0,
-   "some_remote_read": 0
-  },
-  {
-   "all_remotes_read": 0,
-   "filing_only": 0,
-   "likely_read": 0,
-   "make": "Jaguar",
-   "maybe_read": 0,
-   "model_years": 38,
-   "nothing": 38,
    "recorded_no_data": 0,
    "recorded_unread": 0,
    "signal_known": 0,
@@ -419,6 +406,19 @@
   {
    "all_remotes_read": 0,
    "filing_only": 0,
+   "likely_read": 0,
+   "make": "Jaguar",
+   "maybe_read": 0,
+   "model_years": 27,
+   "nothing": 27,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 0,
+   "filing_only": 0,
    "likely_read": 5,
    "make": "Mercury",
    "maybe_read": 0,
@@ -441,19 +441,6 @@
    "recorded_unread": 0,
    "signal_known": 0,
    "some_remote_read": 7
-  },
-  {
-   "all_remotes_read": 20,
-   "filing_only": 0,
-   "likely_read": 0,
-   "make": "Alfa Romeo",
-   "maybe_read": 0,
-   "model_years": 20,
-   "nothing": 0,
-   "recorded_no_data": 0,
-   "recorded_unread": 0,
-   "signal_known": 0,
-   "some_remote_read": 20
   },
   {
    "all_remotes_read": 0,
@@ -480,6 +467,19 @@
    "recorded_unread": 0,
    "signal_known": 0,
    "some_remote_read": 0
+  },
+  {
+   "all_remotes_read": 12,
+   "filing_only": 0,
+   "likely_read": 0,
+   "make": "Alfa Romeo",
+   "maybe_read": 0,
+   "model_years": 12,
+   "nothing": 0,
+   "recorded_no_data": 0,
+   "recorded_unread": 0,
+   "signal_known": 0,
+   "some_remote_read": 12
   },
   {
    "all_remotes_read": 0,
@@ -538,7 +538,7 @@
   "fcc_ids_known": 1303,
   "fcc_ids_with_cars": 285,
   "filings_read": 90,
-  "model_years": 4067
+  "model_years": 4037
  },
  "gaps": [
   {
@@ -739,22 +739,6 @@
    "models": "Ford Bronco, Ford Cobra, Ford EDGE, Ford Expedition, Ford Explorer, Ford F-150, Ford F-Series, Ford Maverick, Ford Mustang, Ford Ranger, Ford Raptor, Ford ST, L",
    "status": "none",
    "years": "2016-2024"
-  },
-  {
-   "expect": "",
-   "filing_read": false,
-   "frequency": "315 MHz",
-   "id": "KOBJTF10A",
-   "keying": "both",
-   "maker": "Lear Corporation",
-   "makes": [
-    "Jaguar",
-    "Land Rover"
-   ],
-   "model_years": 55,
-   "models": "Jaguar Range Rover, Jaguar Rover, Jaguar XJ, Land Rover Discovery, Land Rover LR2, Land Rover LR4, Land Rover Range Rover, Land Rover Rover",
-   "status": "none",
-   "years": "2010-2020"
   },
   {
    "expect": "",
@@ -1327,6 +1311,22 @@
    "expect": "",
    "filing_read": false,
    "frequency": "315 MHz",
+   "id": "KOBJTF10A",
+   "keying": "both",
+   "maker": "Lear Corporation",
+   "makes": [
+    "Jaguar",
+    "Land Rover"
+   ],
+   "model_years": 33,
+   "models": "Jaguar Range Rover, Jaguar XJ, Land Rover Discovery, Land Rover LR2, Land Rover LR4, Land Rover Range Rover",
+   "status": "none",
+   "years": "2011-2020"
+  },
+  {
+   "expect": "",
+   "filing_read": false,
+   "frequency": "315 MHz",
    "id": "KR55WK50138",
    "keying": "ASK",
    "maker": "AUMOVIO Germany GmbH",
@@ -1498,15 +1498,15 @@
   }
  ],
  "totals": {
-  "all_remotes_read": 310,
+  "all_remotes_read": 302,
   "filing_only": 324,
   "likely_read": 307,
   "maybe_read": 0,
-  "model_years": 4067,
-  "nothing": 2545,
+  "model_years": 4037,
+  "nothing": 2523,
   "recorded_no_data": 260,
   "recorded_unread": 168,
   "signal_known": 0,
-  "some_remote_read": 463
+  "some_remote_read": 455
  }
 }

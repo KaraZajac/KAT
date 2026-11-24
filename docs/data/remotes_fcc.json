@@ -2170,6 +2170,23 @@
     }
    ]
   },
+  "E4EG8D-443H-A": {
+   "chips": [],
+   "notes": [],
+   "photos": [
+    {
+     "date": "2000-11-01",
+     "doc": 59276,
+     "exhibit": "Photos",
+     "h": 777,
+     "page": 1,
+     "source": "https://fccid.io/E4EG8D-443H-A/Internal-Photos/Photos-59276.pdf",
+     "src": "img/fobs/e4eg8d-443h-a/1.webp",
+     "thumb": "img/fobs/e4eg8d-443h-a/1t.webp",
+     "w": 485
+    }
+   ]
+  },
   "GQ4-52T": {
    "chips": [
     "tda5150"
@@ -5307,6 +5324,34 @@
     }
    ]
   },
+  "KR5ALFA434": {
+   "chips": [],
+   "notes": [],
+   "photos": [
+    {
+     "date": "2016-03-14",
+     "doc": 2790138,
+     "exhibit": "Internal Photos",
+     "h": 540,
+     "page": 1,
+     "source": "https://fccid.io/KR5ALFA434/Internal-Photos/Internal-Photos-2790138.pdf",
+     "src": "img/fobs/kr5alfa434/1.webp",
+     "thumb": "img/fobs/kr5alfa434/1t.webp",
+     "w": 960
+    },
+    {
+     "date": "2016-03-14",
+     "doc": 2790138,
+     "exhibit": "Internal Photos",
+     "h": 540,
+     "page": 2,
+     "source": "https://fccid.io/KR5ALFA434/Internal-Photos/Internal-Photos-2790138.pdf",
+     "src": "img/fobs/kr5alfa434/2.webp",
+     "thumb": "img/fobs/kr5alfa434/2t.webp",
+     "w": 960
+    }
+   ]
+  },
   "KR5FS14": {
    "chips": [],
    "notes": [],
@@ -6673,6 +6718,56 @@
      "source": "https://fccid.io/M3N-40821302/Internal-Photos/internal-photos-1386310.pdf",
      "src": "img/fobs/m3n-40821302/6.webp",
      "thumb": "img/fobs/m3n-40821302/6t.webp",
+     "w": 960
+    }
+   ]
+  },
+  "M3N-7393490": {
+   "chips": [],
+   "notes": [],
+   "photos": [
+    {
+     "date": "2013-05-28",
+     "doc": 1976532,
+     "exhibit": "Internal Photos",
+     "h": 720,
+     "page": 1,
+     "source": "https://fccid.io/M3N-7393490/Internal-Photos/Internal-Photos-1976532.pdf",
+     "src": "img/fobs/m3n-7393490/1.webp",
+     "thumb": "img/fobs/m3n-7393490/1t.webp",
+     "w": 960
+    },
+    {
+     "date": "2013-05-28",
+     "doc": 1976532,
+     "exhibit": "Internal Photos",
+     "h": 720,
+     "page": 2,
+     "source": "https://fccid.io/M3N-7393490/Internal-Photos/Internal-Photos-1976532.pdf",
+     "src": "img/fobs/m3n-7393490/2.webp",
+     "thumb": "img/fobs/m3n-7393490/2t.webp",
+     "w": 960
+    },
+    {
+     "date": "2013-05-28",
+     "doc": 1976532,
+     "exhibit": "Internal Photos",
+     "h": 720,
+     "page": 3,
+     "source": "https://fccid.io/M3N-7393490/Internal-Photos/Internal-Photos-1976532.pdf",
+     "src": "img/fobs/m3n-7393490/3.webp",
+     "thumb": "img/fobs/m3n-7393490/3t.webp",
+     "w": 960
+    },
+    {
+     "date": "2013-05-28",
+     "doc": 1976532,
+     "exhibit": "Internal Photos",
+     "h": 720,
+     "page": 4,
+     "source": "https://fccid.io/M3N-7393490/Internal-Photos/Internal-Photos-1976532.pdf",
+     "src": "img/fobs/m3n-7393490/4.webp",
+     "thumb": "img/fobs/m3n-7393490/4t.webp",
      "w": 960
     }
    ]
@@ -9545,7 +9640,30 @@
      "quoted": false
     }
    ],
-   "photos": []
+   "photos": [
+    {
+     "date": "2000-10-31",
+     "doc": 102207,
+     "exhibit": "Board front",
+     "h": 487,
+     "page": 1,
+     "source": "https://fccid.io/OUCG8D-355H-A/Internal-Photos/Board-front-102207.pdf",
+     "src": "img/fobs/oucg8d-355h-a/1.webp",
+     "thumb": "img/fobs/oucg8d-355h-a/1t.webp",
+     "w": 960
+    },
+    {
+     "date": "2000-10-31",
+     "doc": 102208,
+     "exhibit": "Board rear",
+     "h": 484,
+     "page": 1,
+     "source": "https://fccid.io/OUCG8D-355H-A/Internal-Photos/Board-rear-102208.pdf",
+     "src": "img/fobs/oucg8d-355h-a/2.webp",
+     "thumb": "img/fobs/oucg8d-355h-a/2t.webp",
+     "w": 960
+    }
+   ]
   },
   "OUCG8D-380H-A": {
    "chips": [
@@ -9638,7 +9756,52 @@
      "quoted": false
     }
    ],
-   "photos": []
+   "photos": [
+    {
+     "date": "2002-02-13",
+     "doc": 226083,
+     "exhibit": "Internal Photos 1 of 4",
+     "h": 276,
+     "page": 1,
+     "source": "https://fccid.io/OUCG8D-380H-A/Internal-Photos/Internal-Photos-1-of-4-226083.pdf",
+     "src": "img/fobs/oucg8d-380h-a/1.webp",
+     "thumb": "img/fobs/oucg8d-380h-a/1t.webp",
+     "w": 359
+    },
+    {
+     "date": "2002-02-13",
+     "doc": 226084,
+     "exhibit": "Internal Photo 2 of 4",
+     "h": 267,
+     "page": 1,
+     "source": "https://fccid.io/OUCG8D-380H-A/Internal-Photos/Internal-Photo-2-of-4-226084.pdf",
+     "src": "img/fobs/oucg8d-380h-a/2.webp",
+     "thumb": "img/fobs/oucg8d-380h-a/2t.webp",
+     "w": 364
+    },
+    {
+     "date": "2002-02-13",
+     "doc": 226085,
+     "exhibit": "Internal Photo 3 of 4",
+     "h": 235,
+     "page": 1,
+     "source": "https://fccid.io/OUCG8D-380H-A/Internal-Photos/Internal-Photo-3-of-4-226085.pdf",
+     "src": "img/fobs/oucg8d-380h-a/3.webp",
+     "thumb": "img/fobs/oucg8d-380h-a/3t.webp",
+     "w": 309
+    },
+    {
+     "date": "2002-02-13",
+     "doc": 226086,
+     "exhibit": "Internal Photo 4 of 4",
+     "h": 234,
+     "page": 1,
+     "source": "https://fccid.io/OUCG8D-380H-A/Internal-Photos/Internal-Photo-4-of-4-226086.pdf",
+     "src": "img/fobs/oucg8d-380h-a/4.webp",
+     "thumb": "img/fobs/oucg8d-380h-a/4t.webp",
+     "w": 317
+    }
+   ]
   },
   "OUCG8D-387H-A": {
    "chips": [],

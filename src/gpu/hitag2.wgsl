@@ -4,7 +4,7 @@
 // src/protocols/hitag2_hell.rs (verify chain, find_state, and end-to-end recovery of planted keys).
 
 struct Params { n_cands: u32, hop: u32, poly_lo: u32, poly_hi: u32, n_reqs: u32, base_idx: u32, _p0: u32, _p1: u32 };
-struct Req { uid: u32, cnt: u32, btn: u32, has_second: u32, s_hop: u32, s_cnt: u32, s_btn: u32, _pad: u32 };
+struct Req { uid: u32, cnt: u32, btn: u32, has_second: u32, s_hop: u32, s_cnt: u32, s_btn: u32, full_nonce: u32 };
 struct Out { count: atomic<u32>, idx: array<u32> };  // count, then one candidate index per hit
 
 @group(0) @binding(0) var<uniform> p: Params;
@@ -80,7 +80,7 @@ fn authenticator(key: vec2<u32>, uid: u32, cnt: u32, btn: u32) -> u32 {
 }
 
 // equiv_key(init, uid, cnt, btn): the key leaving the register at `init` after init rounds.
-fn equiv_key(init_reg: vec2<u32>, uid: u32, cnt: u32, btn: u32) -> vec2<u32> {
+fn equiv_key(init_reg: vec2<u32>, uid: u32, cnt: u32, btn: u32, full_nonce: u32) -> vec2<u32> {
   let key_hi16 = rev16(init_reg.x & 0xFFFFu);        // init & 0xFFFF, reversed
   // key = key_hi16 << 32  → lives in key.y (bits 32..47)
   var st = vec2(0u, 0u);
@@ -92,7 +92,7 @@ fn equiv_key(init_reg: vec2<u32>, uid: u32, cnt: u32, btn: u32) -> vec2<u32> {
     let inj = bit48(init_reg, 16u + i);
     let f = f20(st);
     var nbit = 0u;
-    if (i >= 18u) { nbit = (nonce >> (31u - i)) & 1u; }
+    if (full_nonce == 1u || i >= 18u) { nbit = (nonce >> (31u - i)) & 1u; }
     key_lo = key_lo | (((inj ^ f ^ nbit) & 1u) << (31u - i));
     st = shr1(st);
     st.y = st.y | (inj << 15u);
@@ -130,7 +130,7 @@ fn try_emit(raw: vec2<u32>, cand_index: u32) {
     var uids = array<u32,2>(rq.uid, ~rq.uid);
     for (var u = 0u; u < 2u; u = u + 1u) {
       let uid = uids[u];
-      let key = equiv_key(init_reg, uid, rq.cnt, rq.btn);
+      let key = equiv_key(init_reg, uid, rq.cnt, rq.btn, rq.full_nonce);
       if (authenticator(key, uid, rq.cnt, rq.btn) != p.hop) { continue; }
       if (rq.has_second == 1u && authenticator(key, uid, rq.s_cnt, rq.s_btn) != rq.s_hop) { continue; }
       let slot = atomicAdd(&out.count, 1u);

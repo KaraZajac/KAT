@@ -6,7 +6,7 @@
    "base": "Ford V1",
    "page": "ford_v1_jlr",
    "make": "Jaguar/Land Rover",
-   "encryption": "Rolling code (128-bit key)",
+   "encryption": "Rolling code (Feistel, AES-128 rounds, car key)",
    "encoder": false,
    "frequencies": [
     433920000

@@ -15,10 +15,11 @@ Renault V1 code; `fiat_v2.c` before).
 Rolling-code keyfobs from FCA (Fiat / Chrysler / Jeep / Alfa Romeo). Each burst carries one 112-bit Manchester
 frame at 210/420 µs between long LOW gaps. In the references the frame holds a 32-bit UID, a type nibble, a
 2-bit button selector, an 11- or 14-bit counter and a 32-bit hop code; the real fobs send button flags and a
-14-bit counter ([below](#the-fca-fobs-layout-kats-from-the-captures)). Real captures in IMPORTS:
-`chrysler/19_chrysler_pacifica*`, `jeep/22_jeep_renegade*`, and a key specialist's Alfa Romeo Giulia and Stelvio
-(`ALFA ROMEO/more/2016-2025_*`), Jeep Wrangler (`jeep/more/2019-2025_*`) and Maserati Ghibli
-(`MASERATI/more/2016-2021_maserati_ghibli_*`, the references' non-FCA layout).
+14-bit counter ([below](#the-fca-fobs-layout-kats-from-the-captures)), and the Maserati keys the HiTag2 remotes'
+frame with an XOR check ([below](#the-maserati-keys-hitag2-frame-kats-from-the-captures)). Real captures in
+IMPORTS: `chrysler/19_chrysler_pacifica*`, `jeep/22_jeep_renegade*`, and a key specialist's Alfa Romeo Giulia and
+Stelvio (`ALFA ROMEO/more/2016-2025_*`), Jeep Wrangler (`jeep/more/2019-2025_*`) and Maserati Ghibli and Levante
+(`MASERATI/more/2016-2021_maserati_*`).
 
 ## Timing
 
@@ -42,13 +43,13 @@ frame at 210/420 µs between long LOW gaps. In the references the frame holds a 
 - **non-FCA:** counter = NOT(`(raw[7] & 0x3F) << 5` OR `raw[8] >> 3`) & 0x7FF (11-bit), hop = raw[9..12]
 - **FCA (type `0xD`):** counter = NOT(`raw[8] << 6` OR `raw[9] >> 2`) & 0x3FFF (14-bit), hop = raw[10..13]
 
-The non-FCA layout is a real key's: a key specialist's 2016–2021 Maserati Ghibli key sends it (20 presses of each
-button). The selector follows the recordings' names (2 Lock, 3 Unlock, 1 Trunk), and the 11-bit counter goes up by
-one with every press, on from one recording to the next (59 of 59 steps). Its flag word does not have the FCA fobs'
-shape (below), so KAT reads it with the C's fields. None of Flipper-ARF's known keys reproduces its hop, read in
-either layout, so it is replayed.
+The non-FCA layout is the C's reading of a real frame, the Maserati keys' HiTag2 frame
+([below](#the-maserati-keys-hitag2-frame-kats-from-the-captures)): its selector and its counter read right on the
+three buttons recorded, its hop does not. None of Flipper-ARF's known keys reproduces that hop, read in either
+layout, so those frames are replayed.
 
-**KAT packing:** `data` = raw[0..8], `data_count_bit` = 112, `extra` = raw[8..14] (48 bits, right-aligned).
+**KAT packing:** `data` = raw[0..8], `data_count_bit` = 112, `extra` = raw[8..14] (48 bits, right-aligned), with
+bit 48 set on a frame that carries the Maserati keys' check (below).
 
 ### The FCA fobs' layout (KAT's, from the captures)
 
@@ -105,6 +106,49 @@ FoxFW's Jeep V0 (`jeep_v0.c`) reads the Renegade's frames this way, inverted, wi
 (`0x8104` Unlock, `0x8044` Lock, `0x8804` Remote start, `0x8024` Panic); it takes the 16-bit word's high byte for
 a constant `0x07`, and so reads no other fob (not the Pacifica).
 
+### The Maserati keys' HiTag2 frame (KAT's, from the captures)
+
+A key specialist's 2016–2021 Maserati Ghibli and Levante keys (`MASERATI/more/2016-2021_maserati_*`: the Ghibli
+in two sessions, 90 presses, the Levante 32; each recording named after the button pressed) send the frame of the
+HiTag2 remotes in Garcia et al., "Lock It and Still Lose It" (USENIX Security 2016, Figure 11: `0x0001`, UID, a
+4-bit button, `lctr` = the counter's low 10 bits, 32 bits of keystream, a `0`, and an 8-bit check "computed by
+simply XORing each byte"; KAT's [Hitag2](hitag2_rke.md) decoder reads that frame). Seven more bits come between
+the UID and the button, and with the button they are the FCA fobs' flag word (its top 11 bits); two more bits
+follow the check. Read inverted, as the FCA fobs' fields are (bit 0 = the top bit of raw[0]):
+
+| Bits (inverted) | Field |
+|---|---|
+| 0..15 | the markers |
+| 16..47 | UID |
+| 48..58 | the FCA fobs' flag word, bits 15..5: top nibble `0xC` on both keys, then the button flags, one of bits 11..5 (8 Unlock, 7 Trunk, 6 Lock, as on the FCA fobs). Bits 8..5 are the paper's 4-bit button; bit 5 is the FCA fobs' Panic, and no Maserati Panic press was recorded |
+| 59..68 | `lctr`, 10 bits: up by one with every press (119 of 119 steps, within the recordings and on from one recording to the next of a session; 12 presses were not recorded between the Ghibli's two sessions) |
+| 69 | `1` — fixed on all 122 presses |
+| 70..100 | the rolling part (a HiTag2 hop); see "The hop is not decoded" below |
+| 101 | `1` (the paper's `0`, inverted) — fixed on all 122 presses |
+| 102..109 | check: the XOR of bits 16..101 taken as bytes from bit 16, the last six bits padded with two zeros. It holds on all 122 presses |
+| 110..111 | `10` (fixed) |
+
+Read without the inversion, the check is the same XOR with `0x03` added. The FCA fobs' frames carry no check.
+
+A frame that carries the check (bits 69 and 101, bits 110..111, the XOR, and one button flag) is read so:
+`button` = the flag's code in the table above (2 Lock, 3 Trunk, 4 Unlock), `counter` = `lctr`, and `crc_valid` is
+set, so KAT shows the check as passed. KAT 1.23 showed the C's fields: the raw button byte, whose low six bits
+hold the 11-bit counter's top six, and that counter. The check is tried before the FCA fobs' layout. With `lctr`
+`0x080`..`0x09F`, a Maserati frame has the FCA fobs' flag-word shape (its low five bits are `lctr`'s top five),
+and KAT 1.23 would have read it in that layout. An FCA fob's frame passes the check's 11 bits by chance once in
+2048 frames; none in IMPORTS does. A frame without the check is read as before, and no frame is dropped for lacking
+it. `serial`, `data`, the key file and the replay are unchanged.
+
+### The hop is not decoded
+
+This frame is 7 bits longer than the references' Fiat V2 frame, and its 32 cipher-output (hop) bits do not sit at
+the references' offset: fixed bits fall at 69 and 101, leaving 31 varying bits (70..100) between the counter and
+the check, and the C's hop window (`raw[9..12]` = bits 72..103) runs into the fixed bit and the check. KAT does
+**not** read a hop from these frames; it uses only the button, the counter and the XOR check, none of which need
+it. So these frames are never forward-encoded, and [Recover key (HiTag2)](hitag2_hell.md) does not take them.
+Reading the hop — which would let the HiTag2 key be recovered as for the other Fiat/Renault remotes — needs its
+bit layout in this frame worked out, and is left undone.
+
 On air, a bit b is sent as half-bits (!b, b) (LOW/HIGH = 1). Every genuine frame in IMPORTS uses this polarity,
 which the C reaches through its inverted try.
 
@@ -114,7 +158,8 @@ which the C reaches through its inverted try.
 - **RF modulation:** AM (OOK)
 - **Encryption:** rolling code: a 32-bit hop, which Flipper-ARF and qDoctor take for Fiat V1's HITAG2
   authenticator (not confirmed against a real key); recomputed only when a known or saved key reproduces it,
-  replayed otherwise (see Encoder)
+  replayed otherwise (see Encoder). The Maserati keys send the HiTag2 remotes' frame; its hop sits at an
+  offset KAT has not decoded in this longer frame, so KAT reads no hop from it (above)
 - **Frequencies:** 315 MHz, 433.92 MHz
 
 ## Decoder Steps
@@ -163,10 +208,13 @@ Frame content from Flipper-ARF, waveform from doctor-firmware:
 
 Decodes REAL IMPORTS captures: the Chrysler Pacifica (UID `0xD737A2C3`, 47 frames, 434.075 MHz) and the Jeep
 Renegade (UID `0xD08BE613`, 29 frames, 433.889 MHz), the key specialist's Alfa Romeo Giulia, Alfa Romeo Stelvio
-and Jeep Wrangler (8 recordings, 433.92 MHz, 160 presses, 704 frames) and Maserati Ghibli (3 recordings, 60
-presses, 241 frames, read in the non-FCA layout); in these files KAT reads nothing but Fiat V2. The UID is stable, and the button flags and the 14-bit counter follow the recordings' names press
-for press (the table under "The FCA fobs' layout"; `chrysler_and_jeep_presses_follow_their_recordings_names`,
-`alfa_romeo_and_jeep_wrangler_presses_follow_their_recordings_names`). The LDV / Ford V3 captures do not match.
+and Jeep Wrangler (8 recordings, 433.92 MHz, 160 presses, 704 frames), and Maserati Ghibli and Levante (9
+recordings, 122 presses, 571 frames, all with the HiTag2 frame's check); in these files KAT reads nothing but Fiat
+V2. The UID is stable, and the button flags and the counter follow the recordings' names press for press (the
+table under "The FCA fobs' layout"; `chrysler_and_jeep_presses_follow_their_recordings_names`,
+`alfa_romeo_and_jeep_wrangler_presses_follow_their_recordings_names`, `maserati_keys_send_the_hitag2_frame`;
+`the_hitag2_frames_check_comes_before_the_fca_layout` covers a made-up frame in the FCA shape). The LDV / Ford V3
+captures do not match.
 A volunteer's Alfa Romeo Giulia (2015–2026, 433.92 MHz, not in `IMPORTS`) uses Fiat V2
 too: 5 lock and 5 unlock codes, the frames doctor-firmware, ProtoPirate and Flipper-ARF read. Its unlock
 frames also form a valid Ford V3 US frame in the opposite polarity; KAT 1.8.5 listed 28 of those 30 frames as

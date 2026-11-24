@@ -1702,10 +1702,17 @@ pub fn native_button_name(protocol: &str, code: u8) -> Option<&'static str> {
 }
 
 /// The label of a capture's button code: [native_button_name], but for PSA, whose two frame types
-/// number their buttons differently (`psa::button_name`), so its label is read with the frame.
+/// number their buttons differently (`psa::button_name`), so its label is read with the frame; and
+/// for an Audi V3 frame of the BCM2 key's layout, whose button byte also says which key sent it
+/// (`audi_v3::capture_button_name`).
 pub fn capture_button_name(protocol: &str, code: u8, data: u64, extra: Option<u64>) -> Option<&'static str> {
     if info::lookup(protocol).is_some_and(|i| i.decoder == "PSA") {
         return Some(psa::capture_button_name(data, extra, code));
+    }
+    if info::lookup(protocol).is_some_and(|i| i.decoder == "Audi V3") {
+        if let Some(name) = audi_v3::capture_button_name(code, extra) {
+            return Some(name);
+        }
     }
     native_button_name(protocol, code)
 }

@@ -115,7 +115,7 @@
     "Lancia",
     "Maserati"
    ],
-   "blurb": "Fiat V0 and Fiat V1 are Manchester remote keys (V1 with the HITAG2 cipher, whose key KAT can recover). MARELLI stores and replays the frames of Magneti Marelli keys, Fiat Ducato V0 is the van's HITAG2 remote, and Fiat V2 is the frame shared with the Chrysler group, which the Alfa Romeo Giulia and Stelvio keys send too; a Maserati Ghibli's key sends it in the references' own layout. Three recordings of a Maserati Levante key that may be damaged hold no signal."
+   "blurb": "Fiat V0 and Fiat V1 are Manchester remote keys (V1 with the HITAG2 cipher, whose key KAT can recover). MARELLI stores and replays the frames of Magneti Marelli keys, Fiat Ducato V0 is the van's HITAG2 remote, and Fiat V2 is the frame shared with the Chrysler group, which the Alfa Romeo Giulia and Stelvio keys send too. The Maserati Ghibli and Levante keys send the HiTag2 remotes' frame under Fiat V2, with an XOR check that KAT verifies. Three earlier recordings of a Levante key that may have been damaged hold no signal."
   },
   {
    "slug": "honda",
@@ -181,7 +181,7 @@
     "Lamborghini",
     "Bentley"
    ],
-   "blurb": "VAG covers the group's remote keys with the AUT64 and XTEA ciphers. VAG Polo is the newer frame of the 2017 Polo and the 2020 Atlas; Audi V3 and Porsche Cayenne are frames of their own. Audi V3 is the 868 MHz frame of a 2008–2015 Audi A4's key (BCM2), whose button, counter and checksum KAT reads. VW-1 is the group's oldest remote, a flip key whose code comes from a 24-bit shift register with no key, worked out from recordings a tester sent in; KAT reads and sends it."
+   "blurb": "VAG covers the group's remote keys with the AUT64 and XTEA ciphers. VAG Polo is the newer frame of the 2017 Polo and the 2020 Atlas; Audi V3 and Porsche Cayenne are frames of their own. Audi V3 is the 868 MHz frame of a 2008–2015 Audi A4's key (BCM2), whose key number, button, counter and checksum KAT reads; the rest is an AES-128 MAC. VW-1 is the group's oldest remote, a flip key whose code comes from a 24-bit shift register with no key, worked out from recordings a tester sent in; KAT reads and sends it. The 2026 Amarok, built by Ford on the Ranger, has a Ford key: its recordings read as Ford V3."
   },
   {
    "slug": "bmw",

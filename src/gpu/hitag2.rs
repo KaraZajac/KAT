@@ -38,7 +38,7 @@ pub struct GpuReq {
     pub s_hop: u32,
     pub s_cnt: u32,
     pub s_btn: u32,
-    pub _pad: u32,
+    pub full_nonce: u32,
 }
 
 #[repr(C)]

@@ -89,11 +89,19 @@ none). Each upload is 561 preamble "1" bits + 122 air bits (`!stored`) + a 50 ms
 ## Validation
 
 **A volunteer's 2015 Mercedes (FSB4 system)**, recorded by a Flipper Zero at 433.95 MHz with a custom 2-FSK
-setting (±19 kHz, 20 kBd), is not in `IMPORTS`. doctor-firmware and Flipper-ARF read 9 codes from its two
+setting (±19 kHz, 20 kBd), was not in `IMPORTS`. doctor-firmware and Flipper-ARF read 9 codes from its two
 files (4 lock, 5 unlock; 7 and 6 frames). KAT 1.8.5 read 3: the fob ends most frames with a 190–330 µs LOW
 followed by noise, not a gap of 280 µs or more. KAT now reads all 9, with the same frame counts.
 
-The two `IMPORTS/mercedes` files do not decode:
+**A key specialist's 2015 Mercedes FBS3 key** (`mercedes/more/2015_mercedes_fbs3_lock_2.sub` and
+`..._unlock_2.sub`, 433.95 MHz, the same setting) reads the same way: 4 lock and 5 unlock codes in 7 and 6
+frames, one key, the counter one up per press but one missing in lock. The counts and the setting are the
+volunteer's, so these are most likely the same recordings. The same key recorded at 433.92 MHz
+(`..._lock.sub`, `..._unlock.sub`) reads nothing: for most of each burst both its tones sit on one side of
+433.92 MHz, so the receiver holds one level ([Unread recordings](unidentified_captures.md#mercedes-benz-2015-fbs3-key)).
+Record this key at 433.95 MHz.
+
+The two `IMPORTS/mercedes` files from a GLE 350 do not decode:
 
 - **`24_Merc_gle350_lulu.sub` (434.075 MHz):** noise only (159 pulses; longest run of chip-valid pulses: 3).
 - **`24_merc_gle350_luluttlulu.sub` (314.35 MHz):** recorded with the AM650 (OOK) preset. It contains 23

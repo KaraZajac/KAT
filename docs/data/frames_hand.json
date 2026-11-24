@@ -224,7 +224,7 @@
    ]
   },
   "Ford V1 (JLR)": {
-   "note": "KAT's serial is the folded ID, bytes 5–6 of the frame, the same for a press and its repeat (flags `08`). The button and the counter are inside the 8 encrypted bytes (Extra), and KAT shows 0 for both. [The page above](ford_v1_jlr.md#frame) has the frame byte by byte.",
+   "note": "KAT's serial is the folded ID, bytes 5–6 of the frame, the same for a press and its repeat (flags `08`). The button, a 24-bit counter and the fob's full ID are inside the 8 enciphered bytes (Extra); with the car's key KAT deciphers them, otherwise it shows 0. [The page above](ford_v1_jlr.md#the-cipher) has the cipher.",
    "fields": [
     {
      "kind": "fixed",
@@ -252,11 +252,11 @@
     },
     {
      "kind": "code",
-     "name": "Encrypted",
+     "name": "Enciphered",
      "word": "extra",
      "offset": 0,
      "width": 64,
-     "note": "button and counter inside; every byte changes with every press"
+     "note": "button, 24-bit counter and full ID, under the car's key (3-round Feistel, AES-128 rounds)"
     }
    ]
   }

@@ -24,13 +24,13 @@
 //! - non-FCA: counter = `~((raw[7]&0x3F)<<5 | raw[8]>>3) & 0x7FF`, hop = raw[9..=12]
 //! - FCA:     counter = `~(raw[8]<<6 | raw[9]>>2) & 0x3FFF`,       hop = raw[10..=13]
 //!
-//! The non-FCA layout is a real key's: a key specialist's 2016–2021 Maserati Ghibli
-//! (`MASERATI/more/2016-2021_maserati_ghibli_*`, 20 presses of each button) sends it, its selector
-//! as the recordings are named and its 11-bit counter up by one with every press (59 of 59 steps,
-//! across the recordings). None of Flipper-ARF's known keys reproduces its hop, in either layout.
+//! The non-FCA layout is the C's reading of a real frame, the Maserati keys' HiTag2 frame (see the
+//! deviation below): its selector and its counter read right on the three buttons recorded, its
+//! hop does not. None of Flipper-ARF's known keys reproduces that hop, in either layout.
 //!
 //! **Packing**: `data` = raw[0..8] (first 64 wire bits), `data_count_bit` = 112, `extra` =
-//! raw[8..14] (48 bits, right-aligned). `counter` holds the C's 11/14-bit counter.
+//! raw[8..14] (48 bits, right-aligned; bit 48 set on a Maserati key's frame, see below). `counter`
+//! holds the C's 11/14-bit counter, or a deviation's (below).
 //!
 //! **Deviation: the FCA fobs' own layout.** Five real fobs, all recorded press by press and named
 //! after the buttons pressed, fit neither of the C's layouts: a 2019 Chrysler Pacifica
@@ -62,6 +62,46 @@
 //! 0x40, so the two kinds of code do not meet). `serial`, `data`, `extra`, the key file
 //! (ProtoPirate's lines, from the frame's bytes) and the replay are as before; such a frame is
 //! never forward-encoded with the other layouts' fields.
+//!
+//! **Deviation: the Maserati keys' HiTag2 frame.** A key specialist's 2016–2021 Maserati Ghibli
+//! and Levante keys (`MASERATI/more/2016-2021_maserati_{ghibli,levante}_*`, two keys, 122 presses
+//! recorded press by press and named after the buttons pressed) send the frame of the HiTag2
+//! remotes in Garcia et al., "Lock It and Still Lose It" (USENIX Security 2016, Fig. 11: `0x0001 |
+//! UID 32 | btn 4 | lctr 10 | ks 32 | 0 | chk 8`, the check "computed by simply XORing each byte";
+//! KAT's `hitag2_rke.rs` reads that frame), with seven bits between its UID and its button (with the
+//! button, the FCA fobs' flag word) and two after its check. In the window's bits (bit 0 = raw[0]'s
+//! top bit), read inverted, as the FCA fobs' fields above are:
+//! ```text
+//! bits 48..=58    the flag word's bits 15..5: top nibble 0xC on both keys | button flags, one of
+//!                 bits 11..5 (8 Unlock, 7 Trunk, 6 Lock; 5 is the FCA fobs' Panic, no Maserati
+//!                 Panic press was recorded); bits 8..5 are the paper's 4-bit btn
+//! bits 59..=68    lctr: the counter's low 10 bits, up by one with every press (119 of 119 steps
+//!                 within the recordings and from one recording to the next of a session)
+//! bit  69         1 (fixed: constant on all 122 presses)
+//! bits 70..=100   the rolling part (a HiTag2 hop); see the note below
+//! bit  101        1 (the paper's 0, inverted; fixed on all 122 presses)
+//! bits 102..=109  chk: the XOR of bits 16..=101 taken as bytes from bit 16 (the last six bits padded
+//!                 with two zeros); holds on all 122 presses
+//! bits 110..=111  10 (fixed)
+//! ```
+//! A frame that carries the check (bits 69 and 101, bits 110..=111 as above, the XOR in bits
+//! 102..=109, and one button flag) is read so: `button` = the number of its flag, as in the FCA
+//! fobs' layout (2 Lock, 3 Trunk, 4 Unlock), `counter` = lctr, `crc_valid` = true (`extra` bit
+//! [`HITAG2_FLAG`] marks such a frame for `info.rs`). The check is tried before the FCA fobs'
+//! layout: with lctr 0x80..=0x9F a Maserati frame has the FCA fobs' flag-word shape (its low five
+//! bits are lctr's top five), while an FCA fob's frame passes the check's 11 bits once in 2048
+//! frames (none of the FCA fobs' frames in IMPORTS does). A frame without the check is read as
+//! before; nothing is gated on it. `serial`, `data`, the key file and the replay are as before; such
+//! a frame is never forward-encoded (the recompute writes the C's fields), and "Recover key
+//! (HiTag2)" does not take it (`hitag2_hell.rs`).
+//!
+//! **The hop is not decoded.** This frame is 7 bits longer than the references' Fiat V2 frame, and
+//! the 32 cipher-output (hop) bits do not sit at the references' offset: fixed bits fall at 69 and
+//! 101, leaving 31 varying bits (70..=100) between the counter and the check, and the C's hop window
+//! (raw[9..=12] = bits 72..=103) runs into the fixed bit and the check. KAT does not read a hop from
+//! these frames and does not forward-encode or recover a key from them — `button`, `counter` and the
+//! XOR check need none of it. Reading the hop (so the HiTag2 key could be recovered, as for the other
+//! Fiat/Renault remotes) would take working out its bit layout in this frame; it is left undone.
 //!
 //! **Validation / gating**: the C's `fiat_v2_frame_valid` (both markers, selector ∈ {1,2,3}, UID ≠
 //! 0 / 0xFFFFFFFF) plus one KAT-specific structural gate: the valid window must end at the end of
@@ -161,6 +201,9 @@ const SEL_TRUNK: u8 = 0x1;
 const SEL_LOCK: u8 = 0x2;
 const SEL_UNLOCK: u8 = 0x3;
 const FCA_TYPE_NIBBLE: u8 = 0xD0;
+/// The `extra` bit set on a frame in the Maserati keys' HiTag2 frame, whose check KAT verified
+/// (module doc; `info.rs` reads it): just above the frame's bytes 8..14.
+pub(super) const HITAG2_FLAG: u32 = 48;
 /// KAT gate: cells allowed between the end of the valid window and the end of the burst
 /// (doctor-firmware's encoder appends a one-cell stop pulse after a frame ending low).
 const MAX_TRAILING_CELLS: usize = 1;
@@ -237,6 +280,32 @@ impl FiatV2Decoder {
             return None;
         }
         Some((buttons.trailing_zeros() as u8 + 1, !u16::from_be_bytes([raw[8], raw[9]]) >> 2))
+    }
+
+    /// The fields of a frame in the Maserati keys' HiTag2 frame (module doc): (button = the number
+    /// of its one flag, as in [Self::fca_fields]; the 10-bit lctr). None for a frame without that
+    /// frame's check: bit 101 and bits 110..=111, and the XOR in bits 102..=109.
+    fn hitag2_fields(raw: &[u8; WIRE_BYTES]) -> Option<(u8, u16)> {
+        // Inverted, as the fields are read: bit 101 = 1, bits 110..=111 = 10, and the XOR of bits
+        // 16..=101 as bytes (bytes 2..=11 and byte 12's top six bits) = bits 102..=109.
+        let t = raw.map(|b| !b);
+        let xor = t[2..12].iter().fold(t[12] & 0xFC, |x, &b| x ^ b);
+        let check = ((t[12] & 0x03) << 6) | (t[13] >> 2);
+        if t[12] & 0x04 == 0 || t[13] & 0x03 != 0b10 || xor != check {
+            return None;
+        }
+        let flags = u16::from_be_bytes([t[6], t[7]]);
+        let buttons = (flags >> 5) & 0x7F;
+        if buttons.count_ones() != 1 {
+            return None;
+        }
+        Some((buttons.trailing_zeros() as u8 + 1, ((flags & 0x1F) << 5) | u16::from(t[8] >> 3)))
+    }
+
+    /// Whether a frame is in the Maserati keys' HiTag2 frame, whose hop KAT does not decode in this
+    /// longer frame, so the key search cannot take it (`hitag2_hell.rs`).
+    pub(super) fn sends_hitag2_frame(raw: &[u8; WIRE_BYTES]) -> bool {
+        Self::hitag2_fields(raw).is_some()
     }
 
     /// fiat_v2_hop: raw[10..=13] for FCA frames, raw[9..=12] otherwise.
@@ -448,29 +517,34 @@ impl FiatV2Decoder {
         data_bytes.copy_from_slice(&raw[..8]);
         let mut extra_bytes = [0u8; 8];
         extra_bytes[2..].copy_from_slice(&raw[8..]);
-        // The C's fields, or the FCA fobs' layout's (KAT deviation, module doc).
-        let (button, counter) = Self::fca_fields(raw).unwrap_or((raw[7], Self::counter(raw)));
+        // The C's fields, or a deviation's: the Maserati keys' HiTag2 frame (its check tried first)
+        // or the FCA fobs' layout (module doc).
+        let hitag2 = Self::hitag2_fields(raw);
+        let (button, counter) =
+            hitag2.or_else(|| Self::fca_fields(raw)).unwrap_or((raw[7], Self::counter(raw)));
         DecodedSignal {
             serial: Some(Self::uid(raw)),
             button: Some(button),
             counter: Some(counter),
-            // No CRC in this frame; emission is gated on markers / selector / UID / structure.
-            crc_valid: false,
+            // Only the Maserati keys' frame carries a check; emission is gated on markers /
+            // selector / UID / structure, never on it.
+            crc_valid: hitag2.is_some(),
             data: u64::from_be_bytes(data_bytes),
             data_count_bit: WIRE_BITS,
             encoder_capable: true,
-            extra: Some(u64::from_be_bytes(extra_bytes)),
+            extra: Some(u64::from_be_bytes(extra_bytes) | (u64::from(hitag2.is_some()) << HITAG2_FLAG)),
             protocol_display_name: None,
         }
     }
 
-    /// Rebuild the 14 wire bytes from `data` (raw[0..8]) and `extra` (raw[8..14]).
+    /// Rebuild the 14 wire bytes from `data` (raw[0..8]) and `extra` (raw[8..14], and the
+    /// [`HITAG2_FLAG`] bit, which is not a frame bit).
     fn raw_from_signal(decoded: &DecodedSignal) -> Option<[u8; WIRE_BYTES]> {
         if decoded.data_count_bit != WIRE_BITS {
             return None;
         }
         let extra = decoded.extra?;
-        if extra >> 48 != 0 {
+        if extra >> (HITAG2_FLAG + 1) != 0 {
             return None;
         }
         let mut raw = [0u8; WIRE_BYTES];
@@ -570,9 +644,11 @@ impl ProtocolDecoder for FiatV2Decoder {
             return None;
         }
         // Flipper-ARF hop recompute when a known or saved key reproduces the captured hop;
-        // otherwise the captured frame is replayed unchanged. A frame in the FCA fobs' layout is
-        // always replayed: the recompute's fields are the other layouts'.
-        if let Some((key, combo)) = Self::find_key(&raw).filter(|_| Self::fca_fields(&raw).is_none()) {
+        // otherwise the captured frame is replayed unchanged. A frame in the FCA fobs' layout or
+        // the Maserati keys' HiTag2 frame is always replayed: the recompute's fields are the C's
+        // (and it would leave the HiTag2 frame's check as it was).
+        let own_layout = Self::fca_fields(&raw).is_some() || Self::hitag2_fields(&raw).is_some();
+        if let Some((key, combo)) = Self::find_key(&raw).filter(|_| !own_layout) {
             let selector = match button {
                 0x01 => SEL_LOCK,
                 0x02 => SEL_UNLOCK,
@@ -1050,8 +1126,9 @@ mod tests {
     }
 
     /// Every press of one recording (Fiat V2 alone, which is quick in a debug build): (serial,
-    /// button, counter), copies of a press listed once.
-    fn fiat_v2_presses(rel: &str) -> Option<Vec<(u32, u8, u16)>> {
+    /// button, counter, whether the frame carries the Maserati keys' check), copies of a press
+    /// listed once.
+    fn fiat_v2_presses(rel: &str) -> Option<Vec<(u32, u8, u16, bool)>> {
         let path = Path::new("IMPORTS").join(rel);
         if !path.exists() {
             eprintln!("Skip: {:?} not found (run from crate root)", path);
@@ -1062,8 +1139,10 @@ mod tests {
         let mut decoded: Vec<DecodedSignal> =
             raw_pairs.iter().filter_map(|p| decoder.feed(p.level, p.duration_us)).collect();
         decoded.extend(decoder.flush());
-        let mut presses: Vec<(u32, u8, u16)> =
-            decoded.iter().map(|d| (d.serial.unwrap(), d.button.unwrap(), d.counter.unwrap())).collect();
+        let mut presses: Vec<(u32, u8, u16, bool)> = decoded
+            .iter()
+            .map(|d| (d.serial.unwrap(), d.button.unwrap(), d.counter.unwrap(), d.crc_valid))
+            .collect();
         presses.dedup();
         Some(presses)
     }
@@ -1097,8 +1176,10 @@ mod tests {
             for &(rel, button) in fob.iter() {
                 let Some(presses) = fiat_v2_presses(rel) else { return };
                 assert_eq!(presses.len(), 20, "{rel}");
-                assert!(presses.iter().all(|&(_, b, _)| b == button), "{rel}: {presses:?}");
-                let counters: Vec<u16> = presses.iter().map(|&(_, _, c)| c).collect();
+                assert!(presses.iter().all(|&(_, b, ..)| b == button), "{rel}: {presses:?}");
+                // No frame of these fobs passes the Maserati keys' check (module doc).
+                assert!(presses.iter().all(|&(.., checked)| !checked), "{rel}");
+                let counters: Vec<u16> = presses.iter().map(|&(_, _, c, _)| c).collect();
                 assert!(counters.windows(2).all(|w| w[1] == w[0] + 1), "{rel}: {counters:X?}");
                 match last {
                     // The Wrangler (the third fob): presses between its two recordings.
@@ -1116,25 +1197,125 @@ mod tests {
         assert_eq!(serials.len(), 3, "three fobs, one serial each");
     }
 
-    /// The key specialist's Maserati Ghibli: the references' non-FCA layout (selector in raw[7]
-    /// bits 7:6, 11-bit counter), which the FCA fobs' layout leaves alone: every press reads as its
-    /// recording is named, and the counter goes up by one with every press, across the recordings.
+    /// The key specialist's Maserati Ghibli and Levante keys send the HiTag2 frame (module doc):
+    /// every press carries its check and reads as its recording is named, by its button flag, and
+    /// lctr goes up by one with every press, on from one recording to the next of a session. The
+    /// Ghibli was recorded in two sessions, with 12 presses between them that were not recorded.
     #[test]
-    fn maserati_ghibli_presses_read_in_the_references_non_fca_layout() {
-        let mut last: Option<u16> = None;
-        for (rel, name) in [
-            ("MASERATI/more/2016-2021_maserati_ghibli_lock.sub", "Lock"),
-            ("MASERATI/more/2016-2021_maserati_ghibli_unlock.sub", "Unlock"),
-            ("MASERATI/more/2016-2021_maserati_ghibli_trunk.sub", "Trunk"),
-        ] {
-            let Some(presses) = fiat_v2_presses(rel) else { return };
-            assert_eq!(presses.len(), 20, "{rel}");
-            assert!(presses.iter().all(|&(_, b, _)| b >= 0x40 && native_buttons("Fiat V2", b) == Some(name)), "{rel}");
-            let counters: Vec<u16> = presses.iter().map(|&(_, _, c)| c).collect();
-            assert!(counters.windows(2).all(|w| w[1] == w[0] + 1), "{rel}: {counters:X?}");
-            assert!(last.is_none_or(|prev| counters[0] == prev + 1), "{rel}");
-            last = counters.last().copied();
+    fn maserati_keys_send_the_hitag2_frame() {
+        let sessions: [&[(&str, u8, usize)]; 3] = [
+            &[
+                ("MASERATI/more/2016-2021_maserati_ghibli_lock.sub", LOCK, 20),
+                ("MASERATI/more/2016-2021_maserati_ghibli_unlock.sub", UNLOCK, 20),
+                ("MASERATI/more/2016-2021_maserati_ghibli_trunk.sub", TRUNK, 20),
+            ],
+            &[
+                ("MASERATI/more/2016-2021_maserati_ghibli_lock_2.sub", LOCK, 10),
+                ("MASERATI/more/2016-2021_maserati_ghibli_unlock_2.sub", UNLOCK, 10),
+                ("MASERATI/more/2016-2021_maserati_ghibli_trunk_2.sub", TRUNK, 10),
+            ],
+            &[
+                ("MASERATI/more/2016-2021_maserati_levante_lock.sub", LOCK, 10),
+                ("MASERATI/more/2016-2021_maserati_levante_unlock.sub", UNLOCK, 12),
+                ("MASERATI/more/2016-2021_maserati_levante_trunk.sub", TRUNK, 10),
+            ],
+        ];
+        // (serial, lctr of its last press) of each key seen so far
+        let mut keys: Vec<(u32, u16)> = Vec::new();
+        for session in sessions {
+            let mut last: Option<(u32, u16)> = None;
+            for &(rel, button, count) in session {
+                let Some(presses) = fiat_v2_presses(rel) else { return };
+                assert_eq!(presses.len(), count, "{rel}");
+                let serial = presses[0].0;
+                assert!(presses.iter().all(|&(s, b, _, checked)| s == serial && b == button && checked), "{rel}: {presses:X?}");
+                let counters: Vec<u16> = presses.iter().map(|&(_, _, c, _)| c).collect();
+                assert!(counters.windows(2).all(|w| w[1] == w[0] + 1), "{rel}: {counters:X?}");
+                match last {
+                    Some((s, prev)) => assert_eq!((serial, counters[0]), (s, prev + 1), "{rel}"),
+                    None => {
+                        if let Some(&(_, end)) = keys.iter().find(|&&(s, _)| s == serial) {
+                            assert_eq!(counters[0], end + 13, "{rel}: 12 presses between the sessions");
+                        }
+                    }
+                }
+                last = Some((serial, *counters.last().unwrap()));
+            }
+            let (serial, end) = last.unwrap();
+            keys.retain(|&(s, _)| s != serial);
+            keys.push((serial, end));
         }
+        assert_eq!(keys.len(), 2, "the Ghibli and the Levante");
+    }
+
+    /// Set `width` bits of `frame` from bit `at` (bit 0 = the top bit of byte 0) to `value`.
+    fn put_bits(frame: &mut [u8; WIRE_BYTES], at: usize, width: usize, value: u64) {
+        for i in 0..width {
+            let (pos, mask) = (at + i, 0x80u8 >> ((at + i) & 7));
+            if (value >> (width - 1 - i)) & 1 != 0 {
+                frame[pos >> 3] |= mask;
+            } else {
+                frame[pos >> 3] &= !mask;
+            }
+        }
+    }
+
+    /// A made-up frame in the Maserati keys' HiTag2 frame (module doc; UID and keystream made up),
+    /// as KAT reads it (the fields inverted).
+    fn hitag2_frame(flag: u8, lctr: u16) -> [u8; WIRE_BYTES] {
+        let mut t = [0u8; WIRE_BYTES];
+        put_bits(&mut t, 0, 16, 0xFFFE);
+        put_bits(&mut t, 16, 32, 0x1234_5678);
+        put_bits(&mut t, 48, 4, 0xC);
+        put_bits(&mut t, 52, 7, 1 << (flag - 1));
+        put_bits(&mut t, 59, 10, lctr.into());
+        put_bits(&mut t, 69, 32, 0x5A5A_C3C3);
+        put_bits(&mut t, 101, 1, 1);
+        let xor = t[2..12].iter().fold(t[12] & 0xFC, |x, &b| x ^ b);
+        put_bits(&mut t, 102, 8, xor.into());
+        put_bits(&mut t, 110, 2, 0b10);
+        t.map(|b| !b)
+    }
+
+    /// A HiTag2 frame with lctr 0x080..=0x09F has the FCA fobs' flag-word shape (00100): its check
+    /// decides. Each part of the check is needed; a frame without it is read in the FCA fobs'
+    /// layout, as before. The C's reading of the same frame, Panic's, the replay, and the key
+    /// search's refusal.
+    #[test]
+    fn the_hitag2_frames_check_comes_before_the_fca_layout() {
+        let raw = hitag2_frame(LOCK, 0x090);
+        assert!(FiatV2Decoder::frame_valid(&raw));
+        assert_eq!(FiatV2Decoder::hitag2_fields(&raw), Some((LOCK, 0x090)));
+        assert!(FiatV2Decoder::fca_fields(&raw).is_some(), "the FCA fobs' shape");
+        let d = FiatV2Decoder::build_signal(&raw);
+        assert_eq!((d.button, d.counter, d.crc_valid), (Some(LOCK), Some(0x090), true));
+        assert_eq!(d.extra.map(|e| e >> HITAG2_FLAG), Some(1));
+        assert_eq!(FiatV2Decoder::raw_from_signal(&d), Some(raw));
+        // The C's reading: Lock's selector, the 11-bit counter.
+        assert_eq!((raw[7] >> BTN_SHIFT, FiatV2Decoder::counter(&raw)), (SEL_LOCK, 0x090));
+        // From the air, and replayed unchanged.
+        let decoded = decode(&gapped(&frame_cells(&raw)));
+        assert_eq!(decoded, vec![d.clone()]);
+        assert_eq!(decode(&FiatV2Decoder::new().encode(&d, 0x02).unwrap()), vec![d.clone()]);
+        // bit 101, bits 110 / 111, two bits of the XOR
+        for (byte, bit) in [(12usize, 0x04u8), (13, 0x02), (13, 0x01), (12, 0x01), (13, 0x80)] {
+            let mut bad = raw;
+            bad[byte] ^= bit;
+            assert_eq!(FiatV2Decoder::hitag2_fields(&bad), None, "byte {byte} bit {bit:#04x}");
+            let other = FiatV2Decoder::build_signal(&bad);
+            assert!(!other.crc_valid && other.extra.unwrap() >> HITAG2_FLAG == 0);
+            assert_eq!(other.button, Some(LOCK), "the FCA fobs' layout reads the same flag");
+        }
+        // Panic, flag bit 5, which no recorded Maserati press shows: the C would read Unlock's
+        // selector and lctr + 0x400.
+        let panic = hitag2_frame(PANIC, 0x1C5);
+        assert_eq!(FiatV2Decoder::hitag2_fields(&panic), Some((PANIC, 0x1C5)));
+        assert_eq!((panic[7] >> BTN_SHIFT, FiatV2Decoder::counter(&panic)), (SEL_UNLOCK, 0x5C5));
+        // "Recover key (HiTag2)" would read the C's hop: it does not take the frame.
+        assert!(crate::protocols::hitag2_hell::frame_of("Fiat V2", &d).is_err());
+        let mut not_hitag2 = raw;
+        not_hitag2[13] ^= 0x80;
+        assert!(crate::protocols::hitag2_hell::frame_of("Fiat V2", &FiatV2Decoder::build_signal(&not_hitag2)).is_ok());
     }
 
     #[test]
@@ -1148,5 +1329,195 @@ mod tests {
             assert!(!names.contains(&"Fiat V2"), "{rel}: {names:?}");
             assert!(names.contains(&"LDV V0"), "{rel}: {names:?}");
         }
+    }
+
+    /// Research harness (ignored; needs IMPORTS, a release build and minutes on the GPU/CPU HiTag2
+    /// Hell search). Recovers the 48-bit key of each Maserati key from its recordings, to confirm
+    /// the HiTag2 frame carries the attack's inputs and to pin the keystream polarity and the 4-bit
+    /// IV button. The attack needs the frame's keystream (the 32 bits at 69..=100), the counter
+    /// (`lctr`, below 1024) and the IV button. The recovered key goes to a file (`KAT_MASERATI_OUT`,
+    /// else a temp file); only a redacted line is printed. Run:
+    ///   KAT_MASERATI_OUT=/path cargo test --release --bin kat -- --ignored --nocapture maserati_hitag2_key
+    #[test]
+    #[ignore]
+    fn maserati_hitag2_key_recovers_from_the_recordings() {
+        use crate::protocols::hitag2_hell as hell;
+        use hell::{BruteForceControl, BruteForceOutcome, Hitag2Request, SecondFrame};
+        use std::fmt::Write as _;
+
+        // (raw, button code 1..=7, lctr) for each distinct press of a recording.
+        fn presses(rel: &str) -> Vec<([u8; WIRE_BYTES], u8, u16)> {
+            let (_, pairs) = import_sub_raw(&Path::new("IMPORTS").join(rel)).unwrap();
+            let mut dec = FiatV2Decoder::new();
+            let mut sigs: Vec<DecodedSignal> =
+                pairs.iter().filter_map(|p| dec.feed(p.level, p.duration_us)).collect();
+            sigs.extend(dec.flush());
+            let mut out: Vec<([u8; WIRE_BYTES], u8, u16)> = Vec::new();
+            for d in &sigs {
+                let raw = FiatV2Decoder::raw_from_signal(d).unwrap();
+                let (btn, lctr) = FiatV2Decoder::hitag2_fields(&raw).expect("a Maserati frame");
+                if out.last().map(|p| (p.1, p.2)) != Some((btn, lctr)) {
+                    out.push((raw, btn, lctr));
+                }
+            }
+            out
+        }
+        // `width` frame bits from bit `at` (bit 0 = MSB of byte 0), read in one polarity (the
+        // wire bytes, or their inverse). The HiTag2 frame's fields: keystream 69..=100, lctr
+        // 59..=68, the paper's 4-bit button 55..=58 (one-hot; Unlock 8 inverted, Trunk 4, Lock 2).
+        fn field(raw: &[u8; WIRE_BYTES], invert: bool, at: usize, width: usize) -> u32 {
+            let t = if invert { raw.map(|b| !b) } else { *raw };
+            (at..at + width).fold(0u32, |v, i| (v << 1) | u32::from((t[i >> 3] >> (7 - (i & 7))) & 1))
+        }
+        let ks = |raw: &[u8; WIRE_BYTES], inv| field(raw, inv, 69, 32);
+        let cnt = |raw: &[u8; WIRE_BYTES], inv| field(raw, inv, 59, 10);
+        let btn4 = |raw: &[u8; WIRE_BYTES], inv| field(raw, inv, 55, 4) as u8;
+
+        let keys: [(&str, &[&str]); 2] = [
+            (
+                "ghibli",
+                &[
+                    "MASERATI/more/2016-2021_maserati_ghibli_lock.sub",
+                    "MASERATI/more/2016-2021_maserati_ghibli_unlock.sub",
+                    "MASERATI/more/2016-2021_maserati_ghibli_trunk.sub",
+                    "MASERATI/more/2016-2021_maserati_ghibli_lock_2.sub",
+                    "MASERATI/more/2016-2021_maserati_ghibli_unlock_2.sub",
+                    "MASERATI/more/2016-2021_maserati_ghibli_trunk_2.sub",
+                ],
+            ),
+            (
+                "levante",
+                &[
+                    "MASERATI/more/2016-2021_maserati_levante_lock.sub",
+                    "MASERATI/more/2016-2021_maserati_levante_unlock.sub",
+                    "MASERATI/more/2016-2021_maserati_levante_trunk.sub",
+                ],
+            ),
+        ];
+        if !Path::new("IMPORTS").join(keys[0].1[0]).exists() {
+            eprintln!("Skip: IMPORTS not found (run from crate root)");
+            return;
+        }
+
+        // bits 69 and 101 are fixed framing bits, so the keystream is the 31 bits 70..=100: the
+        // cipher's ks0..ks30, MSB first, with ks31 (the LSB) not transmitted. The attack needs all
+        // 32 bits, so brute the missing LSB of each search frame (4 combinations); verify across
+        // every press on the 31 known bits only (the recovered key's own ks31 per press).
+        let h31 = |raw: &[u8; WIRE_BYTES], inv| field(raw, inv, 70, 31);
+        let mut report = String::new();
+        // The wire polarity found no key (a full 328 s scan); the cipher uses the inverted frame.
+        let invert = true;
+        // Ghibli Unlock, a counter pair spanning both recording sessions (well separated).
+        let (name, rels) = keys[0];
+        let all: Vec<_> = rels.iter().flat_map(|r| presses(r)).collect();
+        let uid = FiatV2Decoder::uid(&all[0].0);
+        let unlock: Vec<_> = all.iter().filter(|p| p.1 == UNLOCK).collect();
+        let a = *unlock.iter().min_by_key(|p| cnt(&p.0, invert)).unwrap();
+        let b = *unlock.iter().max_by_key(|p| cnt(&p.0, invert)).unwrap();
+        eprintln!("{name}: pair counters {:03X},{:03X}; h31 a={:08X} b={:08X}", cnt(&a.0, invert), cnt(&b.0, invert), h31(&a.0, invert), h31(&b.0, invert));
+        let _ = (ks, btn4, h31);
+        // SMART SWEEP. The cipher injects key32 ^ iv, so for a same-button pair the button term is a
+        // constant XOR the search folds into the key: a key fits the two Unlock frames exactly when
+        // the COUNTER's position in the nonce is right, whatever the button. `recover_key_any`
+        // verifies a list of requests sharing the first frame's hop in ONE kernel scan, so every
+        // counter shift 0..=22 is tested together (iv = lctr << s, button 0; `full_nonce` makes
+        // equiv_key exact). The 31 transmitted keystream bits (70..=100) are the cipher's ks with one
+        // bit dropped and some bit order; loop the readings (straight / reversed, drop LSB / MSB),
+        // and for frame A brute the dropped bit (it fixes the hop → its own scan); frame B's dropped
+        // bit rides along as extra requests. Stop at the first reading+shift that recovers a key.
+        let iv_parts = |iv: u32| (iv >> 4, (iv & 0xF) as u8);
+        let rev31 = |x: u32| x.reverse_bits() >> 1;
+        // Variant toggles (set per run, no recompile): KAT_CMPL complements the keystream bits
+        // (wire- vs inverted-space), KAT_CREV feeds the counter with its 10 bits reversed.
+        let cmpl = std::env::var("KAT_CMPL").is_ok();
+        let crev = std::env::var("KAT_CREV").is_ok();
+        eprintln!("{name}: variant cmpl={cmpl} crev={crev}");
+        let bits = |raw: &[u8; WIRE_BYTES]| {
+            let x = field(raw, invert, 70, 31);
+            if cmpl { !x & 0x7FFF_FFFF } else { x }
+        };
+        let rev10 = |x: u32| x.reverse_bits() >> 22;
+        let ctr = |raw: &[u8; WIRE_BYTES]| {
+            let c = cnt(raw, invert);
+            if crev { rev10(c) } else { c }
+        };
+        // v = the 31 known keystream bits in ks order (ks0..ks30 for drop_lsb, else ks1..ks31).
+        let v = |raw: &[u8; WIRE_BYTES], reversed: bool| if reversed { rev31(bits(raw)) } else { bits(raw) };
+        // (name, reversed, drop_lsb); (straight, drop_lsb) already failed, so it is last.
+        let readings = [("rev,dropLSB", true, true), ("straight,dropMSB", false, false), ("rev,dropMSB", true, false), ("straight,dropLSB", false, true)];
+        let hop_of = |vv: u32, g: u32, drop_lsb: bool| if drop_lsb { (vv << 1) | g } else { (g << 31) | vv };
+        let known = |auth: u32, drop_lsb: bool| if drop_lsb { auth >> 1 } else { auth & 0x7FFF_FFFF };
+        let mut hit: Option<(&str, u32, bool, hell::RecoveredKey)> = None; // (reading, shift, drop_lsb, key)
+        'scan: for (rname, reversed, drop_lsb) in readings {
+            for a_g in [0u32, 1] {
+                let hop_a = hop_of(v(&a.0, reversed), a_g, drop_lsb);
+                let mut reqs = Vec::new();
+                let mut meta = Vec::new(); // shift per request
+                for s in 0..=22u32 {
+                    let (iva, ivb) = (u64::from(ctr(&a.0)) << s, u64::from(ctr(&b.0)) << s);
+                    if iva >> 32 != 0 || ivb >> 32 != 0 {
+                        continue;
+                    }
+                    let (ca, ba) = iv_parts(iva as u32);
+                    let (cb, bb) = iv_parts(ivb as u32);
+                    for b_g in [0u32, 1] {
+                        reqs.push(Hitag2Request {
+                            hop: hop_a,
+                            uid,
+                            cnt: ca,
+                            btn: ba,
+                            second: Some(SecondFrame { hop: hop_of(v(&b.0, reversed), b_g, drop_lsb), cnt: cb, btn: bb }),
+                            full_nonce: true,
+                        });
+                        meta.push(s);
+                    }
+                }
+                eprintln!("{name}: reading [{rname}] a_g={a_g}: one scan over {} configs …", reqs.len());
+                let t0 = std::time::Instant::now();
+                match hell::recover_key_any(&reqs, &BruteForceControl::default()) {
+                    BruteForceOutcome::Found(rk) => {
+                        let s = meta[rk.request];
+                        eprintln!("{name}: [{rname}] KEY at shift s={s}, a_g={a_g} in {:.0}s", t0.elapsed().as_secs_f64());
+                        writeln!(report, "{name}: reading [{rname}] shift s={s} a_g={a_g}").unwrap();
+                        hit = Some((rname, s, drop_lsb, rk));
+                        break 'scan;
+                    }
+                    other => eprintln!("{name}: [{rname}] a_g={a_g}: no key ({other:?}, {:.0}s)", t0.elapsed().as_secs_f64()),
+                }
+            }
+        }
+        if let Some((rname, s, drop_lsb, rk)) = hit {
+            let reversed = rname.starts_with("rev");
+            let unlock: Vec<_> = all.iter().filter(|p| p.1 == UNLOCK).collect();
+            let unlock_ok = unlock.iter().filter(|p| {
+                let (c, bt) = iv_parts(ctr(&p.0) << s);
+                known(hell::authenticator(rk.key, rk.uid, c, bt), drop_lsb) == v(&p.0, reversed)
+            }).count();
+            writeln!(report, "  verifies Unlock (iv=lctr<<{s}): {unlock_ok}/{}", unlock.len()).unwrap();
+            eprintln!("{name}: [{rname}] shift {s} verifies {unlock_ok}/{} Unlock", unlock.len());
+            let mut codes: Vec<u8> = all.iter().map(|p| p.1).collect();
+            codes.sort_unstable();
+            codes.dedup();
+            for code in &codes {
+                let g: Vec<_> = all.iter().filter(|p| p.1 == *code).collect();
+                let d = (0u32..1 << 16).find(|&d| {
+                    g.iter().all(|p| {
+                        let (c, bt) = iv_parts((ctr(&p.0) << s) ^ d);
+                        known(hell::authenticator(rk.key, rk.uid, c, bt), drop_lsb) == v(&p.0, reversed)
+                    })
+                });
+                writeln!(report, "  {} (code {code}): button XOR offset {:?} ({} presses)", native_buttons("Fiat V2", *code).unwrap_or("?"), d.map(|d| format!("{d:#X}")), g.len()).unwrap();
+            }
+            writeln!(report, "  key[standard] = {:02X?}", hell::key_bytes(rk.key)).unwrap();
+            writeln!(report, "  key[fiat]     = {:02X?}", hell::fiat_bcm_key(rk.key)).unwrap();
+            eprintln!("{name}: layout found (reading [{rname}], shift {s}); button offsets + key written; key withheld");
+        } else {
+            eprintln!("{name}: no (reading x counter shift) fits; the cipher/IV differs more than the sweep covers");
+        }
+        let out = std::env::var("KAT_MASERATI_OUT").unwrap_or_else(|_| {
+            std::env::temp_dir().join("maserati_hitag2.txt").to_string_lossy().into_owned()
+        });
+        std::fs::write(&out, &report).unwrap();
+        eprintln!("key material written to {out}");
     }
 }

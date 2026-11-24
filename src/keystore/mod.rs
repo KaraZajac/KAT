@@ -103,6 +103,61 @@ pub fn append_user_key(config_dir: &std::path::Path, name: &str, learning: u32, 
     Ok(path)
 }
 
+/// File name of the Audi BCM2 car keys in KAT's config folder. One car per line:
+/// `<32-hex K> <8-hex car_value> <8-hex id_key1> [<8-hex id_key2> …] : name` (fields split on
+/// whitespace or commas, `#` comments). Each field's secrets come from the car's own BCM2 module;
+/// KAT ships none. Used by the Audi V3 (BCM2) encoder ([crate::protocols::audi_v3]).
+pub const AUDI_BCM2_KEYS_FILE: &str = "audi_bcm2_keys";
+
+/// Parse the Audi BCM2 key file: the cars and the line errors (1-based line, text).
+pub fn parse_audi_bcm2_keys(text: &str) -> (Vec<crate::protocols::keys::AudiBcm2Car>, Vec<(usize, String)>) {
+    use crate::protocols::keys::AudiBcm2Car;
+    let hex_bytes = |s: &str, n: usize| -> Option<Vec<u8>> {
+        let h: String = s.chars().filter(|c| !c.is_whitespace() && *c != '-').collect();
+        (h.len() == 2 * n).then(|| (0..n).map(|j| u8::from_str_radix(&h[2 * j..2 * j + 2], 16)).collect::<Result<Vec<_>, _>>().ok()).flatten()
+    };
+    let (mut cars, mut errors) = (Vec::new(), Vec::new());
+    for (i, raw) in text.lines().enumerate() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let (fields, name) = match line.split_once(':') {
+            Some((f, n)) => (f, n.trim().to_string()),
+            None => (line, String::new()),
+        };
+        let toks: Vec<&str> = fields.split([' ', '\t', ',']).filter(|t| !t.is_empty()).collect();
+        let car = (toks.len() >= 3 && toks.len() <= 10)
+            .then(|| {
+                let key: [u8; 16] = hex_bytes(toks[0], 16)?.try_into().ok()?;
+                let car_value: [u8; 4] = hex_bytes(toks[1], 4)?.try_into().ok()?;
+                let key_ids = toks[2..].iter().map(|t| hex_bytes(t, 4).and_then(|b| b.try_into().ok())).collect::<Option<Vec<[u8; 4]>>>()?;
+                Some(AudiBcm2Car { name: if name.is_empty() { format!("car {}", cars.len() + 1) } else { name.clone() }, key, car_value, key_ids })
+            })
+            .flatten();
+        match car {
+            Some(c) => cars.push(c),
+            None => errors.push((i + 1, raw.to_string())),
+        }
+    }
+    (cars, errors)
+}
+
+/// Load `<config dir>/audi_bcm2_keys` if it exists (once, at startup, before any decode). Returns a
+/// status line for the UI, or None when there is no file.
+pub fn load_audi_bcm2_keys(config_dir: &std::path::Path) -> Option<String> {
+    if cfg!(test) {
+        panic!("a test must not load the user's Audi BCM2 keys: the tests share one process");
+    }
+    let path = config_dir.join(AUDI_BCM2_KEYS_FILE);
+    let text = std::fs::read_to_string(&path).ok()?;
+    let (cars, errors) = parse_audi_bcm2_keys(&text);
+    let n = cars.len();
+    crate::protocols::keys::get_keystore_mut().load_audi_bcm2_keys(cars);
+    let loaded = format!("Loaded {n} Audi BCM2 car key{} from {}", plural(n), path.display());
+    Some(if errors.is_empty() { loaded } else { format!("{loaded} ({} bad line{}, first: line {})", errors.len(), plural(errors.len()), errors[0].0) })
+}
+
 /// User keystore entries (empty unless [load_user_keystore] found a file).
 fn user_entries() -> &'static [(String, u32, u64)] {
     USER_ENTRIES.get().map_or(&[], Vec::as_slice)
@@ -410,6 +465,25 @@ mod tests {
             .collect();
         let parsed = parse_blob(embedded_blob()).expect("embedded blob parses");
         assert_eq!(parsed.vag_bytes, vag, "VAG AUT64 keys differ from the reference dump");
+    }
+
+    #[test]
+    fn parse_audi_bcm2_keys_reads_cars_and_flags_bad_lines() {
+        let text = "\
+# Audi BCM2 cars
+000102030405060708090A0B0C0D0E0F AABBCCDD 11112222 33334444 : A5 2010
+00-01-02-03-04-05-06-07-08-09-0a-0b-0c-0d-0e-0f, aabbccdd, 11112222
+000102030405060708090A0B0C0D0E0F AABBCCDD
+";
+        let (cars, errors) = parse_audi_bcm2_keys(text);
+        assert_eq!(cars.len(), 2);
+        assert_eq!(cars[0].name, "A5 2010");
+        assert_eq!(cars[0].car_value, [0xAA, 0xBB, 0xCC, 0xDD]);
+        assert_eq!(cars[0].key_ids, vec![[0x11, 0x11, 0x22, 0x22], [0x33, 0x33, 0x44, 0x44]]);
+        assert_eq!(cars[1].name, "car 2", "an unnamed car gets a positional name");
+        assert_eq!(cars[1].key_ids.len(), 1);
+        assert_eq!(errors.len(), 1, "a car needs at least one key ID");
+        assert_eq!(errors[0].0, 4);
     }
 
     #[test]

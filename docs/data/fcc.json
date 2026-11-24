@@ -1657,14 +1657,14 @@
    "makes": [
     "Alfa Romeo"
    ],
-   "model_years": 20,
-   "models": "Alfa Romeo Giulia, Alfa Romeo Romeo, Alfa Romeo Stelvio",
+   "model_years": 12,
+   "models": "Alfa Romeo Giulia, Alfa Romeo Stelvio",
    "product": "Radio frequency transmitter used in vehicle locking/unlocking systems",
    "protocols": [
     "Fiat V2"
    ],
    "status": "read",
-   "years": "2017-2024"
+   "years": "2017-2022"
   },
   {
    "evidence": "recording (the only remote listed for that car)",

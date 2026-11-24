@@ -2,7 +2,7 @@
 
 KAT captures, decodes and retransmits car key fob and garage door, gate and barrier remote signals from a terminal. It works with a **HackRF One** (receive and transmit), an **RTL-SDR** dongle (receive only), a **Flipper Zero** on USB (receive and transmit through its console) and, receiving, any radio **SoapySDR** drives, several at once, each on its own frequency, and decodes IQ recordings and Flipper Zero `.sub` files with no radio attached. It is written in Rust, with a [ratatui](https://ratatui.rs) interface.
 
-Its 164 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate), [Flipper-ARF](https://github.com/D4C1-Labs/Flipper-ARF), [doctor-firmware](https://github.com/thedoctorz/doctor-firmware), [Momentum](https://github.com/Next-Flip/Momentum-Firmware), [RogueMaster](https://github.com/RogueMaster/flipperzero-firmware-wPlugins) and FoxFW, with receive-only decoders from [rtl_433](https://github.com/merbanan/rtl_433) for remotes no Flipper firmware reads, and each port is checked against the reference C code compiled on a PC. A few are KAT's own, worked out from recordings where no reference reads the signal ([the list](docs/about.md)).
+Its 165 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPirate/ProtoPirate), [Flipper-ARF](https://github.com/D4C1-Labs/Flipper-ARF), [doctor-firmware](https://github.com/thedoctorz/doctor-firmware), [Momentum](https://github.com/Next-Flip/Momentum-Firmware), [RogueMaster](https://github.com/RogueMaster/flipperzero-firmware-wPlugins) and FoxFW, with receive-only decoders from [rtl_433](https://github.com/merbanan/rtl_433) for remotes no Flipper firmware reads, and each port is checked against the reference C code compiled on a PC. A few are KAT's own, worked out from recordings where no reference reads the signal ([the list](docs/about.md)).
 
 **Website: [kat.karazajac.io](https://kat.karazajac.io)**, with a page for every protocol.
 
@@ -92,18 +92,18 @@ On Windows there is nothing to install here: the `.zip` carries the HackRF libra
 Then check, unpack and run (with your version and platform):
 
 ```bash
-sha256sum -c kat-v1.23.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
-tar xzf kat-v1.23.0-x86_64-linux.tar.gz
-./kat-v1.23.0-x86_64-linux/kat
+sha256sum -c kat-v1.24.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.24.0-x86_64-linux.tar.gz
+./kat-v1.24.0-x86_64-linux/kat
 ```
 
 On Windows, in PowerShell (Windows Terminal):
 
 ```powershell
-$want = (Get-Content kat-v1.23.0-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.23.0-x86_64-windows.zip).Hash -eq $want    # True
-Expand-Archive kat-v1.23.0-x86_64-windows.zip .
-.\kat-v1.23.0-x86_64-windows\kat.exe
+$want = (Get-Content kat-v1.24.0-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.24.0-x86_64-windows.zip).Hash -eq $want    # True
+Expand-Archive kat-v1.24.0-x86_64-windows.zip .
+.\kat-v1.24.0-x86_64-windows\kat.exe
 ```
 
 The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. The Windows build isn't signed, so SmartScreen may stop its first start ("More info", then "Run anyway"). Intel Macs and other platforms build from source.
@@ -227,7 +227,7 @@ After an encoder transmission (Send next code, Send button…, TX Lock … Panic
 |---|---|
 | Recover key (KeeLoq magic serial) | KeeLoq frame no key decrypts: search the remote's magic-serial manufacturer key using all of its captures (two or more presses), on the graphics card or else every core (Flipper-ARF's KeeLoq Decrypt). The key is saved as `BF_<serial>` and the remote's captures decode ([docs/keeloq.md](docs/keeloq.md)) |
 | Recover key (PSA brute force) | PSA TEA frame without a key: run ProtoPirate's key brute force in the background (with `autobf`, the default, it already ran on its own). On success the capture gets its serial, button and counter, and transmit actions; the detail panel says how the key was recovered, or that no key fits |
-| Recover key (HiTag2) | Fiat V1, Renault V1 or Fiat V2 frame KAT has no key for (it would be replayed): search the remote's key with HiTag2 Hell, paired with another capture of the same remote (same UID, another press), on the graphics card or else every core, about 20 minutes at most on a CPU. The key is shown in both byte orders (an overlay, then the **HiTag2** row of the detail panel) and saved in `hitag2_keys.txt`, and the remote's captures send fresh codes ([docs/hitag2_hell.md](docs/hitag2_hell.md)) |
+| Recover key (HiTag2) | Fiat V1, Renault V1 or Fiat V2 frame KAT has no key for (it would be replayed; not a Maserati key's Fiat V2 frame, whose keystream the search does not read yet): search the remote's key with HiTag2 Hell, paired with another capture of the same remote (same UID, another press), on the graphics card or else every core, about 20 minutes at most on a CPU. The key is shown in both byte orders (an overlay, then the **HiTag2** row of the detail panel) and saved in `hitag2_keys.txt`, and the remote's captures send fresh codes ([docs/hitag2_hell.md](docs/hitag2_hell.md)) |
 | Cancel key recovery | Stop a running key recovery (its progress shows in the status bar's title) |
 | Replay | Re-transmit the capture as recorded (the capture does not change) |
 | Send next code | Gate, garage and barrier remotes (instead of TX Lock … Panic): transmit the code after the stored one, which the capture then keeps, so each press sends a new code |

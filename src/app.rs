@@ -617,6 +617,8 @@ impl App {
         let user_keystore_msg = crate::keystore::load_user_keystore(storage.config_dir());
         // ── … and the HiTag2 keys saved per remote (Flipper-ARF's `hitag2_keys.txt`), if any ──
         let hitag2_keys_msg = crate::protocols::hitag2_keys::load(storage.config_dir());
+        // ── … and the user's Audi BCM2 car keys (`audi_bcm2_keys`), if any, for the Audi V3 encoder ──
+        let audi_bcm2_keys_msg = crate::keystore::load_audi_bcm2_keys(storage.config_dir());
 
         let mut protocols = ProtocolRegistry::new();
         protocols.set_auto_key_search(storage.config.autobf);
@@ -740,7 +742,7 @@ impl App {
         }
         // Saved-session restore prompt, session writer, saved-fob index (app/persistence.rs).
         app.init_app_extensions();
-        for msg in [user_keystore_msg, hitag2_keys_msg].into_iter().flatten() {
+        for msg in [user_keystore_msg, hitag2_keys_msg, audi_bcm2_keys_msg].into_iter().flatten() {
             tracing::info!("{msg}");
             app.status_message.get_or_insert(msg);
         }
@@ -1341,7 +1343,10 @@ impl App {
         if Self::keeloq_bf_offered(c) {
             return Some(SignalAction::RecoverKeeloqKey);
         }
-        self.hitag2_bf_offered(c).then_some(SignalAction::RecoverHitag2Key)
+        if self.hitag2_bf_offered(c) {
+            return Some(SignalAction::RecoverHitag2Key);
+        }
+        None
     }
 
     /// Whether a key search runs for capture `id` (the signal menu offers to cancel it).

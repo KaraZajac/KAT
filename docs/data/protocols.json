@@ -15134,6 +15134,10 @@
      "Lock"
     ],
     [
+     11,
+     "Btn 4"
+    ],
+    [
      12,
      "Unlock"
     ],
@@ -15145,7 +15149,7 @@
    "category": "Vehicle",
    "coding": "Manchester",
    "decoder": "Audi V3",
-   "encoder": false,
+   "encoder": true,
    "encryption": "Encrypted (rolling)",
    "frequencies": [
     0
@@ -21820,5 +21824,5 @@
    "te_short": null
   }
  ],
- "version": "1.23.0"
+ "version": "1.24.0"
 }

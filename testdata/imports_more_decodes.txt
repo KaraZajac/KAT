@@ -128,9 +128,15 @@ KIA/more/kia_v7_Korea_H6_DXL.sub | 433920000 | Kia V7 | x20 | 10 distinct | fnv=
 MASERATI/more/2012-2021_maserati_levante_lock_possibly_damaged.sub | 433920000 | (none)
 MASERATI/more/2012-2021_maserati_levante_trunk_possibly_damaged.sub | 433920000 | (none)
 MASERATI/more/2012-2021_maserati_levante_unlock_possibly_damaged.sub | 433920000 | (none)
-MASERATI/more/2016-2021_maserati_ghibli_lock.sub | 433920000 | Fiat V2 | x87 | 20 distinct | fnv=8BDBD88B33859E06
-MASERATI/more/2016-2021_maserati_ghibli_trunk.sub | 433920000 | Fiat V2 | x78 | 20 distinct | fnv=B80B697A50F59E7D
-MASERATI/more/2016-2021_maserati_ghibli_unlock.sub | 433920000 | Fiat V2 | x76 | 20 distinct | fnv=DB47F0237E3A7028
+MASERATI/more/2016-2021_maserati_ghibli_lock.sub | 433920000 | Fiat V2 | x87 | 20 distinct | fnv=447D64D646C02A4A
+MASERATI/more/2016-2021_maserati_ghibli_lock_2.sub | 433920000 | Fiat V2 | x56 | 10 distinct | fnv=962CBE74EB795353
+MASERATI/more/2016-2021_maserati_ghibli_trunk.sub | 433920000 | Fiat V2 | x78 | 20 distinct | fnv=325127490CFC85EF
+MASERATI/more/2016-2021_maserati_ghibli_trunk_2.sub | 433920000 | Fiat V2 | x56 | 10 distinct | fnv=BEA4482F2E80C068
+MASERATI/more/2016-2021_maserati_ghibli_unlock.sub | 433920000 | Fiat V2 | x76 | 20 distinct | fnv=AD849CE8C4A75225
+MASERATI/more/2016-2021_maserati_ghibli_unlock_2.sub | 433920000 | Fiat V2 | x56 | 10 distinct | fnv=B4B227B3B319D9F1
+MASERATI/more/2016-2021_maserati_levante_lock.sub | 433920000 | Fiat V2 | x53 | 10 distinct | fnv=6C7175BBA182B1D9
+MASERATI/more/2016-2021_maserati_levante_trunk.sub | 433920000 | Fiat V2 | x49 | 10 distinct | fnv=028D36AC4B8EDB9A
+MASERATI/more/2016-2021_maserati_levante_unlock.sub | 433920000 | Fiat V2 | x60 | 12 distinct | fnv=0EE0621CCD2D767F
 MISC/more/36 Audiovox PRO.sub | 433920000 | key | refused: the Audiovox-PROOE3B decoder does not take this "Audiovox PRO" key file (25 bits): it holds no valid frame of the protocol
 MISC/more/vag_1_2_3_4__kia_0_1_3_4_5.sub | 434420000 | VAG | x4 | 4 distinct | fnv=DC1B61BA6C1B16FB
 MISC/more/vag_1_2_3_4__kia_0_1_3_4_5.sub | 434420000 | Toyota (FoxFW) | x1 | 1 distinct | fnv=85DC58A3B1F9336A
@@ -228,6 +234,8 @@ VAG/more/2.sub | 434420000 | key | VAG | data=C0D5C8CF0B83C733/80 extra=80000000
 VAG/more/2008-2015_audi_a4_bcm2_lock.sub | 868350000 | Audi V3 | x21 | 21 distinct | fnv=3A733893DCA81959
 VAG/more/2008-2015_audi_a4_bcm2_trunk.sub | 868350000 | Audi V3 | x20 | 20 distinct | fnv=778105AC9634C9FC
 VAG/more/2008-2015_audi_a4_bcm2_unlock.sub | 868350000 | Audi V3 | x20 | 20 distinct | fnv=29A9BED57B825B4F
+VAG/more/2026_vw_amarok_lock.sub | 434240000 | Ford V3 | x40 | 20 distinct | fnv=5BBE0BEEA679B351
+VAG/more/2026_vw_amarok_unlock.sub | 434240000 | Ford V3 | x40 | 20 distinct | fnv=AF621B85A5A3129B
 VAG/more/2_2.sub | 434420000 | key | VAG | data=C0F61F121EF99164/80 extra=800000000204001D sn=7C8F963 btn=1 cnt=4E92 crc=1 tx=1
 VAG/more/32 Audi V1.sub | 433920000 | key | refused: no decoder reads "Audi V1" key files (88 bits)
 VAG/more/A120LL.sub | 434420000 | VAG | x80 | 20 distinct | fnv=61261DDF0EC5AD21
@@ -378,7 +386,9 @@ honda/more/honda_civic_2005_30.sub | 433920000 | Honda V0 | x20 | 20 distinct | 
 jeep/more/2019-2025_jeep_wrangler_lock.sub | 433920000 | Fiat V2 | x84 | 20 distinct | fnv=3EC03F106EEF3CEF
 jeep/more/2019-2025_jeep_wrangler_unlock.sub | 433920000 | Fiat V2 | x80 | 20 distinct | fnv=FE320E72AEC585E0
 mercedes/more/2015_mercedes_fbs3_lock.sub | 433920000 | (none)
+mercedes/more/2015_mercedes_fbs3_lock_2.sub | 433950000 | Mercedes V1 | x7 | 4 distinct | fnv=21A0A527912D7572
 mercedes/more/2015_mercedes_fbs3_unlock.sub | 433920000 | (none)
+mercedes/more/2015_mercedes_fbs3_unlock_2.sub | 433950000 | Mercedes V1 | x6 | 5 distinct | fnv=AD777D7D8042E21E
 nissan/more/Nissan_Almera_2014_xHorse_300lck.sub | 433920000 | Renault V1 | x53 | 29 distinct | fnv=2A377775267DBFCB
 nissan/more/Nissan_Almera_2014_xHorse_300lck.sub | 433920000 | Renault/xHorse V4 | x34 | 17 distinct | fnv=3F048A31717E96F5
 nissan/more/Nissan_Almera_2014_xHorse_5lck_hold10s.sub | 433920000 | Renault V1 | x11 | 5 distinct | fnv=DBB1E6D6B1E2BCA1

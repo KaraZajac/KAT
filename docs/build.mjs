@@ -56,6 +56,9 @@ const GUIDES = ['install', 'recording', 'radio', 'flipper_radio', 'transmit', 's
   'add_manually', 'flipper_key_files', 'hitag2_hell', 'unidentified_captures'];
 // Pages about the reference work itself.
 const REFERENCE = ['glossary', 'about'];
+// The ECU / immobiliser section (the wired side): ecu.md is its index, the ecu_*.md its family pages.
+const ECU_INDEX = 'ecu';
+const ECU = [ECU_INDEX, 'ecu_psa', 'ecu_iaw_tms374', 'ecu_mercedes_temic', 'ecu_bmw'];
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const plural = (n, one, many = `${one}s`) => `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
@@ -69,6 +72,7 @@ const CAPS = data('captures.json');
 const FCC = data('fcc.json');
 const COV = data('coverage.json');
 const TAX = data('taxonomy.json');
+const ECUS = data('ecus.json');
 const RFCC = data('remotes_fcc.json');
 const ROWN = data('remotes.json');
 /** Parts installed in the car, not carried. Parts catalogues list them for the same cars as the keys, so they are in
@@ -961,26 +965,45 @@ const search = [];      // what site.js searches
 
 const guideSide = (here) => sideList('Guides', GUIDES.filter((p) => rendered.has(p)).map((p) => [`${p}.html`, titles.get(p)]), here)
   + sideList('Reference', [['glossary.html', 'Glossary'], ['about.html', 'About this site'], ...(made.includes('changelog') ? [['changelog.html', 'Changelog']] : [])], here);
+const ecuSide = (here) => sideList('ECUs', ECU.filter((p) => rendered.has(p)).map((p) => [`${p}.html`, titles.get(p)]), here);
 const indexSide = (here) => sideList('Browse', [['protocols.html', 'Protocols'], ['makes.html', 'Makes'], ['remotes.html', 'Remotes'], ['chips.html', 'Chips'],
-  ['captures.html', 'Recordings'], ['fcc.html', 'FCC IDs'], ['coverage.html', 'Coverage'], ['guides.html', 'Guides'], ['glossary.html', 'Glossary']], here);
+  ['ecu.html', 'ECUs'], ['captures.html', 'Recordings'], ['fcc.html', 'FCC IDs'], ['coverage.html', 'Coverage'], ['guides.html', 'Guides'], ['glossary.html', 'Glossary']], here);
+
+// The families table on the ECU index page, from data/ecus.json (grouped by make). A family that has
+// its own page links to it. Injected where ecu.md has the line `ECU_FAMILIES_TABLE`.
+const ecuFamiliesTable = () => {
+  const byMake = new Map();
+  for (const f of ECUS.families) (byMake.get(f.make) ?? byMake.set(f.make, []).get(f.make)).push(f);
+  const op = { 'calc-pin': 'Calculate PIN', repair: 'Repair', 'remove-immo': 'Remove immo', 'clear-immo': 'Clear immo', 'prepare-coding': 'Prepare for coding', program: 'Program', decode: 'Decode dump' };
+  const cell = (f) => (f.page && rendered.has(f.page)) ? `<a href="${f.page}.html">${esc(f.ecu)}</a>` : esc(f.ecu);
+  const rows = [...byMake].map(([make, fs]) => fs.map((f, i) =>
+    `<tr>${i === 0 ? `<th rowspan="${fs.length}" scope="rowgroup">${esc(make)}</th>` : ''}<td>${cell(f)}</td><td>${esc(f.mcu === '—' ? '' : f.mcu)}</td><td>${esc(f.memory)}</td><td>${(f.operation || '').split(',').map((o) => op[o] ?? o).join(', ')}</td></tr>`).join('\n')).join('\n');
+  return `<div class="table-wrap"><table class="ecu-families data"><thead><tr><th>Make</th><th>ECU</th><th>MCU</th><th>Memory</th><th>Operation</th></tr></thead><tbody>\n${rows}\n</tbody></table></div>`;
+};
 
 for (const [p, r] of rendered) {
   if (byPage.has(p)) {
     html.set(`${p}.html`, protocolPage(p, r, parts));
     continue;
   }
-  const guide = GUIDES.includes(p), ref = REFERENCE.includes(p);
-  const trail = [['./', 'KAT'], guide ? ['guides.html', 'Guides'] : ref ? ['about.html', 'Reference'] : ['protocols.html', 'Protocols']];
+  const guide = GUIDES.includes(p), ref = REFERENCE.includes(p), ecu = ECU.includes(p), ecuIndex = p === ECU_INDEX;
+  const trail = ecu
+    ? (ecuIndex ? [['./', 'KAT']] : [['./', 'KAT'], ['ecu.html', 'ECUs']])
+    : [['./', 'KAT'], guide ? ['guides.html', 'Guides'] : ref ? ['about.html', 'Reference'] : ['protocols.html', 'Protocols']];
   const facts = r.meta.length ? `<aside class="infobox" aria-label="Facts"><div class="infobox-title">${esc(short(r.title))}</div><dl>
 ${r.meta.map((m) => `<div><dt>${esc(/^rust module/i.test(m.label) ? 'Source' : m.label)}</dt><dd>${codeBreaks(m.html)}</dd></div>`).join('\n')}
 </dl></aside>\n` : '';
+  const body = ecuIndex ? r.body.replace(/<p>ECU_FAMILIES_TABLE<\/p>/, ecuFamiliesTable()) : r.body;
+  const sideFor = ecu ? ecuSide(`${p}.html`) : (guide || ref) ? guideSide(`${p}.html`) : indexSide('');
   html.set(`${p}.html`, wikiPage({
     file: `${p}.html`, title: r.title, description: r.description, trail, numbered: !ref,
-    side: tocList(r.toc, !ref) + (guide || ref ? guideSide(`${p}.html`) : indexSide('')),
-    lead: facts, body: r.body,
-    foot: docFoot(p, guide || ref ? 'guides.html' : 'protocols.html', guide || ref ? 'All guides' : 'All protocols'),
+    side: tocList(r.toc, !ref) + sideFor,
+    lead: facts, body,
+    foot: ecu
+      ? docFoot(p, ecuIndex ? 'protocols.html' : 'ecu.html', ecuIndex ? 'All protocols' : 'ECU reference')
+      : docFoot(p, guide || ref ? 'guides.html' : 'protocols.html', guide || ref ? 'All guides' : 'All protocols'),
   }, parts));
-  search.push({ t: short(r.title), u: `${p}.html`, k: guide ? 'Guide' : ref ? 'Reference' : 'Page', d: r.description });
+  search.push({ t: short(r.title), u: `${p}.html`, k: ecu ? 'ECU' : guide ? 'Guide' : ref ? 'Reference' : 'Page', d: r.description });
 }
 
 // Glossary terms are found by their own names.

@@ -57,6 +57,8 @@ pub struct DecodeLine {
     pub fields: String,
     /// The decode's frame (`DecodedSignal::data`).
     pub data: u64,
+    /// The decode's `DecodedSignal::extra` (e.g. the Audi V3 BCM2 frame's upper bytes, or a protocol's packed state).
+    pub extra: Option<u64>,
 }
 
 /// Result of one file.
@@ -134,7 +136,7 @@ fn line(auto: bool, source: &'static str, name: String, d: &DecodedSignal) -> Op
     thread_local! {
         static DONE: std::cell::RefCell<Done> = Default::default();
     }
-    let plain = |name: String, d: &DecodedSignal, note: &str| DecodeLine { source, protocol: name, fields: fields(d) + note, data: d.data };
+    let plain = |name: String, d: &DecodedSignal, note: &str| DecodeLine { source, protocol: name, fields: fields(d) + note, data: d.data, extra: d.extra };
     if !auto {
         return Some(plain(name, d, ""));
     }
@@ -361,8 +363,13 @@ fn decode_paths(reg: &mut ProtocolRegistry, opts: &DecodeOptions) -> i32 {
 /// (see [`decode_paths`]).
 fn load_keystores() {
     crate::protocols::keys::load_keystore_from_embedded();
-    if let Some(msg) = crate::storage::resolve_config_dir().and_then(|d| crate::keystore::load_user_keystore(&d)) {
-        eprintln!("{msg}");
+    if let Some(dir) = crate::storage::resolve_config_dir() {
+        for msg in [crate::keystore::load_user_keystore(&dir), crate::keystore::load_audi_bcm2_keys(&dir)]
+            .into_iter()
+            .flatten()
+        {
+            eprintln!("{msg}");
+        }
     }
 }
 

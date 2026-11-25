@@ -368,6 +368,8 @@ fn load_keystores() {
             crate::keystore::load_user_keystore(&dir),
             crate::keystore::load_jlr_keys(&dir),
             crate::keystore::load_audi_bcm2_keys(&dir),
+            crate::keystore::load_bmw_cas3_keys(&dir),
+            crate::keystore::load_bmw_cas4_keys(&dir),
             crate::keystore::load_psa_bsi_key(&dir),
         ]
         .into_iter()

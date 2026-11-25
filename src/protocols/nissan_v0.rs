@@ -27,6 +27,15 @@
 //! so first-match keeps them and the corpus diff against the previous release is empty. It is the
 //! last of the FoxFW block so that it only sees what every other decoder rejects. No capture of a
 //! real Nissan V0 fob exists to weigh the gate against.
+//!
+//! **Resolved ambiguity — a BMW slow-Manchester fob (2026-11-25).** A tester's BMW capture
+//! (`Bmw_x20_*`) is a ~500 µs differential-Manchester 433.92 MHz frame that shares Nissan V0's whole
+//! physical layer; its sync `110001` landed at an early bit position (p=1/p=9) and matched this
+//! weak 12-bit lock, so it was mis-reported as `Nissan V0`. The 12-bit lock could not tell them
+//! apart and there is no CRC to break the tie, so tightening this gate is unsafe without a real
+//! Nissan V0 capture. The clean fix shipped instead: [`super::bmw_fzv`] (BMW FZV) decodes that
+//! format on a far stronger gate (a `0x30`-sync 64-bit frame confirmed by a repeat) and is
+//! registered ahead of Nissan V0, so it claims those frames first and Nissan V0 no longer sees them.
 
 use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;

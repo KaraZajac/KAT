@@ -106,6 +106,7 @@ mod honda_v2;
 mod land_rover_rke;
 mod toyota;
 mod bmw;
+mod bmw_fzv;
 mod mazda_v2;
 mod mercedes_v0;
 mod mercedes_v1;
@@ -250,6 +251,10 @@ mod bmw_v2;
 mod audi_v1;
 mod bmw_v3;
 mod audi_v3;
+/// BMW CAS4 / BMW-Mini-V3 RKE authenticator (AES-128 MAC). Not yet registered as a decoder; inert
+/// without an owner-supplied key. See the module docs.
+#[allow(dead_code)]
+mod bmw_rke;
 mod bmw_cas3;
 
 // rtl_433 ports (receive only), on rtl_433's receive chain (bit buffer, pulse detector, slicers)
@@ -396,8 +401,8 @@ pub trait ProtocolDecoder: Send + Sync {
     /// The input ended (the end of a recording, or of a burst the receiver handed over): the
     /// frame this decoder holds back for a pulse that will not come now. Only decoders that report
     /// a complete frame later than their reference does (a KAT deviation, to give an earlier
-    /// decoder priority or to see the burst end) hold one: Mercedes V1, Renault V1, Fiat V2 and
-    /// PSA's doctor-firmware path. A decoder whose reference also waits for the pulse after
+    /// decoder priority or to see the burst end) hold one: Mercedes V1, Renault V1, Fiat V2,
+    /// PSA's doctor-firmware path and BMW/Mini V3 (which waits for its XOR byte). A decoder whose reference also waits for the pulse after
     /// the frame keeps None, as on a Flipper.
     fn flush(&mut self) -> Option<DecodedSignal> {
         None
@@ -1074,8 +1079,8 @@ impl ProtocolRegistry {
             // Lexus V0 (AM), which reads the same frame's first 224 bits as sent, without the
             // differential step.
             Box::new(lexus_ux::LexusUxDecoder::new()),
-            // PSA 2-Button (decode-only, no check): 207/414 µs OOK Manchester behind a pause and half a
-            // bit of carrier, exactly 76 bits, ended by 2.0 to 3.3 ms of carrier.
+            // PSA 2-Button (decode + replay, no check): 207/414 µs OOK Manchester behind a pause and
+            // half a bit of carrier, exactly 76 bits, ended by 2.0 to 3.3 ms of carrier.
             Box::new(psa_two_button::PsaTwoButtonDecoder::new()),
             // VW-1 (own, with encoder; no check): 500/1000 µs OOK pulse width behind a 1500/1500 µs
             // start, 60 bits, button 1/2, non-zero 24-bit LFSR state. Before Nissan V0 and
@@ -1090,6 +1095,10 @@ impl ProtocolRegistry {
             // Mazda V1: 505/1010 µs, 0xEC sync scanned at both polarities, button whitelist, 71 bits.
             // Behind Mazda V2, which keeps every frame both read.
             Box::new(mazda_v1::MazdaV1Decoder::new()),
+            // BMW FZV (KAT-own): the same 500/1000 µs differential Manchester as Nissan V0, but a
+            // 64-bit 0x30-sync frame confirmed by a repeat. Ahead of Nissan V0 so it claims these
+            // BMW central-locking frames (which else coincidentally match Nissan V0's weak lock).
+            Box::new(bmw_fzv::BmwFzvDecoder::new()),
             // Nissan V0: 500/1000 µs differential Manchester, a 12-bit structural lock (sync
             // 110001 + marker 000010) on 64 bits.
             Box::new(nissan_v0::NissanV0Decoder::new()),
@@ -1107,7 +1116,8 @@ impl ProtocolRegistry {
             // fits 1 of 23 frames of an unrelated VW Atlas capture (see docs/audi_v2.md).
             // BMW V2: AM Manchester 500/1000 µs, 56 bits behind a fixed 0xCF header and 0x3A trailer.
             Box::new(bmw_v2::BmwV2Decoder::new()),
-            // BMW/Mini V3: 2-FSK Manchester 95/190 µs, 0xCC header then 64 bits, button 02/04/08/10.
+            // BMW/Mini V3 (the CAS3 remote): 2-FSK Manchester 95/190 µs, 0xCC header, 64 bits and
+            // the XOR byte the CAS3 checks; unchecked frames keep FoxFW's button 02/04/08/10 gate.
             Box::new(bmw_v3::BmwV3Decoder::new()),
             // Audi V3: 2-FSK half-bit pulses ~383/766 µs, 96 bits, button 0x0C/0x0D, hop not 00/FF.
             Box::new(audi_v3::AudiV3Decoder::new()),
@@ -2662,7 +2672,7 @@ mod tests {
             // pulse widths, less than the frame's block.
             let foxfw = ["LDV V0", "Lexus V0", "Mazda V1", "Nissan V0", "Honda V6"].contains(&name);
             // KAT's own decoders from recordings write none either: no firmware has a key format for them.
-            let own = ["Kia Mobis", "Kia Denso", "Kia Forte", "GM RFA", "Isuzu Rolling", "Isuzu Static", "Suzuki TS002", "Opel Rolling", "Renault 1-Button", "Volvo S40", "Lexus UX", "PSA 2-Button", "VW-1"].contains(&name);
+            let own = ["Kia Mobis", "Kia Denso", "Kia Forte", "GM RFA", "Isuzu Rolling", "Isuzu Static", "Suzuki TS002", "Opel Rolling", "Renault 1-Button", "Volvo S40", "Lexus UX", "PSA 2-Button", "VW-1", "BMW FZV"].contains(&name);
             let listed = written.iter().any(|&(_, dec)| dec == name) || name == "Renault V1 (ARF)" || name == "Toyota (FoxFW)" || name == "HondaV2&V3" || foxfw || own;
             assert!(listed, "{name}: no key-file name listed");
         }

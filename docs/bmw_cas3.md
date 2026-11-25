@@ -11,9 +11,14 @@ FOBworks for Flipper, GPL-3.0, `flipper_oem_wire.c`, for the gate and timing); t
 
 ## Overview
 
-The PPM key fob of BMW CAS3 / CAS4 cars. The payload is AES-encrypted, so the frame is identified by structure and kept
-verbatim: constant marks, a short or long space per bit, 64 to 128 bits, after two intervals of at least 10 ms. It is not
-KAT's "BMW" (`bmw.rs`, Flipper-ARF's 62 µs Manchester frame behind the 0x599E sync).
+A PPM key fob that FOBworks (and so FoxFW) names after BMW CAS3 / CAS4 and calls AES-encrypted; the frame is identified by
+structure and kept verbatim: constant marks, a short or long space per bit, 64 to 128 bits, after two intervals of at
+least 10 ms. It is not KAT's "BMW" (`bmw.rs`, Flipper-ARF's 62 µs Manchester frame behind the 0x599E sync).
+
+**The CAS3 itself checks another frame.** A CAS3 module (CAS3 0L15Y firmware) has no radio pulse decoder: the
+receiver in the antenna module hands it bytes, and the key telegram it checks is `0xCC` + 9 bytes with an XOR check
+and a HITAG2 authenticator — the frame KAT decodes as [BMW/Mini V3](bmw_v3.md). It also takes telegrams that begin
+`0xCA` or `0xCF`, not traced yet. Which BMW keys send this PPM format is not established; no capture of it is in IMPORTS.
 
 ## Timing / modulation
 

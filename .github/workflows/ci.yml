@@ -6,12 +6,17 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install native libraries
         run: |
@@ -20,10 +25,13 @@ jobs:
 
       - name: Install Rust
         run: |
-          rustup toolchain install stable --profile minimal
+          rustup toolchain install stable --profile minimal --component clippy
           rustup default stable
 
       - uses: Swatinem/rust-cache@v2
+
+      - name: Lint vendored libhackrf
+        run: cargo clippy -p libhackrf --locked --all-targets -- -D warnings
 
       - name: Build
         run: cargo build --locked --all-targets
@@ -31,19 +39,21 @@ jobs:
       - name: Test
         run: cargo test --locked
 
+      - name: Test vendored libhackrf
+        run: cargo test -p libhackrf --locked
+
       # The vendored RTL-SDR driver: its ported tuner drivers against librtlsdr's I2C traces.
       - name: Test the RTL-SDR driver
         run: cargo test --locked -p rtl-sdr-rs --features rtl-sdr-rs/gpl-tuners
 
-  # Windows x64 with MSYS2's UCRT64 environment, which packages Rust, libusb and the HackRF
-  # library. Each run also uploads a test build: kat.exe with the DLLs it loads.
+  # Windows x64 with MSYS2's UCRT64 environment, which packages Rust, libusb and the HackRF library.
   windows:
     runs-on: windows-latest
     defaults:
       run:
         shell: msys2 {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install MSYS2 with Rust, libusb and the HackRF library
         uses: msys2/setup-msys2@v2
@@ -60,27 +70,8 @@ jobs:
       - name: Build
         run: cargo build --locked --all-targets
 
+      - name: Test vendored libhackrf
+        run: cargo test -p libhackrf --locked
+
       - name: Test
         run: cargo test --locked
-
-      - name: Package a test build
-        run: |
-          cargo build --release --locked
-          name="kat-${GITHUB_SHA::7}-x86_64-windows"
-          mkdir -p "dist/$name"
-          cp target/release/kat.exe README.md LICENSE COPYING CHANGELOG.md "dist/$name/"
-          # The DLLs kat.exe loads from MSYS2: libhackrf, libusb and winpthreads.
-          ldd target/release/kat.exe | awk '$3 ~ /^\/ucrt64\// {print $3}' | sort -u | xargs -r cp -t "dist/$name/"
-          ls -l "dist/$name"
-
-      - name: Check the test build starts outside MSYS2
-        shell: pwsh
-        run: |
-          $exe = (Get-ChildItem dist/*/kat.exe | Select-Object -First 1).FullName
-          & $exe --version
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: kat-x86_64-windows
-          path: dist/

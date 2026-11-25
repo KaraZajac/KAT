@@ -56,12 +56,15 @@ const GUIDES = ['install', 'recording', 'radio', 'flipper_radio', 'transmit', 's
   'add_manually', 'flipper_key_files', 'hitag2_hell', 'unidentified_captures'];
 // Pages about the reference work itself.
 const REFERENCE = ['glossary', 'about', 'reports'];
-// Research reports (PDFs under ../reports/) and the protocol page each one is attached to.
+// Research reports (PDFs under ../reports/): `page` is the doc page the report is attached to;
+// `protocolPage` is the page of its row in the protocol table (Ford V1 (JLR) is an alias of Ford V1).
 const REPORTS = [
-  { slug: 'jlr', dir: '2026-jlr-rke-bj32-15k601', title: 'Ford V1 (JLR): a 32-bit key', page: 'ford_v1_jlr' },
-  { slug: 'psa-older-code', dir: '2026-psa-rke-73373067', title: 'PSA legacy two-button remotes: a global key', page: 'psa' },
-  { slug: 'subaru-v1', dir: '2026-subaru-rke-cwtwb1u811', title: 'Subaru V1: a plaintext rolling code', page: 'subaru_v1' },
+  { slug: 'jlr', dir: '2026-jlr-rke-bj32-15k601', title: 'Ford V1 (JLR): a 32-bit key', page: 'ford_v1_jlr', protocolPage: 'ford_v1' },
+  { slug: 'psa-older-code', dir: '2026-psa-rke-73373067', title: 'PSA legacy two-button remotes: a global key', page: 'psa', protocolPage: 'psa' },
+  { slug: 'subaru-v1', dir: '2026-subaru-rke-cwtwb1u811', title: 'Subaru V1: a plaintext rolling code', page: 'subaru_v1', protocolPage: 'subaru_v1' },
 ];
+// protocol-table page -> its report, for the "report" link in the table and on the protocol row.
+const reportByProtocolPage = new Map(REPORTS.map((r) => [r.protocolPage, r]));
 // The ECU / immobiliser section (the wired side): ecu.md is its index, the ecu_*.md its family pages.
 const ECU_INDEX = 'ecu';
 const ECU = [ECU_INDEX, 'ecu_psa', 'ecu_iaw_tms374', 'ecu_mercedes_temic', 'ecu_bmw'];
@@ -276,8 +279,9 @@ const timing = (p) => (p.te_short ? `${p.te_short} / ${p.te_long}` : '');
 function protocolTable(list, { make = true } = {}) {
   const rows = list.map((p) => {
     const caps = (capsOfPage.get(p.page) ?? []).filter((c) => c.reads.some((r) => r.entry === p)).length;
-    return `<tr data-q="${esc(`${p.name} ${p.aliases.join(' ')} ${p.make} ${CODING[p.coding] ?? p.coding} ${RF_SHORT[p.rf]} ${p.encryption} ${p.category === 'Vehicle' ? 'car vehicle' : 'gate garage'} ${p.encoder ? 'encode' : ''} ${p.rtl433 ? 'rtl_433' : ''}`.toLowerCase())}">
-<td>${pageLink(p)}</td>
+    const report = reportByProtocolPage.get(p.page);
+    return `<tr data-q="${esc(`${p.name} ${p.aliases.join(' ')} ${p.make} ${CODING[p.coding] ?? p.coding} ${RF_SHORT[p.rf]} ${p.encryption} ${p.category === 'Vehicle' ? 'car vehicle' : 'gate garage'} ${p.encoder ? 'encode' : ''} ${p.rtl433 ? 'rtl_433' : ''} ${report ? 'report' : ''}`.toLowerCase())}">
+<td>${pageLink(p)}${report ? ` <a class="report-tag" href="reports/${report.slug}.pdf" title="${esc(report.title)}">report</a>` : ''}</td>
 ${make ? `<td>${slashes(p.make)}</td>` : ''}<td>${p.category === 'Vehicle' ? 'Car' : 'Gate'}</td>
 <td>${esc(CODING[p.coding] ?? p.coding)}</td>
 <td class="nw">${RF_SHORT[p.rf] ?? esc(p.rf)}</td>

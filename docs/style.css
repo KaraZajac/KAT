@@ -412,6 +412,14 @@ kbd {
 .tag-ok { color: var(--ok); background: var(--ok-bg); }
 .tag-warn { color: var(--warn); background: var(--warn-bg); }
 .tag-bad { color: var(--bad); background: var(--bad-bg); }
+/* "report" badge in the protocol table / on a protocol page: a research report is available. */
+.report-tag {
+  display: inline-block; white-space: nowrap; vertical-align: baseline;
+  font-family: var(--sans); font-size: 0.64rem; font-weight: 600; line-height: 1.5; letter-spacing: 0.02em;
+  padding: 0 0.36rem; border-radius: 3px; text-decoration: none;
+  color: var(--link); background: var(--wash-2); border: 1px solid var(--rule);
+}
+.report-tag:hover { color: var(--link-hover); border-color: var(--link); }
 
 /* ============================================================
    A page of the reference: the list beside it, the article, the box of facts

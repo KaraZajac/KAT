@@ -4,6 +4,8 @@ layout: default
 
 # Subaru V1 Protocol
 
+> **Research report:** [Subaru V1: a plaintext rolling code](reports/subaru-v1.pdf) — this finding, written up as a PDF, with the rest of KAT's [research reports](reports.md).
+
 **Rust module:** `src/protocols/subaru_v1.rs`
 **Reference:** none. ProtoPirate, Flipper-ARF and doctor-firmware do not read it. The format was worked out from recordings of two keys of a 2014 Subaru (FCC ID CWTWB1U811 family, 315 MHz), with labelled button presses. It is the same family as Wimmenhove's 2005-2011 Subaru finding (command nibble, plaintext counter, XOR-then-+1 check) with a different line code and length. The EU/AU PWM format is [Subaru](subaru.md).
 

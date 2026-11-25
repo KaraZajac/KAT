@@ -4,6 +4,8 @@ layout: default
 
 # PSA (Peugeot/Citroën) Protocol
 
+> **Research report:** [PSA legacy two‑button remotes: a global key](reports/psa-older-code.pdf) — the older two‑button "code" finding, written up as a PDF, with the rest of KAT's [research reports](reports.md).
+
 **Rust module:** `src/protocols/psa.rs`
 **References:** `REFERENCES/ProtoPirate/protocols/psa.c` + `psa_crypto.c` + `psa_crypto_bf.c` (primary),
 `REFERENCES/Flipper-ARF/lib/subghz/protocols/psa.c` ("PSA GROUP"), `REFERENCES/doctor-firmware/lib/subghz/protocols/psa.c`

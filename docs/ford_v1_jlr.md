@@ -4,6 +4,8 @@ layout: default
 
 # Ford V1 (JLR) Protocol
 
+> **Research report:** [Ford V1 (JLR): a 32‑bit key](reports/jlr.pdf) — this finding, written up as a PDF, with the rest of KAT's [research reports](reports.md).
+
 **Rust module:** `src/protocols/ford_v1.rs` (the [Ford V1](ford_v1.md) decoder reads it)
 **Reference:** none. This page is KAT's own work: recordings of the fobs, and flash and EEPROM images of several cars'
 keyless modules with the firmware of two of them (Sources, below).

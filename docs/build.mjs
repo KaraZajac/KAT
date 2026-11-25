@@ -55,7 +55,13 @@ const SKIP = new Set(['build.mjs', 'package.json', 'package-lock.json', 'node_mo
 const GUIDES = ['install', 'recording', 'radio', 'flipper_radio', 'transmit', 'session', 'analyze', 'timing_analysis', 'compare',
   'add_manually', 'flipper_key_files', 'hitag2_hell', 'unidentified_captures'];
 // Pages about the reference work itself.
-const REFERENCE = ['glossary', 'about'];
+const REFERENCE = ['glossary', 'about', 'reports'];
+// Research reports (PDFs under ../reports/) and the protocol page each one is attached to.
+const REPORTS = [
+  { slug: 'jlr', dir: '2026-jlr-rke-bj32-15k601', title: 'Ford V1 (JLR): a 32-bit key', page: 'ford_v1_jlr' },
+  { slug: 'psa-older-code', dir: '2026-psa-rke-73373067', title: 'PSA legacy two-button remotes: a global key', page: 'psa' },
+  { slug: 'subaru-v1', dir: '2026-subaru-rke-cwtwb1u811', title: 'Subaru V1: a plaintext rolling code', page: 'subaru_v1' },
+];
 // The ECU / immobiliser section (the wired side): ecu.md is its index, the ecu_*.md its family pages.
 const ECU_INDEX = 'ecu';
 const ECU = [ECU_INDEX, 'ecu_psa', 'ecu_iaw_tms374', 'ecu_mercedes_temic', 'ecu_bmw'];
@@ -938,6 +944,14 @@ function redirectPage(to) {
 // Static files go across as they are.
 for (const f of files) if (!f.endsWith('.md')) cpSync(join(HERE, f), join(OUT, f), { recursive: true });
 
+// Research report PDFs from the repo's ../reports/ (single source; built without the repo beside this
+// folder, e.g. a bare site build, they are simply absent and the links 404 until the next full build).
+mkdirSync(join(OUT, 'reports'), { recursive: true });
+for (const r of REPORTS) {
+  const pdf = join(HERE, '..', 'reports', r.dir, 'report.pdf');
+  if (existsSync(pdf)) cpSync(pdf, join(OUT, 'reports', `${r.slug}.pdf`));
+}
+
 // The landing page links the changelog page. Built without the repository beside this folder there is
 // none, and the links go to the file in the repository.
 // Its {{placeholders}} are the numbers the site counts itself and the version the data was written by.
@@ -964,10 +978,10 @@ const html = new Map(); // file name -> page
 const search = [];      // what site.js searches
 
 const guideSide = (here) => sideList('Guides', GUIDES.filter((p) => rendered.has(p)).map((p) => [`${p}.html`, titles.get(p)]), here)
-  + sideList('Reference', [['glossary.html', 'Glossary'], ['about.html', 'About this site'], ...(made.includes('changelog') ? [['changelog.html', 'Changelog']] : [])], here);
+  + sideList('Reference', [['reports.html', 'Reports'], ['glossary.html', 'Glossary'], ['about.html', 'About this site'], ...(made.includes('changelog') ? [['changelog.html', 'Changelog']] : [])], here);
 const ecuSide = (here) => sideList('ECUs', ECU.filter((p) => rendered.has(p)).map((p) => [`${p}.html`, titles.get(p)]), here);
 const indexSide = (here) => sideList('Browse', [['protocols.html', 'Protocols'], ['makes.html', 'Makes'], ['remotes.html', 'Remotes'], ['chips.html', 'Chips'],
-  ['ecu.html', 'ECUs'], ['captures.html', 'Recordings'], ['fcc.html', 'FCC IDs'], ['coverage.html', 'Coverage'], ['guides.html', 'Guides'], ['glossary.html', 'Glossary']], here);
+  ['ecu.html', 'ECUs'], ['captures.html', 'Recordings'], ['fcc.html', 'FCC IDs'], ['coverage.html', 'Coverage'], ['guides.html', 'Guides'], ['reports.html', 'Reports'], ['glossary.html', 'Glossary']], here);
 
 // The families table on the ECU index page, from data/ecus.json (grouped by make). A family that has
 // its own page links to it. Injected where ecu.md has the line `ECU_FAMILIES_TABLE`.

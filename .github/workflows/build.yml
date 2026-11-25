@@ -1,0 +1,120 @@
+# Build release KAT application binaries across Linux, macOS, and Windows and upload artifacts.
+name: Build
+
+on:
+  push:
+    branches: ["main", "hack-*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-linux
+            shell: bash
+          - os: ubuntu-22.04-arm
+            target: aarch64-linux
+            shell: bash
+          - os: macos-latest
+            target: aarch64-macos
+            shell: bash
+          - os: windows-latest
+            target: x86_64-windows
+            shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config libhackrf-dev libusb-1.0-0-dev
+
+      - name: Install native libraries (macOS)
+        if: runner.os == 'macOS'
+        run: brew install hackrf libusb pkg-config
+
+      - name: Install MSYS2 with Rust, libusb, and HackRF (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: zip
+          pacboy: >-
+            toolchain:p
+            rust:p
+            pkgconf:p
+            libusb:p
+            hackrf:p
+
+      - name: Install Rust
+        if: runner.os != 'Windows'
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - uses: Swatinem/rust-cache@v2
+        if: runner.os != 'Windows'
+
+      - name: Build release binary
+        run: cargo build --release --locked
+
+      - name: Smoke check binary (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          ./target/release/kat --version
+          ./target/release/kat --help >/dev/null
+          ./target/release/kat --decode "IMPORTS/chrysler/Chrysler PT Cruiser 2006 close.sub"
+
+      - name: Package artifact (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          name="kat-${GITHUB_SHA::7}-${{ matrix.target }}"
+          mkdir -p "dist/$name"
+          cp target/release/kat README.md LICENSE COPYING CHANGELOG.md "dist/$name/"
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+          (cd dist && (command -v sha256sum >/dev/null && sha256sum "$name.tar.gz" || shasum -a 256 "$name.tar.gz") > "$name.tar.gz.sha256")
+          cat "dist/$name.tar.gz.sha256"
+
+      - name: Package artifact (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          name="kat-${GITHUB_SHA::7}-${{ matrix.target }}"
+          mkdir -p "dist/$name"
+          cp target/release/kat.exe README.md LICENSE COPYING CHANGELOG.md "dist/$name/"
+          ldd target/release/kat.exe | awk '$3 ~ /^\/ucrt64\// {print $3}' | sort -u | xargs -r cp -t "dist/$name/"
+          ls -l "dist/$name"
+          (cd dist && zip -qr "$name.zip" "$name" && sha256sum "$name.zip" > "$name.zip.sha256")
+          cat "dist/$name.zip.sha256"
+
+      - name: Smoke check packaged binary outside MSYS2 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $exe = (Get-ChildItem dist/*/kat.exe | Select-Object -First 1).FullName
+          & $exe --version
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          & $exe --decode "IMPORTS/chrysler/Chrysler PT Cruiser 2006 close.sub"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kat-${{ matrix.target }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.sha256

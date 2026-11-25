@@ -287,7 +287,8 @@ impl Capture {
         self.protocol
             .as_deref()
             .is_some_and(|p| crate::protocols::has_checksum_for(p, self.data_count_bit, self.data_extra))
-            // A frame of the older PSA code: its checksum is under the scrambling, unread.
+            // A frame of the older PSA code: its check is inside the enciphered block (applied while
+            // deciphering, when a key table is loaded), so there is no CRC to show.
             && !self.psa_older_code().is_some_and(|(_, remote)| remote.is_some())
     }
 

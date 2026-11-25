@@ -193,6 +193,14 @@ a 206 of 2002–2005 without front fog lights. Since then KAT reads such a frame
 check or key search ([PSA: the older code](psa.md#a-third-kind-of-block-the-older-code)), and the reader's
 C3 XTR key shows the same structure in `D`.
 
+**Since 1.25.0 the 206's frames are deciphered.** The firmware of a Peugeot 307's body module showed the
+older code to be a block cipher under a 16-byte key table that is the same in every BSI of the generation,
+with a byte rotation that depends on the data ([PSA: the older code](psa.md#a-third-kind-of-block-the-older-code)).
+That rotation may be what picks a press's arrangement on this page, and the constants would then come from
+the table and the remote's own bytes, so the reading above of this code as "an obfuscation with check bits,
+not a cipher under a secret key" does not hold for the 206. Whether the same cipher opens this page's
+Citroën key, in its 76-bit frame, has not been tried.
+
 It is the code of this page. `D`, the left half XOR the right half, shows the same families of constants,
 with this remote's values in them:
 

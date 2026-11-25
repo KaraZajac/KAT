@@ -24,8 +24,10 @@ key1 plus a 64-bit `Key_2` of which 16 bits are used). Two crypto families share
   fixed schedule). The serial is unknown until a 2 × 2^24 brute force finds it.
 
 The two-button remotes of about 2002 to the CAN cars send an older code in the same frame, with the
-remote's type in the header. KAT shows such a frame whole, with the remote its type names, but
-cannot read it ([the older code](#a-third-kind-of-block-the-older-code)).
+remote's type in the header and a block enciphered under a 16-byte key table that is the same in
+every body module (BSI) of that generation. KAT shows such a frame whole, with the remote its type
+names; given that table in a `psa_bsi_key` file, it also deciphers the block (ID, counter, button)
+and sends the next press ([the older code](#a-third-kind-of-block-the-older-code)).
 
 ProtoPirate decodes 0x23 frames and marks the rest "Type 0x36 — brute force deferred" for a manual
 "Brute force" action; Flipper-ARF (`decrypt_file`) and doctor-firmware (in-app helper) do the same.
@@ -76,7 +78,8 @@ encrypted; the low nibble of `b1` is the **0xA sync** every genuine frame carrie
 - **mode 0x36:** `b2..b9` = TEA(v0, v1); v0 = serial << 8 | button << 4 | counter >> 24, v1 =
   counter << 8 | byte-sum CRC (28-bit counter). BF2 frames carry a CRC-16 (poly 0x8005) instead.
 - **the older code:** `b0` and `b1`'s high nibble are the remote's type, so `b1` is `0xAA`; `b2..b9`
-  are scrambled ([the older code](#a-third-kind-of-block-the-older-code)).
+  are an 8-byte block enciphered with the BSI's key table, holding the ID, a 16-bit counter and the
+  button flags ([the older code](#a-third-kind-of-block-the-older-code)).
 
 `DecodedSignal`: `data` = key1, `extra` = key2 (the 64-bit `Key_2`, 16 bits used),
 `data_count_bit` = 128, `serial`/`button`/`counter` (low 16 bits of the 28-bit TEA counter) when
@@ -106,6 +109,12 @@ What each column rests on:
 
 Both columns rest on one remote each. A mode 0x23 remote that numbers from 0, or a TEA remote that
 numbers from 1, would be named wrongly: a recording of one, with the buttons named, would show it.
+
+The older code's button byte is a set of flags, not a number: `0x20` is Lock and `0x10` Unlock (by
+50 lock and 50 unlock presses of the C3 XTR key from [issue #6](https://github.com/KaraZajac/KAT/issues/6)),
+`0x40` is another flag, and the low nibble changes from press to press. KAT names such a frame Lock or
+Unlock by those two bits (Other for anything else); its Lock and Unlock set one and clear the other,
+and the rest of the byte is kept ([the older code](#a-third-kind-of-block-the-older-code)).
 
 ### The CRC byte and the button
 
@@ -206,8 +215,9 @@ Once the serial is known, decryption is O(1) (`tea_decrypt_with_serial`), so `en
 ProtoPirate `psa_encoder_build_upload` (identical in ARF and doctor-firmware): the plaintext fields
 are re-derived from the captured key1/key2 (+ the brute-forced serial for TEA frames), then sent with
 counter + 1 (PP emulate plugin `current_counter++`, ARF/doctor `+ mult`) and the requested button:
-KAT Lock/Unlock/Trunk → 1/2/3 in mode 0x23 and 0/1/2 in mode 0x36 ([Buttons](#buttons)); Panic and
-others keep the captured button. In mode 0x23 a frame for another button than the captured one also
+KAT Lock/Unlock/Trunk → 1/2/3 in mode 0x23 and 0/1/2 in mode 0x36, and Lock/Unlock → the flag `0x20`
+/ `0x10` in the older code ([Buttons](#buttons)); Panic and others (and Trunk in the older code) keep
+the captured button. In mode 0x23 a frame for another button than the captured one also
 gets the CRC byte's last bit as a remote sends it with that button; the rest of that byte is the
 captured frame's, as in the references.
 
@@ -215,6 +225,10 @@ captured frame's, as in the references.
   high nibble (and `b9` when there is no key2) for a checksum fixed point; fallback `b9` = 0x23.
 - **mode 0x36:** TEA-encrypt under the BF1 key of `0x23000000 | serial` (all references use the BF1
   key, also for a BF2-recovered frame).
+- **the older code (KAT's own; needs the key table):** decipher the captured block, write the new
+  counter into bytes 2–3 and the button flags into byte 6, set byte 7's low nibble so the check holds,
+  and encipher again. The remote's constant (byte 1) and the bytes that change from press to press are
+  the captured frame's: the BSI does not check them.
 - `b0..b1` (the sync) are kept from the captured key1.
 - Upload (325 entries): 80 × (HIGH 250, LOW 250), LOW 250 + HIGH 500 + LOW 250, 64 + 16 bits
   MSB first (1 = HIGH/LOW, 0 = LOW/HIGH, 250 µs halves), HIGH 900 + LOW 1000 (the references: HIGH
@@ -312,11 +326,11 @@ Deviations).
 - **BF2 CRC comparison: either variant.** PP/doctor compare the CRC-16 with `b8:b9`, ARF with
   `b7:b9`; no genuine BF2 frame exists to settle it, so both are accepted (a spurious hit would need
   a ~2^-40 coincidence).
-- **A frame of the older code is neither decrypted nor searched.** A frame whose header is a
-  listed type of the older code ([below](#a-third-kind-of-block-the-older-code)) is not given to
-  the XOR check and gets no key search. The references treat it like any frame, and each check
-  gave one false result on the Peugeot 206's 58 frames, which was then counted as decrypted and
-  offered for sending. None of the five XOR and TEA remotes KAT has frames of has such a header
+- **A frame of the older code gets neither the XOR check nor the key search.** A frame whose
+  header is a listed type of the older code ([below](#a-third-kind-of-block-the-older-code)) is
+  deciphered with the BSI's key table when one is loaded, and is otherwise left undecoded. The
+  references treat it like any frame, and each of their checks gave one false result on the Peugeot
+  206's 58 frames, which was then counted as decrypted and offered for sending. None of the five XOR and TEA remotes KAT has frames of has such a header
   (`6EDA`, `B6DA`, `F47A`, `FF5A`, `F1BA`).
 
 ## The Delphi remote
@@ -349,10 +363,12 @@ which a run of 218 µs pulses is a preamble and 96 bits ([Chevrolet V0](chevrole
 
 Not every PSA frame is one of the two kinds above. The two-button remotes of about 2002 to the CAN cars
 (Berlingo and Partner, Xsara Picasso, 206, 307, 406, C2, C3; a PCF7936 transponder in the key) send an
-older code in the same 80-bit frame. What KAT knows of it comes from three remotes: the 58 frames of a
-2005 Peugeot 206 that a write-up of 2011 published ("RKE Analysis", burningimage.net), and two keys of a
-reader who wrote about them in [GitHub issue #6](https://github.com/KaraZajac/KAT/issues/6), a Citroën
-Xsara Picasso key and a C3 XTR key.
+older code in the same 80-bit frame. What KAT knows of the frame comes from three remotes: the 58 frames
+of a 2005 Peugeot 206 that a write-up of 2011 published ("RKE Analysis", burningimage.net), and two keys
+of a reader who wrote about them in [GitHub issue #6](https://github.com/KaraZajac/KAT/issues/6), a
+Citroën Xsara Picasso key and a C3 XTR key. The cipher came from the receiver: the firmware of a
+Peugeot 307's body module (BSI), read in November 2026. The finding is written up as a
+[research report](reports/psa-older-code.pdf).
 
 **The header is the remote's type.** `b0` and the high nibble of `b1` hold the remote's type, a 16-bit
 value `0x0XYA` that the remote's transponder also holds (page 6). Every type ends in `A`, and the sync
@@ -377,26 +393,63 @@ All three remotes agree with it: the reader's Xsara Picasso key sends `7C AA`, t
 the end of the preamble and this header, not a serial; KAT read it so in November 2026, and the
 reader came to the same conclusion.
 
-**The block.** `b2..b9` are scrambled, by a rule that is not known. The reader had one frame together
-with its unscrambled form, from a key programmer. In that form the block holds the remote's 24-bit ID
-in its bytes 0, 4 and 5 (the frame's bytes 2, 6 and 7), and its last byte is the XOR of the seven
-before it. What the other four bytes hold is not known. A spare key needs the ID: the transponder's
-page 4 holds `55` and the ID, page 5 the same word inverted, page 6 the type and `FFFF`, and a new
-transponder is set up with the remote's ID and type. Left half XOR right half of the block shows the
-structure that [PSA 2-Button](psa_two_button.md#the-same-code-in-a-peugeot-206s-frames) describes,
-with each remote's own constants: two of the three C3 XTR frames the reader sent have `40 D1` in the
-same two bytes of it.
+**The cipher.** `b2..b9` are an 8-byte block that the body module (BSI: a Valeo unit on a Motorola
+MC68HC912DG128) deciphers with a 16-byte key table held in its flash. The table is the same in every
+BSI of this generation: there is no key per remote or per car. The BSI deciphers in four rounds. Each
+round makes
 
-**What KAT does with it.** The detail panel shows the whole frame, `Enc: older code, not decoded`,
-the remote with its type and part number (`Remote: Citroën C3 XTR, front fog lights, 2002 to CAN`,
-`Type: 0C1A  Part no.: 6554RE`), and the CRC as `none` (the check byte is under the scrambling). A frame whose header is a listed type is not given to the XOR check
-and gets no key search. Both checks are short, and on the 206's 58 frames each gave one false
-result, which KAT then counted as decrypted and offered to send: one frame passed the XOR checksum
-with "serial" 0xBFC300, and the key search found "serial" 0xD2C31E for another. A frame with an
-`XY AA` header whose type is not on the list is read as before, XOR check and key search included,
-as a TEA remote may have such a header; the panel shows its type all the same. A listed type's
-frame that only one of the added machines read (those whose frames must decrypt) is dropped, as no
-search can confirm it.
+```
+t = (b0^b2^k[a], b1^b3^k[b], b0, b1, b4^b6^k[c], b5^b7^k[d], b4, b5)
+```
+
+with `a..d` = 12..15 in the first round, then 8..11, 4..7 and 0..3, and rotates `t` left by as many
+bytes as it has 1 bits (modulo 8; 0 counts as 1) to give the next round's block. The last round does
+not rotate. A rotation does not change the number of 1 bits, so each round can be undone, and the same
+table enciphers.
+
+**The plaintext.**
+
+| Byte | Holds |
+|---|---|
+| 0,&nbsp;4,&nbsp;5 | the remote's 24-bit ID |
+| 1 | a constant of the remote |
+| 2, 3 | the press counter, 16 bits |
+| 6 | the button flags: `0x20` Lock, `0x10` Unlock, `0x40` another flag; the low nibble changes from press to press |
+| 7 | changes from press to press |
+
+The check is that the eight bytes XOR to a byte whose two nibbles are equal (the sixteen nibbles XOR
+to zero). The reader had one frame together with its deciphered form, from a key programmer, and read
+its last byte as the XOR of the seven before it; the firmware checks only the nibbles. A spare key
+needs the ID: the transponder's page 4 holds `55` and the ID, page 5 the same word
+inverted, page 6 the type and `FFFF`, and a new transponder is set up with the remote's ID and type.
+The ID the block gives is the one key tools read from page 4.
+
+**What KAT does with it.** KAT ships no key table. Put the table's 32 hex digits on one line of a file
+named `psa_bsi_key` in KAT's config folder (`~/.config/KAT/`, on Windows `C:\Users\<you>\.config\KAT\`;
+spaces, dashes and `#` comment lines are ignored). KAT reads it when it starts, so restart KAT after
+adding it; the status line then says "Loaded the PSA older-code key from …". A frame whose header is a
+listed type is then deciphered: the detail panel shows `Enc: older code`, the ID as the serial, the
+counter, the button (Lock, Unlock, or Other for other flags), and the remote with its type and part
+number (`Remote: Citroën C3 XTR, front fog lights, 2002 to CAN`, `Type: 0C1A  Part no.: 6554RE`), and
+the capture can be sent: KAT makes the next press ([Encoder](#encoder)). A frame that fails the check
+is left undecoded. Without the table, KAT reads these frames as it did before 1.25.0: the whole
+frame, `Enc: older code, not decoded`, and the remote with its type and part number. Either way the
+CRC row shows `none`, as the check is inside the block.
+
+A frame whose header is a listed type is not given to the XOR check and gets no key search. Both
+checks are short, and on the 206's 58 frames each gave one false result, which KAT then counted as
+decrypted and offered to send: one frame passed the XOR checksum with "serial" 0xBFC300, and the key
+search found "serial" 0xD2C31E for another. A frame with an `XY AA` header whose type is not on the
+list is read as before, XOR check and key search included, as a TEA remote may have such a header;
+the panel shows its type all the same. A listed type's frame that only one of the added machines read
+(those whose frames must decrypt) is kept when it deciphers and dropped otherwise, as no search can
+confirm it.
+
+**Checked against.** The cipher was read from the firmware, not fitted to frames. On the frames of
+56 remotes posted to a locksmiths' forum, each with the ID a key tool read from it, 52 remotes (380 of
+423 frames) decipher to that ID; the rest are explained by a mis-posted frame, capture errors or an
+example that is not a press. The reader's 50 lock and 50 unlock presses of the C3 XTR key fix which
+flag is which button. No press KAT made has been tried on a car.
 
 ## Retired: PSA2 ("PSA OLD")
 
@@ -430,6 +483,11 @@ for decoder pulses, uploads, `encode()` calls and brute forces, KAT additions sw
   variants, 4 misses) give the C's result (ARF's `decrypt_file` for the ARF variant).
 - **Real captures:** both GROUPE PSA files decode to exactly ProtoPirate's key1/key2/fields and
   brute-force results; the encoder reproduces the fobs' genuine frames.
+- **The older code (1.25.0):** what the cipher was checked against is
+  [above](#a-third-kind-of-block-the-older-code). Its tests (`older_cipher_matches_the_reference`,
+  `older_cipher_inverts`, `older_decodes_and_encodes_the_next_press`,
+  `older_decode_is_inert_without_the_key_table` and others) run with a made-up table: the real one is
+  in no test and in no file KAT ships.
 - **The Delphi remote (after 1.15.0):** the three files give 10 presses each, one serial, the
   counter 0x68DA to 0x68F7 in order, the buttons 1, 2 and 3, and no frame of another protocol
   (`delphi_remote_numbers_its_buttons_from_one`). With KAT's additions off, the references' rules

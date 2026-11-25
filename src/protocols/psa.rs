@@ -121,9 +121,10 @@
 //!   until the 2^24-per-range brute force finds it; afterwards everything is O(1) from
 //!   (key1, key2, serial) ([`tea_decrypt_with_serial`]), which is all `encode()` needs.
 //! - the older code (two-button remotes of 2002 to the CAN cars, transponder PCF7936): b0 and b1's
-//!   high nibble are the remote's type (`0x0XYA`, so b1 = 0xAA), b2..b9 a scrambled block whose
-//!   rule is not known ([OLDER_CODE_TYPES], `docs/psa.md`). Shown as the whole 80-bit frame
-//!   ([frame_hex]) with the type; nothing is decrypted.
+//!   high nibble are the remote's type (`0x0XYA`, so b1 = 0xAA), b2..b9 an 8-byte block enciphered
+//!   with the BSI's global 16-byte key table ([older_decrypt], [OLDER_CODE_TYPES], `docs/psa.md`).
+//!   With the table loaded (a `psa_bsi_key` file) it gives the ID, counter and button and can be
+//!   sent; without it the frame is shown whole ([frame_hex]) with the type, nothing deciphered.
 //!
 //! **Key files** (ProtoPirate `subghz_protocol_decoder_psa_serialize` / `_deserialize`):
 //! `Protocol: PSA`, `Bit: 128`, `Key` (key1), `Key_2` (key2, 8 bytes), `ValidationField` (key2's

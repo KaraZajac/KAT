@@ -1,4 +1,4 @@
-# Build release KAT application binaries across Linux, macOS, and Windows and upload artifacts.
+# Build release KAT application binaries across Linux and Windows and upload artifacts.
 name: Build
 
 on:
@@ -28,11 +28,6 @@ jobs:
           - os: ubuntu-22.04-arm
             target: aarch64-linux
             shell: bash
-          # Use macos-15-intel for reliable macOS CI acquisition (GitHub-hosted macos-latest/macos-15 arm64
-          # runners currently drop jobs at the 15-minute queue cap due to capacity constraints).
-          - os: macos-15-intel
-            target: x86_64-macos
-            shell: bash
           - os: windows-latest
             target: x86_64-windows
             shell: msys2 {0}
@@ -44,10 +39,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends pkg-config libhackrf-dev libusb-1.0-0-dev
-
-      - name: Install native libraries (macOS)
-        if: runner.os == 'macOS'
-        run: brew install hackrf libusb pkg-config
 
       - name: Install MSYS2 with Rust, libusb, and HackRF (Windows)
         if: runner.os == 'Windows'

@@ -28,8 +28,11 @@ jobs:
           - os: ubuntu-22.04-arm
             target: aarch64-linux
             shell: bash
-          - os: macos-latest
+          - os: macos-15
             target: aarch64-macos
+            shell: bash
+          - os: macos-15-intel
+            target: x86_64-macos
             shell: bash
           - os: windows-latest
             target: x86_64-windows

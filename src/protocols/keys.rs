@@ -59,6 +59,58 @@ pub struct KeyStore {
     /// KAT ships it ([`crate::keystore::PSA_BSI_TABLE`], loaded at startup); a `psa_bsi_key` file
     /// overrides it. None only in a test that has cleared it.
     pub psa_bsi_table: Option<[u8; 16]>,
+    /// BMW CAS4 car keys the user supplied — for the F-series CAS4 remote's AES-128 MAC
+    /// ([`crate::protocols::bmw_rke`]; not the CAS3 `0xCC` frame, which is HITAG2). KAT ships none;
+    /// each is a car's own secret, read from the owner's CAS4 module. Empty unless a `bmw_cas4_keys`
+    /// file was loaded.
+    pub bmw_cas4_keys: Vec<BmwCas4Car>,
+    /// BMW/Mini **CAS3** fob secrets the user supplied — for the HITAG2 rolling code the CAS3
+    /// checks ([`crate::protocols::bmw_v3`]). Keyed by the fob's 16-bit ID (`b2 b3`). Each holds the
+    /// HITAG2 `uid`, 48-bit key and last-seen 32-bit counter, read from the car's own CAS3 module;
+    /// KAT ships none and cannot derive them from the air. The counter is updated (resynced) as the
+    /// fob's frames decode. Empty unless a `bmw_cas3_keys` file was loaded.
+    pub bmw_cas3_fobs: std::collections::HashMap<u16, BmwCas3Fob>,
+}
+
+/// One learned BMW/Mini **CAS3** fob's secrets, needed to verify and forge its HITAG2 rolling code
+/// ([`crate::protocols::bmw_v3`]). Read from the car's own CAS3 module (the per-key records in the
+/// module's EEPROM); KAT ships none and cannot derive them from the air.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BmwCas3Fob {
+    /// A label for the fob/car (from the key file).
+    pub name: String,
+    /// The fob's 16-bit ID (`b2 b3` on the air; the CAS3's lookup key).
+    pub id: u16,
+    /// The HITAG2 32-bit UID (per-key, module record `uid32`).
+    pub uid: u32,
+    /// The HITAG2 48-bit key (module record `key16 ‖ key32`, big-endian: `key[0..2]` the 16-bit
+    /// half, `key[2..6]` the 32-bit half).
+    pub key: [u8; 6],
+    /// The last-seen 32-bit counter (the HITAG2 IV). Updated as the fob's frames resync.
+    pub counter: u32,
+}
+
+/// The secrets of one BMW CAS4 car, needed to recompute the remote frame's AES-128 MAC
+/// ([`crate::protocols::bmw_rke`]). Read from the car's own module; KAT ships none and cannot
+/// derive them from the air.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BmwCas4Car {
+    /// A label for the car (from the key file).
+    pub name: String,
+    /// The car's 128-bit master secret, when supplied — KAT derives each remote's key from it
+    /// ([`crate::protocols::bmw_rke::derive_key`]). None when the per-remote keys are given directly.
+    pub master: Option<[u8; 16]>,
+    /// Each learned remote's 128-bit key, by key number. Given directly, or derived from `master`.
+    pub keys: Vec<BmwKey>,
+}
+
+/// One learned BMW remote's key: its key number (`t[11]`, 0..=7) and 128-bit AES key.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BmwKey {
+    /// The remote's key number in the car.
+    pub num: u8,
+    /// The remote's 128-bit MAC key.
+    pub key: [u8; 16],
 }
 
 /// The secrets of one Audi BCM2 car, needed to recompute and forge the RF frame's AES-128 MAC
@@ -174,6 +226,41 @@ impl KeyStore {
     /// The user's Audi BCM2 car keys. Empty unless the user loaded a key file.
     pub fn audi_bcm2_keys(&self) -> &[AudiBcm2Car] {
         &self.audi_bcm2_keys
+    }
+
+    /// Replace the user's BMW CAS4 car keys.
+    pub fn load_bmw_cas4_keys(&mut self, cars: Vec<BmwCas4Car>) {
+        self.bmw_cas4_keys = cars;
+    }
+
+    /// The user's BMW CAS4 car keys. Empty unless the user loaded a key file.
+    pub fn bmw_cas4_keys(&self) -> &[BmwCas4Car] {
+        &self.bmw_cas4_keys
+    }
+
+    /// Replace the user's BMW/Mini CAS3 fob secrets (keyed by 16-bit fob ID).
+    pub fn load_bmw_cas3_fobs(&mut self, fobs: Vec<BmwCas3Fob>) {
+        self.bmw_cas3_fobs = fobs.into_iter().map(|f| (f.id, f)).collect();
+    }
+
+    /// The CAS3 fob secrets for a 16-bit fob ID, if the user loaded them. None by default.
+    pub fn bmw_cas3_fob(&self, id: u16) -> Option<BmwCas3Fob> {
+        self.bmw_cas3_fobs.get(&id).cloned()
+    }
+
+    /// Any CAS3 fobs loaded (for the status line / tests).
+    pub fn bmw_cas3_fob_count(&self) -> usize {
+        self.bmw_cas3_fobs.len()
+    }
+
+    /// Advance a CAS3 fob's stored counter after a frame verified against it (resync). Only moves
+    /// forward; a lower value is ignored. No-op when the fob is unknown.
+    pub fn remember_bmw_cas3_counter(&mut self, id: u16, counter: u32) {
+        if let Some(f) = self.bmw_cas3_fobs.get_mut(&id) {
+            if counter > f.counter {
+                f.counter = counter;
+            }
+        }
     }
 
     /// Set (or clear) the PSA older-code BSI key table.

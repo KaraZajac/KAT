@@ -253,8 +253,8 @@ pub fn wire(bits: &[bool], te: u32, gap: u32) -> Vec<crate::radio::demodulator::
     out
 }
 
-/// `wire` as a receiver gives it: neighbours of one level are one pulse.
-#[cfg(test)]
+/// `wire` as a receiver gives it: neighbours of one level are one pulse. Used by the PSA 2-Button
+/// replay encoder ([`super::psa_two_button`]) and the burst-reader tests.
 pub fn merged(wire: Vec<crate::radio::demodulator::LevelDuration>) -> Vec<crate::radio::demodulator::LevelDuration> {
     let mut out: Vec<crate::radio::demodulator::LevelDuration> = Vec::new();
     for p in wire {

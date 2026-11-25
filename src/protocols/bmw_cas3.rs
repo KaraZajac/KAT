@@ -37,6 +37,11 @@
 //! frame and the capture keeps it.
 //!
 //! No deviation from the C. IMPORTS holds no BMW CAS3 capture (the oracle finds none).
+//!
+//! **The name is FOBworks'.** A CAS3 module (CAS3 0L15Y firmware) has no radio pulse decoder: the
+//! receiver in the antenna module hands it bytes, and the key telegram it checks is `0xCC` + 9
+//! bytes with an XOR check and a HITAG2 authenticator — KAT's BMW/Mini V3 (`bmw_v3.rs`). It also
+//! takes `0xCA` / `0xCF` telegrams (not traced). Which keys send this PPM format is not established.
 
 use super::info::prelude::*;
 use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};

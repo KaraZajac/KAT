@@ -71,7 +71,7 @@
     {
      "bits": 64,
      "button": 8,
-     "counter": "760E",
+     "counter": "C0",
      "data": "80BFBB3760EBAC0",
      "extra": null,
      "file": "BMW/more/BmwE60_2004_868_FM_cl.sub",
@@ -80,8 +80,18 @@
     },
     {
      "bits": 64,
+     "button": 0,
+     "counter": "C3",
+     "data": "BFBB766BDD4C3",
+     "extra": null,
+     "file": "BMW/more/BmwE60_2004_868_FM_cl.sub",
+     "name": "BMW/Mini V3",
+     "serial": "BFB"
+    },
+    {
+     "bits": 64,
      "button": 16,
-     "counter": "7699",
+     "counter": "C5",
      "data": "100BFBB2769958C5",
      "extra": null,
      "file": "BMW/more/BmwE60_2004_868_FM_cl.sub",
@@ -91,7 +101,7 @@
     {
      "bits": 64,
      "button": 8,
-     "counter": "6E52",
+     "counter": "C2",
      "data": "80BFBB36E5280C2",
      "extra": null,
      "file": "BMW/more/BmwE60_2004_868_FM_cl.sub",
@@ -101,23 +111,23 @@
    ],
    "fields": {
     "button": {
-     "frames": 57,
+     "frames": 61,
      "how": "",
      "offset": 56,
-     "values": 2,
+     "values": 3,
      "width": 8,
      "word": "data"
     },
     "counter": {
-     "frames": 57,
+     "frames": 61,
      "how": "",
-     "offset": 16,
-     "values": 6,
-     "width": 16,
+     "offset": 0,
+     "values": 7,
+     "width": 8,
      "word": "data"
     },
     "serial": {
-     "frames": 57,
+     "frames": 61,
      "how": "",
      "offset": 40,
      "values": 1,
@@ -126,7 +136,7 @@
     }
    },
    "files": 1,
-   "frames": 57
+   "frames": 61
   },
   "CAME Atomo": {
    "bits": 62,

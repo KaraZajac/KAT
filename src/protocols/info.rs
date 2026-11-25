@@ -114,6 +114,7 @@ pub static ALL: &[&ProtocolInfo] = &[
     &super::porsche_cayenne::INFO,
     &super::toyota::INFO,
     &super::bmw::INFO,
+    &super::bmw_fzv::INFO,
     &super::mazda_v2::INFO,
     &super::mercedes_v0::INFO,
     &super::mercedes_v1::INFO,

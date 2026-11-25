@@ -32,26 +32,26 @@ Get the archive for your machine, and its `.sha256` file, from the
 
 | Archive | For |
 |---|---|
-| `kat-v1.26.0-x86_64-linux.tar.gz` | 64-bit Intel or AMD Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and later) |
-| `kat-v1.26.0-aarch64-linux.tar.gz` | 64-bit ARM Linux, such as 64-bit Raspberry Pi OS bookworm |
-| `kat-v1.26.0-aarch64-macos.tar.gz` | Apple Silicon Macs. It isn't notarized; `xattr -d com.apple.quarantine kat` clears the block |
-| `kat-v1.26.0-x86_64-windows.zip` | 64-bit Windows 10 and 11. It isn't signed, so SmartScreen may stop its first start: “More info”, then “Run anyway” |
+| `kat-v1.27.0-x86_64-linux.tar.gz` | 64-bit Intel or AMD Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and later) |
+| `kat-v1.27.0-aarch64-linux.tar.gz` | 64-bit ARM Linux, such as 64-bit Raspberry Pi OS bookworm |
+| `kat-v1.27.0-aarch64-macos.tar.gz` | Apple Silicon Macs. It isn't notarized; `xattr -d com.apple.quarantine kat` clears the block |
+| `kat-v1.27.0-x86_64-windows.zip` | 64-bit Windows 10 and 11. It isn't signed, so SmartScreen may stop its first start: “More info”, then “Run anyway” |
 
 Intel Macs and other platforms: [build from source](#build-from-source).
 
 ```sh
-sha256sum -c kat-v1.26.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
-tar xzf kat-v1.26.0-x86_64-linux.tar.gz
-./kat-v1.26.0-x86_64-linux/kat
+sha256sum -c kat-v1.27.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.27.0-x86_64-linux.tar.gz
+./kat-v1.27.0-x86_64-linux/kat
 ```
 
 On Windows, in PowerShell (Windows Terminal):
 
 ```powershell
-$want = (Get-Content kat-v1.26.0-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.26.0-x86_64-windows.zip).Hash -eq $want    # True
-Expand-Archive kat-v1.26.0-x86_64-windows.zip .
-.\kat-v1.26.0-x86_64-windows\kat.exe
+$want = (Get-Content kat-v1.27.0-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.27.0-x86_64-windows.zip).Hash -eq $want    # True
+Expand-Archive kat-v1.27.0-x86_64-windows.zip .
+.\kat-v1.27.0-x86_64-windows\kat.exe
 ```
 
 ## Run it

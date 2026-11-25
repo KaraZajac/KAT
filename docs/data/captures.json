@@ -188,8 +188,8 @@
    "pulses": 62464,
    "reads": [
     {
-     "distinct": 6,
-     "frames": 57,
+     "distinct": 7,
+     "frames": 61,
      "protocol": "BMW/Mini V3"
     }
    ],
@@ -2706,6 +2706,7 @@
       "3"
      ],
      "distinct": 49,
+     "encodable": true,
      "frames": 49,
      "protocol": "PSA 2-Button"
     }
@@ -2733,6 +2734,7 @@
       "C"
      ],
      "distinct": 41,
+     "encodable": true,
      "frames": 41,
      "protocol": "PSA 2-Button"
     }

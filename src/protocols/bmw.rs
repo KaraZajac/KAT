@@ -38,6 +38,16 @@
 //! `DecodedSignal.button` carries xx (the protocol's own code), `counter` the LOW 16 bits of the
 //! 17-bit counter (the full counter stays in `extra`), `data_count_bit` = 128.
 //!
+//! **The rolling code (analysed, 2026-11-25, 88 real presses of one tester's 433.92 MHz EU
+//! fob):** the 17-bit counter is plaintext and increments by exactly 1 per press (`[47]`
+//! verified to be its LSB — it alternates perfectly over every press); the 47-bit hop is
+//! full-entropy and well-diffused (per-bit frequency ≈0.5, consecutive-frame XOR popcount ≈22.6/47,
+//! every byte near-unique), i.e. a cryptographic MAC, not a counter/LFSR. Its 47/48-bit width rules
+//! out HITAG2/KeeLoq (32-bit) **and** does not match the BMW CAS4 module MAC (40-bit, from the
+//! `5M48H` dump, [`super::bmw_rke`]) — so this frame is a *different* BMW generation from either
+//! module KAT has (not CAS3's HITAG2 `0xCC` frame, not the 40-bit-MAC CAS4). Identifying the exact
+//! generation/cipher needs the fob's FCC ID or a module dump from this car. KAT stays replay-only.
+//!
 //! **Gating** (`bmw_fields_valid`, all required): preamble 32–280 chips, sync 0x599E/0xA661 found
 //! within 40 header bits, exactly 128 bits, button byte matching the 0x01/0xE7 template with xx≠0,
 //! and fixed byte 0x89. There is no CRC; `crc_valid` reports these structural checks.

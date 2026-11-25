@@ -8,7 +8,7 @@ ALFA ROMEO/more/Giulietta_Close.sub | 433920000 | Fiat V1 | x50 | 20 distinct | 
 ALFA ROMEO/more/Giulietta_Open.sub | 433920000 | Fiat V1 | x50 | 20 distinct | fnv=43F921206FBCA2C9
 ALFA ROMEO/more/Giulietta_Trunk.sub | 433920000 | Fiat V1 | x55 | 20 distinct | fnv=B42276E86F601617
 ALFA ROMEO/more/Giulietta_Trunk.sub | 433920000 | Renault/xHorse V4 | x1 | 1 distinct | fnv=C7EC4D98C112F8CC
-BMW/more/BmwE60_2004_868_FM_cl.sub | 868350000 | BMW/Mini V3 | x57 | 6 distinct | fnv=C43AD88DD5928A10
+BMW/more/BmwE60_2004_868_FM_cl.sub | 868350000 | BMW/Mini V3 | x61 | 7 distinct | fnv=36D137C17D0014F9
 FIAT/more/1 Raw Fca Fiat 2017-2024.sub | 433920000 | Fiat V1 | x56 | 21 distinct | fnv=0F10CFDB557A04EC
 FIAT/more/2 Raw Fca Fiat 2017-2024.sub | 433920000 | Fiat V1 | x39 | 15 distinct | fnv=3131E98E168D48A8
 FIAT/more/Big_sidorovich.sub | 433920000 | key | Fiat V1 | data=175E1D628456F/104 extra=183D2463A6D sn=75E1D628 btn=4 cnt=15B crc=1 tx=1

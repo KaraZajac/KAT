@@ -239,6 +239,140 @@ pub fn load_audi_bcm2_keys(config_dir: &std::path::Path) -> Option<String> {
     Some(if errors.is_empty() { loaded } else { format!("{loaded} ({} bad line{}, first: line {})", errors.len(), plural(errors.len()), errors[0].0) })
 }
 
+/// File name of the BMW/Mini **CAS3** fob secrets in KAT's config folder. One fob per line:
+/// `<4-hex ID> <8-hex UID> <12-hex KEY48> [<≤8-hex COUNTER>] [name]` — fields split on whitespace
+/// or commas, `#` comments. The ID is the fob's 16-bit air ID (`b2 b3`); UID/KEY48 are the HITAG2
+/// per-key secrets and COUNTER the last-seen 32-bit counter (default 0). Every field comes from the
+/// car's own CAS3 module; KAT ships none. Used by the BMW/Mini V3 verify/encode path
+/// ([`crate::protocols::bmw_v3`]).
+pub const BMW_CAS3_KEYS_FILE: &str = "bmw_cas3_keys";
+
+/// Parse the BMW CAS3 fob file: the fobs and the line errors (1-based line, text).
+pub fn parse_bmw_cas3_keys(text: &str) -> (Vec<crate::protocols::keys::BmwCas3Fob>, Vec<(usize, String)>) {
+    use crate::protocols::keys::BmwCas3Fob;
+    let is_hex = |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_hexdigit());
+    let (mut fobs, mut errors) = (Vec::new(), Vec::new());
+    for (i, raw) in text.lines().enumerate() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let toks: Vec<&str> = line.split([' ', '\t', ',']).filter(|t| !t.is_empty()).collect();
+        let fob = (toks.len() >= 3)
+            .then(|| {
+                let id = (toks[0].len() == 4 && is_hex(toks[0])).then(|| u16::from_str_radix(toks[0], 16).ok()).flatten()?;
+                let uid = (toks[1].len() == 8 && is_hex(toks[1])).then(|| u32::from_str_radix(toks[1], 16).ok()).flatten()?;
+                let key: [u8; 6] = (toks[2].len() == 12 && is_hex(toks[2]))
+                    .then(|| (0..6).map(|j| u8::from_str_radix(&toks[2][2 * j..2 * j + 2], 16)).collect::<Result<Vec<_>, _>>().ok())
+                    .flatten()?
+                    .try_into()
+                    .ok()?;
+                // An optional counter: the 4th token when it is ≤8 hex digits; otherwise it starts the name.
+                let (counter, name_from) = match toks.get(3) {
+                    Some(t) if t.len() <= 8 && is_hex(t) => (u32::from_str_radix(t, 16).ok()?, 4),
+                    _ => (0, 3),
+                };
+                let name = toks[name_from..].join(" ");
+                Some(BmwCas3Fob {
+                    name: if name.is_empty() { format!("fob {}", fobs.len() + 1) } else { name },
+                    id,
+                    uid,
+                    key,
+                    counter,
+                })
+            })
+            .flatten();
+        match fob {
+            Some(f) => fobs.push(f),
+            None => errors.push((i + 1, raw.to_string())),
+        }
+    }
+    (fobs, errors)
+}
+
+/// Load `<config dir>/bmw_cas3_keys` if it exists (once, at startup, before any decode). Returns a
+/// status line for the UI, or None when there is no file.
+pub fn load_bmw_cas3_keys(config_dir: &std::path::Path) -> Option<String> {
+    if cfg!(test) {
+        panic!("a test must not load the user's BMW CAS3 keys: the tests share one process");
+    }
+    let path = config_dir.join(BMW_CAS3_KEYS_FILE);
+    let text = std::fs::read_to_string(&path).ok()?;
+    let (fobs, errors) = parse_bmw_cas3_keys(&text);
+    let n = fobs.len();
+    crate::protocols::keys::get_keystore_mut().load_bmw_cas3_fobs(fobs);
+    let loaded = format!("Loaded {n} BMW/Mini CAS3 fob{} from {}", plural(n), path.display());
+    Some(if errors.is_empty() { loaded } else { format!("{loaded} ({} bad line{}, first: line {})", errors.len(), plural(errors.len()), errors[0].0) })
+}
+
+/// File name of the BMW **CAS4** car keys in KAT's config folder. One car per line: a 32-hex
+/// per-vehicle **master** key (the AES key that diversifies each remote's key,
+/// [`crate::protocols::bmw_rke::derive_key`]), then an optional name. Each remote's key derives from
+/// the master at verify time; a line may instead give one or more learned keys directly as
+/// `<key-number>=<32-hex>` tokens. The master is read from the car's own CAS4 module; KAT ships none.
+pub const BMW_CAS4_KEYS_FILE: &str = "bmw_cas4_keys";
+
+/// Parse the BMW CAS4 key file: the cars and the line errors (1-based line, text). A line is a
+/// 32-hex master (or `-` for none) optionally followed by `<num>=<32-hex>` per-remote keys and a
+/// name.
+pub fn parse_bmw_cas4_keys(text: &str) -> (Vec<crate::protocols::keys::BmwCas4Car>, Vec<(usize, String)>) {
+    use crate::protocols::keys::{BmwCas4Car, BmwKey};
+    let hex16 = |s: &str| -> Option<[u8; 16]> {
+        let h: String = s.chars().filter(|c| !c.is_whitespace() && *c != '-').collect();
+        (h.len() == 32).then(|| (0..16).map(|j| u8::from_str_radix(&h[2 * j..2 * j + 2], 16)).collect::<Result<Vec<_>, _>>().ok()).flatten().and_then(|v| v.try_into().ok())
+    };
+    let (mut cars, mut errors) = (Vec::new(), Vec::new());
+    for (i, raw) in text.lines().enumerate() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let toks: Vec<&str> = line.split([' ', '\t', ',']).filter(|t| !t.is_empty()).collect();
+        let car = (|| {
+            let first = *toks.first()?;
+            // the master (32 hex) or "-" for a car whose per-remote keys are given directly
+            let master = if first == "-" { None } else { Some(hex16(first)?) };
+            let mut keys = Vec::new();
+            let mut name_from = 1;
+            for (k, tok) in toks.iter().enumerate().skip(1) {
+                if let Some((num, hex)) = tok.split_once('=') {
+                    let num = num.parse::<u8>().ok()?;
+                    let key = hex16(hex)?;
+                    keys.push(BmwKey { num, key });
+                    name_from = k + 1;
+                } else {
+                    break;
+                }
+            }
+            if master.is_none() && keys.is_empty() {
+                return None;
+            }
+            let name = toks[name_from..].join(" ");
+            Some(BmwCas4Car { name: if name.is_empty() { format!("car {}", cars.len() + 1) } else { name }, master, keys })
+        })();
+        match car {
+            Some(c) => cars.push(c),
+            None => errors.push((i + 1, raw.to_string())),
+        }
+    }
+    (cars, errors)
+}
+
+/// Load `<config dir>/bmw_cas4_keys` if it exists (once, at startup, before any decode). Returns a
+/// status line for the UI, or None when there is no file.
+pub fn load_bmw_cas4_keys(config_dir: &std::path::Path) -> Option<String> {
+    if cfg!(test) {
+        panic!("a test must not load the user's BMW CAS4 keys: the tests share one process");
+    }
+    let path = config_dir.join(BMW_CAS4_KEYS_FILE);
+    let text = std::fs::read_to_string(&path).ok()?;
+    let (cars, errors) = parse_bmw_cas4_keys(&text);
+    let n = cars.len();
+    crate::protocols::keys::get_keystore_mut().load_bmw_cas4_keys(cars);
+    let loaded = format!("Loaded {n} BMW CAS4 car key{} from {}", plural(n), path.display());
+    Some(if errors.is_empty() { loaded } else { format!("{loaded} ({} bad line{}, first: line {})", errors.len(), plural(errors.len()), errors[0].0) })
+}
+
 /// The PSA older-code key-table file: one line of 32 hex characters (16 bytes), the BSI module's
 /// global table. `#` comments and whitespace/dashes are ignored. KAT ships the table
 /// ([`PSA_BSI_TABLE`]); this file, when present, overrides it.
@@ -658,6 +792,49 @@ deadbeef
         assert_eq!(cars[1].name, "car 2", "an unnamed car gets a positional name");
         assert_eq!(cars[1].key_ids.len(), 1);
         assert_eq!(errors.len(), 1, "a car needs at least one key ID");
+        assert_eq!(errors[0].0, 4);
+    }
+
+    #[test]
+    fn parse_bmw_cas3_keys_reads_fobs_and_flags_bad_lines() {
+        let text = "\
+# BMW/Mini CAS3 fobs: ID UID KEY48 [COUNTER] [name]
+1234 1A2B3C4D 001122334455 00010234 Mini K1 lock
+5678,AABBCCDD,66778899AABB
+5A5A 12345678 FFEEDDCCBBAA My Fob
+1234 1A2B3C4D 00112233
+";
+        let (fobs, errors) = parse_bmw_cas3_keys(text);
+        assert_eq!(fobs.len(), 3);
+        assert_eq!((fobs[0].id, fobs[0].uid, fobs[0].counter), (0x1234, 0x1A2B_3C4D, 0x0001_0234));
+        assert_eq!(fobs[0].key, [0x00, 0x11, 0x22, 0x33, 0x44, 0x55]);
+        assert_eq!(fobs[0].name, "Mini K1 lock");
+        assert_eq!((fobs[1].id, fobs[1].counter), (0x5678, 0), "no counter → 0");
+        assert_eq!(fobs[1].name, "fob 2", "an unnamed fob gets a positional name");
+        assert_eq!(fobs[2].name, "My Fob", "a non-hex 4th token starts the name");
+        assert_eq!(fobs[2].counter, 0);
+        assert_eq!(errors.len(), 1, "a short key is rejected");
+        assert_eq!(errors[0].0, 5);
+    }
+
+    #[test]
+    fn parse_bmw_cas4_keys_reads_master_and_direct_keys() {
+        let text = "\
+# BMW CAS4 cars (synthetic values)
+0123456789ABCDEF0123456789ABCDEF  demo car
+- 0=000102030405060708090A0B0C0D0E0F 3=0F0E0D0C0B0A09080706050403020100 no master
+AABBCC  bad master
+";
+        let (cars, errors) = parse_bmw_cas4_keys(text);
+        assert_eq!(cars.len(), 2);
+        assert_eq!(cars[0].master.unwrap()[0], 0x01);
+        assert_eq!(cars[0].name, "demo car");
+        assert!(cars[0].keys.is_empty());
+        assert!(cars[1].master.is_none(), "- means no master");
+        assert_eq!(cars[1].keys.len(), 2);
+        assert_eq!((cars[1].keys[0].num, cars[1].keys[1].num), (0, 3));
+        assert_eq!(cars[1].name, "no master");
+        assert_eq!(errors.len(), 1, "a short master with no direct keys is rejected");
         assert_eq!(errors[0].0, 4);
     }
 

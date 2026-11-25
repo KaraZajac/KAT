@@ -259,8 +259,17 @@ when the frame's last bit is a 0, whose second half is carrier too). There is no
 ## Field mapping
 
 `data` = the code, `extra` = the 12 bits before it (`CEC` or `CE3`), `data_count_bit` = 76. `button` = the
-nibble. `serial` None, `counter` None, `crc_valid` false, `encoder_capable` false. No key file. A capture can
-be sent again as it was recorded (Replay).
+nibble. `serial` None, `counter` None, `crc_valid` false, `encoder_capable` true.
+
+## Transmit (replay)
+
+The encoder rebuilds the frame's pulses from the decoded `extra` ‖ `code` — the half bit of carrier, the 76
+Manchester bits (carrier-then-pause is a 1) and the 2.5 ms closing carrier — and sends it three times behind
+one 78 ms wake-up carrier, each copy kept apart by its closing carrier and the next pause. It is a **replay**:
+the 64-bit code is an unbroken rolling cipher, so KAT resends the captured code with its own button (the
+requested button is ignored, since the code is bound to it) and cannot make the next code. It works from a
+live decode or a reloaded `.fob` (both keep `extra`); there is no Flipper key-file form, as the 76-bit frame
+does not fit the generic `Key`.
 
 ## Not known
 

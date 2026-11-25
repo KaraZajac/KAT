@@ -31,6 +31,7 @@
 //! |---|---|---|---|
 //! | [`fiat_bcm_authenticator`] | `uid ‖ key[4..6]` | `key[0..4]` BE | `epoch(18) ctl(10) btn(4)` |
 //! | [`renault_authenticator`] | `uid ‖ key[0..2]` | `key[2..6]` BE | `cnt << 4 ‖ btn(4)` |
+//! | [`bmw_cas3_authenticator`] | `uid ‖ key[0..2]` | `key[2..6]` BE | the full 32-bit counter |
 //! | seed ([`renault_encrypt_from_iv`]) | `serial ‖ perm[4..6]` | `perm[0..4]` LE | `iv[0..4]` LE |
 //!
 //! renault_v1.c's `hitag2_authenticator` is written on a bit-reversed `u64` register
@@ -166,6 +167,22 @@ pub fn renault_authenticator(uid: u32, button: u8, counter: u32, key: &[u8; 6]) 
     let nonce = (counter << 4) | (button as u32 & 0x0F);
     let key32 = u32::from_be_bytes([key[2], key[3], key[4], key[5]]);
     run48(&mut state, key32, nonce)
+}
+
+/// BMW CAS3 remote authenticator: the 32-bit code a CAS3 (E9x-era) key sends in bytes 4..7 of its
+/// `0xCC` frame (see `bmw_v3.rs`). Read from the CAS3 module's own firmware (MC9S12XDP512, the
+/// specialist's 0L15Y dump): `FC:9A7B` runs the 32 init rounds and `FC:9C4D` the 32 output rounds
+/// on a context at RAM 0x2646 = `uid(4) ‖ key16(2) ‖ key32(4) ‖ counter(4)`, with HITAG2's
+/// filter tables (f4a/f4b/f5c as byte-per-entry tables at FD:6658/6668/6678) and feedback taps;
+/// the result is compared with the frame's bytes 4..7. Register = `uid ‖ key[0] key[1]`, injected
+/// key bits = `key[2..6]` (big-endian), IV = the full 32-bit counter (the frame carries its low
+/// byte; the CAS3 rebuilds the rest from the counter it stored for that key). The tests prove it
+/// equal to an instruction-for-instruction port of the two firmware routines.
+#[allow(dead_code)] // the BMW/Mini V3 key check (a learned key's uid + key) will call it
+pub fn bmw_cas3_authenticator(uid: u32, counter: u32, key: &[u8; 6]) -> u32 {
+    let mut state = initial_state(uid, key[0], key[1]);
+    let key32 = u32::from_be_bytes([key[2], key[3], key[4], key[5]]);
+    run48(&mut state, key32, counter)
 }
 
 /// Serial-derived key bytes — `hitag2_serial_permute` (verbatim bit plumbing).
@@ -594,6 +611,110 @@ mod tests {
 
     fn bytes6(s: u64) -> [u8; 6] {
         s.to_be_bytes()[2..8].try_into().unwrap()
+    }
+
+    /// The BMW CAS3's own HITAG2, ported instruction for instruction from its firmware (0L15Y
+    /// P-flash, page FC): `FC:9A7B` (32 init rounds) and `FC:9C4D` (32 output rounds) on the
+    /// 48-bit register at RAM 0x1700..0x1705, the filter as five 4-bit gathers (`BRCLR`/`BSET`
+    /// into 0x170A) looked up in the firmware's own byte tables, the feedback as 16 single-bit
+    /// reads, and the register shifted as the firmware does (`ASL 0x1701 / ROL 0x1700`, byte 2's
+    /// top bit into byte 1, bytes 2..5 as one 32-bit `ASLD / ROLX`, the new bit into byte 5).
+    mod cas3_firmware {
+        /// FD:6658 (f4a), FD:6668 (f4b), FD:6678 (f5c) — copied byte for byte from the dump.
+        const T6658: [u8; 16] = [1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0];
+        const T6668: [u8; 16] = [1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0];
+        const T6678: [u8; 32] = [
+            1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1,
+            1, 1, 0,
+        ];
+        /// One 4-bit gather: `picks[i]` (register byte, mask) sets index bit `i` (0x170A).
+        fn gather(st: &[u8; 6], picks: [(usize, u8); 4]) -> usize {
+            picks
+                .iter()
+                .enumerate()
+                .filter(|(_, &(byte, mask))| st[byte] & mask != 0)
+                .fold(0, |idx, (i, _)| idx | (1 << i))
+        }
+        /// The 5-bit index into 0x170B, then FD:6678 (FC:9AB1..FC:9BC6).
+        fn filter(st: &[u8; 6]) -> u8 {
+            let mut five = 0usize;
+            if T6658[gather(st, [(4, 0x20), (5, 0x10), (5, 0x08), (5, 0x02)])] != 0 {
+                five |= 0x10;
+            }
+            if T6668[gather(st, [(3, 0x08), (3, 0x04), (3, 0x01), (4, 0x40)])] != 0 {
+                five |= 0x08;
+            }
+            if T6668[gather(st, [(2, 0x40), (2, 0x04), (2, 0x01), (3, 0x20)])] != 0 {
+                five |= 0x04;
+            }
+            if T6668[gather(st, [(1, 0x80), (1, 0x08), (1, 0x02), (1, 0x01)])] != 0 {
+                five |= 0x02;
+            }
+            if T6658[gather(st, [(0, 0x20), (0, 0x10), (0, 0x04), (0, 0x02)])] != 0 {
+                five |= 0x01;
+            }
+            T6678[five]
+        }
+        /// FC:9DA6..FC:9E62: the parity of 16 register bits.
+        fn feedback(st: &[u8; 6]) -> u8 {
+            const TAPS: [(usize, u8); 16] = [
+                (5, 0x01), (5, 0x02), (5, 0x10), (5, 0x20), (5, 0x40), (3, 0x02), (3, 0x20),
+                (2, 0x01), (2, 0x02), (2, 0x80), (1, 0x80), (0, 0x01), (0, 0x02), (0, 0x10),
+                (0, 0x20), (0, 0x80),
+            ];
+            TAPS.iter().fold(0, |p, &(byte, mask)| p ^ u8::from(st[byte] & mask != 0))
+        }
+        fn shift(st: &mut [u8; 6], bit: u8) {
+            let carry = st[1] >> 7;
+            st[1] <<= 1;
+            st[0] = (st[0] << 1) | carry;
+            st[1] = (st[1] & 0xFE) | (st[2] >> 7);
+            let low = u32::from_be_bytes([st[2], st[3], st[4], st[5]]) << 1;
+            st[2..6].copy_from_slice(&low.to_be_bytes());
+            st[5] = (st[5] & 0xFE) | bit;
+        }
+        /// The context at RAM 0x2646 (`uid ‖ k16 ‖ k32 ‖ counter`) to the 32 bits FC:9C4D stores at
+        /// context + 0x14 (RAM 0x265A), which state 3 compares with frame bytes 4..7.
+        pub fn authenticator(uid: u32, k16: u16, k32: u32, counter: u32) -> u32 {
+            let u = uid.to_be_bytes();
+            let k = k16.to_be_bytes();
+            let mut st = [u[0], u[1], u[2], u[3], k[0], k[1]];
+            let (mut key, mut iv) = (k32, counter);
+            for _ in 0..32 {
+                let bit = filter(&st) ^ (key >> 31) as u8 ^ (iv >> 31) as u8;
+                shift(&mut st, bit);
+                key <<= 1;
+                iv <<= 1;
+            }
+            let mut out = 0u32;
+            for _ in 0..32 {
+                out = (out << 1) | u32::from(filter(&st));
+                let fb = feedback(&st);
+                shift(&mut st, fb);
+            }
+            out
+        }
+    }
+
+    /// `bmw_cas3_authenticator` equals the CAS3 firmware's own routines, byte tables and all, on
+    /// random uid / key / counter (and the tables are HITAG2's f4a/f4b/f5c).
+    #[test]
+    fn bmw_cas3_authenticator_equals_the_cas3_firmware() {
+        let mut rng = XorShift(0xCA53_0115_FC9A_7B00);
+        for _ in 0..20_000 {
+            let r = rng.next();
+            let uid = r as u32;
+            let counter = (r >> 32) as u32;
+            let kr = rng.next();
+            let key: [u8; 6] = kr.to_be_bytes()[2..8].try_into().unwrap();
+            let k16 = u16::from_be_bytes([key[0], key[1]]);
+            let k32 = u32::from_be_bytes([key[2], key[3], key[4], key[5]]);
+            assert_eq!(
+                bmw_cas3_authenticator(uid, counter, &key),
+                cas3_firmware::authenticator(uid, k16, k32, counter),
+                "uid {uid:08X} counter {counter:08X} key {kr:012X}"
+            );
+        }
     }
 
     /// Small deterministic PRNG for property tests.

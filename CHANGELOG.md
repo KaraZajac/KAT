@@ -2,6 +2,68 @@
 
 All notable changes to KAT are documented here.
 
+## [1.27.0] - 2026-11-25
+
+A HackRF driver reliability fix from a contributor, a run of BMW work (the CAS3 remote is now read with its check and can be verified/encoded with the fob's key; a new BMW FZV decoder; a CAS4 model), and a replay transmitter for the PSA two-button key.
+
+### Added
+
+- **BMW CAS4 (F-series) model and key store.** KAT now carries a model of how a BMW CAS4 body
+  module computes its remotes' AES-128 rolling-code MAC (per-remote keys diversified from a
+  per-vehicle master), read from one module dump, plus a `bmw_cas4_keys` file to hold a car's own
+  master. It is **inert**: KAT ships no BMW keys, and the model is not yet wired to an on-air frame
+  (the map from the RF frame to the module's telegram is unconfirmed, the same gap as Audi BCM2).
+  Note this is a *different generation* from the CAS3 `0xCC` "BMW/Mini V3" remote, whose rolling
+  code is HITAG2 (proven against the CAS3 firmware), not AES.
+- **PSA 2-Button: a replay transmitter.** The two-button Citroën/Peugeot Valeo key was decode-only;
+  KAT can now resend a captured frame (the rolling code's cipher is unbroken, so this is a replay —
+  the exact captured code with its own button, sent three times behind a wake-up carrier — not a
+  next-code encoder). Works from a live decode or a reloaded `.fob`. See
+  [docs/psa_two_button.md](docs/psa_two_button.md).
+- **New decoder: BMW FZV** — a BMW remote central-locking fob (AM, ~500 µs differential Manchester,
+  64-bit `0x30`-sync frame with a per-car ID byte and a 48-bit encrypted rolling code), reverse-
+  engineered from testers' captures. KAT had no decoder for it, and some of its frames were
+  coincidentally mis-reported as "Nissan V0" (that decoder shares the same physical layer and has
+  only a weak 12-bit lock). BMW FZV uses a much stronger gate — a `0x30` sync confirmed by a repeated
+  copy — and is registered ahead of Nissan V0, so it now claims these frames correctly. Decode-only
+  (the rolling code is encrypted). See [docs/bmw_fzv.md](docs/bmw_fzv.md).
+
+- **BMW/Mini V3 (CAS3): verify the rolling code, recover the counter, and send the next code — with
+  the fob's own key.** Like JLR, Audi BCM2 and the PSA older code, KAT ships no BMW keys; a fob's
+  HITAG2 secrets (uid, 48-bit key, counter) go in a `bmw_cas3_keys` file read from the owner's own
+  module. When a decoded frame's ID matches a loaded fob, KAT reproduces the CAS3's own check —
+  recovering the full 32-bit counter in the module's `0x6D0` resync window, confirming the HITAG2
+  authenticator against `b4..b7`, resyncing the stored counter, and marking the decode authenticated
+  (a ✓ on the name). The encoder then builds the fob's next valid code. Inert without a key: the air
+  frame alone stays decode-only. The secrets' layout in a CAS3 module dump is now mapped from the
+  firmware's NvM table (ids/keys/counters/uids at fixed EEPROM offsets), with an extractor script.
+  See [docs/bmw_v3.md](docs/bmw_v3.md).
+
+### Changed
+
+- **BMW/Mini V3 is now read as the BMW CAS3 remote, with its check.** The frame's layout comes from
+  a CAS3 module's own firmware (a dump from a specialist): `0xCC`, 8 payload bytes and an XOR check
+  byte that FoxFW's decoder never reads. KAT now checks it (all 8 bits, or the 7 that survive when
+  the last bit runs into the gap after the frame), reports the counter from the right byte (the
+  last payload byte, the low byte of the key's 32-bit counter, instead of bits inside the
+  authenticator), and on a checked frame also decodes button 1 and the button-release telegram,
+  which FoxFW's button list drops. On the 2004 E60 recording in IMPORTS all 61 frames pass the check
+  (57 before, unchecked). The CAS3 checks the authenticator with HITAG2, not AES; KAT's HITAG2 code is
+  proven equal to the CAS3's own routines. See [docs/bmw_v3.md](docs/bmw_v3.md).
+- **CI and release workflows** are modernised (contributed in #7): a dedicated build-check workflow
+  for Linux and Windows, updated action versions, clippy on the vendored HackRF driver, and build
+  concurrency. Release binaries are unchanged (Linux x86-64 and aarch64, macOS and Windows).
+
+### Fixed
+
+- **HackRF driver: FFI lifecycle and callback safety** (thanks to @0magicinside, #7). The vendored
+  `libhackrf` now owns the device handle cleanly (callback handles never close the device, so
+  stopping or dropping a stream can no longer double-free or deadlock the callback context), guards
+  the FFI receive/transmit callbacks against panics unwinding across the C boundary and against
+  malformed transfers, and refuses to start a second stream while one is active. The HackRF
+  controller joins a stopped receive thread before reopening the device and tolerates a poisoned
+  lock instead of panicking.
+
 ## [1.26.0] - 2026-11-25
 
 The PSA older-code key table now ships with KAT: because it is one table shared across the whole 2001–2012 Peugeot/Citroën platform, these remotes decipher and re-encode out of the box with no key file.

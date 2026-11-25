@@ -627,6 +627,10 @@ impl App {
         let jlr_keys_msg = crate::keystore::load_jlr_keys(storage.config_dir());
         // ── … and the user's Audi BCM2 car keys (`audi_bcm2_keys`), if any, for the Audi V3 encoder ──
         let audi_bcm2_keys_msg = crate::keystore::load_audi_bcm2_keys(storage.config_dir());
+        // ── … and the user's BMW/Mini CAS3 fob secrets (`bmw_cas3_keys`), if any, for BMW/Mini V3 verify/encode ──
+        let bmw_cas3_keys_msg = crate::keystore::load_bmw_cas3_keys(storage.config_dir());
+        // ── … and the user's BMW CAS4 master keys (`bmw_cas4_keys`), if any (CAS4 remote work, still in progress) ──
+        let bmw_cas4_keys_msg = crate::keystore::load_bmw_cas4_keys(storage.config_dir());
         // ── … and the PSA older-code key (`psa_bsi_key`), if any, for the issue #6 two-button remotes ──
         let psa_bsi_key_msg = crate::keystore::load_psa_bsi_key(storage.config_dir());
 
@@ -753,7 +757,7 @@ impl App {
         }
         // Saved-session restore prompt, session writer, saved-fob index (app/persistence.rs).
         app.init_app_extensions();
-        for msg in [user_keystore_msg, hitag2_keys_msg, jlr_keys_msg, audi_bcm2_keys_msg, psa_bsi_key_msg].into_iter().flatten() {
+        for msg in [user_keystore_msg, hitag2_keys_msg, jlr_keys_msg, audi_bcm2_keys_msg, bmw_cas3_keys_msg, bmw_cas4_keys_msg, psa_bsi_key_msg].into_iter().flatten() {
             tracing::info!("{msg}");
             app.status_message.get_or_insert(msg);
         }

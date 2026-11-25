@@ -1,5 +1,6 @@
 //! PSA 2-Button: a two-button Valeo flip key for Citroën and Peugeot with a 76-bit frame —
-//! **decode and display only**.
+//! **decode and replay** (the rolling code's cipher is unbroken, so KAT resends a captured frame; it
+//! cannot make the next code).
 //!
 //! **KAT's own decoder**, worked out from two recordings of one Citroën key that a tester sent in
 //! (`IMPORTS/GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub` and `..._lock_x50.sub`,
@@ -29,7 +30,14 @@
 //! of 2.0 to 3.3 ms.
 //!
 //! **Fields**: `data` = the code, `extra` = the 12 bits before it, `data_count_bit` = 76,
-//! `button` = the button nibble, no serial, no counter.
+//! `button` = the button nibble, no serial, no counter, `encoder_capable` true.
+//!
+//! **Transmit (replay)**: [`PsaTwoButtonDecoder::encode`] rebuilds the frame's pulses from the
+//! decoded `extra` ‖ `code` and sends it [`TX_COPIES`] times behind one wake-up carrier — a resend
+//! of the captured frame (the 64-bit code is not re-generated; the cipher is unknown). The requested
+//! button is ignored, since the code is bound to its own button. Works from a live decode or a
+//! reloaded `.fob` (both keep `extra`); there is no Flipper key-file form (the 76-bit frame does not
+//! fit the generic `Key`).
 
 use super::burst::{self, BurstReader};
 use super::info::prelude::*;
@@ -59,6 +67,12 @@ const FRAME_BITS: usize = 76;
 /// half is carrier too).
 const END_MIN: u32 = 2_000;
 const END_MAX: u32 = 3_300;
+/// Transmit (replay): the pause before a frame, the closing carrier, and the wake-up carrier a press
+/// opens with. The frame is sent [`TX_COPIES`] times, as a held button repeats it.
+const PAUSE_US: u32 = 6_900;
+const END_US: u32 = 2_500;
+const LEADIN_US: u32 = 78_000;
+const TX_COPIES: usize = 3;
 
 fn button_name(_name: &str, code: u8) -> Option<&'static str> {
     match code {
@@ -101,10 +115,24 @@ fn read(halves: &[bool]) -> Option<DecodedSignal> {
         crc_valid: false,
         data: burst::number(&frame[12..]),
         data_count_bit: FRAME_BITS,
-        encoder_capable: false,
+        encoder_capable: true,
         extra: Some(burst::number(&frame[..12])),
         protocol_display_name: None,
     })
+}
+
+/// The pulses of one frame (replay): the 6.9 ms pause, the half bit of carrier, the 76 Manchester
+/// bits (`CE` ‖ button ‖ code; carrier-then-pause is a 1), and the 2.5 ms closing carrier. The
+/// inverse of [`read`]; the bits are the fields exactly as decoded, so this resends the captured
+/// frame (the rolling code is not re-generated — the cipher is unknown). Copies are chained after a
+/// single wake-up carrier (below), the end-carrier→pause boundary keeping each frame separate.
+fn frame_pulses(extra: u64, code: u64) -> Vec<LevelDuration> {
+    let mut bits = burst::pattern(extra, 12);
+    bits.extend(burst::pattern(code, 64));
+    let mut wire = vec![LevelDuration::new(false, PAUSE_US), LevelDuration::new(true, TE)];
+    wire.extend(bits.iter().flat_map(|&b| [LevelDuration::new(b, TE), LevelDuration::new(!b, TE)]));
+    wire.push(LevelDuration::new(true, END_US));
+    wire
 }
 
 impl ProtocolDecoder for PsaTwoButtonDecoder {
@@ -136,11 +164,25 @@ impl ProtocolDecoder for PsaTwoButtonDecoder {
     }
 
     fn supports_encoding(&self) -> bool {
-        false
+        true
     }
 
-    fn encode(&self, _decoded: &DecodedSignal, _button: u8) -> Option<Vec<LevelDuration>> {
-        None
+    /// Replay: resend the captured frame ([`TX_COPIES`] copies). The 64-bit code is an unbroken
+    /// rolling cipher, so KAT cannot make the next code — it resends the decoded one with its own
+    /// button (the requested button is ignored, as the code is bound to it). `None` if the decode is
+    /// not a 76-bit frame or has no `extra`.
+    fn encode(&self, decoded: &DecodedSignal, _button: u8) -> Option<Vec<LevelDuration>> {
+        if decoded.data_count_bit != FRAME_BITS {
+            return None;
+        }
+        let extra = decoded.extra?;
+        // One wake-up carrier, then the frame TX_COPIES times (each ended by its 2.5 ms carrier,
+        // which the next frame's pause separates from it).
+        let mut wire = vec![LevelDuration::new(true, LEADIN_US)];
+        for _ in 0..TX_COPIES {
+            wire.extend(frame_pulses(extra, decoded.data));
+        }
+        Some(burst::merged(wire))
     }
 }
 
@@ -180,7 +222,7 @@ mod tests {
         let d = &got[0];
         assert_eq!((d.data, d.extra, d.data_count_bit), (CODE, Some(HEAD), 76));
         assert_eq!((d.serial, d.button, d.counter), (None, Some(0xC), None));
-        assert!(!d.crc_valid && !d.encoder_capable);
+        assert!(!d.crc_valid && d.encoder_capable);
         assert_eq!(feed_resetting(&mut PsaTwoButtonDecoder::new(), &press(HEAD, CODE)).len(), 1);
         // a frame that ends with a 0 bit: its second half is part of the carrier behind it
         let got = feed_all(&mut PsaTwoButtonDecoder::new(), &press(0xCE3, CODE ^ 1));
@@ -197,7 +239,29 @@ mod tests {
         assert_eq!(button_name(NAME, 0xC), Some("Unlock"));
         assert_eq!(button_name(NAME, 0x3), Some("Lock"));
         assert_eq!(button_name(NAME, 0x1), None);
-        assert!(PsaTwoButtonDecoder::new().encode(&got[0], 1).is_none());
+    }
+
+    /// Replay encoder: the transmitted copies decode back to the captured frame (same code, head and
+    /// button), and a decode that is not a 76-bit frame refuses.
+    #[test]
+    fn replay_round_trips() {
+        let dec = PsaTwoButtonDecoder::new();
+        let decoded = feed_all(&mut PsaTwoButtonDecoder::new(), &press(HEAD, CODE)).pop().unwrap();
+        assert!(decoded.encoder_capable);
+        let wire = dec.encode(&decoded, 0).expect("replay pulses");
+        let back = feed_all(&mut PsaTwoButtonDecoder::new(), &wire);
+        assert_eq!(back.len(), TX_COPIES, "one decode per copy: {back:?}");
+        for d in &back {
+            assert_eq!((d.data, d.extra, d.button), (CODE, Some(HEAD), Some(0xC)));
+        }
+        // the lock frame (ends on a 0 bit) round-trips too, button and all
+        let lock = feed_all(&mut PsaTwoButtonDecoder::new(), &press(0xCE3, CODE ^ 1)).pop().unwrap();
+        let back = feed_all(&mut PsaTwoButtonDecoder::new(), &dec.encode(&lock, 0).unwrap());
+        assert!(back.iter().all(|d| (d.data, d.button) == (CODE ^ 1, Some(0x3))));
+        // a non-frame decode cannot be replayed
+        let mut wrong = decoded.clone();
+        wrong.data_count_bit = 64;
+        assert!(dec.encode(&wrong, 0).is_none());
     }
 
     #[test]

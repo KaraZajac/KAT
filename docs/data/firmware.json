@@ -1,0 +1,3402 @@
+{
+ "note": "Firmware and memory images of key fobs and the car modules that receive them. Sanitized: no VINs, keys, remote IDs, counters, PINs or immobiliser codes are published; each file lists what was blanked.",
+ "sources": {
+  "specialist": {
+   "name": "Tomasz Drewczynski",
+   "note": "Module reads from research partner Tomasz Drewczynski, sanitized by KAT before publication."
+  },
+  "collected": {
+   "name": "KAT",
+   "note": "Collected for KAT's PSA older-code work (GitHub issue #6), sanitized by KAT before publication."
+  },
+  "transpondery": {
+   "name": "transpondery.com",
+   "url": "https://www.transpondery.com/projects/pcf79xx-files.html",
+   "note": "Virgin PCF79xx renewal files published by transpondery.com as RAR archives (password TRANSPONDERY.COM); mirrored here extracted, with credit. They are factory-blank templates: no keys, VINs or counters."
+  }
+ },
+ "entries": [
+  {
+   "slug": "bmw-cas3-a",
+   "kind": "module",
+   "remotes": [],
+   "files": [
+    {
+     "href": "firmware/bmw/bmw-cas3-a/dflash.bin",
+     "region": "D-Flash (data)",
+     "size": 4096,
+     "sha256": "9e4449bcd072ad4ee8933757dfdc596aa18adb9d520bfd9451967d8403e447ae",
+     "redactions": [
+      {
+       "offset": "0xc84",
+       "length": 17,
+       "kind": "VIN"
+      },
+      {
+       "offset": "0xfd1",
+       "length": 7,
+       "kind": "VIN last-7"
+      },
+      {
+       "offset": "0x830",
+       "length": 132,
+       "kind": "CAS3 fob table: ids, key16, key32, counters"
+      },
+      {
+       "offset": "0xa8c",
+       "length": 40,
+       "kind": "CAS3 fob table: uids"
+      }
+     ]
+    },
+    {
+     "href": "firmware/bmw/bmw-cas3-a/pflash.bin",
+     "region": "P-Flash (program)",
+     "size": 524288,
+     "sha256": "04540e7dabaab3087e260584b621888e37c8b1378749c1a878f3caad2c81cd8d",
+     "redactions": [
+      {
+       "offset": "0x60002",
+       "length": 17,
+       "kind": "VIN"
+      },
+      {
+       "offset": "0x7e1f2",
+       "length": 17,
+       "kind": "VIN"
+      }
+     ]
+    }
+   ],
+   "title": "BMW CAS3 body module",
+   "make": "BMW",
+   "module": "CAS3 (Car Access System 3, E-series)",
+   "chip": "Freescale S12X",
+   "protocols": [
+    "bmw_cas3",
+    "bmw_v3"
+   ],
+   "source": "specialist",
+   "note": "Receives the 0xCC remote telegram and checks it with HITAG2 (KAT reads it as BMW/Mini V3). The data-flash fob table (remote IDs, HITAG2 keys, counters, UIDs) and the VIN are blanked."
+  },
+  {
+   "slug": "bmw-cas4-a",
+   "kind": "module",
+   "remotes": [],
+   "files": [
+    {
+     "href": "firmware/bmw/bmw-cas4-a/dflash.bin",
+     "region": "D-Flash (data)",
+     "size": 32768,
+     "sha256": "4d3b55cb0150dc361e45e241a76ebf36ff3d768ee1ddc21d9fdf6dfc945252c7",
+     "redactions": [
+      {
+       "offset": "0x771e",
+       "length": 17,
+       "kind": "VIN"
+      },
+      {
+       "offset": "0x7e16",
+       "length": 7,
+       "kind": "VIN last-7"
+      },
+      {
+       "offset": "0x6a6e",
+       "length": 16,
+       "kind": "key (K/~K/K^AA triplet)"
+      },
+      {
+       "offset": "0x6a92",
+       "length": 16,
+       "kind": "key (K/~K/K^AA triplet)"
+      },
+      {
+       "offset": "0x6b02",
+       "length": 16,
+       "kind": "key (K/~K/K^AA triplet)"
+      },
+      {
+       "offset": "0x7202",
+       "length": 16,
+       "kind": "key (K/~K/K^AA triplet)"
+      },
+      {
+       "offset": "0x7226",
+       "length": 16,
+       "kind": "key (K/~K/K^AA triplet)"
+      },
+      {
+       "offset": "0x724a",
+       "length": 16,
+       "kind": "key (K/~K/K^AA triplet)"
+      },
+      {
+       "offset": "0x6a6e",
+       "length": 16,
+       "kind": "CAS4 master key (block 0x80ff)"
+      },
+      {
+       "offset": "0x6a90",
+       "length": 16,
+       "kind": "CAS4 master key (block 0x80ff)"
+      },
+      {
+       "offset": "0x6a92",
+       "length": 16,
+       "kind": "CAS4 ~master (block 0x8100)"
+      },
+      {
+       "offset": "0x6ab4",
+       "length": 16,
+       "kind": "CAS4 ~master (block 0x8100)"
+      },
+      {
+       "offset": "0x6b02",
+       "length": 16,
+       "kind": "CAS4 master^AA (block 0x8101)"
+      },
+      {
+       "offset": "0x6b24",
+       "length": 16,
+       "kind": "CAS4 master^AA (block 0x8101)"
+      },
+      {
+       "offset": "0x7202",
+       "length": 16,
+       "kind": "CAS4 EWS4/ISN key (block 0x80fc)"
+      },
+      {
+       "offset": "0x7224",
+       "length": 16,
+       "kind": "CAS4 EWS4/ISN key (block 0x80fc)"
+      },
+      {
+       "offset": "0x7226",
+       "length": 16,
+       "kind": "CAS4 ~ISN (block 0x80fd)"
+      },
+      {
+       "offset": "0x7248",
+       "length": 16,
+       "kind": "CAS4 ~ISN (block 0x80fd)"
+      },
+      {
+       "offset": "0x724a",
+       "length": 16,
+       "kind": "CAS4 ISN^AA (block 0x80fe)"
+      },
+      {
+       "offset": "0x726c",
+       "length": 16,
+       "kind": "CAS4 ISN^AA (block 0x80fe)"
+      },
+      {
+       "offset": "0x72b6",
+       "length": 12,
+       "kind": "CAS4 fob record (block 0x80d3)"
+      },
+      {
+       "offset": "0x72d8",
+       "length": 12,
+       "kind": "CAS4 fob record (block 0x80d3)"
+      },
+      {
+       "offset": "0x7326",
+       "length": 12,
+       "kind": "CAS4 fob record (block 0x80d4)"
+      },
+      {
+       "offset": "0x7348",
+       "length": 12,
+       "kind": "CAS4 fob record (block 0x80d4)"
+      },
+      {
+       "offset": "0x72da",
+       "length": 12,
+       "kind": "CAS4 fob record (block 0x80d5)"
+      },
+      {
+       "offset": "0x72fc",
+       "length": 12,
+       "kind": "CAS4 fob record (block 0x80d5)"
+      },
+      {
+       "offset": "0x7302",
+       "length": 12,
+       "kind": "CAS4 fob record (block 0x80d6)"
+      },
+      {
+       "offset": "0x7324",
+       "length": 12,
+       "kind": "CAS4 fob record (block 0x80d6)"
+      }
+     ]
+    },
+    {
+     "href": "firmware/bmw/bmw-cas4-a/pflash.bin",
+     "region": "P-Flash (program)",
+     "size": 1048576,
+     "sha256": "820ad7064336e562eb73e84321a839b6b010eeaba991b0842dd4ac6936724ce4",
+     "redactions": []
+    }
+   ],
+   "title": "BMW CAS4 body module",
+   "make": "BMW",
+   "module": "CAS4 (Car Access System 4, F-series)",
+   "chip": "Freescale S12X",
+   "protocols": [
+    "bmw"
+   ],
+   "source": "specialist",
+   "note": "Computes the remotes' AES-128 rolling-code MAC from per-remote keys diversified from a per-vehicle master. The master and EWS4/ISN keys (each stored as K, ~K, K^0xAA), the fob records and the VIN are blanked."
+  },
+  {
+   "slug": "audi-bcm2-a5",
+   "kind": "module",
+   "remotes": [],
+   "files": [
+    {
+     "href": "firmware/audi/audi-bcm2-a5/pflash.bin",
+     "region": "P-Flash (program)",
+     "size": 786432,
+     "sha256": "0aff64159eab27dd406e50a63f22d7af9025d5016cbfe8e61d563bb052c7fa5a",
+     "redactions": [
+      {
+       "offset": "0x7fa0",
+       "length": 16,
+       "kind": "BCM2 NvM firmware-constant AES key (manufacturer secret)"
+      }
+     ]
+    }
+   ],
+   "title": "Audi A5 BCM2 body module",
+   "make": "Audi",
+   "module": "BCM2 (A5)",
+   "chip": "Renesas V850ES/FJ3",
+   "protocols": [
+    "audi_v3"
+   ],
+   "source": "specialist",
+   "note": "Its NvM record store (data flash) is AES-128-ECB encrypted under a firmware-constant key; that constant is blanked in this program image. The data flash itself is not published: it holds the car's remote key."
+  },
+  {
+   "slug": "peugeot-307-bsi-valeo",
+   "kind": "module",
+   "remotes": [],
+   "files": [
+    {
+     "href": "firmware/peugeot-citroen/peugeot-307-bsi-valeo/flash.bin",
+     "region": "program flash",
+     "size": 2097152,
+     "sha256": "d02e63fba00d74cd6f8b2d4b79ffd1773ec4cbb42077bc859e1348208bb48279",
+     "redactions": []
+    }
+   ],
+   "title": "Peugeot 307 Valeo BSI",
+   "make": "Peugeot / Citroën",
+   "module": "BSI (body module, Valeo)",
+   "chip": "Freescale MC68HC912DG128",
+   "protocols": [
+    "psa"
+   ],
+   "source": "collected",
+   "note": "Runs the PSA older-code block cipher; its global 16-byte key table is already published in KAT. The BSI EEPROM (learned remotes, immobiliser data) is not published."
+  },
+  {
+   "slug": "tp-13188284",
+   "kind": "fob",
+   "title": "GM 13188284",
+   "make": "GM",
+   "part": "13188284",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "13188284.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/gm/tp-13188284/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "c6634bdb37f64b9d6be05e553bf9581ffe2338242ad2375d4965fd3d3c86d263",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-13575163",
+   "kind": "fob",
+   "title": "GM 13575163",
+   "make": "GM",
+   "part": "13575163",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "13575163.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/gm/tp-13575163/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "f15b98c3bd6e95a1d1fdecc209065493a2d16785bb7cec660ce05b306e271dd1",
+     "redactions": []
+    },
+    {
+     "href": "firmware/gm/tp-13575163/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "8cf0acc33a7776ecf8d75fa30fe3efd7418844665f308bd5120988a72fb31299",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-1yz-c01c-567-737-061",
+   "kind": "fob",
+   "title": "Chrysler / Dodge / Jeep IYZ-C01C",
+   "make": "Chrysler / Dodge / Jeep",
+   "part": "IYZ-C01C",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "1YZ-C01C-(567-737-061).rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-1yz-c01c-567-737-061/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "647b99bfc6c505135d362ceef74cbb09bb00b669fb0d39175bb6d873a807debb",
+     "redactions": []
+    },
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-1yz-c01c-567-737-061/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "695fe6c28cdb077a6c782b9d98b76db576ccc197ce8c752b13856f5e7a3ce969",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-1yz-c01c-m3n5w783x",
+   "kind": "fob",
+   "title": "Chrysler / Dodge / Jeep IYZ-C01C",
+   "make": "Chrysler / Dodge / Jeep",
+   "part": "IYZ-C01C",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "1YZ-C01C-M3N5W783X.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-1yz-c01c-m3n5w783x/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "2d536ebb1e90a48913ec0673cfe4bc610b9272c0f4753fe7832333e829a5cb52",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-21676652",
+   "kind": "fob",
+   "title": "Peugeot / Citroën 21676652",
+   "make": "Peugeot / Citroën",
+   "part": "21676652",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "21676652.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/peugeot-citroen/tp-21676652/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "fd432a734600d1435e4fbec8a5fb10217161ae643cfec0f77e1ad803e762f9ba",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-285970036r",
+   "kind": "fob",
+   "title": "Renault 285970036R",
+   "make": "Renault",
+   "part": "285970036R",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "A2C53288852",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "285970036R.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/renault/tp-285970036r/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "d1377d9cfc1138e3f7138a081491a49de5af5c37db88137d68231e760fff991e",
+     "redactions": []
+    },
+    {
+     "href": "firmware/renault/tp-285970036r/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "96bface51439dc654c8380a8ad41256f2992c4e8664cf387a9b389c8a942e989",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-285971998r",
+   "kind": "fob",
+   "title": "Renault 285971998R",
+   "make": "Renault",
+   "part": "285971998R",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "285971998R.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/renault/tp-285971998r/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "51834872bb1172082bc968182fd5a5a26fc65b5c665ed603f5aad678c2385927",
+     "redactions": []
+    },
+    {
+     "href": "firmware/renault/tp-285971998r/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "ddc0e8116288c7b2a2a2ad587b1d3c914dbce92d7c10b02b352aaa738c6f0780",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-285974100r",
+   "kind": "fob",
+   "title": "Renault 285974100R",
+   "make": "Renault",
+   "part": "285974100R",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "285974100R.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/renault/tp-285974100r/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "51834872bb1172082bc968182fd5a5a26fc65b5c665ed603f5aad678c2385927",
+     "redactions": []
+    },
+    {
+     "href": "firmware/renault/tp-285974100r/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "ddc0e8116288c7b2a2a2ad587b1d3c914dbce92d7c10b02b352aaa738c6f0780",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-285975779r",
+   "kind": "fob",
+   "title": "Renault 285975779R",
+   "make": "Renault",
+   "part": "285975779R",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "285975779R.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/renault/tp-285975779r/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "826234f68d4cd92528d6e37304157de730e6c860b49f33f2db0dbfe147f6f30c",
+     "redactions": []
+    },
+    {
+     "href": "firmware/renault/tp-285975779r/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "1d23eae180ef7e8e53ebc140d0285daa7395615bbe3062f704daae2abe271bc1",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-3248a-736744a",
+   "kind": "fob",
+   "title": "GM 3248A-736744A",
+   "make": "GM",
+   "part": "3248A-736744A",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "3248A-736744A.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/gm/tp-3248a-736744a/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "dc2ef2ce6c7b8348359554589e3ccbd348f6d765bd299249b22850e1d9d1087f",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-4g0959754bp-315mhz-pcb23345321101-02",
+   "kind": "fob",
+   "title": "Audi 4G0959754BP",
+   "make": "Audi",
+   "part": "4G0959754BP",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": true,
+   "pcb": "233.453.211-01 & 233.453.211-02",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "4G0959754BP-315MHz-PCB23345321101_02.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-4g0959754bp-315mhz-pcb23345321101-02/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "7e5ee3b431eff857937130dbff1917afd0b7c8b2a59a4eb0c12b3e12ce5dd702",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-4g0959754bp-315mhz-pcb23345321101-02/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "b4ef23eee6e8420a9af33a413d90b5da77227b3e90022f8213d1cee814417c28",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-4g0959754db-315mhz-pcb23345321101-02",
+   "kind": "fob",
+   "title": "Audi 4G0959754DB",
+   "make": "Audi",
+   "part": "4G0959754DB",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": true,
+   "pcb": "233.453.211-01 & 233.453.211-02",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "4G0959754DB-315MHz-PCB23345321101_02.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-4g0959754db-315mhz-pcb23345321101-02/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "0f4997a5bbe588bad313c3b2ea0eb3dc1882e59a838064d20e6b6aeab86c8a10",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-4g0959754db-315mhz-pcb23345321101-02/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "b4ef23eee6e8420a9af33a413d90b5da77227b3e90022f8213d1cee814417c28",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-4g0959754dc-315mhz-pcb23345321101-02",
+   "kind": "fob",
+   "title": "Audi 4G0959754DC",
+   "make": "Audi",
+   "part": "4G0959754DC",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": true,
+   "pcb": "233.453.211-01 & 233.453.211-02",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "4G0959754DC-315MHz-PCB23345321101_02.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-4g0959754dc-315mhz-pcb23345321101-02/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "fb3a428625dd74f386343f3d7cf822f5498e87279500b779b2fd989abc986d02",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-4g0959754dc-315mhz-pcb23345321101-02/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "b4ef23eee6e8420a9af33a413d90b5da77227b3e90022f8213d1cee814417c28",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-4g0959754g-315mhz-pcb23345311105-06",
+   "kind": "fob",
+   "title": "Audi 4G0959754G",
+   "make": "Audi",
+   "part": "4G0959754G",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": true,
+   "pcb": "233.453.111-05 & 233.453.111-06",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "4G0959754G-315MHz-PCB23345311105_06.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-4g0959754g-315mhz-pcb23345311105-06/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "8f881169039923053782c5f9d21ee178acf9bcb7a59159d6e94f822999ba50a6",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-4g0959754g-315mhz-pcb23345311105-06/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "287c2b8795d60575aa796cd0e3c94a65c6636aa6c8ac78d3a6a36a68e7291bac",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-4g0959754k-868mhz-pcb23345311105-06",
+   "kind": "fob",
+   "title": "Audi 4G0959754K",
+   "make": "Audi",
+   "part": "4G0959754K",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "868MHz",
+   "keyless": true,
+   "pcb": "233.453.111-05 & 233.453.111-06",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "4G0959754K-868MHz-PCB23345311105_06.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-4g0959754k-868mhz-pcb23345311105-06/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "dd052ad42745238fa3d1f476792bf0544a489eba1128e972c37af06288e16d83",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-4g0959754k-868mhz-pcb23345311105-06/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "287c2b8795d60575aa796cd0e3c94a65c6636aa6c8ac78d3a6a36a68e7291bac",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-4h0959754da-433mhz-pcb23345321101-02",
+   "kind": "fob",
+   "title": "Audi 4H0959754DA",
+   "make": "Audi",
+   "part": "4H0959754DA",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": true,
+   "pcb": "233.453.211-01 & 233.453.211-02",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "4H0959754DA-433MHz-PCB23345321101_02.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-4h0959754da-433mhz-pcb23345321101-02/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "0d121362ea4d6a1e6509e5a416a79d7df9bdf5813f10a66203b7a7e2002b4481",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-4h0959754da-433mhz-pcb23345321101-02/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "741ef2cb4a07119862907fb5800aa25b5c6a94436bdff0b813f5c60de04ffc27",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-4h0959754db-315mhz-pcb23345321101-02",
+   "kind": "fob",
+   "title": "Audi 4H0959754DB",
+   "make": "Audi",
+   "part": "4H0959754DB",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": true,
+   "pcb": "233.453.211-01 & 233.453.211-02",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "4H0959754DB-315MHz-PCB23345321101_02.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-4h0959754db-315mhz-pcb23345321101-02/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "a90e93634549839e67f97942e5d64998f90673ff3223a36daa9c478c5a655db1",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-4h0959754db-315mhz-pcb23345321101-02/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "b4ef23eee6e8420a9af33a413d90b5da77227b3e90022f8213d1cee814417c28",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-4h0959754dd-868mhz-pcb23345321101-02",
+   "kind": "fob",
+   "title": "Audi 4H0959754DD",
+   "make": "Audi",
+   "part": "4H0959754DD",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "868MHz",
+   "keyless": true,
+   "pcb": "233.453.211-01 & 233.453.211-02",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "4H0959754DD-868MHz-PCB23345321101_02.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-4h0959754dd-868mhz-pcb23345321101-02/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "1994b2868b245d4ddcd81089bdbd96dab10012ae5880bda9d24756ef4638f25f",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-4h0959754dd-868mhz-pcb23345321101-02/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "8434146962c51cfc95ec42a304776c33c4789687bb09a5ed7567d18f8cbf575f",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-4h0959754g-315mhz-pcb23345311105-06",
+   "kind": "fob",
+   "title": "Audi 4H0959754G",
+   "make": "Audi",
+   "part": "4H0959754G",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": true,
+   "pcb": "233.453.111-05 & 233.453.111-06",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "4H0959754G-315MHz-PCB23345311105_06.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-4h0959754g-315mhz-pcb23345311105-06/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "454aa84f4ff638c469533f3277e156d127d3e49e13da4a3ebec09ac9ac7555f3",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-4h0959754g-315mhz-pcb23345311105-06/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "287c2b8795d60575aa796cd0e3c94a65c6636aa6c8ac78d3a6a36a68e7291bac",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-4h0959754k-868mhz-pcb23345311105-06",
+   "kind": "fob",
+   "title": "Audi 4H0959754K",
+   "make": "Audi",
+   "part": "4H0959754K",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "868MHz",
+   "keyless": true,
+   "pcb": "233.453.111-05 & 233.453.111-06",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "4H0959754K-868MHz-PCB23345311105_06.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-4h0959754k-868mhz-pcb23345311105-06/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "4c61c2e4deeb0d801ad3ec2c5f13746a0fa7e75660cbfb6092a467fb243ff08e",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-4h0959754k-868mhz-pcb23345311105-06/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "287c2b8795d60575aa796cd0e3c94a65c6636aa6c8ac78d3a6a36a68e7291bac",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-5e0u40247",
+   "kind": "fob",
+   "title": "Land Rover 5E0U40247",
+   "make": "Land Rover",
+   "part": "5E0U40247",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "434MHz",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "5E0U40247.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/land-rover/tp-5e0u40247/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "85295b041b21f74a7747accdfb24d0babd84895fd42f3f1cfa2053c43aa4d168",
+     "redactions": []
+    },
+    {
+     "href": "firmware/land-rover/tp-5e0u40247/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "923ac4b8ffd32e4bf4a6c266a56fc0e0bc229eb1b9c4e133c22840057bcf5987",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-5wk49125",
+   "kind": "fob",
+   "title": "BMW 5WK49125",
+   "make": "BMW",
+   "part": "5WK49125",
+   "module": "key fob (renewal file)",
+   "series": "E-series",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "868MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "5WK49125.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/bmw/tp-5wk49125/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "46582b10086f4ff12e6fdac758058998149bf3fceffd180deb9b00301b6bfffa",
+     "redactions": []
+    },
+    {
+     "href": "firmware/bmw/tp-5wk49125/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "ac6ff6dcbba9c1a0009e3075f4904bc5222da2ac2e91cf3a25e73b70ce15492f",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-5wk49127",
+   "kind": "fob",
+   "title": "BMW 5WK49127",
+   "make": "BMW",
+   "part": "5WK49127",
+   "module": "key fob (renewal file)",
+   "series": "E-series",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "5WK49127.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/bmw/tp-5wk49127/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "977542857b43e214bb8ff0dfe7537d56b1f08b32ed89f6f2c24e8332dd273f9f",
+     "redactions": []
+    },
+    {
+     "href": "firmware/bmw/tp-5wk49127/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "ac6ff6dcbba9c1a0009e3075f4904bc5222da2ac2e91cf3a25e73b70ce15492f",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-5wk49145-868mhz-keyless",
+   "kind": "fob",
+   "title": "BMW 5WK49145",
+   "make": "BMW",
+   "part": "5WK49145",
+   "module": "key fob (renewal file)",
+   "series": "E-series",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "868MHz",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "5WK49145-868MHz-Keyless.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/bmw/tp-5wk49145-868mhz-keyless/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "5bf31db943e19b2c0df2e2e11974ea5ea69ea9a0a9f798233d5064a75e7ce4a8",
+     "redactions": []
+    },
+    {
+     "href": "firmware/bmw/tp-5wk49145-868mhz-keyless/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "ac6ff6dcbba9c1a0009e3075f4904bc5222da2ac2e91cf3a25e73b70ce15492f",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-5wk49147-315mhz-keyless",
+   "kind": "fob",
+   "title": "BMW 5WK49147",
+   "make": "BMW",
+   "part": "5WK49147",
+   "module": "key fob (renewal file)",
+   "series": "E-series",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "5WK49147-315MHz-Keyless.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/bmw/tp-5wk49147-315mhz-keyless/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "15c5c344f70e162bf1d37cdcad787d2e7b155efa02d7400696715b93b82dce7b",
+     "redactions": []
+    },
+    {
+     "href": "firmware/bmw/tp-5wk49147-315mhz-keyless/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "ac6ff6dcbba9c1a0009e3075f4904bc5222da2ac2e91cf3a25e73b70ce15492f",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-5wk49266-434mhz",
+   "kind": "fob",
+   "title": "Volvo 5WK49266",
+   "make": "Volvo",
+   "part": "5WK49266",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "5WK49266-434MHz.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/volvo/tp-5wk49266-434mhz/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "0833cc7fc7b80b47964002c7e9ccf0ef7cf00422f27bac7cd191083a05eead13",
+     "redactions": []
+    },
+    {
+     "href": "firmware/volvo/tp-5wk49266-434mhz/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "a52a56fc9647741ce98dd66092208a3c131d0808d464fc83fbd72f09f66a44da",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-5wk49269-434mhz",
+   "kind": "fob",
+   "title": "Volvo 5WK49269",
+   "make": "Volvo",
+   "part": "5WK49269",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "5WK49269-434MHz.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/volvo/tp-5wk49269-434mhz/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "7bcaf7101bb03fff3a1339eb0c304d5baba4a336db6ab227427a803124e69116",
+     "redactions": []
+    },
+    {
+     "href": "firmware/volvo/tp-5wk49269-434mhz/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "a52a56fc9647741ce98dd66092208a3c131d0808d464fc83fbd72f09f66a44da",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-5wk49661",
+   "kind": "fob",
+   "title": "BMW 5WK49661",
+   "make": "BMW",
+   "part": "5WK49661",
+   "module": "key fob (renewal file)",
+   "series": "F-series",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "868MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "5WK49661.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/bmw/tp-5wk49661/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "88c6a27f5150423ad70a0f2db40513f65f9c07da981509ab88c3935d97c9ab03",
+     "redactions": []
+    },
+    {
+     "href": "firmware/bmw/tp-5wk49661/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "0863e72027ad98bff455ef74fda37ae82f4a4860abc62b7dc74fe66626d1b27b",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-5wk49662",
+   "kind": "fob",
+   "title": "BMW 5WK49662",
+   "make": "BMW",
+   "part": "5WK49662",
+   "module": "key fob (renewal file)",
+   "series": "F-series",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "434MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "5WK49662.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/bmw/tp-5wk49662/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "ad8ea175679b527001034fe7ba7211a42baa08344c000738b2a6e2136b076fcc",
+     "redactions": []
+    },
+    {
+     "href": "firmware/bmw/tp-5wk49662/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "0863e72027ad98bff455ef74fda37ae82f4a4860abc62b7dc74fe66626d1b27b",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-5wk49663",
+   "kind": "fob",
+   "title": "BMW 5WK49663",
+   "make": "BMW",
+   "part": "5WK49663",
+   "module": "key fob (renewal file)",
+   "series": "F-series",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "5WK49663.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/bmw/tp-5wk49663/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "52f9719bd8d14cdc5d9c19aaa971d71fef5e5d295249a140fb57754a8bfdac42",
+     "redactions": []
+    },
+    {
+     "href": "firmware/bmw/tp-5wk49663/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "0863e72027ad98bff455ef74fda37ae82f4a4860abc62b7dc74fe66626d1b27b",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-7pp959753aj",
+   "kind": "fob",
+   "title": "Porsche 7PP959753AJ",
+   "make": "Porsche",
+   "part": "7PP959753AJ",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "7PP959753AJ.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/porsche/tp-7pp959753aj/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "6d9b724ce6c215322f5b3fbf472e9ebc6e368f4a70242f532ef371992dbbbc48",
+     "redactions": []
+    },
+    {
+     "href": "firmware/porsche/tp-7pp959753aj/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "236af810954c3342c5606600bfece03d9043402fe61e8472eab143b40c25a1fa",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-7pp959753bm",
+   "kind": "fob",
+   "title": "Porsche 7PP959753BM",
+   "make": "Porsche",
+   "part": "7PP959753BM",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "7PP959753BM.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/porsche/tp-7pp959753bm/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "0e948b001377d1ecedb81eb3e02e66dcbefde22d265751d4eb2afbfd66adb115",
+     "redactions": []
+    },
+    {
+     "href": "firmware/porsche/tp-7pp959753bm/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "ca33948d1f9129bc0eb7a4544b7fdb401c0b951412db7faf65eb2b8a6e0ab39a",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-7pp959753bn-434mhz",
+   "kind": "fob",
+   "title": "Porsche 7PP959753BN",
+   "make": "Porsche",
+   "part": "7PP959753BN",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "434MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "7PP959753BN-434MHz.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/porsche/tp-7pp959753bn-434mhz/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "f3b4f1f37e7e2898922faf9fb77c1ce257c54fbbda8b87275ac0eb171f110a7d",
+     "redactions": []
+    },
+    {
+     "href": "firmware/porsche/tp-7pp959753bn-434mhz/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "2e204023ed13713e1243be205264a5f7a18d3baed57f5037888312922da9eb08",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-7pp959753bq-315mhz",
+   "kind": "fob",
+   "title": "Porsche 7PP959753BQ",
+   "make": "Porsche",
+   "part": "7PP959753BQ",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "7PP959753BQ-315MHz.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/porsche/tp-7pp959753bq-315mhz/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "645fd6d1e5212abebed02891fdfd6bf2d36ca1ccb737cffdda1bbeb9aa2b9ec0",
+     "redactions": []
+    },
+    {
+     "href": "firmware/porsche/tp-7pp959753bq-315mhz/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "98af5a9c1fa0b967756cbb925bf471dca292c6403427dc912a642652f3bb67aa",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-7pp959753bs-434mhz",
+   "kind": "fob",
+   "title": "Porsche 7PP959753BS",
+   "make": "Porsche",
+   "part": "7PP959753BS",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "434MHz",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "7PP959753BS-434MHz.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/porsche/tp-7pp959753bs-434mhz/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "d4b501463dbb11c3a97ad08987376f438aa9fb7fc828ed73c016baef7a1a964a",
+     "redactions": []
+    },
+    {
+     "href": "firmware/porsche/tp-7pp959753bs-434mhz/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "ef43d83e0acf8bda684abc00a31d11d25da41c2ab3f596f65f352816ef21ac95",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-805673071r",
+   "kind": "fob",
+   "title": "Renault 805673071R",
+   "make": "Renault",
+   "part": "805673071R",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "805673071R.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/renault/tp-805673071r/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "52fdd0e88c67c8ca37f1db794426a10c397131502e94a565a04492d33c5e73f2",
+     "redactions": []
+    },
+    {
+     "href": "firmware/renault/tp-805673071r/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "0f9e353a5ff868d4a85f0640fe9cdabd6f64ab7131ad8ae9f7c7d56eb092fdd9",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-8k0959754br-868mhz-pcb23345321101-02",
+   "kind": "fob",
+   "title": "Audi 8K0959754BR",
+   "make": "Audi",
+   "part": "8K0959754BR",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "868MHz",
+   "keyless": true,
+   "pcb": "233.453.211-01 & 233.453.211-02",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "8K0959754BR-868MHz-PCB23345321101_02.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-8k0959754br-868mhz-pcb23345321101-02/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "df41ee0d0ab072dbc55ca10bf0091f95a8a2172d9ac24cf625498a46b304db65",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-8k0959754br-868mhz-pcb23345321101-02/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "8434146962c51cfc95ec42a304776c33c4789687bb09a5ed7567d18f8cbf575f",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-8k0959754d-868mhz-pcb23345321101-02",
+   "kind": "fob",
+   "title": "Audi 8K0959754D",
+   "make": "Audi",
+   "part": "8K0959754D",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "868MHz",
+   "keyless": true,
+   "pcb": "233.453.211-01 & 233.453.211-02",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "8K0959754D-868MHz-PCB23345321101_02.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-8k0959754d-868mhz-pcb23345321101-02/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "12703ff84001c08b8f635d92729bf6f6f7356bf4782e40159bcb30923a986dce",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-8k0959754d-868mhz-pcb23345321101-02/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "8434146962c51cfc95ec42a304776c33c4789687bb09a5ed7567d18f8cbf575f",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-8k0959754h-868mhz-pcb23345321101-02",
+   "kind": "fob",
+   "title": "Audi 8K0959754H",
+   "make": "Audi",
+   "part": "8K0959754H",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "868MHz",
+   "keyless": true,
+   "pcb": "233.453.211-01 & 233.453.211-02",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "8K0959754H-868MHz-PCB23345321101_02.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-8k0959754h-868mhz-pcb23345321101-02/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "84f984b37e11ae5a0e445359d2cbc9a872da53ad1ca5e18e40152307445d1cac",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-8k0959754h-868mhz-pcb23345321101-02/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "8434146962c51cfc95ec42a304776c33c4789687bb09a5ed7567d18f8cbf575f",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-8t0959754-433mhz-pcb23345311102",
+   "kind": "fob",
+   "title": "Audi 8T0959754",
+   "make": "Audi",
+   "part": "8T0959754",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "233.453.111-02",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "8T0959754-433MHz-PCB23345311102.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-8t0959754-433mhz-pcb23345311102/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "c5557a59c021854fbebcaac29bc5fb91cfd7b8d07e1033444fab9864f9d45458",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-8t0959754-433mhz-pcb23345311102/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "28d47759a952cf9f4a13d068e2dacd03e022856c825ca3be93f843009339b693",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-8t0959754-433mhz-pcb23345311105-06",
+   "kind": "fob",
+   "title": "Audi 8T0959754",
+   "make": "Audi",
+   "part": "8T0959754",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "233.453.111-05 & 233.453.111-06",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "8T0959754-433MHz-PCB23345311105_06.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-8t0959754-433mhz-pcb23345311105-06/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "99abc7fe6157a8bbe7d0a5cf989c6980f41b33b78ebf1e2eb2b000ce7a99f544",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-8t0959754-433mhz-pcb23345311105-06/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "287c2b8795d60575aa796cd0e3c94a65c6636aa6c8ac78d3a6a36a68e7291bac",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-8t0959754a-315mhz-pcb23345311102",
+   "kind": "fob",
+   "title": "Audi 8T0959754A",
+   "make": "Audi",
+   "part": "8T0959754A",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": false,
+   "pcb": "233.453.111-02",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "8T0959754A-315MHz-PCB23345311102.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-8t0959754a-315mhz-pcb23345311102/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "fa0a3fbeb77239975c8ae6e21276303eb3bd10d1daa03a044b2850ab936c7690",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-8t0959754a-315mhz-pcb23345311102/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "28d47759a952cf9f4a13d068e2dacd03e022856c825ca3be93f843009339b693",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-8t0959754d-868mhz-pcb23345311102",
+   "kind": "fob",
+   "title": "Audi 8T0959754D",
+   "make": "Audi",
+   "part": "8T0959754D",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "868MHz",
+   "keyless": false,
+   "pcb": "233.453.111-02",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "8T0959754D-868MHz-PCB23345311102.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-8t0959754d-868mhz-pcb23345311102/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "f458577e82b50b90684733d0caffcbc810fbf411a7649bf4a20e079a42def022",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-8t0959754d-868mhz-pcb23345311102/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "28d47759a952cf9f4a13d068e2dacd03e022856c825ca3be93f843009339b693",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-8t0959754d-868mhz-pcb23345311105-06",
+   "kind": "fob",
+   "title": "Audi 8T0959754D",
+   "make": "Audi",
+   "part": "8T0959754D",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "868MHz",
+   "keyless": false,
+   "pcb": "233.453.111-05 & 233.453.111-06",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "8T0959754D-868MHz-PCB23345311105_06.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-8t0959754d-868mhz-pcb23345311105-06/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "411f85264edbee14a6c3791217d6968d502e5f038cbc4a7fe71e1a2f3409044b",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-8t0959754d-868mhz-pcb23345311105-06/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "287c2b8795d60575aa796cd0e3c94a65c6636aa6c8ac78d3a6a36a68e7291bac",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-8t0959754f-433mhz-pcb23345311102",
+   "kind": "fob",
+   "title": "Audi 8T0959754F",
+   "make": "Audi",
+   "part": "8T0959754F",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": true,
+   "pcb": "233.453.111-02",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "8T0959754F-433MHz-PCB23345311102.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-8t0959754f-433mhz-pcb23345311102/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "13b1bbe57f3df6872c3fedd496fb2b1605f999391474147328519c8427bfb871",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-8t0959754f-433mhz-pcb23345311102/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "28d47759a952cf9f4a13d068e2dacd03e022856c825ca3be93f843009339b693",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-8t0959754f-433mhz-pcb23345311105-06",
+   "kind": "fob",
+   "title": "Audi 8T0959754F",
+   "make": "Audi",
+   "part": "8T0959754F",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": true,
+   "pcb": "233.453.111-05 & 233.453.111-06",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "8T0959754F-433MHz-PCB23345311105_06.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-8t0959754f-433mhz-pcb23345311105-06/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "5cb06ae0ede58b4bf081425184cbe9a7f008e7d707ab56a6aedd7c1bbc4929da",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-8t0959754f-433mhz-pcb23345311105-06/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "287c2b8795d60575aa796cd0e3c94a65c6636aa6c8ac78d3a6a36a68e7291bac",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-8t0959754g-315mhz-pcb23345311105-06",
+   "kind": "fob",
+   "title": "Audi 8T0959754G",
+   "make": "Audi",
+   "part": "8T0959754G",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": true,
+   "pcb": "233.453.111-05 & 233.453.111-06",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "8T0959754G-315MHz-PCB23345311105_06.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-8t0959754g-315mhz-pcb23345311105-06/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "7d490b5773fe78edea02292006d91f348b9582ea624b6e7c20576cf00a607dfe",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-8t0959754g-315mhz-pcb23345311105-06/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "287c2b8795d60575aa796cd0e3c94a65c6636aa6c8ac78d3a6a36a68e7291bac",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-a2c53188764",
+   "kind": "fob",
+   "title": "Nissan A2C53188764",
+   "make": "Nissan",
+   "part": "A2C53188764",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "A2C53188764.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/nissan/tp-a2c53188764/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "7c6f6dd188c9c64e7f11e631041ee7193e50031bf4da814ad6ba52658f2045be",
+     "redactions": []
+    },
+    {
+     "href": "firmware/nissan/tp-a2c53188764/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "d73d1823c2e7be5bfbde2cbca456a3249c42d454b3d02498663bf80540acaa36",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-a2c53288850",
+   "kind": "fob",
+   "title": "Renault PCB",
+   "make": "Renault",
+   "part": "PCB",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "A2C53288850.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/renault/tp-a2c53288850/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "d602960826addc0604a7b2697b46f31f25d501fb3703b3d8b676282260ccf019",
+     "redactions": []
+    },
+    {
+     "href": "firmware/renault/tp-a2c53288850/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "1d23eae180ef7e8e53ebc140d0285daa7395615bbe3062f704daae2abe271bc1",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-a2c53297341",
+   "kind": "fob",
+   "title": "Nissan A2C53297341",
+   "make": "Nissan",
+   "part": "A2C53297341",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "A2C53297341.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/nissan/tp-a2c53297341/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "1967bae21403125fe27246c0f91c2a8556e101a5238df3be7b8510bfdf1a2bed",
+     "redactions": []
+    },
+    {
+     "href": "firmware/nissan/tp-a2c53297341/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "cff9227442232f2c3546014d0f1ebbe7926f2475e67161bb4beede3c2fd4c4e1",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-a2c53405173",
+   "kind": "fob",
+   "title": "Nissan A2C53405173",
+   "make": "Nissan",
+   "part": "A2C53405173",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "A2C53405173.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/nissan/tp-a2c53405173/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "6bf6a46786b98dd8467028359d07eaf0b11632aef973277a338bcd29db798833",
+     "redactions": []
+    },
+    {
+     "href": "firmware/nissan/tp-a2c53405173/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "b0bd56a7db7b8c17a0723fe5f7568f7992b8540e785665f8dc7078d6fb075efe",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-ak010008",
+   "kind": "fob",
+   "title": "Renault AK010008",
+   "make": "Renault",
+   "part": "AK010008",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "AK010008.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/renault/tp-ak010008/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "bcf88ddb8caacc87484b4c0f46c56d3b7473436019325cb27a96e45089ca4316",
+     "redactions": []
+    },
+    {
+     "href": "firmware/renault/tp-ak010008/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "3fcfbe636ea481fc381a4a99c87cfd2b06be944fc169d23a2932570c2b199b68",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-bmw-huf5661-868mhz",
+   "kind": "fob",
+   "title": "BMW HUF5661",
+   "make": "BMW",
+   "part": "HUF5661",
+   "module": "key fob (renewal file)",
+   "series": "F-series",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "868MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "BMW-HUF5661-868MHz.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/bmw/tp-bmw-huf5661-868mhz/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "21b6e7fc24d376b21df4f0d63938960bb6445b44d90ae00ca9e2b498f70577b1",
+     "redactions": []
+    },
+    {
+     "href": "firmware/bmw/tp-bmw-huf5661-868mhz/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "e697404cfc5bb71ba0f88f4a45e9015fc7c71a5cb4d18c59397e8e373f546381",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-bmw-huf5662-315mhz",
+   "kind": "fob",
+   "title": "BMW HUF5662",
+   "make": "BMW",
+   "part": "HUF5662",
+   "module": "key fob (renewal file)",
+   "series": "F-series",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "BMW-HUF5662-315MHz.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/bmw/tp-bmw-huf5662-315mhz/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "33f10e4e210ab64e172aa95945091d06d3b940e4cbcdf3aa02761087a6aff970",
+     "redactions": []
+    },
+    {
+     "href": "firmware/bmw/tp-bmw-huf5662-315mhz/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "c72496e5194e729632c101b932e6b1deae26b925f2d3e6bcc76a1dd9dc15f702",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-bmw-huf5663-434mhz",
+   "kind": "fob",
+   "title": "BMW HUF5663",
+   "make": "BMW",
+   "part": "HUF5663",
+   "module": "key fob (renewal file)",
+   "series": "F-series",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "434MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "BMW-HUF5663-434MHz.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/bmw/tp-bmw-huf5663-434mhz/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "5764bedf43416c99ec22dcb5bb2a42f82dfd8dc54370e3ecd2fa6e5d1969bc85",
+     "redactions": []
+    },
+    {
+     "href": "firmware/bmw/tp-bmw-huf5663-434mhz/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "e697404cfc5bb71ba0f88f4a45e9015fc7c71a5cb4d18c59397e8e373f546381",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-bmw-huf5767-434mhz",
+   "kind": "fob",
+   "title": "BMW HUF5767",
+   "make": "BMW",
+   "part": "HUF5767",
+   "module": "key fob (renewal file)",
+   "series": "F-series",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "434MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "BMW-HUF5767-434MHz.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/bmw/tp-bmw-huf5767-434mhz/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "bd8bf3c5d12ea6d5287866e9411e70b600c875e7d61bfffb51b832be16ef9968",
+     "redactions": []
+    },
+    {
+     "href": "firmware/bmw/tp-bmw-huf5767-434mhz/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "e697404cfc5bb71ba0f88f4a45e9015fc7c71a5cb4d18c59397e8e373f546381",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-chinese-audi-bcm2-key",
+   "kind": "fob",
+   "title": "Audi 8T0959754x",
+   "make": "Audi",
+   "part": "8T0959754x",
+   "module": "key fob (renewal file)",
+   "series": "Chinese aftermarket key",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": false,
+   "pcb": "100662",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "CHINESE_AUDI_BCM2_KEY.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/audi/tp-chinese-audi-bcm2-key/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "13ac0af90a5abd121d3c8bd68da9d490d0bcdb15eb7a5e09bf90f9628cf68ab5",
+     "redactions": []
+    },
+    {
+     "href": "firmware/audi/tp-chinese-audi-bcm2-key/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "42072dd728c31bc76e0663119aba0a9e064007e08d8aa1a4351607c8934a0dcb",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-chrysler-gq4-53t",
+   "kind": "fob",
+   "title": "Chrysler / Dodge / Jeep GQ4-53T",
+   "make": "Chrysler / Dodge / Jeep",
+   "part": "GQ4-53T",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "CHRYSLER-GQ4-53T.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-chrysler-gq4-53t/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "bdd67a40f3ef69ea04477c4d1e30f7b03e299c2be3530abf2c22f14f75f6b9ab",
+     "redactions": []
+    },
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-chrysler-gq4-53t/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "49b76f097f952de15600012f50539781374b2427a58bae339e6d6ec319781218",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-e25ci009",
+   "kind": "fob",
+   "title": "Peugeot / Citroën E25CI009",
+   "make": "Peugeot / Citroën",
+   "part": "E25CI009",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "E25CI009.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/peugeot-citroen/tp-e25ci009/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "a2fed894b821e1ff1132872d7a2cdc2fde1aa04f19ccf3f670f5758ca6a285b3",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-e28ci01b",
+   "kind": "fob",
+   "title": "Peugeot / Citroën E28CI01B",
+   "make": "Peugeot / Citroën",
+   "part": "E28CI01B",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "E28CI01B.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/peugeot-citroen/tp-e28ci01b/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "6e28a7967f41f35e879bc71b22773d0167d79cbe47f5c67496c01a258756e4ea",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-e33ci002",
+   "kind": "fob",
+   "title": "Peugeot / Citroën E33CI002",
+   "make": "Peugeot / Citroën",
+   "part": "E33CI002",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [
+    "psa_two_button"
+   ],
+   "remotes": [
+    "psa-valeo-two-button"
+   ],
+   "source": "transpondery",
+   "archive": "E33CI002.rar",
+   "note": "Same Valeo two-button Citroën family (E33C1002) as the PSA 2-Button key on this site, whose board carries the NXP chip marked 22A1509. A factory template, not that key's own memory.",
+   "files": [
+    {
+     "href": "firmware/peugeot-citroen/tp-e33ci002/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "3d21557fcaa7fa2fc61c287a4968868285f70a9565663bbf62581eb20edf0d39",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-gm-13149645-433mhz",
+   "kind": "fob",
+   "title": "GM 13149645",
+   "make": "GM",
+   "part": "13149645",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "GM-13149645-433MHz.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/gm/tp-gm-13149645-433mhz/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "043d3bdc54d178a67244f4a814c898e0b5003999ac2bcb11e7ed6c622cf57af5",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-gm-13149648-433mhz",
+   "kind": "fob",
+   "title": "GM 13149648",
+   "make": "GM",
+   "part": "13149648",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "GM-13149648-433MHz.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/gm/tp-gm-13149648-433mhz/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "dc2ef2ce6c7b8348359554589e3ccbd348f6d765bd299249b22850e1d9d1087f",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-gm-13188281-433mhz",
+   "kind": "fob",
+   "title": "GM 13188281",
+   "make": "GM",
+   "part": "13188281",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "GM-13188281-433MHz.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/gm/tp-gm-13188281-433mhz/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "c6634bdb37f64b9d6be05e553bf9581ffe2338242ad2375d4965fd3d3c86d263",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-gm-13500221-315mhz",
+   "kind": "fob",
+   "title": "GM 13500221",
+   "make": "GM",
+   "part": "13500221",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "GM-13500221-315MHz.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/gm/tp-gm-13500221-315mhz/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "c6e3cbb5a71e98526e405b24fe014bd521206b31eb06f00d33c94f585d01b091",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-gm-13500222-315mhz",
+   "kind": "fob",
+   "title": "GM 13500222",
+   "make": "GM",
+   "part": "13500222",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "GM-13500222-315MHz.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/gm/tp-gm-13500222-315mhz/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "c6e3cbb5a71e98526e405b24fe014bd521206b31eb06f00d33c94f585d01b091",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-gm-13500234-433mhz",
+   "kind": "fob",
+   "title": "GM 13500234",
+   "make": "GM",
+   "part": "13500234",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "GM-13500234-433MHz.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/gm/tp-gm-13500234-433mhz/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "c6634bdb37f64b9d6be05e553bf9581ffe2338242ad2375d4965fd3d3c86d263",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-gm-13500235-433mhz",
+   "kind": "fob",
+   "title": "GM 13500235",
+   "make": "GM",
+   "part": "13500235",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "GM-13500235-433MHz.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/gm/tp-gm-13500235-433mhz/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "c6e3cbb5a71e98526e405b24fe014bd521206b31eb06f00d33c94f585d01b091",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-gm-13574865-433mhz",
+   "kind": "fob",
+   "title": "GM 13574865",
+   "make": "GM",
+   "part": "13574865",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "GM-13574865-433MHz.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/gm/tp-gm-13574865-433mhz/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "f15b98c3bd6e95a1d1fdecc209065493a2d16785bb7cec660ce05b306e271dd1",
+     "redactions": []
+    },
+    {
+     "href": "firmware/gm/tp-gm-13574865-433mhz/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "8cf0acc33a7776ecf8d75fa30fe3efd7418844665f308bd5120988a72fb31299",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-gq4-54t",
+   "kind": "fob",
+   "title": "Chrysler / Dodge / Jeep GQ4-54T",
+   "make": "Chrysler / Dodge / Jeep",
+   "part": "GQ4-54T",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "GQ4-54T.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-gq4-54t/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 1024,
+     "sha256": "7ef1a9c25765a4d334ff27035e8c9183962083c2206c89422f8010ec65e32410",
+     "redactions": []
+    },
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-gq4-54t/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "26bfe287a136c30dffedc4907c621ef0a266ca794780f14b54c6de01c4eeb0ef",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-kobot04a",
+   "kind": "fob",
+   "title": "Chrysler / Dodge / Jeep KOBOT04A",
+   "make": "Chrysler / Dodge / Jeep",
+   "part": "KOBOT04A",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "KOBOT04A.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-kobot04a/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "b52f90a177a46d20df56c66f1966c11fd7c5f565a78528c47c9532f2819e74b5",
+     "redactions": []
+    },
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-kobot04a/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 1024,
+     "sha256": "5b4364672e6a47aa39ee524769b0362cb0a8f363fe76dbb72e4a964311e25cae",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-m3m-f7953mc2800",
+   "kind": "fob",
+   "title": "Chrysler / Dodge / Jeep M3M",
+   "make": "Chrysler / Dodge / Jeep",
+   "part": "M3M",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "M3M-F7953MC2800.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-m3m-f7953mc2800/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "4d80d6a0efd902db06e104c645ad599d926a2b616e65c20f96e1054155cb920c",
+     "redactions": []
+    },
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-m3m-f7953mc2800/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "6430863c602a617409e6f02e16e014050fb1d3ad412cbd8791e869abeb8c70e0",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-m3n32297100",
+   "kind": "fob",
+   "title": "Chrysler / Dodge / Jeep M3N32297100",
+   "make": "Chrysler / Dodge / Jeep",
+   "part": "M3N32297100",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "M3N32297100.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-m3n32297100/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "8491ebcc4c67e93621772a76e27fd768b88684a61fbd89a3c3a67ec512ac47e6",
+     "redactions": []
+    },
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-m3n32297100/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "a51faa8416a00ab042a7c6ad3c5e5563db8b2c208dafaddacbb47b083c0d7f95",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-m3n5wy72xx",
+   "kind": "fob",
+   "title": "Chrysler / Dodge / Jeep M3N5WY72XX",
+   "make": "Chrysler / Dodge / Jeep",
+   "part": "M3N5WY72XX",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "M3N5WY72XX.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-m3n5wy72xx/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "ba0a179156d71d38bd94e206588397336c4a263966b255a7b8bbef329d55132a",
+     "redactions": []
+    },
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-m3n5wy72xx/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 1024,
+     "sha256": "2633c8f5da35a18f86d2f09a2e8a50f064fcda3279f0cce013b56df6a035110f",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-m3n5wy783x1",
+   "kind": "fob",
+   "title": "Chrysler / Dodge / Jeep M3N5WY783X1",
+   "make": "Chrysler / Dodge / Jeep",
+   "part": "M3N5WY783X1",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "M3N5WY783X1.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-m3n5wy783x1/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "2cd2e115e1778c1584374f38b266d791fa8a328c69c53ac3259d7d9344b970b1",
+     "redactions": []
+    },
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-m3n5wy783x1/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "797cee3a111500a2ddca668793aaa5561f05bd98b5ad1e55d50d6f98d95b950f",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-m3n5wy8145",
+   "kind": "fob",
+   "title": "Acura M3N5WY8145",
+   "make": "Acura",
+   "part": "M3N5WY8145",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "M3N5WY8145.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/acura/tp-m3n5wy8145/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "b235ac25a2c0509ef05647d6c6150723f24bea0c8926992ff4a1bbc35745bfc5",
+     "redactions": []
+    },
+    {
+     "href": "firmware/acura/tp-m3n5wy8145/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "a3fbf63bafd65bb46f7ebf46c11d8395da4c63fbc8682fdcb4331555c8ce6b84",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-mitsubishi-g8d-644m",
+   "kind": "fob",
+   "title": "Mitsubishi G8D-644M",
+   "make": "Mitsubishi",
+   "part": "G8D-644M",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "434MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "MITSUBISHI-G8D-644M.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/mitsubishi/tp-mitsubishi-g8d-644m/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "d78e4b0fb2c303d5aaa2ae1503fd197981d63229a6be9a5057fec6199655e330",
+     "redactions": []
+    },
+    {
+     "href": "firmware/mitsubishi/tp-mitsubishi-g8d-644m/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "55124bdbf1dc40f78d22c52638207d4f4fc9be59209fd0ede097a82218ad945b",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-nissan-a2c32801600",
+   "kind": "fob",
+   "title": "Nissan A2C32801600",
+   "make": "Nissan",
+   "part": "A2C32801600",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "NISSAN-A2C32801600.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/nissan/tp-nissan-a2c32801600/eeprom-v1.bin",
+     "region": "EEPROM (virgin), version 1",
+     "size": 512,
+     "sha256": "0d1592243aae7587f0011c906288649a80e169698dc2df12bacc30d3173c36c3",
+     "redactions": []
+    },
+    {
+     "href": "firmware/nissan/tp-nissan-a2c32801600/erom-v1.bin",
+     "region": "EROM (firmware), version 1",
+     "size": 8192,
+     "sha256": "bb9768eeaaa1e259e75f6f66e84e559ee20af478481ea55669e8d5f6ffc43a02",
+     "redactions": []
+    },
+    {
+     "href": "firmware/nissan/tp-nissan-a2c32801600/eeprom-v2.bin",
+     "region": "EEPROM (virgin), version 2",
+     "size": 512,
+     "sha256": "b9f49c0c0e089ff77cc0597a2c9824a818c22688911c60091569e2b087eb0782",
+     "redactions": []
+    },
+    {
+     "href": "firmware/nissan/tp-nissan-a2c32801600/erom-v2.bin",
+     "region": "EROM (firmware), version 2",
+     "size": 8192,
+     "sha256": "6f6e3cf9960de613f00344cbf13f6914970a925954f12774134fadf8f7a7cc9e",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-nissan-a2c53408715",
+   "kind": "fob",
+   "title": "Nissan A2C53408715",
+   "make": "Nissan",
+   "part": "A2C53408715",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "433MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "NISSAN-A2C53408715.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/nissan/tp-nissan-a2c53408715/erom-v1.bin",
+     "region": "EROM (firmware), version 1",
+     "size": 4096,
+     "sha256": "b0bd56a7db7b8c17a0723fe5f7568f7992b8540e785665f8dc7078d6fb075efe",
+     "redactions": []
+    },
+    {
+     "href": "firmware/nissan/tp-nissan-a2c53408715/eeprom-v1.bin",
+     "region": "EEPROM (virgin), version 1",
+     "size": 512,
+     "sha256": "7347142d82a6cfbe73c9fe530546a504c90352c1cf89845818ff23e6b76f0397",
+     "redactions": []
+    },
+    {
+     "href": "firmware/nissan/tp-nissan-a2c53408715/eeprom-v2.bin",
+     "region": "EEPROM (virgin), version 2",
+     "size": 512,
+     "sha256": "3f69e87b3d92606982bf5d17ed7947426237912ea332f2fb59ec276c5f07fe32",
+     "redactions": []
+    },
+    {
+     "href": "firmware/nissan/tp-nissan-a2c53408715/erom-v2.bin",
+     "region": "EROM (firmware), version 2",
+     "size": 4096,
+     "sha256": "b0bd56a7db7b8c17a0723fe5f7568f7992b8540e785665f8dc7078d6fb075efe",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-oht692427aa",
+   "kind": "fob",
+   "title": "Chrysler / Dodge / Jeep OHT692427AA",
+   "make": "Chrysler / Dodge / Jeep",
+   "part": "OHT692427AA",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "OHT692427AA.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-oht692427aa/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "c9e8f15e3d0512fb200750f0a99f8d077620663b0596d8f3a0473e18b36069b6",
+     "redactions": []
+    },
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-oht692427aa/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 1024,
+     "sha256": "8d1b26de82a56b88007d05bd57aa8e70e5b9696140ecf63d859e914b9cb2c2f3",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-oht692713aa",
+   "kind": "fob",
+   "title": "Chrysler / Dodge / Jeep OHT692713AA",
+   "make": "Chrysler / Dodge / Jeep",
+   "part": "OHT692713AA",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "OHT692713AA.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-oht692713aa/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "975e78ac27a02f41a8f41a52ad438034ab83382d909b239b51ff1fb067054888",
+     "redactions": []
+    },
+    {
+     "href": "firmware/chrysler-dodge-jeep/tp-oht692713aa/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 1024,
+     "sha256": "e9b15a3869b01734d50c4802c544b7a5dd9a09615d09adace1d4f8ccbc330c7c",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-svi-cmfeu03",
+   "kind": "fob",
+   "title": "Hyundai / Kia SVI-CMFEU03",
+   "make": "Hyundai / Kia",
+   "part": "SVI-CMFEU03",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "SVI-CMFEU03.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/hyundai-kia/tp-svi-cmfeu03/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "93686f0b4f0579ca098a2432aaf2ec92ca9e7f13987579cc182b7ff65ee42848",
+     "redactions": []
+    },
+    {
+     "href": "firmware/hyundai-kia/tp-svi-cmfeu03/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "25f62d74c3dc219646b0a0ec4fa32716699aa8a9862cf8cc618e64090df02a34",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-svi-dmfge04",
+   "kind": "fob",
+   "title": "Hyundai / Kia SVI-DMFGE04",
+   "make": "Hyundai / Kia",
+   "part": "SVI-DMFGE04",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "SVI-DMFGE04.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/hyundai-kia/tp-svi-dmfge04/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "e8840360fdd1d66dae9c7763a135352a0f43f71fe1934f424dbc28a8ff259931",
+     "redactions": []
+    },
+    {
+     "href": "firmware/hyundai-kia/tp-svi-dmfge04/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "e8640b12c3bfa434d9b6221b04227c73dd901a4f26e9381ef64f96325a2d195b",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-svi-dmfna04",
+   "kind": "fob",
+   "title": "Hyundai / Kia SVI-DMFNA04",
+   "make": "Hyundai / Kia",
+   "part": "SVI-DMFNA04",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "SVI-DMFNA04.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/hyundai-kia/tp-svi-dmfna04/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "e7bd3af0b803f981cf487a9c002ccef2b9ba1224018c58a14de3b2c79a039e85",
+     "redactions": []
+    },
+    {
+     "href": "firmware/hyundai-kia/tp-svi-dmfna04/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "e8640b12c3bfa434d9b6221b04227c73dd901a4f26e9381ef64f96325a2d195b",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-svi-hmfeu04",
+   "kind": "fob",
+   "title": "Hyundai / Kia SVI-HMFEU04",
+   "make": "Hyundai / Kia",
+   "part": "SVI-HMFEU04",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "SVI-HMFEU04.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/hyundai-kia/tp-svi-hmfeu04/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "bd5830b824b0ca67990b69c99607ae315a7a406548bdac3ef3ff046dade1755b",
+     "redactions": []
+    },
+    {
+     "href": "firmware/hyundai-kia/tp-svi-hmfeu04/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "25f62d74c3dc219646b0a0ec4fa32716699aa8a9862cf8cc618e64090df02a34",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-svi-hmfkr04",
+   "kind": "fob",
+   "title": "Hyundai / Kia SVI-HMFKR04",
+   "make": "Hyundai / Kia",
+   "part": "SVI-HMFKR04",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "SVI-HMFKR04.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/hyundai-kia/tp-svi-hmfkr04/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "e8c2839a865247ed7c77541e026975e904974ef48b47bb7eec89236ac9e4b940",
+     "redactions": []
+    },
+    {
+     "href": "firmware/hyundai-kia/tp-svi-hmfkr04/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "25f62d74c3dc219646b0a0ec4fa32716699aa8a9862cf8cc618e64090df02a34",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-svi-hmfna04",
+   "kind": "fob",
+   "title": "Hyundai / Kia SVI-HMFNA04",
+   "make": "Hyundai / Kia",
+   "part": "SVI-HMFNA04",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "SVI-HMFNA04.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/hyundai-kia/tp-svi-hmfna04/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "a684d451f7c66f2d8214e692cf7dd63da99dff1a5f5be6b3e39ad42d3d0ce2b9",
+     "redactions": []
+    },
+    {
+     "href": "firmware/hyundai-kia/tp-svi-hmfna04/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "25f62d74c3dc219646b0a0ec4fa32716699aa8a9862cf8cc618e64090df02a34",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-svi-khfge04",
+   "kind": "fob",
+   "title": "Hyundai / Kia SVI-KHFGE04",
+   "make": "Hyundai / Kia",
+   "part": "SVI-KHFGE04",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "SVI-KHFGE04.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/hyundai-kia/tp-svi-khfge04/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "64ed87ec6681c01b86528430752e78f276a8eafb5f800775cedfb82417276320",
+     "redactions": []
+    },
+    {
+     "href": "firmware/hyundai-kia/tp-svi-khfge04/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "e8640b12c3bfa434d9b6221b04227c73dd901a4f26e9381ef64f96325a2d195b",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-svi-khfna433",
+   "kind": "fob",
+   "title": "Hyundai / Kia SVI-KHFNA433",
+   "make": "Hyundai / Kia",
+   "part": "SVI-KHFNA433",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "SVI-KHFNA433.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/hyundai-kia/tp-svi-khfna433/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "f1bfa20502e8b7838565e15c6996d323032c32d3ed6147a04c503a7e5f10bf4e",
+     "redactions": []
+    },
+    {
+     "href": "firmware/hyundai-kia/tp-svi-khfna433/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "e8640b12c3bfa434d9b6221b04227c73dd901a4f26e9381ef64f96325a2d195b",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-svi-mdfge03",
+   "kind": "fob",
+   "title": "Hyundai / Kia SVI-MDFGE03",
+   "make": "Hyundai / Kia",
+   "part": "SVI-MDFGE03",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "SVI-MDFGE03.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/hyundai-kia/tp-svi-mdfge03/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "b8034522d9268a06259a3f1b960492d5a82d54e8393c4039b0c24aed7a05ae5f",
+     "redactions": []
+    },
+    {
+     "href": "firmware/hyundai-kia/tp-svi-mdfge03/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "e8640b12c3bfa434d9b6221b04227c73dd901a4f26e9381ef64f96325a2d195b",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-svi-xmfge04",
+   "kind": "fob",
+   "title": "Hyundai / Kia SVI-XMFGE04",
+   "make": "Hyundai / Kia",
+   "part": "SVI-XMFGE04",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "",
+   "keyless": true,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "SVI-XMFGE04.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/hyundai-kia/tp-svi-xmfge04/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "9c380b508960eadea923f92627d2860f6d73bbbe90f166c70be714e58b7bdca0",
+     "redactions": []
+    },
+    {
+     "href": "firmware/hyundai-kia/tp-svi-xmfge04/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 8192,
+     "sha256": "e8640b12c3bfa434d9b6221b04227c73dd901a4f26e9381ef64f96325a2d195b",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-ywx000061",
+   "kind": "fob",
+   "title": "Land Rover YWX000061",
+   "make": "Land Rover",
+   "part": "YWX000061",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "434MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "YWX000061.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/land-rover/tp-ywx000061/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "ec461789840c08f50128fc0221a182a1ee96e6de341e19ca1282b8e61168b229",
+     "redactions": []
+    },
+    {
+     "href": "firmware/land-rover/tp-ywx000061/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "49399fece88f554be9df305eb85fb1669d1207fb4b108ecbe21c1fdeed7e7f4d",
+     "redactions": []
+    }
+   ]
+  },
+  {
+   "slug": "tp-ywx000071",
+   "kind": "fob",
+   "title": "Land Rover YWX000071",
+   "make": "Land Rover",
+   "part": "YWX000071",
+   "module": "key fob (renewal file)",
+   "series": "",
+   "chip": "NXP PCF79xx (MRK II core)",
+   "frequency": "315MHz",
+   "keyless": false,
+   "pcb": "",
+   "protocols": [],
+   "remotes": [],
+   "source": "transpondery",
+   "archive": "YWX000071.rar",
+   "note": "Virgin renewal template.",
+   "files": [
+    {
+     "href": "firmware/land-rover/tp-ywx000071/eeprom.bin",
+     "region": "EEPROM (virgin)",
+     "size": 512,
+     "sha256": "5d03dede458854a8efe583b3843564cf75f6c6ed37f4e21f59b2c7b67e8b1676",
+     "redactions": []
+    },
+    {
+     "href": "firmware/land-rover/tp-ywx000071/erom.bin",
+     "region": "EROM (firmware)",
+     "size": 4096,
+     "sha256": "49399fece88f554be9df305eb85fb1669d1207fb4b108ecbe21c1fdeed7e7f4d",
+     "redactions": []
+    }
+   ]
+  }
+ ]
+}

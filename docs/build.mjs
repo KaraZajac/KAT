@@ -96,6 +96,35 @@ const CHIPS = data('chips.json');
 const FRAMES = data('frames.json');
 const FHAND = data('frames_hand.json');
 const VARIANTS = data('variants.json');
+// Firmware and memory images of key fobs and of the car modules that receive them: data/firmware.json, written by
+// REFERENCES/tools/scripts/firmware-publish/build_catalog.py from sanitized dumps (the files live in docs/firmware/).
+const FW = data('firmware.json');
+const fwByProto = new Map();
+for (const e of FW.entries) for (const p of e.protocols ?? []) (fwByProto.get(p) ?? fwByProto.set(p, []).get(p)).push(e);
+const fwByRemote = new Map();
+for (const e of FW.entries) for (const r of e.remotes ?? []) (fwByRemote.get(r) ?? fwByRemote.set(r, []).get(r)).push(e);
+const fwSource = (e) => { const s = FW.sources[e.source]; return s?.url ? `<a href="${esc(s.url)}">${esc(s.name)}</a>` : esc(s?.name ?? e.source); };
+const fwKind = (k) => (/VIN/.test(k) ? 'VIN' : /fob (table|record)/.test(k) ? 'fob records' : /constant/.test(k) ? 'manufacturer key'
+  : /PIN/.test(k) ? 'PIN' : /immobili[sz]er/i.test(k) ? 'immobiliser code' : /key|master|ISN/i.test(k) ? 'keys' : k);
+const fwBlanked = (e) => [...new Set(e.files.flatMap((f) => f.redactions.map((r) => fwKind(r.kind))))];
+const fwFiles = (e) => e.files.map((f) => `<a href="${esc(f.href)}" download title="SHA-256 ${f.sha256}">${esc(f.region)}</a> <span class="dim">${size(f.size)}</span>`).join('<br>');
+const fwLinks = (e) => (e.protocols ?? []).filter((p) => rendered.has(p)).map((p) => `<a href="${p}.html">${esc(titles.get(p) ?? p)}</a>`).join(', ');
+function fwTable(entries, { ids = false, source = false } = {}) {
+  const rows = entries.map((e) => {
+    const b = fwBlanked(e), links = fwLinks(e);
+    const name = ids ? `<strong>${esc(e.title)}</strong>` : `<a href="firmware.html#${esc(e.slug)}"><strong>${esc(e.title)}</strong></a>`;
+    const radio = [e.frequency, e.keyless ? 'keyless' : ''].filter(Boolean).join(', ');
+    return `<tr${ids ? ` id="${esc(e.slug)}"` : ''} data-q="${esc(`${e.title} ${e.make} ${e.module} ${e.chip}`.toLowerCase())}">
+<td>${name}${e.series ? ` <span class="dim">${esc(e.series)}</span>` : ''}<br><span class="dim">${esc(e.module)}${e.archive ? ` · ${esc(e.archive)}` : ''}</span>${links ? `<br>${links}` : ''}</td>
+<td>${esc(e.chip)}</td><td>${esc(radio || '–')}</td><td>${fwFiles(e)}</td>${source ? `<td>${fwSource(e)}</td>` : ''}
+<td>${b.length ? esc(b.join(', ')) : e.source === 'transpondery' ? '<span class="dim">nothing: virgin template</span>' : '–'}</td></tr>`;
+  }).join('\n');
+  return `<div class="table-wrap"><table class="data sortable">
+<thead><tr><th>Part or module</th><th>Chip</th><th>Radio</th><th>Files</th>${source ? '<th>Source</th>' : ''}<th>Blanked</th></tr></thead>
+<tbody>
+${rows}
+</tbody></table></div>`;
+}
 
 const CODING = { Pwm: 'PWM', Manchester: 'Manchester', DifferentialManchester: 'Differential Manchester', Nrz: 'NRZ', Miller: 'Miller' };
 const RF = { AM: 'AM (on-off keying)', FM: 'FM (2-FSK)', Both: 'AM and FM' };
@@ -472,6 +501,7 @@ function remotePage(r, parts) {
   const row = (k, v) => (v ? `<div><dt>${k}</dt><dd>${v}</dd></div>` : '');
   const fam = i ? famByKey.get(i.family) : null;
   const hero = r.photos[0];
+  const fwr = fwByRemote.get(r.slug.replace(/^remote-/, '')) ?? [];   // page slugs carry remote-, data/remotes.json slugs do not
   const box = `<aside class="infobox" aria-label="Facts about ${esc(r.short)}">
 ${hero ? `<a class="infobox-img" href="${esc(hero.src)}"><img src="${esc(hero.thumb)}" ${thumbSize(hero)} alt="${esc(r.short)}"></a>` : ''}
 <div class="infobox-title">${esc(r.short)}</div>
@@ -488,6 +518,7 @@ ${row('Protocol', r.entries.length ? r.entries.map((e) => pageLink(e)).join(', '
 ${row('Status', i ? `${status(i.status, i)} ${i.status === 'read' || i.status === 'likely' ? evidence(i.evidence) : ''}` : '')}
 ${row('Chips', r.chips.map((c) => `<a href="chip-${c.chip}.html">${inline(chipByKey.get(c.chip).name)}</a>`).join(', '))}
 ${row('Recordings', r.captures.length ? `<a href="#recordings">${plural(r.captures.length, 'file')}</a>` : '')}
+${row('Firmware', fwr.length ? `<a href="#firmware">${plural(fwr.reduce((n, e) => n + e.files.length, 0), 'image')}</a>` : '')}
 ${r.facts.map(([k, v]) => row(esc(k), inline(v))).join('\n')}
 </dl>
 </aside>
@@ -523,6 +554,9 @@ ${r.chips.map((c) => `<li><a href="chip-${c.chip}.html">${inline(chipByKey.get(c
   const recs = r.captures.length ? `${h2('recordings', 'Recordings')}
 <p>${plural(r.captures.length, 'recording')} of this remote in the <a href="captures.html">library</a>.</p>
 ${captureTable(r.captures.slice().sort((a, b) => a.path.localeCompare(b.path)), { folder: true })}` : '';
+  const firmware = fwr.length ? `${h2('firmware', 'Firmware')}
+<p>Memory images of this kind of key. ${fwr.every((e) => e.source === 'transpondery') ? "They are factory renewal templates of the same part family, not this key's own memory, so they hold no keys, IDs or counters." : 'Each was sanitized before publication.'} <a href="firmware.html">Firmware</a> lists every image KAT publishes.</p>
+${fwTable(fwr)}` : '';
   const frames = r.entries.length && !i ? r.entries.map((e) => frameSection(e.page)).join('\n') : '';
   if (frames) toc.push({ depth: 2, id: 'example-frames', text: 'Example frames' });
   const g = r.groups[0];
@@ -532,7 +566,7 @@ ${captureTable(r.captures.slice().sort((a, b) => a.path.localeCompare(b.path)), 
     description: clip(i ? `${i.id}: ${titleCase(i.product) || 'car remote'} by ${r.maker}${i.models ? `, for the ${i.models}` : ''}. Pictures of the board, what the FCC filing says and the KAT protocol that reads it.` : unentity((r.summary ?? '').replace(/[`*\[\]]|\([^)]*\.md[^)]*\)/g, ''))),
     trail: [['./', 'KAT'], ['remotes.html', 'Remotes'], ...(g ? [[g.href, g.short]] : [])],
     side: tocList(toc) + sideList(g ? `${g.short} remotes` : '', near.map((x) => [`${x.slug}.html`, x.short]), `${r.slug}.html`),
-    lead: box, body: `${lead}\n${pictures}\n${filing}\n${cars}\n${proto}\n${frames}\n${chips}\n${recs}\n`,
+    lead: box, body: `${lead}\n${pictures}\n${filing}\n${cars}\n${proto}\n${frames}\n${chips}\n${firmware}\n${recs}\n`,
     foot: `      <div class="doc-foot"><a href="remotes.html">← All remotes</a><span>${i ? `The filing: <a href="https://fccid.io/${encodeURIComponent(i.id)}" rel="noopener">fccid.io/${esc(i.id)}</a>, a mirror of the FCC's database.` : 'The pictures were sent in by the remote’s owner.'}</span></div>`,
   }, parts);
 }
@@ -868,6 +902,13 @@ ${captureTable(rest, { own, folder: true })}</details>` : ''}`);
 ${fccTable(fcc)}`);
     toc.push({ depth: 2, id: 'fcc-ids', text: 'FCC IDs' });
   }
+  const fw = fwByProto.get(page) ?? [];
+  if (fw.length) {
+    out.push(`<h2 id="firmware">Firmware<a class="h-anchor" href="#firmware" aria-label="Link to this section">#</a></h2>
+<p>Memory images of the car modules and fobs behind this protocol, sanitized before publication: no VINs, keys, remote IDs, counters or PINs. <a href="firmware.html">Firmware</a> lists every image KAT publishes.</p>
+${fwTable(fw)}`);
+    toc.push({ depth: 2, id: 'firmware', text: 'Firmware' });
+  }
   return { html: out.join('\n'), toc };
 }
 
@@ -906,7 +947,7 @@ if (redirect && !/^https:\/\/[^/]+$/.test(target)) {
 const files = readdirSync(HERE).filter((f) => !SKIP.has(f) && !f.startsWith('.'));
 const pages = files.filter((f) => f.endsWith('.md')).map((f) => f.slice(0, -3)).sort();
 // Pages this script writes itself.
-const made = ['protocols', 'makes', ...TAX.groups.map((g) => `make-${g.slug}`), 'captures', 'fcc', 'coverage', 'guides',
+const made = ['protocols', 'makes', ...TAX.groups.map((g) => `make-${g.slug}`), 'captures', 'firmware', 'fcc', 'coverage', 'guides',
   'remotes', 'chips', ...remotes.map((r) => r.slug), ...CHIPS.chips.map((c) => `chip-${c.key}`)];
 const changelogSrc = join(HERE, '..', 'CHANGELOG.md');
 if (existsSync(changelogSrc)) made.push('changelog');
@@ -985,7 +1026,7 @@ const guideSide = (here) => sideList('Guides', GUIDES.filter((p) => rendered.has
   + sideList('Reference', [['reports.html', 'Reports'], ['glossary.html', 'Glossary'], ['about.html', 'About this site'], ...(made.includes('changelog') ? [['changelog.html', 'Changelog']] : [])], here);
 const ecuSide = (here) => sideList('ECUs', ECU.filter((p) => rendered.has(p)).map((p) => [`${p}.html`, titles.get(p)]), here);
 const indexSide = (here) => sideList('Browse', [['protocols.html', 'Protocols'], ['makes.html', 'Makes'], ['remotes.html', 'Remotes'], ['chips.html', 'Chips'],
-  ['ecu.html', 'ECUs'], ['captures.html', 'Recordings'], ['fcc.html', 'FCC IDs'], ['coverage.html', 'Coverage'], ['guides.html', 'Guides'], ['reports.html', 'Reports'], ['glossary.html', 'Glossary']], here);
+  ['ecu.html', 'ECUs'], ['captures.html', 'Recordings'], ['firmware.html', 'Firmware'], ['fcc.html', 'FCC IDs'], ['coverage.html', 'Coverage'], ['guides.html', 'Guides'], ['reports.html', 'Reports'], ['glossary.html', 'Glossary']], here);
 
 // The families table on the ECU index page, from data/ecus.json (grouped by make). A family that has
 // its own page links to it. Injected where ecu.md has the line `ECU_FAMILIES_TABLE`.
@@ -1153,6 +1194,31 @@ ${captureTable(s.list.slice().sort((a, b) => a.path.localeCompare(b.path)), { fo
     trail: [['./', 'KAT']], side: tocList(toc) + indexSide('captures.html'), body,
   }, parts));
   for (const c of all) search.push({ t: c.name, u: `captures.html#${c.id}`, k: 'Recording', d: c.reads.length ? c.reads.map((r) => r.protocol).join(', ') : 'nothing read', x: c.folder });
+}
+
+// --- firmware.html: sanitized firmware and memory images of fobs and modules (data/firmware.json)
+{
+  const byMake = new Map();
+  for (const e of FW.entries) (byMake.get(e.make) ?? byMake.set(e.make, []).get(e.make)).push(e);
+  const makes = [...byMake.keys()].sort((a, b) => a.localeCompare(b));
+  const files = FW.entries.flatMap((e) => e.files);
+  const mods = FW.entries.filter((e) => e.kind === 'module'), fobs = FW.entries.filter((e) => e.kind === 'fob');
+  const toc = [{ depth: 2, id: 'prepared', text: 'How these were prepared' }, { depth: 2, id: 'sources', text: 'Sources' },
+    ...makes.map((m) => ({ depth: 2, id: `fw-${anchor(m)}`, text: m }))];
+  const order = (a, b) => (a.kind === b.kind ? a.title.localeCompare(b.title) : a.kind === 'module' ? -1 : 1);
+  const body = `<p class="lead">Firmware and memory images of key fobs and of the car modules that receive them: ${mods.length} modules and ${fobs.length} fobs, ${files.length} files (${size(files.reduce((n, f) => n + f.size, 0))}). They sit beside the protocols, pictures and recordings KAT already has, so a remote can be followed from the radio frame down to the code that makes it.</p>
+<h2 id="prepared">How these were prepared<a class="h-anchor" href="#prepared" aria-label="Link to this section">#</a></h2>
+<p>No published image identifies a car. A module image carries the car it came from, so before publication each is run through a sanitizer that blanks per‑car data: VINs are overwritten with <code>X</code>; keys, remote IDs, counters, PINs and immobiliser codes with zero bytes. The <em>Blanked</em> column says what was taken out of each image, and <code>data/firmware.json</code> gives the offset and length of every change. Images whose secrets could not all be located are held back until they can be. Hover a file for its SHA‑256.</p>
+<h2 id="sources">Sources<a class="h-anchor" href="#sources" aria-label="Link to this section">#</a></h2>
+<ul>${Object.values(FW.sources).map((s) => `<li>${s.url ? `<a href="${esc(s.url)}">${esc(s.name)}</a>` : `<strong>${esc(s.name)}</strong>`}: ${esc(s.note)}</li>`).join('\n')}</ul>
+${makes.map((m) => `<h2 id="fw-${anchor(m)}">${esc(m)}<a class="h-anchor" href="#fw-${anchor(m)}" aria-label="Link to this section">#</a></h2>
+${fwTable(byMake.get(m).slice().sort(order), { ids: true, source: true })}`).join('\n')}`;
+  html.set('firmware.html', wikiPage({
+    file: 'firmware.html', title: 'Firmware', wide: true,
+    description: `${mods.length} car-module and ${fobs.length} key-fob firmware and memory images, sanitized, with their chips, radios and sources.`,
+    trail: [['./', 'KAT']], side: tocList(toc) + indexSide('firmware.html'), body,
+  }, parts));
+  for (const e of FW.entries) search.push({ t: e.title, u: `firmware.html#${e.slug}`, k: 'Firmware', d: `${e.module}; ${e.chip}`, x: e.make });
 }
 
 // --- fcc.html
@@ -1342,7 +1408,8 @@ if (made.includes('changelog')) {
 
 for (const [f, t, d] of [['protocols.html', 'Protocols', 'Every protocol in one table'], ['makes.html', 'Makes', 'By car make and gate brand'], ['captures.html', 'Recordings', 'The library of .sub recordings'],
   ['fcc.html', 'FCC IDs', 'Filings tied to protocols'], ['coverage.html', 'Coverage', 'What KAT reads, and what is wanted'], ['guides.html', 'Guides', 'How KAT works'],
-  ['remotes.html', 'Remotes', 'Pictures, boards and filings of the remotes'], ['chips.html', 'Chips', 'The chips in the remotes']]) search.push({ t, u: f, k: 'Index', d });
+  ['remotes.html', 'Remotes', 'Pictures, boards and filings of the remotes'], ['chips.html', 'Chips', 'The chips in the remotes'],
+  ['firmware.html', 'Firmware', 'Firmware and memory images of fobs and modules']]) search.push({ t, u: f, k: 'Index', d });
 
 // ---------------------------------------------------------------------------
 // Write

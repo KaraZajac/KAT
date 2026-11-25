@@ -65,6 +65,8 @@ const REPORTS = [
 ];
 // protocol-table page -> its report, for the "report" link in the table and on the protocol row.
 const reportByProtocolPage = new Map(REPORTS.map((r) => [r.protocolPage, r]));
+// Pages that belong to the Firmware catalog (reading the fobs' firmware).
+const FW_PAGES = ['mrk2'];
 // The ECU / immobiliser section (the wired side): ecu.md is its index, the ecu_*.md its family pages.
 const ECU_INDEX = 'ecu';
 const ECU = [ECU_INDEX, 'ecu_psa', 'ecu_iaw_tms374', 'ecu_mercedes_temic', 'ecu_bmw'];
@@ -110,7 +112,10 @@ const fwBlanked = (e) => [...new Set(e.files.flatMap((f) => f.redactions.map((r)
 // ?v=<content hash>: the site is behind Cloudflare, which keeps a static file's 404 (and old copies) for a day; a hash
 // query is its own cache key, and a changed file gets a new one.
 const fwFiles = (e) => e.files.map((f) => `<a href="${esc(f.href)}?v=${f.sha256.slice(0, 12)}" download title="SHA-256 ${f.sha256}">${esc(f.region)}</a> <span class="dim">${size(f.size)}</span>`).join('<br>');
-const fwLinks = (e) => (e.protocols ?? []).filter((p) => rendered.has(p)).map((p) => `<a href="${p}.html">${esc(titles.get(p) ?? p)}</a>`).join(', ');
+const fwLinks = (e) => [
+  ...(e.protocols ?? []).filter((p) => rendered.has(p)).map((p) => `<a href="${p}.html">${esc(titles.get(p) ?? p)}</a>`),
+  ...(e.remotes ?? []).map((s) => remotes.find((r) => r.slug === `remote-${s}`)).filter(Boolean).map((r) => `<a href="${r.slug}.html">${esc(r.short)}</a>`),
+].join(', ');
 function fwTable(entries, { ids = false, source = false } = {}) {
   const rows = entries.map((e) => {
     const b = fwBlanked(e), links = fwLinks(e);
@@ -569,7 +574,7 @@ ${fwTable(fwr)}` : '';
     trail: [['./', 'KAT'], ['remotes.html', 'Remotes'], ...(g ? [[g.href, g.short]] : [])],
     side: tocList(toc) + sideList(g ? `${g.short} remotes` : '', near.map((x) => [`${x.slug}.html`, x.short]), `${r.slug}.html`),
     lead: box, body: `${lead}\n${pictures}\n${filing}\n${cars}\n${proto}\n${frames}\n${chips}\n${firmware}\n${recs}\n`,
-    foot: `      <div class="doc-foot"><a href="remotes.html">← All remotes</a><span>${i ? `The filing: <a href="https://fccid.io/${encodeURIComponent(i.id)}" rel="noopener">fccid.io/${esc(i.id)}</a>, a mirror of the FCC's database.` : 'The pictures were sent in by the remote’s owner.'}</span></div>`,
+    foot: `      <div class="doc-foot"><a href="remotes.html">← All remotes</a><span>${i ? `The filing: <a href="https://fccid.io/${encodeURIComponent(i.id)}" rel="noopener">fccid.io/${esc(i.id)}</a>, a mirror of the FCC's database.` : r.photos.length ? 'The pictures were sent in by the remote’s owner.' : 'No pictures of this key yet.'}</span></div>`,
   }, parts);
 }
 
@@ -1048,23 +1053,31 @@ for (const [p, r] of rendered) {
     continue;
   }
   const guide = GUIDES.includes(p), ref = REFERENCE.includes(p), ecu = ECU.includes(p), ecuIndex = p === ECU_INDEX;
+  const fwPage = FW_PAGES.includes(p);
   const trail = ecu
     ? (ecuIndex ? [['./', 'KAT']] : [['./', 'KAT'], ['ecu.html', 'ECUs']])
-    : [['./', 'KAT'], guide ? ['guides.html', 'Guides'] : ref ? ['about.html', 'Reference'] : ['protocols.html', 'Protocols']];
+    : [['./', 'KAT'], guide ? ['guides.html', 'Guides'] : ref ? ['about.html', 'Reference'] : fwPage ? ['firmware.html', 'Firmware'] : ['protocols.html', 'Protocols']];
   const facts = r.meta.length ? `<aside class="infobox" aria-label="Facts"><div class="infobox-title">${esc(short(r.title))}</div><dl>
 ${r.meta.map((m) => `<div><dt>${esc(/^rust module/i.test(m.label) ? 'Source' : m.label)}</dt><dd>${codeBreaks(m.html)}</dd></div>`).join('\n')}
 </dl></aside>\n` : '';
-  const body = ecuIndex ? r.body.replace(/<p>ECU_FAMILIES_TABLE<\/p>/, ecuFamiliesTable()) : r.body;
-  const sideFor = ecu ? ecuSide(`${p}.html`) : (guide || ref) ? guideSide(`${p}.html`) : indexSide('');
+  // A page that firmware.json ties images to (a protocol known only from its firmware) lists them, as protocol pages do.
+  const fw = fwByProto.get(p) ?? [];
+  const toc = fw.length ? [...r.toc, { depth: 2, id: 'firmware', text: 'Firmware' }] : r.toc;
+  const fwSection = fw.length ? `\n<h2 id="firmware">Firmware<a class="h-anchor" href="#firmware" aria-label="Link to this section">#</a></h2>
+<p>Memory images behind this page. ${fw.every((e) => e.source === 'transpondery') ? 'They are factory renewal templates: they hold no keys, IDs or counters.' : 'Each was sanitized before publication.'} <a href="firmware.html">Firmware</a> lists every image KAT publishes.</p>
+${fwTable(fw)}` : '';
+  const body = (ecuIndex ? r.body.replace(/<p>ECU_FAMILIES_TABLE<\/p>/, ecuFamiliesTable()) : r.body) + fwSection;
+  const sideFor = ecu ? ecuSide(`${p}.html`) : (guide || ref) ? guideSide(`${p}.html`) : indexSide(fwPage ? 'firmware.html' : '');
   html.set(`${p}.html`, wikiPage({
     file: `${p}.html`, title: r.title, description: r.description, trail, numbered: !ref,
-    side: tocList(r.toc, !ref) + sideFor,
+    side: tocList(toc, !ref) + sideFor,
     lead: facts, body,
     foot: ecu
       ? docFoot(p, ecuIndex ? 'protocols.html' : 'ecu.html', ecuIndex ? 'All protocols' : 'ECU reference')
+      : fwPage ? docFoot(p, 'firmware.html', 'Firmware catalog')
       : docFoot(p, guide || ref ? 'guides.html' : 'protocols.html', guide || ref ? 'All guides' : 'All protocols'),
   }, parts));
-  search.push({ t: short(r.title), u: `${p}.html`, k: ecu ? 'ECU' : guide ? 'Guide' : ref ? 'Reference' : 'Page', d: r.description });
+  search.push({ t: short(r.title), u: `${p}.html`, k: ecu ? 'ECU' : guide ? 'Guide' : ref ? 'Reference' : fwPage ? 'Firmware' : 'Page', d: r.description });
 }
 
 // Glossary terms are found by their own names.
@@ -1211,6 +1224,7 @@ ${captureTable(s.list.slice().sort((a, b) => a.path.localeCompare(b.path)), { fo
   const body = `<p class="lead">Firmware and memory images of key fobs and of the car modules that receive them: ${mods.length} modules and ${fobs.length} fobs, ${files.length} files (${size(files.reduce((n, f) => n + f.size, 0))}). They sit beside the protocols, pictures and recordings KAT already has, so a remote can be followed from the radio frame down to the code that makes it.</p>
 <h2 id="prepared">How these were prepared<a class="h-anchor" href="#prepared" aria-label="Link to this section">#</a></h2>
 <p>No published image identifies a car. A module image carries the car it came from, so before publication each is run through a sanitizer that blanks per‑car data: VINs are overwritten with <code>X</code>; keys, remote IDs, counters, PINs and immobiliser codes with zero bytes. The <em>Blanked</em> column says what was taken out of each image, and <code>data/firmware.json</code> gives the offset and length of every change. Images whose secrets could not all be located are held back until they can be. Hover a file for its SHA‑256.</p>
+<p>The fobs' images are programs for NXP's MRK II core, whose instruction set NXP never published. <a href="mrk2.html">MRK II instruction set</a> gives KAT's decoding of it, with a disassembler and an emulator that runs a fob's firmware; <a href="renault_koleos.html">Renault Koleos</a> is a key read that way.</p>
 <h2 id="sources">Sources<a class="h-anchor" href="#sources" aria-label="Link to this section">#</a></h2>
 <ul>${Object.values(FW.sources).map((s) => `<li>${s.url ? `<a href="${esc(s.url)}">${esc(s.name)}</a>` : `<strong>${esc(s.name)}</strong>`}: ${esc(s.note)}</li>`).join('\n')}</ul>
 ${makes.map((m) => `<h2 id="fw-${anchor(m)}">${esc(m)}<a class="h-anchor" href="#fw-${anchor(m)}" aria-label="Link to this section">#</a></h2>
@@ -1270,8 +1284,9 @@ ${fccTable(FCC.ids)}
   const units = remotes.filter((r) => r.unit);
   const real = remotes.filter((r) => !r.unit);
   const shown = real.filter((r) => r.photos.length).sort(byInterest);
-  const rest = real.filter((r) => !r.photos.length);
-  const own = remotes.filter((r) => !r.fcc);
+  const rest = real.filter((r) => !r.photos.length && r.fcc);
+  const own = remotes.filter((r) => !r.fcc && r.photos.length);
+  const unpictured = remotes.filter((r) => !r.fcc && !r.photos.length);   // known from their firmware or a description only
   html.set('remotes.html', wikiPage({
     file: 'remotes.html', title: 'Remotes', wide: true,
     description: `${real.length} car remotes: pictures of the remote and its circuit board, the chips on it, what its FCC filing says about the signal, and the KAT protocol that reads it.`,
@@ -1281,7 +1296,11 @@ ${fccTable(FCC.ids)}
 <h2 id="pictured">With pictures <span class="count">${shown.length}</span><a class="h-anchor" href="#pictured" aria-label="Link to this section">#</a></h2>
 ${filterBox('Filter: an FCC ID, a maker, a car, a protocol, a chip …', 'remote')}
 ${remoteGrid(shown)}
-<h2 id="others">Without pictures <span class="count">${rest.length}</span><a class="h-anchor" href="#others" aria-label="Link to this section">#</a></h2>
+<h2 id="others">Without pictures <span class="count">${rest.length + unpictured.length}</span><a class="h-anchor" href="#others" aria-label="Link to this section">#</a></h2>
+${unpictured.length ? `<p>Remotes KAT knows without a picture or an FCC filing:</p>
+<ul>
+${unpictured.map((r) => `<li><a href="${r.slug}.html">${esc(r.title)}</a>${r.maker ? ` <span class="dim">${esc(r.maker)}</span>` : ''}</li>`).join('\n')}
+</ul>` : ''}
 <p>Remotes whose filing has no public internal photos, or was not read yet.</p>
 ${fccTable(rest.map((r) => r.fcc))}
 ${units.length ? `<h2 id="units">In the car, not remotes <span class="count">${units.length}</span><a class="h-anchor" href="#units" aria-label="Link to this section">#</a></h2>

@@ -6,7 +6,7 @@
    "name": "PCF7941",
    "maker": "Philips / NXP",
    "kind": "Key controller with transponder",
-   "text": "A remote keyless entry controller with an immobiliser transponder in one chip: the board needs a coil for the transponder next to the transmitter. The filing of `M3N5WY72XX` calls the controller \"STARC 2XL\" in its block diagram; the chip on that board is a PCF7941.",
+   "text": "A remote keyless entry controller with an immobiliser transponder in one chip: the board needs a coil for the transponder next to the transmitter. The filing of `M3N5WY72XX` calls the controller \"STARC 2XL\" in its block diagram; the chip on that board is a PCF7941. Its CPU is NXP's MRK II, whose instruction set KAT decoded ([MRK II instruction set](mrk2.html)); the firmware of the [Renault Koleos](renault_koleos.html) key, a PCF7941, was read and run with it.",
    "datasheet": null
   },
   {

@@ -561,6 +561,62 @@
     "credit": "Sent in by the remote's owner."
    }
   ]
+ },
+ {
+  "slug": "renault-koleos-285970036r",
+  "title": "Renault Koleos four-button key (285970036R)",
+  "short": "Renault Koleos key",
+  "group": "renault",
+  "maker": "Continental",
+  "protocols": [],
+  "summary": "The four-button key of the first Renault Koleos, Renault part `285970036R`, on a Continental board with an NXP PCF7941. KAT has no recording of it: this page comes from the key's own firmware, which KAT ran in its [MRK II emulator](mrk2.md). The key signs each press with HITAG2, in a frame KAT's decoders do not read yet; [Renault Koleos](renault_koleos.md) describes the frame and the code.",
+  "facts": [
+   [
+    "Part",
+    "Renault `285970036R`"
+   ],
+   [
+    "Board",
+    "Continental `A2C53288852`"
+   ],
+   [
+    "Chip",
+    "NXP PCF7941 (ID46): radio remote and HITAG2 transponder in one chip"
+   ],
+   [
+    "Frequency",
+    "433 MHz band"
+   ],
+   [
+    "Buttons",
+    "four, sending command bits `01`, `02`, `04`, `08`"
+   ],
+   [
+    "Coding",
+    "Manchester; the rate on air is not measured yet"
+   ],
+   [
+    "Frame",
+    "a sync ending in `0x0001`, then 104 bits: a header byte, the 32-bit chip ID, the command, a repeat count and the counter's low 10 bits, a 32-bit keystream, an XOR byte"
+   ],
+   [
+    "Code",
+    "HITAG2 with a 48-bit key kept in EEPROM pages 4 and 5; IV = the 24-bit counter and the command"
+   ],
+   [
+    "Protocol",
+    "[Renault Koleos](renault_koleos.md), read from the firmware; no decoder yet"
+   ]
+  ],
+  "chips": [
+   {
+    "chip": "pcf7941",
+    "note": "the key controller, as parts sellers list it; its 4 KB firmware fits a PCF7941 (the PCF7952 runs 8 KB)"
+   }
+  ],
+  "cars": "Renault Koleos, first generation (built by Renault Samsung on a Nissan platform, sold from 2008), according to parts sellers.",
+  "recordings": [],
+  "photos": []
  }
  ],
  "fcc_extra": {

@@ -19,7 +19,9 @@ decoder learns on the fly (nominal 125 µs). The payload carries the 32-bit UID,
 counter and a 32-bit HITAG2 authenticator ("hop"), closed by an XOR byte.
 
 The 104-bit frame is byte-for-byte the same as Fiat V1's (`00 01 ‖ uid ‖ btn/cnt ‖ hop ‖ tail ‖ xor`);
-the protocols differ only in timing and sync.
+the protocols differ only in timing and sync. The first Renault Koleos's key uses the same cipher and the same
+`0x0001` header in a longer frame that this decoder does not read: see [Renault Koleos](renault_koleos.md),
+worked out from the key's firmware.
 
 Some remotes derive their HITAG2 key from the serial. For those, ProtoPirate's "Hitag2 BF" recovers the
 hidden IV bits (counter bits 10-15 and a 12-bit seed) and can then sign fresh frames. KAT runs the same

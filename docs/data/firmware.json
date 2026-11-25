@@ -454,7 +454,7 @@
   {
    "slug": "tp-285970036r",
    "kind": "fob",
-   "title": "Renault 285970036R",
+   "title": "Renault Koleos 285970036R",
    "make": "Renault",
    "part": "285970036R",
    "module": "key fob (renewal file)",
@@ -463,11 +463,15 @@
    "frequency": "433MHz",
    "keyless": false,
    "pcb": "A2C53288852",
-   "protocols": [],
-   "remotes": [],
+   "protocols": [
+    "renault_koleos"
+   ],
+   "remotes": [
+    "renault-koleos-285970036r"
+   ],
    "source": "transpondery",
    "archive": "285970036R.rar",
-   "note": "Virgin renewal template.",
+   "note": "The first Renault Koleos's four-button key (Continental board A2C53288852, NXP PCF7941). KAT ran this firmware in its MRK II emulator: the frame and the HITAG2 code it computes are on the Renault Koleos page. A factory template: the EEPROM holds no ID and HITAG2's default key.",
    "files": [
     {
      "href": "firmware/renault/tp-285970036r/eeprom.bin",
@@ -2842,7 +2846,7 @@
    "remotes": [],
    "source": "transpondery",
    "archive": "NISSAN-A2C32801600.rar",
-   "note": "Virgin renewal template.",
+   "note": "Version 1's transmitter has the same bit routine as the Renault Koleos key's firmware (Continental boards for the Renault-Nissan alliance).",
    "files": [
     {
      "href": "firmware/nissan/tp-nissan-a2c32801600/eeprom-v1.bin",

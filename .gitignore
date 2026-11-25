@@ -11,3 +11,6 @@ docs/img/remotes/
 reports/*/vince-report.md
 reports/*/build.log
 reports/*/README.md
+
+# Python byte-code caches (e.g. from running docs/tools/mrk2)
+__pycache__/

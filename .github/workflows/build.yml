@@ -35,7 +35,7 @@ jobs:
             target: x86_64-windows
             shell: msys2 {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install native libraries (Linux)
         if: runner.os == 'Linux'
@@ -111,7 +111,7 @@ jobs:
           & $exe --decode "IMPORTS/chrysler/Chrysler PT Cruiser 2006 close.sub"
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: kat-${{ matrix.target }}
           path: |

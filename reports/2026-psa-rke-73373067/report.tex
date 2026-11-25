@@ -1,0 +1,134 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\setlist{nosep,leftmargin=1.4em}
+\newcommand{\hex}[1]{\texttt{#1}}
+
+\title{A Global Key in PSA (Stellantis) Remote Keyless Entry\\[2pt]
+\large Legacy two-button remotes, 433.92\,MHz, Peugeot / Citro\"en c.\,2001--2012}
+\author{Kara Zajac\,(KAT --- Keyfob Analysis Toolkit)\\[2pt]
+\small \href{mailto:kara@soulstone.org}{kara@soulstone.org}}
+\date{24 November 2026 \\[4pt] \small\textbf{KAT Report --- Keyfob Analysis Toolkit}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The remote lock/unlock messages sent by the legacy two-button Peugeot and Citro\"en remotes of the 433.92\,MHz generation (roughly model years 2001--2012) are enciphered with a block cipher whose key is a \textbf{single fixed 16-byte table held in the vehicle body module (BSI) firmware and shared across the entire vehicle platform}. There is no per-remote and no per-vehicle key. The cipher was recovered from one BSI firmware image and is a short, fully invertible transformation: deciphering a captured message yields the remote's identity and a 16-bit press counter in cleartext, and re-enciphering an incremented counter produces the remote's next valid rolling code. A \emph{single} passively received button press is therefore enough to clone a remote --- without the VIN and without physical access. The receiving module accepts any counter within a wide forward window, and a module whose remote slot has been cleared accepts any remote. The scheme was validated against a large corpus of real captured messages from many different remotes across the affected model range. The weakness is already exploited privately (aftermarket clone remotes and gated ``calculator'' tools embed the same key); this report documents it so owners, locksmiths and researchers can understand the exposure.
+\end{abstract}
+
+\section{Affected products}
+\begin{itemize}
+\item \textbf{Vendor:} Stellantis (formerly PSA Peugeot Citro\"en).
+\item \textbf{Product:} the legacy two-button RF remote (the ``plip'', remote-control key, part family \hex{73373067}; aftermarket catalogue \hex{6554xx}) and the \textbf{BSI} (\emph{Bo\^itier de Servitude Intelligente}, the body-control/gateway module, Valeo, built on a Freescale/Motorola \hex{MC68HC912DG128} microcontroller) that receives and validates it, 433.92\,MHz, across Peugeot and Citro\"en vehicles of approximately model years 2001--2012.
+\item \textbf{Representative models} (keyed by the remote's internal type byte; this list is what the validation corpus covered):
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lll}
+\toprule
+Type & Vehicle & Remote (cat.) \\
+\midrule
+\hex{01CA} & Peugeot 206, no front fog lights, 2002--2005 & \hex{6554YL} \\
+\hex{0B8A} & Peugeot 206, no front fog lights, 2005--2007 & \hex{6554YQ} \\
+\hex{0C7A} & Peugeot 206, front fog lights, from 2002 & \hex{6554YR} \\
+\hex{0DBA} & Peugeot 206+, 2009--2012 & \hex{6554YV} \\
+\hex{0A5A} & Peugeot 307 & \hex{6554RC} \\
+\hex{04DA} & Peugeot 406 phase 2 & \hex{6554RA} \\
+\hex{0C1A} & Citro\"en C3 XTR (fog lights), 2002 to CAN & \hex{6554RE} \\
+\hex{096A} & Citro\"en C2 / C3 Pluriel flip key, 2003 to CAN & \hex{6554RJ} \\
+\hex{07CA} & Citro\"en Xsara Picasso & \hex{6554RF} \\
+\hex{069A} & Citro\"en Berlingo / Peugeot Partner, 2002--2008 & \hex{6554RH/RG} \\
+\bottomrule
+\end{tabular}
+\end{table}
+\item \textbf{Scope to be confirmed by the vendor.} The key is global, so the weakness is a platform design property, not a per-unit accident; the researcher has visibility into one BSI firmware image and a third-party corpus of captures. Stellantis should confirm the full VIN / model / BSI-part scope and the markets affected.
+\item \textbf{Not covered:} the engine immobiliser (a separate secret in the key's NXP PCF7936 transponder, unaffected); the later CAN-era rolling-code remotes, which use a different scheme and should be verified independently.
+\end{itemize}
+
+\section{Method}
+\begin{itemize}
+\item \textbf{Firmware:} one BSI flash image (\hex{MC68HC912DG128}, 2\,MB paged layout) was disassembled with Ghidra using the paged HCS12 memory model. The receive path's decipher routine, its data-dependent permutation, and its redundancy check were read directly from the firmware, and the 16-byte key table was located in the BSI's internal flash.
+\item \textbf{Corpus:} a large set of real captured frames from many different remotes, posted publicly by locksmith-community members together with each remote's independently stated identity, was used to validate the recovered scheme. (The remotes' identities are withheld from this report.)
+\item \textbf{Tooling:} an open-source research decoder (KAT) was used for frame handling; a reference implementation of the recovered cipher is available to the coordinator on request.
+\end{itemize}
+
+\section{Technical analysis}
+\subsection{Radio and frame}
+The frame is 80 bits at 433.92\,MHz, Manchester-coded: a two-byte header followed by an eight-byte enciphered block.
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lll}
+\toprule
+Bytes & Field & Notes \\
+\midrule
+0 & type & selects the model / remote part (table above) \\
+1 & sync & constant \hex{AA} \\
+2--9 & block & 8 bytes, enciphered (below): identity, counter, button \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Cipher}
+Let the key be a fixed 16-byte table $k_0,\dots,k_{15}$ read from the BSI flash. \emph{This table is the same in every affected BSI}; its value is withheld from this report. The receiver deciphers the 8-byte block $b_0\dots b_7$ in four rounds. Each round forms an intermediate vector
+\[
+t = \big(\,b_0\!\oplus\!b_2\!\oplus\!k_{a},\;\; b_1\!\oplus\!b_3\!\oplus\!k_{b},\;\; b_0,\;\; b_1,\;\; b_4\!\oplus\!b_6\!\oplus\!k_{c},\;\; b_5\!\oplus\!b_7\!\oplus\!k_{d},\;\; b_4,\;\; b_5\,\big),
+\]
+where the four key indices $a,b,c,d$ advance by four per round, and then permutes $t$ by a \textbf{byte rotation whose amount is a function of the data} --- the Hamming weight of $t$ (a multiple of eight mapped to one) --- to give the next round's block (the final round omits the rotation). The construction is a simple substitution--permutation network; it is \emph{fully invertible} (the rotation amount is rotation-invariant, so it can be recomputed when deciphering in reverse), and deciphering and enciphering use the same table.
+
+\subsection{Plaintext}
+The deciphered 8 bytes carry the remote's \textbf{identity} (three bytes, at block positions 0, 4, 5), a \textbf{16-bit press counter} (positions 2--3), a \textbf{button / flags} byte (lock, unlock, second-button, and a long-press/repeat indicator), and a redundancy field --- the sixteen nibbles of the block exclusive-or to zero. The three-byte identity equals the value a locksmith reads as the transponder's ``page 4'' with a \hex{55} prefix, which cross-checks the field independently.
+
+\subsection{The key weakness}
+The 16-byte table is \textbf{global}: constant across the whole platform, with \emph{no} diversification by VIN, remote or model. It is the entire secret of the scheme. It is present in every BSI of this generation (recoverable from any module image), and it has already leaked into third-party products. Once it is known, the cipher offers no protection: any affected remote's messages decipher directly, and valid future messages for any remote can be generated.
+
+\subsection{Recovering a remote's secrets from the air}
+Deciphering one captured block with the global table yields the remote's identity and current counter immediately --- no search is needed, because the key is global rather than brute-forced. Generating the remote's next valid code is incrementing the counter and re-enciphering with the same table. \textbf{No VIN, no module dump and no physical access are required} --- only reception of one button press within radio range.
+
+\section{Verification}
+\begin{itemize}
+\item \textbf{Cipher:} recovered from the BSI firmware and confirmed against a corpus of real captured frames spanning ten distinct remote-type values across the Peugeot/Citro\"en models above --- deciphering reproduces each remote's independently stated identity, and re-enciphering each deciphered block reproduces the captured bytes exactly (every frame round-trips).
+\item \textbf{Identity cross-check:} the deciphered three-byte identity matches the transponder ``page 4'' value (\hex{55} $\|$ identity) that locksmiths read from the same keys.
+\item \textbf{The few non-matching frames} are attributable to a mis-posted frame, over-the-air capture bit-errors, or a non-request example message --- not to the cipher.
+\item \textbf{Not performed:} an on-vehicle acceptance test. The researcher has no access to an affected vehicle. The attack is demonstrated cryptographically (the recovered scheme reproduces and can generate any corpus remote's codes); whether a given vehicle receiver accepts a generated frame should be confirmed by the vendor.
+\end{itemize}
+
+\section{Impact}
+\begin{itemize}
+\item \textbf{Remote cloning from a single capture:} an attacker in radio range who records one button press can decipher the remote's identity and counter and then generate valid future rolling codes --- remotely locking and unlocking and operating the second button. Because the key is global and the cipher is invertible, this is a \emph{permanent} clone, not a one-shot replay.
+\item \textbf{No per-vehicle protection:} the design has no key diversification; the single global table is the only secret, is recoverable from any module, and is already in third-party hands (aftermarket clone remotes and gated ``calculator'' tools).
+\item \textbf{Wide acceptance:} the receiver accepts any counter within a wide forward window, and a cleared remote slot accepts any remote (the long-reported behaviour that a ``virginised'' BSI relearns used remotes), enlarging the set of forged frames a vehicle will accept.
+\item The capture is passive and undetectable and needs only brief proximity.
+\item \textbf{Out of scope:} engine start (immobiliser transponder, separate secret).
+\end{itemize}
+
+\section{Prior work}
+No CVE or academic paper is known to document this cipher or the global-key weakness in PSA/Citro\"en/Peugeot RKE of this generation. The scheme is, however, already exploited by a closed aftermarket community: working clone remotes (on SiLabs \hex{SI4010} transmitters) and password-gated ``calculator'' tools that output a remote's identity from its frames have circulated for years on locksmith forums --- that the global secret has leaked into third-party products is itself part of the impact. The nearest unrelated academic prior art (Garcia et al., USENIX 2016; the 2025 USENIX VehicleSec systematisation of RKE attacks) concerns other manufacturers' Hitag2-based RKE; this is a distinct cipher and a distinct weakness (a single global key with no diversification).
+
+\section{Recommendations}
+\begin{itemize}
+\item For the deployed legacy fleet this is \textbf{not fixable in the field by a key change} --- the key is global and already disclosed, and these are largely end-of-life vehicles. The practical outcome of coordination is likely owner / industry \textbf{awareness} (these remotes provide no cryptographic protection against a prepared attacker) rather than a patch; the vendor should advise.
+\item For any still-produced or serviceable variant, replace the global-key design with \textbf{per-vehicle key diversification} and a full-entropy key, so that compromising one module or remote does not compromise the platform.
+\item Confirm the scheme is retired on all current platforms.
+\end{itemize}
+
+\section{Disclosure}
+\begin{itemize}
+\item This is a security-research report published by the KAT project; the finding is documented here in full. A CVE may be requested separately, and Stellantis can be contacted on request.
+\item The literal 16-byte key table and all per-vehicle / per-remote identifiers are \emph{not} included here; they can be shared with the vendor on request.
+\item The proof-of-concept implementation is an open-source research decoder, part of the KAT toolkit.
+\end{itemize}
+
+\noindent\textbf{Timeline.}
+\begin{itemize}
+\item 24 Nov 2026: cipher and global key table recovered from a BSI firmware image; deciphering validated against a large corpus of real captured frames.
+\item 24 Nov 2026: published as a KAT report.
+\end{itemize}
+
+\end{document}

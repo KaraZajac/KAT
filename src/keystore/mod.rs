@@ -81,6 +81,65 @@ pub fn load_user_keystore(config_dir: &std::path::Path) -> Option<String> {
     Some(msg)
 }
 
+/// File name of the user's JLR car keys in KAT's config folder. One car's 16-byte key per line:
+/// 32 hex digits (spaces and dashes are ignored), an optional `:name` after them; `#` starts a
+/// comment. KAT ships none; a key is the car's own, read from the owner's keyless module's D-Flash
+/// (offset 0x0E14) — see the Ford V1 (JLR) page. With a matching key, KAT deciphers those fobs'
+/// button, counter and ID and can make their next code.
+pub const JLR_KEYS_FILE: &str = "jlr_keys";
+
+/// Parse a JLR key file. Returns the keys (name, 16 bytes) and the line errors (1-based line, text).
+pub fn parse_jlr_keys(text: &str) -> (Vec<(String, [u8; 16])>, Vec<(usize, String)>) {
+    let mut keys = Vec::new();
+    let mut errors = Vec::new();
+    for (i, raw) in text.lines().enumerate() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let (hex, name) = match line.split_once(':') {
+            Some((h, n)) => (h, n.trim().to_string()),
+            None => (line, String::new()),
+        };
+        let hex: String = hex.chars().filter(|c| !c.is_whitespace() && *c != '-').collect();
+        let bytes = (hex.len() == 32)
+            .then(|| {
+                (0..16)
+                    .map(|j| u8::from_str_radix(&hex[2 * j..2 * j + 2], 16))
+                    .collect::<Result<Vec<u8>, _>>()
+                    .ok()
+            })
+            .flatten();
+        match bytes {
+            Some(b) => {
+                let name = if name.is_empty() { format!("key {}", keys.len() + 1) } else { name };
+                keys.push((name, b.try_into().unwrap()));
+            }
+            None => errors.push((i + 1, raw.to_string())),
+        }
+    }
+    (keys, errors)
+}
+
+/// Load `<config dir>/jlr_keys` if it exists (once, at startup, before any decode). Returns a status
+/// line when a file was found.
+pub fn load_jlr_keys(config_dir: &std::path::Path) -> Option<String> {
+    if cfg!(test) {
+        panic!("a test must not load the user's JLR keys: the tests share one process");
+    }
+    let path = config_dir.join(JLR_KEYS_FILE);
+    let text = std::fs::read_to_string(&path).ok()?;
+    let (keys, errors) = parse_jlr_keys(&text);
+    let n = keys.len();
+    crate::protocols::keys::get_keystore_mut().load_jlr_keys(keys);
+    let loaded = format!("Loaded {n} JLR car key{} from {}", plural(n), path.display());
+    Some(if errors.is_empty() {
+        loaded
+    } else {
+        format!("{loaded} ({} bad line{}, first: line {})", errors.len(), plural(errors.len()), errors[0].0)
+    })
+}
+
 /// Append a key to `<config dir>/keeloq_mfcodes_user` (`KEY:TYPE:NAME`, as the Flipper's user
 /// keystore), creating the file with the Flipper header when it doesn't exist. Returns the path; an
 /// identical line already in the file is not written again.
@@ -96,6 +155,28 @@ pub fn append_user_key(config_dir: &std::path::Path, name: &str, learning: u32, 
     let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&path)?;
     if existing.is_empty() {
         writeln!(f, "Filetype: Flipper SubGhz Keystore File\nVersion: 0\nEncryption: 0")?;
+    } else if !existing.ends_with('\n') {
+        writeln!(f)?;
+    }
+    writeln!(f, "{line}")?;
+    Ok(path)
+}
+
+/// Append a recovered JLR car key to `<config dir>/jlr_keys` (`KEYHEX:NAME`, 32 hex digits). Creates
+/// the file with a header comment when it does not exist; an identical line is not written again.
+pub fn append_jlr_key(config_dir: &std::path::Path, name: &str, key: &[u8; 16]) -> std::io::Result<std::path::PathBuf> {
+    use std::io::Write;
+    let path = config_dir.join(JLR_KEYS_FILE);
+    let hex: String = key.iter().map(|b| format!("{b:02X}")).collect();
+    let line = format!("{hex}:{name}");
+    let existing = std::fs::read_to_string(&path).unwrap_or_default();
+    if existing.lines().any(|l| l.split(':').next().map(str::trim) == Some(hex.as_str())) {
+        return Ok(path);
+    }
+    std::fs::create_dir_all(config_dir)?;
+    let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&path)?;
+    if existing.is_empty() {
+        writeln!(f, "# JLR car keys (32 hex digits, optional :name). KAT ships none.")?;
     } else if !existing.ends_with('\n') {
         writeln!(f)?;
     }
@@ -156,6 +237,51 @@ pub fn load_audi_bcm2_keys(config_dir: &std::path::Path) -> Option<String> {
     crate::protocols::keys::get_keystore_mut().load_audi_bcm2_keys(cars);
     let loaded = format!("Loaded {n} Audi BCM2 car key{} from {}", plural(n), path.display());
     Some(if errors.is_empty() { loaded } else { format!("{loaded} ({} bad line{}, first: line {})", errors.len(), plural(errors.len()), errors[0].0) })
+}
+
+/// The PSA older-code key-table file: one line of 32 hex characters (16 bytes), the BSI module's
+/// global table. `#` comments and whitespace/dashes are ignored. KAT ships none.
+pub const PSA_BSI_KEY_FILE: &str = "psa_bsi_key";
+
+/// Parse a `psa_bsi_key` file: the first line that is 32 hex characters is the table. Returns the
+/// table (if found) and the 1-based numbers of any non-empty, non-comment lines that were not it.
+pub fn parse_psa_bsi_key(text: &str) -> (Option<[u8; 16]>, Vec<usize>) {
+    let mut table = None;
+    let mut errors = Vec::new();
+    for (i, raw) in text.lines().enumerate() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let hex: String = line.chars().filter(|c| !c.is_whitespace() && *c != '-').collect();
+        let bytes = (hex.len() == 32)
+            .then(|| {
+                (0..16).map(|j| u8::from_str_radix(&hex[2 * j..2 * j + 2], 16)).collect::<Result<Vec<u8>, _>>().ok()
+            })
+            .flatten();
+        match bytes {
+            Some(b) if table.is_none() => table = Some(b.try_into().unwrap()),
+            _ => errors.push(i + 1),
+        }
+    }
+    (table, errors)
+}
+
+/// Load `<config dir>/psa_bsi_key` if it exists (once, at startup, before any decode). Returns a
+/// status line when a file was found.
+pub fn load_psa_bsi_key(config_dir: &std::path::Path) -> Option<String> {
+    if cfg!(test) {
+        panic!("a test must not load the user's PSA BSI key: the tests share one process");
+    }
+    let path = config_dir.join(PSA_BSI_KEY_FILE);
+    let text = std::fs::read_to_string(&path).ok()?;
+    let (table, errors) = parse_psa_bsi_key(&text);
+    crate::protocols::keys::get_keystore_mut().load_psa_bsi_table(table);
+    let loaded = match table {
+        Some(_) => format!("Loaded the PSA older-code key from {}", path.display()),
+        None => format!("No 16-byte key in {}", path.display()),
+    };
+    Some(if errors.is_empty() { loaded } else { format!("{loaded} ({} line{} ignored)", errors.len(), plural(errors.len())) })
 }
 
 /// User keystore entries (empty unless [load_user_keystore] found a file).
@@ -467,6 +593,28 @@ mod tests {
         assert_eq!(parsed.vag_bytes, vag, "VAG AUT64 keys differ from the reference dump");
     }
 
+    /// The JLR key file: a 16-byte key per line (32 hex), spaces/dashes ignored, optional `:name`,
+    /// `#` comments; a short or non-hex line is an error, not a key.
+    #[test]
+    fn parse_jlr_keys_reads_keys_and_flags_bad_lines() {
+        let text = "\
+# my car keys
+0011223344556677 8899AABBCCDDEEFF : XF 2017
+00-11-22-33-44-55-66-77-88-99-aa-bb-cc-dd-ee-ff
+deadbeef
+000102030405060708090a0b0c0d0e0f:zero-ish
+";
+        let (keys, errors) = parse_jlr_keys(text);
+        assert_eq!(keys.len(), 3);
+        assert_eq!(keys[0].0, "XF 2017");
+        assert_eq!(keys[0].1, [0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
+        assert_eq!(keys[1].0, "key 2", "an unnamed key gets a positional name");
+        assert_eq!(keys[1].1, keys[0].1, "spaces and dashes are ignored");
+        assert_eq!(keys[2].0, "zero-ish");
+        assert_eq!(errors.len(), 1, "`deadbeef` is too short to be a 16-byte key");
+        assert_eq!(errors[0].0, 4, "the 1-based line number");
+    }
+
     #[test]
     fn parse_audi_bcm2_keys_reads_cars_and_flags_bad_lines() {
         let text = "\
@@ -484,6 +632,19 @@ mod tests {
         assert_eq!(cars[1].key_ids.len(), 1);
         assert_eq!(errors.len(), 1, "a car needs at least one key ID");
         assert_eq!(errors[0].0, 4);
+    }
+
+    #[test]
+    fn parse_psa_bsi_key_reads_the_table_and_ignores_the_rest() {
+        let text = "\
+# PSA older-code BSI key
+00-01-02-03-04-05-06-07 08 09 0a 0b 0c 0d 0e 0f
+deadbeef
+";
+        let (table, errors) = parse_psa_bsi_key(text);
+        assert_eq!(table, Some([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]), "spaces and dashes are ignored");
+        assert_eq!(errors, vec![3], "`deadbeef` is not 16 bytes");
+        assert_eq!(parse_psa_bsi_key("# nothing here\n").0, None, "no table without a 32-hex line");
     }
 
     #[test]

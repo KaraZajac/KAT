@@ -1,0 +1,162 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\setlist{nosep,leftmargin=1.4em}
+\newcommand{\us}{\,$\mu$s}
+\newcommand{\hex}[1]{\texttt{#1}}
+
+\title{Predictable Rolling Codes in Subaru Remote Keyless Entry\\[2pt]
+\large FCC ID CWTWB1U811 remote-head keys, US models 2012--2019}
+\author{Kara Zajac\\ \small KAT --- Keyfob Analysis Toolkit\\ \small \href{mailto:kara@soulstone.org}{kara@soulstone.org}}
+\date{7 November 2026 \\[4pt] \small\textbf{KAT Report --- Keyfob Analysis Toolkit}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The remote keyless entry (RKE) transmitter in Subaru's 315\,MHz remote-head key (FCC ID CWTWB1U811; OEM parts 57497FJ020/FJ021, 57497FJ230, 57497AL00A) sends its key identifier, button and a 20-bit press counter in plaintext. The only integrity protection is an unkeyed one-byte checksum. Any party that receives a single transmission can therefore compute valid future transmissions for that key. On the reporter's own 2014 Subaru Impreza, a transmission constructed this way from one received press was accepted by the vehicle. A replayed old transmission was rejected. After the constructed transmissions, the legitimate key was ignored until its own counter passed the constructed value. Per Subaru parts data, the key is fitted to US-market Impreza 2012--2016, (XV) Crosstrek 2013--2017, Forester 2014--2018, WRX/STI 2015--2019 and Legacy/Outback 2015--2017 without keyless access.
+\end{abstract}
+
+\section{Affected products}
+\begin{table}[h]
+\centering\small
+\begin{tabularx}{\linewidth}{l X l}
+\toprule
+OEM part & Vehicles (US market, trims without keyless access, ``Not for Entry'') & Source \\
+\midrule
+57497FJ021 (supersedes FJ020) & Impreza 2012--2014; Crosstrek 2013--2014 (incl.\ Hybrid 2014); Forester 2014--2015; WRX 2015; STI 2015 & Subaru parts catalog \\
+57497FJ230 & Crosstrek 2015--2017 (Hybrid 2015--2016); Forester 2016--2018; Impreza 2015--2016; WRX 2016--2019; STI 2016--2019 & Subaru parts catalog \\
+57497AL00A & Legacy 2015--2017; Outback 2015--2017 & Subaru parts catalog \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent\textbf{Transmitter.} Replacement suppliers sell one remote for all three part numbers under FCC ID CWTWB1U811 (grantee Alps). The FCC test report (UL Japan 30CE0078-HO-01, 17 Dec 2009) gives 315\,MHz ASK, a 9.84375\,MHz crystal and 258\us{} pulses. That matches the preamble described below. Aftermarket copies exist under their own FCC IDs (e.g.\ 2AOKM-SB3); to work with these vehicles, they must reproduce the same messages.
+
+\noindent\textbf{Confirmed} on one vehicle: a 2014 Subaru Impreza, base trim, US market, with both of its keys (part 57497FJ021 family). The other vehicles share the transmitter by FCC ID and part cross-reference, but have not been tested.
+
+\noindent\textbf{Not covered:} the later remote head CWTB1G077 (part 57497AL27A; its FCC report gives 433.92\,MHz FSK), smart (proximity) keys such as Denso HYQ14AHC, and the 2004--2011 generation (see Section~\ref{sec:prior}).
+
+\section{Method}
+\begin{itemize}
+\item Recordings: Flipper Zero, RAW mode at 315.00\,MHz (OOK presets). Presses were made in known, labelled sequences, e.g.\ Unlock$\times$3, Lock$\times$3, Trunk$\times$3, Lock. A HackRF One with KAT recorded live captures.
+\item Analysis: pulse timing, Manchester decoding and frame alignment across more than 25 presses (over 70 frame copies) from both keys. The result was implemented as a KAT decoder and encoder.
+\item Vehicle test: on the reporter's own vehicle, with transmissions from a HackRF One driven by KAT (Section~\ref{sec:test}).
+\end{itemize}
+
+\section{Technical analysis}
+\subsection{Radio layer}
+\begin{itemize}
+\item Carrier 315.00\,MHz, on--off keying (ASK).
+\item Manchester line code with a half-bit of 122\us{} (bit period 244\us, about 4.1\,kbit/s). Within each bit, a high--low half-bit pair is a \texttt{1} and a low--high pair is a \texttt{0}.
+\end{itemize}
+
+\subsection{Transmission structure}
+One button press sends three copies of the same frame, about 200\,ms in total:
+\begin{enumerate}
+\item A preamble of about 520 alternating 244\us{} pulses (high/low; 516--529 observed), then the frame.
+\item A preamble of 63 pulses, then the frame.
+\item As copy 2.
+\end{enumerate}
+Each frame is followed by about 1.34\,ms of carrier-off before the next preamble.
+
+\subsection{Frame format}
+A frame is 57 bits: a start bit \texttt{0}, then 7 bytes $b_0..b_6$, most significant bit first.
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lll}
+\toprule
+Bits & Field & Notes \\
+\midrule
+start & \texttt{0} & always 0 \\
+$b_0 b_1 b_2$ & key ID (24 bits) & constant per key \\
+$b_3[7{:}4]$ & button & \hex{1} Lock, \hex{2} Unlock, \hex{B} Trunk, \hex{A} Panic \\
+$b_3[3{:}0]\,b_4\,b_5$ & counter (20 bits) & $+1$ per press, any button \\
+$b_6$ & check byte & $c = \big((b_0 \oplus b_1 \oplus b_2 \oplus b_3 \oplus b_4 \oplus b_5) + 1\big) \bmod 256$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All four button codes were confirmed with labelled presses. They are the same codes Wimmenhove reported for the previous generation. The check formula holds for every frame recorded.
+
+\subsection{Observed frames}
+\begin{table}[h]
+\centering\small
+\begin{tabular}{llll}
+\toprule
+Key & Button & Counter & Frame $b_0..b_6$ (hex) \\
+\midrule
+A (ID \hex{7F0774}) & Lock   & \hex{00FA8} & \hex{7F 07 74 10 0F A8 BC} \\
+A                   & Lock   & \hex{00FA9} & \hex{7F 07 74 10 0F A9 BB} \\
+B (ID \hex{809AA8}) & Unlock & \hex{0041A} & \hex{80 9A A8 20 04 1A 8D} \\
+B                   & Lock   & \hex{0041D} & \hex{80 9A A8 10 04 1D BC} \\
+B                   & Trunk  & \hex{00420} & \hex{80 9A A8 B0 04 20 27} \\
+B                   & Panic  & \hex{00437} & \hex{80 9A A8 A0 04 37 22} \\
+\bottomrule
+\end{tabular}
+\end{table}
+Counter values observed:
+\begin{itemize}
+\item Key A: \hex{00F96}; \hex{00FA8}--\hex{00FAC}; \hex{00FB8}--\hex{00FBC}.
+\item Key B: \hex{0041A}--\hex{00429}, except \hex{00422}, a press that was not captured cleanly. Also \hex{0042A}, \hex{0042C}, \hex{0042E}, \hex{00431} (Lock), \hex{00435} (Trunk) and \hex{00437} (Panic).
+\end{itemize}
+Labelled consecutive presses always produced consecutive counter values, whatever the button.
+
+\subsection{Consequence}
+Within a key, every field except the button and the counter is constant. The counter advances by exactly one per press. The check byte depends only on the other six bytes and uses no secret. A single received frame therefore fully determines the frame the key will send next, for any button. To build it, increment the counter, set the button nibble and recompute $c$.
+
+\section{Vehicle test}\label{sec:test}
+On 6 November 2026, on the reporter's own 2014 Subaru Impreza:
+\begin{enumerate}
+\item A fresh transmission of the legitimate key was received with KAT.
+\item A frame with the next counter value was constructed and transmitted. The vehicle accepted it and operated (unlock/lock).
+\item A previously recorded, already-used transmission was replayed. The vehicle did not respond.
+\item After the constructed transmissions, the legitimate key was ignored until its own counter passed the constructed value.
+\end{enumerate}
+These results show that the receiver accepts counter values ahead of the last one it stored, and that it does not authenticate messages beyond the unkeyed check byte.
+
+\section{Impact}
+\begin{itemize}
+\item \textbf{Unauthorized entry:} an attacker in radio range who records one press of a victim's key can later unlock the doors, open the trunk or trigger the panic alarm, as often as they like and at any time. The attack needs no jamming, no access to the key and no knowledge of any secret.
+\item \textbf{Denial of service:} advancing the vehicle's stored counter makes the legitimate key stop working until it catches up.
+\item \textbf{Out of scope:} engine start. The immobilizer uses a separate transponder in the key head.
+\item \textbf{Exposure:} five model lines over eight model years, in widely sold trims.
+\end{itemize}
+
+\section{Prior work}\label{sec:prior}
+In October 2017 T.~Wimmenhove reported that US Subaru keys of the 2004--2011 generation (Baja, Forester, Impreza, Legacy, Outback) use an incrementing code (``fobrob'', \url{https://github.com/tomwimmenhove/subarufobrob}). That format differs: Manchester bits of about 1\,ms, a \hex{55} header, 80 bits and a nibble checksum. It shares the button codes and the predictable counter.
+\begin{itemize}
+\item As far as public reporting shows, no CVE was assigned and no fix was announced.
+\item Subaru stated that its vehicles were ``no more susceptible to an unauthorized vehicle entry than other manufacturers''.
+\item Press coverage at the time said the vulnerable system had not been used since 2011 and that newer Subarus were not affected.
+\end{itemize}
+This report shows otherwise: the following generation, CWTWB1U811 (2012--2019), keeps the same weakness in a new encoding. A search of public sources found no prior documentation of this format or this issue: no public decoder (rtl\_433, Flipper Zero firmware, ProtoPirate), no paper and no CVE. The existing public ``Subaru'' decoders handle a different, 433\,MHz format used outside the US.
+
+\section{Recommendations}
+\begin{itemize}
+\item Authenticate every RKE message with a cryptographic MAC or cipher under a per-key secret (an established rolling-code design), in new and replacement keys.
+\item Where receivers can be updated, accept legacy messages only until owners have been offered replacement keys.
+\item Inform owners of affected vehicles.
+\end{itemize}
+
+\section{Disclosure}
+\begin{itemize}
+\item This is a security-research report published by the KAT project; the finding is documented here in full. A CVE may be requested separately, and Subaru can be contacted on request.
+\item The real key IDs are kept out of the published report; the proof of concept is an open-source KAT module (a decoder and an encoder), part of the KAT toolkit.
+\item The implementation is part of the open-source KAT toolkit.
+\end{itemize}
+
+\noindent\textbf{Timeline.}
+\begin{itemize}
+\item 6 Nov 2026: issue identified in the reporter's own keys; vehicle test performed.
+\item 24 Nov 2026: published as a KAT report.
+\end{itemize}
+
+\end{document}

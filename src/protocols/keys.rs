@@ -45,9 +45,20 @@ pub struct KeyStore {
     pub vag_keys: Vec<Aut64Key>,
     /// Whether VAG keys have been loaded
     pub vag_keys_loaded: bool,
+    /// JLR car keys the user supplied (name, 16-byte key) — for the Ford V1 (JLR) rolling code. KAT
+    /// ships none; each is a car's own key, read from the owner's keyless module (see [`crate::jlr`]).
+    pub jlr_keys: Vec<(String, [u8; 16])>,
+    /// Fob ID → (car key, last counter seen, last button) learned as frames decipher; lets the
+    /// encoder make a fob's next code after one of its captures has been decoded.
+    pub jlr_fobs: std::collections::HashMap<u32, ([u8; 16], u32, u8)>,
     /// Audi BCM2 car keys the user supplied — for the Audi V3 (BCM2) rolling code's MAC. KAT ships
     /// none; each is a car's own secrets, read from the owner's BCM2 module (see [`crate::audi_v3`]).
     pub audi_bcm2_keys: Vec<AudiBcm2Car>,
+    /// The PSA older-code key table (16 bytes), read from a BSI module's firmware — the one global
+    /// table that deciphers the legacy two-button Peugeot/Citroën remotes (GitHub issue #6). KAT
+    /// ships none; the user supplies it in a local `psa_bsi_key` file. Without it the older-code
+    /// frames are read as before (the whole frame and the remote type, nothing deciphered).
+    pub psa_bsi_table: Option<[u8; 16]>,
 }
 
 /// The secrets of one Audi BCM2 car, needed to recompute and forge the RF frame's AES-128 MAC
@@ -144,6 +155,17 @@ impl KeyStore {
         self.star_line_mf_key
     }
 
+    /// Replace the user's JLR car keys (and forget any learned fob associations).
+    pub fn load_jlr_keys(&mut self, keys: Vec<(String, [u8; 16])>) {
+        self.jlr_keys = keys;
+        self.jlr_fobs.clear();
+    }
+
+    /// The user's JLR car keys (name, key). Empty unless the user loaded a key file.
+    pub fn jlr_keys(&self) -> &[(String, [u8; 16])] {
+        &self.jlr_keys
+    }
+
     /// Replace the user's Audi BCM2 car keys.
     pub fn load_audi_bcm2_keys(&mut self, cars: Vec<AudiBcm2Car>) {
         self.audi_bcm2_keys = cars;
@@ -152,6 +174,35 @@ impl KeyStore {
     /// The user's Audi BCM2 car keys. Empty unless the user loaded a key file.
     pub fn audi_bcm2_keys(&self) -> &[AudiBcm2Car] {
         &self.audi_bcm2_keys
+    }
+
+    /// Set (or clear) the PSA older-code BSI key table.
+    pub fn load_psa_bsi_table(&mut self, table: Option<[u8; 16]>) {
+        self.psa_bsi_table = table;
+    }
+
+    /// The PSA older-code BSI key table, if the user loaded one. None by default.
+    pub fn psa_bsi_table(&self) -> Option<[u8; 16]> {
+        self.psa_bsi_table
+    }
+
+    /// Add one JLR car key (e.g. recovered by "Recover key (JLR)"), unless the same key is already
+    /// present. Keeps any fob associations already learned.
+    pub fn add_jlr_key(&mut self, name: String, key: [u8; 16]) {
+        if !self.jlr_keys.iter().any(|(_, k)| *k == key) {
+            self.jlr_keys.push((name, key));
+        }
+    }
+
+    /// Record the car key, counter and button a fob's frame deciphered to, so its next code can be
+    /// made. The newest counter for an ID wins.
+    pub fn remember_jlr_fob(&mut self, id: u32, key: [u8; 16], counter: u32, button: u8) {
+        self.jlr_fobs.insert(id, (key, counter, button));
+    }
+
+    /// The car key, last counter and last button learned for a fob ID, if any.
+    pub fn jlr_fob(&self, id: u32) -> Option<([u8; 16], u32, u8)> {
+        self.jlr_fobs.get(&id).copied()
     }
 }
 

@@ -57,7 +57,7 @@ pub struct DecodeLine {
     pub fields: String,
     /// The decode's frame (`DecodedSignal::data`).
     pub data: u64,
-    /// The decode's `DecodedSignal::extra` (e.g. the Audi V3 BCM2 frame's upper bytes, or a protocol's packed state).
+    /// The decode's `DecodedSignal::extra` (e.g. the Ford V1 (JLR) 8-byte enciphered payload).
     pub extra: Option<u64>,
 }
 
@@ -364,9 +364,14 @@ fn decode_paths(reg: &mut ProtocolRegistry, opts: &DecodeOptions) -> i32 {
 fn load_keystores() {
     crate::protocols::keys::load_keystore_from_embedded();
     if let Some(dir) = crate::storage::resolve_config_dir() {
-        for msg in [crate::keystore::load_user_keystore(&dir), crate::keystore::load_audi_bcm2_keys(&dir)]
-            .into_iter()
-            .flatten()
+        for msg in [
+            crate::keystore::load_user_keystore(&dir),
+            crate::keystore::load_jlr_keys(&dir),
+            crate::keystore::load_audi_bcm2_keys(&dir),
+            crate::keystore::load_psa_bsi_key(&dir),
+        ]
+        .into_iter()
+        .flatten()
         {
             eprintln!("{msg}");
         }
@@ -513,6 +518,114 @@ pub fn keeloq_bf(opts: &KeeloqBfOptions) -> i32 {
                 .or_else(|| panic.downcast_ref::<String>().cloned())
                 .unwrap_or_else(|| "no message".to_string());
             eprintln!("kat: the key search failed ({why}); please report this with the captures used");
+            1
+        }
+    }
+}
+
+/// `kat --jlr-recover`: recover the car key of a Ford V1 (JLR) keyless fob from captured button presses
+/// (the key is only 32-bit effective; see `docs/ford_v1_jlr.md`).
+#[derive(Debug, Default, PartialEq)]
+pub struct JlrRecoverOptions {
+    pub paths: Vec<PathBuf>,
+    pub freq: Option<u32>,
+    pub rate: Option<u32>,
+    /// Append the recovered key to `jlr_keys` so KAT can then decode/send for this fob.
+    pub save: bool,
+    /// Print the recovered key bytes (off by default: the key is a vehicle secret).
+    pub show: bool,
+}
+
+/// The distinct Ford V1 (JLR) presses in the files: (folded ID, 8-byte payload), with where each came
+/// from. `data` low 16 bits are the folded ID; `extra` is the enciphered payload.
+fn jlr_presses(opts: &JlrRecoverOptions) -> Vec<((u16, [u8; 8]), String)> {
+    let mut reg = ProtocolRegistry::new();
+    let mut out: Vec<((u16, [u8; 8]), String)> = Vec::new();
+    for root in &opts.paths {
+        for path in collect_files(root) {
+            match decode_file(&mut reg, &path, opts.freq, opts.rate, false) {
+                Ok(r) => {
+                    for d in r.decodes.iter().filter(|d| d.protocol == crate::protocols::ford_v1_jlr_name()) {
+                        let Some(extra) = d.extra else { continue };
+                        let press = (d.data as u16, extra.to_be_bytes());
+                        if !out.iter().any(|(p, _)| *p == press) {
+                            out.push((press, path.display().to_string()));
+                        }
+                    }
+                }
+                Err(e) => eprintln!("{}: {e}", path.display()),
+            }
+        }
+    }
+    out
+}
+
+/// Run `kat --jlr-recover`; exit status 0 when a unique key was recovered.
+pub fn jlr_recover(opts: &JlrRecoverOptions) -> i32 {
+    use crate::protocols::jlr;
+    load_keystores();
+    let all = jlr_presses(opts);
+    if all.is_empty() {
+        eprintln!("No Ford V1 (JLR) frames in the given files");
+        return 1;
+    }
+    // The fob with the most distinct presses (frames of other fobs are left out).
+    let folded = all
+        .iter()
+        .map(|((f, _), _)| *f)
+        .max_by_key(|&f| all.iter().filter(|((g, _), _)| *g == f).count())
+        .unwrap();
+    let group: Vec<((u16, [u8; 8]), &str)> = all.iter().filter(|((f, _), _)| *f == folded).map(|(p, s)| (*p, s.as_str())).collect();
+    let presses: Vec<(u16, [u8; 8])> = group.iter().map(|(p, _)| *p).collect();
+    println!("Fob (folded ID {folded:04X}): {} distinct press{}", presses.len(), if presses.len() == 1 { "" } else { "es" });
+    for (_, from) in &group {
+        println!("  {from}");
+    }
+    let others = all.len() - group.len();
+    if others > 0 {
+        println!("  ({others} press{} of other fobs left out)", if others == 1 { "" } else { "es" });
+    }
+    if presses.len() < 2 {
+        println!("Need at least two different presses of one fob to pin the key uniquely.");
+        return 1;
+    }
+    let threads = std::thread::available_parallelism().map_or(1, |n| n.get());
+    eprintln!("Searching 2^32 keys on {threads} thread{}…", plural(threads));
+    let start = std::time::Instant::now();
+    let found = jlr::recover(&presses);
+    eprintln!("swept 2^32 in {:.0} s", start.elapsed().as_secs_f64());
+    match found.as_slice() {
+        [] => {
+            println!("No key found. The presses may be from more than one fob, or not this scheme.");
+            1
+        }
+        [x] => {
+            let key = jlr::candidate_key(*x);
+            let p = jlr::x_matches(&presses, *x).unwrap();
+            println!("Recovered the car key for fob {:08X} (last press: {}, counter {:06X}).", p.id, jlr::button_name(p.button).unwrap_or("?"), p.counter);
+            if opts.show {
+                let hex: String = key.iter().map(|b| format!("{b:02X}")).collect();
+                println!("key {hex}");
+            } else {
+                println!("(key not shown — it is a vehicle secret; re-run with --show to print it, or --save to store it)");
+            }
+            if opts.save {
+                let name = format!("fob {:08X}", p.id);
+                match crate::storage::resolve_config_dir()
+                    .ok_or_else(|| "no config directory".to_string())
+                    .and_then(|d| crate::keystore::append_jlr_key(&d, &name, &key).map_err(|e| e.to_string()))
+                {
+                    Ok(path) => println!("Saved to {}", path.display()),
+                    Err(e) => {
+                        eprintln!("Could not save the key: {e}");
+                        return 1;
+                    }
+                }
+            }
+            0
+        }
+        more => {
+            println!("{} candidate keys fit these presses; capture another press to disambiguate.", more.len());
             1
         }
     }

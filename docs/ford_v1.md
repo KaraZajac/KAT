@@ -57,11 +57,13 @@ bits; `DecodedSignal.counter` holds the low 16, the top nibble is recovered from
 
 ## The JLR variant
 
-Jaguar Land Rover's keyless fobs of about 2015–2018 send this frame with the 8 rolling bytes encrypted under a
-128-bit key instead of Ford's scramble. KAT tells them apart by the strict check (the descramble does not give the
-header back), shows them as **Ford V1 (JLR)** and only reads them: no Encode, Replay at most. Their frame, the
-cars' keyless modules, what learning a fob writes, the firmware's checks and what is still missing are on their own
-page, [Ford V1 (JLR)](ford_v1_jlr.md). Ford's own frames always pass the strict check and are not affected.
+Jaguar Land Rover's keyless fobs of about 2015–2018 send this frame with the 8 rolling bytes enciphered under the
+car's key (a three-round Feistel network with AES-128 round functions) instead of Ford's scramble. KAT tells them
+apart by the strict check (the descramble does not give the header back) and shows them as **Ford V1 (JLR)**. Given
+the car's key — the owner's, read from their module — KAT deciphers the button, counter and ID and can make the next
+code; without it, decode only, Replay at most. Their frame, the cipher, the cars' keyless modules, what learning a
+fob writes and the firmware are on their own page, [Ford V1 (JLR)](ford_v1_jlr.md). Ford's own frames always pass
+the strict check and are not affected.
 
 ## Decoder Steps
 

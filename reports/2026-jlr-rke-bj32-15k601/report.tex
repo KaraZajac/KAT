@@ -1,0 +1,124 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\setlist{nosep,leftmargin=1.4em}
+\newcommand{\us}{\,$\mu$s}
+\newcommand{\hex}[1]{\texttt{#1}}
+
+\title{A 32-bit Key in Jaguar Land Rover Remote Keyless Entry\\[2pt]
+\large Keyless fob rolling code, 433.92\,MHz, model years c.\,2015--2018}
+\author{Kara Zajac\,(KAT --- Keyfob Analysis Toolkit) \qquad Tomasz Drewczynski\,(Poland)\\[2pt]
+\small \href{mailto:kara@soulstone.org}{kara@soulstone.org}\\[3pt]
+\small \textit{Keyless-module reads and fob recordings: T.~Drewczynski. \; Reverse-engineering and analysis: K.~Zajac.}}
+\date{22 November 2026 \\[4pt] \small\textbf{KAT Report --- Keyfob Analysis Toolkit}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The remote keyless entry (RKE) button messages sent by Jaguar Land Rover keyless fobs of approximately 2015--2018 are enciphered under a 16-byte key held in the vehicle's keyless module. Analysis of the module firmware and of several modules' provisioned data shows that this key has only \textbf{32 bits of effective entropy}: it always has the form $X \parallel \overline{X} \parallel \overline{X} \parallel X$, where $X$ is a single 32-bit value and the other twelve bytes are its bitwise complement and a mirror. Because the key space is $2^{32}$, an attacker who passively receives two button presses from a fob can recover the vehicle's exact key by exhaustive search in about one minute on a commodity PC, and can then generate valid future rolling codes for that fob --- a permanent clone --- without the VIN, without a module dump and without any physical access. Key recovery was demonstrated against real modules: the recovered key matched each module's stored key uniquely. The same key is also read by the module's UHF passive-entry challenge check, so the exposure may extend beyond button RKE.
+\end{abstract}
+
+\section{Affected products}
+\begin{itemize}
+\item \textbf{Vendor:} Jaguar Land Rover.
+\item \textbf{Product:} the keyless entry fob (Keyless Entry Transmitter, part family \hex{BJ32-15K601}, containing an NXP PCF7953P ``Hitag Pro'' transponder) and the vehicle keyless module (``KVM''/``RFA'', an NXP MC9S12XE-family microcontroller with its XGATE co-processor) of Jaguar / Land Rover vehicles of approximately model years 2015--2018, 433.92\,MHz RKE.
+\item \textbf{Examined:} two independently provisioned modules were analysed in full and found to use the 32-bit key structure (module part numbers in the \hex{19H440} and \hex{14C1xx}/\hex{14C2xx} families; one was from a 2017 Jaguar XJ). A third, unconfigured module had an all-zero key, which confirms where the key is stored. The two configured modules held \emph{different} keys, both of the $X \parallel \overline{X} \parallel \overline{X} \parallel X$ form.
+\item \textbf{Scope to be confirmed by the vendor.} The structure is identical on two independently provisioned modules, which makes it a design property rather than a per-unit accident; but the researchers have visibility into only a few modules. JLR should confirm the exact affected VIN / model / part scope and the geographic markets (the modules examined were European-market, 433.92\,MHz; North-American variants should be checked).
+\item \textbf{Not covered:} the engine immobiliser, which uses a separate secret inside the key's transponder (NXP Hitag Pro) and is not affected by this finding.
+\end{itemize}
+
+\section{Method}
+\begin{itemize}
+\item \textbf{Recordings:} button presses were captured over the air at 433.92\,MHz (Flipper Zero, a custom 2-FSK CC1101 preset) in labelled sequences (Lock, Unlock, Boot) from two fobs, and decoded with KAT, an open-source keyfob research tool.
+\item \textbf{Firmware:} the keyless module's program flash was disassembled (Ghidra, HCS12X; the XGATE co-processor code with a purpose-built disassembler). The cipher and its key were recovered from the firmware and confirmed against every captured frame.
+\item \textbf{Key recovery:} the 32-bit key structure was found in the modules' provisioned data; an exhaustive-search proof of concept (AES-NI) recovered the real module keys from captured frames.
+\item The keyless-module reads (D-Flash, EEE, P-Flash) and the fob recordings were provided by T.~Drewczynski; the cipher reverse-engineering and the key-weakness analysis are K.~Zajac's. All data analysed was lawfully in the researchers' possession. No third party's vehicle was accessed.
+\end{itemize}
+
+\section{Technical analysis}
+\subsection{Radio and frame}
+The frame is a 136-bit packet at 433.92\,MHz, 2-FSK, Manchester-coded. Its fields:
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lll}
+\toprule
+Bytes & Field & Notes \\
+\midrule
+0--3 & header & constant \hex{D3 95 0E 26} \\
+4 & flags & \hex{00} first send of a press, \hex{08} the same press repeated \\
+5--6 & folded ID & the fob's 32-bit transponder ID, high half XOR low half \\
+7--14 & payload & 8 bytes, enciphered (below): button, counter and full ID \\
+15--16 & CRC & CRC-16/CCITT (poly \hex{0x1021}, init 0) over bytes 3--14 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Cipher}
+The eight payload bytes are a three-round Feistel network whose round function is AES-128 under the vehicle key $K$. With $L,R$ the two 4-byte halves of the payload,
+\[
+F_i(x) = \mathrm{AES\text{-}128}\big(K,\; \underbrace{\hex{00}\dots\hex{00}}_{12}\,\|\,x\big)[\,4i\,..\,4i{+}3\,], \quad i=1,2,3,
+\]
+and the module (receiver) deciphers a press as
+\[
+M_1 = L \oplus F_1(R),\quad M_2 = R \oplus F_2(M_1),\quad M_3 = M_1 \oplus F_3(M_2),\quad \text{plaintext} = M_3 \parallel M_2 .
+\]
+The 8-byte plaintext is $\textit{button}(1)\parallel\textit{counter}(3,\text{big-endian})\parallel\textit{fob ID}(4)$; the button is \hex{01} Lock, \hex{02} Unlock, \hex{04} Boot, and the counter rises by two per press. The fob enciphers with the same network run in reverse; the module runs AES in the forward direction only. Re-enciphering the recovered plaintext reproduces the captured payload bytes exactly, for every frame of every fob and module tested (135 frames).
+
+\subsection{The key weakness}
+$K$ is 16 bytes, held in the module's data-flash configuration record (next to the VIN) and copied to RAM at start-up, where both the RKE check and the module's passive-entry challenge read it. In \emph{every} provisioned module examined, the key has the form
+\[
+K = X \,\|\, \overline{X} \,\|\, \overline{X} \,\|\, X ,
+\]
+i.e.\ a single secret 32-bit word $X$, its bitwise complement, and a mirror (verified: the two halves satisfy $X \oplus Y = \hex{FFFFFFFF}$ on both configured modules, and bytes 0--3 equal bytes 12--15). Only $X$ is secret, so \textbf{the key has 32 bits of entropy}, not 128. The key is not derived from the VIN by any simple transform tested (CRC-16 / CRC-32 of the VIN and its substrings do not match); it appears provisioned per vehicle --- but with a $2^{32}$ key space, its provenance does not matter for the attack.
+
+\subsection{Key recovery}
+Given captured frames, test all $2^{32}$ values of $X$: build $K = X\|\overline{X}\|\overline{X}\|X$, decipher the payload, and keep $X$ when the result is a valid press (button in \{Lock, Unlock, Boot\} and the deciphered ID folds to the frame's header value). One frame leaves on the order of $10^3$ candidates; a second press from the same fob (same deciphered ID, counter not going backwards) leaves exactly one. A straightforward AES-NI implementation sweeps $2^{32}$ in well under a minute on a desktop CPU (37--50\,s on 16 cores in the researchers' tests). \textbf{No VIN, no module dump and no physical access are required} --- only reception of two button presses within radio range.
+
+\section{Verification}
+\begin{itemize}
+\item \textbf{Cipher:} recovered from firmware and confirmed against 135 captured frames from multiple fobs and modules --- re-enciphering each recovered plaintext reproduces the captured bytes exactly.
+\item \textbf{Key structure:} the $X\|\overline{X}\|\overline{X}\|X$ form holds on two independently provisioned modules; the unconfigured third module has an all-zero key, consistent with the key being written at configuration.
+\item \textbf{Recovery:} the exhaustive search recovered the two configured modules' \emph{actual stored keys} from their captured frames, uniquely, each in under a minute. The recovered keys match the keys read directly from the modules' data flash.
+\item \textbf{Not performed:} an on-vehicle acceptance test. The researchers do not have access to an affected vehicle. The attack is demonstrated cryptographically (the recovered key reproduces and can generate the fob's rolling codes); whether a vehicle's receiver accepts a generated frame was not tested and should be confirmed by the vendor.
+\end{itemize}
+
+\section{Impact}
+\begin{itemize}
+\item \textbf{Fob cloning / unauthorised entry:} an attacker in radio range who records two button presses can recover the vehicle's key in about a minute and then generate valid rolling codes at will --- remotely locking, unlocking and opening the boot. Unlike a replay or a single-counter forge, recovering the key yields a \emph{permanent} clone.
+\item \textbf{Possible passive-entry exposure:} the module's UHF passive-entry (approach-to-unlock) challenge check uses the \emph{same} key (confirmed in firmware, same data-flash location). Key recovery may therefore defeat passive entry as well; the vendor should assess this.
+\item \textbf{Out of scope:} engine start via the transponder immobiliser (separate secret).
+\item The capture is passive and undetectable, and needs only brief proximity to the target fob.
+\end{itemize}
+
+\section{Prior work}
+A search of public sources found no prior documentation of this cipher, this key weakness, or any JLR RKE rolling-code key recovery: no CVE, no paper, and no public decoder (rtl\_433, Flipper Zero firmware). The 2025 systematisation-of-knowledge survey of RKE attacks (Bianchi et al., USENIX VehicleSec 2025) does not mention Jaguar or Land Rover. The nearest prior art is Garcia et al.\ (USENIX 2016), a correlation attack that recovers a key from a few rolling codes --- but of the unrelated Hitag2 RKE cipher, in other manufacturers' vehicles. The present finding is a distinct cipher and a distinct weakness (a structurally reduced, 32-bit key).
+
+\section{Recommendations}
+\begin{itemize}
+\item Use a full-entropy 128-bit key for the module, removing the $X\|\overline{X}\|\overline{X}\|X$ structure. A $2^{32}$ key space is brute-forceable in minutes regardless of the cipher's strength.
+\item Ensure the passive-entry key is independent of the RKE key, so an RKE-side recovery cannot affect passive entry.
+\item Advise owners of affected vehicles; field remediation likely needs a module/key update, on which the vendor should advise.
+\end{itemize}
+
+\section{Disclosure}
+\begin{itemize}
+\item This is a security-research report published by the KAT project. Jaguar Land Rover publishes no security.txt or vulnerability-disclosure contact; the finding is documented here in full so owners, locksmiths and researchers can understand the exposure. A CVE may be requested separately.
+\item The module data (which contains VINs and per-vehicle keys) is \emph{not} included here, the same way KAT keeps real key IDs out of its public pages; it can be shared with the vendor on request.
+\item The implementation is an open-source KAT module (a decoder, an encoder and the key-recovery tool), part of the KAT toolkit.
+\end{itemize}
+
+\noindent\textbf{Timeline.}
+\begin{itemize}
+\item 22 Nov 2026: cipher and 32-bit key structure identified from module reads in the researchers' possession; key recovery demonstrated against captured frames.
+\item 24 Nov 2026: published as a KAT report.
+\end{itemize}
+
+\end{document}

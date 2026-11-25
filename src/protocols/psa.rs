@@ -177,6 +177,15 @@ fn native_buttons(_name: &str, code: u8) -> Option<&'static str> {
 ///   remote (`IMPORTS/GROUPE PSA/Delphi_remote_*.sub`). What its third button does on the car is not
 ///   known, nor what 0 is (the code of the other mode 0x23 fob in IMPORTS, pressed twice).
 pub fn button_name(mode: u8, code: u8) -> &'static str {
+    // The older code's button is a flags byte: bit 0x20 is Lock, 0x10 is Unlock, 0x40 a flag (from
+    // 50 lock + 50 unlock presses of a Citroën C3's remote, issue #6).
+    if mode == MODE_OLDER {
+        return match (code & 0x20 != 0, code & 0x10 != 0) {
+            (true, false) => "Lock",
+            (false, true) => "Unlock",
+            _ => "Other",
+        };
+    }
     match (mode, code) {
         (MODE_XOR, 0x1) | (MODE_TEA, 0x0) => "Lock",
         (MODE_XOR, 0x2) | (MODE_TEA, 0x1) => "Unlock",
@@ -189,6 +198,9 @@ pub fn button_name(mode: u8, code: u8) -> &'static str {
 /// The label of a capture's button: the frame type is read off the frame itself (mode 0x23 when
 /// the XOR fast path decrypts it, or when the capture has no key2: the retired PSA2 decoder's).
 pub fn capture_button_name(data: u64, extra: Option<u64>, code: u8) -> &'static str {
+    if older_code_remote(data).is_some() {
+        return button_name(MODE_OLDER, code);
+    }
     let xor = extra.map_or(true, |key2| kat_decrypt(data, key2 as u32).is_some());
     button_name(if xor { MODE_XOR } else { MODE_TEA }, code)
 }
@@ -248,6 +260,10 @@ const ENC_UPLOAD_LEN: usize = 325;
 
 const MODE_XOR: u8 = 0x23;
 const MODE_TEA: u8 = 0x36;
+/// KAT's internal tag for the legacy two-button "older code" (GitHub issue #6): not a byte the frame
+/// carries (its header is the remote type, [OLDER_CODE_TYPES]), but the mode of the [PsaFields] a
+/// deciphered older-code frame yields, so the encoder knows to rebuild it with the BSI cipher.
+const MODE_OLDER: u8 = 0x4F;
 /// The third button of a mode 0x23 remote: a code the references' XOR filter does not let through.
 const XOR_BUTTON_3: u32 = 0x3;
 /// KAT's wide-sync machine: the shortest LOW it takes for the sync (the references: 401 µs).
@@ -547,12 +563,157 @@ pub fn older_code_remote(key1: u64) -> Option<(&'static str, &'static str)> {
 }
 
 /// KAT's reading of a frame: one whose header is a known older-code type is the older code
-/// whatever the XOR checksum says (module doc, Deviations); any other goes to [fast_decrypt].
+/// (deciphered with the BSI key table when the user has loaded one, [older_decode]); any other goes
+/// to [fast_decrypt].
 fn kat_decrypt(key1: u64, key2_low: u32) -> Option<PsaFields> {
     if older_code_remote(key1).is_some() {
-        return None;
+        return older_decode(key1, key2_low);
     }
     fast_decrypt(key1, key2_low)
+}
+
+// ---------------------------------------------------------------------------------------------
+// The older two-button code (GitHub issue #6): the block cipher the BSI (body module) runs on the
+// legacy Peugeot/Citroën remotes. The 16-byte key table is global (the same in every BSI of the
+// generation) and is read from one BSI firmware image; KAT ships none, and the user loads it into a
+// local `psa_bsi_key` file. Without the table every function here returns None, so KAT reads these
+// frames exactly as before (the whole frame and the remote type, nothing deciphered). The finding is
+// documented in the KAT report under reports/2026-psa-rke-73373067.
+// ---------------------------------------------------------------------------------------------
+
+/// The 8-byte enciphered block of an older-code frame: the six low bytes of key1 (the header's type
+/// and `0xAA` are the two high bytes) followed by the 16-bit validation word.
+fn older_block(key1: u64, key2_low: u32) -> [u8; 8] {
+    let k = key1.to_be_bytes();
+    [k[2], k[3], k[4], k[5], k[6], k[7], (key2_low >> 8) as u8, key2_low as u8]
+}
+
+/// The byte rotation a round applies: the number of 1-bits over the eight bytes, a multiple of eight
+/// mapped to one.
+fn older_rotation(t: &[u8; 8]) -> usize {
+    let bits = t.iter().map(|b| b.count_ones()).sum::<u32>() as u8;
+    if bits & 7 == 0 { 1 } else { bits as usize }
+}
+
+/// One round's intermediate vector (before the rotation): pairs of bytes XOR a key byte, two bytes
+/// pass through. `ki` are the four key-table indices for this round.
+fn older_mix(b: &[u8; 8], ki: [usize; 4], table: &[u8; 16]) -> [u8; 8] {
+    [
+        b[0] ^ b[2] ^ table[ki[0]],
+        b[1] ^ b[3] ^ table[ki[1]],
+        b[0],
+        b[1],
+        b[4] ^ b[6] ^ table[ki[2]],
+        b[5] ^ b[7] ^ table[ki[3]],
+        b[4],
+        b[5],
+    ]
+}
+
+/// The four key-table indices round `r` uses (12,13,14,15 then down to 0,1,2,3).
+fn older_key_indices(r: usize) -> [usize; 4] {
+    let base = 12 - 4 * r;
+    [base, base + 1, base + 2, base + 3]
+}
+
+/// Decipher the 8-byte block (BSI receive path): four rounds, each a mix then a data-dependent
+/// rotation (the last round omits the rotation).
+fn older_decrypt(block: [u8; 8], table: &[u8; 16]) -> [u8; 8] {
+    let mut b = block;
+    for r in 0..4 {
+        let t = older_mix(&b, older_key_indices(r), table);
+        if r < 3 {
+            let rot = older_rotation(&t);
+            for i in 0..8 {
+                b[i] = t[(i + rot) % 8];
+            }
+        } else {
+            b = t;
+        }
+    }
+    b
+}
+
+/// Encipher a plaintext block (the inverse of [older_decrypt]). The rotation amount is
+/// rotation-invariant, so it can be recomputed while undoing each round.
+fn older_encrypt(pt: [u8; 8], table: &[u8; 16]) -> [u8; 8] {
+    let mut b = pt;
+    for r in (0..4).rev() {
+        let t = if r < 3 {
+            let rot = older_rotation(&b);
+            let mut t = [0u8; 8];
+            for i in 0..8 {
+                t[(i + rot) % 8] = b[i];
+            }
+            t
+        } else {
+            b
+        };
+        // Invert the mix: t[2],t[3],t[6],t[7] are b0,b1,b4,b5; recover b2,b3,b6,b7 from the XORs.
+        let ki = older_key_indices(r);
+        b = [
+            t[2],
+            t[3],
+            t[0] ^ t[2] ^ table[ki[0]],
+            t[1] ^ t[3] ^ table[ki[1]],
+            t[6],
+            t[7],
+            t[4] ^ t[6] ^ table[ki[2]],
+            t[5] ^ t[7] ^ table[ki[3]],
+        ];
+    }
+    b
+}
+
+/// The BSI's integrity check: the XOR of the eight plaintext bytes has equal high and low nibble.
+fn older_check(pt: &[u8; 8]) -> bool {
+    let x = pt.iter().fold(0u8, |a, b| a ^ b);
+    x >> 4 == x & 0x0F
+}
+
+/// Decipher an older-code frame to its fields, when the user has loaded the BSI key table. The
+/// identity is at plaintext bytes 0,4,5 (the value read as the transponder's "page 4" with a `0x55`
+/// prefix); the 16-bit counter at bytes 2,3; the button/flags byte at 6 (bit `0x10` one button,
+/// `0x20` the other, `0x40` a flag). None if no table is loaded or the integrity check fails.
+fn older_decode(key1: u64, key2_low: u32) -> Option<PsaFields> {
+    let table = crate::protocols::keys::get_keystore().psa_bsi_table()?;
+    let pt = older_decrypt(older_block(key1, key2_low), &table);
+    if !older_check(&pt) {
+        return None;
+    }
+    Some(PsaFields {
+        mode: MODE_OLDER,
+        serial: (u32::from(pt[0]) << 16) | (u32::from(pt[4]) << 8) | u32::from(pt[5]),
+        button: pt[6],
+        counter: (u32::from(pt[2]) << 8) | u32::from(pt[3]),
+        crc: 0,
+    })
+}
+
+/// Build the frame buffer for the next older-code press: re-use the captured block's own bytes
+/// (the per-remote constant and the per-press nonce are not reconstructible, and the BSI does not
+/// check them), set the new counter and button, and rebalance one nonce nibble so the integrity
+/// check passes again, then re-encipher. None without the key table.
+fn older_build_buffer(key1: u64, key2_low: u32, fields: &PsaFields) -> Option<[u8; 16]> {
+    let table = crate::protocols::keys::get_keystore().psa_bsi_table()?;
+    let pt = older_next_pt(older_decrypt(older_block(key1, key2_low), &table), fields.counter, fields.button);
+    let ct = older_encrypt(pt, &table);
+    let mut buf = [0u8; 16];
+    buf[2..10].copy_from_slice(&ct);
+    Some(buf)
+}
+
+/// The next press's plaintext: the captured block's own bytes (the per-remote constant and the
+/// per-press nonce are kept — the BSI does not check them) with the new counter and button, and
+/// pt[7]'s low nibble set so the XOR of the eight bytes has equal nibbles (the BSI's integrity
+/// check), keeping pt[7]'s high nibble as a nonce.
+fn older_next_pt(mut pt: [u8; 8], counter: u32, button: u8) -> [u8; 8] {
+    pt[2] = (counter >> 8) as u8;
+    pt[3] = counter as u8;
+    pt[6] = button;
+    let rest = pt[..7].iter().fold(0u8, |a, b| a ^ b) ^ (pt[7] & 0xF0);
+    pt[7] = (pt[7] & 0xF0) | ((rest ^ (rest >> 4)) & 0x0F);
+    pt
 }
 
 /// Bits a frame has on air: key1 and the 16-bit validation word.
@@ -1978,6 +2139,16 @@ impl Default for PsaDecoder {
 /// for KAT's Trunk command the third button (mode 0x36: ARF's Trunk, 2; mode 0x23: code 3, whatever
 /// that button does on the car). Anything else (Panic, unknown) keeps the captured button.
 fn map_button(mode: u8, generic: u8, captured: u8) -> u8 {
+    // The older code's button is a flags byte: set bit 0x20 (Lock) or 0x10 (Unlock), keep the rest
+    // of the captured byte (the 0x40 flag and the low-nibble nonce). Polarity from 50 lock + 50
+    // unlock presses of a Citroën C3's remote (issue #6).
+    if mode == MODE_OLDER {
+        return match generic {
+            0x01 => (captured & !0x10) | 0x20,
+            0x02 => (captured & !0x20) | 0x10,
+            _ => captured,
+        };
+    }
     let lock = if mode == MODE_XOR { 0x1 } else { 0x0 };
     match generic {
         0x01 => lock,
@@ -2083,7 +2254,11 @@ fn next_fields(decoded: &DecodedSignal, button: u8) -> Option<PsaFields> {
 /// Key1 and the 16-bit validation word of the frame for `fields` (`psa_encoder_build_upload`'s
 /// buffer).
 fn frame_words(key1: u64, key2_low: u32, fields: &PsaFields) -> (u64, u16) {
-    let mut buf = if fields.mode == MODE_TEA { build_buffer_mode36(fields) } else { build_buffer_mode23(fields, key2_low) };
+    let mut buf = match fields.mode {
+        MODE_OLDER => older_build_buffer(key1, key2_low, fields).unwrap_or([0; 16]),
+        MODE_TEA => build_buffer_mode36(fields),
+        _ => build_buffer_mode23(fields, key2_low),
+    };
     if key1 != 0 {
         // buffer[0..1] preserved from the captured key1 (they carry the 0xA sync).
         buf[0] = (key1 >> 56) as u8;
@@ -2134,6 +2309,97 @@ mod tests {
             }
         }
         out
+    }
+
+    // The older two-button code (issue #6). The real key table is a secret kept out of the source;
+    // these tests use an arbitrary table and prove the cipher inverts, the integrity rule is what
+    // the encoder maintains, and the "next press" recipe keeps the identity and advances the counter.
+    const OLDER_TEST_TABLE: [u8; 16] =
+        [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0x0F, 0xF0];
+
+    #[test]
+    fn older_cipher_matches_the_reference() {
+        // Known-answer vector under the dummy table, computed by the reference implementation that
+        // validated against 387 real captured frames. Pins the Rust port to it byte for byte.
+        let pt = [0xAB, 0x00, 0x12, 0x34, 0xCD, 0xEF, 0x1A, 0xB5];
+        let ct = [0xE9, 0x12, 0x61, 0xEF, 0x2C, 0x1A, 0xDD, 0x79];
+        assert!(older_check(&pt));
+        assert_eq!(older_encrypt(pt, &OLDER_TEST_TABLE), ct, "encrypt matches the reference");
+        assert_eq!(older_decrypt(ct, &OLDER_TEST_TABLE), pt, "decrypt matches the reference");
+    }
+
+    #[test]
+    fn older_cipher_inverts() {
+        for seed in 0u64..64 {
+            // A plaintext that passes the BSI's nibble check, so it is a legal block.
+            let mut pt = (seed.wrapping_mul(0x9E37_79B9_7F4A_7C15)).to_be_bytes();
+            let x = pt.iter().take(7).fold(0u8, |a, b| a ^ b);
+            pt[7] = x; // XOR of all eight bytes is now 0: equal nibbles.
+            assert!(older_check(&pt), "constructed block should pass the check");
+            let ct = older_encrypt(pt, &OLDER_TEST_TABLE);
+            assert_eq!(older_decrypt(ct, &OLDER_TEST_TABLE), pt, "decrypt∘encrypt = identity");
+            assert_eq!(older_encrypt(older_decrypt(ct, &OLDER_TEST_TABLE), &OLDER_TEST_TABLE), ct, "encrypt∘decrypt = identity");
+        }
+    }
+
+    #[test]
+    fn older_next_press_keeps_id_advances_counter_and_passes_the_check() {
+        // A captured plaintext: id 0xAB??CD / 0x..EF, counter 0x1234, button bit 0x10 + a nonce.
+        let pt = [0xAB, 0x00, 0x12, 0x34, 0xCD, 0xEF, 0x1A, 0x00];
+        let fixed = older_next_pt(pt, 0x1234, 0x1A); // same counter/button: only the checksum nibble moves
+        assert!(older_check(&fixed));
+        // Next press: counter + 1, Unlock (bit 0x10).
+        let next = older_next_pt(pt, 0x1235, (pt[6] & !0x20) | 0x10);
+        assert!(older_check(&next), "the forged next block passes the BSI integrity check");
+        assert_eq!([next[0], next[4], next[5]], [pt[0], pt[4], pt[5]], "identity preserved");
+        assert_eq!(u32::from(next[2]) << 8 | u32::from(next[3]), 0x1235, "counter advanced");
+        assert_eq!(next[6] & 0x30, 0x10, "button set to Unlock");
+    }
+
+    #[test]
+    fn older_decode_is_inert_without_the_key_table() {
+        let _lk = crate::protocols::keeloq_common::KEYSTORE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        crate::protocols::keys::get_keystore_mut().load_psa_bsi_table(None);
+        // A frame whose header is a known older-code type (0x01CA, a Peugeot 206: b0 0x1C, b1 0xAA).
+        let key1 = 0x1CAA_1234_5678_9ABCu64;
+        assert_eq!(older_code_type(key1), Some(0x01CA));
+        assert!(older_code_remote(key1).is_some());
+        // With no table loaded the decode is None, so KAT reads the frame as the whole 80 bits and
+        // the remote type, exactly as before.
+        assert!(older_decode(key1, 0xDEF0).is_none());
+        assert!(kat_decrypt(key1, 0xDEF0).is_none());
+    }
+
+    /// With a key table loaded, an older-code frame decodes to its identity, counter and button, and
+    /// the encoder sends the next press: counter + 1 under the requested button, the same identity,
+    /// and a block the BSI integrity check accepts. Uses the dummy table, not the real one.
+    #[test]
+    fn older_decodes_and_encodes_the_next_press() {
+        let _lk = crate::protocols::keeloq_common::KEYSTORE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        crate::protocols::keys::get_keystore_mut().load_psa_bsi_table(Some(OLDER_TEST_TABLE));
+
+        // A 206 frame (type 0x01CA): identity 0x30AB53, counter 0x1234, Lock (bit 0x20), a nonce.
+        let mut pt = [0x30, 0x00, 0x12, 0x34, 0xAB, 0x53, 0x20, 0x00];
+        pt[7] = pt[..7].iter().fold(0u8, |a, b| a ^ b);
+        let ct = older_encrypt(pt, &OLDER_TEST_TABLE);
+        let key1 = u64::from_be_bytes([0x1C, 0xAA, ct[0], ct[1], ct[2], ct[3], ct[4], ct[5]]);
+        let key2_low = (u32::from(ct[6]) << 8) | u32::from(ct[7]);
+
+        let dec = PsaDecoder::new();
+        let d = dec.emit(RawFrame { key1, key2_high: 0, key2_low, am: false }).expect("older decode");
+        assert_eq!(d.serial, Some(0x30AB53), "identity");
+        assert_eq!(d.counter, Some(0x1234), "counter");
+        assert!(d.encoder_capable, "a loaded table makes the capture encodable");
+        assert_eq!(capture_button_name(d.data, d.extra, d.button.unwrap()), "Lock");
+
+        // "Send next code": Unlock, counter + 1, same identity, and the forged frame re-decodes.
+        let next = dec.sent_signal(&d, 0x02).expect("next press");
+        assert_eq!(next.serial, Some(0x30AB53), "identity preserved");
+        assert_eq!(next.counter, Some(0x1235), "counter advanced");
+        assert_eq!(capture_button_name(next.data, next.extra, next.button.unwrap()), "Unlock");
+        assert!(next.crc_valid && next.encoder_capable);
+
+        crate::protocols::keys::get_keystore_mut().load_psa_bsi_table(None);
     }
 
     /// Adjacent same-level entries merged: what the upload looks like on air once demodulated.
@@ -3014,6 +3280,10 @@ mod tests {
 
     #[test]
     fn older_code_frames_are_neither_decrypted_nor_searched() {
+        // The no-table behaviour (KAT ships no key): hold the keystore lock and clear the table so a
+        // concurrent test cannot have one loaded.
+        let _lk = crate::protocols::keeloq_common::KEYSTORE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        crate::protocols::keys::get_keystore_mut().load_psa_bsi_table(None);
         // What ProtoPirate's routing made of the two 206 frames: a serial each (the second only
         // once the search found it), both then offered for transmission.
         let (key1, key2) = P206_XOR_BY_CHANCE;

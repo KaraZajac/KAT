@@ -244,6 +244,7 @@ mod add_manually;
 mod keeloq_bf;
 mod hitag2_bf;
 pub use hitag2_bf::Hitag2KeyReport;
+mod jlr_bf;
 mod auto_bf;
 mod input;
 pub use add_manually::{PickerRow, PICKER_VISIBLE_ROWS};
@@ -275,6 +276,8 @@ pub enum SignalAction {
     RecoverKeeloqKey,
     /// Fiat V1 / Renault V1 / Fiat V2 / Hitag2 RKE frame without a key: qDoctor's HiTag2 Hell (app/hitag2_bf.rs).
     RecoverHitag2Key,
+    /// Ford V1 (JLR) frame without the car key: brute-force the 32-bit key from two presses (app/jlr_bf.rs).
+    RecoverJlrKey,
     /// Stop a running "Recover key".
     CancelKeyRecovery,
 }
@@ -310,6 +313,7 @@ impl SignalAction {
             SignalAction::RecoverKey => "Recover key (PSA brute force)",
             SignalAction::RecoverKeeloqKey => "Recover key (KeeLoq magic serial)",
             SignalAction::RecoverHitag2Key => "Recover key (HiTag2)",
+            SignalAction::RecoverJlrKey => "Recover key (JLR)",
             SignalAction::CancelKeyRecovery => "Cancel key recovery",
         }
     }
@@ -572,6 +576,8 @@ pub struct App {
     keeloq_bf_job: Option<keeloq_bf::KeeloqBfJob>,
     /// HiTag2 key search running in the background.
     hitag2_bf_job: Option<hitag2_bf::Hitag2BfJob>,
+    /// Ford V1 (JLR) 32-bit key search running in the background (app/jlr_bf.rs).
+    jlr_bf_job: Option<jlr_bf::JlrBfJob>,
     /// Whether the signal menu offers "Recover key (HiTag2)" (app/hitag2_bf.rs): the menu asks on
     /// every frame it draws.
     hitag2_offer_memo: std::cell::Cell<Option<hitag2_bf::OfferMemo>>,
@@ -617,8 +623,12 @@ impl App {
         let user_keystore_msg = crate::keystore::load_user_keystore(storage.config_dir());
         // ── … and the HiTag2 keys saved per remote (Flipper-ARF's `hitag2_keys.txt`), if any ──
         let hitag2_keys_msg = crate::protocols::hitag2_keys::load(storage.config_dir());
+        // ── … and the user's JLR car keys (`jlr_keys`), if any, for Ford V1 (JLR) decipher ──
+        let jlr_keys_msg = crate::keystore::load_jlr_keys(storage.config_dir());
         // ── … and the user's Audi BCM2 car keys (`audi_bcm2_keys`), if any, for the Audi V3 encoder ──
         let audi_bcm2_keys_msg = crate::keystore::load_audi_bcm2_keys(storage.config_dir());
+        // ── … and the PSA older-code key (`psa_bsi_key`), if any, for the issue #6 two-button remotes ──
+        let psa_bsi_key_msg = crate::keystore::load_psa_bsi_key(storage.config_dir());
 
         let mut protocols = ProtocolRegistry::new();
         protocols.set_auto_key_search(storage.config.autobf);
@@ -722,6 +732,7 @@ impl App {
             auto_bf: auto_bf::AutoBf::default(),
             keeloq_bf_job: None,
             hitag2_bf_job: None,
+            jlr_bf_job: None,
             hitag2_offer_memo: std::cell::Cell::new(None),
             hitag2_key_memo: std::cell::Cell::new(None),
             hitag2_key_report: None,
@@ -742,7 +753,7 @@ impl App {
         }
         // Saved-session restore prompt, session writer, saved-fob index (app/persistence.rs).
         app.init_app_extensions();
-        for msg in [user_keystore_msg, hitag2_keys_msg, audi_bcm2_keys_msg].into_iter().flatten() {
+        for msg in [user_keystore_msg, hitag2_keys_msg, jlr_keys_msg, audi_bcm2_keys_msg, psa_bsi_key_msg].into_iter().flatten() {
             tracing::info!("{msg}");
             app.status_message.get_or_insert(msg);
         }
@@ -1291,6 +1302,7 @@ impl App {
         self.poll_psa_key_recovery();
         self.poll_keeloq_key_recovery();
         self.poll_hitag2_key_recovery();
+        self.poll_jlr_key_recovery();
         self.auto_bf_tick();
         // Each radio's level, captures and stopped receivers (app/radios.rs), then the IQ files'.
         self.poll_radios();
@@ -1346,7 +1358,7 @@ impl App {
         if self.hitag2_bf_offered(c) {
             return Some(SignalAction::RecoverHitag2Key);
         }
-        None
+        self.jlr_bf_offered(c).then_some(SignalAction::RecoverJlrKey)
     }
 
     /// Whether a key search runs for capture `id` (the signal menu offers to cancel it).
@@ -1354,6 +1366,7 @@ impl App {
         self.psa_recover_job.as_ref().is_some_and(|j| j.capture_id == Some(id))
             || self.keeloq_bf_job.as_ref().is_some_and(|j| j.capture_id == id)
             || self.hitag2_bf_job.as_ref().is_some_and(|j| j.capture_ids.contains(&id))
+            || self.jlr_bf_job.as_ref().is_some_and(|j| j.capture_ids.contains(&id))
     }
 
     fn signal_actions_base(&self) -> Vec<SignalAction> {
@@ -1481,10 +1494,15 @@ impl App {
             SignalAction::RecoverHitag2Key => {
                 self.start_hitag2_key_recovery(capture_id);
             }
+            SignalAction::RecoverJlrKey => {
+                self.start_jlr_key_recovery(capture_id);
+            }
             SignalAction::CancelKeyRecovery => {
                 // The search that runs for this capture (an autobf PSA search may run beside a
                 // long one).
-                if self.hitag2_bf_job.as_ref().is_some_and(|j| j.capture_ids.contains(&capture_id)) {
+                if self.jlr_bf_job.as_ref().is_some_and(|j| j.capture_ids.contains(&capture_id)) {
+                    self.cancel_jlr_key_recovery();
+                } else if self.hitag2_bf_job.as_ref().is_some_and(|j| j.capture_ids.contains(&capture_id)) {
                     self.cancel_hitag2_key_recovery();
                 } else if self.keeloq_bf_job.as_ref().is_some_and(|j| j.capture_id == capture_id) {
                     self.cancel_keeloq_key_recovery();

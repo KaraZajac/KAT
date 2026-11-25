@@ -501,6 +501,7 @@ impl App {
         let jobs: Vec<String> = [
             self.keeloq_key_recovery_progress(),
             self.hitag2_key_recovery_progress(),
+            self.jlr_key_recovery_progress(),
             self.psa_key_recovery_progress(),
             self.tx_progress(),
         ]

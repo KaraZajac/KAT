@@ -164,7 +164,10 @@ impl App {
     /// Whether a long key search (KeeLoq or HiTag2) or a PSA one the user asked for runs: the
     /// KeeLoq and HiTag2 searches start only when none does.
     pub(super) fn long_key_search_runs(&self) -> bool {
-        self.psa_recover_job.as_ref().is_some_and(|j| !j.auto) || self.keeloq_bf_job.is_some() || self.hitag2_bf_job.is_some()
+        self.psa_recover_job.as_ref().is_some_and(|j| !j.auto)
+            || self.keeloq_bf_job.is_some()
+            || self.hitag2_bf_job.is_some()
+            || self.jlr_bf_job.is_some()
     }
 
     /// Start the search for the remote of capture `id`, paired with another capture of it.

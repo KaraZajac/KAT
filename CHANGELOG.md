@@ -2,6 +2,17 @@
 
 All notable changes to KAT are documented here.
 
+## [1.25.0] - 2026-11-24
+
+Three findings held back for coordinated disclosure are published here as KAT reports, with their decoders and encoders now in KAT: Subaru V1, the Ford V1 (JLR) rolling code, and the legacy PSA two-button "older code" (GitHub issue #6). Real per-vehicle keys and VINs stay out of both the reports and the code; KAT ships no car keys.
+
+### Added
+
+- **Subaru V1**: the US 2012-2019 remote-head key (FCC ID CWTWB1U811, 315 MHz), which no reference reads. OOK Manchester with a 122 µs half-bit; a 56-bit frame of a 24-bit ID, a button nibble (Lock, Unlock, Trunk; Panic is Wimmenhove's code and unconfirmed on this format), a plaintext 20-bit counter and a byte-XOR check. Decodes and transmits (counter + 1, three copies like the fob). Worked out from recordings of two 2014 keys; the EU/AU "Subaru" decoder is unchanged. See [docs/subaru_v1.md](docs/subaru_v1.md).
+- **Ford V1 (JLR): deciphering, encoding and key recovery** ([ford_v1_jlr.md](docs/ford_v1_jlr.md)). Jaguar Land Rover's 2015–2018 keyless fobs send Ford V1's frame with the 8 rolling bytes enciphered under the car's key — a three-round Feistel network with AES-128 round functions. With that key (read from the owner's keyless module; KAT ships none) in a `jlr_keys` file, KAT deciphers the button, counter and ID and makes the next code. The key carries only 32 bits of effective entropy (it has the form X‖~X‖~X‖X), so `kat --jlr-recover` recovers it from two captured presses of a fob in about a minute. Research report: `reports/2026-jlr-rke-bj32-15k601`.
+- **PSA older two-button code (GitHub issue #6): deciphered and encodable** ([psa.md](docs/psa.md)). The legacy Peugeot/Citroën two-button remotes (roughly 2001–2012) encipher their frame with a block cipher whose 16-byte key is global to the whole platform, recovered from one BSI module's firmware. With that key table in a `psa_bsi_key` file (KAT ships none), KAT reads the remote's identity, 16-bit counter and button, and makes the next code. Research report: `reports/2026-psa-rke-73373067`.
+- **Security reports** (`reports/`). A research report for each finding above, documenting the radio, the cipher, the weakness and the impact. Real per-vehicle keys, VINs and the PSA key table are withheld, the same way KAT keeps real key IDs out of its pages.
+
 ## [1.24.0] - 2026-11-24
 
 An ECU & immobiliser reference section on the site, an encoder for the Audi V3 BCM2 frame, and the Maserati keys read with their check — plus recordings of a Maserati Levante, a 2026 VW Amarok and a 2015 Mercedes FBS3 key.

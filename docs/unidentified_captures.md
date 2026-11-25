@@ -20,7 +20,7 @@ the bits of a frame do. In a sample of 20 recordings KAT reads, the longest such
 the 77 files that hold no data it is 56 at most, the length noise reaches by chance. Where there is no data, the
 bursts of a remote still show as stretches of carrier: their lengths and spacing were measured and compared with
 the remote's filing. Of the 553 recordings in the library, KAT reads
-451.
+461.
 
 | What the files hold | Files | Section |
 |---|---|---|

@@ -560,8 +560,11 @@ fn signal_detail_lines(
     // A frame of the older PSA code is neither of PSA's two kinds (TEA/XOR).
     let older_code = capture.psa_older_code();
     let listed_older_code = older_code.is_some_and(|(_, remote)| remote.is_some());
+    // The older code shows "older code" once deciphered (a key table is loaded, so the frame has a
+    // serial), else "older code, not decoded".
+    let older_code_label = if capture.serial.is_some() { "older code" } else { "older code, not decoded" };
     let mut enc = vec![
-        ("Enc:", value(if listed_older_code { "older code, not decoded" } else { capture.encryption_type() })),
+        ("Enc:", value(if listed_older_code { older_code_label } else { capture.encryption_type() })),
         // An unknown modulation is "-" like the detail's other empty fields (its display text,
         // "—", is what the protocol tables use).
         ("RF:", value(match capture.rf_modulation() {

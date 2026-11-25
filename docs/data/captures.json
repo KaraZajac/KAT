@@ -4375,10 +4375,16 @@
    "frequency": 433920000,
    "more": true,
    "path": "MASERATI/more/2016-2021_maserati_ghibli_lock_2.sub",
-   "pinned": false,
+   "pinned": true,
    "preset": "AM650",
    "pulses": 16078,
-   "reads": [],
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 56,
+     "protocol": "Fiat V2"
+    }
+   ],
    "seconds": 8.81,
    "type": "raw"
   },
@@ -4407,10 +4413,16 @@
    "frequency": 433920000,
    "more": true,
    "path": "MASERATI/more/2016-2021_maserati_ghibli_trunk_2.sub",
-   "pinned": false,
+   "pinned": true,
    "preset": "AM650",
    "pulses": 16376,
-   "reads": [],
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 56,
+     "protocol": "Fiat V2"
+    }
+   ],
    "seconds": 9.23,
    "type": "raw"
   },
@@ -4439,10 +4451,16 @@
    "frequency": 433920000,
    "more": true,
    "path": "MASERATI/more/2016-2021_maserati_ghibli_unlock_2.sub",
-   "pinned": false,
+   "pinned": true,
    "preset": "AM650",
    "pulses": 16016,
-   "reads": [],
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 56,
+     "protocol": "Fiat V2"
+    }
+   ],
    "seconds": 8.24,
    "type": "raw"
   },
@@ -4452,10 +4470,16 @@
    "frequency": 433920000,
    "more": true,
    "path": "MASERATI/more/2016-2021_maserati_levante_lock.sub",
-   "pinned": false,
+   "pinned": true,
    "preset": "AM650",
    "pulses": 15688,
-   "reads": [],
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 53,
+     "protocol": "Fiat V2"
+    }
+   ],
    "seconds": 8.02,
    "type": "raw"
   },
@@ -4465,10 +4489,16 @@
    "frequency": 433920000,
    "more": true,
    "path": "MASERATI/more/2016-2021_maserati_levante_trunk.sub",
-   "pinned": false,
+   "pinned": true,
    "preset": "AM650",
    "pulses": 14762,
-   "reads": [],
+   "reads": [
+    {
+     "distinct": 10,
+     "frames": 49,
+     "protocol": "Fiat V2"
+    }
+   ],
    "seconds": 8.2,
    "type": "raw"
   },
@@ -4478,10 +4508,16 @@
    "frequency": 433920000,
    "more": true,
    "path": "MASERATI/more/2016-2021_maserati_levante_unlock.sub",
-   "pinned": false,
+   "pinned": true,
    "preset": "AM650",
    "pulses": 17960,
-   "reads": [],
+   "reads": [
+    {
+     "distinct": 12,
+     "frames": 60,
+     "protocol": "Fiat V2"
+    }
+   ],
    "seconds": 9.48,
    "type": "raw"
   },
@@ -7451,10 +7487,16 @@
    "frequency": 434240000,
    "more": true,
    "path": "VAG/more/2026_vw_amarok_lock.sub",
-   "pinned": false,
+   "pinned": true,
    "preset": "FM476",
    "pulses": 22533,
-   "reads": [],
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 40,
+     "protocol": "Ford V3"
+    }
+   ],
    "seconds": 32.76,
    "type": "raw"
   },
@@ -7464,10 +7506,16 @@
    "frequency": 434240000,
    "more": true,
    "path": "VAG/more/2026_vw_amarok_unlock.sub",
-   "pinned": false,
+   "pinned": true,
    "preset": "FM476",
    "pulses": 22429,
-   "reads": [],
+   "reads": [
+    {
+     "distinct": 20,
+     "frames": 40,
+     "protocol": "Ford V3"
+    }
+   ],
    "seconds": 29.47,
    "type": "raw"
   },
@@ -11205,10 +11253,16 @@
    "frequency": 433950000,
    "more": true,
    "path": "mercedes/more/2015_mercedes_fbs3_lock_2.sub",
-   "pinned": false,
+   "pinned": true,
    "preset": "Custom",
    "pulses": 21504,
-   "reads": [],
+   "reads": [
+    {
+     "distinct": 4,
+     "frames": 7,
+     "protocol": "Mercedes V1"
+    }
+   ],
    "seconds": 2.93,
    "type": "raw"
   },
@@ -11243,10 +11297,16 @@
    "frequency": 433950000,
    "more": true,
    "path": "mercedes/more/2015_mercedes_fbs3_unlock_2.sub",
-   "pinned": false,
+   "pinned": true,
    "preset": "Custom",
    "pulses": 22528,
-   "reads": [],
+   "reads": [
+    {
+     "distinct": 5,
+     "frames": 6,
+     "protocol": "Mercedes V1"
+    }
+   ],
    "seconds": 3.39,
    "type": "raw"
   },

@@ -515,7 +515,7 @@ fn bcm2_pulses(bytes: &[u8; 12], n_pre: usize) -> Vec<LevelDuration> {
 }
 
 /// AES-128 encryption (FIPS-197), encrypt only — the MAC needs no decrypt. A self-contained copy
-/// (as in `beninca_arc.rs`), not shared with any other protocol. Proven by the FIPS-197 C.1
+/// (as in `beninca_arc.rs`), self-contained and not shared with any other protocol. Proven by the FIPS-197 C.1
 /// known-answer vector in the tests.
 mod aes {
     const SBOX: [u8; 256] = [

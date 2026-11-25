@@ -46,8 +46,10 @@ mod kia_v5;
 mod kia_v6;
 mod kia_v7;
 mod subaru;
+mod subaru_v1;
 mod ford_v0;
 mod ford_v1;
+pub(crate) mod jlr;
 mod ford_v2;
 mod ford_v3;
 mod honda_static;
@@ -647,6 +649,10 @@ impl ProtocolRegistry {
             // PWM after ≥21 1600µs preamble halves + 2800µs gap/sync, 64 bits. No checksum; the
             // long preamble + gap/sync framing is unique among KAT protocols.
             Box::new(subaru::SubaruDecoder::new()),
+            // Subaru V1 (US 2012-2019 remote-head key, owner-recorded; no reference has it):
+            // 244µs preamble pulses (≥20) + 122µs-half-bit Manchester, 0 start bit + 56 bits, gated
+            // on the byte-XOR check, so the Subaru PWM frames and every other decoder are unaffected.
+            Box::new(subaru_v1::SubaruV1Decoder::new()),
             // Fiat V0 has no checksum: gated on structure (≥150-pulse preamble, 800µs gap, 71 bits).
             Box::new(fiat_v0::FiatV0Decoder::new()),
             // Fiat V1 (HITAG2 BCM): 104-bit Manchester frame read from a sliding half-bit window at
@@ -1697,7 +1703,17 @@ impl Default for ProtocolRegistry {
 /// is not KAT's generic code (0x01 Lock, 0x02 Unlock, 0x04 Trunk, 0x08 Panic). `None` means "use the
 /// generic names". The labels live with each protocol's metadata ([info]); codes and labels come
 /// from each protocol's C reference (see its module doc).
+/// The display name KAT gives the JLR keyless variant (`ford_v1::JLR_NAME`).
+pub fn ford_v1_jlr_name() -> &'static str {
+    ford_v1::JLR_NAME
+}
+
 pub fn native_button_name(protocol: &str, code: u8) -> Option<&'static str> {
+    // Ford V1 (JLR) resolves to Ford V1's INFO via name_prefix, but a deciphered JLR press has its
+    // own button codes (1 Lock, 2 Unlock, 4 Trunk); 0 (no key) stays unnamed.
+    if protocol == ford_v1::JLR_NAME {
+        return jlr::button_name(code);
+    }
     info::lookup(protocol)?.button_name(protocol, code)
 }
 
@@ -2581,7 +2597,7 @@ mod tests {
             ("Ford V3", "Ford V3"), ("Honda Static", "Honda Static"), ("Honda V5", "Honda V5"), ("Honda V1", "Honda V1"),
             ("Honda V2", "Honda V2"), ("Honda V4", "Honda V4"), ("Honda V7", "Honda V7"),
             ("Honda V9", "Honda V9"), ("Honda V10", "Honda V10"),
-            ("Subaru", "Subaru"), ("Fiat V0", "Fiat V0"), ("Fiat V1", "Fiat V1"),
+            ("Subaru", "Subaru"), ("Subaru V1", "Subaru V1"), ("Fiat V0", "Fiat V0"), ("Fiat V1", "Fiat V1"),
             ("Fiat V2", "Fiat V2"), ("Scher-Khan", "Scher-Khan"), ("Star Line", "Star Line"),
             ("Sheriff CFM", "Sheriff CFM"), ("KeeLoq", "KeeLoq"), ("PSA", "PSA"),
             ("Chrysler V0", "Chrysler V0"), ("Mazda V0", "Mazda V0"), ("MazdaSiemens", "Mazda Siemens"),
@@ -2799,6 +2815,94 @@ mod tests {
                     eprintln!("{:<42} {:>9}Hz => {:?}", rel.display(), freq, names);
                 }
                 Err(e) => eprintln!("{:<42} ERR {:?}", path.display(), e),
+            }
+        }
+    }
+
+    /// Diagnostic: the timing each decoder is built around and the timing its encoder sends, for
+    /// the captures listed (one path per line) in the file `KAT_TIMING_FILES` names. Per protocol
+    /// decoded there, one line: name, coding, `te_short` / `te_long` / `te_delta` of
+    /// `ProtocolDecoder::timing`, and the widths of the HIGH and of the LOW pulses in the upload of
+    /// its first encoder-capable decode (`width x count`, most frequent first). `#[ignore]`d; run
+    /// with `KAT_TIMING_FILES=list cargo test sweep_timing_table -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn sweep_timing_table() {
+        crate::protocols::keys::load_keystore_from_embedded();
+        let Some(list) = std::env::var_os("KAT_TIMING_FILES") else {
+            eprintln!("Skip: KAT_TIMING_FILES not set");
+            return;
+        };
+        let list = std::fs::read_to_string(list).unwrap();
+        let mut reg = ProtocolRegistry::new();
+        let mut seen = std::collections::BTreeSet::new();
+        let widths = |pulses: &[LevelDuration], level: bool| -> String {
+            let mut count: std::collections::HashMap<u32, usize> = Default::default();
+            for p in pulses.iter().filter(|p| p.level == level) {
+                *count.entry(p.duration_us).or_default() += 1;
+            }
+            let mut v: Vec<(u32, usize)> = count.into_iter().collect();
+            v.sort_by_key(|&(w, n)| (std::cmp::Reverse(n), w));
+            v.iter().take(6).map(|(w, n)| format!("{w}x{n}")).collect::<Vec<_>>().join(" ")
+        };
+        for path in list.lines().filter(|l| !l.trim().is_empty()) {
+            let Ok((_, decodes)) = decode_import(&mut reg, Path::new(path)) else { continue };
+            for (name, d) in decodes {
+                if !d.encoder_capable && seen.contains(&(name.clone(), false)) {
+                    continue;
+                }
+                if !seen.insert((name.clone(), d.encoder_capable)) {
+                    continue;
+                }
+                let Some(dec) = reg.get(&name) else { continue };
+                let t = dec.timing();
+                let coding = info::lookup(&name).map(|i| format!("{:?}", i.encoding)).unwrap_or_default();
+                let tx = if d.encoder_capable { dec.encode(&d, d.button.unwrap_or(0)) } else { None };
+                let (hi, lo) = match &tx {
+                    Some(p) => (widths(p, true), widths(p, false)),
+                    None => ("-".to_string(), "-".to_string()),
+                };
+                println!("TIMING\t{name}\t{}\t{coding}\t{}\t{}\t{}\t{hi}\t{lo}", dec.name(), t.te_short, t.te_long, t.te_delta);
+            }
+        }
+    }
+
+    /// Diagnostic: the pulse widths inside the frames KAT decodes, for the captures listed (one
+    /// path per line) in the file `KAT_TIMING_FILES` names. Per capture, protocol and serial, one
+    /// line: the number of frames and a histogram (4 µs bins, up to 4000 µs) of the HIGH and of
+    /// the LOW widths of those frames' data pulses (the last two pulses per bit of each decode),
+    /// so that receiver noise between frames does not count. `#[ignore]`d; run in a release build with
+    /// `KAT_TIMING_FILES=list cargo test --release sweep_frame_timing -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn sweep_frame_timing() {
+        crate::protocols::keys::load_keystore_from_embedded();
+        let Some(list) = std::env::var_os("KAT_TIMING_FILES") else {
+            eprintln!("Skip: KAT_TIMING_FILES not set");
+            return;
+        };
+        let list = std::fs::read_to_string(list).unwrap();
+        let mut reg = ProtocolRegistry::new();
+        type Hist = std::collections::BTreeMap<u32, u32>;
+        for path in list.lines().filter(|l| !l.trim().is_empty()) {
+            let Ok(sub) = crate::export::flipper::import_sub(Path::new(path)) else { continue };
+            let pairs: Vec<LevelDuration> = sub.pairs.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
+            let rf = sub.preset.as_ref().and_then(|p| p.rf());
+            let mut groups: std::collections::BTreeMap<(String, String), (usize, Hist, Hist)> = Default::default();
+            for (name, d, pulses) in reg.process_signal_stream_rf(&pairs, sub.frequency, rf) {
+                let serial = d.serial.map(|s| format!("{s:X}")).unwrap_or_else(|| "-".to_string());
+                let g = groups.entry((name, serial)).or_default();
+                g.0 += 1;
+                // The frame's data pulses: a decode's pulses start where the decode before it
+                // ended, so only its last two pulses per bit are the frame for certain.
+                let own = pulses.len().saturating_sub(2 * d.data_count_bit.max(16));
+                for p in pulses[own..].iter().filter(|p| p.duration_us < 4000) {
+                    *(if p.level { &mut g.1 } else { &mut g.2 }).entry(p.duration_us / 4).or_default() += 1;
+                }
+            }
+            let text = |h: &Hist| h.iter().map(|(b, n)| format!("{b}={n}")).collect::<Vec<_>>().join(",");
+            for ((name, serial), (frames, hi, lo)) in &groups {
+                println!("FT\t{path}\t{name}\t{serial}\t{frames}\t{}\t{}", text(hi), text(lo));
             }
         }
     }

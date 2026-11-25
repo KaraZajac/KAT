@@ -55,7 +55,7 @@ const WHOLE: TxCopies = copies(1, 1, false);
 /// Renault V1 (ARF)); its copies differ (Kia V3/V4: ProtoPirate's 16 bursts each carry another CRC
 /// nibble, a brute force of the unknown CRC, so `Repeat: n` would be its first n bursts); or KAT
 /// has not compared the encoder with one (Beninca ARC, Cham_Code, Honeywell Sec, Jarolift, X10,
-/// Mitsubishi V0, Toyota).
+/// Mitsubishi V0, Toyota, Subaru V1).
 const TABLE: &[(&[&str], TxCopies)] = &[
     // Car encoders returning one upload: the reference's count (ProtoPirate's 10 → 3, see above).
     (&["Honda Static", "Kia V7"], copies(1, 3, true)),

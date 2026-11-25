@@ -72,6 +72,8 @@ enum CliAction {
     Decode(headless::DecodeOptions),
     /// `--keeloq-bf <path>...`: recover a magic-serial KeeLoq manufacturer key.
     KeeloqBf(headless::KeeloqBfOptions),
+    /// `--jlr-recover <path>...`: recover a Ford V1 (JLR) fob's 32-bit car key from captured presses.
+    JlrRecover(headless::JlrRecoverOptions),
     Help,
     Version,
 }
@@ -79,6 +81,7 @@ enum CliAction {
 const USAGE: &str = "Usage: kat [--iq <file> [--freq <MHz|Hz>] [--rate <S/s>]]
        kat --decode <file|dir>... [--freq <MHz|Hz>] [--rate <S/s>] [--all] [--verbose]
        kat --keeloq-bf <file|dir>... [--type auto|6|7|8] [--save] [--freq <MHz|Hz>] [--rate <S/s>]
+       kat --jlr-recover <file|dir>... [--save] [--show] [--freq <MHz|Hz>] [--rate <S/s>]
 
   --iq <file>     Decode an IQ recording at startup, with or without a radio attached:
                   .cs8 (hackrf_transfer), .cu8 (rtl_sdr / rtl_433), .cf32 (GNU Radio, URH),
@@ -94,6 +97,11 @@ const USAGE: &str = "Usage: kat [--iq <file> [--freq <MHz|Hz>] [--rate <S/s>]]
                   KeeLoq Decrypt) from two or more captures of it (.sub or IQ files).
                   --type: auto (6, then 7; the default), 6, 7 or 8 (8 searches 2^40 keys and
                   needs three captures); --save adds the key to keeloq_mfcodes_user as BF_<serial>.
+  --jlr-recover <p>...
+                  Recover the car key of a Jaguar Land Rover keyless fob (Ford V1 (JLR)) from two or
+                  more different button presses of it (.sub or IQ files). The key is 32-bit effective,
+                  so the search takes about a minute. --save adds the key to jlr_keys; --show prints
+                  it (off by default: it is a vehicle secret).
   --freq <f>      Centre frequency of the recording, MHz (433.92) or Hz (433920000);
                   default: from a PortaPack's .TXT or the file name, else the configured
                   frequency (433.92 MHz for --decode)
@@ -103,7 +111,7 @@ const USAGE: &str = "Usage: kat [--iq <file> [--freq <MHz|Hz>] [--rate <S/s>]]
   -V, --version   Show the version
 
 Exit status: 0 on success; 1 when --decode could not read a file or found nothing to decode,
-or --keeloq-bf found no key; 2 for a bad argument or a missing --iq / --keeloq-bf file.
+or --keeloq-bf / --jlr-recover found no key; 2 for a bad argument or a missing file.
 
 In the app: :iq <file> [freq] [rate], :load <file>, :record [file] / :record stop, :hop on|off.";
 
@@ -131,14 +139,16 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<CliAction, Strin
     let mut opts = CliOptions::default();
     let mut decode: Option<Vec<std::path::PathBuf>> = None;
     let mut keeloq_bf: Option<Vec<std::path::PathBuf>> = None;
+    let mut jlr_recover: Option<Vec<std::path::PathBuf>> = None;
     let mut bf_types: Option<Vec<u32>> = None;
     let mut save = false;
+    let mut show = false;
     let mut all = false;
     let mut verbose = false;
     let mut it = args.into_iter();
     while let Some(arg) = it.next() {
-        // Paths after --decode / --keeloq-bf (up to the next flag).
-        if let Some(paths) = decode.as_mut().or(keeloq_bf.as_mut()) {
+        // Paths after --decode / --keeloq-bf / --jlr-recover (up to the next flag).
+        if let Some(paths) = decode.as_mut().or(keeloq_bf.as_mut()).or(jlr_recover.as_mut()) {
             if !arg.starts_with('-') {
                 paths.push(std::path::PathBuf::from(arg));
                 continue;
@@ -171,8 +181,15 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<CliAction, Strin
                     paths.push(std::path::PathBuf::from(v));
                 }
             }
+            "--jlr-recover" => {
+                let paths = jlr_recover.get_or_insert_with(Vec::new);
+                if let Some(v) = inline {
+                    paths.push(std::path::PathBuf::from(v));
+                }
+            }
             "--type" => bf_types = Some(headless::parse_bf_types(&flag_value(inline, &mut it, "--type")?)?),
             "--save" => save = true,
+            "--show" => show = true,
             "--all" => all = true,
             "-v" | "--verbose" => verbose = true,
             "--freq" => {
@@ -203,11 +220,26 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<CliAction, Strin
         if decode.is_some() || opts.iq.is_some() || all || verbose {
             return Err("--keeloq-bf cannot be combined with --decode, --iq, --all or --verbose".to_string());
         }
+        if show {
+            return Err("--show is a --jlr-recover option".to_string());
+        }
         let types = bf_types.unwrap_or_else(|| protocols::keeloq_bf::AUTO_TYPES.to_vec());
         return Ok(CliAction::KeeloqBf(headless::KeeloqBfOptions { paths, freq: opts.freq, rate: opts.rate, types, save }));
     }
+    if let Some(paths) = jlr_recover {
+        if paths.is_empty() {
+            return Err("--jlr-recover needs at least one file or directory".to_string());
+        }
+        if decode.is_some() || opts.iq.is_some() || all || verbose || bf_types.is_some() {
+            return Err("--jlr-recover cannot be combined with --decode, --iq, --all, --verbose or --type".to_string());
+        }
+        return Ok(CliAction::JlrRecover(headless::JlrRecoverOptions { paths, freq: opts.freq, rate: opts.rate, save, show }));
+    }
     if bf_types.is_some() || save {
         return Err("--type and --save are --keeloq-bf options".to_string());
+    }
+    if show {
+        return Err("--show is a --jlr-recover option".to_string());
     }
     if let Some(paths) = decode {
         if paths.is_empty() {
@@ -252,6 +284,13 @@ fn main() -> Result<()> {
                 std::process::exit(2);
             }
             std::process::exit(headless::keeloq_bf(&opts))
+        }
+        Ok(CliAction::JlrRecover(opts)) => {
+            if let Some(path) = opts.paths.iter().find(|p| !p.exists()) {
+                eprintln!("kat: --jlr-recover {}: no such file or directory", path.display());
+                std::process::exit(2);
+            }
+            std::process::exit(headless::jlr_recover(&opts))
         }
         Ok(CliAction::Help) => {
             println!("KAT v{VERSION} - Keyfob Analysis Toolkit\n\n{USAGE}");

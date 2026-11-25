@@ -3,3 +3,11 @@
 /EXPORTS
 /scripts
 .DS_Store
+
+# Raw import archive and stray test folder (not part of the library)
+IMPORTS/random subs.zip
+docs/img/remotes/
+# CERT/CC submission working-drafts kept local (the published reports are report.pdf/report.tex/README.md)
+reports/*/vince-report.md
+reports/*/build.log
+reports/*/README.md

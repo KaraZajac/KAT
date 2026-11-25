@@ -1093,6 +1093,63 @@ fn sweep_ook() {
     println!();
 }
 
+/// Diagnostic: how true the pulse widths out of the receive pipeline are. For each `te`, a train of
+/// 301 symbols (te or 2 te at random, levels alternating) goes on the air as OOK and as 2FSK, and
+/// the table gives the median width of the short HIGHs and of the short LOWs the pipeline returns,
+/// the error of their mean against `te` (the clock) and their difference (the skew the receiver
+/// adds: a slicer that sees a pulse's two edges at different delays makes one level longer and the
+/// other shorter). A Flipper's CC1101 skews an OOK recording by tens of µs either way
+/// (`docs/timing_analysis.md`); this is the same figure for KAT's own receiver.
+/// `cargo test --release sweep_pulse_fidelity -- --ignored --nocapture`
+#[test]
+#[ignore]
+fn sweep_pulse_fidelity() {
+    let median = |mut v: Vec<u32>| -> f64 {
+        v.sort_unstable();
+        v.get(v.len() / 2).map_or(f64::NAN, |&x| f64::from(x))
+    };
+    for (label, modu) in [("OOK", Modu::Ook), ("2FSK ±47.6 kHz", Modu::Fsk(47_600.0)), ("2FSK ±15 kHz", Modu::Fsk(15_000.0))] {
+        for (snr, offset) in [(20.0, 10e3), (10.0, 10e3), (6.0, 10e3), (20.0, 40e3)] {
+            println!("\n{label}, SNR {snr} dB (2 MHz), fob offset {} kHz", offset / 1e3);
+            println!("| te | HIGH | LOW | clock error | skew H-L | 2te HIGH | 2te LOW |");
+            for te in [63u32, 100, 125, 200, 250, 300, 400, 500, 800, 1000] {
+                let mut rng = seed(u64::from(te));
+                let mut truth = Vec::new();
+                let mut level = true;
+                for _ in 0..301 {
+                    let long = rng.uniform() < 0.3;
+                    truth.push(LevelDuration::new(level, if long { 2 * te } else { te }));
+                    level = !level;
+                }
+                let spec = Spec::live(modu, offset, snr);
+                let iq = synth(&truth, &spec, &mut rng);
+                let pairs: Vec<LevelDuration> = run_pipeline(&iq, &spec, 433_920_000)
+                    .into_iter()
+                    .flat_map(|b| if matches!(modu, Modu::Ook) { b.am } else { b.fm }.unwrap_or_default())
+                    .collect();
+                let pick = |level: bool, long: bool| {
+                    let range = if long { 1.6..2.4 } else { 0.6..1.4 };
+                    median(
+                        pairs
+                            .iter()
+                            .filter(|p| p.level == level && range.contains(&(f64::from(p.duration_us) / f64::from(te))))
+                            .map(|p| p.duration_us)
+                            .collect(),
+                    )
+                };
+                let (hs, ls) = (pick(true, false), pick(false, false));
+                println!(
+                    "| {te} | {hs:.0} | {ls:.0} | {:+.1}% | {:+.0} | {:.0} | {:.0} |",
+                    100.0 * ((hs + ls) / 2.0 / f64::from(te) - 1.0),
+                    hs - ls,
+                    pick(true, true),
+                    pick(false, true)
+                );
+            }
+        }
+    }
+}
+
 /// Decode count over `trials` (same seeds as [`rate`]), spread over `KAT_THREADS` threads (6).
 fn rate_par(c: &Case, spec: &Spec, trials: u64) -> u64 {
     let threads = std::env::var("KAT_THREADS").ok().and_then(|s| s.parse().ok()).unwrap_or(6u64).max(1);

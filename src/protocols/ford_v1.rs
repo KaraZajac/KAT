@@ -117,7 +117,7 @@ const DATA_BITS: usize = 136;
 const DATA_BYTES: usize = 17;
 /// Display name for a CRC-valid frame whose rolling half is not Ford-readable (strict fails): the
 /// JLR 2015-2018 keyless fob (Hitag-Pro / PCF7953P), AES rolling code, decode-only.
-const JLR_NAME: &str = "Ford V1 (JLR)";
+pub(crate) const JLR_NAME: &str = "Ford V1 (JLR)";
 const PREAMBLE_MIN: u16 = 50;
 /// FORD_V1_DELTA_LONG (40): only the preamble long-pulse match; data/sync use te_delta (39).
 const DELTA_LONG: u32 = 40;
@@ -330,13 +330,15 @@ impl FordV1Decoder {
     fn process_data(raw_bytes: &[u8; DATA_BYTES]) -> Option<DecodedSignal> {
         let raw = Self::canonical_crc_ok(raw_bytes)?;
         let strict = Self::strict_plain(&raw);
-        let (serial, button, counter) = match &strict {
-            Some(plain) => Self::fields_from_plain(plain),
-            // The JLR variant: button and counter are encrypted; the fob is known by its transponder
-            // ID folded to 16 bits (raw[5..7] = ID high XOR ID low). raw[3] (0x26) and the flags byte
-            // raw[4] (00 a press, 08 its repeat) stay out, or a repeat would show a second serial.
-            // Key files keep the C's Serial, raw[3..7] (`to_flipper_key`).
-            None => (u32::from(u16::from_be_bytes([raw[5], raw[6]])), 0, 0),
+        // The JLR variant: button, counter and full ID are enciphered in raw[7..15]; only the ID
+        // folded to 16 bits (raw[5..7] = ID high XOR ID low) travels in the clear. raw[3] (0x26) and
+        // the flags byte raw[4] (00 a press, 08 its repeat) stay out of the serial, or a repeat would
+        // show a second one. If the user supplied this car's key, decipher the real fields.
+        let jlr = strict.is_none().then(|| Self::jlr_fields(&raw)).flatten();
+        let (serial, button, counter) = match (&strict, jlr) {
+            (Some(plain), _) => Self::fields_from_plain(plain),
+            (None, Some(fields)) => fields,
+            (None, None) => (u32::from(u16::from_be_bytes([raw[5], raw[6]])), 0, 0),
         };
         let key1 = raw[..7].iter().fold(0u64, |k, &b| (k << 8) | b as u64);
         let key2 = raw[7..15].iter().fold(0u64, |k, &b| (k << 8) | b as u64);
@@ -347,13 +349,51 @@ impl FordV1Decoder {
             crc_valid: true,
             data: key1,
             data_count_bit: DATA_BITS,
-            // Only a strict frame recovered the real plaintext, so only it can be re-encoded. A
-            // CRC-valid non-strict frame is the JLR variant (AES rolling code, [JLR_NAME]): KAT
-            // reads only its header, cannot make a fresh code, and reports it decode-only.
-            encoder_capable: strict.is_some(),
+            // A strict Ford frame re-encodes the Ford way. A JLR frame re-encodes only once its car
+            // key is known (jlr is Some): then the encoder makes the fob's next code. Otherwise the
+            // JLR variant is decode-only — KAT reads its header and offers Replay at most.
+            encoder_capable: strict.is_some() || jlr.is_some(),
             extra: Some(key2),
             protocol_display_name: strict.is_none().then(|| JLR_NAME.to_string()),
         })
+    }
+
+    /// Decipher a JLR frame's `raw[7..15]` with the user's car keys (see [`crate::protocols::jlr`]).
+    /// Returns `(full ID, button, 24-bit counter)` for the first key that fits, and remembers the
+    /// fob → key link so the frame's next code can be made. `None` when no key matches (or none are
+    /// loaded — the usual case, which keeps JLR frames decode-only and the goldens unchanged).
+    fn jlr_fields(raw: &[u8; DATA_BYTES]) -> Option<(u32, u8, u32)> {
+        let payload: [u8; 8] = raw[7..15].try_into().unwrap();
+        let folded = u16::from_be_bytes([raw[5], raw[6]]);
+        // Clone the small key list, then drop the read lock before taking the write lock below.
+        let keys = super::keys::get_keystore().jlr_keys().to_vec();
+        for (_name, key) in &keys {
+            if let Some(p) = super::jlr::try_decipher(&payload, folded, key) {
+                super::keys::get_keystore_mut().remember_jlr_fob(p.id, *key, p.counter, p.button);
+                return Some((p.id, p.button, p.counter));
+            }
+        }
+        None
+    }
+
+    /// Build the next code for a deciphered JLR fob: look up its car key and last counter (learned at
+    /// decode), raise the counter by 2 (the fob's step), encipher `button ‖ counter ‖ ID`, and build
+    /// burst 0 with a fresh CRC and the first-send flags byte. `None` if the fob was never deciphered.
+    fn encode_jlr(decoded: &DecodedSignal, requested: u8) -> Option<Vec<LevelDuration>> {
+        let id = decoded.serial?;
+        let (key, last_counter, captured) = super::keys::get_keystore().jlr_fob(id)?;
+        let button = match requested {
+            0x01 | 0x02 | 0x04 => requested,
+            _ => captured,
+        };
+        let counter = (last_counter.wrapping_add(2)) & 0x00FF_FFFF;
+        let payload = super::jlr::encipher(&super::jlr::plain_bytes(super::jlr::Press { button, counter, id }), &key);
+        let mut raw = Self::frame_from_keys(decoded.data, u64::from_be_bytes(payload));
+        raw[4] = 0x00; // first send of a press
+        let c = Self::crc16(&raw[3..15]);
+        raw[15..17].copy_from_slice(&c.to_be_bytes());
+        super::keys::get_keystore_mut().remember_jlr_fob(id, key, counter, button);
+        Some(Self::build_burst0(&raw))
     }
 
     /// `ford_v1_try_last_byte_variants`: 16 bytes + 6 or 7 bits of the last byte collected when
@@ -638,11 +678,10 @@ impl ProtocolDecoder for FordV1Decoder {
         // ford_v1_keys_file_to_canonical_raw: the C refuses frames whose plaintext cannot be
         // recovered (encryption_supported / plain_valid).
         let (raw, plain, strict) = Self::extract_plain(&Self::frame_from_keys(decoded.data, key2))?;
-        // Only a strict frame yields plaintext that re-encodes into a code the car accepts; a keyed
-        // variant (JLR) round-trips but its recovered plaintext is garbage, so refuse it (the UI
-        // never offers it either, `encoder_capable` is false). The C would send it anyway.
+        // A JLR frame (strict fails): the car key gives its next code; without the key, refuse (the UI
+        // then offers Replay only). A strict Ford frame re-encodes the Ford way below.
         if !strict {
-            return None;
+            return Self::encode_jlr(decoded, button);
         }
         // The file's Serial/Btn/Cnt as the C decoder saved them (the plaintext fields), overridden
         // by the DecodedSignal fields.
@@ -885,6 +924,59 @@ mod tests {
         // The JLR label resolves to Ford V1's RF/coding via name_prefix.
         use crate::protocols::info::lookup;
         assert_eq!(lookup("Ford V1 (JLR)").map(|i| (i.rf, i.encoding)), lookup("Ford V1").map(|i| (i.rf, i.encoding)));
+    }
+
+    /// A build-6-byte JLR frame: header, flags, folded ID, the 8 bytes enciphered under `key`, CRC.
+    fn build_jlr_frame(key: &[u8; 16], press: crate::protocols::jlr::Press, flags: u8) -> [u8; DATA_BYTES] {
+        let payload = crate::protocols::jlr::encipher(&crate::protocols::jlr::plain_bytes(press), key);
+        let mut raw = [0u8; DATA_BYTES];
+        raw[0..4].copy_from_slice(&[0xD3, 0x95, 0x0E, 0x26]);
+        raw[4] = flags;
+        raw[5..7].copy_from_slice(&crate::protocols::jlr::fold_id(press.id).to_be_bytes());
+        raw[7..15].copy_from_slice(&payload);
+        let c = FordV1Decoder::crc16(&raw[3..15]);
+        raw[15..17].copy_from_slice(&c.to_be_bytes());
+        raw
+    }
+
+    /// With the car's key loaded, a JLR frame deciphers to its button, counter and full ID, is
+    /// encoder-capable, and `encode` makes the fob's next code (counter + 2) under the same key.
+    /// Without the key it stays decode-only (checked by [`jlr_encrypted_variant_is_decode_only`]).
+    #[test]
+    fn jlr_decrypts_and_makes_next_code_with_a_key() {
+        use crate::protocols::jlr::Press;
+        let key: [u8; 16] = core::array::from_fn(|i| (i as u8).wrapping_mul(13).wrapping_add(1));
+        let id = 0x1234_5678u32;
+        let raw = build_jlr_frame(&key, Press { button: 0x02, counter: 0x00_1000, id }, 0x00);
+
+        // No key: decode-only, button/counter 0, no fresh code.
+        crate::protocols::keys::get_keystore_mut().load_jlr_keys(vec![]);
+        let nokey = feed_all(&burst_wave(&raw, ENC_GAP_REPEAT_US)).pop().expect("CRC-valid");
+        assert_eq!(nokey.protocol_display_name.as_deref(), Some("Ford V1 (JLR)"));
+        assert_eq!((nokey.button, nokey.counter), (Some(0), Some(0)));
+        assert!(!nokey.encoder_capable);
+
+        // The car's key loaded: the real fields, and a sendable next code.
+        crate::protocols::keys::get_keystore_mut().load_jlr_keys(vec![("test".into(), key)]);
+        let f = feed_all(&burst_wave(&raw, ENC_GAP_REPEAT_US)).pop().expect("CRC-valid");
+        assert_eq!(f.protocol_display_name.as_deref(), Some("Ford V1 (JLR)"));
+        assert_eq!(f.serial, Some(id), "the full transponder ID");
+        assert_eq!(f.button, Some(0x02));
+        assert_eq!(f.counter, Some(0x1000));
+        assert!(f.encoder_capable);
+        assert_eq!(crate::protocols::native_button_name("Ford V1 (JLR)", 0x02), Some("Unlock"));
+
+        let burst = FordV1Decoder::new().encode(&f, 0x02).expect("the fob's next code");
+        let g = feed_all(&burst).pop().expect("the next code decodes");
+        assert_eq!(g.serial, Some(id));
+        assert_eq!(g.button, Some(0x02));
+        assert_eq!(g.counter, Some(0x1002), "the counter advanced by 2");
+        // The sent frame is a first send (flags 00) and re-deciphers cleanly (so its payload and CRC
+        // are a real press, not a replay of the captured bytes).
+        let sent_payload: u64 = g.extra.unwrap();
+        assert_ne!(sent_payload, f.extra.unwrap(), "a fresh code, not the captured one");
+
+        crate::protocols::keys::get_keystore_mut().load_jlr_keys(vec![]);
     }
 
     /// A pre-port KAT export (extra = crc16 << 48 | strict << 40 | plain[4] << 32) still encodes:

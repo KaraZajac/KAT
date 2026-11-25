@@ -130,6 +130,7 @@ doc comment has the details.
 | Honda V1 (PP) | `Honda V1` / 68 | Serial, Btn, Cnt, Crc, Key_2, Disp | |
 | Honda V2 (PP) | `Honda V2` / 81 | Serial, Btn, BtnSig, Cnt, Check, Tail, ExtraBit | `Land Rover V0` files load |
 | Subaru (PP) | `Subaru` / 64 | Serial, Btn, Cnt, Disp | |
+| Subaru V1 (KAT) | `Subaru V1` / 56 | Serial, Btn, Cnt (20 bit) | KAT's own format, no firmware has one; the check byte must hold |
 | Fiat V0 (PP) | `Fiat V0` / 71 | Serial, Btn, Cnt, EndByte, Disp | Bit 64 or 71; button from EndByte, else `CRC`, else Btn |
 | Fiat V1 (PP) | `Fiat V1` / 102 | Serial, Btn, Cnt, Type, Hop, XOR, Tail Bits, Raw, Hitag2 Key + Epoch (when a key verifies), Disp | Raw validated; ARF files (no Type) load as variant B; `Hitag2 Key` is written in doctor-firmware's byte order and read in either ([Fiat V1](fiat_v1.md)) |
 | Fiat V2 (PP) | `Fiat V2` / 112 | Serial, Btn, Cnt, Hop, Raw | Raw required |

@@ -30,7 +30,7 @@ Its 165 protocol decoders follow [ProtoPirate](https://protopirate.net/ProtoPira
 
 **Decode**
 
-- **164 protocols** — 94 car key fob and alarm protocols and 70 garage door, gate, barrier, shutter, doorbell, sensor and key-finder remote protocols ([the full list](#supported-protocols)), and Flipper-ARF's MARELLI key files.
+- **165 protocols** — 95 car key fob and alarm protocols and 70 garage door, gate, barrier, shutter, doorbell, sensor and key-finder remote protocols ([the full list](#supported-protocols)), and Flipper-ARF's MARELLI key files.
 - **KeeLoq keystore fallback** — a signal no protocol claims is tried as KeeLoq with every manufacturer key in the embedded keystore and in your own `keeloq_mfcodes_user` ([docs/keeloq.md](docs/keeloq.md)).
 - **Signal detail** — encoding, RF modulation, encryption, serial, button, counter, key data, CRC (OK or FAIL where the protocol has a check KAT verifies; "none" where it has not: the fixed-code gate remotes, Fiat V0/V2, Ford V2/V3, Mercedes V0, Mitsubishi V0, Subaru, a KeeLoq frame no key identifies, Faac SLH without its seed, Scher-Khan's non-PRO variants …), frequency and the raw level/duration pairs.
 - **Unknown signals** (listed by default) — unidentified signals are listed too, ready to analyze (`a`); `show_unknown_signals = false` lists only decoded ones.
@@ -92,18 +92,18 @@ On Windows there is nothing to install here: the `.zip` carries the HackRF libra
 Then check, unpack and run (with your version and platform):
 
 ```bash
-sha256sum -c kat-v1.24.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
-tar xzf kat-v1.24.0-x86_64-linux.tar.gz
-./kat-v1.24.0-x86_64-linux/kat
+sha256sum -c kat-v1.25.0-x86_64-linux.tar.gz.sha256    # macOS: shasum -a 256 -c …
+tar xzf kat-v1.25.0-x86_64-linux.tar.gz
+./kat-v1.25.0-x86_64-linux/kat
 ```
 
 On Windows, in PowerShell (Windows Terminal):
 
 ```powershell
-$want = (Get-Content kat-v1.24.0-x86_64-windows.zip.sha256).Split(' ')[0]
-(Get-FileHash kat-v1.24.0-x86_64-windows.zip).Hash -eq $want    # True
-Expand-Archive kat-v1.24.0-x86_64-windows.zip .
-.\kat-v1.24.0-x86_64-windows\kat.exe
+$want = (Get-Content kat-v1.25.0-x86_64-windows.zip.sha256).Split(' ')[0]
+(Get-FileHash kat-v1.25.0-x86_64-windows.zip).Hash -eq $want    # True
+Expand-Archive kat-v1.25.0-x86_64-windows.zip .
+.\kat-v1.25.0-x86_64-windows\kat.exe
 ```
 
 The macOS binary isn't notarized, so macOS may block its first start; `xattr -d com.apple.quarantine kat` clears that. The Windows build isn't signed, so SmartScreen may stop its first start ("More info", then "Run anyway"). Intel Macs and other platforms build from source.
@@ -485,6 +485,7 @@ Protocol behavior and RF modulation (AM/FM) follow the ProtoPirate reference; pr
 | BMW CAS3 (FoxFW) | PWM | AM | AES rolling code (FoxFW encoder: replay of the saved frame) | 315 / 433.92 / 868 MHz |
 | Porsche Cayenne (ARF “Porsche AG”) | PWM | AM | VAG rolling register (encoder) | 315 / 433.92 / 868.35 MHz |
 | Subaru | PWM | AM | Rolling Code (encoder: counter + 1) | 315 / 433.92 MHz |
+| Subaru V1 (US 2012-2019) | Manchester | AM | Plaintext 20-bit counter + check byte (encoder: counter + 1) | 315 MHz |
 | VAG (VW/Audi/Seat/Skoda) | Manchester | AM | AUT64/XTEA (encoder: counter + 1, all types) | 315 / 433.92 / 434.42 MHz |
 | Scher-Khan (Magic Code, PRO1/PRO2) | PWM | AM/FM | Magic Code / PRO cipher + CRC (encoder) | 315 / 433.92 MHz |
 | Star Line | PWM | AM | KeeLoq (whole keystore searched; encoder: counter + 1) | 315 / 433.92 MHz |

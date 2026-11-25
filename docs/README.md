@@ -33,6 +33,7 @@ This folder describes how each keyfob and gate/garage remote protocol supported 
 | Chrysler V0 | `chrysler_v0.rs` | [chrysler_v0.md](chrysler_v0.md) |
 | GM (Chevrolet/Buick/GMC/Cadillac) | `gm.rs` | [gm.md](gm.md) |
 | Subaru | `subaru.rs` | [subaru.md](subaru.md) |
+| Subaru V1 (US 2012-2019 remote-head key) | `subaru_v1.rs` | [subaru_v1.md](subaru_v1.md) |
 | Toyota | `toyota.rs` | [toyota.md](toyota.md) |
 | VAG | `vag.rs` | [vag.md](vag.md) |
 | Fiat V0 | `fiat_v0.rs` | [fiat_v0.md](fiat_v0.md) |

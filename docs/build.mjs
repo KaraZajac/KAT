@@ -107,7 +107,9 @@ const fwSource = (e) => { const s = FW.sources[e.source]; return s?.url ? `<a hr
 const fwKind = (k) => (/VIN/.test(k) ? 'VIN' : /fob (table|record)/.test(k) ? 'fob records' : /constant/.test(k) ? 'manufacturer key'
   : /PIN/.test(k) ? 'PIN' : /immobili[sz]er/i.test(k) ? 'immobiliser code' : /key|master|ISN/i.test(k) ? 'keys' : k);
 const fwBlanked = (e) => [...new Set(e.files.flatMap((f) => f.redactions.map((r) => fwKind(r.kind))))];
-const fwFiles = (e) => e.files.map((f) => `<a href="${esc(f.href)}" download title="SHA-256 ${f.sha256}">${esc(f.region)}</a> <span class="dim">${size(f.size)}</span>`).join('<br>');
+// ?v=<content hash>: the site is behind Cloudflare, which keeps a static file's 404 (and old copies) for a day; a hash
+// query is its own cache key, and a changed file gets a new one.
+const fwFiles = (e) => e.files.map((f) => `<a href="${esc(f.href)}?v=${f.sha256.slice(0, 12)}" download title="SHA-256 ${f.sha256}">${esc(f.region)}</a> <span class="dim">${size(f.size)}</span>`).join('<br>');
 const fwLinks = (e) => (e.protocols ?? []).filter((p) => rendered.has(p)).map((p) => `<a href="${p}.html">${esc(titles.get(p) ?? p)}</a>`).join(', ');
 function fwTable(entries, { ids = false, source = false } = {}) {
   const rows = entries.map((e) => {

@@ -2,10 +2,7 @@ use std::{
     any::Any,
     ffi::c_void,
     ptr, slice,
-    sync::{
-        atomic::{AtomicPtr, Ordering},
-        Arc, Mutex,
-    },
+    sync::{Arc, Mutex},
 };
 
 mod enums;
@@ -63,12 +60,44 @@ pub struct ListedDevice {
 /// A HackRf device.
 #[derive(Clone)]
 pub struct HackRf {
+    // Dropped only when all user clones leave scope, stopping any forgotten stream before closing.
+    // Callback handles hold `None` here so dropping a callback clone cannot self-join libhackrf.
+    owner: Option<Arc<HackRfOwner>>,
     inner: Arc<HackRfInner>,
+}
+
+struct HackRfOwner {
+    inner: Arc<HackRfInner>,
+}
+
+struct ActiveTransfer {
+    ctx: *mut c_void,
+    drop_ctx: unsafe fn(*mut c_void),
+    is_tx: bool,
+}
+
+#[cfg(test)]
+type MockStartFn = Arc<dyn Fn(*mut ffi::HackrfDevice, *mut c_void) -> std::ffi::c_int + Send + Sync>;
+#[cfg(test)]
+type MockStopFn = Arc<dyn Fn(*mut ffi::HackrfDevice) -> std::ffi::c_int + Send + Sync>;
+
+#[cfg(test)]
+#[derive(Clone, Default)]
+pub(crate) struct MockHooks {
+    pub(crate) users: Arc<Mutex<usize>>,
+    pub(crate) events: Arc<Mutex<Vec<&'static str>>>,
+    pub(crate) start_rx: Option<MockStartFn>,
+    pub(crate) stop_rx: Option<MockStopFn>,
+    pub(crate) start_tx: Option<MockStartFn>,
+    pub(crate) stop_tx: Option<MockStopFn>,
 }
 
 struct HackRfInner {
     device: *mut ffi::HackrfDevice,
-    user_data: AtomicPtr<c_void>,
+    stream_op: Mutex<()>,
+    active: Mutex<Option<ActiveTransfer>>,
+    #[cfg(test)]
+    hooks: Option<MockHooks>,
 }
 
 impl HackRf {
@@ -91,14 +120,53 @@ impl HackRf {
             if device.is_null() {
                 return Err(HackrfError::NotFound);
             }
+            let inner = Arc::new(HackRfInner {
+                device,
+                stream_op: Mutex::new(()),
+                active: Mutex::new(None),
+                #[cfg(test)]
+                hooks: None,
+            });
             let hackrf = Self {
-                inner: Arc::new(HackRfInner {
-                    device,
-                    user_data: AtomicPtr::new(ptr::null_mut()),
-                }),
+                owner: Some(Arc::new(HackRfOwner {
+                    inner: Arc::clone(&inner),
+                })),
+                inner,
             };
             Ok((hackrf, true))
         })
+    }
+
+    pub(crate) fn callback_handle(&self) -> Self {
+        Self {
+            owner: None,
+            inner: Arc::clone(&self.inner),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn mock_for_test() -> (Self, MockHooks) {
+        Self::mock_with_hooks(MockHooks::default())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn mock_with_hooks(hooks: MockHooks) -> (Self, MockHooks) {
+        *hooks.users.lock().unwrap_or_else(|e| e.into_inner()) += 1;
+        let inner = Arc::new(HackRfInner {
+            device: ptr::null_mut(),
+            stream_op: Mutex::new(()),
+            active: Mutex::new(None),
+            hooks: Some(hooks.clone()),
+        });
+        (
+            Self {
+                owner: Some(Arc::new(HackRfOwner {
+                    inner: Arc::clone(&inner),
+                })),
+                inner,
+            },
+            hooks,
+        )
     }
 
     /// The HackRFs on USB, in libusb's order.
@@ -223,45 +291,83 @@ impl HackRf {
 
     /// Starts transmitting samples from the device.
     pub fn start_tx(&self, callback: TransmitCallback, user_data: impl Any) -> Result<()> {
-        let context = TransferContext::new(callback, self.clone(), Box::new(user_data));
-        let callback = Box::leak(Box::new(context)) as *mut _ as *mut _;
-        self.inner.user_data.store(callback, Ordering::Relaxed);
-
-        unsafe { HackrfError::from_id(ffi::hackrf_start_tx(self.device(), tx_callback, callback)) }
+        self.start_transfer::<TransmitCallback>(true, callback, Box::new(user_data))
     }
 
     /// Stops the current transmit operation.
     pub fn stop_tx(&self) -> Result<()> {
         // Stop first: libhackrf cancels the transfers and waits for them, so the callback can no
         // longer run when the context is freed.
-        let result = unsafe { HackrfError::from_id(ffi::hackrf_stop_tx(self.device())) };
-        self.free_transfer_context::<TransmitCallback>();
-        result
+        self.stop_transfer(true)
     }
 
     /// Starts receiving samples from the device.
     pub fn start_rx(&self, callback: ReceiveCallback, user_data: impl Any + Sync) -> Result<()> {
-        let context = TransferContext::new(callback, self.clone(), Box::new(user_data));
-        let callback = Box::leak(Box::new(context)) as *mut _ as *mut _;
-        self.inner.user_data.store(callback, Ordering::Relaxed);
-
-        unsafe { HackrfError::from_id(ffi::hackrf_start_rx(self.device(), rx_callback, callback)) }
+        self.start_transfer::<ReceiveCallback>(false, callback, Box::new(user_data))
     }
 
     /// Stops the current receive operation.
     pub fn stop_rx(&self) -> Result<()> {
         // Stop first (see `stop_tx`), then free the callback context.
-        let result = unsafe { HackrfError::from_id(ffi::hackrf_stop_rx(self.device())) };
-        self.free_transfer_context::<ReceiveCallback>();
+        self.stop_transfer(false)
+    }
+
+    fn start_transfer<Callback>(&self, is_tx: bool, callback: Callback, user_data: Box<dyn Any>) -> Result<()>
+    where
+        Callback: 'static,
+    {
+        if self.owner.is_none() {
+            return Err(HackrfError::InvalidParam);
+        }
+
+        let mut failed_ctx = None;
+        let result = {
+            let _op = self.inner.stream_op.lock().unwrap_or_else(|e| e.into_inner());
+            let mut active = self.inner.active.lock().unwrap_or_else(|e| e.into_inner());
+            if active.is_some() {
+                return Err(HackrfError::Busy);
+            }
+            let context = TransferContext::new(callback, self.callback_handle(), user_data);
+            let ctx_ptr = Box::into_raw(Box::new(context)) as *mut c_void;
+            *active = Some(ActiveTransfer {
+                ctx: ctx_ptr,
+                drop_ctx: drop_transfer_context::<Callback>,
+                is_tx,
+            });
+            drop(active);
+
+            let res = HackrfError::from_id(start_stream_ffi(&self.inner, is_tx, ctx_ptr));
+            if res.is_err() {
+                let _ = stop_stream_ffi(&self.inner, is_tx);
+                failed_ctx = self.take_transfer_context(Some(is_tx));
+            }
+            res
+        };
+        if let Some(transfer) = failed_ctx {
+            unsafe { (transfer.drop_ctx)(transfer.ctx) };
+        }
         result
     }
 
-    /// Free the context `start_rx`/`start_tx` leaked for the transfer callbacks, as its real type
-    /// (which drops the user data). Only call once streaming has stopped.
-    fn free_transfer_context<Callback>(&self) {
-        let context = self.inner.user_data.swap(ptr::null_mut(), Ordering::AcqRel);
-        if !context.is_null() {
-            drop(unsafe { Box::from_raw(context as *mut TransferContext<Callback>) });
+    fn stop_transfer(&self, is_tx: bool) -> Result<()> {
+        let (result, taken) = {
+            let _op = self.inner.stream_op.lock().unwrap_or_else(|e| e.into_inner());
+            let result = HackrfError::from_id(stop_stream_ffi(&self.inner, is_tx));
+            let taken = self.take_transfer_context(Some(is_tx));
+            (result, taken)
+        };
+        if let Some(transfer) = taken {
+            unsafe { (transfer.drop_ctx)(transfer.ctx) };
+        }
+        result
+    }
+
+    fn take_transfer_context(&self, expect_is_tx: Option<bool>) -> Option<ActiveTransfer> {
+        let mut active = self.inner.active.lock().unwrap_or_else(|e| e.into_inner());
+        match (&*active, expect_is_tx) {
+            (Some(t), Some(expected)) if t.is_tx != expected => None,
+            (Some(_), _) => active.take(),
+            (None, _) => None,
         }
     }
 
@@ -279,16 +385,176 @@ impl HackRf {
     }
 }
 
+unsafe fn drop_transfer_context<Callback>(ctx: *mut c_void) {
+    if !ctx.is_null() {
+        drop(Box::from_raw(ctx as *mut TransferContext<Callback>));
+    }
+}
+
+fn start_stream_ffi(inner: &HackRfInner, is_tx: bool, ctx: *mut c_void) -> std::ffi::c_int {
+    #[cfg(test)]
+    if let Some(h) = &inner.hooks {
+        h.events
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(if is_tx { "start_tx" } else { "start_rx" });
+        let f = if is_tx { &h.start_tx } else { &h.start_rx };
+        return f.as_ref().map_or(0, |cb| cb(inner.device, ctx));
+    }
+    unsafe {
+        if is_tx {
+            ffi::hackrf_start_tx(inner.device, tx_callback, ctx)
+        } else {
+            ffi::hackrf_start_rx(inner.device, rx_callback, ctx)
+        }
+    }
+}
+
+fn stop_stream_ffi(inner: &HackRfInner, is_tx: bool) -> std::ffi::c_int {
+    #[cfg(test)]
+    if let Some(h) = &inner.hooks {
+        h.events
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(if is_tx { "stop_tx" } else { "stop_rx" });
+        let f = if is_tx { &h.stop_tx } else { &h.stop_rx };
+        return f.as_ref().map_or(0, |cb| cb(inner.device));
+    }
+    unsafe {
+        if is_tx {
+            ffi::hackrf_stop_tx(inner.device)
+        } else {
+            ffi::hackrf_stop_rx(inner.device)
+        }
+    }
+}
+
 unsafe impl Send for HackRfInner {}
 unsafe impl Sync for HackRfInner {}
 
-impl Drop for HackRf {
+impl Drop for HackRfOwner {
     fn drop(&mut self) {
+        let taken = {
+            let _op = self.inner.stream_op.lock().unwrap_or_else(|e| e.into_inner());
+            let taken = self.inner.active.lock().unwrap_or_else(|e| e.into_inner()).take();
+            if let Some(ref transfer) = taken {
+                let _ = stop_stream_ffi(&self.inner, transfer.is_tx);
+            }
+            taken
+        };
+        if let Some(transfer) = taken {
+            unsafe { (transfer.drop_ctx)(transfer.ctx) };
+        }
+    }
+}
+
+impl Drop for HackRfInner {
+    fn drop(&mut self) {
+        #[cfg(test)]
+        if let Some(h) = &self.hooks {
+            let mut users = h.users.lock().unwrap_or_else(|e| e.into_inner());
+            h.events.lock().unwrap_or_else(|e| e.into_inner()).push("close");
+            *users = users.saturating_sub(1);
+            if *users == 0 {
+                h.events.lock().unwrap_or_else(|e| e.into_inner()).push("exit");
+            }
+            return;
+        }
         let mut users = library_users();
-        let _ = unsafe { HackrfError::from_id(ffi::hackrf_close(self.device())) };
+        let _ = unsafe { HackrfError::from_id(ffi::hackrf_close(self.device)) };
         *users = users.saturating_sub(1);
         if *users == 0 {
             let _ = unsafe { HackrfError::from_id(ffi::hackrf_exit()) };
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct DropProbe {
+        events: Arc<Mutex<Vec<&'static str>>>,
+    }
+
+    impl Drop for DropProbe {
+        fn drop(&mut self) {
+            self.events.lock().unwrap().push("drop_user");
+        }
+    }
+
+    #[test]
+    fn clones_close_and_exit_only_once_on_last_drop() {
+        let (h1, hooks) = HackRf::mock_for_test();
+        let h2 = h1.clone();
+        assert_eq!(*hooks.users.lock().unwrap(), 1);
+        drop(h2);
+        assert!(hooks.events.lock().unwrap().is_empty(), "dropping clone must not close device");
+        assert_eq!(*hooks.users.lock().unwrap(), 1);
+        drop(h1);
+        assert_eq!(*hooks.events.lock().unwrap(), ["close", "exit"]);
+        assert_eq!(*hooks.users.lock().unwrap(), 0);
+    }
+
+    #[test]
+    fn start_rx_error_frees_context_and_allows_retry() {
+        let hooks = MockHooks {
+            start_rx: Some(Arc::new(|_, _| HackrfError::Libusb as i32)),
+            ..Default::default()
+        };
+        let (h, hooks) = HackRf::mock_with_hooks(hooks);
+        let cb: ReceiveCallback = |_, _, _| {};
+        let err = h.start_rx(cb, DropProbe { events: hooks.events.clone() }).unwrap_err();
+        assert!(matches!(err, HackrfError::Libusb));
+        assert_eq!(*hooks.events.lock().unwrap(), ["start_rx", "stop_rx", "drop_user"]);
+        assert!(h.inner.active.lock().unwrap().is_none());
+
+        drop(h);
+        assert_eq!(
+            *hooks.events.lock().unwrap(),
+            ["start_rx", "stop_rx", "drop_user", "close", "exit"]
+        );
+    }
+
+    #[test]
+    fn stop_frees_only_matching_transfer_and_second_start_refuses() {
+        let (h, hooks) = HackRf::mock_for_test();
+        let rx_cb: ReceiveCallback = |_, _, _| {};
+        let tx_cb: TransmitCallback = |_, _, _| {};
+
+        h.start_rx(rx_cb, DropProbe { events: hooks.events.clone() }).unwrap();
+        assert!(matches!(h.start_rx(rx_cb, ()), Err(HackrfError::Busy)));
+        assert!(matches!(h.start_tx(tx_cb, ()), Err(HackrfError::Busy)));
+
+        // Calling stop_tx while RX is active must not free RX's TransferContext.
+        h.stop_tx().unwrap();
+        assert_eq!(*hooks.events.lock().unwrap(), ["start_rx", "stop_tx"]);
+
+        h.stop_rx().unwrap();
+        assert_eq!(*hooks.events.lock().unwrap(), ["start_rx", "stop_tx", "stop_rx", "drop_user"]);
+
+        drop(h);
+        assert_eq!(
+            *hooks.events.lock().unwrap(),
+            ["start_rx", "stop_tx", "stop_rx", "drop_user", "close", "exit"]
+        );
+    }
+
+    #[test]
+    fn drop_while_streaming_stops_before_closing_and_refuses_callback_handle_start() {
+        let (h, hooks) = HackRf::mock_for_test();
+        let cb_handle = h.callback_handle();
+        let tx_cb: TransmitCallback = |_, _, _| {};
+        assert!(matches!(cb_handle.start_tx(tx_cb, ()), Err(HackrfError::InvalidParam)));
+
+        h.start_tx(tx_cb, DropProbe { events: hooks.events.clone() }).unwrap();
+        drop(cb_handle);
+        assert_eq!(*hooks.events.lock().unwrap(), ["start_tx"]);
+
+        drop(h);
+        assert_eq!(
+            *hooks.events.lock().unwrap(),
+            ["start_tx", "stop_tx", "drop_user", "close", "exit"]
+        );
     }
 }

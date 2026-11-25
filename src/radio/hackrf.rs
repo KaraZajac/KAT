@@ -76,7 +76,7 @@ pub fn find_devices() -> (Vec<FoundRadio>, Option<String>) {
         .filter_map(|d| d.serial.clone().filter(|s| !s.is_empty()))
         .map(|s| FoundRadio::hackrf(Some(s)))
         .collect();
-    let unreadable = listed.len() - found.len();
+    let unreadable = listed.len().saturating_sub(found.len());
     if found.is_empty() {
         // None listed with a serial: what opening the first one says (a firmware without a serial
         // number still opens), as before KAT used more than one radio.
@@ -146,7 +146,13 @@ impl HackRfController {
             return Ok(());
         }
 
-        *self.frequency.lock().unwrap() = frequency;
+        // If an earlier RX session stopped on its own (e.g. unplug error) without stop_receiving(),
+        // ensure its thread has exited and dropped its HackRf handle before reopening the device.
+        if let Some(handle) = self.rx_thread.take() {
+            let _ = handle.join();
+        }
+
+        *self.frequency.lock().unwrap_or_else(|e| e.into_inner()) = frequency;
         self.live.home.store(frequency, Ordering::SeqCst);
         self.receiving.store(true, Ordering::SeqCst);
 
@@ -196,7 +202,7 @@ impl HackRfController {
 
     /// Set the receive frequency
     pub fn set_frequency(&mut self, frequency: u32) -> Result<()> {
-        *self.frequency.lock().unwrap() = frequency;
+        *self.frequency.lock().unwrap_or_else(|e| e.into_inner()) = frequency;
         self.live.home.store(frequency, Ordering::SeqCst);
         self.live.target.store(frequency, Ordering::SeqCst);
         tracing::info!("Set frequency to {} Hz", frequency);
@@ -234,7 +240,7 @@ impl HackRfController {
 
         // Resume receiving if we were before (also after a failed transmission)
         if was_receiving {
-            let freq = *self.frequency.lock().unwrap();
+            let freq = *self.frequency.lock().unwrap_or_else(|e| e.into_inner());
             self.start_receiving(freq)?;
         }
 
@@ -244,27 +250,21 @@ impl HackRfController {
     /// Set LNA gain (0-40 dB, 8 dB steps)
     pub fn set_lna_gain(&mut self, gain: u32) -> Result<()> {
         tracing::info!("Set LNA gain to {} dB", gain);
-        if let Ok(mut settings) = self.gain_settings.lock() {
-            settings.lna_gain = gain;
-        }
+        self.gain_settings.lock().unwrap_or_else(|e| e.into_inner()).lna_gain = gain;
         Ok(())
     }
 
     /// Set VGA gain (0-62 dB, 2 dB steps)
     pub fn set_vga_gain(&mut self, gain: u32) -> Result<()> {
         tracing::info!("Set VGA gain to {} dB", gain);
-        if let Ok(mut settings) = self.gain_settings.lock() {
-            settings.vga_gain = gain;
-        }
+        self.gain_settings.lock().unwrap_or_else(|e| e.into_inner()).vga_gain = gain;
         Ok(())
     }
 
     /// Enable/disable the RF amplifier
     pub fn set_amp_enable(&mut self, enabled: bool) -> Result<()> {
         tracing::info!("Set amp enable to {}", enabled);
-        if let Ok(mut settings) = self.gain_settings.lock() {
-            settings.amp_enabled = enabled;
-        }
+        self.gain_settings.lock().unwrap_or_else(|e| e.into_inner()).amp_enabled = enabled;
         Ok(())
     }
 }
@@ -385,7 +385,7 @@ impl RxState {
     fn dispatch(&self, bytes: &[u8], split: Option<(u32, u64, u64)>) {
         match split {
             Some((target, split, blank)) => {
-                let split = ((split * 2) as usize).min(bytes.len());
+                let split = usize::try_from(split.saturating_mul(2)).unwrap_or(bytes.len()).min(bytes.len());
                 self.queue_samples(&bytes[..split]);
                 // Never lost (captures would carry the wrong frequency): wait for room if needed.
                 let _ = self.queue.send(RxMsg::Retuned { target, blank });
@@ -404,6 +404,29 @@ impl RxState {
             tracing::warn!("HackRF RX: processing fell behind, {} samples dropped", bytes.len() / 2);
         }
     }
+    fn process_buffer(&self, buffer: &[num_complex::Complex<i8>], arrived: std::time::Instant) {
+        if !self.live.receiving.load(Ordering::SeqCst) {
+            return;
+        }
+        // SAFETY: `Complex<i8>` is `#[repr(C)] { re: i8, im: i8 }` (no padding), so the buffer is
+        // `2 * len` interleaved I/Q bytes, exactly what hackrf_transfer writes to a .cs8 file.
+        let bytes = unsafe { std::slice::from_raw_parts(buffer.as_ptr() as *const u8, buffer.len() * 2) };
+        self.live.record(bytes);
+        let start = self.retune.clock.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let end = start.saturating_add(buffer.len() as u64);
+        let split = {
+            let mut m = self.retune.marker.lock().unwrap_or_else(|e| e.into_inner());
+            match *m {
+                Some((target, boundary)) => retune_split(start, buffer.len() as u64, boundary).map(|(split, blank)| {
+                    *m = None;
+                    (target, split, blank)
+                }),
+                None => None,
+            }
+        };
+        self.dispatch(bytes, split);
+        *self.retune.clock.lock().unwrap_or_else(|e| e.into_inner()) = (end, arrived);
+    }
 }
 
 /// RX callback: record the raw buffer if recording, and queue it for the processing thread (which
@@ -416,33 +439,8 @@ fn rx_callback(
     user_data: &dyn std::any::Any,
 ) {
     let arrived = std::time::Instant::now();
-    let state = match user_data.downcast_ref::<RxState>() {
-        Some(s) => s,
-        None => return,
-    };
-    if state.live.receiving.load(Ordering::SeqCst) {
-        // SAFETY: `Complex<i8>` is `#[repr(C)] { re: i8, im: i8 }` (no padding), so the buffer is
-        // `2 * len` interleaved I/Q bytes, exactly what hackrf_transfer writes to a .cs8 file.
-        let bytes = unsafe { std::slice::from_raw_parts(buffer.as_ptr() as *const u8, buffer.len() * 2) };
-        state.live.record(bytes);
-        let start = state.retune.clock.lock().map(|c| c.0).unwrap_or(0);
-        let end = start + buffer.len() as u64;
-        let split = match state.retune.marker.lock() {
-            Ok(mut m) => match *m {
-                Some((target, boundary)) => {
-                    retune_split(start, buffer.len() as u64, boundary).map(|(split, blank)| {
-                        *m = None;
-                        (target, split, blank)
-                    })
-                }
-                None => None,
-            },
-            Err(_) => None,
-        };
-        state.dispatch(bytes, split);
-        if let Ok(mut c) = state.retune.clock.lock() {
-            *c = (end, arrived);
-        }
+    if let Some(state) = user_data.downcast_ref::<RxState>() {
+        state.process_buffer(buffer, arrived);
     }
 }
 
@@ -462,7 +460,7 @@ fn run_receiver_hackrf(
 
     let freq = live.start_frequency();
     live.target.store(freq, Ordering::SeqCst);
-    let initial_gains = *gain_settings.lock().unwrap();
+    let initial_gains = *gain_settings.lock().unwrap_or_else(|e| e.into_inner());
     tracing::info!(
         "Configuring HackRF: target={} Hz (LO {} Hz), sample_rate={} Hz, LNA={} dB, VGA={} dB, AMP={}",
         freq, lo_for(freq, SAMPLE_RATE), SAMPLE_RATE, initial_gains.lna_gain, initial_gains.vga_gain, initial_gains.amp_enabled
@@ -493,7 +491,7 @@ fn run_receiver_hackrf(
     let (queue, queued) = std::sync::mpsc::sync_channel::<RxMsg>(RX_QUEUE_BUFFERS);
     let state = RxState { live: live.clone(), queue, retune: retune.clone() };
 
-    // Start receiving
+    // Start receiving (libhackrf cleans up its callback context itself on failure).
     hackrf.start_rx(rx_callback, state)
         .context("Failed to start RX")?;
 
@@ -533,10 +531,10 @@ fn run_receiver_hackrf(
             let t = std::time::Instant::now();
             match hackrf.set_freq(lo_for(req, SAMPLE_RATE) as u64) {
                 Ok(()) => {
-                    let (end, at) = *retune.clock.lock().unwrap();
+                    let (end, at) = *retune.clock.lock().unwrap_or_else(|e| e.into_inner());
                     let elapsed = t.saturating_duration_since(at).as_secs_f64();
-                    let boundary = end + (elapsed * SAMPLE_RATE as f64) as u64;
-                    *retune.marker.lock().unwrap() = Some((req, boundary));
+                    let boundary = end.saturating_add((elapsed * SAMPLE_RATE as f64) as u64);
+                    *retune.marker.lock().unwrap_or_else(|e| e.into_inner()) = Some((req, boundary));
                     tracing::debug!("Retuned to {} Hz (LO {} Hz)", req, lo_for(req, SAMPLE_RATE));
                 }
                 Err(e) => {
@@ -558,34 +556,33 @@ fn run_receiver_hackrf(
         }
         let mut changed = false;
 
-        // Check for gain/amp setting changes and apply them live
-        if let Ok(current) = gain_settings.lock() {
-            if current.lna_gain != applied.lna_gain {
-                if let Err(e) = hackrf.set_lna_gain(current.lna_gain) {
-                    tracing::warn!("Failed to set LNA gain to {}: {:?}", current.lna_gain, e);
-                } else {
-                    tracing::info!("Applied LNA gain: {} dB", current.lna_gain);
-                    applied.lna_gain = current.lna_gain;
-                    changed = true;
-                }
+        // Check for gain/amp setting changes and apply them live without holding the lock across USB I/O.
+        let current = *gain_settings.lock().unwrap_or_else(|e| e.into_inner());
+        if current.lna_gain != applied.lna_gain {
+            if let Err(e) = hackrf.set_lna_gain(current.lna_gain) {
+                tracing::warn!("Failed to set LNA gain to {}: {:?}", current.lna_gain, e);
+            } else {
+                tracing::info!("Applied LNA gain: {} dB", current.lna_gain);
+                applied.lna_gain = current.lna_gain;
+                changed = true;
             }
-            if current.vga_gain != applied.vga_gain {
-                if let Err(e) = hackrf.set_rxvga_gain(current.vga_gain) {
-                    tracing::warn!("Failed to set VGA gain to {}: {:?}", current.vga_gain, e);
-                } else {
-                    tracing::info!("Applied VGA gain: {} dB", current.vga_gain);
-                    applied.vga_gain = current.vga_gain;
-                    changed = true;
-                }
+        }
+        if current.vga_gain != applied.vga_gain {
+            if let Err(e) = hackrf.set_rxvga_gain(current.vga_gain) {
+                tracing::warn!("Failed to set VGA gain to {}: {:?}", current.vga_gain, e);
+            } else {
+                tracing::info!("Applied VGA gain: {} dB", current.vga_gain);
+                applied.vga_gain = current.vga_gain;
+                changed = true;
             }
-            if current.amp_enabled != applied.amp_enabled {
-                if let Err(e) = hackrf.set_amp_enable(current.amp_enabled) {
-                    tracing::warn!("Failed to set amp to {}: {:?}", current.amp_enabled, e);
-                } else {
-                    tracing::info!("Applied amp: {}", if current.amp_enabled { "ON" } else { "OFF" });
-                    applied.amp_enabled = current.amp_enabled;
-                    changed = true;
-                }
+        }
+        if current.amp_enabled != applied.amp_enabled {
+            if let Err(e) = hackrf.set_amp_enable(current.amp_enabled) {
+                tracing::warn!("Failed to set amp to {}: {:?}", current.amp_enabled, e);
+            } else {
+                tracing::info!("Applied amp: {}", if current.amp_enabled { "ON" } else { "OFF" });
+                applied.amp_enabled = current.amp_enabled;
+                changed = true;
             }
         }
         if changed {
@@ -654,7 +651,7 @@ impl HackRfController {
 
     /// A recording that ended because RX stopped (reported once).
     pub fn take_ended_recording(&mut self) -> Option<RecordingSummary> {
-        self.live.ended_recording.lock().ok().and_then(|mut g| g.take())
+        self.live.ended_recording.lock().unwrap_or_else(|e| e.into_inner()).take()
     }
 }
 
@@ -729,10 +726,9 @@ fn transmit_signal_hackrf(
     hackrf.set_txvga_gain(vga_gain).context("Failed to set TXVGA gain")?;
     hackrf.set_amp_enable(settings.amp).context("Failed to set amp")?;
 
-    if let Err(e) = hackrf.start_tx(tx_callback, TxState { stream: Arc::clone(&stream) }) {
-        let _ = hackrf.stop_tx(); // frees the callback context the wrapper already registered
-        return Err(anyhow::Error::new(e).context("Failed to start TX"));
-    }
+    hackrf
+        .start_tx(tx_callback, TxState { stream: Arc::clone(&stream) })
+        .context("Failed to start TX")?;
 
     // Wait until the buffer holding the last sample has left the host (callback progress), then
     // for the device's own buffer to drain. The timeout only guards against a stalled stream.
@@ -807,6 +803,69 @@ mod rx_tests {
             state.dispatch(&b, None); // the 4th finds the queue (3) full: dropped, doesn't block
         }
         assert_eq!(rx.try_iter().count(), 3);
+    }
+
+    fn poison_mutex<T: Send>(m: &Mutex<T>) {
+        std::thread::scope(|s| {
+            let _ = s
+                .spawn(|| {
+                    let _guard = m.lock().unwrap();
+                    panic!("intentional test poison");
+                })
+                .join();
+        });
+    }
+
+    #[test]
+    fn poisoned_controller_and_retune_locks_recover() {
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let mut ctl = HackRfController::new(tx, None);
+        ctl.hackrf_available = false;
+
+        poison_mutex(&ctl.frequency);
+        poison_mutex(&ctl.gain_settings);
+        poison_mutex(&ctl.live.ended_recording);
+
+        ctl.set_frequency(868_350_000).unwrap();
+        ctl.set_lna_gain(32).unwrap();
+        ctl.set_vga_gain(28).unwrap();
+        ctl.set_amp_enable(true).unwrap();
+        assert!(ctl.take_ended_recording().is_none());
+
+        ctl.start_receiving(868_350_000).unwrap();
+        let tx_settings = crate::radio::tx::TxSettings {
+            modulation: crate::radio::preset::TxModulation::Ook,
+            vga_gain: 20,
+            amp: false,
+        };
+        ctl.transmit(&[], 868_350_000, &tx_settings).unwrap();
+        ctl.stop_receiving().unwrap();
+
+        // Simulate RX thread exiting on its own without stop_receiving(), then restarting RX.
+        ctl.start_receiving(433_920_000).unwrap();
+        ctl.receiving.store(false, Ordering::SeqCst);
+        ctl.start_receiving(315_000_000).unwrap();
+        assert!(ctl.rx_thread.is_some());
+        ctl.stop_receiving().unwrap();
+
+        // RxState::process_buffer with poisoned RetuneSync locks.
+        let (queue, rx) = std::sync::mpsc::sync_channel(8);
+        let live = Arc::new(LiveShared::new(Arc::new(AtomicBool::new(true)), Arc::new(AtomicU32::new(0)), 433_920_000));
+        let retune = Arc::new(RetuneSync {
+            clock: Mutex::new((100_000, std::time::Instant::now())),
+            marker: Mutex::new(Some((868_350_000, 150_000))),
+        });
+        poison_mutex(&retune.clock);
+        poison_mutex(&retune.marker);
+
+        let state = RxState { live, queue, retune: retune.clone() };
+        let samples = vec![num_complex::Complex::new(1i8, -1i8); 131_072];
+        state.process_buffer(&samples, std::time::Instant::now());
+
+        let msgs: Vec<RxMsg> = rx.try_iter().collect();
+        assert!(matches!(msgs.as_slice(), [RxMsg::Samples(_), RxMsg::Retuned { target: 868_350_000, .. }, RxMsg::Samples(_)]));
+        assert_eq!(retune.clock.lock().unwrap_or_else(|e| e.into_inner()).0, 231_072);
+        assert!(retune.marker.lock().unwrap_or_else(|e| e.into_inner()).is_none());
     }
 
     /// Hardware check, RECEIVE ONLY (nothing here can transmit): KAT's HackRF receive path with

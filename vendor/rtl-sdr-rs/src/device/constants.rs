@@ -275,3 +275,6 @@ pub const CTRL_IN: u8 =
 pub const CTRL_OUT: u8 =
     rusb::constants::LIBUSB_ENDPOINT_OUT | rusb::constants::LIBUSB_REQUEST_TYPE_VENDOR;
 pub const CTRL_TIMEOUT: Duration = Duration::from_millis(300);
+/// Finite timeout for synchronous USB bulk reads so a stalled dongle cannot deadlock
+/// shutdown or thread joins (`Duration::ZERO` means infinite timeout in libusb).
+pub const BULK_TIMEOUT: Duration = Duration::from_millis(500);

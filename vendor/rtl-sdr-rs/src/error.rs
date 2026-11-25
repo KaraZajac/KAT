@@ -16,6 +16,18 @@ pub enum RtlsdrError {
     UnknownTuner,
 }
 
+impl RtlsdrError {
+    /// Returns true when the underlying USB transfer timed out.
+    pub fn is_timeout(&self) -> bool {
+        matches!(self, RtlsdrError::Usb(rusb::Error::Timeout))
+    }
+
+    /// Construct a USB timeout error without requiring callers to depend on `rusb` directly.
+    pub fn timeout() -> Self {
+        RtlsdrError::Usb(rusb::Error::Timeout)
+    }
+}
+
 impl fmt::Display for RtlsdrError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {

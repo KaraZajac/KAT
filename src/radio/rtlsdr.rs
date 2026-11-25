@@ -157,7 +157,14 @@ impl RtlSdrController {
             return Ok(());
         }
 
-        *self.frequency.lock().unwrap() = frequency;
+        // If an earlier RX session stopped on its own (e.g. open failure, unplug, or stall)
+        // without stop_receiving(), ensure its thread has exited and closed the USB device
+        // before spawning a new one.
+        if let Some(handle) = self.rx_thread.take() {
+            let _ = handle.join();
+        }
+
+        *self.frequency.lock().unwrap_or_else(|e| e.into_inner()) = frequency;
         self.live.home.store(frequency, Ordering::SeqCst);
         self.receiving.store(true, Ordering::SeqCst);
 
@@ -206,7 +213,7 @@ impl RtlSdrController {
 
     /// Set the receive frequency.
     pub fn set_frequency(&mut self, frequency: u32) -> Result<()> {
-        *self.frequency.lock().unwrap() = frequency;
+        *self.frequency.lock().unwrap_or_else(|e| e.into_inner()) = frequency;
         self.live.home.store(frequency, Ordering::SeqCst);
         self.live.target.store(frequency, Ordering::SeqCst);
         tracing::info!("Set RTL-SDR frequency to {} Hz", frequency);
@@ -227,16 +234,18 @@ impl RtlSdrController {
                 .map(|g| format!("{} dB", g as f32 / 10.0))
                 .unwrap_or_else(|| "auto".to_string())
         );
-        if let Ok(mut settings) = self.gain_settings.lock() {
-            settings.gain_tenths_db = gain_tenths_db;
-        }
+        self.gain_settings
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .gain_tenths_db = gain_tenths_db;
         Ok(())
     }
 
     /// The tuner gain in dB: KAT's VGA setting (`:vga`, `vga_gain`, the Gain tab). The tuner takes
     /// its next gain step from there (an R820T has about 50 dB).
     pub fn set_gain(&mut self, gain: u32) -> Result<()> {
-        self.set_tuner_gain_tenths_db(Some((gain * 10) as i32))
+        let tenths = gain.saturating_mul(10).min(i32::MAX as u32) as i32;
+        self.set_tuner_gain_tenths_db(Some(tenths))
     }
 }
 
@@ -307,6 +316,43 @@ fn run_demo_receiver(
 const READ_LEN: usize = 65_536;
 /// Bytes read and discarded right after a retune (PLL settling, ~4 ms at 2 MS/s).
 const RETUNE_FLUSH_LEN: usize = 16_384;
+/// Consecutive bulk-read timeouts (500 ms each in rtl-sdr-rs) before treating the dongle as stalled.
+const MAX_CONSECUTIVE_TIMEOUTS: u32 = 6;
+
+#[derive(Debug, PartialEq, Eq)]
+enum ReadAction {
+    Data(usize),
+    Continue,
+    StopClean,
+    Fail,
+}
+
+fn classify_read_result(
+    result: std::result::Result<usize, &RtlsdrError>,
+    receiving: bool,
+    consecutive_timeouts: &mut u32,
+) -> ReadAction {
+    match result {
+        Ok(n) if n > 0 => {
+            *consecutive_timeouts = 0;
+            ReadAction::Data(n)
+        }
+        Ok(_) => ReadAction::Continue,
+        Err(e) if e.is_timeout() => {
+            if !receiving {
+                ReadAction::StopClean
+            } else {
+                *consecutive_timeouts = consecutive_timeouts.saturating_add(1);
+                if *consecutive_timeouts >= MAX_CONSECUTIVE_TIMEOUTS {
+                    ReadAction::Fail
+                } else {
+                    ReadAction::Continue
+                }
+            }
+        }
+        Err(_) => ReadAction::Fail,
+    }
+}
 
 /// Run the receiver with an RTL-SDR device: this thread reads (and retunes between reads); a
 /// processing thread runs the pipeline on the tagged buffers.
@@ -328,7 +374,7 @@ fn run_receiver_rtlsdr(
 
     let freq = live.start_frequency();
     live.target.store(freq, Ordering::SeqCst);
-    let initial_gain = *gain_settings.lock().unwrap();
+    let initial_gain = *gain_settings.lock().unwrap_or_else(|e| e.into_inner());
 
     sdr.reset_buffer().context("Failed to reset RTL-SDR buffer")?;
     sdr.set_center_freq(lo_for(freq, SAMPLE_RATE)).context("Failed to set RTL-SDR frequency")?;
@@ -368,6 +414,7 @@ fn run_receiver_rtlsdr(
     let mut tag = freq;
     let mut blank = 0u64;
     let mut gain_check = std::time::Instant::now();
+    let mut consecutive_timeouts = 0u32;
     // A failed read ends RX, as in rtl_sdr's sync loop ("sync read failed", break): an unplugged
     // dongle fails every read at once, which used to spin here and flood kat.log.
     let mut failed = None;
@@ -379,6 +426,9 @@ fn run_receiver_rtlsdr(
                     // Samples already in the USB pipeline are from the old frequency: drop some.
                     let mut flush = vec![0u8; RETUNE_FLUSH_LEN];
                     let _ = sdr.read_sync(&mut flush);
+                    if !live.receiving.load(Ordering::SeqCst) {
+                        break;
+                    }
                     tag = req;
                     blank = SAMPLE_RATE as u64 / 500; // and 2 ms more for the PLL
                 }
@@ -390,7 +440,7 @@ fn run_receiver_rtlsdr(
         }
         if gain_check.elapsed() >= std::time::Duration::from_millis(100) {
             gain_check = std::time::Instant::now();
-            let g = *gain_settings.lock().unwrap();
+            let g = *gain_settings.lock().unwrap_or_else(|e| e.into_inner());
             if g.gain_tenths_db != applied {
                 match apply_gain(&mut sdr, g) {
                     Ok(()) => {
@@ -402,8 +452,13 @@ fn run_receiver_rtlsdr(
             }
         }
         let mut buf = vec![0u8; READ_LEN];
-        match sdr.read_sync(&mut buf) {
-            Ok(n) if n > 0 => {
+        let read_res = sdr.read_sync(&mut buf);
+        match classify_read_result(
+            read_res.as_ref().map(|&n| n),
+            live.receiving.load(Ordering::SeqCst),
+            &mut consecutive_timeouts,
+        ) {
+            ReadAction::Data(n) => {
                 buf.truncate(n);
                 live.record(&buf);
                 if buf_tx.send((buf, tag, blank)).is_err() {
@@ -411,9 +466,18 @@ fn run_receiver_rtlsdr(
                 }
                 blank = 0;
             }
-            Ok(_) => {}
-            Err(e) => {
-                failed = Some(e);
+            ReadAction::Continue => {
+                if let Err(ref e) = read_res {
+                    tracing::debug!(
+                        "RTL-SDR bulk read timed out ({consecutive_timeouts}/{MAX_CONSECUTIVE_TIMEOUTS}): {e}"
+                    );
+                }
+            }
+            ReadAction::StopClean => {
+                break;
+            }
+            ReadAction::Fail => {
+                failed = read_res.err();
                 break;
             }
         }
@@ -423,6 +487,9 @@ fn run_receiver_rtlsdr(
     let _ = processor.join();
     if let Some(e) = failed {
         let _ = sdr.close();
+        if e.is_timeout() {
+            anyhow::bail!("RTL-SDR read timed out repeatedly ({e}): device stalled or disconnected");
+        }
         anyhow::bail!("RTL-SDR read failed ({e}): unplugged, or a USB error");
     }
     sdr.close().context("Failed to close RTL-SDR")?;
@@ -503,5 +570,111 @@ mod tests {
         let words = format!("{:#}", open_error(RtlsdrError::UnknownTuner));
         assert!(words.contains("R820T") && words.contains("R828D"), "{words}");
         assert_eq!(words.contains("FC0013"), cfg!(feature = "gpl-tuners"), "{words}");
+    }
+
+    #[test]
+    fn read_timeout_stops_cleanly_when_not_receiving() {
+        let timeout = RtlsdrError::timeout();
+        let mut consecutive_timeouts = 0;
+        assert_eq!(
+            classify_read_result(Err(&timeout), false, &mut consecutive_timeouts),
+            ReadAction::StopClean
+        );
+        assert_eq!(consecutive_timeouts, 0);
+    }
+
+    #[test]
+    fn read_timeout_retries_then_fails_on_persistent_stall() {
+        let timeout = RtlsdrError::timeout();
+        let mut consecutive_timeouts = 0;
+
+        for expected in 1..MAX_CONSECUTIVE_TIMEOUTS {
+            assert_eq!(
+                classify_read_result(Err(&timeout), true, &mut consecutive_timeouts),
+                ReadAction::Continue
+            );
+            assert_eq!(consecutive_timeouts, expected);
+        }
+
+        // Data arriving resets the timeout streak.
+        assert_eq!(
+            classify_read_result(Ok(1024), true, &mut consecutive_timeouts),
+            ReadAction::Data(1024)
+        );
+        assert_eq!(consecutive_timeouts, 0);
+
+        // Zero-byte Ok does not clear a timeout streak.
+        assert_eq!(
+            classify_read_result(Err(&timeout), true, &mut consecutive_timeouts),
+            ReadAction::Continue
+        );
+        assert_eq!(
+            classify_read_result(Ok(0), true, &mut consecutive_timeouts),
+            ReadAction::Continue
+        );
+        assert_eq!(consecutive_timeouts, 1);
+
+        // Reaching MAX_CONSECUTIVE_TIMEOUTS fails so a stalled dongle does not spin forever.
+        for _ in 1..MAX_CONSECUTIVE_TIMEOUTS - 1 {
+            assert_eq!(
+                classify_read_result(Err(&timeout), true, &mut consecutive_timeouts),
+                ReadAction::Continue
+            );
+        }
+        assert_eq!(
+            classify_read_result(Err(&timeout), true, &mut consecutive_timeouts),
+            ReadAction::Fail
+        );
+        assert_eq!(consecutive_timeouts, MAX_CONSECUTIVE_TIMEOUTS);
+    }
+
+    #[test]
+    fn non_timeout_read_error_fails_immediately() {
+        let err = RtlsdrError::RtlsdrErr("USB pipe error".to_string());
+        let mut consecutive_timeouts = 0;
+        assert_eq!(
+            classify_read_result(Err(&err), true, &mut consecutive_timeouts),
+            ReadAction::Fail
+        );
+        assert_eq!(consecutive_timeouts, 0);
+    }
+
+    #[test]
+    fn start_receiving_joins_previous_exiting_thread_before_restarting() {
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let mut controller = RtlSdrController::new(tx, RtlDevice::Index(0));
+        controller.rtlsdr_available = false;
+
+        // Simulate an earlier RX thread that cleared `receiving` on error and is still
+        // tearing down (closing USB / recording) when the caller restarts RX without
+        // having called `stop_receiving()`.
+        let old_finished = Arc::new(AtomicBool::new(false));
+        let old_saw_receiving_false = Arc::new(AtomicBool::new(false));
+        let finished_flag = Arc::clone(&old_finished);
+        let saw_false_flag = Arc::clone(&old_saw_receiving_false);
+        let receiving_flag = Arc::clone(&controller.receiving);
+        controller.rx_thread = Some(thread::spawn(move || {
+            thread::sleep(std::time::Duration::from_millis(40));
+            saw_false_flag.store(!receiving_flag.load(Ordering::SeqCst), Ordering::SeqCst);
+            finished_flag.store(true, Ordering::SeqCst);
+        }));
+
+        controller.start_receiving(433_920_000).unwrap();
+
+        // start_receiving() must have joined the old thread before flipping `receiving` back
+        // to true and spawning the replacement thread.
+        assert!(
+            old_finished.load(Ordering::SeqCst),
+            "previous RX thread was not joined before restarting"
+        );
+        assert!(
+            old_saw_receiving_false.load(Ordering::SeqCst),
+            "receiving was flipped true before previous RX thread finished teardown"
+        );
+        assert!(controller.receiving.load(Ordering::SeqCst));
+
+        controller.stop_receiving().unwrap();
+        assert!(!controller.receiving.load(Ordering::SeqCst));
+        assert!(controller.rx_thread.is_none());
     }
 }

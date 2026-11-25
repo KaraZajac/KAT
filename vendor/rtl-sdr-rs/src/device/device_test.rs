@@ -8,7 +8,9 @@ use crate::device::mock_device_handle::MockDeviceHandle;
 use crate::device::{Device, EEPROM_SIZE};
 use crate::DeviceId;
 
-use super::{BLOCK_IIC, BLOCK_SYS, CTRL_IN, CTRL_OUT, CTRL_TIMEOUT, EEPROM_ADDR, GPO};
+use super::{
+    BLOCK_IIC, BLOCK_SYS, BULK_TIMEOUT, CTRL_IN, CTRL_OUT, CTRL_TIMEOUT, EEPROM_ADDR, GPO,
+};
 
 #[test]
 fn test_read_reg_u8() {
@@ -388,4 +390,45 @@ fn test_write_leaves_a_dongle_that_takes_it_alone() {
         handle: mock_handle,
     };
     device.test_write().unwrap();
+}
+
+#[test]
+fn test_bulk_transfer_uses_finite_timeout() {
+    assert!(!BULK_TIMEOUT.is_zero(), "bulk read timeout must be finite");
+    let mut mock_handle = MockDeviceHandle::new();
+    mock_handle
+        .expect_read_bulk()
+        .times(1)
+        .with(eq(0x81), predicate::always(), eq(BULK_TIMEOUT))
+        .returning(|_, buf, _| {
+            buf[..4].copy_from_slice(&[0x10, 0x20, 0x30, 0x40]);
+            Ok(4)
+        });
+    let device = Device {
+        handle: mock_handle,
+    };
+    let mut buf = [0u8; 8];
+    let n = device.bulk_transfer(&mut buf).unwrap();
+    assert_eq!(n, 4);
+    assert_eq!(&buf[..4], &[0x10, 0x20, 0x30, 0x40]);
+}
+
+#[test]
+fn test_bulk_transfer_propagates_timeout_error() {
+    let mut mock_handle = MockDeviceHandle::new();
+    mock_handle
+        .expect_read_bulk()
+        .times(1)
+        .with(eq(0x81), predicate::always(), eq(BULK_TIMEOUT))
+        .returning(|_, _, _| Err(crate::error::RtlsdrError::Usb(rusb::Error::Timeout)));
+    let device = Device {
+        handle: mock_handle,
+    };
+    let mut buf = [0u8; 16];
+    let err = device.bulk_transfer(&mut buf).unwrap_err();
+    assert!(err.is_timeout());
+    assert!(crate::error::RtlsdrError::timeout().is_timeout());
+    assert!(!crate::error::RtlsdrError::Usb(rusb::Error::Pipe).is_timeout());
+    assert!(!crate::error::RtlsdrError::RtlsdrErr("err".to_string()).is_timeout());
+    assert!(!crate::error::RtlsdrError::UnknownTuner.is_timeout());
 }

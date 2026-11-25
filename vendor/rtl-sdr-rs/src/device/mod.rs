@@ -8,7 +8,7 @@ pub use constants::*;
 #[cfg_attr(test, allow(dead_code))]
 pub mod device_handle;
 #[cfg(test)]
-mod mock_device_handle;
+pub(crate) mod mock_device_handle;
 
 #[cfg(not(test))]
 use device_handle::DeviceHandle;
@@ -20,7 +20,6 @@ use crate::DeviceId;
 use byteorder::{ByteOrder, LittleEndian};
 /// Low-level io functions for interfacing with rusb(libusb)
 use log::{error, info, warn};
-use std::time::Duration;
 
 #[cfg(test)]
 mod device_test;
@@ -39,6 +38,11 @@ impl Device {
         Ok(Device {
             handle: DeviceHandle::open(device_id)?,
         })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn from_mock(handle: mock_device_handle::MockDeviceHandle) -> Self {
+        Device { handle }
     }
 
     pub fn claim_interface(&mut self, iface: u8) -> Result<()> {
@@ -148,7 +152,7 @@ impl Device {
     }
 
     pub fn bulk_transfer(&self, buf: &mut [u8]) -> Result<usize> {
-        self.handle.read_bulk(0x81, buf, Duration::ZERO)
+        self.handle.read_bulk(0x81, buf, BULK_TIMEOUT)
     }
 
     pub fn read_eeprom(&self, data: &mut [u8], offset: u8, len: usize) -> Result<usize> {

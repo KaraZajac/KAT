@@ -2,6 +2,26 @@
 
 All notable changes to KAT are documented here.
 
+## [1.27.1] - 2026-11-25
+
+A reliability fix for the RTL-SDR receive path, contributed by @0magicinside (#8).
+
+### Fixed
+
+- **RTL-SDR R820T/R828D tuner initialisation.** The vendored tuner driver wrote its register-init
+  block in I2C messages one byte too long — it chunked the data by the full message length and then
+  prepended the register-address byte, producing 9-byte transfers where the bus allows 8. Register
+  writes are now chunked to match upstream librtlsdr (7 data bytes per message), fixing tuner setup.
+- **RTL-SDR USB reads no longer hang or spin on a stall.** Synchronous bulk reads use a finite
+  500 ms timeout (an infinite timeout could deadlock shutdown or a thread join); a stalled or
+  unplugged dongle is retried a few times and then reported cleanly instead of spinning.
+- **RTL-SDR receive robustness.** The receive thread is joined before a new one starts, lock access
+  tolerates a poisoned mutex instead of panicking, a retune during shutdown stops cleanly, and the
+  gain setter is guarded against integer overflow. New unit tests cover the read state machine, the
+  register chunking and the finite bulk timeout.
+
+Thanks to @0magicinside for the contribution.
+
 ## [1.27.0] - 2026-11-25
 
 A HackRF driver reliability fix from a contributor, a run of BMW work (the CAS3 remote is now read with its check and can be verified/encoded with the fob's key; a new BMW FZV decoder; a CAS4 model), and a replay transmitter for the PSA two-button key.

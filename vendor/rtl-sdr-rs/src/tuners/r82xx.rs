@@ -1110,27 +1110,20 @@ impl R82xx {
         // Store write in local cache
         self.reg_cache_store(reg, val);
 
-        // Use I2C to write to device in chunks of MAX_I2C_MSG_LEN
-        let mut len = val.len();
-        let mut val_index = 0;
+        if val.is_empty() {
+            return Ok(());
+        }
+
+        // Use I2C to write to device in chunks of MAX_I2C_MSG_LEN bytes total:
+        // 1 register address byte plus up to MAX_I2C_MSG_LEN - 1 data bytes.
+        const MAX_DATA_LEN: usize = MAX_I2C_MSG_LEN - 1;
+        let mut buf = [0u8; MAX_I2C_MSG_LEN];
         let mut reg_index = reg;
-        loop {
-            // First byte in message is the register addr, then the data
-            let size = if len > MAX_I2C_MSG_LEN - 1 {
-                MAX_I2C_MSG_LEN
-            } else {
-                len
-            };
-            let mut buf: Vec<u8> = vec![0; size + 1];
+        for chunk in val.chunks(MAX_DATA_LEN) {
             buf[0] = reg_index as u8;
-            buf[1..].copy_from_slice(&val[val_index..val_index + size]);
-            handle.i2c_write(self.i2c_addr, &buf)?;
-            val_index += size;
-            reg_index += size;
-            len = len.checked_sub(size).expect("Should not overflow");
-            if len == 0 {
-                break;
-            }
+            buf[1..=chunk.len()].copy_from_slice(chunk);
+            handle.i2c_write(self.i2c_addr, &buf[..=chunk.len()])?;
+            reg_index += chunk.len();
         }
         Ok(())
     }
@@ -1162,4 +1155,112 @@ fn bit_reverse(byte: u8) -> u8 {
         0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe, 0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf,
     ];
     (LUT[(byte & 0xf) as usize] << 4) | LUT[(byte >> 4) as usize]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::device::constants::{BLOCK_IIC, CTRL_OUT, CTRL_TIMEOUT};
+    use crate::device::mock_device_handle::MockDeviceHandle;
+    use mockall::predicate::{self, eq};
+    use std::sync::{Arc, Mutex};
+
+    fn mock_i2c_capture(expected_addr: u16) -> (Device, Arc<Mutex<Vec<Vec<u8>>>>) {
+        let writes: Arc<Mutex<Vec<Vec<u8>>>> = Arc::new(Mutex::new(Vec::new()));
+        let captured = Arc::clone(&writes);
+
+        let mut mock_handle = MockDeviceHandle::new();
+        mock_handle
+            .expect_write_control()
+            .with(
+                eq(CTRL_OUT),
+                eq(0),
+                eq(expected_addr),
+                eq((BLOCK_IIC << 8) | 0x10),
+                predicate::always(),
+                eq(CTRL_TIMEOUT),
+            )
+            .returning(move |_, _, _, _, data, _| {
+                assert!(
+                    data.len() <= MAX_I2C_MSG_LEN,
+                    "I2C write length {} exceeds MAX_I2C_MSG_LEN ({})",
+                    data.len(),
+                    MAX_I2C_MSG_LEN
+                );
+                captured.lock().unwrap().push(data.to_vec());
+                Ok(data.len())
+            });
+
+        (Device::from_mock(mock_handle), writes)
+    }
+
+    #[test]
+    fn write_regs_chunks_reg_init_within_max_i2c_msg_len() {
+        let (device, writes) = mock_i2c_capture(R820T_I2C_ADDR);
+        let mut tuner = R82xx::new_r820t();
+        tuner.regs.fill(0);
+
+        tuner.write_regs(&device, 0x05, &REG_INIT).unwrap();
+
+        let writes = writes.lock().unwrap();
+        assert_eq!(writes.len(), 4);
+        assert_eq!(writes[0].len(), 8);
+        assert_eq!(writes[0][0], 0x05);
+        assert_eq!(&writes[0][1..], &REG_INIT[0..7]);
+
+        assert_eq!(writes[1].len(), 8);
+        assert_eq!(writes[1][0], 0x0c);
+        assert_eq!(&writes[1][1..], &REG_INIT[7..14]);
+
+        assert_eq!(writes[2].len(), 8);
+        assert_eq!(writes[2][0], 0x13);
+        assert_eq!(&writes[2][1..], &REG_INIT[14..21]);
+
+        assert_eq!(writes[3].len(), 7);
+        assert_eq!(writes[3][0], 0x1a);
+        assert_eq!(&writes[3][1..], &REG_INIT[21..27]);
+
+        assert_eq!(tuner.regs, REG_INIT);
+    }
+
+    #[test]
+    fn write_regs_boundary_lengths() {
+        // Empty write emits no I2C transfers.
+        let mut empty_mock = MockDeviceHandle::new();
+        empty_mock.expect_write_control().times(0);
+        let empty_device = Device::from_mock(empty_mock);
+        let mut tuner = R82xx::new_r820t();
+        tuner.write_regs(&empty_device, 0x05, &[]).unwrap();
+
+        // Exactly MAX_I2C_MSG_LEN - 1 (7) data bytes fits in a single 8-byte message.
+        let (device_7, writes_7) = mock_i2c_capture(R820T_I2C_ADDR);
+        let data_7 = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77];
+        tuner.write_regs(&device_7, 0x06, &data_7).unwrap();
+        let writes_7 = writes_7.lock().unwrap();
+        assert_eq!(writes_7.len(), 1);
+        assert_eq!(writes_7[0], vec![0x06, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
+
+        // MAX_I2C_MSG_LEN (8) data bytes must split into 7 + 1 data bytes (msg lens 8 and 2).
+        let (device_8, writes_8) = mock_i2c_capture(R820T_I2C_ADDR);
+        let data_8 = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88];
+        tuner.write_regs(&device_8, 0x06, &data_8).unwrap();
+        let writes_8 = writes_8.lock().unwrap();
+        assert_eq!(writes_8.len(), 2);
+        assert_eq!(writes_8[0], vec![0x06, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
+        assert_eq!(writes_8[1], vec![0x0d, 0x88]);
+    }
+
+    #[test]
+    fn write_regs_r828d_uses_r828d_i2c_addr() {
+        let (device, writes) = mock_i2c_capture(R828D_I2C_ADDR);
+        let mut tuner = R82xx::new_r828d(false);
+        let data = [0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8];
+
+        tuner.write_regs(&device, 0x05, &data).unwrap();
+
+        let writes = writes.lock().unwrap();
+        assert_eq!(writes.len(), 2);
+        assert_eq!(writes[0].len(), MAX_I2C_MSG_LEN);
+        assert_eq!(writes[1], vec![0x0c, 0xa8]);
+    }
 }

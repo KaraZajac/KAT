@@ -240,8 +240,16 @@ pub fn load_audi_bcm2_keys(config_dir: &std::path::Path) -> Option<String> {
 }
 
 /// The PSA older-code key-table file: one line of 32 hex characters (16 bytes), the BSI module's
-/// global table. `#` comments and whitespace/dashes are ignored. KAT ships none.
+/// global table. `#` comments and whitespace/dashes are ignored. KAT ships the table
+/// ([`PSA_BSI_TABLE`]); this file, when present, overrides it.
 pub const PSA_BSI_KEY_FILE: &str = "psa_bsi_key";
+
+/// The PSA older-code key table KAT ships: the single global 16-byte table of the BSI block cipher,
+/// recovered from a Peugeot 307 BSI firmware image (GitHub issue #6; the report under
+/// `reports/2026-psa-rke-73373067`). It is the same in every BSI of the ~2001–2012 generation, so
+/// with it KAT deciphers and re-encodes every affected Peugeot/Citroën older-code remote with no
+/// per-car secret. A `psa_bsi_key` file in the config dir overrides it.
+pub const PSA_BSI_TABLE: [u8; 16] = [0xA3, 0x55, 0x85, 0x67, 0xB4, 0x73, 0x11, 0x9D, 0x6A, 0xCC, 0xD0, 0x43, 0xF1, 0x2B, 0x7C, 0xB8];
 
 /// Parse a `psa_bsi_key` file: the first line that is 32 hex characters is the table. Returns the
 /// table (if found) and the 1-based numbers of any non-empty, non-comment lines that were not it.
@@ -267,21 +275,40 @@ pub fn parse_psa_bsi_key(text: &str) -> (Option<[u8; 16]>, Vec<usize>) {
     (table, errors)
 }
 
-/// Load `<config dir>/psa_bsi_key` if it exists (once, at startup, before any decode). Returns a
-/// status line when a file was found.
+/// Put the PSA older-code table into the keystore at startup (once, before any decode): the
+/// built-in [`PSA_BSI_TABLE`], unless a `psa_bsi_key` file in the config dir overrides it. Returns a
+/// status line only when a file was present (the built-in table loads silently).
 pub fn load_psa_bsi_key(config_dir: &std::path::Path) -> Option<String> {
     if cfg!(test) {
-        panic!("a test must not load the user's PSA BSI key: the tests share one process");
+        panic!("a test must not load the PSA BSI key: the tests share one process");
     }
     let path = config_dir.join(PSA_BSI_KEY_FILE);
-    let text = std::fs::read_to_string(&path).ok()?;
-    let (table, errors) = parse_psa_bsi_key(&text);
-    crate::protocols::keys::get_keystore_mut().load_psa_bsi_table(table);
-    let loaded = match table {
-        Some(_) => format!("Loaded the PSA older-code key from {}", path.display()),
-        None => format!("No 16-byte key in {}", path.display()),
+    let file = std::fs::read_to_string(&path).ok();
+    let (table, errors) = psa_table_for(file.as_deref());
+    crate::protocols::keys::get_keystore_mut().load_psa_bsi_table(Some(table));
+    let Some(text) = file.as_deref() else {
+        return None; // no file: the built-in table loads silently
+    };
+    let has_table = parse_psa_bsi_key(text).0.is_some();
+    let loaded = if has_table {
+        format!("Loaded the PSA older-code key from {}", path.display())
+    } else {
+        format!("No 16-byte key in {} (using the built-in table)", path.display())
     };
     Some(if errors.is_empty() { loaded } else { format!("{loaded} ({} line{} ignored)", errors.len(), plural(errors.len())) })
+}
+
+/// The PSA older-code table to use, given the `psa_bsi_key` file's text (None when there is no
+/// file): the file's table when it has one, otherwise the built-in [`PSA_BSI_TABLE`]. Also returns
+/// the 1-based numbers of any file lines that were not a valid table.
+fn psa_table_for(file_text: Option<&str>) -> ([u8; 16], Vec<usize>) {
+    match file_text {
+        None => (PSA_BSI_TABLE, Vec::new()),
+        Some(text) => {
+            let (table, errors) = parse_psa_bsi_key(text);
+            (table.unwrap_or(PSA_BSI_TABLE), errors)
+        }
+    }
 }
 
 /// User keystore entries (empty unless [load_user_keystore] found a file).
@@ -645,6 +672,18 @@ deadbeef
         assert_eq!(table, Some([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]), "spaces and dashes are ignored");
         assert_eq!(errors, vec![3], "`deadbeef` is not 16 bytes");
         assert_eq!(parse_psa_bsi_key("# nothing here\n").0, None, "no table without a 32-hex line");
+    }
+
+    #[test]
+    fn psa_table_for_uses_the_builtin_table_and_a_file_overrides_it() {
+        // No file: KAT's shipped table ([`PSA_BSI_TABLE`]) is used.
+        assert_eq!(psa_table_for(None), (PSA_BSI_TABLE, vec![]));
+        // A file with a valid table overrides the built-in one (a made-up table, not the real one).
+        let dummy = [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00];
+        let (t, errs) = psa_table_for(Some("11223344 55667788 99aabbcc ddeeff00"));
+        assert_eq!((t, errs), (dummy, vec![]), "a valid file table overrides the built-in");
+        // A file with no valid table keeps the built-in table (and reports the bad line).
+        assert_eq!(psa_table_for(Some("not a key\n")), (PSA_BSI_TABLE, vec![1]));
     }
 
     #[test]

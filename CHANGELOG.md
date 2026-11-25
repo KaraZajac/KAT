@@ -2,6 +2,19 @@
 
 All notable changes to KAT are documented here.
 
+## [1.26.0] - 2026-11-25
+
+The PSA older-code key table now ships with KAT: because it is one table shared across the whole 2001–2012 Peugeot/Citroën platform, these remotes decipher and re-encode out of the box with no key file.
+
+### Changed
+
+- **PSA older two-button code: the key table now ships with KAT.** The legacy Peugeot/Citroën
+  older-code key is a single table shared across the whole 2001–2012 platform (recovered from one BSI
+  module's firmware, GitHub issue #6). Because it is global, not per-car, KAT now carries it built in
+  (`keystore::PSA_BSI_TABLE`), so these remotes decipher and re-encode out of the box with no key file.
+  A `psa_bsi_key` file in the config folder still overrides the built-in table. See
+  [docs/psa.md](docs/psa.md) and `reports/2026-psa-rke-73373067`.
+
 ## [1.25.0] - 2026-11-24
 
 Three findings held back for coordinated disclosure are published here as KAT reports, with their decoders and encoders now in KAT: Subaru V1, the Ford V1 (JLR) rolling code, and the legacy PSA two-button "older code" (GitHub issue #6). Real per-vehicle keys and VINs stay out of both the reports and the code; KAT ships no car keys.

@@ -576,10 +576,10 @@ fn kat_decrypt(key1: u64, key2_low: u32) -> Option<PsaFields> {
 // ---------------------------------------------------------------------------------------------
 // The older two-button code (GitHub issue #6): the block cipher the BSI (body module) runs on the
 // legacy Peugeot/Citroën remotes. The 16-byte key table is global (the same in every BSI of the
-// generation) and is read from one BSI firmware image; KAT ships none, and the user loads it into a
-// local `psa_bsi_key` file. Without the table every function here returns None, so KAT reads these
-// frames exactly as before (the whole frame and the remote type, nothing deciphered). The finding is
-// documented in the KAT report under reports/2026-psa-rke-73373067.
+// generation), recovered from one BSI firmware image; KAT ships it ([`crate::keystore::PSA_BSI_TABLE`],
+// loaded at startup), and a `psa_bsi_key` file overrides it. Without a table (only in a test that
+// clears it) every function here returns None and KAT reads the frame as before (the whole frame and
+// the remote type). The finding is documented in the KAT report under reports/2026-psa-rke-73373067.
 // ---------------------------------------------------------------------------------------------
 
 /// The 8-byte enciphered block of an older-code frame: the six low bytes of key1 (the header's type
@@ -2399,6 +2399,32 @@ mod tests {
         assert_eq!(next.counter, Some(0x1235), "counter advanced");
         assert_eq!(capture_button_name(next.data, next.extra, next.button.unwrap()), "Unlock");
         assert!(next.crc_valid && next.encoder_capable);
+
+        crate::protocols::keys::get_keystore_mut().load_psa_bsi_table(None);
+    }
+
+    /// The table KAT ships ([`crate::keystore::PSA_BSI_TABLE`]) is a working cipher key: a frame
+    /// built with it decodes to its fields through the decoder and is encoder-capable. The test
+    /// references the shipped const; the table bytes are not written here.
+    #[test]
+    fn the_shipped_table_decodes_an_older_code_frame() {
+        let _lk = crate::protocols::keeloq_common::KEYSTORE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let table = crate::keystore::PSA_BSI_TABLE;
+        crate::protocols::keys::get_keystore_mut().load_psa_bsi_table(Some(table));
+
+        let mut pt = [0x30, 0x00, 0x12, 0x34, 0xAB, 0x53, 0x20, 0x00];
+        pt[7] = pt[..7].iter().fold(0u8, |a, b| a ^ b);
+        let ct = older_encrypt(pt, &table);
+        assert_eq!(older_decrypt(ct, &table), pt, "the shipped table round-trips");
+
+        let key1 = u64::from_be_bytes([0x1C, 0xAA, ct[0], ct[1], ct[2], ct[3], ct[4], ct[5]]);
+        let key2_low = (u32::from(ct[6]) << 8) | u32::from(ct[7]);
+        let d = PsaDecoder::new()
+            .emit(RawFrame { key1, key2_high: 0, key2_low, am: false })
+            .expect("the shipped table decodes the frame");
+        assert_eq!(d.serial, Some(0x30AB53), "identity");
+        assert_eq!(d.counter, Some(0x1234), "counter");
+        assert!(d.encoder_capable, "the shipped table makes the capture encodable");
 
         crate::protocols::keys::get_keystore_mut().load_psa_bsi_table(None);
     }

@@ -25,9 +25,9 @@ key1 plus a 64-bit `Key_2` of which 16 bits are used). Two crypto families share
 
 The two-button remotes of about 2002 to the CAN cars send an older code in the same frame, with the
 remote's type in the header and a block enciphered under a 16-byte key table that is the same in
-every body module (BSI) of that generation. KAT shows such a frame whole, with the remote its type
-names; given that table in a `psa_bsi_key` file, it also deciphers the block (ID, counter, button)
-and sends the next press ([the older code](#a-third-kind-of-block-the-older-code)).
+every body module (BSI) of that generation. KAT ships that table, so it deciphers the block (ID,
+counter, button) and sends the next press, as well as showing the frame whole with the remote its
+type names ([the older code](#a-third-kind-of-block-the-older-code)).
 
 ProtoPirate decodes 0x23 frames and marks the rest "Type 0x36 — brute force deferred" for a manual
 "Brute force" action; Flipper-ARF (`decrypt_file`) and doctor-firmware (in-app helper) do the same.
@@ -424,17 +424,16 @@ needs the ID: the transponder's page 4 holds `55` and the ID, page 5 the same wo
 inverted, page 6 the type and `FFFF`, and a new transponder is set up with the remote's ID and type.
 The ID the block gives is the one key tools read from page 4.
 
-**What KAT does with it.** KAT ships no key table. Put the table's 32 hex digits on one line of a file
-named `psa_bsi_key` in KAT's config folder (`~/.config/KAT/`, on Windows `C:\Users\<you>\.config\KAT\`;
-spaces, dashes and `#` comment lines are ignored). KAT reads it when it starts, so restart KAT after
-adding it; the status line then says "Loaded the PSA older-code key from …". A frame whose header is a
-listed type is then deciphered: the detail panel shows `Enc: older code`, the ID as the serial, the
-counter, the button (Lock, Unlock, or Other for other flags), and the remote with its type and part
-number (`Remote: Citroën C3 XTR, front fog lights, 2002 to CAN`, `Type: 0C1A  Part no.: 6554RE`), and
-the capture can be sent: KAT makes the next press ([Encoder](#encoder)). A frame that fails the check
-is left undecoded. Without the table, KAT reads these frames as it did before 1.25.0: the whole
-frame, `Enc: older code, not decoded`, and the remote with its type and part number. Either way the
-CRC row shows `none`, as the check is inside the block.
+**What KAT does with it.** The table is global — the same in every BSI of this generation — so the one
+copy recovered from a 307 BSI firmware deciphers every affected car. **KAT ships it** (built in since
+1.26.0), so a frame whose header is a listed type is deciphered out of the box: the detail panel shows
+`Enc: older code`, the ID as the serial, the counter, the button (Lock, Unlock, or Other for other
+flags), and the remote with its type and part number (`Remote: Citroën C3 XTR, front fog lights, 2002
+to CAN`, `Type: 0C1A  Part no.: 6554RE`), and the capture can be sent: KAT makes the next press
+([Encoder](#encoder)). A frame that fails the check is left undecoded. A `psa_bsi_key` file in the
+config folder (`~/.config/KAT/`, on Windows `C:\Users\<you>\.config\KAT\`; 32 hex digits on one line,
+spaces/dashes/`#` comments ignored) overrides the built-in table. Either way the CRC row shows `none`,
+as the check is inside the block.
 
 A frame whose header is a listed type is not given to the XOR check and gets no key search. Both
 checks are short, and on the 206's 58 frames each gave one false result, which KAT then counted as
@@ -486,8 +485,8 @@ for decoder pulses, uploads, `encode()` calls and brute forces, KAT additions sw
 - **The older code (1.25.0):** what the cipher was checked against is
   [above](#a-third-kind-of-block-the-older-code). Its tests (`older_cipher_matches_the_reference`,
   `older_cipher_inverts`, `older_decodes_and_encodes_the_next_press`,
-  `older_decode_is_inert_without_the_key_table` and others) run with a made-up table: the real one is
-  in no test and in no file KAT ships.
+  `older_decode_is_inert_without_the_key_table` and others) run with a made-up table, never the real
+  one KAT ships; no test carries the real table.
 - **The Delphi remote (after 1.15.0):** the three files give 10 presses each, one serial, the
   counter 0x68DA to 0x68F7 in order, the buttons 1, 2 and 3, and no frame of another protocol
   (`delphi_remote_numbers_its_buttons_from_one`). With KAT's additions off, the references' rules

@@ -54,10 +54,10 @@ pub struct KeyStore {
     /// Audi BCM2 car keys the user supplied — for the Audi V3 (BCM2) rolling code's MAC. KAT ships
     /// none; each is a car's own secrets, read from the owner's BCM2 module (see [`crate::audi_v3`]).
     pub audi_bcm2_keys: Vec<AudiBcm2Car>,
-    /// The PSA older-code key table (16 bytes), read from a BSI module's firmware — the one global
-    /// table that deciphers the legacy two-button Peugeot/Citroën remotes (GitHub issue #6). KAT
-    /// ships none; the user supplies it in a local `psa_bsi_key` file. Without it the older-code
-    /// frames are read as before (the whole frame and the remote type, nothing deciphered).
+    /// The PSA older-code key table (16 bytes): the one global table that deciphers the legacy
+    /// two-button Peugeot/Citroën remotes (GitHub issue #6), recovered from a BSI module's firmware.
+    /// KAT ships it ([`crate::keystore::PSA_BSI_TABLE`], loaded at startup); a `psa_bsi_key` file
+    /// overrides it. None only in a test that has cleared it.
     pub psa_bsi_table: Option<[u8; 16]>,
 }
 

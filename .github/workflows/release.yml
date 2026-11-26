@@ -38,6 +38,9 @@ jobs:
           - os: ubuntu-22.04-arm
             target: aarch64-linux
             shell: bash
+          - os: macos-latest
+            target: aarch64-macos
+            shell: bash
           - os: windows-latest
             target: x86_64-windows
             shell: msys2 {0}
@@ -55,6 +58,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends pkg-config libhackrf-dev libusb-1.0-0-dev
+
+      - name: Install native libraries (macOS)
+        if: runner.os == 'macOS'
+        run: brew install hackrf libusb pkg-config
 
       - name: Install MSYS2 with Rust, libusb and the HackRF library (Windows)
         if: runner.os == 'Windows'

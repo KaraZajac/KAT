@@ -62,6 +62,7 @@ const REPORTS = [
   { slug: 'jlr', dir: '2026-jlr-rke-bj32-15k601', title: 'Ford V1 (JLR): a 32-bit key', page: 'ford_v1_jlr', protocolPage: 'ford_v1' },
   { slug: 'psa-older-code', dir: '2026-psa-rke-73373067', title: 'PSA legacy two-button remotes: a global key', page: 'psa', protocolPage: 'psa' },
   { slug: 'subaru-v1', dir: '2026-subaru-rke-cwtwb1u811', title: 'Subaru V1: a plaintext rolling code', page: 'subaru_v1', protocolPage: 'subaru_v1' },
+  { slug: 'psa-2button-valeo', dir: '2026-psa-2button-valeo', title: 'PSA 2-Button: a cipher recovered from captures', page: 'psa_two_button', protocolPage: 'psa_two_button' },
 ];
 // protocol-table page -> its report, for the "report" link in the table and on the protocol row.
 const reportByProtocolPage = new Map(REPORTS.map((r) => [r.protocolPage, r]));

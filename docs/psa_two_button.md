@@ -4,8 +4,9 @@ layout: default
 
 # PSA 2-Button Protocol
 
-**Rust module:** `src/protocols/psa_two_button.rs` (KAT's own decoder, decode only)
+**Rust module:** `src/protocols/psa_two_button.rs` (KAT's own decoder, decipher and encoder)
 **Reference:** none reads this signal. The name is KAT's.
+**Report:** [PSA 2-Button: a cipher recovered from captures](reports/psa-2button-valeo.pdf)
 
 ## Overview
 
@@ -20,11 +21,45 @@ lock (`IMPORTS/GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub` and `..._
 Citroën, and of which year, is not known; the NXP logo on the chip puts the key at 2006 or later.
 
 The frame is 76 bits: a byte that never changes, a button nibble, and a 64-bit code that changes with every
-press. **Decode and display only**: KAT cannot undo the code or work out the next one. The code is not a
-strong cipher's output, though; [what it gives away](#the-code) is below. A 2005 Peugeot 206 remote sends
+press. **The code is the [PSA older code's](psa.md#a-third-kind-of-block-the-older-code) block cipher under a
+16-byte table of its own** ([the cipher](#the-cipher-recovered), recovered from these recordings). With the
+table, KAT reads the press counter from a captured frame and generates the next valid code; without it, it
+reports and replays the raw code. A 2005 Peugeot 206 remote sends
 [the same kind of code](#the-same-code-in-a-peugeot-206s-frames) in PSA's 80-bit frame.
 
 Not the frame of [PSA](psa.md): that one is 80 bits behind a preamble, at 250 µs (or 125 µs) per half bit.
+
+## The cipher (recovered)
+
+The 64-bit code is the same block cipher as PSA's [older code](psa.md#a-third-kind-of-block-the-older-code):
+four rounds of a byte mix and a rotation whose amount is the Hamming weight (popcount) of the eight bytes,
+under a 16-byte key table — here a table of this key family's own, not the older code's.
+
+Deciphered, the eight bytes are a per-remote constant (five bytes), the **press counter** in byte 3, and two
+equal check bytes (bytes 6 and 7) that are a fixed function of the counter. The counter steps by one per press
+and runs as one sequence across both buttons; the button is the clear nibble in the header.
+
+**How the table was recovered — from the recordings alone, no firmware.** The rotation is what makes the
+cipher breakable: for any fixed set of the three rotation amounts the decipher is linear over GF(2), so the
+key cancels out of the difference between two presses (`pt₁ ^ pt₂ = M(ct₁ ^ ct₂)`). Testing all 7³ rotation
+schedules against the differences of the captured codes shows which byte order and which schedule each press
+used (a random byte order fits far fewer pairs — the control). The popcount that drives the rotation then
+pins the key: each round's rotation amount constrains that round's four key bytes, and a meet-in-the-middle
+over the popcount recovers them one round at a time. The result is checked end to end: deciphered byte 3
+equals the press counter in **96 of 96** presses, and re-enciphering an incremented counter reproduces each
+next captured code.
+
+**The table in KAT.** KAT ships the recovered table (`crate::keystore::PSA_2BUTTON_TABLE`, loaded at startup);
+a `psa_2button_key` file in the config dir overrides it, the same way `psa_bsi_key` overrides the older-code
+table. A captured frame then shows its counter, and “send next code” transmits the next press.
+
+**One caveat.** The table was recovered from **one** remote. Whether a single table serves the whole family of
+these keys — as the older-code table does for its generation — is **not established**; a recording of a second
+key of the kind would settle it (if it deciphers under the same table, the key is shared). Until then the
+table is proven on one key, and KAT carries it as a replaceable constant. See the
+[report](reports/psa-2button-valeo.pdf).
+
+The sections below are the record of how the code was read before the cipher was pinned down.
 
 ## Timing / modulation
 
@@ -273,23 +308,19 @@ requested button is ignored, since the code is bound to it) and cannot make the 
 live decode or a reloaded `.fob` (both keep `extra`); there is no Flipper key-file form, as the 76-bit frame
 does not fit the generic `Key`.
 
-## Not known
+What the cryptanalysis above called a press's "arrangement" is the cipher's rotation schedule, and the
+changing byte `y` is the counter's check byte — both now accounted for by [the cipher](#the-cipher-recovered).
+Still open:
 
-- The car and its year.
-- Whether `CE` is the same on every key of the kind.
-- What picks a press's arrangement of the code, and what the constants `k` of the arrangements are made of.
-  The counter of a frame can be read for a key whose seven bytes and table of `k` are known (above); a key
-  KAT has not seen with its counters cannot be read.
-- The five free bits of `y` and the bytes that cancel between the halves: whether they are chance or a
-  check, which decides whether a remote could be continued.
-- What the constants are made of: two remotes have different ones in the same places, so they are the
-  remote's own (its ID, or a key), but not which bytes of it.
-- Whether the code holds more of the counter than its low byte, and whether it holds the button.
-- What a held button sends.
+- **Whether the key table is shared across the family or is this one remote's** — the central question, which a
+  second key's recording would answer.
+- Whether the counter holds more than its low byte. Byte 3 of the deciphered block is the counter; byte 2 is
+  constant in all 96 presses, so a higher byte (if any) was not exercised by this one key.
+- The car and its year; whether `CE` is the same on every key of the kind; what a held button sends.
 - The chip's type. It is probably of NXP's PCF7961 family (20 pins, a 13.56 MHz crystal multiplied by 32 for
-  the carrier, as in the [chip's](chip-nxp-22a1509.html) relatives), whose controllers compute HITAG2 in
-  hardware under program control. The program would show how the code is made: KAT can disassemble and run
-  such firmware ([MRK II](mrk2.md)), but no dump of this key's chip exists.
+  the carrier, as in the [chip's](chip-nxp-22a1509.html) relatives). A dump of its firmware would show the
+  key-provisioning scheme directly (KAT can disassemble and run such firmware — [MRK II](mrk2.md)), but none
+  exists for this key.
 
 ## Validation
 

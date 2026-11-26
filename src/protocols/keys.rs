@@ -59,6 +59,12 @@ pub struct KeyStore {
     /// KAT ships it ([`crate::keystore::PSA_BSI_TABLE`], loaded at startup); a `psa_bsi_key` file
     /// overrides it. None only in a test that has cleared it.
     pub psa_bsi_table: Option<[u8; 16]>,
+    /// The PSA 2-Button cipher key table (16 bytes): the table that deciphers a Valeo two-button
+    /// Citroën/Peugeot flip key's 64-bit code (see [`crate::protocols::psa_two_button`]). KAT ships a
+    /// built-in ([`crate::keystore::PSA_2BUTTON_TABLE`], loaded at startup); a `psa_2button_key` file
+    /// overrides it. Recovered from one key's captures, so whether one table serves the whole family
+    /// is not established yet. None only before startup, or in a test that has not set it.
+    pub psa_2button_table: Option<[u8; 16]>,
     /// BMW CAS4 car keys the user supplied — for the F-series CAS4 remote's AES-128 MAC
     /// ([`crate::protocols::bmw_rke`]; not the CAS3 `0xCC` frame, which is HITAG2). KAT ships none;
     /// each is a car's own secret, read from the owner's CAS4 module. Empty unless a `bmw_cas4_keys`
@@ -271,6 +277,14 @@ impl KeyStore {
     /// The PSA older-code BSI key table, if the user loaded one. None by default.
     pub fn psa_bsi_table(&self) -> Option<[u8; 16]> {
         self.psa_bsi_table
+    }
+
+    pub fn load_psa_2button_table(&mut self, table: Option<[u8; 16]>) {
+        self.psa_2button_table = table;
+    }
+
+    pub fn psa_2button_table(&self) -> Option<[u8; 16]> {
+        self.psa_2button_table
     }
 
     /// Add one JLR car key (e.g. recovered by "Recover key (JLR)"), unless the same key is already

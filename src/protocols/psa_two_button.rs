@@ -1,11 +1,13 @@
 //! PSA 2-Button: a two-button Valeo flip key for Citroën and Peugeot with a 76-bit frame —
-//! **decode and replay** (the rolling code's cipher is unbroken, so KAT resends a captured frame; it
-//! cannot make the next code).
+//! **decode, decipher and generate the next code**. The 64-bit rolling code is the same block cipher
+//! as PSA's [older code](super::psa) under a 16-byte table of its own (recovered from one key's
+//! presses); with the table KAT reads the press counter and makes the next valid code, otherwise it
+//! replays the captured frame.
 //!
 //! **KAT's own decoder**, worked out from two recordings of one Citroën key that a tester sent in
 //! (`IMPORTS/GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub` and `..._lock_x50.sub`,
 //! 433.9 MHz, on-off keying, 50 presses each). No reference reads the signal; the name is KAT's.
-//! Not the 80-bit frame of [PSA](super::psa).
+//! Not the 80-bit frame of [PSA](super::psa). See the report under `reports/2026-psa-2button-valeo`.
 //!
 //! **Air format**: Manchester (carrier then pause is a 1), 207 µs per half bit (2415 bit/s). A
 //! press is about 78 ms of carrier, 6.9 ms of pause, then one frame: half a bit of carrier, the 76
@@ -19,25 +21,28 @@
 //! | 4 | button: `C` Unlock, `3` Lock |
 //! | 64 | the code: changes with every press |
 //!
-//! **The code** KAT cannot undo or continue, but it is no strong cipher's output: its eight bytes
-//! are XORs of the press counter's low byte, a second byte that changes with the press (three bits
-//! of it are a check on the counter), bytes that cancel when the two halves are XORed, and values
-//! that stay. In 89 of the 96 frames read, the counter is the XOR of two bytes of that half-XOR and
-//! a constant; what picks the arrangement of a press is not known (`docs/psa_two_button.md`).
+//! **The code** is the PSA older-code block cipher (four rounds of a byte mix and a popcount-driven
+//! rotation; see [`super::psa`]) applied to the 64-bit code, under this key family's own 16-byte
+//! table ([`crate::keystore::PSA_2BUTTON_TABLE`]). Deciphered, the eight bytes are a per-remote
+//! constant, the 8-bit press counter (byte 3), and two equal check bytes that are a fixed function
+//! of the counter ([`cipher::check_byte`]); the counter runs once across both buttons, the button
+//! itself being the clear nibble in the header. The table was recovered by differential
+//! cryptanalysis of one key's 96 presses (`docs/psa_two_button.md`); whether it is shared across the
+//! family is not established.
 //!
-//! **Gate** (there is no checksum): a burst that begins behind a pause with the half bit of
-//! carrier, holds exactly 76 Manchester bits without a violation, and is ended by a carrier pulse
-//! of 2.0 to 3.3 ms.
+//! **Gate**: a burst that begins behind a pause with the half bit of carrier, holds exactly 76
+//! Manchester bits without a violation, and is ended by a carrier pulse of 2.0 to 3.3 ms. With the
+//! table loaded the deciphered block's two check bytes are also verified.
 //!
 //! **Fields**: `data` = the code, `extra` = the 12 bits before it, `data_count_bit` = 76,
-//! `button` = the button nibble, no serial, no counter, `encoder_capable` true.
+//! `button` = the button nibble, `counter` = the deciphered press counter (when the table reads it,
+//! else none), `crc_valid` = the cipher verified, `encoder_capable` true.
 //!
-//! **Transmit (replay)**: [`PsaTwoButtonDecoder::encode`] rebuilds the frame's pulses from the
-//! decoded `extra` ‖ `code` and sends it [`TX_COPIES`] times behind one wake-up carrier — a resend
-//! of the captured frame (the 64-bit code is not re-generated; the cipher is unknown). The requested
-//! button is ignored, since the code is bound to its own button. Works from a live decode or a
-//! reloaded `.fob` (both keep `extra`); there is no Flipper key-file form (the 76-bit frame does not
-//! fit the generic `Key`).
+//! **Transmit**: [`PsaTwoButtonDecoder::encode`] sends the frame [`TX_COPIES`] times behind one
+//! wake-up carrier. When the frame deciphered (counter known, table loaded) it generates the **next
+//! code** (counter + 1, this remote's constants, a fresh check byte, re-enciphered); otherwise it
+//! replays the captured code. Works from a live decode or a reloaded `.fob`; there is no Flipper
+//! key-file form (the 76-bit frame does not fit the generic `Key`).
 
 use super::burst::{self, BurstReader};
 use super::info::prelude::*;
@@ -51,7 +56,7 @@ pub(super) const INFO: ProtocolInfo = ProtocolInfo {
     name_prefix: None,
     encoding: Coding::Manchester,
     rf: Rf::AM,
-    encryption: "Rolling code (cipher unknown)",
+    encryption: "Rolling code (PSA older cipher)",
     make: "Peugeot/Citroen",
     category: Category::Vehicle,
     buttons: Some(button_name),
@@ -73,6 +78,49 @@ const PAUSE_US: u32 = 6_900;
 const END_US: u32 = 2_500;
 const LEADIN_US: u32 = 78_000;
 const TX_COPIES: usize = 3;
+
+/// The cipher behind the 64-bit code: the PSA older-code block cipher ([`super::psa`]) under this
+/// key family's table. Inert without a table — [`decode`] and [`next_code`] return `None`, and the
+/// decoder falls back to reporting/replaying the raw code.
+mod cipher {
+    use crate::protocols::keys::get_keystore;
+    use crate::protocols::psa::{older_decrypt, older_encrypt};
+
+    /// The two equal check bytes the deciphered block carries (bytes 6 and 7), as a function of the
+    /// press counter. This closed form reproduces all 96 presses of the recovered key, including the
+    /// two values at a counter wrap where the generic term lands on zero (sent as `0xFF`).
+    pub fn check_byte(counter: u16) -> u8 {
+        let n = counter as i32;
+        let h = (((n << 3) & 0xFF) ^ ((0x18 - ((n + 2) >> 2)) & 0x3F)) as u8;
+        if h == 0 {
+            0xFF
+        } else {
+            h
+        }
+    }
+
+    /// Decipher the code and return `(counter, plaintext)` when the block verifies: bytes 6 and 7
+    /// are equal and are the counter's [`check_byte`]. `None` without a loaded table, or when the
+    /// block does not verify (a frame of another protocol, or a wrong table).
+    pub fn decode(code: u64) -> Option<(u16, [u8; 8])> {
+        let table = get_keystore().psa_2button_table()?;
+        let pt = older_decrypt(code.to_be_bytes(), &table);
+        let counter = u16::from(pt[3]);
+        (pt[6] == pt[7] && pt[6] == check_byte(counter)).then_some((counter, pt))
+    }
+
+    /// The 64-bit code of the next press (counter + 1), keeping this remote's own constant bytes and
+    /// a fresh check byte. `None` without a loaded table (the caller then replays the captured code).
+    pub fn next_code(code: u64) -> Option<u64> {
+        let table = get_keystore().psa_2button_table()?;
+        let mut pt = older_decrypt(code.to_be_bytes(), &table);
+        let next = pt[3].wrapping_add(1);
+        pt[3] = next;
+        pt[6] = check_byte(u16::from(next));
+        pt[7] = pt[6];
+        Some(u64::from_be_bytes(older_encrypt(pt, &table)))
+    }
+}
 
 fn button_name(_name: &str, code: u8) -> Option<&'static str> {
     match code {
@@ -108,12 +156,16 @@ fn read(halves: &[bool]) -> Option<DecodedSignal> {
         return None;
     }
     let frame = burst::take(&burst::bits(halves, 2, false), 0, FRAME_BITS)?;
+    let code = burst::number(&frame[12..]);
+    // With the key table loaded, decipher the code to its press counter; otherwise report the raw
+    // code (and encode will replay it).
+    let (counter, crc_valid) = cipher::decode(code).map_or((None, false), |(c, _)| (Some(c), true));
     Some(DecodedSignal {
         serial: None,
         button: Some(burst::number(&frame[8..12]) as u8),
-        counter: None,
-        crc_valid: false,
-        data: burst::number(&frame[12..]),
+        counter,
+        crc_valid,
+        data: code,
         data_count_bit: FRAME_BITS,
         encoder_capable: true,
         extra: Some(burst::number(&frame[..12])),
@@ -121,11 +173,11 @@ fn read(halves: &[bool]) -> Option<DecodedSignal> {
     })
 }
 
-/// The pulses of one frame (replay): the 6.9 ms pause, the half bit of carrier, the 76 Manchester
-/// bits (`CE` ‖ button ‖ code; carrier-then-pause is a 1), and the 2.5 ms closing carrier. The
-/// inverse of [`read`]; the bits are the fields exactly as decoded, so this resends the captured
-/// frame (the rolling code is not re-generated — the cipher is unknown). Copies are chained after a
-/// single wake-up carrier (below), the end-carrier→pause boundary keeping each frame separate.
+/// The pulses of one frame: the 6.9 ms pause, the half bit of carrier, the 76 Manchester bits
+/// (`CE` ‖ button ‖ code; carrier-then-pause is a 1), and the 2.5 ms closing carrier. The inverse of
+/// [`read`] over the header `extra` and the 64-bit `code` the caller supplies (the captured code for
+/// a replay, or the next press's for a rolling send). Copies are chained after a single wake-up
+/// carrier (below), the end-carrier→pause boundary keeping each frame separate.
 fn frame_pulses(extra: u64, code: u64) -> Vec<LevelDuration> {
     let mut bits = burst::pattern(extra, 12);
     bits.extend(burst::pattern(code, 64));
@@ -167,20 +219,23 @@ impl ProtocolDecoder for PsaTwoButtonDecoder {
         true
     }
 
-    /// Replay: resend the captured frame ([`TX_COPIES`] copies). The 64-bit code is an unbroken
-    /// rolling cipher, so KAT cannot make the next code — it resends the decoded one with its own
-    /// button (the requested button is ignored, as the code is bound to it). `None` if the decode is
-    /// not a 76-bit frame or has no `extra`.
+    /// Transmit the frame [`TX_COPIES`] times behind one wake-up carrier. When the frame deciphered
+    /// (its `counter` is set and the key table is loaded), the code sent is the **next** press's
+    /// (counter + 1); otherwise the captured code is replayed. The button stays the decoded frame's
+    /// (it is the clear header nibble; the requested button is ignored). `None` if the decode is not
+    /// a 76-bit frame or has no `extra`.
     fn encode(&self, decoded: &DecodedSignal, _button: u8) -> Option<Vec<LevelDuration>> {
         if decoded.data_count_bit != FRAME_BITS {
             return None;
         }
         let extra = decoded.extra?;
+        // Next code when the frame deciphered and the table is still loaded; else replay the capture.
+        let code = decoded.counter.and_then(|_| cipher::next_code(decoded.data)).unwrap_or(decoded.data);
         // One wake-up carrier, then the frame TX_COPIES times (each ended by its 2.5 ms carrier,
         // which the next frame's pause separates from it).
         let mut wire = vec![LevelDuration::new(true, LEADIN_US)];
         for _ in 0..TX_COPIES {
-            wire.extend(frame_pulses(extra, decoded.data));
+            wire.extend(frame_pulses(extra, code));
         }
         Some(burst::merged(wire))
     }
@@ -217,6 +272,9 @@ mod tests {
 
     #[test]
     fn decodes_a_press() {
+        // Serialize with the cipher tests (shared keystore) and read with no table loaded.
+        let _lk = crate::protocols::keeloq_common::KEYSTORE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        crate::protocols::keys::get_keystore_mut().load_psa_2button_table(None);
         let got = feed_all(&mut PsaTwoButtonDecoder::new(), &press(HEAD, CODE));
         assert_eq!(got.len(), 1, "{got:?}");
         let d = &got[0];
@@ -245,6 +303,8 @@ mod tests {
     /// button), and a decode that is not a 76-bit frame refuses.
     #[test]
     fn replay_round_trips() {
+        let _lk = crate::protocols::keeloq_common::KEYSTORE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        crate::protocols::keys::get_keystore_mut().load_psa_2button_table(None);
         let dec = PsaTwoButtonDecoder::new();
         let decoded = feed_all(&mut PsaTwoButtonDecoder::new(), &press(HEAD, CODE)).pop().unwrap();
         assert!(decoded.encoder_capable);
@@ -262,6 +322,60 @@ mod tests {
         let mut wrong = decoded.clone();
         wrong.data_count_bit = 64;
         assert!(dec.encode(&wrong, 0).is_none());
+    }
+
+    /// A dummy 16-byte table (not the shipped one). The cipher mechanics are table-independent.
+    const DUMMY: [u8; 16] =
+        [0x10, 0x32, 0x54, 0x76, 0x98, 0xBA, 0xDC, 0xFE, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF];
+
+    /// A 64-bit code built from a counter under `table`: this test's plaintext layout
+    /// (constants, counter in byte 3, two check bytes) enciphered as the key does.
+    fn code_for(counter: u16, table: &[u8; 16]) -> u64 {
+        let chk = cipher::check_byte(counter);
+        let pt = [0x11, 0x22, 0x33, counter as u8, 0x44, 0x55, chk, chk];
+        u64::from_be_bytes(crate::protocols::psa::older_encrypt(pt, table))
+    }
+
+    /// With a key table loaded, a frame deciphers to its press counter, and "send next code" makes
+    /// the next press (counter + 1) which re-decodes. Uses the dummy table, not the shipped one.
+    #[test]
+    fn deciphers_and_sends_next_code() {
+        let _lk = crate::protocols::keeloq_common::KEYSTORE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        crate::protocols::keys::get_keystore_mut().load_psa_2button_table(Some(DUMMY));
+
+        let code = code_for(0x2A, &DUMMY);
+        let dec = PsaTwoButtonDecoder::new();
+        let d = feed_all(&mut PsaTwoButtonDecoder::new(), &press(HEAD, code)).pop().expect("decode");
+        assert_eq!(d.counter, Some(0x2A), "counter deciphered");
+        assert!(d.crc_valid, "the block's check bytes verified");
+
+        // "Send next code": the transmitted copies carry counter + 1, and decode back to it.
+        let back = feed_all(&mut PsaTwoButtonDecoder::new(), &dec.encode(&d, 0).expect("next"));
+        assert_eq!(back.len(), TX_COPIES);
+        for b in &back {
+            assert_eq!(b.counter, Some(0x2B), "counter advanced");
+            assert_eq!(b.data, code_for(0x2B, &DUMMY), "the next press's code");
+            assert_eq!(b.button, Some(0xC), "button kept");
+        }
+        // A random code does not spuriously verify (≈ 2^-16).
+        assert!(feed_all(&mut PsaTwoButtonDecoder::new(), &press(HEAD, CODE)).pop().unwrap().counter.is_none());
+
+        crate::protocols::keys::get_keystore_mut().load_psa_2button_table(None);
+    }
+
+    /// The table KAT ships ([`crate::keystore::PSA_2BUTTON_TABLE`]) reads a real recorded press: the
+    /// first whole unlock frame deciphers to its counter. References the shipped const; its bytes are
+    /// not written here.
+    #[test]
+    fn the_shipped_table_reads_a_real_press() {
+        let _lk = crate::protocols::keeloq_common::KEYSTORE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        crate::protocols::keys::get_keystore_mut().load_psa_2button_table(Some(crate::keystore::PSA_2BUTTON_TABLE));
+
+        let d = feed_all(&mut PsaTwoButtonDecoder::new(), &press(HEAD, CODE)).pop().expect("decode");
+        assert_eq!(d.counter, Some(0x16), "the recorded counter of this frame");
+        assert!(d.crc_valid);
+
+        crate::protocols::keys::get_keystore_mut().load_psa_2button_table(None);
     }
 
     #[test]

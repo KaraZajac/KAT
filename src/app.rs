@@ -633,6 +633,8 @@ impl App {
         let bmw_cas4_keys_msg = crate::keystore::load_bmw_cas4_keys(storage.config_dir());
         // ── … and the PSA older-code key (`psa_bsi_key`), if any, for the issue #6 two-button remotes ──
         let psa_bsi_key_msg = crate::keystore::load_psa_bsi_key(storage.config_dir());
+        // ── … and the PSA 2-Button cipher key (`psa_2button_key`), if any (Valeo flip key; no built-in) ──
+        let psa_2button_key_msg = crate::keystore::load_psa_2button_key(storage.config_dir());
 
         let mut protocols = ProtocolRegistry::new();
         protocols.set_auto_key_search(storage.config.autobf);
@@ -757,7 +759,7 @@ impl App {
         }
         // Saved-session restore prompt, session writer, saved-fob index (app/persistence.rs).
         app.init_app_extensions();
-        for msg in [user_keystore_msg, hitag2_keys_msg, jlr_keys_msg, audi_bcm2_keys_msg, bmw_cas3_keys_msg, bmw_cas4_keys_msg, psa_bsi_key_msg].into_iter().flatten() {
+        for msg in [user_keystore_msg, hitag2_keys_msg, jlr_keys_msg, audi_bcm2_keys_msg, bmw_cas3_keys_msg, bmw_cas4_keys_msg, psa_bsi_key_msg, psa_2button_key_msg].into_iter().flatten() {
             tracing::info!("{msg}");
             app.status_message.get_or_insert(msg);
         }

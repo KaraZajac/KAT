@@ -1,0 +1,66 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\setlist{nosep,leftmargin=1.4em}
+\newcommand{\hex}[1]{\texttt{#1}}
+
+\title{Recovering the Rolling-Code Cipher of a PSA Two-Button Remote\\[2pt]
+\large Valeo flip key, Citro\"en / Peugeot, 433.92\,MHz, from captured presses alone}
+\author{Kara Zajac\,(KAT --- Keyfob Analysis Toolkit)\\[2pt]
+\small \href{mailto:kara@soulstone.org}{kara@soulstone.org}}
+\date{25 November 2026 \\[4pt] \small\textbf{KAT Report --- Keyfob Analysis Toolkit}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The 64-bit rolling code of a two-button Valeo remote key for Citro\"en and Peugeot (433.92\,MHz, on-off keying, a \hex{CE} header followed by a button nibble and the code) is enciphered with the \emph{same} block cipher that protects PSA's legacy ``older-code'' 80-bit remotes --- four rounds of a byte mix and a data-dependent, popcount-driven byte rotation --- but under a different 16-byte key table. This report recovers that cipher and its key \textbf{from captured button presses alone}: no firmware, no chip dump, no physical access. The method is a differential attack that exploits the rotation: for any fixed rotation schedule the decipher is affine over $\mathrm{GF}(2)$, so differences between presses are key-independent, which first reveals the schedule of each press and then, through the popcount that drives the rotation, pins the key table one round at a time by meet-in-the-middle. The recovered table deciphers every one of the 96 captured presses to a cleartext containing a monotone press counter and a counter-derived check byte; re-enciphering an incremented counter reproduces the remote's next valid code. \textbf{Scope caveat:} the table was recovered from a \emph{single} remote's captures. Whether one table serves the whole key family --- as PSA's older-code table does for its generation --- is \emph{not} established here and is the central open question for the vendor to resolve. If the key is shared, a single passively received press is enough to read a remote's counter and generate its next code; if it is per-remote, the exposure is confined to that remote.
+\end{abstract}
+
+\section{Affected product}
+\begin{itemize}
+\item \textbf{Vendor:} Stellantis (formerly PSA Peugeot Citro\"en); remote by Valeo.
+\item \textbf{Product:} a two-button Valeo RF ``flip'' remote key for Citro\"en and Peugeot, 433.92\,MHz, built on an NXP PCF7961-class key controller (20-pin, a 13.56\,MHz crystal multiplied by 32 for the carrier). The sample's board is marked \hex{B000787C}; sibling parts in the family include \hex{73373067}. The air frame is 76 bits: an 8-bit \hex{CE} preamble/type, a 4-bit button (\hex{C} unlock, \hex{3} lock), and the 64-bit code.
+\item \textbf{Relationship to the older code.} PSA's legacy 80-bit two-button remotes (reported separately; the body-module ``BSI'' cipher of roughly model years 2001--2012) use the identical block-cipher construction. This remote is a later member of the same lineage on a different chip, with its own key table and its own frame.
+\item \textbf{Not covered:} the engine immobiliser (a separate transponder secret, unaffected); whether the recovered table generalises beyond the one sampled remote (see \S\ref{sec:scope}).
+\end{itemize}
+
+\section{The cipher}
+The 64-bit code is an 8-byte block. Deciphering runs four rounds. Each round forms an intermediate vector
+\[
+t = \bigl(b_0\!\oplus\! b_2\!\oplus\! k_a,\; b_1\!\oplus\! b_3\!\oplus\! k_b,\; b_0,\; b_1,\; b_4\!\oplus\! b_6\!\oplus\! k_c,\; b_5\!\oplus\! b_7\!\oplus\! k_d,\; b_4,\; b_5\bigr),
+\]
+where $(k_a,k_b,k_c,k_d)$ are four bytes of the 16-byte key table (indices $12\!-\!4r$ in round $r$), and then --- in the first three rounds --- cyclically rotates $t$ by an amount equal to the total Hamming weight (popcount) of its eight bytes, modulo 8 (a zero rotation is taken as one). The fourth round omits the rotation. Enciphering is the exact inverse; because the rotation amount is rotation-invariant it can be recomputed while undoing each round. This is byte-identical to the construction already documented for PSA's older code.
+
+Deciphered, the sampled remote's block is a fixed five-byte constant, the 8-bit press counter in byte~3, and two equal check bytes (bytes~6 and~7) that are a closed-form function of the counter. The counter advances by one per press and runs as a single sequence across both buttons; the button is sent in the clear in the header. (The leading four table bytes and the plaintext constants are entangled for a single remote; recovering 12 of the 16 bytes, with the first four folded into the constants, fully determines decipher and encipher.)
+
+\section{Method: recovery from captures}
+\begin{enumerate}
+\item \textbf{Schedule linearisation.} For a fixed sequence of the three rotation amounts, the whole decipher is affine over $\mathrm{GF}(2)$: $\mathrm{pt} = M_s\,\mathrm{ct} \oplus v_s(\text{table})$. For two presses sharing a schedule the table cancels: $\mathrm{pt}_i \oplus \mathrm{pt}_j = M_s(\mathrm{ct}_i \oplus \mathrm{ct}_j)$. Testing all $7^3$ schedules against the differences of pairs of captured codes, and asking which make the expected cleartext fields (equal counter-high bytes, the counter difference in byte~3) vanish, selects the correct byte order and a small set of candidate schedules per press. A random byte order yields far fewer consistent pairs (a null control), confirming the alignment.
+\item \textbf{Schedule assignment.} Presses linked by a consistent difference share one schedule; intersecting their candidate sets fixes each linked press's rotation amounts.
+\item \textbf{Key recovery by meet-in-the-middle.} The round-0 rotation is the popcount of the round-0 mix, which constrains the four round-0 key bytes modulo the popcount the schedule requires. Splitting the four bytes into two halves and matching popcounts modulo 4 (then verifying modulo 8 against every constrained press) recovers the round-0 bytes uniquely; peeling the round and repeating recovers rounds 1 and 2. The remaining bytes fold into the plaintext constants.
+\item \textbf{Independent verification.} With the recovered table, byte~3 of the decipher equals the independently assigned press counter in \textbf{96 of 96} captured presses (both buttons), the five constant bytes are identical across all presses, and the two check bytes match the counter's closed form including the two values at a counter wrap. Enciphering an incremented counter reproduces each next captured code exactly (a full decode\,$\to$\,increment\,$\to$\,re-encode round trip).
+\end{enumerate}
+No firmware was used; the recovery is from 96 over-the-air presses (50 unlock, 50 lock, captured by a third party and contributed to KAT).
+
+\section{Impact}
+With the key table, a passively received button press yields the remote's cleartext press counter, and the next valid rolling code is produced by incrementing the counter and re-enciphering. A receiver that accepts a forward counter window would then accept the generated code. This is the same class of exposure as the older-code report. The remote's transponder immobiliser is separate and unaffected.
+
+\section{Scope: a single sample}\label{sec:scope}
+The decisive limitation of this report is that the key table was recovered from \textbf{one} remote. The older-code sibling was shown to use \emph{one} table across its whole generation (validated against a large multi-remote corpus and read from body-module firmware); for this remote, no such corroboration exists yet. Two outcomes are possible and are not distinguished by the present data:
+\begin{itemize}
+\item \textbf{Shared key} (as in the older code): the recovered table is a platform property, and the attack applies to every remote of this family from one captured press --- a vendor-scope weakness.
+\item \textbf{Per-remote key:} the table is specific to the sampled remote; the method still recovers any remote's key from a modest number of its own captures, but there is no single shipped key.
+\end{itemize}
+Distinguishing the two requires the captures of a second remote of the same family: if its presses decipher under the same table, the key is shared. The vendor is best placed to confirm the key-provisioning scheme (shared platform table vs.\ per-remote diversification) and the affected part/VIN range.
+
+\section{Disclosure and tooling}
+The method, the frame and the cipher are documented here and in the open-source KAT toolkit (the decoder and encoder \texttt{src/protocols/psa\_two\_button.rs}; the cipher primitive shared with \texttt{src/protocols/psa.rs}). Consistent with KAT's handling of every protocol, no real per-vehicle secret is published: the recovered table is the cipher key of a remote \emph{family}, not a per-car credential, and is carried in KAT as a replaceable constant that a user file overrides. Real remote identities and counters from the capture corpus are withheld. This document is a research reference, not a procedure for defeating a vehicle's security; it is published so owners, locksmiths, researchers and the vendor can understand the exposure and resolve the open scope question.
+
+\end{document}

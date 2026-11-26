@@ -619,7 +619,7 @@ fn older_key_indices(r: usize) -> [usize; 4] {
 
 /// Decipher the 8-byte block (BSI receive path): four rounds, each a mix then a data-dependent
 /// rotation (the last round omits the rotation).
-fn older_decrypt(block: [u8; 8], table: &[u8; 16]) -> [u8; 8] {
+pub(crate) fn older_decrypt(block: [u8; 8], table: &[u8; 16]) -> [u8; 8] {
     let mut b = block;
     for r in 0..4 {
         let t = older_mix(&b, older_key_indices(r), table);
@@ -637,7 +637,7 @@ fn older_decrypt(block: [u8; 8], table: &[u8; 16]) -> [u8; 8] {
 
 /// Encipher a plaintext block (the inverse of [older_decrypt]). The rotation amount is
 /// rotation-invariant, so it can be recomputed while undoing each round.
-fn older_encrypt(pt: [u8; 8], table: &[u8; 16]) -> [u8; 8] {
+pub(crate) fn older_encrypt(pt: [u8; 8], table: &[u8; 16]) -> [u8; 8] {
     let mut b = pt;
     for r in (0..4).rev() {
         let t = if r < 3 {

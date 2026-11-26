@@ -14489,7 +14489,7 @@
    "coding": "Manchester",
    "decoder": "PSA 2-Button",
    "encoder": true,
-   "encryption": "Rolling code (cipher unknown)",
+   "encryption": "Rolling code (PSA older cipher)",
    "frequencies": [
     0
    ],
@@ -21901,5 +21901,5 @@
    "te_short": null
   }
  ],
- "version": "1.27.1"
+ "version": "1.28.0"
 }

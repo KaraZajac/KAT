@@ -2,6 +2,20 @@
 
 All notable changes to KAT are documented here.
 
+## [1.28.0] - 2026-11-25
+
+### Added
+
+- **PSA 2-Button: the rolling code is deciphered, and KAT generates the next code.** The 64-bit code
+  of the Valeo two-button Citroën/Peugeot flip key is the same block cipher as PSA's older code,
+  under a 16-byte table recovered — from the captured presses alone, no firmware — by a differential
+  attack on the cipher's popcount-driven rotation. A captured frame now shows its press counter, and
+  "send next code" transmits the next valid press (counter + 1). KAT ships the table built-in
+  (`PSA_2BUTTON_TABLE`), overridable by a `psa_2button_key` file like the older-code `psa_bsi_key`;
+  without a table KAT replays the captured frame as before. New report
+  (`reports/2026-psa-2button-valeo`). The table was recovered from one key; whether it is shared
+  across the family is not yet established.
+
 ## [1.27.1] - 2026-11-25
 
 A reliability fix for the RTL-SDR receive path, contributed by @0magicinside (#8).

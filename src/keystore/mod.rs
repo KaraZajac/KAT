@@ -385,6 +385,16 @@ pub const PSA_BSI_KEY_FILE: &str = "psa_bsi_key";
 /// per-car secret. A `psa_bsi_key` file in the config dir overrides it.
 pub const PSA_BSI_TABLE: [u8; 16] = [0xA3, 0x55, 0x85, 0x67, 0xB4, 0x73, 0x11, 0x9D, 0x6A, 0xCC, 0xD0, 0x43, 0xF1, 0x2B, 0x7C, 0xB8];
 
+/// The PSA 2-Button cipher key table KAT ships: the 16-byte table of the same block-cipher family
+/// that deciphers a Valeo two-button Citroën/Peugeot flip key's 64-bit code
+/// ([`crate::protocols::psa_two_button`]; the report under `reports/2026-psa-2button-valeo`).
+/// Recovered by differential cryptanalysis of one key's captured presses (its first four bytes fold
+/// into that key's constants and read as zero). **Whether one table serves the whole key family, as
+/// the older-code table does, is not established — it is proven on one key only.** A
+/// `psa_2button_key` file in the config dir overrides it.
+pub const PSA_2BUTTON_TABLE: [u8; 16] =
+    [0x00, 0x00, 0x00, 0x00, 0x2D, 0x55, 0x3A, 0xCB, 0x67, 0x84, 0xDC, 0x09, 0x81, 0x6B, 0x4B, 0xBB];
+
 /// Parse a `psa_bsi_key` file: the first line that is 32 hex characters is the table. Returns the
 /// table (if found) and the 1-based numbers of any non-empty, non-comment lines that were not it.
 pub fn parse_psa_bsi_key(text: &str) -> (Option<[u8; 16]>, Vec<usize>) {
@@ -426,6 +436,35 @@ pub fn load_psa_bsi_key(config_dir: &std::path::Path) -> Option<String> {
     let has_table = parse_psa_bsi_key(text).0.is_some();
     let loaded = if has_table {
         format!("Loaded the PSA older-code key from {}", path.display())
+    } else {
+        format!("No 16-byte key in {} (using the built-in table)", path.display())
+    };
+    Some(if errors.is_empty() { loaded } else { format!("{loaded} ({} line{} ignored)", errors.len(), plural(errors.len())) })
+}
+
+/// File name of the PSA 2-Button cipher key (16-byte table, 32 hex characters on one line).
+pub const PSA_2BUTTON_KEY_FILE: &str = "psa_2button_key";
+
+/// Put the built-in PSA 2-Button table [`PSA_2BUTTON_TABLE`] into the keystore, unless a
+/// `psa_2button_key` file in the config dir overrides it (same one-line 32-hex format as
+/// `psa_bsi_key`). Returns a status line only when a file was present (the built-in loads silently).
+pub fn load_psa_2button_key(config_dir: &std::path::Path) -> Option<String> {
+    if cfg!(test) {
+        panic!("a test must not load the PSA 2-Button key: the tests share one process");
+    }
+    let path = config_dir.join(PSA_2BUTTON_KEY_FILE);
+    let file = std::fs::read_to_string(&path).ok();
+    let (table, errors) = match file.as_deref() {
+        None => (PSA_2BUTTON_TABLE, Vec::new()),
+        Some(text) => {
+            let (table, errors) = parse_psa_bsi_key(text); // identical one-line 32-hex format
+            (table.unwrap_or(PSA_2BUTTON_TABLE), errors)
+        }
+    };
+    crate::protocols::keys::get_keystore_mut().load_psa_2button_table(Some(table));
+    let text = file.as_deref()?; // no file: the built-in table loads silently
+    let loaded = if parse_psa_bsi_key(text).0.is_some() {
+        format!("Loaded the PSA 2-Button key from {}", path.display())
     } else {
         format!("No 16-byte key in {} (using the built-in table)", path.display())
     };

@@ -126,17 +126,17 @@ impl LiveShared {
 
     /// Install or clear the hop plan (takes effect in the receive thread).
     pub fn set_hop_plan(&self, plan: Option<HopPlan>) {
-        *self.hop_plan.lock().unwrap() = plan;
+        *self.hop_plan.lock().unwrap_or_else(|e| e.into_inner()) = plan;
         self.hop_generation.fetch_add(1, Ordering::SeqCst);
     }
 
     pub fn hop_plan(&self) -> Option<HopPlan> {
-        self.hop_plan.lock().unwrap().clone()
+        self.hop_plan.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Frequency a receiver should start on: the first hop frequency when hopping, else home.
     pub fn start_frequency(&self) -> u32 {
-        match self.hop_plan.lock().unwrap().as_ref() {
+        match self.hop_plan.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
             Some(p) if !p.frequencies.is_empty() => p.frequencies[0],
             _ => self.home.load(Ordering::SeqCst),
         }
@@ -145,11 +145,11 @@ impl LiveShared {
     /// Start recording to `path` (fails if one is already running). The file is created before
     /// the lock is taken, so the receive thread never waits on the file system.
     pub fn start_recording(&self, path: std::path::PathBuf) -> anyhow::Result<()> {
-        if self.recorder.lock().unwrap().is_some() {
+        if self.recorder.lock().unwrap_or_else(|e| e.into_inner()).is_some() {
             anyhow::bail!("already recording");
         }
         let new = Recorder::start(path)?;
-        let mut rec = self.recorder.lock().unwrap();
+        let mut rec = self.recorder.lock().unwrap_or_else(|e| e.into_inner());
         if rec.is_some() {
             anyhow::bail!("already recording");
         }
@@ -158,28 +158,27 @@ impl LiveShared {
     }
 
     pub fn stop_recording(&self) -> Option<RecordingSummary> {
-        let rec = self.recorder.lock().unwrap().take();
+        let rec = self.recorder.lock().unwrap_or_else(|e| e.into_inner()).take();
         rec.map(Recorder::stop)
     }
 
     /// Stop a recording because RX stopped; the app picks the summary up later.
     pub fn end_recording_with_rx(&self) {
         if let Some(sum) = self.stop_recording() {
-            *self.ended_recording.lock().unwrap() = Some(sum);
+            *self.ended_recording.lock().unwrap_or_else(|e| e.into_inner()) = Some(sum);
         }
     }
 
     pub fn recording_status(&self) -> Option<RecordingStatus> {
-        self.recorder.lock().unwrap().as_ref().map(Recorder::status)
+        self.recorder.lock().unwrap_or_else(|e| e.into_inner()).as_ref().map(Recorder::status)
     }
 
     /// Hand the raw buffer to the recorder, if one is running. Never waits on the disk: the lock
     /// is only ever held for a status read or an install/remove, and `push` doesn't block.
     pub fn record(&self, bytes: &[u8]) {
-        if let Ok(rec) = self.recorder.lock() {
-            if let Some(r) = rec.as_ref() {
-                r.push(bytes);
-            }
+        let rec = self.recorder.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(r) = rec.as_ref() {
+            r.push(bytes);
         }
     }
 }
@@ -417,5 +416,27 @@ mod tests {
         }
         assert!(visits.len() >= 10, "hopping stopped: {visits:?}");
         assert!(visits.windows(2).all(|w| w[0] != w[1]), "{visits:?}");
+    }
+
+    #[test]
+    fn live_shared_recovers_from_poisoned_locks() {
+        let shared = Arc::new(LiveShared::new(Arc::new(AtomicBool::new(false)), Arc::new(AtomicU32::new(0)), 433_920_000));
+        let s = shared.clone();
+        let _ = std::thread::spawn(move || {
+            let _g1 = s.hop_plan.lock().unwrap();
+            let _g2 = s.recorder.lock().unwrap();
+            let _g3 = s.ended_recording.lock().unwrap();
+            panic!("poison LiveShared mutexes");
+        })
+        .join();
+        assert!(shared.hop_plan.is_poisoned());
+        assert_eq!(shared.start_frequency(), 433_920_000);
+        shared.set_hop_plan(Some(HopPlan::new(vec![315_000_000, 433_920_000], 50)));
+        assert_eq!(shared.start_frequency(), 315_000_000);
+        assert!(shared.hop_plan().is_some());
+        assert!(shared.recording_status().is_none());
+        shared.record(&[0u8; 8]);
+        assert!(shared.stop_recording().is_none());
+        shared.end_recording_with_rx();
     }
 }

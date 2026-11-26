@@ -14,7 +14,8 @@ use wgpu::util::DeviceExt;
 /// under the ~10 s watchdog, and fine-grained enough to react to a cancel.
 const CHUNK: u32 = 128;
 /// Survivor slots; a verified candidate is rare (false rate ≈ 2^-15 per extra frame), so this is
-/// ample. Overflow would only drop hits within one chunk, never below the true lowest.
+/// ample. On overflow (`count > CAP`), GPU threads write out of order so the true lowest candidate
+/// could be dropped; `parse_survivors` therefore returns `Err(())` to fall back to the CPU.
 const CAP: u32 = 4096;
 
 /// What the GPU search found.
@@ -76,6 +77,19 @@ pub fn lowest_hit(
     }
 }
 
+/// Decode the GPU output buffer (`[count, idx_0, idx_1, …]`): returns `Err(())` on overflow
+/// (`count > CAP`) or truncated readback so the caller falls back to the CPU instead of missing
+/// the true lowest candidate.
+fn parse_survivors(words: &[u32]) -> Result<Option<u32>, ()> {
+    let &raw_count = words.first().ok_or(())?;
+    if raw_count > CAP {
+        return Err(());
+    }
+    let count = raw_count as usize;
+    let hits = words.get(1..1 + count).ok_or(())?;
+    Ok(hits.iter().copied().min())
+}
+
 async fn run(
     ctx: &super::Context,
     hop: u32,
@@ -98,6 +112,12 @@ async fn run(
         contents: bytemuck::cast_slice(reqs),
         usage: wgpu::BufferUsages::STORAGE,
     });
+    let cands_buf = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("cands"),
+        size: (CHUNK as u64) * 8,
+        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
     let out_size = (1 + CAP as u64) * 4;
     let out = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("out"),
@@ -118,58 +138,65 @@ async fn run(
         mapped_at_creation: false,
     });
 
+    let bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: None,
+        entries: &[uniform(0), storage(1, true), storage(2, true), storage(3, false)],
+    });
+    let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: None,
+        layout: &bgl,
+        entries: &[
+            wgpu::BindGroupEntry { binding: 0, resource: params_buf.as_entire_binding() },
+            wgpu::BindGroupEntry { binding: 1, resource: cands_buf.as_entire_binding() },
+            wgpu::BindGroupEntry { binding: 2, resource: reqs_buf.as_entire_binding() },
+            wgpu::BindGroupEntry { binding: 3, resource: out.as_entire_binding() },
+        ],
+    });
+    let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: None,
+        bind_group_layouts: &[&bgl],
+        push_constant_ranges: &[],
+    });
+    let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+        label: Some("hitag2-hell"),
+        layout: Some(&layout),
+        module: &shader,
+        entry_point: "main",
+        compilation_options: Default::default(),
+    });
+    if ctx.has_failed() {
+        return Err(());
+    }
+
+    let mut cbuf: Vec<u32> = Vec::with_capacity(CHUNK as usize * 2);
     let end = range.end.min(cands.len() as u32);
     let mut base = range.start;
     while base < end {
         if cancel.load(Ordering::Relaxed) {
             return Ok(None);
         }
+        if ctx.has_failed() {
+            return Err(());
+        }
         let n = CHUNK.min(end - base);
         // this chunk's candidates as (lo, hi) pairs
-        let mut cbuf: Vec<u32> = Vec::with_capacity(n as usize * 2);
+        cbuf.clear();
         for &c in &cands[base as usize..(base + n) as usize] {
             cbuf.push(c as u32);
             cbuf.push((c >> 32) as u32);
         }
-        let cands_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("cands"),
-            contents: bytemuck::cast_slice(&cbuf),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
-        let bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: None,
-            entries: &[uniform(0), storage(1, true), storage(2, true), storage(3, false)],
-        });
-        let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: None,
-            layout: &bgl,
-            entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: params_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 1, resource: cands_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 2, resource: reqs_buf.as_entire_binding() },
-                wgpu::BindGroupEntry { binding: 3, resource: out.as_entire_binding() },
-            ],
-        });
-        let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: None,
-            bind_group_layouts: &[&bgl],
-            push_constant_ranges: &[],
-        });
-        let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: None,
-            layout: Some(&layout),
-            module: &shader,
-            entry_point: "main",
-            compilation_options: Default::default(),
-        });
+        queue.write_buffer(&cands_buf, 0, bytemuck::cast_slice(&cbuf));
 
         let params = Params { n_cands: n, hop, poly_lo: poly as u32, poly_hi: (poly >> 32) as u32, n_reqs: reqs.len() as u32, base_idx: base, _p0: 0, _p1: 0 };
         queue.write_buffer(&params_buf, 0, bytemuck::bytes_of(&params));
         queue.write_buffer(&out, 0, &[0u8; 4]); // reset count
         device.poll(wgpu::Maintain::Wait);
+        if ctx.has_failed() {
+            return Err(());
+        }
 
         let threads = n * 1024;
-        let wg = (threads + 63) / 64;
+        let wg = threads.div_ceil(64);
         let mut enc = device.create_command_encoder(&Default::default());
         {
             let mut pass = enc.begin_compute_pass(&Default::default());
@@ -186,13 +213,16 @@ async fn run(
             let _ = tx.send(r);
         });
         device.poll(wgpu::Maintain::Wait);
+        if ctx.has_failed() {
+            return Err(());
+        }
         rx.recv().map_err(|_| ())?.map_err(|_| ())?;
         let data = slice.get_mapped_range();
         let words: &[u32] = bytemuck::cast_slice(&data);
-        let count = words[0].min(CAP) as usize;
-        let lowest = words[1..1 + count].iter().copied().min();
+        let parsed = parse_survivors(words);
         drop(data);
         staging.unmap();
+        let lowest = parsed?;
 
         progress.fetch_add(n, Ordering::Relaxed);
         if let Some(idx) = lowest {
@@ -217,5 +247,26 @@ fn storage(binding: u32, read_only: bool) -> wgpu::BindGroupLayoutEntry {
         visibility: wgpu::ShaderStages::COMPUTE,
         ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Storage { read_only }, has_dynamic_offset: false, min_binding_size: None },
         count: None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_survivors_picks_lowest_and_rejects_overflow() {
+        assert_eq!(parse_survivors(&[]), Err(()));
+        assert_eq!(parse_survivors(&[0]), Ok(None));
+        assert_eq!(parse_survivors(&[3, 42, 7, 19]), Ok(Some(7)));
+        assert_eq!(parse_survivors(&[2, 5]), Err(()), "truncated payload must fail");
+        let mut exact = vec![0u32; 1 + CAP as usize];
+        exact[0] = CAP;
+        exact[1..].fill(99);
+        exact[CAP as usize] = 3;
+        assert_eq!(parse_survivors(&exact), Ok(Some(3)));
+        // Overflow: GPU threads write out of order, so clamping could miss the true lowest hit.
+        exact[0] = CAP + 1;
+        assert_eq!(parse_survivors(&exact), Err(()));
     }
 }

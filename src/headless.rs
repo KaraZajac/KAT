@@ -85,6 +85,9 @@ pub fn fields(d: &DecodedSignal) -> String {
     )
 }
 
+/// Maximum directory depth for `--decode` / CLI recursive file discovery.
+const MAX_SCAN_DEPTH: usize = 32;
+
 /// Files under `path` that `--decode` understands (.sub and IQ recordings), sorted; `path` itself
 /// when it is a file.
 pub fn collect_files(path: &Path) -> Vec<PathBuf> {
@@ -92,13 +95,21 @@ pub fn collect_files(path: &Path) -> Vec<PathBuf> {
         return vec![path.to_path_buf()];
     }
     let mut out = Vec::new();
-    let mut stack = vec![path.to_path_buf()];
-    while let Some(dir) = stack.pop() {
+    let mut visited = std::collections::HashSet::new();
+    let mut stack = vec![(path.to_path_buf(), 0usize)];
+    while let Some((dir, depth)) = stack.pop() {
+        if depth > MAX_SCAN_DEPTH {
+            continue;
+        }
+        let canon = std::fs::canonicalize(&dir).unwrap_or_else(|_| dir.clone());
+        if !visited.insert(canon) {
+            continue;
+        }
         let Ok(rd) = std::fs::read_dir(&dir) else { continue };
         for entry in rd.flatten() {
             let p = entry.path();
             if p.is_dir() {
-                stack.push(p);
+                stack.push((p, depth + 1));
             } else if is_decodable(&p) {
                 out.push(p);
             }
@@ -749,5 +760,25 @@ mod tests {
             .collect();
         assert_eq!(files, ["a.sub", "b.cu8", "sub/d.cs8"]);
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn collect_files_survives_symlink_loops() {
+        use std::os::unix::fs::symlink;
+        let dir = std::env::temp_dir().join(format!("kat_headless_loop_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let sub = dir.join("sub");
+        std::fs::create_dir_all(&sub).unwrap();
+        std::fs::write(dir.join("a.sub"), b"").unwrap();
+        std::fs::write(sub.join("b.cs8"), b"").unwrap();
+        symlink(&dir, dir.join("loop_self")).unwrap();
+        symlink(&dir, sub.join("loop_parent")).unwrap();
+        let files: Vec<String> = collect_files(&dir)
+            .iter()
+            .map(|p| p.strip_prefix(&dir).unwrap().to_string_lossy().replace('\\', "/"))
+            .collect();
+        assert_eq!(files, ["a.sub", "sub/b.cs8"]);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

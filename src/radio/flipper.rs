@@ -188,6 +188,8 @@ struct Console {
     pending: Vec<u8>,
     /// `/ext/apps_data/kat` exists (made once per session).
     tx_dir_ready: bool,
+    /// True once the underlying serial port hits EOF or a fatal I/O error (e.g. USB unplug).
+    broken: bool,
 }
 
 impl Console {
@@ -205,7 +207,7 @@ impl Console {
     /// A session on an open port: past the banner of a new connection, or whatever an earlier
     /// session left running (Ctrl+C ends an `rx_raw`), to a fresh prompt.
     fn with_port(port: Box<dyn serialport::SerialPort>) -> Result<Self> {
-        let mut c = Self { port, pending: Vec::new(), tx_dir_ready: false };
+        let mut c = Self { port, pending: Vec::new(), tx_dir_ready: false, broken: false };
         c.send(b"\x03\r")?;
         if c.read_until(PROMPT, Duration::from_secs(3))?.is_none() {
             bail!("no answer from its console (a Flipper's command line?)");
@@ -223,8 +225,10 @@ impl Console {
     }
 
     fn send(&mut self, bytes: &[u8]) -> Result<()> {
-        self.port.write_all(bytes)?;
-        self.port.flush()?;
+        if let Err(e) = self.port.write_all(bytes).and_then(|()| self.port.flush()) {
+            self.broken = true;
+            return Err(e.into());
+        }
         Ok(())
     }
 
@@ -232,13 +236,19 @@ impl Console {
     fn read_more(&mut self) -> Result<usize> {
         let mut buf = [0u8; 8192];
         match self.port.read(&mut buf) {
-            Ok(0) => bail!("the Flipper's console closed"),
+            Ok(0) => {
+                self.broken = true;
+                bail!("the Flipper's console closed");
+            }
             Ok(n) => {
                 self.pending.extend_from_slice(&buf[..n]);
                 Ok(n)
             }
             Err(e) if matches!(e.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock | std::io::ErrorKind::Interrupted) => Ok(0),
-            Err(e) => Err(anyhow!("reading the Flipper's console failed: {e} (unplugged?)")),
+            Err(e) => {
+                self.broken = true;
+                Err(anyhow!("reading the Flipper's console failed: {e} (unplugged?)"))
+            }
         }
     }
 
@@ -773,6 +783,7 @@ struct WorkerSetup {
     report_unchecked: bool,
     events: Sender<RadioEvent>,
     receiving: Arc<AtomicBool>,
+    connected: Arc<AtomicBool>,
 }
 
 impl WorkerSetup {
@@ -785,7 +796,7 @@ impl WorkerSetup {
 }
 
 /// The thread that owns the port: streams `rx_raw` while receiving, and answers requests between
-/// reads. Ends when the controller is dropped.
+/// reads. Ends when the controller is dropped or when the serial console disconnects.
 fn run_worker(mut console: Console, requests: Receiver<Request>, setup: WorkerSetup) {
     let mut rx: Option<Receiving> = None;
     loop {
@@ -793,7 +804,13 @@ fn run_worker(mut console: Console, requests: Receiver<Request>, setup: WorkerSe
             Some(r) => {
                 if let Err(e) = r.pump(&mut console) {
                     rx = None;
+                    if console.broken {
+                        setup.connected.store(false, Ordering::SeqCst);
+                    }
                     setup.fail(&e);
+                    if console.broken {
+                        break;
+                    }
                     continue;
                 }
                 match requests.try_recv() {
@@ -812,16 +829,32 @@ fn run_worker(mut console: Console, requests: Receiver<Request>, setup: WorkerSe
                 if let Some(r) = rx.take() {
                     let _ = r.stop(&mut console);
                 }
-                let result = Receiving::start(&mut console, frequency, &setup).map(|r| rx = Some(r));
+                let result = if console.broken {
+                    Err(anyhow!("the Flipper's console is closed"))
+                } else {
+                    Receiving::start(&mut console, frequency, &setup).map(|r| rx = Some(r))
+                };
                 setup.receiving.store(result.is_ok(), Ordering::SeqCst);
+                if console.broken {
+                    setup.connected.store(false, Ordering::SeqCst);
+                }
                 let _ = done.send(result);
+                if console.broken {
+                    break;
+                }
             }
             Request::Stop { done } => {
                 if let Some(r) = rx.take() {
                     let _ = r.stop(&mut console);
                 }
                 setup.receiving.store(false, Ordering::SeqCst);
+                if console.broken {
+                    setup.connected.store(false, Ordering::SeqCst);
+                }
                 let _ = done.send(());
+                if console.broken {
+                    break;
+                }
             }
             Request::Transmit { file, air_us, done } => {
                 let resume = rx.take().map(|r| {
@@ -829,20 +862,39 @@ fn run_worker(mut console: Console, requests: Receiver<Request>, setup: WorkerSe
                     let _ = r.stop(&mut console);
                     f
                 });
-                let result = console.transmit(&file, air_us);
+                let result = if console.broken {
+                    Err(anyhow!("the Flipper's console is closed"))
+                } else {
+                    console.transmit(&file, air_us)
+                };
                 if let Some(f) = resume {
-                    match Receiving::start(&mut console, f, &setup) {
-                        Ok(r) => rx = Some(r),
-                        Err(e) => setup.fail(&e),
+                    if !console.broken {
+                        match Receiving::start(&mut console, f, &setup) {
+                            Ok(r) => rx = Some(r),
+                            Err(e) => setup.fail(&e),
+                        }
+                    } else {
+                        setup.receiving.store(false, Ordering::SeqCst);
                     }
                 }
+                if console.broken {
+                    setup.connected.store(false, Ordering::SeqCst);
+                }
                 let _ = done.send(result);
+                if console.broken {
+                    break;
+                }
             }
         }
     }
     if let Some(r) = rx.take() {
-        let _ = r.stop(&mut console);
+        if !console.broken {
+            let _ = r.stop(&mut console);
+        }
     }
+    drop(console);
+    setup.receiving.store(false, Ordering::SeqCst);
+    setup.connected.store(false, Ordering::SeqCst);
 }
 
 // ---- the controller ---------------------------------------------------------------------------------
@@ -859,6 +911,7 @@ pub struct FlipperController {
     /// To the thread that owns the open console; None until connected ([Self::connect]).
     requests: Option<Sender<Request>>,
     worker: Option<JoinHandle<()>>,
+    connected: Arc<AtomicBool>,
     receiving: Arc<AtomicBool>,
     frequency: u32,
     open_error: Option<String>,
@@ -876,6 +929,7 @@ impl FlipperController {
             report_unchecked,
             requests: None,
             worker: None,
+            connected: Arc::new(AtomicBool::new(false)),
             receiving: Arc::new(AtomicBool::new(false)),
             frequency: 433_920_000,
             open_error: None,
@@ -897,12 +951,25 @@ impl FlipperController {
         c
     }
 
+    /// Close the worker channel and join the worker thread so the serial port handle is released.
+    fn disconnect(&mut self) {
+        self.requests = None;
+        if let Some(w) = self.worker.take() {
+            let _ = w.join();
+        }
+        self.connected.store(false, Ordering::SeqCst);
+        self.receiving.store(false, Ordering::SeqCst);
+    }
+
     /// Open the console, check the receive preset (doctor-firmware only) and start the thread that
     /// owns the port, unless that is done. Err: why the Flipper cannot be used (also kept as
     /// [Self::open_error]); the next use tries again (qFlipper closed, the Flipper plugged back in).
     pub fn connect(&mut self) -> Result<()> {
         if self.requests.is_some() {
-            return Ok(());
+            if self.connected.load(Ordering::SeqCst) {
+                return Ok(());
+            }
+            self.disconnect();
         }
         let Some(path) = self.port.clone() else {
             bail!("no Flipper Zero found");
@@ -921,9 +988,9 @@ impl FlipperController {
         result
     }
 
-    /// Whether KAT has the console open (from the first use until it quits).
+    /// Whether KAT currently has a live console session open.
     pub fn is_connected(&self) -> bool {
-        self.requests.is_some()
+        self.requests.is_some() && self.connected.load(Ordering::SeqCst)
     }
 
     /// Start the worker on an open console session.
@@ -938,16 +1005,25 @@ impl FlipperController {
             }
         };
         let (requests, inbox) = mpsc::channel();
+        self.connected.store(true, Ordering::SeqCst);
         let setup = WorkerSetup {
             preset,
             rf,
             report_unchecked: self.report_unchecked,
             events: self.events.clone(),
             receiving: self.receiving.clone(),
+            connected: self.connected.clone(),
         };
-        let worker = std::thread::Builder::new()
+        let worker = match std::thread::Builder::new()
             .name("kat-flipper".to_string())
-            .spawn(move || run_worker(console, inbox, setup))?;
+            .spawn(move || run_worker(console, inbox, setup))
+        {
+            Ok(w) => w,
+            Err(e) => {
+                self.connected.store(false, Ordering::SeqCst);
+                return Err(e.into());
+            }
+        };
         self.requests = Some(requests);
         self.worker = Some(worker);
         Ok(())
@@ -963,11 +1039,28 @@ impl FlipperController {
     }
 
     /// One request to the worker, waiting up to `timeout` for its answer.
-    fn ask<T>(&self, make: impl FnOnce(Sender<T>) -> Request, timeout: Duration) -> Result<T> {
-        let requests = self.requests.as_ref().ok_or_else(|| anyhow!("no Flipper"))?;
+    fn ask<T>(&mut self, make: impl FnOnce(Sender<T>) -> Request, timeout: Duration) -> Result<T> {
+        let Some(requests) = self.requests.as_ref() else {
+            bail!("no Flipper");
+        };
         let (done, answer) = mpsc::channel();
-        requests.send(make(done)).map_err(|_| anyhow!("the Flipper's console is closed"))?;
-        answer.recv_timeout(timeout).map_err(|_| anyhow!("the Flipper did not answer"))
+        if requests.send(make(done)).is_err() {
+            self.disconnect();
+            bail!("the Flipper's console is closed");
+        }
+        match answer.recv_timeout(timeout) {
+            Ok(reply) => {
+                if !self.connected.load(Ordering::SeqCst) {
+                    self.disconnect();
+                }
+                Ok(reply)
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                self.disconnect();
+                bail!("the Flipper's console is closed")
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => bail!("the Flipper did not answer"),
+        }
     }
 
     /// Why the Flipper could not be used, in words (None when it can, or was not tried yet).
@@ -978,22 +1071,32 @@ impl FlipperController {
     /// Connected and usable.
     #[cfg(all(test, unix))]
     pub fn is_available(&self) -> bool {
-        self.requests.is_some()
+        self.is_connected()
     }
 
     /// A Flipper transmits (connecting to it may still fail).
     pub fn supports_tx(&self) -> bool {
-        self.port.is_some() || self.requests.is_some()
+        self.port.is_some() || self.is_connected()
     }
 
     pub fn start_receiving(&mut self, frequency: u32) -> Result<()> {
         self.frequency = frequency;
+        let was_connected = self.is_connected();
         self.connect()?;
-        self.ask(|done| Request::Receive { frequency, done }, Duration::from_secs(10))?
+        match self.ask(|done| Request::Receive { frequency, done }, Duration::from_secs(10)) {
+            Ok(Ok(())) => Ok(()),
+            // If an existing console died while idle (unplugged and plugged back in), reopen once.
+            Ok(Err(_)) | Err(_) if was_connected && !self.is_connected() && self.port.is_some() => {
+                self.connect()?;
+                self.ask(|done| Request::Receive { frequency, done }, Duration::from_secs(10))?
+            }
+            res => res?,
+        }
     }
 
     pub fn stop_receiving(&mut self) -> Result<()> {
-        if self.requests.is_none() {
+        if !self.is_connected() {
+            self.disconnect();
             return Ok(());
         }
         self.ask(|done| Request::Stop { done }, Duration::from_secs(10))
@@ -1065,10 +1168,7 @@ impl FlipperController {
 impl Drop for FlipperController {
     fn drop(&mut self) {
         // The worker stops rx_raw and ends when its request channel closes.
-        self.requests = None;
-        if let Some(w) = self.worker.take() {
-            let _ = w.join();
-        }
+        self.disconnect();
     }
 }
 
@@ -1371,6 +1471,7 @@ mod tests {
             /// The console's answer to every `subghz` command (current firmwares: an app is open,
             /// the command did not load from the SD card), as it prints it: red, no line break.
             subghz_refusal: Option<&'static str>,
+            unplug: Option<Arc<AtomicBool>>,
             pub log: Arc<Mutex<Log>>,
         }
 
@@ -1398,11 +1499,35 @@ mod tests {
             presets: bool,
             subghz_refusal: Option<&'static str>,
         ) -> (Box<dyn SerialPort>, Arc<Mutex<Log>>, std::thread::JoinHandle<()>) {
+            start_inner(rx_script, refuse_tx, presets, subghz_refusal, None)
+        }
+
+        pub struct UnpluggableFake {
+            pub port: Box<dyn SerialPort>,
+            pub log: Arc<Mutex<Log>>,
+            pub unplug: Arc<AtomicBool>,
+            pub handle: std::thread::JoinHandle<()>,
+        }
+
+        /// [start] with a handle that closes the PTY master on demand to simulate USB unplug.
+        pub fn start_unpluggable() -> UnpluggableFake {
+            let unplug = Arc::new(AtomicBool::new(false));
+            let (port, log, handle) = start_inner(Vec::new(), false, false, None, Some(unplug.clone()));
+            UnpluggableFake { port, log, unplug, handle }
+        }
+
+        fn start_inner(
+            rx_script: Vec<u8>,
+            refuse_tx: bool,
+            presets: bool,
+            subghz_refusal: Option<&'static str>,
+            unplug: Option<Arc<AtomicBool>>,
+        ) -> (Box<dyn SerialPort>, Arc<Mutex<Log>>, std::thread::JoinHandle<()>) {
             let (mut ours, mut theirs) = TTYPort::pair().unwrap();
             ours.set_timeout(Duration::from_millis(10)).unwrap();
             theirs.set_timeout(READ_TIMEOUT).unwrap();
             let log = Arc::new(Mutex::new(Log { commands: Vec::new(), transmitted: Vec::new(), files: HashMap::new() }));
-            let fake = Fake { port: ours, rx_script, refuse_tx, presets, subghz_refusal, log: log.clone() };
+            let fake = Fake { port: ours, rx_script, refuse_tx, presets, subghz_refusal, unplug, log: log.clone() };
             let handle = std::thread::spawn(move || fake.run());
             (Box::new(theirs), log, handle)
         }
@@ -1413,6 +1538,9 @@ mod tests {
             }
 
             fn read_byte(&mut self) -> Option<Option<u8>> {
+                if self.unplug.as_ref().is_some_and(|u| u.load(Ordering::SeqCst)) {
+                    return None;
+                }
                 let mut b = [0u8; 1];
                 match self.port.read(&mut b) {
                     Ok(1) => Some(Some(b[0])),
@@ -1699,5 +1827,77 @@ mod tests {
         flipper.start_receiving(868_350_000).unwrap();
         flipper.stop_receiving().unwrap();
         assert!(log.lock().unwrap().commands.iter().any(|c| c == "subghz rx_raw 868350000 0 FM476"));
+    }
+
+    /// Unplugging a connected Flipper (during RX or while idle) closes the dead console session so
+    /// the next use reopens the port instead of being locked out until KAT restarts.
+    #[cfg(unix)]
+    #[test]
+    fn reconnects_after_console_disconnect() {
+        use std::os::unix::fs::symlink;
+
+        struct SymlinkGuard(std::path::PathBuf);
+        impl SymlinkGuard {
+            fn point_to(&self, target: &str) {
+                let _ = std::fs::remove_file(&self.0);
+                symlink(target, &self.0).unwrap();
+            }
+        }
+        impl Drop for SymlinkGuard {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_file(&self.0);
+            }
+        }
+
+        let link = SymlinkGuard(std::env::temp_dir().join(format!("kat-flipper-reconnect-{}", std::process::id())));
+        let (tx, events) = mpsc::channel();
+
+        // 1. Connect and start receiving on PTY #1, then simulate USB unplug during active RX.
+        let fake::UnpluggableFake { port: port1, log: log1, unplug: unplug1, handle: fake1 } = fake::start_unpluggable();
+        link.point_to(&port1.name().unwrap());
+        let mut flipper = FlipperController::on_port(tx, link.0.to_string_lossy().into_owned(), None, true);
+        flipper.start_receiving(433_920_000).unwrap();
+        assert!(flipper.is_connected());
+        assert!(log1.lock().unwrap().commands.iter().any(|c| c == "subghz rx_raw 433920000"));
+
+        unplug1.store(true, Ordering::SeqCst);
+        fake1.join().unwrap();
+        drop(port1);
+
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while flipper.is_connected() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert!(!flipper.is_connected(), "controller stayed connected after console closed");
+        let saw_error = std::iter::from_fn(|| events.try_recv().ok())
+            .any(|e| matches!(e, RadioEvent::Error(msg) if msg.contains("Flipper:")));
+        assert!(saw_error, "expected RadioEvent::Error on disconnect");
+        // Stopping an already-disconnected controller succeeds cleanly.
+        flipper.stop_receiving().unwrap();
+
+        // 2. Plug Flipper back in (PTY #2) and verify start_receiving reconnects on the fresh port.
+        let fake::UnpluggableFake { port: port2, log: log2, unplug: unplug2, handle: fake2 } = fake::start_unpluggable();
+        link.point_to(&port2.name().unwrap());
+        flipper.start_receiving(433_920_000).unwrap();
+        assert!(flipper.is_connected());
+        assert!(log2.lock().unwrap().commands.iter().any(|c| c == "subghz rx_raw 433920000"));
+
+        // 3. Stop receiving (worker idle), unplug PTY #2, replug PTY #3, and verify auto-reconnect.
+        flipper.stop_receiving().unwrap();
+        unplug2.store(true, Ordering::SeqCst);
+        fake2.join().unwrap();
+        drop(port2);
+
+        let fake::UnpluggableFake { port: port3, log: log3, unplug: unplug3, handle: fake3 } = fake::start_unpluggable();
+        link.point_to(&port3.name().unwrap());
+        flipper.start_receiving(433_920_000).unwrap();
+        assert!(flipper.is_connected());
+        assert!(log3.lock().unwrap().commands.iter().any(|c| c == "subghz rx_raw 433920000"));
+
+        flipper.stop_receiving().unwrap();
+        drop(flipper);
+        unplug3.store(true, Ordering::SeqCst);
+        let _ = fake3.join();
+        drop(port3);
     }
 }

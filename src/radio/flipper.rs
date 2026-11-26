@@ -804,11 +804,11 @@ fn run_worker(mut console: Console, requests: Receiver<Request>, setup: WorkerSe
             Some(r) => {
                 if let Err(e) = r.pump(&mut console) {
                     rx = None;
-                    if console.broken {
-                        setup.connected.store(false, Ordering::SeqCst);
-                    }
+                    // Report the error before marking the console disconnected: whoever sees
+                    // `is_connected()` turn false then already has the event that says why.
                     setup.fail(&e);
                     if console.broken {
+                        setup.connected.store(false, Ordering::SeqCst);
                         break;
                     }
                     continue;

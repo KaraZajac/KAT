@@ -54,6 +54,52 @@ fn restore_terminal() {
     let _ = stdout.flush();
 }
 
+/// Graceful termination flag for Unix `SIGTERM` / `SIGHUP`, so exiting from an external signal
+/// runs [`TerminalGuard`] and [`App`]'s `Drop` (stopping radios and flushing `session.json`).
+#[cfg(unix)]
+mod term_signal {
+    use std::ffi::c_int;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    pub(crate) const SIGHUP: c_int = 1;
+    pub(crate) const SIGTERM: c_int = 15;
+
+    static TERMINATE: AtomicBool = AtomicBool::new(false);
+
+    extern "C" fn handle_signal(_sig: c_int) {
+        TERMINATE.store(true, Ordering::SeqCst);
+    }
+
+    extern "C" {
+        fn signal(sig: c_int, handler: extern "C" fn(c_int)) -> usize;
+    }
+
+    pub fn install() {
+        // SAFETY: `handle_signal` only performs an async-signal-safe atomic store.
+        unsafe {
+            signal(SIGTERM, handle_signal);
+            signal(SIGHUP, handle_signal);
+        }
+    }
+
+    pub fn requested() -> bool {
+        TERMINATE.load(Ordering::SeqCst)
+    }
+
+    #[cfg(test)]
+    pub fn reset() {
+        TERMINATE.store(false, Ordering::SeqCst);
+    }
+}
+
+#[cfg(not(unix))]
+mod term_signal {
+    pub fn install() {}
+    pub fn requested() -> bool {
+        false
+    }
+}
+
 /// Command-line options (`kat --help`).
 #[derive(Debug, Default, PartialEq)]
 struct CliOptions {
@@ -368,6 +414,10 @@ fn main() -> Result<()> {
         app.start_iq_file(path, cli.freq, cli.rate);
     }
 
+    // Trap SIGTERM / SIGHUP before entering raw mode so external shutdown restores the terminal
+    // and flushes the saved session cleanly.
+    term_signal::install();
+
     // Setup terminal (restored by the guard on every way out, before an error is printed)
     enable_raw_mode()?;
     let _restore = TerminalGuard;
@@ -393,6 +443,10 @@ macro_rules! report {
 
 fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> {
     loop {
+        if term_signal::requested() {
+            tracing::info!("Termination signal received; shutting down cleanly");
+            return Ok(());
+        }
         // Under a filter the selection is a capture the list shows (app/list_view.rs).
         app.keep_selection_shown();
         terminal.draw(|f| draw_ui(f, app))?;
@@ -402,7 +456,15 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
         // queue used to run without reading keys, so they all ran afterwards: q quit KAT.)
         let transmitting = app.has_pending_transmit();
         let wait = std::time::Duration::from_millis(if transmitting { 0 } else { 100 });
-        let had_event = event::poll(wait)?;
+        let had_event = match event::poll(wait) {
+            Ok(v) => v,
+            Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(e.into()),
+        };
+        if term_signal::requested() {
+            tracing::info!("Termination signal received; shutting down cleanly");
+            return Ok(());
+        }
         if had_event {
             if let Event::Key(key) = event::read()? {
                 let pressed = key.kind == KeyEventKind::Press;
@@ -780,5 +842,22 @@ mod cli_tests {
             assert!(USAGE.contains(needle), "{needle}");
         }
         assert_eq!(parse_args(args(&["-d", "a.sub", "-v"])).map(|a| matches!(a, CliAction::Decode(o) if o.verbose)), Ok(true));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn sigterm_and_sighup_set_termination_flag() {
+        extern "C" {
+            fn raise(sig: std::ffi::c_int) -> std::ffi::c_int;
+        }
+        term_signal::install();
+        for sig in [term_signal::SIGTERM, term_signal::SIGHUP] {
+            term_signal::reset();
+            assert!(!term_signal::requested());
+            // SAFETY: signal handler is installed above and only performs an atomic store.
+            assert_eq!(unsafe { raise(sig) }, 0);
+            assert!(term_signal::requested(), "signal {sig} did not set termination flag");
+        }
+        term_signal::reset();
     }
 }

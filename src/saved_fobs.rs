@@ -319,8 +319,12 @@ fn parse_fob_str(path: &Path, text: &str) -> Option<SavedFob> {
 
 // ─── Scanning ────────────────────────────────────────────────────────────────
 
-fn walk_fobs(dir: &Path, depth: usize, out: &mut Vec<PathBuf>) {
+fn walk_fobs(dir: &Path, depth: usize, visited: &mut std::collections::HashSet<PathBuf>, out: &mut Vec<PathBuf>) {
     if depth > MAX_SCAN_DEPTH {
+        return;
+    }
+    let canon = std::fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf());
+    if !visited.insert(canon) {
         return;
     }
     let Ok(entries) = std::fs::read_dir(dir) else {
@@ -329,7 +333,7 @@ fn walk_fobs(dir: &Path, depth: usize, out: &mut Vec<PathBuf>) {
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            walk_fobs(&path, depth + 1, out);
+            walk_fobs(&path, depth + 1, visited, out);
         } else if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("fob")) {
             out.push(path);
         }
@@ -340,8 +344,9 @@ fn walk_fobs(dir: &Path, depth: usize, out: &mut Vec<PathBuf>) {
 /// by path. Unreadable files and unknown-protocol captures are left out.
 pub fn scan_dirs(dirs: &[PathBuf]) -> Vec<SavedFob> {
     let mut paths = Vec::new();
+    let mut visited = std::collections::HashSet::new();
     for dir in dirs {
-        walk_fobs(dir, 0, &mut paths);
+        walk_fobs(dir, 0, &mut visited, &mut paths);
     }
     let mut seen = std::collections::HashSet::new();
     paths.retain(|p| seen.insert(std::fs::canonicalize(p).unwrap_or_else(|_| p.clone())));

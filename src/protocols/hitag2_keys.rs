@@ -259,6 +259,8 @@ pub fn load(config_dir: &Path) -> Option<String> {
     Some(format!("Loaded {keys} HiTag2 key{} from {}", crate::plural(keys), path.display()))
 }
 
+static SAVE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// `hitag2_key_db_save_key`: use `key` (in the order of the remote's protocol, module doc) with
 /// `epoch` for remote `uid` from now on, and write it to `<config dir>/hitag2_keys.txt`: the
 /// remote's line is replaced (its seed kept) or appended, a new file starts with the firmwares'
@@ -267,6 +269,7 @@ pub fn save_key(config_dir: &Path, uid: u32, key: [u8; 6], epoch: u32) -> std::i
     if !uid_ok(uid) {
         return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("UID {uid:08X} cannot be saved")));
     }
+    let _guard = SAVE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let path = config_dir.join(FILE_NAME);
     let existing = match std::fs::read_to_string(&path) {
         Ok(text) => Some(text),
@@ -279,7 +282,8 @@ pub fn save_key(config_dir: &Path, uid: u32, key: [u8; 6], epoch: u32) -> std::i
     let seed = existing
         .as_deref()
         .and_then(|text| text.lines().filter_map(parse_line).find(|(u, _)| *u == uid))
-        .and_then(|(_, r)| r.seed);
+        .and_then(|(_, r)| r.seed)
+        .or_else(|| find(uid).and_then(|r| r.seed));
     let record = Record { key: Some(key), epoch: epoch & EPOCH_MASK, seed };
     remember(uid, record);
 
@@ -305,11 +309,35 @@ pub fn save_key(config_dir: &Path, uid: u32, key: [u8; 6], epoch: u32) -> std::i
         out.push_str(&format_line(uid, &record));
     }
     std::fs::create_dir_all(config_dir)?;
-    // Written next to it and renamed over it, as the C does (`hitag2_keys.txt.tmp`).
+    // Written next to it with owner-only permissions and renamed over it (`hitag2_keys.txt.tmp`).
     let tmp = config_dir.join(format!("{FILE_NAME}.tmp"));
-    std::fs::write(&tmp, out)?;
+    write_owner_only(&tmp, out.as_bytes())?;
     std::fs::rename(&tmp, &path)?;
     Ok(path)
+}
+
+fn write_owner_only(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    match std::fs::remove_file(path) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e),
+    }
+    let mut opts = std::fs::OpenOptions::new();
+    opts.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.mode(0o600);
+    }
+    let mut file = opts.open(path)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+    }
+    file.write_all(bytes)?;
+    file.sync_all()
 }
 
 /// A key that a loaded key file names on its `Hitag2 Key` line and that the caller has checked
@@ -430,6 +458,12 @@ pub(crate) mod tests {
             "# Flipper Hitag2 UID keys\n# my notes\n12345678 010203040506 0 -\n5EED0001 212223242526 2 0A0B0C0D\n\n"
         );
         assert_eq!(find(uid), Some(Record { key: Some([0x21, 0x22, 0x23, 0x24, 0x25, 0x26]), epoch: 2, seed: Some(0x0A0B_0C0D) }));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600, "hitag2_keys.txt must be owner-only");
+        }
         assert!(save_key(&dir, 0, [0; 6], 0).is_err());
         let _ = std::fs::remove_dir_all(&dir);
     }

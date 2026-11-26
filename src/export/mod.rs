@@ -9,7 +9,11 @@ pub mod binraw;
 pub mod fob;
 pub mod flipper;
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+
+/// Maximum recursion depth when scanning import folders (additional bound alongside cycle tracking).
+const MAX_SCAN_DEPTH: usize = 32;
 
 /// Recursively scan a directory for importable files (.fob and .sub), including all subdirectories.
 /// Use this so that EXPORTS/FIAT, EXPORTS/KIA, EXPORTS/FORD, etc. are all discovered.
@@ -18,19 +22,27 @@ pub fn scan_import_files_recursive(dir: &Path) -> Vec<PathBuf> {
     if !dir.exists() || !dir.is_dir() {
         return files;
     }
-    walk_for_imports(dir, &mut files);
+    let mut visited = HashSet::new();
+    walk_for_imports(dir, 0, &mut visited, &mut files);
     files.sort();
     files
 }
 
-fn walk_for_imports(dir: &Path, out: &mut Vec<PathBuf>) {
+fn walk_for_imports(dir: &Path, depth: usize, visited: &mut HashSet<PathBuf>, out: &mut Vec<PathBuf>) {
+    if depth > MAX_SCAN_DEPTH {
+        return;
+    }
+    let canon = std::fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf());
+    if !visited.insert(canon) {
+        return;
+    }
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            walk_for_imports(&path, out);
+            walk_for_imports(&path, depth + 1, visited, out);
         } else if path.is_file() && (has_extension(&path, "fob") || has_extension(&path, "sub")) {
             out.push(path);
         }
@@ -107,6 +119,26 @@ mod tests {
         assert_eq!(found, ["GARAGE/Gate.SUB", "a.sub", "b.Fob"]);
         assert!(has_extension(Path::new("x/Garage.SUB"), "sub"));
         assert!(!has_extension(Path::new("x/Garage.sub.txt"), "sub"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn import_scan_survives_symlink_loops() {
+        use std::os::unix::fs::symlink;
+        let dir = scratch("symlink-loop");
+        let sub = dir.join("sub");
+        std::fs::create_dir_all(&sub).unwrap();
+        std::fs::write(dir.join("a.sub"), "").unwrap();
+        std::fs::write(sub.join("b.fob"), "").unwrap();
+        // Dual self/parent loops would stack-overflow or blow up exponentially without cycle tracking.
+        symlink(&dir, dir.join("loop_self")).unwrap();
+        symlink(&dir, sub.join("loop_parent")).unwrap();
+        let found: Vec<String> = scan_import_files_recursive(&dir)
+            .iter()
+            .map(|p| p.strip_prefix(&dir).unwrap().to_string_lossy().replace('\\', "/"))
+            .collect();
+        assert_eq!(found, ["a.sub", "sub/b.fob"]);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

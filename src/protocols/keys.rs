@@ -315,12 +315,12 @@ fn global_keystore() -> &'static RwLock<KeyStore> {
 
 /// Get a read reference to the global keystore
 pub fn get_keystore() -> std::sync::RwLockReadGuard<'static, KeyStore> {
-    global_keystore().read().unwrap()
+    global_keystore().read().unwrap_or_else(|e| e.into_inner())
 }
 
 /// Get a write reference to the global keystore
 pub fn get_keystore_mut() -> std::sync::RwLockWriteGuard<'static, KeyStore> {
-    global_keystore().write().unwrap()
+    global_keystore().write().unwrap_or_else(|e| e.into_inner())
 }
 
 /// Initialize the global keystore with KIA keys (matches protopirate_keys_load pattern)

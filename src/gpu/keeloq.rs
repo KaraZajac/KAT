@@ -151,6 +151,9 @@ async fn run(
 
     queue.write_buffer(&out, 0, &vec![0u8; out_size as usize]);
     device.poll(wgpu::Maintain::Wait);
+    if ctx.has_failed() {
+        return Err(());
+    }
 
     // The kernel iterates gt = candidate >> 5 (32 candidates per thread). Cover every gt block that
     // overlaps [start, end); the host drops survivors outside the range.
@@ -163,6 +166,9 @@ async fn run(
     while done < total_gt {
         if ctl.cancel.load(Ordering::Relaxed) {
             break;
+        }
+        if ctx.has_failed() {
+            return Err(());
         }
         let threads = threads_per.min(total_gt - done);
         let base = start_gt + done;
@@ -177,7 +183,7 @@ async fn run(
             _pad1: 0,
         };
         queue.write_buffer(&params_buf, 0, bytemuck::bytes_of(&params));
-        let wg = ((threads + 63) / 64) as u32;
+        let wg = threads.div_ceil(64) as u32;
         let mut enc = device.create_command_encoder(&Default::default());
         {
             let mut pass = enc.begin_compute_pass(&Default::default());
@@ -187,6 +193,9 @@ async fn run(
         }
         queue.submit(Some(enc.finish()));
         device.poll(wgpu::Maintain::Wait);
+        if ctx.has_failed() {
+            return Err(());
+        }
 
         done += threads;
         // Progress: candidates = gt threads × 32 lanes, clamped to the real range.
@@ -203,11 +212,16 @@ async fn run(
         let _ = tx.send(r);
     });
     device.poll(wgpu::Maintain::Wait);
+    if ctx.has_failed() {
+        return Err(());
+    }
     rx.recv().map_err(|_| ())?.map_err(|_| ())?;
     let data = slice.get_mapped_range();
     let words: &[u32] = bytemuck::cast_slice(&data);
     let count = words[0];
     if count > CAP {
+        drop(data);
+        staging.unmap();
         return Err(()); // more survivors than the buffer holds: fall back to the CPU
     }
     let mut cands = Vec::with_capacity(count as usize);
@@ -216,6 +230,8 @@ async fn run(
         let c_hi = words[1 + i * 2 + 1] as u64;
         cands.push((c_hi << 32) | c_lo);
     }
+    drop(data);
+    staging.unmap();
     Ok(cands)
 }
 

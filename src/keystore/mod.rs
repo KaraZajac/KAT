@@ -140,6 +140,25 @@ pub fn load_jlr_keys(config_dir: &std::path::Path) -> Option<String> {
     })
 }
 
+/// Open a vehicle-secret key file for appending with owner-only (`0600`) permissions on Unix,
+/// tightening an existing file's mode as well (matching `session.rs`).
+fn open_key_file_append(path: &std::path::Path) -> std::io::Result<std::fs::File> {
+    let mut opts = std::fs::OpenOptions::new();
+    opts.create(true).append(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.mode(0o600);
+    }
+    let file = opts.open(path)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+    }
+    Ok(file)
+}
+
 /// Append a key to `<config dir>/keeloq_mfcodes_user` (`KEY:TYPE:NAME`, as the Flipper's user
 /// keystore), creating the file with the Flipper header when it doesn't exist. Returns the path; an
 /// identical line already in the file is not written again.
@@ -152,7 +171,7 @@ pub fn append_user_key(config_dir: &std::path::Path, name: &str, learning: u32, 
         return Ok(path);
     }
     std::fs::create_dir_all(config_dir)?;
-    let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&path)?;
+    let mut f = open_key_file_append(&path)?;
     if existing.is_empty() {
         writeln!(f, "Filetype: Flipper SubGhz Keystore File\nVersion: 0\nEncryption: 0")?;
     } else if !existing.ends_with('\n') {
@@ -174,7 +193,7 @@ pub fn append_jlr_key(config_dir: &std::path::Path, name: &str, key: &[u8; 16]) 
         return Ok(path);
     }
     std::fs::create_dir_all(config_dir)?;
-    let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&path)?;
+    let mut f = open_key_file_append(&path)?;
     if existing.is_empty() {
         writeln!(f, "# JLR car keys (32 hex digits, optional :name). KAT ships none.")?;
     } else if !existing.ends_with('\n') {
@@ -722,6 +741,28 @@ mod user_keystore_tests {
         let (entries, errors) = parse_user_keystore(&text).unwrap();
         assert!(errors.is_empty());
         assert_eq!(entries[1], ("BF_0C49A51".to_string(), 6, 0x6D2A_91C3));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn appended_key_files_are_owner_only() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("kat-keystore-perms-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // New files get 0600.
+        let user_path = append_user_key(&dir, "BF_1", 6, 0x0102_0304_0506_0708).unwrap();
+        let jlr_path = append_jlr_key(&dir, "XF", &[0x11; 16]).unwrap();
+        assert_eq!(std::fs::metadata(&user_path).unwrap().permissions().mode() & 0o777, 0o600);
+        assert_eq!(std::fs::metadata(&jlr_path).unwrap().permissions().mode() & 0o777, 0o600);
+
+        // Pre-existing 0644 files are tightened to 0600 on append.
+        std::fs::set_permissions(&jlr_path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        append_jlr_key(&dir, "XE", &[0x22; 16]).unwrap();
+        assert_eq!(std::fs::metadata(&jlr_path).unwrap().permissions().mode() & 0o777, 0o600);
+
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

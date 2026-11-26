@@ -125,7 +125,7 @@ fn receive(soapy: &Soapy, dev: &mut Device, out: &mut impl Write, target: u32, g
     let wanted = choose_rate(&ranges);
     dev.set_sample_rate(wanted)?;
     let rate = match dev.sample_rate() {
-        r if r >= 1.0 => r.round() as u32,
+        r if r.is_finite() && (1.0..=100e6).contains(&r) => r.round() as u32,
         _ => wanted as u32,
     };
     dev.set_frequency(f64::from(lo_for(target, rate)))?;
@@ -193,19 +193,15 @@ fn receive(soapy: &Soapy, dev: &mut Device, out: &mut impl Write, target: u32, g
         }
         let n = dev.read(&mut samples, 100_000);
         let got: &[f32] = match n {
-            n if n > 0 => {
-                let n = n as usize;
-                let skip = drop_left.min(n);
-                drop_left -= skip;
-                &samples[2 * skip..2 * n]
-            }
+            n if n > 0 => take_read_samples(&samples, n as usize, &mut drop_left)?,
             0 | TIMEOUT => &[],
             OVERFLOW => {
                 overflows += 1;
                 if overflows.is_power_of_two() {
                     eprintln!("samples dropped (overflow) {overflows} time(s)");
                 }
-                continue;
+                // Fall through so the 50 ms heartbeat frame is still sent during sustained overflows.
+                &[]
             }
             e => return Err(format!("reading the radio failed: {}", soapy.err_str(e))),
         };
@@ -219,6 +215,19 @@ fn receive(soapy: &Soapy, dev: &mut Device, out: &mut impl Write, target: u32, g
             since = std::time::Instant::now();
         }
     }
+}
+
+/// Slice the newly read complex samples (2 `f32`s per sample), dropping up to `*drop_left`
+/// post-retune samples first. Returns `Err` if the C driver reported more samples than fit in
+/// `samples`, preventing an out-of-bounds slice panic.
+fn take_read_samples<'a>(samples: &'a [f32], count: usize, drop_left: &mut usize) -> Result<&'a [f32], String> {
+    let max_samples = samples.len() / 2;
+    if count > max_samples {
+        return Err(format!("SoapySDR driver returned {count} samples for a {max_samples}-sample buffer"));
+    }
+    let skip = (*drop_left).min(count);
+    *drop_left -= skip;
+    Ok(&samples[2 * skip..2 * count])
 }
 
 /// Write the gathered samples as an IQ frame for `tag`, and start gathering again.
@@ -254,5 +263,23 @@ mod tests {
         assert!(left_out(&radio("rtlsdr")) && left_out(&radio("hackrf")) && left_out(&radio("osmosdr")));
         assert!(!left_out(&radio("airspy")) && !left_out(&radio("sdrplay")) && !left_out(&radio("lime")));
         assert!(!left_out(&[("label".to_string(), "hackrf".to_string())]), "only the driver counts");
+    }
+
+    #[test]
+    fn take_read_samples_handles_retune_drop_and_rejects_overflow() {
+        let buf = [1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]; // 4 complex samples
+        let mut drop_left = 0;
+        assert_eq!(take_read_samples(&buf, 3, &mut drop_left).unwrap(), &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+
+        // Retune drop spanning more than one read.
+        drop_left = 5;
+        assert_eq!(take_read_samples(&buf, 3, &mut drop_left).unwrap(), &[] as &[f32]);
+        assert_eq!(drop_left, 2);
+        assert_eq!(take_read_samples(&buf, 4, &mut drop_left).unwrap(), &[5.0, 6.0, 7.0, 8.0]);
+        assert_eq!(drop_left, 0);
+
+        // Buggy C driver returning more samples than the buffer holds must fail cleanly, not panic.
+        let err = take_read_samples(&buf, 5, &mut drop_left).unwrap_err();
+        assert!(err.contains("5 samples") && err.contains("4-sample buffer"), "{err}");
     }
 }

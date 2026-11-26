@@ -124,17 +124,21 @@ unsafe fn text(p: *const c_char) -> Option<String> {
     (!p.is_null()).then(|| CStr::from_ptr(p).to_string_lossy().into_owned())
 }
 
-/// SoapySDR's log handler: the message on stderr.
+/// SoapySDR's log handler: the message on stderr. Never panics across the `extern "C"` boundary
+/// (for instance if stderr is closed while KAT shuts down).
 extern "C" fn forward_log(level: c_int, message: *const c_char) {
-    let level = match level {
-        1..=3 => "error",
-        4 => "warning",
-        5 | 6 => "info",
-        _ => "debug",
-    };
-    // SAFETY: SoapySDR passes a NUL-terminated message.
-    let message = unsafe { text(message) }.unwrap_or_default();
-    eprintln!("[{level}] {message}");
+    let _ = std::panic::catch_unwind(|| {
+        use std::io::Write;
+        let level = match level {
+            1..=3 => "error",
+            4 => "warning",
+            5 | 6 => "info",
+            _ => "debug",
+        };
+        // SAFETY: SoapySDR passes a NUL-terminated message (or NULL).
+        let message = unsafe { text(message) }.unwrap_or_default();
+        let _ = writeln!(std::io::stderr(), "[{level}] {message}");
+    });
 }
 
 impl Soapy {
@@ -275,6 +279,9 @@ impl Soapy {
 
 /// The pairs of a Kwargs.
 unsafe fn pairs(k: &Kwargs) -> Vec<(String, String)> {
+    if k.size == 0 || k.keys.is_null() || k.vals.is_null() {
+        return Vec::new();
+    }
     (0..k.size)
         .map(|i| (text(*k.keys.add(i)).unwrap_or_default(), text(*k.vals.add(i)).unwrap_or_default()))
         .collect()
@@ -327,6 +334,7 @@ impl Device<'_> {
                     }
                 }
             }
+            n = 0;
             let p = (self.soapy.list_sample_rates)(self.raw, RX, 0, &mut n);
             if p.is_null() {
                 return Vec::new();
@@ -376,7 +384,10 @@ impl Device<'_> {
 
     /// Set up and start channel 0's receive stream, complex f32 samples.
     pub fn start_stream(&mut self) -> Result<(), String> {
-        let format = b"CF32\0".as_ptr().cast::<c_char>();
+        if !self.stream.is_null() {
+            return Err("stream already started".into());
+        }
+        let format = c"CF32".as_ptr();
         let channel: usize = 0;
         // SAFETY: the format and channel list are read during the call only.
         let stream = unsafe {
@@ -406,6 +417,7 @@ impl Device<'_> {
     pub fn read(&mut self, buf: &mut [f32], timeout_us: i64) -> c_int {
         let buffs = [buf.as_mut_ptr().cast::<c_void>()];
         let (mut flags, mut time_ns) = (0, 0);
+        let timeout = c_long::try_from(timeout_us).unwrap_or(c_long::MAX);
         // SAFETY: one channel, one buffer of buf.len() / 2 complex samples.
         unsafe {
             (self.soapy.read_stream)(
@@ -415,7 +427,7 @@ impl Device<'_> {
                 buf.len() / 2,
                 &mut flags,
                 &mut time_ns,
-                timeout_us as c_long,
+                timeout,
             )
         }
     }
@@ -438,7 +450,7 @@ impl Drop for Device<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::abi_version;
+    use super::*;
 
     #[test]
     fn abi_versions_are_read() {
@@ -446,5 +458,17 @@ mod tests {
         assert_eq!(abi_version("0.7"), Some((0, 7)));
         assert_eq!(abi_version("0.9"), Some((0, 9)));
         assert_eq!(abi_version("junk"), None);
+    }
+
+    #[test]
+    fn forward_log_handles_null_and_valid_messages() {
+        forward_log(6, ptr::null());
+        forward_log(3, c"soapy test error".as_ptr());
+    }
+
+    #[test]
+    fn pairs_ignores_null_key_or_value_arrays() {
+        let bad = Kwargs { size: 3, keys: ptr::null_mut(), vals: ptr::null_mut() };
+        assert!(unsafe { pairs(&bad) }.is_empty());
     }
 }

@@ -20,11 +20,41 @@ static USER_ENTRIES: OnceLock<Vec<(String, u32, u64)>> = OnceLock::new();
 /// What [parse_user_keystore] returns: the entries (name, type, key) and the line errors.
 pub type ParsedUserKeystore = (Vec<(String, u32, u64)>, Vec<(usize, String)>);
 
+/// Strip an optional leading UTF-8 BOM (`\u{FEFF}`) written by editors such as Windows Notepad.
+fn strip_bom(text: &str) -> &str {
+    text.strip_prefix('\u{FEFF}').unwrap_or(text)
+}
+
+/// Parse exactly `N` bytes of ASCII hex digits, ignoring whitespace and `-`.
+/// Operates on `char`s rather than byte offsets, so non-ASCII UTF-8 input returns `None` instead
+/// of panicking on a char-boundary slice, and signed forms such as `+A` are rejected.
+fn parse_hex_array<const N: usize>(s: &str) -> Option<[u8; N]> {
+    let mut out = [0u8; N];
+    let mut idx = 0usize;
+    let mut hi: Option<u8> = None;
+    for c in s.chars() {
+        if c.is_whitespace() || c == '-' {
+            continue;
+        }
+        let nibble = c.to_digit(16)? as u8;
+        if let Some(h) = hi.take() {
+            if idx >= N {
+                return None;
+            }
+            out[idx] = (h << 4) | nibble;
+            idx += 1;
+        } else {
+            hi = Some(nibble);
+        }
+    }
+    (hi.is_none() && idx == N).then_some(out)
+}
+
 /// Parse a Flipper user keystore. Returns the entries and the line errors (1-based line, text).
 pub fn parse_user_keystore(text: &str) -> Result<ParsedUserKeystore, String> {
     let mut entries = Vec::new();
     let mut errors = Vec::new();
-    for (i, raw) in text.lines().enumerate() {
+    for (i, raw) in strip_bom(text).lines().enumerate() {
         let line = raw.trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
@@ -43,10 +73,11 @@ pub fn parse_user_keystore(text: &str) -> Result<ParsedUserKeystore, String> {
             errors.push((i + 1, raw.to_string()));
             continue;
         };
-        match (u64::from_str_radix(key.trim(), 16), ty.trim().parse::<u32>()) {
-            (Ok(k), Ok(t)) if key.trim().len() == 16 && !name.trim().is_empty() => {
-                entries.push((name.trim().to_string(), t, k))
-            }
+        let key = key.trim();
+        let name = name.trim();
+        let key_ok = key.len() == 16 && key.bytes().all(|b| b.is_ascii_hexdigit());
+        match (key_ok.then(|| u64::from_str_radix(key, 16).ok()).flatten(), ty.trim().parse::<u32>()) {
+            (Some(k), Ok(t)) if !name.is_empty() => entries.push((name.to_string(), t, k)),
             _ => errors.push((i + 1, raw.to_string())),
         }
     }
@@ -92,7 +123,7 @@ pub const JLR_KEYS_FILE: &str = "jlr_keys";
 pub fn parse_jlr_keys(text: &str) -> (Vec<(String, [u8; 16])>, Vec<(usize, String)>) {
     let mut keys = Vec::new();
     let mut errors = Vec::new();
-    for (i, raw) in text.lines().enumerate() {
+    for (i, raw) in strip_bom(text).lines().enumerate() {
         let line = raw.trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
@@ -101,19 +132,10 @@ pub fn parse_jlr_keys(text: &str) -> (Vec<(String, [u8; 16])>, Vec<(usize, Strin
             Some((h, n)) => (h, n.trim().to_string()),
             None => (line, String::new()),
         };
-        let hex: String = hex.chars().filter(|c| !c.is_whitespace() && *c != '-').collect();
-        let bytes = (hex.len() == 32)
-            .then(|| {
-                (0..16)
-                    .map(|j| u8::from_str_radix(&hex[2 * j..2 * j + 2], 16))
-                    .collect::<Result<Vec<u8>, _>>()
-                    .ok()
-            })
-            .flatten();
-        match bytes {
+        match parse_hex_array::<16>(hex) {
             Some(b) => {
                 let name = if name.is_empty() { format!("key {}", keys.len() + 1) } else { name };
-                keys.push((name, b.try_into().unwrap()));
+                keys.push((name, b));
             }
             None => errors.push((i + 1, raw.to_string())),
         }
@@ -193,12 +215,8 @@ pub const AUDI_BCM2_KEYS_FILE: &str = "audi_bcm2_keys";
 /// Parse the Audi BCM2 key file: the cars and the line errors (1-based line, text).
 pub fn parse_audi_bcm2_keys(text: &str) -> (Vec<crate::protocols::keys::AudiBcm2Car>, Vec<(usize, String)>) {
     use crate::protocols::keys::AudiBcm2Car;
-    let hex_bytes = |s: &str, n: usize| -> Option<Vec<u8>> {
-        let h: String = s.chars().filter(|c| !c.is_whitespace() && *c != '-').collect();
-        (h.len() == 2 * n).then(|| (0..n).map(|j| u8::from_str_radix(&h[2 * j..2 * j + 2], 16)).collect::<Result<Vec<_>, _>>().ok()).flatten()
-    };
     let (mut cars, mut errors) = (Vec::new(), Vec::new());
-    for (i, raw) in text.lines().enumerate() {
+    for (i, raw) in strip_bom(text).lines().enumerate() {
         let line = raw.trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
@@ -210,9 +228,9 @@ pub fn parse_audi_bcm2_keys(text: &str) -> (Vec<crate::protocols::keys::AudiBcm2
         let toks: Vec<&str> = fields.split([' ', '\t', ',']).filter(|t| !t.is_empty()).collect();
         let car = (toks.len() >= 3 && toks.len() <= 10)
             .then(|| {
-                let key: [u8; 16] = hex_bytes(toks[0], 16)?.try_into().ok()?;
-                let car_value: [u8; 4] = hex_bytes(toks[1], 4)?.try_into().ok()?;
-                let key_ids = toks[2..].iter().map(|t| hex_bytes(t, 4).and_then(|b| b.try_into().ok())).collect::<Option<Vec<[u8; 4]>>>()?;
+                let key = parse_hex_array::<16>(toks[0])?;
+                let car_value = parse_hex_array::<4>(toks[1])?;
+                let key_ids = toks[2..].iter().map(|t| parse_hex_array::<4>(t)).collect::<Option<Vec<[u8; 4]>>>()?;
                 Some(AudiBcm2Car { name: if name.is_empty() { format!("car {}", cars.len() + 1) } else { name.clone() }, key, car_value, key_ids })
             })
             .flatten();
@@ -252,7 +270,7 @@ pub fn parse_bmw_cas3_keys(text: &str) -> (Vec<crate::protocols::keys::BmwCas3Fo
     use crate::protocols::keys::BmwCas3Fob;
     let is_hex = |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_hexdigit());
     let (mut fobs, mut errors) = (Vec::new(), Vec::new());
-    for (i, raw) in text.lines().enumerate() {
+    for (i, raw) in strip_bom(text).lines().enumerate() {
         let line = raw.trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
@@ -317,12 +335,8 @@ pub const BMW_CAS4_KEYS_FILE: &str = "bmw_cas4_keys";
 /// name.
 pub fn parse_bmw_cas4_keys(text: &str) -> (Vec<crate::protocols::keys::BmwCas4Car>, Vec<(usize, String)>) {
     use crate::protocols::keys::{BmwCas4Car, BmwKey};
-    let hex16 = |s: &str| -> Option<[u8; 16]> {
-        let h: String = s.chars().filter(|c| !c.is_whitespace() && *c != '-').collect();
-        (h.len() == 32).then(|| (0..16).map(|j| u8::from_str_radix(&h[2 * j..2 * j + 2], 16)).collect::<Result<Vec<_>, _>>().ok()).flatten().and_then(|v| v.try_into().ok())
-    };
     let (mut cars, mut errors) = (Vec::new(), Vec::new());
-    for (i, raw) in text.lines().enumerate() {
+    for (i, raw) in strip_bom(text).lines().enumerate() {
         let line = raw.trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
@@ -331,13 +345,13 @@ pub fn parse_bmw_cas4_keys(text: &str) -> (Vec<crate::protocols::keys::BmwCas4Ca
         let car = (|| {
             let first = *toks.first()?;
             // the master (32 hex) or "-" for a car whose per-remote keys are given directly
-            let master = if first == "-" { None } else { Some(hex16(first)?) };
+            let master = if first == "-" { None } else { Some(parse_hex_array::<16>(first)?) };
             let mut keys = Vec::new();
             let mut name_from = 1;
             for (k, tok) in toks.iter().enumerate().skip(1) {
                 if let Some((num, hex)) = tok.split_once('=') {
                     let num = num.parse::<u8>().ok()?;
-                    let key = hex16(hex)?;
+                    let key = parse_hex_array::<16>(hex)?;
                     keys.push(BmwKey { num, key });
                     name_from = k + 1;
                 } else {
@@ -400,19 +414,13 @@ pub const PSA_2BUTTON_TABLE: [u8; 16] =
 pub fn parse_psa_bsi_key(text: &str) -> (Option<[u8; 16]>, Vec<usize>) {
     let mut table = None;
     let mut errors = Vec::new();
-    for (i, raw) in text.lines().enumerate() {
+    for (i, raw) in strip_bom(text).lines().enumerate() {
         let line = raw.trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        let hex: String = line.chars().filter(|c| !c.is_whitespace() && *c != '-').collect();
-        let bytes = (hex.len() == 32)
-            .then(|| {
-                (0..16).map(|j| u8::from_str_radix(&hex[2 * j..2 * j + 2], 16)).collect::<Result<Vec<u8>, _>>().ok()
-            })
-            .flatten();
-        match bytes {
-            Some(b) if table.is_none() => table = Some(b.try_into().unwrap()),
+        match parse_hex_array::<16>(line) {
+            Some(b) if table.is_none() => table = Some(b),
             _ => errors.push(i + 1),
         }
     }
@@ -596,7 +604,7 @@ pub struct ParsedKeystore {
 /// The resulting u64 value matches the reference/Pandora hex (e.g. KIA = 0xA8F5DFFC8DAA5CDB),
 /// which is typically written MSB-first in docs; KeeLoq uses this value as a 64-bit key.
 pub fn parse_blob(blob: &[u8]) -> Option<ParsedKeystore> {
-    if blob.len() < 4 || &blob[0..4] != MAGIC {
+    if blob.len() < 6 || &blob[0..4] != MAGIC {
         return None;
     }
     let n = u16::from_le_bytes(blob[4..6].try_into().ok()?) as usize;
@@ -900,6 +908,86 @@ deadbeef
         assert_eq!((t, errs), (dummy, vec![]), "a valid file table overrides the built-in");
         // A file with no valid table keeps the built-in table (and reports the bad line).
         assert_eq!(psa_table_for(Some("not a key\n")), (PSA_BSI_TABLE, vec![1]));
+    }
+
+    #[test]
+    fn key_parsers_reject_non_ascii_and_signed_hex_without_panicking() {
+        // Exact 32-byte UTF-8 inputs whose char boundaries fall inside 2-byte slices:
+        // "ä" (2 bytes) + 30 ASCII hex = 32 bytes; "—" (3 bytes) + 29 ASCII hex = 32 bytes.
+        let utf8_32_a = "ä00112233445566778899AABBCCDDEE";
+        let utf8_32_b = "0011223344556677—8899AABBCCDDE";
+        let bom_32 = "\u{FEFF}00112233445566778899AABBCCDDE";
+        let signed_32 = "+A0102030405060708090a0b0c0d0e0f";
+        let utf8_8 = "ä001122";
+        assert_eq!(utf8_32_a.len(), 32);
+        assert_eq!(utf8_32_b.len(), 32);
+        assert_eq!(bom_32.len(), 32);
+        assert_eq!(signed_32.len(), 32);
+        assert_eq!(utf8_8.len(), 8);
+
+        // JLR: leading file BOM on valid line works; mid-file BOM / non-ASCII / '+' are errors, never panics.
+        let jlr = format!("\u{FEFF}00112233445566778899AABBCCDDEEFF:ok\n{utf8_32_a}\n{utf8_32_b}:bad\n{bom_32}\n{signed_32}\n");
+        let (keys, errs) = parse_jlr_keys(&jlr);
+        assert_eq!(keys.len(), 1);
+        assert_eq!(keys[0].0, "ok");
+        assert_eq!(errs.iter().map(|(l, _)| *l).collect::<Vec<_>>(), vec![2, 3, 4, 5]);
+
+        // Audi BCM2: non-ASCII in key (32 bytes), car_value (8 bytes), key_id (8 bytes), or '+'.
+        let audi = format!(
+            "\u{FEFF}000102030405060708090A0B0C0D0E0F AABBCCDD 11223344 : ok\n\
+             {utf8_32_a} AABBCCDD 11223344\n\
+             000102030405060708090A0B0C0D0E0F {utf8_8} 11223344\n\
+             000102030405060708090A0B0C0D0E0F AABBCCDD {utf8_8}\n\
+             {signed_32} AABBCCDD 11223344\n"
+        );
+        let (cars, errs) = parse_audi_bcm2_keys(&audi);
+        assert_eq!(cars.len(), 1);
+        assert_eq!(cars[0].name, "ok");
+        assert_eq!(errs.iter().map(|(l, _)| *l).collect::<Vec<_>>(), vec![2, 3, 4, 5]);
+
+        // BMW CAS3: leading file BOM works cleanly.
+        let (fobs, errs) = parse_bmw_cas3_keys("\u{FEFF}1234 1A2B3C4D 001122334455 bom\n");
+        assert_eq!(fobs.len(), 1);
+        assert_eq!(fobs[0].name, "bom");
+        assert!(errs.is_empty());
+
+        // BMW CAS4: non-ASCII in master or direct key, plus '+'.
+        let cas4 = format!(
+            "\u{FEFF}0123456789ABCDEF0123456789ABCDEF ok\n\
+             {utf8_32_b} bad\n\
+             - 0={utf8_32_a} bad\n\
+             {signed_32} bad\n"
+        );
+        let (cars, errs) = parse_bmw_cas4_keys(&cas4);
+        assert_eq!(cars.len(), 1);
+        assert_eq!(cars[0].name, "ok");
+        assert_eq!(errs.iter().map(|(l, _)| *l).collect::<Vec<_>>(), vec![2, 3, 4]);
+
+        // PSA BSI / PSA 2-Button: non-ASCII / mid-file BOM / '+' are rejected without panicking, valid line still loads.
+        let psa = format!("{utf8_32_a}\n{utf8_32_b}\n{bom_32}\n{signed_32}\n000102030405060708090a0b0c0d0e0f\n");
+        let (table, errs) = parse_psa_bsi_key(&psa);
+        assert_eq!(table, Some([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]));
+        assert_eq!(errs, vec![1, 2, 3, 4]);
+        let (bom_table, bom_errs) = parse_psa_bsi_key("\u{FEFF}000102030405060708090a0b0c0d0e0f\n");
+        assert_eq!(bom_table, Some([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]));
+        assert!(bom_errs.is_empty());
+
+        // Flipper user keystore: leading BOM works, '+...' 16-byte key is rejected.
+        let user = "\u{FEFF}Filetype: Flipper SubGhz Keystore File\n\
+                    0123456789ABCDEF:2:Valid\n\
+                    +0123456789ABCDE:2:Signed\n";
+        let (entries, errs) = parse_user_keystore(user).unwrap();
+        assert_eq!(entries, vec![("Valid".to_string(), 2, 0x0123_4567_89AB_CDEF)]);
+        assert_eq!(errs.len(), 1);
+        assert_eq!(errs[0].0, 3);
+    }
+
+    #[test]
+    fn parse_blob_rejects_truncated_headers() {
+        assert!(parse_blob(b"").is_none());
+        assert!(parse_blob(b"KATK").is_none());
+        assert!(parse_blob(b"KATK\x01").is_none());
+        assert!(parse_blob(b"KATK\x01\x00").is_none());
     }
 
     #[test]

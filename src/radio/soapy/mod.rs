@@ -98,7 +98,10 @@ pub fn find_devices() -> (Vec<FoundRadio>, Option<String>) {
 /// `kat --soapy-helper find`'s lines.
 fn list() -> Result<Vec<Listing>, String> {
     let mut child = spawn_helper(&["find".to_string()], Stdio::null()).map_err(|e| format!("cannot start KAT's SoapySDR helper ({e})"))?;
-    let stdout = child.stdout.take().ok_or("no output from KAT's SoapySDR helper")?;
+    let Some(stdout) = child.stdout.take() else {
+        let _ = wait_or_kill(&mut child, Duration::ZERO);
+        return Err("no output from KAT's SoapySDR helper".to_string());
+    };
     let (tx, rx) = mpsc::channel();
     thread::spawn(move || {
         let lines: Vec<String> = BufReader::new(stdout).lines().map_while(Result::ok).collect();
@@ -107,12 +110,11 @@ fn list() -> Result<Vec<Listing>, String> {
     let lines = match rx.recv_timeout(FIND_TIMEOUT) {
         Ok(lines) => lines,
         Err(_) => {
-            let _ = child.kill();
-            let _ = child.wait();
+            let _ = wait_or_kill(&mut child, Duration::ZERO);
             return Err(format!("listing its radios took over {} s", FIND_TIMEOUT.as_secs()));
         }
     };
-    let status = child.wait();
+    let status = wait_or_kill(&mut child, DEFAULT_TIMEOUTS.stop_grace);
     let listings: Vec<Listing> = lines.iter().filter_map(|l| serde_json::from_str(l).ok()).collect();
     if listings.is_empty() && !matches!(status, Ok(s) if s.success()) {
         return Err(format!("KAT's SoapySDR helper failed ({})", status.map_or_else(|e| e.to_string(), |s| s.to_string())));
@@ -172,7 +174,7 @@ impl SoapyController {
         self.receiving.store(true, Ordering::SeqCst);
         let (live, event_tx, gain, rate, device) =
             (self.live.clone(), self.event_tx.clone(), self.gain.clone(), self.rate.clone(), self.device.clone());
-        self.rx_thread = Some(thread::spawn(move || {
+        match thread::Builder::new().name("kat-soapy-ctrl".to_string()).spawn(move || {
             if let Err(e) = run_receiver(&live, event_tx.clone(), &gain, &rate, &device) {
                 live.receiving.store(false, Ordering::SeqCst);
                 live.end_recording_with_rx();
@@ -180,9 +182,17 @@ impl SoapyController {
                 tracing::warn!("SoapySDR receiver stopped: {e:#}");
                 let _ = event_tx.send(RadioEvent::Error(format!("{e:#}")));
             }
-        }));
-        tracing::info!("Started SoapySDR receiving at {frequency} Hz");
-        Ok(())
+        }) {
+            Ok(handle) => {
+                self.rx_thread = Some(handle);
+                tracing::info!("Started SoapySDR receiving at {frequency} Hz");
+                Ok(())
+            }
+            Err(e) => {
+                self.receiving.store(false, Ordering::SeqCst);
+                Err(e).context("Cannot start SoapySDR receiver thread")
+            }
+        }
     }
 
     pub fn stop_receiving(&mut self) -> Result<()> {
@@ -210,9 +220,7 @@ impl SoapyController {
 
     /// The gain in dB: KAT's VGA setting, taken into the radio's range.
     pub fn set_gain(&mut self, gain: u32) -> Result<()> {
-        if let Ok(mut g) = self.gain.lock() {
-            *g = Some(f64::from(gain));
-        }
+        *self.gain.lock().unwrap_or_else(|e| e.into_inner()) = Some(f64::from(gain));
         Ok(())
     }
 
@@ -266,23 +274,142 @@ impl Drop for SoapyController {
     }
 }
 
-/// Ask the helper to stop, then make sure it does. The caller first drops its end of the
-/// helper's stdout: a helper blocked on writing a frame KAT no longer reads then fails the write
-/// and ends, instead of waiting there to be killed.
-fn end_helper(child: &mut Child, stdin: &mut Option<std::process::ChildStdin>) {
-    if let Some(mut s) = stdin.take() {
-        let _ = s.write_all(Command::Quit.line().as_bytes());
+/// Timeouts governing the receiver helper process.
+#[derive(Debug, Clone, Copy)]
+struct HelperTimeouts {
+    /// How often the receiver loop wakes to check `live.receiving`, hop requests, and gain updates
+    /// when no frame has arrived yet.
+    poll: Duration,
+    /// Maximum time to wait for the helper's `READY` frame after spawning it.
+    ready: Duration,
+    /// Maximum silence from a streaming helper (which normally sends a heartbeat every 50 ms)
+    /// before treating the driver as stalled and killing the helper.
+    stall: Duration,
+    /// Grace period for the helper to exit cleanly after `Command::Quit` before killing it.
+    stop_grace: Duration,
+}
+
+const DEFAULT_TIMEOUTS: HelperTimeouts = HelperTimeouts {
+    poll: Duration::from_millis(50),
+    ready: FIND_TIMEOUT,
+    stall: Duration::from_secs(10),
+    stop_grace: Duration::from_secs(3),
+};
+
+enum HelperFrame {
+    Frame(u8, Vec<u8>),
+    Eof,
+    Error(std::io::Error),
+}
+
+fn format_duration(d: Duration) -> String {
+    if d.subsec_nanos() == 0 {
+        format!("{} s", d.as_secs())
+    } else {
+        format!("{} ms", d.as_millis())
     }
-    let deadline = Instant::now() + Duration::from_secs(3);
-    while Instant::now() < deadline {
-        if let Ok(Some(_)) = child.try_wait() {
+}
+
+/// Owned handle to a running helper process: guarantees the child is stopped and reaped even on
+/// early error returns.
+struct HelperProcess {
+    child: Child,
+    stdin: Option<std::process::ChildStdin>,
+    stopped: bool,
+}
+
+impl HelperProcess {
+    fn new(mut child: Child) -> Self {
+        let stdin = child.stdin.take();
+        Self { child, stdin, stopped: false }
+    }
+
+    fn send(&mut self, c: Command) {
+        if let Some(s) = self.stdin.as_mut() {
+            let _ = s.write_all(c.line().as_bytes()).and_then(|_| s.flush());
+        }
+    }
+
+    /// Ask the helper to stop, wait up to `grace` for a clean exit, then kill and reap it.
+    /// The caller should drop its frame receiver first so the reader thread closes stdout if full,
+    /// allowing a helper blocked on writing a frame to exit on broken pipe.
+    fn stop(&mut self, grace: Duration) {
+        if self.stopped {
             return;
         }
-        thread::sleep(Duration::from_millis(20));
+        self.stopped = true;
+        if let Some(mut s) = self.stdin.take() {
+            let _ = s.write_all(Command::Quit.line().as_bytes());
+            let _ = s.flush();
+        }
+        let _ = wait_or_kill(&mut self.child, grace);
+    }
+}
+
+impl Drop for HelperProcess {
+    fn drop(&mut self) {
+        if !self.stopped {
+            self.stop(Duration::ZERO);
+        }
+    }
+}
+
+/// Wait up to `grace` for `child` to exit on its own; kill and reap it if it does not.
+fn wait_or_kill(child: &mut Child, grace: Duration) -> std::io::Result<std::process::ExitStatus> {
+    if !grace.is_zero() {
+        let deadline = Instant::now() + grace;
+        loop {
+            if let Some(status) = child.try_wait()? {
+                return Ok(status);
+            }
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                break;
+            }
+            thread::sleep(remaining.min(Duration::from_millis(20)));
+        }
+    } else if let Some(status) = child.try_wait()? {
+        return Ok(status);
     }
     tracing::warn!("SoapySDR helper did not stop: killed");
     let _ = child.kill();
-    let _ = child.wait();
+    child.wait()
+}
+
+/// Read framed messages from the helper's stdout on a dedicated thread so the receiver loop can
+/// always time out and react to stop requests even if a SoapySDR C call blocks indefinitely.
+fn spawn_frame_reader(stdout: std::process::ChildStdout) -> std::io::Result<mpsc::Receiver<HelperFrame>> {
+    let (tx, rx) = mpsc::sync_channel(16);
+    thread::Builder::new().name("kat-soapy-io".to_string()).spawn(move || {
+        let mut stdout = BufReader::with_capacity(1 << 20, stdout);
+        loop {
+            match protocol::read_frame(&mut stdout) {
+                Ok(Some((tag, payload))) => {
+                    if tx.send(HelperFrame::Frame(tag, payload)).is_err() {
+                        break;
+                    }
+                }
+                Ok(None) => {
+                    let _ = tx.send(HelperFrame::Eof);
+                    break;
+                }
+                Err(e) => {
+                    let _ = tx.send(HelperFrame::Error(e));
+                    break;
+                }
+            }
+        }
+    })?;
+    Ok(rx)
+}
+
+struct ReceiverSession<'a> {
+    live: &'a Arc<LiveShared>,
+    event_tx: Sender<RadioEvent>,
+    gain: &'a Mutex<Option<f64>>,
+    rate: &'a AtomicU32,
+    target: u32,
+    applied: Option<f64>,
 }
 
 /// One receive run: a helper for the radio, its samples through the pipeline until RX stops.
@@ -295,44 +422,59 @@ fn run_receiver(
 ) -> Result<()> {
     let target = live.start_frequency();
     live.target.store(target, Ordering::SeqCst);
-    let mut applied = *gain.lock().unwrap();
-    let mut child = spawn_helper(&protocol::rx_args(target, applied, device), Stdio::piped())
+    let applied = *gain.lock().unwrap_or_else(|e| e.into_inner());
+    let child = spawn_helper(&protocol::rx_args(target, applied, device), Stdio::piped())
         .context("Cannot start KAT's SoapySDR helper")?;
-    let mut stdin = child.stdin.take();
-    let mut stdout = BufReader::with_capacity(1 << 20, child.stdout.take().context("no output from the SoapySDR helper")?);
-    let send = |stdin: &mut Option<std::process::ChildStdin>, c: Command| {
-        if let Some(s) = stdin.as_mut() {
-            let _ = s.write_all(c.line().as_bytes()).and_then(|_| s.flush());
-        }
-    };
+    let session = ReceiverSession { live, event_tx, gain, rate, target, applied };
+    run_receiver_with_child(session, child, DEFAULT_TIMEOUTS)
+}
 
-    // Ready, or why not.
+fn run_receiver_with_child(session: ReceiverSession<'_>, child: Child, timeouts: HelperTimeouts) -> Result<()> {
+    let ReceiverSession { live, event_tx, gain, rate, target, mut applied } = session;
+    let mut helper = HelperProcess::new(child);
+    let stdout = helper.child.stdout.take().context("no output from the SoapySDR helper")?;
+    let frame_rx = spawn_frame_reader(stdout).context("Cannot start SoapySDR frame reader")?;
+
+    // Ready, or why not. Polled with a timeout so stop_receiving / Drop never deadlock if the
+    // helper hangs while opening the radio or starting its stream.
+    let ready_deadline = Instant::now() + timeouts.ready;
     let ready: Ready = loop {
         if !live.receiving.load(Ordering::SeqCst) {
-            drop(stdout);
-            end_helper(&mut child, &mut stdin);
+            drop(frame_rx);
+            helper.stop(timeouts.stop_grace);
             return Ok(());
         }
-        match protocol::read_frame(&mut stdout) {
-            Ok(Some((READY, p))) => match serde_json::from_slice(&p) {
-                Ok(ready) => break ready,
+        let Some(remaining) = ready_deadline.checked_duration_since(Instant::now()) else {
+            drop(frame_rx);
+            helper.stop(Duration::ZERO);
+            anyhow::bail!("SoapySDR: opening the radio took over {}", format_duration(timeouts.ready));
+        };
+        match frame_rx.recv_timeout(timeouts.poll.min(remaining)) {
+            Ok(HelperFrame::Frame(READY, p)) => match serde_json::from_slice::<Ready>(&p) {
+                Ok(ready) if ready.rate > 0 => break ready,
+                Ok(_) => {
+                    drop(frame_rx);
+                    helper.stop(timeouts.stop_grace);
+                    anyhow::bail!("SoapySDR: invalid sample rate (0 S/s)");
+                }
                 Err(e) => {
-                    drop(stdout);
-                    end_helper(&mut child, &mut stdin);
+                    drop(frame_rx);
+                    helper.stop(timeouts.stop_grace);
                     anyhow::bail!("KAT's SoapySDR helper said something KAT cannot read ({e})");
                 }
             },
-            Ok(Some((ERROR, p))) => {
-                drop(stdout);
-                end_helper(&mut child, &mut stdin);
+            Ok(HelperFrame::Frame(ERROR, p)) => {
+                drop(frame_rx);
+                helper.stop(timeouts.stop_grace);
                 anyhow::bail!("SoapySDR: {}", String::from_utf8_lossy(&p));
             }
-            Ok(Some(_)) => continue,
-            Ok(None) | Err(_) => {
-                drop(stdout);
-                end_helper(&mut child, &mut stdin);
+            Ok(HelperFrame::Frame(_, _)) => continue,
+            Ok(HelperFrame::Eof) | Ok(HelperFrame::Error(_)) | Err(mpsc::RecvTimeoutError::Disconnected) => {
+                drop(frame_rx);
+                helper.stop(timeouts.stop_grace);
                 anyhow::bail!("KAT's SoapySDR helper ended before the radio streamed (kat.log has why)");
             }
+            Err(mpsc::RecvTimeoutError::Timeout) => continue,
         }
     };
     rate.store(ready.rate, Ordering::SeqCst);
@@ -364,59 +506,77 @@ fn run_receiver(
     let mut tag = target;
     let mut blank = 0u64;
     let mut gain_check = Instant::now();
+    let mut last_frame = Instant::now();
     let mut failed = None;
+    let mut kill_now = false;
     while live.receiving.load(Ordering::SeqCst) {
         let req = live.hop_request.swap(0, Ordering::SeqCst);
         if req != 0 {
-            send(&mut stdin, Command::Tune(req));
+            helper.send(Command::Tune(req));
         }
         if gain_check.elapsed() >= Duration::from_millis(100) {
             gain_check = Instant::now();
-            let g = *gain.lock().unwrap();
+            let g = *gain.lock().unwrap_or_else(|e| e.into_inner());
             if g != applied {
-                send(&mut stdin, Command::Gain(g));
+                helper.send(Command::Gain(g));
                 applied = g;
                 live.floor_reset.store(true, Ordering::SeqCst);
             }
         }
-        match protocol::read_frame(&mut stdout) {
-            Ok(Some((IQ, p))) if p.len() >= 4 => {
-                let t = u32::from_le_bytes([p[0], p[1], p[2], p[3]]);
-                if t != tag {
-                    tag = t;
-                    blank = u64::from(sample_rate) / 500; // 2 ms for the PLL, as the RTL-SDR
-                }
-                if p.len() > 4 {
-                    let samples = p[4..].to_vec();
-                    live.record(&samples);
-                    if buf_tx.send((samples, tag, blank)).is_err() {
-                        break;
+        match frame_rx.recv_timeout(timeouts.poll) {
+            Ok(HelperFrame::Frame(IQ, p)) => {
+                last_frame = Instant::now();
+                if p.len() >= 4 {
+                    let t = u32::from_le_bytes([p[0], p[1], p[2], p[3]]);
+                    if t != tag {
+                        tag = t;
+                        blank = u64::from(sample_rate) / 500; // 2 ms for the PLL, as the RTL-SDR
                     }
-                    blank = 0;
+                    if p.len() > 4 {
+                        let samples = p[4..].to_vec();
+                        live.record(&samples);
+                        if buf_tx.send((samples, tag, blank)).is_err() {
+                            break;
+                        }
+                        blank = 0;
+                    }
                 }
             }
-            Ok(Some((TUNE_FAILED, p))) => {
+            Ok(HelperFrame::Frame(TUNE_FAILED, p)) => {
+                last_frame = Instant::now();
                 let hz = p.get(..4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]));
                 tracing::warn!("SoapySDR retune to {hz:?} Hz failed");
                 live.hop_failed.store(true, Ordering::SeqCst);
             }
-            Ok(Some((ERROR, p))) => {
+            Ok(HelperFrame::Frame(ERROR, p)) => {
                 failed = Some(String::from_utf8_lossy(&p).into_owned());
                 break;
             }
-            Ok(Some(_)) => {}
-            Ok(None) => {
+            Ok(HelperFrame::Frame(_, _)) => {
+                last_frame = Instant::now();
+            }
+            Ok(HelperFrame::Eof) | Err(mpsc::RecvTimeoutError::Disconnected) => {
                 failed = Some("KAT's SoapySDR helper ended (kat.log has why)".to_string());
                 break;
             }
-            Err(e) => {
+            Ok(HelperFrame::Error(e)) => {
                 failed = Some(format!("reading from KAT's SoapySDR helper failed ({e})"));
                 break;
             }
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                if last_frame.elapsed() >= timeouts.stall {
+                    failed = Some(format!(
+                        "no data from KAT's SoapySDR helper for {} (driver stalled)",
+                        format_duration(timeouts.stall)
+                    ));
+                    kill_now = true;
+                    break;
+                }
+            }
         }
     }
-    drop(stdout);
-    end_helper(&mut child, &mut stdin);
+    drop(frame_rx);
+    helper.stop(if kill_now { Duration::ZERO } else { timeouts.stop_grace });
     drop(buf_tx);
     let _ = processor.join();
     if let Some(why) = failed {
@@ -448,5 +608,202 @@ mod tests {
         let bare = FoundRadio::soapy(vec![("driver".to_string(), "plutosdr".to_string())]);
         assert_eq!(bare.identity(), "plutosdr");
         assert!(!found.same_device(&bare));
+    }
+
+    #[cfg(unix)]
+    mod process_tests {
+        use super::*;
+        use std::path::PathBuf;
+
+        struct TempFile(PathBuf);
+
+        impl TempFile {
+            fn write(name: &str, bytes: &[u8]) -> Self {
+                let path = std::env::temp_dir().join(format!("kat-soapy-test-{}-{name}", std::process::id()));
+                std::fs::write(&path, bytes).unwrap();
+                Self(path)
+            }
+        }
+
+        impl Drop for TempFile {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_file(&self.0);
+            }
+        }
+
+        fn ready_frame_bytes(rate: u32) -> Vec<u8> {
+            let ready = Ready {
+                rate,
+                driver: "test".to_string(),
+                hardware: "dummy".to_string(),
+                gain_min: 0.0,
+                gain_max: 20.0,
+            };
+            let payload = serde_json::to_vec(&ready).unwrap();
+            let mut out = Vec::new();
+            protocol::write_frame(&mut out, READY, &[&payload]).unwrap();
+            out
+        }
+
+        fn spawn_sh(script: &str, arg: Option<&std::path::Path>) -> Child {
+            let mut cmd = Process::new("sh");
+            cmd.arg("-c").arg(script);
+            if let Some(p) = arg {
+                cmd.arg("_").arg(p);
+            }
+            cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().unwrap()
+        }
+
+        struct TestState {
+            live: Arc<LiveShared>,
+            tx: mpsc::Sender<RadioEvent>,
+            gain: Arc<Mutex<Option<f64>>>,
+            rate: Arc<AtomicU32>,
+        }
+
+        impl TestState {
+            fn new() -> Self {
+                let receiving = Arc::new(AtomicBool::new(true));
+                let rssi = Arc::new(AtomicU32::new(0));
+                let live = Arc::new(LiveShared::new(receiving, rssi, 433_920_000));
+                let (tx, _rx) = mpsc::channel();
+                Self { live, tx, gain: Arc::new(Mutex::new(None)), rate: Arc::new(AtomicU32::new(0)) }
+            }
+
+            fn session(&self) -> ReceiverSession<'_> {
+                ReceiverSession {
+                    live: &self.live,
+                    event_tx: self.tx.clone(),
+                    gain: &self.gain,
+                    rate: &self.rate,
+                    target: 433_920_000,
+                    applied: None,
+                }
+            }
+        }
+
+        fn fast_timeouts() -> HelperTimeouts {
+            HelperTimeouts {
+                poll: Duration::from_millis(15),
+                ready: Duration::from_millis(250),
+                stall: Duration::from_millis(250),
+                stop_grace: Duration::from_millis(100),
+            }
+        }
+
+        #[test]
+        fn stop_unblocks_when_helper_hangs_before_ready() {
+            let state = TestState::new();
+            let receiving = state.live.receiving.clone();
+            let child = spawn_sh("exec sleep 60", None);
+            let started = Instant::now();
+            let handle = thread::spawn(move || run_receiver_with_child(state.session(), child, fast_timeouts()));
+
+            thread::sleep(Duration::from_millis(40));
+            receiving.store(false, Ordering::SeqCst);
+            let res = handle.join().unwrap();
+            assert!(res.is_ok(), "stopping a hanging startup must return Ok: {res:?}");
+            assert!(started.elapsed() < Duration::from_secs(2), "stop hung: {:?}", started.elapsed());
+        }
+
+        #[test]
+        fn ready_timeout_kills_hung_helper_and_reports_error() {
+            let state = TestState::new();
+            let child = spawn_sh("exec sleep 60", None);
+            let started = Instant::now();
+            let err = run_receiver_with_child(state.session(), child, fast_timeouts()).unwrap_err();
+            assert!(format!("{err:#}").contains("opening the radio took over"), "{err:#}");
+            assert!(started.elapsed() < Duration::from_secs(2), "ready timeout hung: {:?}", started.elapsed());
+        }
+
+        #[test]
+        fn stop_unblocks_when_helper_stalls_after_ready() {
+            let frame = TempFile::write("stop-after-ready", &ready_frame_bytes(2_000_000));
+            let state = TestState::new();
+            let receiving = state.live.receiving.clone();
+            let rate = state.rate.clone();
+            let child = spawn_sh("cat \"$1\"; exec sleep 60", Some(&frame.0));
+            let timeouts = HelperTimeouts { stall: Duration::from_secs(30), ..fast_timeouts() };
+            let handle = thread::spawn(move || run_receiver_with_child(state.session(), child, timeouts));
+
+            let wait_ready = Instant::now();
+            while rate.load(Ordering::SeqCst) != 2_000_000 {
+                assert!(wait_ready.elapsed() < Duration::from_secs(2), "never received READY");
+                thread::sleep(Duration::from_millis(10));
+            }
+            let stop_start = Instant::now();
+            receiving.store(false, Ordering::SeqCst);
+            let res = handle.join().unwrap();
+            assert!(res.is_ok(), "stopping a stalled stream must return Ok: {res:?}");
+            assert!(stop_start.elapsed() < Duration::from_secs(2), "stop hung: {:?}", stop_start.elapsed());
+        }
+
+        #[test]
+        fn stall_timeout_kills_silent_helper_after_ready() {
+            let frame = TempFile::write("stall-after-ready", &ready_frame_bytes(2_000_000));
+            let state = TestState::new();
+            let child = spawn_sh("cat \"$1\"; exec sleep 60", Some(&frame.0));
+            let started = Instant::now();
+            let err = run_receiver_with_child(state.session(), child, fast_timeouts()).unwrap_err();
+            assert_eq!(state.rate.load(Ordering::SeqCst), 2_000_000);
+            assert!(format!("{err:#}").contains("driver stalled"), "{err:#}");
+            assert!(started.elapsed() < Duration::from_secs(2), "stall timeout hung: {:?}", started.elapsed());
+        }
+
+        #[test]
+        fn clean_quit_exits_responsive_helper_before_kill_grace() {
+            let frame = TempFile::write("clean-quit", &ready_frame_bytes(2_000_000));
+            let state = TestState::new();
+            let receiving = state.live.receiving.clone();
+            let rate = state.rate.clone();
+            let child = spawn_sh(
+                "cat \"$1\"; while IFS= read -r line; do [ \"$line\" = quit ] && exit 0; done",
+                Some(&frame.0),
+            );
+            // Long kill grace proves the helper exited via Command::Quit rather than SIGKILL.
+            let timeouts = HelperTimeouts { stop_grace: Duration::from_secs(5), ..fast_timeouts() };
+            let handle = thread::spawn(move || run_receiver_with_child(state.session(), child, timeouts));
+
+            let wait_ready = Instant::now();
+            while rate.load(Ordering::SeqCst) != 2_000_000 {
+                assert!(wait_ready.elapsed() < Duration::from_secs(2), "never received READY");
+                thread::sleep(Duration::from_millis(10));
+            }
+            let stop_start = Instant::now();
+            receiving.store(false, Ordering::SeqCst);
+            let res = handle.join().unwrap();
+            assert!(res.is_ok(), "{res:?}");
+            assert!(
+                stop_start.elapsed() < Duration::from_secs(2),
+                "responsive helper waited for kill grace instead of quitting cleanly: {:?}",
+                stop_start.elapsed()
+            );
+        }
+
+        #[test]
+        fn ready_with_zero_sample_rate_is_rejected() {
+            let frame = TempFile::write("zero-rate", &ready_frame_bytes(0));
+            let state = TestState::new();
+            let child = spawn_sh("cat \"$1\"", Some(&frame.0));
+            let err = run_receiver_with_child(state.session(), child, fast_timeouts()).unwrap_err();
+            assert!(format!("{err:#}").contains("invalid sample rate"), "{err:#}");
+        }
+
+        #[test]
+        fn early_error_kills_and_reaps_helper_on_drop() {
+            let state = TestState::new();
+            // Spawn without piped stdout so run_receiver_with_child returns early before stop().
+            let child = Process::new("sh")
+                .args(["-c", "exec sleep 60"])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .unwrap();
+            let started = Instant::now();
+            let err = run_receiver_with_child(state.session(), child, fast_timeouts()).unwrap_err();
+            assert!(format!("{err:#}").contains("no output"), "{err:#}");
+            assert!(started.elapsed() < Duration::from_secs(2), "Drop cleanup hung: {:?}", started.elapsed());
+        }
     }
 }

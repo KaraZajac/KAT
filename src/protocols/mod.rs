@@ -92,6 +92,7 @@ mod fiat_v1;
 mod hitag2;
 pub mod hitag2_hell;
 pub mod hitag2_keys;
+pub mod remote_tags;
 mod scher_khan;
 mod star_line;
 mod psa;

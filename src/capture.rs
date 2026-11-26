@@ -280,6 +280,22 @@ impl Capture {
         self.protocol.as_deref().unwrap_or("Unknown")
     }
 
+    /// The remote's user tag, if any (`protocols/remote_tags.rs`): a Fiat V1 remote the user has
+    /// confirmed is a Renault-Nissan Alliance one, for example.
+    pub fn remote_tag(&self) -> Option<crate::protocols::remote_tags::RemoteTag> {
+        self.serial.and_then(crate::protocols::remote_tags::tag_of)
+    }
+
+    /// The protocol name to show the user: the tag's (e.g. "Nissan V1") when this capture is
+    /// tagged, else the engine's ([`Self::protocol_name`]). The engine name never changes, so
+    /// decode, key resolution and TX are unaffected.
+    pub fn display_protocol_name(&self) -> &str {
+        match self.remote_tag() {
+            Some(tag) => tag.display_protocol(),
+            None => self.protocol_name(),
+        }
+    }
+
     /// Whether this capture's frame had a checksum (or another check) KAT verifies: unknown
     /// signals and protocols without one have none, and some decoders check only some of their
     /// frames (`protocols::info::has_checksum_for`).
@@ -333,6 +349,10 @@ impl Capture {
     /// whose protocol names none, "Btn 0xN"; else KAT's car commands.
     pub fn button_name(&self) -> &str {
         if let Some(code) = self.button {
+            // A tagged remote (e.g. Nissan) relabels the buttons it maps; others fall through.
+            if let Some(name) = self.remote_tag().and_then(|tag| tag.button_name(code)) {
+                return name;
+            }
             if let Some(name) = crate::protocols::capture_button_name(self.protocol_name(), code, self.data, self.data_extra) {
                 return name;
             }

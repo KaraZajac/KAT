@@ -218,6 +218,10 @@ pub fn shown_key(protocol: &str, signal: &DecodedSignal) -> Option<ShownKey> {
     let fiat = |key: [u8; 6], epoch| ShownKey { standard: KeyOrder::FiatBcm.standard(key), order: KeyOrder::FiatBcm, epoch };
     let standard = |key: [u8; 6], epoch| ShownKey { standard: key, order: KeyOrder::Standard, epoch };
     match protocol {
+        // A Nissan-tagged remote shows its key in the standard order the Renault schedule takes.
+        "Fiat V1" if super::remote_tags::is_nissan(signal.serial) => {
+            super::fiat_v1::FiatV1Decoder::nissan_key_of(signal).map(|key| standard(key, 0))
+        }
         "Fiat V1" => super::fiat_v1::FiatV1Decoder::key_of(signal).map(|(key, epoch)| fiat(key, epoch)),
         "Renault V1" => super::renault_v1::RenaultV1Decoder::key_of(signal).map(|(key, epoch)| standard(key, epoch)),
         "Fiat V2" => super::fiat_v2::FiatV2Decoder::key_of(signal).map(|key| fiat(key, 0)),

@@ -280,6 +280,11 @@ pub enum SignalAction {
     RecoverJlrKey,
     /// Stop a running "Recover key".
     CancelKeyRecovery,
+    /// Fiat V1 capture the user confirms is a Renault-Nissan Alliance remote: tag its UID as Nissan
+    /// (Nissan button map + no-epoch key schedule; `protocols/remote_tags.rs`).
+    TagNissan,
+    /// Clear a per-remote tag (back to plain Fiat V1).
+    ClearRemoteTag,
 }
 
 impl SignalAction {
@@ -315,6 +320,8 @@ impl SignalAction {
             SignalAction::RecoverHitag2Key => "Recover key (HiTag2)",
             SignalAction::RecoverJlrKey => "Recover key (JLR)",
             SignalAction::CancelKeyRecovery => "Cancel key recovery",
+            SignalAction::TagNissan => "Nissan (Renault-Alliance)",
+            SignalAction::ClearRemoteTag => "Clear Nissan tag",
         }
     }
 }
@@ -635,6 +642,8 @@ impl App {
         let psa_bsi_key_msg = crate::keystore::load_psa_bsi_key(storage.config_dir());
         // ── … and the PSA 2-Button cipher key (`psa_2button_key`), if any (Valeo flip key; no built-in) ──
         let psa_2button_key_msg = crate::keystore::load_psa_2button_key(storage.config_dir());
+        // ── … and the per-remote user tags (`remote_tags.txt`), e.g. a Nissan-tagged Fiat V1 remote ──
+        let remote_tags_msg = crate::protocols::remote_tags::load(storage.config_dir());
 
         let mut protocols = ProtocolRegistry::new();
         protocols.set_auto_key_search(storage.config.autobf);
@@ -759,7 +768,7 @@ impl App {
         }
         // Saved-session restore prompt, session writer, saved-fob index (app/persistence.rs).
         app.init_app_extensions();
-        for msg in [user_keystore_msg, hitag2_keys_msg, jlr_keys_msg, audi_bcm2_keys_msg, bmw_cas3_keys_msg, bmw_cas4_keys_msg, psa_bsi_key_msg, psa_2button_key_msg].into_iter().flatten() {
+        for msg in [user_keystore_msg, hitag2_keys_msg, jlr_keys_msg, audi_bcm2_keys_msg, bmw_cas3_keys_msg, bmw_cas4_keys_msg, psa_bsi_key_msg, psa_2button_key_msg, remote_tags_msg].into_iter().flatten() {
             tracing::info!("{msg}");
             app.status_message.get_or_insert(msg);
         }
@@ -1337,10 +1346,30 @@ impl App {
         let mut actions = self.signal_actions_base();
         self.adjust_signal_actions(&mut actions);
         self.add_send_button_action(&mut actions);
+        self.add_remote_tag_action(&mut actions);
         if let Some(action) = self.key_recovery_action() {
             actions.insert(0, action);
         }
         actions
+    }
+
+    /// Offer "Tag as Nissan (Renault-Alliance)" on a Fiat V1 capture whose UID is not tagged, or
+    /// "Clear Nissan tag" when it is: a Nissan Qashqai (and its Alliance siblings) decodes as Fiat
+    /// V1 and cannot be told apart on air (`protocols/remote_tags.rs`), so the user confirms it.
+    fn add_remote_tag_action(&self, actions: &mut Vec<SignalAction>) {
+        let Some(c) = self.signal_menu_capture() else { return };
+        if c.protocol_name() != "Fiat V1" {
+            return;
+        }
+        let Some(uid) = c.serial else { return };
+        if uid == 0 || uid == u32::MAX {
+            return;
+        }
+        if crate::protocols::remote_tags::tag_of(uid).is_some() {
+            actions.push(SignalAction::ClearRemoteTag);
+        } else {
+            actions.push(SignalAction::TagNissan);
+        }
     }
 
     /// "Recover key" for an undecrypted PSA (TEA) capture, a KeeLoq frame no key decrypts or a
@@ -1517,8 +1546,35 @@ impl App {
                     self.status_message = Some("Cancelling key recovery…".to_string());
                 }
             }
+            SignalAction::TagNissan => {
+                self.set_remote_tag(capture_id, Some(crate::protocols::remote_tags::RemoteTag::Nissan));
+            }
+            SignalAction::ClearRemoteTag => {
+                self.set_remote_tag(capture_id, None);
+            }
         }
         Ok(())
+    }
+
+    /// Set or clear the Nissan tag of a capture's remote (by UID), persisting it to
+    /// `remote_tags.txt`. The session keeps the change even when the file cannot be written.
+    fn set_remote_tag(&mut self, capture_id: u32, tag: Option<crate::protocols::remote_tags::RemoteTag>) {
+        let Some(uid) = self.captures.iter().find(|c| c.id == capture_id).and_then(|c| c.serial) else {
+            self.last_error = Some(format!("Capture #{capture_id:02} has no UID to tag"));
+            return;
+        };
+        let dir = self.storage.config_dir().to_path_buf();
+        match crate::protocols::remote_tags::set_tag(&dir, uid, tag) {
+            Ok(_) => {
+                self.status_message = Some(match tag {
+                    Some(t) => format!("Remote {uid:08X} tagged as {} — buttons and key schedule now Nissan", t.make()),
+                    None => format!("Remote {uid:08X} tag cleared — back to Fiat V1"),
+                });
+            }
+            Err(e) => {
+                self.last_error = Some(format!("Could not write the tag for {uid:08X}: {e} (kept for this session)"));
+            }
+        }
     }
 
     /// Start ProtoPirate's PSA TEA key brute force for a capture on a background thread (the

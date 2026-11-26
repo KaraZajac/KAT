@@ -114,7 +114,7 @@ impl Column {
         match self {
             Column::Id => format!("{:02}", c.id),
             Column::Time => c.timestamp_short(),
-            Column::Protocol => c.protocol_name().to_string(),
+            Column::Protocol => c.display_protocol_name().to_string(),
             Column::Freq => format_mhz(c.frequency),
             Column::Radio => or_dash(&c.radio),
             Column::Serial => c.serial_hex(),

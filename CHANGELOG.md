@@ -2,6 +2,25 @@
 
 All notable changes to KAT are documented here.
 
+## [1.29.0] - 2026-11-26
+
+A per-remote "Nissan" tag for Renault-Nissan Alliance keys that look like Fiat V1 on air.
+
+### Added
+
+- **Tag a Fiat V1 remote as Nissan (Renault-Alliance).** A 2010-era Nissan Qashqai (and its
+  Renault-Nissan Alliance siblings) sends a key frame byte-for-byte like Fiat V1 on air — the same
+  timing, frame and checksum — but authenticates with the Renault HITAG2 key schedule, which has no
+  epoch, and a different button map (lock = `0x8`, unlock = `0x2`, which Fiat reads as unlock and
+  trunk). KAT cannot tell the two apart from one capture, so the signal menu now offers **Nissan
+  (Renault-Alliance)** on a Fiat V1 remote. Tagging it records that UID (remembered across sessions
+  in `remote_tags.txt` beside the other key files): the remote then reads as **Nissan V1** with make
+  Nissan and the right Lock/Unlock labels, and KAT signs its fresh codes with the Renault schedule.
+  An untagged Fiat V1 remote is marked "(possible Nissan)" in its detail. Below a press counter of
+  1024 the two schedules produce the same code, so the tag changes the make, labels and the signing
+  path; a flat counter past 1024 (which Fiat tracks with an epoch and the Alliance key does not) is
+  not yet handled, pending a capture that reaches it.
+
 ## [1.28.1] - 2026-11-26
 
 A correctness fix for the PSA 2-Button rolling code, from longer recordings of the same key.

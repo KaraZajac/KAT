@@ -20,7 +20,7 @@ use super::{text, theme};
 pub(super) fn capture_words(c: &Capture) -> (String, String, Option<String>) {
     let coding = c.protocol_info().map(|_| c.modulation().to_string());
     (
-        format!("#{:02} {}", c.id, c.protocol_name()),
+        format!("#{:02} {}", c.id, c.display_protocol_name()),
         join_words([Some(format!("{} MHz", format_mhz(c.frequency))), coding]),
         c.serial.map(|_| format!("0x{}", c.serial_hex())),
     )

@@ -139,6 +139,7 @@
 
 use super::hitag2;
 use super::hitag2_keys::{self, KeyOrder};
+use super::remote_tags;
 use super::renault_v1::AdaptiveReader;
 use super::{DecodedSignal, FlipperKey, ProtocolDecoder, ProtocolTiming};
 use crate::duration_diff;
@@ -607,9 +608,45 @@ impl FiatV1Decoder {
             .find(|(key, epoch)| verifies(key, *epoch))
     }
 
+    /// A remote the user has tagged as Nissan (Renault-Nissan Alliance): the saved key in the
+    /// standard byte order, verified with the no-epoch Renault schedule ([`hitag2::renault_authenticator`])
+    /// for the frame's button or any of 1/2/4/8. Below counter 1024 this is the same key the Fiat
+    /// path finds (the two schedules coincide there); the tag routes signing through the Renault
+    /// schedule so it stays correct as the car's counter climbs. See `protocols/remote_tags.rs`.
+    fn resolve_nissan_key(f: &Fields) -> Option<[u8; 6]> {
+        hitag2_keys::keys_for(f.uid, KeyOrder::Standard).into_iter().map(|(key, _epoch)| key).find(|key| {
+            let matches =
+                |button: u8| hitag2::renault_authenticator(f.uid, button, u32::from(f.control & 0x03FF), key) == f.hop;
+            matches(f.button) || BUTTONS.iter().any(|&b| matches(b))
+        })
+    }
+
+    /// The Nissan (standard-order) key for a decode, when its remote is tagged Nissan.
+    pub(super) fn nissan_key_of(decoded: &DecodedSignal) -> Option<[u8; 6]> {
+        let (raw, _) = Self::raw_from_signal(decoded)?;
+        if !Self::frame_valid(&raw) {
+            return None;
+        }
+        Self::resolve_nissan_key(&Self::fields(&raw))
+    }
+
+    /// KAT generic button → Nissan frame nibble (Lock = 0x8, Unlock = 0x2 on a real Qashqai).
+    /// `None` keeps the captured button (other commands are not mapped for Nissan).
+    fn map_nissan_button(button: u8) -> Option<u8> {
+        match button {
+            0x01 => Some(0x8),
+            0x02 => Some(0x2),
+            _ => None,
+        }
+    }
+
     /// Whether `encode()` sends fresh frames of this decode (a key resolves) instead of replaying
-    /// it: "Recover key (HiTag2)" has nothing left to find.
+    /// it: "Recover key (HiTag2)" has nothing left to find. A tagged Nissan remote resolves its key
+    /// through the no-epoch Renault schedule.
     pub(super) fn has_key(decoded: &DecodedSignal) -> bool {
+        if remote_tags::is_nissan(decoded.serial) {
+            return Self::nissan_key_of(decoded).is_some();
+        }
         Self::key_of(decoded).is_some()
     }
 
@@ -866,17 +903,31 @@ impl ProtocolDecoder for FiatV1Decoder {
             return None;
         }
         let captured = Self::fields(&raw);
-        let tx_raw = match Self::resolve_key(&captured) {
-            Some((key, epoch)) => {
-                let tx_button = Self::map_button(button).unwrap_or(captured.button);
-                let tx_control =
-                    decoded.counter.unwrap_or(captured.control).wrapping_add(1) & 0x03FF;
-                let uid = captured.uid;
-                let hop = hitag2::fiat_bcm_authenticator(uid, tx_button, tx_control, &key, epoch);
-                Self::build_raw(captured.uid, tx_button, tx_control, hop, captured.tail)
+        let uid = captured.uid;
+        let next_control = || decoded.counter.unwrap_or(captured.control).wrapping_add(1) & 0x03FF;
+        let tx_raw = if remote_tags::is_nissan(Some(uid)) {
+            // A tagged Nissan (Renault-Nissan Alliance) remote: sign with the no-epoch Renault
+            // schedule and the Nissan button map. Identical to the Fiat path below counter 1024.
+            match Self::resolve_nissan_key(&captured) {
+                Some(std_key) => {
+                    let tx_button = Self::map_nissan_button(button).unwrap_or(captured.button);
+                    let tx_control = next_control();
+                    let hop = hitag2::renault_authenticator(uid, tx_button, u32::from(tx_control), &std_key);
+                    Self::build_raw(uid, tx_button, tx_control, hop, captured.tail)
+                }
+                None => raw,
             }
-            // ProtoPirate refuses here; ARF replays the captured frame (any button).
-            None => raw,
+        } else {
+            match Self::resolve_key(&captured) {
+                Some((key, epoch)) => {
+                    let tx_button = Self::map_button(button).unwrap_or(captured.button);
+                    let tx_control = next_control();
+                    let hop = hitag2::fiat_bcm_authenticator(uid, tx_button, tx_control, &key, epoch);
+                    Self::build_raw(uid, tx_button, tx_control, hop, captured.tail)
+                }
+                // ProtoPirate refuses here; ARF replays the captured frame (any button).
+                None => raw,
+            }
         };
 
         let mut signal = Vec::with_capacity(ENC_REPEAT * (2 * WIRE_BITS + 2));
@@ -1307,6 +1358,45 @@ mod tests {
             let text = text_of(&dec, &sig);
             assert!(text.contains("\nHitag2 Key: 4B 41 54 31 2E 38\nHitag2 Epoch: 0\n"), "{text}");
         }
+    }
+
+    /// A UID the user tags as Nissan (`remote_tags`) signs fresh frames with the no-epoch Renault
+    /// schedule and the Nissan button map (Lock = 0x8), not the Fiat BCM one. The saved key is in
+    /// the standard order. Below counter 1024 the hop equals the Fiat path's (the two coincide),
+    /// so this checks the tagged path resolves the key, signs via `renault_authenticator`, and maps
+    /// the button. UID no other test uses (the databases are global).
+    #[test]
+    fn a_nissan_tagged_remote_signs_with_the_renault_schedule() {
+        let std_key = [0x4B, 0x41, 0x51, 0x41, 0x53, 0x48]; // "KAQASH"
+        let uid = 0x5EED_0F31u32;
+        let (btn_lock, control) = (0x8u8, 0x155u16); // Nissan Lock nibble, counter < 1024
+        let hop = hitag2::renault_authenticator(uid, btn_lock, u32::from(control), &std_key);
+        let raw = FiatV1Decoder::build_raw(uid, btn_lock, control, hop, 2);
+        assert!(FiatV1Decoder::frame_valid(&raw));
+        let sig = FiatV1Decoder::decoded_signal(&raw, VARIANT_A);
+
+        // Untagged, no saved key: nothing resolves.
+        assert!(!FiatV1Decoder::has_key(&sig));
+        assert_eq!(FiatV1Decoder::nissan_key_of(&sig), None);
+
+        remote_tags::remember_for_test(uid, Some(remote_tags::RemoteTag::Nissan));
+        hitag2_keys::tests::remember_for_test(uid, std_key); // Hell saves the standard order
+        assert_eq!(FiatV1Decoder::nissan_key_of(&sig), Some(std_key));
+        assert!(FiatV1Decoder::has_key(&sig));
+        // The detail panel shows the standard-order key with no epoch and no "Fiat order" row.
+        let shown = hitag2_keys::shown_key("Fiat V1", &sig).unwrap();
+        assert_eq!((shown.standard, shown.order, shown.epoch, shown.fiat_order()), (std_key, KeyOrder::Standard, 0, None));
+
+        // Pressing Lock (KAT generic 0x01) sends nibble 0x8, counter + 1, signed via renault.
+        let dec = FiatV1Decoder::new();
+        let tx = decode_all(&mut FiatV1Decoder::new(), &dec.encode(&sig, 0x01).unwrap()).remove(0);
+        assert_eq!((tx.serial, tx.button, tx.counter), (Some(uid), Some(btn_lock), Some(0x156)));
+        let (tx_raw, _) = FiatV1Decoder::raw_from_signal(&tx).unwrap();
+        let fresh = hitag2::renault_authenticator(uid, btn_lock, 0x156, &std_key);
+        assert_eq!(FiatV1Decoder::fields(&tx_raw).hop, fresh);
+
+        remote_tags::remember_for_test(uid, None); // leave the global store clean
+        assert!(!remote_tags::is_nissan(Some(uid)));
     }
 
     /// A loaded key file's `Hitag2 Key` line becomes the remote's saved key when it reproduces the

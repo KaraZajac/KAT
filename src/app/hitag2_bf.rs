@@ -29,7 +29,7 @@ pub(super) type OfferMemo = ((u32, u64, Option<u64>, u64), bool);
 
 /// [`App::hitag2_shown_key`]'s last answer, keyed as [`OfferMemo`]: the capture's key, if KAT has
 /// one.
-pub(super) type ShownKeyMemo = ((u32, u64, Option<u64>, u64), Option<ShownKey>);
+pub(super) type ShownKeyMemo = ((u32, u64, Option<u64>, u64, u64), Option<ShownKey>);
 
 /// What the overlay of a found key shows (ui/hitag2_key_overlay.rs): the key in the byte orders
 /// the other tools take it in, which the status line has no room to tell apart.
@@ -145,7 +145,7 @@ impl App {
         if !is_hitag2_remote(c) {
             return None;
         }
-        let memo_key = (c.id, c.data, c.data_extra, hitag2_keys::generation());
+        let memo_key = (c.id, c.data, c.data_extra, hitag2_keys::generation(), crate::protocols::remote_tags::generation());
         if let Some((key, shown)) = self.hitag2_key_memo.get() {
             if key == memo_key {
                 return shown;

@@ -527,13 +527,18 @@ fn signal_detail_lines(
     let dim = Style::default().fg(Color::DarkGray);
     let mut lines = Vec::new();
 
-    // Protocol + Make (the one entered with `i`, else the protocol's)
-    let make = meta(&capture.make).unwrap_or_else(|| capture.protocol_make().to_string());
+    // Protocol + Make (the one entered with `i`, else the tag's, else the protocol's)
+    let make = meta(&capture.make)
+        .or_else(|| capture.remote_tag().map(|t| t.make().to_string()))
+        .unwrap_or_else(|| capture.protocol_make().to_string());
+    // A tagged remote shows its tag name ("Nissan V1"); an untagged Fiat V1 remote is marked as a
+    // possible Renault-Nissan Alliance one (same frame on air; tag it in the signal menu).
+    let mut protocol_value = vec![Span::styled(capture.display_protocol_name().to_string(), accent_style)];
+    if capture.remote_tag().is_none() && capture.protocol_name() == "Fiat V1" {
+        protocol_value.push(Span::styled("  (possible Nissan)", dim));
+    }
     lines.extend(detail_row(
-        vec![
-            ("Protocol:", vec![Span::styled(capture.protocol_name().to_string(), accent_style)]),
-            ("Make:", value(make)),
-        ],
+        vec![("Protocol:", protocol_value), ("Make:", value(make))],
         max,
     ));
     if let Some(fields) = vehicle_fields(capture) {
@@ -721,7 +726,7 @@ fn render_signal_detail(
     let mut block = Block::default()
         .borders(Borders::ALL)
         .border_style(border_style)
-        .title(format!(" Signal #{:02} — {} ", capture.id, capture.protocol_name()));
+        .title(format!(" Signal #{:02} — {} ", capture.id, capture.display_protocol_name()));
     let inner = block.inner(area);
     let lines = signal_detail_lines(capture, saved, searching, hitag2, inner.width as usize);
     // Rows the panel has no room for (a short terminal): say so instead of dropping them silently.

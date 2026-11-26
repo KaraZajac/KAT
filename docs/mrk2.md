@@ -161,6 +161,29 @@ instruction; NXP's public documents fixed names and addresses.
 - **The whole.** The emulator runs the Koleos key's firmware through its boot, button handling, battery check,
   HITAG2 and transmission, and the keystream it sends matches HITAG2 computed independently.
 
+## What the catalog's firmware shows
+
+The 77 E-ROM images in the [Firmware](firmware.html) catalog (24 of 4 KB, 53 of 8 KB), read with the decoding
+above:
+
+- **Where the program sits.** Most 4 KB images start at word `000`. Two, Renault `285971998R` and `285974100R`
+  (the same image), sit at `800`, their vectors pointing above `800`: on their chip the ROM is the lower half.
+- **The ROM library.** Programs call NXP's library with `SYS`, the function number in R4: even numbers, `06` to
+  `78` in the images. Some 4 KB images also call ROM addresses directly. By its arguments, function `48` reads
+  EEPROM bits into RAM: R0 the RAM address, R3 the number of bits, R6 the first bit, R7 the page (the Jaguar
+  and Land Rover image `YWX000061` calls it for pages 3 to 15 at offsets 0 to 24). The functions seen around
+  EEPROM and HITAG2 work (`4A` to `56`, `72`) are not identified.
+- **The HITAG2 unit.** Three images drive it themselves through `CRIO`: the [Renault Koleos](renault_koleos.md)
+  key (`285970036R`), the Jaguar and Land Rover key (`YWX000061`, `YWX000071`) and a Nissan key (`A2C32801600`,
+  version 1). The others leave it to the ROM library.
+- **Sending.** The usual transmit loop takes the next frame bit with `MOV C,@dbp+`, puts it on the modulator
+  with `MOV MDB,C`, waits for the timer (`SETB IDLE`) and toggles `MDB` for the second half of the Manchester
+  bit. The Koleos key's transmitter (a Continental board) is driven by a table instead: frame layouts in code
+  memory, read with `MOVC`, each part with its own bit count and timing.
+- **Shared code.** Renault `AK010008` and `805673071R` make the same library calls with the same arguments: one
+  supplier's program. `AK010008` keeps its counter in three EEPROM pages and compares them, the usual guard
+  against a write cut short.
+
 ## The HITAG2 unit
 
 The chips compute HITAG2 in hardware, but bit by bit under program control: each access to `CRIO` (bit 7 of

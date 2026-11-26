@@ -2230,11 +2230,15 @@
    "frequency": "",
    "keyless": false,
    "pcb": "",
-   "protocols": [],
-   "remotes": [],
+   "protocols": [
+    "fiat_v2"
+   ],
+   "remotes": [
+    "gq4-53t"
+   ],
    "source": "transpondery",
    "archive": "CHRYSLER-GQ4-53T.rar",
-   "note": "Virgin renewal template.",
+   "note": "Renewal file for the FCC ID GQ4-53T key (Jeep Cherokee), which KAT reads as Fiat V2.",
    "files": [
     {
      "href": "firmware/chrysler-dodge-jeep/tp-chrysler-gq4-53t/eeprom.bin",
@@ -2572,11 +2576,15 @@
    "frequency": "433MHz",
    "keyless": false,
    "pcb": "",
-   "protocols": [],
-   "remotes": [],
+   "protocols": [
+    "fiat_v2"
+   ],
+   "remotes": [
+    "gq4-54t"
+   ],
    "source": "transpondery",
    "archive": "GQ4-54T.rar",
-   "note": "Virgin renewal template.",
+   "note": "Renewal file for the FCC ID GQ4-54T key (Jeep Cherokee and Grand Cherokee), which KAT reads as Fiat V2.",
    "files": [
     {
      "href": "firmware/chrysler-dodge-jeep/tp-gq4-54t/eeprom.bin",
@@ -2708,11 +2716,15 @@
    "frequency": "",
    "keyless": false,
    "pcb": "",
-   "protocols": [],
-   "remotes": [],
+   "protocols": [
+    "siemens_5wy72xx"
+   ],
+   "remotes": [
+    "m3n5wy72xx"
+   ],
    "source": "transpondery",
    "archive": "M3N5WY72XX.rar",
-   "note": "Virgin renewal template.",
+   "note": "Renewal file for the FCC ID M3N5WY72XX key (Chrysler, Dodge), which KAT reads as Siemens-5WY72XX.",
    "files": [
     {
      "href": "firmware/chrysler-dodge-jeep/tp-m3n5wy72xx/eeprom.bin",
@@ -2743,10 +2755,12 @@
    "keyless": false,
    "pcb": "",
    "protocols": [],
-   "remotes": [],
+   "remotes": [
+    "m3n5wy783x"
+   ],
    "source": "transpondery",
    "archive": "M3N5WY783X1.rar",
-   "note": "Virgin renewal template.",
+   "note": "Renewal file for the FCC ID M3N5WY783X key (Jeep Grand Cherokee).",
    "files": [
     {
      "href": "firmware/chrysler-dodge-jeep/tp-m3n5wy783x1/eeprom.bin",
@@ -2941,10 +2955,12 @@
    "keyless": false,
    "pcb": "",
    "protocols": [],
-   "remotes": [],
+   "remotes": [
+    "oht692427aa"
+   ],
    "source": "transpondery",
    "archive": "OHT692427AA.rar",
-   "note": "Virgin renewal template.",
+   "note": "Renewal file for the FCC ID OHT692427AA key (Jeep Patriot).",
    "files": [
     {
      "href": "firmware/chrysler-dodge-jeep/tp-oht692427aa/eeprom.bin",

@@ -257,7 +257,8 @@ const counts = {
   // The groups that are car makers: the others (aftermarket alarms, encoder chips) have no parts catalogue.
   carmakers: TAX.groups.filter((g) => g.catalogue.length).length,
   remotes: FCC.ids.filter((i) => !carUnit(i)).length + ROWN.remotes.length,
-  pictured: FCC.ids.filter((i) => !carUnit(i) && RFCC.remotes[i.id]?.photos.length).length + ROWN.remotes.length,
+  pictured: FCC.ids.filter((i) => !carUnit(i) && RFCC.remotes[i.id]?.photos.length).length + ROWN.remotes.filter((o) => o.photos.length).length,
+  firmware: FW.entries.length,
 };
 
 // ---------------------------------------------------------------------------

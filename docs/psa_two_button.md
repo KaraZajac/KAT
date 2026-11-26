@@ -198,8 +198,10 @@ older code to be a block cipher under a 16-byte key table that is the same in ev
 with a byte rotation that depends on the data ([PSA: the older code](psa.md#a-third-kind-of-block-the-older-code)).
 That rotation may be what picks a press's arrangement on this page, and the constants would then come from
 the table and the remote's own bytes, so the reading above of this code as "an obfuscation with check bits,
-not a cipher under a secret key" does not hold for the 206. Whether the same cipher opens this page's
-Citroën key, in its 76-bit frame, has not been tried.
+not a cipher under a secret key" does not hold for the 206. For this page's Citroën key it was tried: with
+the generation's key table none of the 86 codes deciphers, in any of the 40,320 orders of the code's eight
+bytes, nor with the block taken at any of the 13 bit offsets the 76-bit frame allows (no constant ID, the
+checks at chance). If this key uses the same construction, it is under a key table of its own.
 
 It is the code of this page. `D`, the left half XOR the right half, shows the same families of constants,
 with this remote's values in them:
@@ -284,6 +286,10 @@ does not fit the generic `Key`.
   remote's own (its ID, or a key), but not which bytes of it.
 - Whether the code holds more of the counter than its low byte, and whether it holds the button.
 - What a held button sends.
+- The chip's type. It is probably of NXP's PCF7961 family (20 pins, a 13.56 MHz crystal multiplied by 32 for
+  the carrier, as in the [chip's](chip-nxp-22a1509.html) relatives), whose controllers compute HITAG2 in
+  hardware under program control. The program would show how the code is made: KAT can disassemble and run
+  such firmware ([MRK II](mrk2.md)), but no dump of this key's chip exists.
 
 ## Validation
 

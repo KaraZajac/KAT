@@ -156,7 +156,7 @@
    "name": "NXP `22A1509`",
    "maker": "NXP",
    "kind": "Not identified",
-   "text": "The 20-pin NXP chip on a Valeo two-button key for Citroën and Peugeot, marked `22A1509`, `AZS5702`, `TnD3011`, `9221509` (read from a picture). The marking is a customer's, not a type KAT could look up. A 13.560 MHz crystal stands beside it and the board shows no other transmitter, so the chip makes the 433.92 MHz carrier itself.",
+   "text": "The 20-pin NXP chip on a Valeo two-button key for Citroën and Peugeot, marked `22A1509`, `AZS5702`, `TnD3011`, `9221509` (read from a picture). The marking is a customer's, not a type KAT could look up. A 13.560 MHz crystal stands beside it and the board shows no other transmitter, so the chip makes the 433.92 MHz carrier itself. It is probably of NXP's [PCF7961](chip-pcf7961.html) family: those controllers make their carrier the same way (a 13.56 MHz crystal multiplied by 32), and parts sellers list the PCF7961 for these keys. Not confirmed: the marking does not say.",
    "datasheet": null
   },
   {

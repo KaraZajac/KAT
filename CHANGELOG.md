@@ -2,6 +2,47 @@
 
 All notable changes to KAT are documented here.
 
+## [1.30.0] - 2026-11-26
+
+Hardening from two pull requests contributed by @0magicinside (#9, #10): KAT now copes with an
+unplugged Flipper, a stuck SoapySDR driver, a key file with a stray character, a failing GPU and
+folders that loop, and writes the key files it saves owner-only.
+
+### Fixed
+
+- **A Flipper Zero reconnects after an unplug.** KAT kept a dead console session as connected, so a
+  Flipper unplugged and plugged back in could not be used until KAT restarted. A closed or failing
+  console is now noticed, and the next `r` or transmission reopens the port (#9).
+- **A stuck SoapySDR driver can no longer freeze KAT.** The receiver read its helper process's output
+  in blocking calls, so a driver that hung while opening the radio could make stopping receive, or
+  quitting, wait for ever. The helper's frames are now read on their own thread under timeouts
+  (15 s to open the radio, 10 s without data counts as a stalled driver, 3 s to quit cleanly), and
+  the helper is always stopped and reaped. A driver that reports more samples than its buffer holds
+  is refused instead of crashing KAT, sustained overflows no longer silence the helper's heartbeat,
+  and SoapySDR's log callback can no longer panic across the C boundary (#10).
+- **A key file with a stray character no longer crashes KAT at startup.** The key-file parsers cut
+  the hex digits by byte position, so a multi-byte character such as an em-dash could panic while
+  loading. They now read character by character: such a line is reported as a bad line, a leading
+  byte-order mark (as Windows Notepad writes) is accepted, and a hex value with a leading `+` is now
+  rejected (#10).
+- **The GPU key search falls back to the CPU instead of missing a key.** When the HiTag2 search's
+  survivor buffer overflowed, the GPU's out-of-order writes could hide the lowest candidate; KAT now
+  runs that search on the CPU instead. A GPU error or a lost device during a search also falls back
+  to the CPU. The HiTag2 GPU pipeline is built once per search rather than once per chunk (#9).
+- **Folder scans survive symlink loops**: `:load`, `--decode` and the saved-fob scan remember the
+  folders they have visited (#9).
+- **SIGTERM and SIGHUP shut KAT down cleanly** (closing its terminal window, for instance): the
+  terminal is restored, the radios stopped and the session saved (#9).
+
+### Changed
+
+- **Key files are owner-only.** `hitag2_keys.txt`, `keeloq_mfcodes_user` and `jlr_keys` are created
+  with mode 0600 on Unix, and an existing file is tightened when KAT adds a key to it.
+  `hitag2_keys.txt` is written through a fresh temporary file that a planted symlink cannot
+  redirect, and saves from two searches no longer race (#9).
+
+Thanks to @0magicinside for both contributions.
+
 ## [1.29.0] - 2026-11-26
 
 A per-remote "Nissan" tag for Renault-Nissan Alliance keys that look like Fiat V1 on air.

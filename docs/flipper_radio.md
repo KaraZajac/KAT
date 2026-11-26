@@ -15,7 +15,8 @@ is no Flipper app to install.
 - Plug the Flipper in with a data cable. Only one program at a time can use its console: close
   qFlipper and any terminal open on it before you receive or transmit with it in KAT. Starting KAT
   does not open it; KAT connects the first time you press `r` (or `R`) or transmit with the
-  Flipper, and keeps the console until it quits.
+  Flipper, and keeps the console until it quits. If the Flipper is unplugged, plug it back in: the
+  next `r` or transmission opens the console again, with no restart.
 - On Linux, your user needs access to the serial port: `sudo usermod -aG dialout $USER`, then log
   in again.
 - The Flipper needs an SD card: KAT writes each transmission to it before playing it.
@@ -121,7 +122,7 @@ KAT says so in words (see Troubleshooting).
 | `the Flipper did not transmit: …` | The Flipper's own reason (region, frequency, SD card, one of the two below), or `it did not start sending` when it gave no sign of sending. |
 | `… an app is open on the Flipper; close it …` | Leave the app on the Flipper's screen: its console runs no Sub-GHz command while an app is open. |
 | `… its subghz command did not load from the SD card …` | Current firmwares load `subghz` from `/ext/apps_data/cli/plugins` on the SD card, and refuse files built for another firmware version (after flashing the firmware alone, for instance). Install the firmware together with its SD card files: qFlipper, the firmware's web updater or its update package. |
-| `Receiver stopped: Flipper: … (r restarts)` | The console closed (unplugged); `r` tries again. |
+| `Receiver stopped: Flipper: … (r restarts)` | The console closed (unplugged). Plug the Flipper back in and press `r`: KAT opens the console again. |
 | `could not connect: …` in `:radios` | The last try to open the console failed (the reason follows); the next `r` or transmission tries again. |
 
 ## How it is tested

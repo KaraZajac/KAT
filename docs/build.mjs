@@ -70,7 +70,7 @@ const reportByProtocolPage = new Map(REPORTS.map((r) => [r.protocolPage, r]));
 const FW_PAGES = ['mrk2'];
 // The ECU / immobiliser section (the wired side): ecu.md is its index, the ecu_*.md its family pages.
 const ECU_INDEX = 'ecu';
-const ECU = [ECU_INDEX, 'ecu_psa', 'ecu_iaw_tms374', 'ecu_mercedes_temic', 'ecu_bmw'];
+const ECU = [ECU_INDEX, 'ecu_catalog', 'ecu_psa', 'ecu_iaw_tms374', 'ecu_mercedes_temic', 'ecu_bmw'];
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const plural = (n, one, many = `${one}s`) => `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
@@ -85,6 +85,7 @@ const FCC = data('fcc.json');
 const COV = data('coverage.json');
 const TAX = data('taxonomy.json');
 const ECUS = data('ecus.json');
+const ECU_CATALOG = data('ecu_catalog.json');
 const RFCC = data('remotes_fcc.json');
 const ROWN = data('remotes.json');
 /** Parts installed in the car, not carried. Parts catalogues list them for the same cars as the keys, so they are in
@@ -1053,6 +1054,20 @@ const ecuFamiliesTable = () => {
   return `<div class="table-wrap"><table class="ecu-families data"><thead><tr><th>Make</th><th>ECU</th><th>MCU</th><th>Memory</th><th>Operation</th></tr></thead><tbody>\n${rows}\n</tbody></table></div>`;
 };
 
+// The engine-ECU catalog on ecu_catalog.md, from data/ecu_catalog.json (grouped by supplier). A family
+// links to the KAT PIN page that documents it. Injected where ecu_catalog.md has `ECU_CATALOG_TABLE`.
+const ecuCatalogTable = () => {
+  const bySup = new Map();
+  for (const f of ECU_CATALOG.families) (bySup.get(f.supplier) ?? bySup.set(f.supplier, []).get(f.supplier)).push(f);
+  const fam = (f) => {
+    const name = (f.pin_page && rendered.has(f.pin_page)) ? `<a href="${f.pin_page}.html">${esc(f.family)}</a>` : esc(f.family);
+    return f.note ? `<span title="${esc(f.note)}">${name}</span>` : name;
+  };
+  const rows = [...bySup].map(([sup, fs]) => fs.map((f, i) =>
+    `<tr>${i === 0 ? `<th rowspan="${fs.length}" scope="rowgroup">${esc(sup)}</th>` : ''}<td>${fam(f)}</td><td>${esc(f.mcu)}</td><td>${esc(f.memory)}</td><td>${esc(f.years)}</td><td>${esc(f.pin)}</td><td>${esc(f.makes.join(', '))}</td></tr>`).join('\n')).join('\n');
+  return `<div class="table-wrap"><table class="ecu-families data"><thead><tr><th>Supplier</th><th>ECU family</th><th>MCU</th><th>Memory</th><th>Years</th><th>PIN</th><th>Makes seen</th></tr></thead><tbody>\n${rows}\n</tbody></table></div>`;
+};
+
 for (const [p, r] of rendered) {
   if (byPage.has(p)) {
     html.set(`${p}.html`, protocolPage(p, r, parts));
@@ -1072,7 +1087,9 @@ ${r.meta.map((m) => `<div><dt>${esc(/^rust module/i.test(m.label) ? 'Source' : m
   const fwSection = fw.length ? `\n<h2 id="firmware">Firmware<a class="h-anchor" href="#firmware" aria-label="Link to this section">#</a></h2>
 <p>Memory images behind this page. ${fw.every((e) => e.source === 'transpondery') ? 'They are factory renewal templates: they hold no keys, IDs or counters.' : 'Each was sanitized before publication.'} <a href="firmware.html">Firmware</a> lists every image KAT publishes.</p>
 ${fwTable(fw)}` : '';
-  const body = (ecuIndex ? r.body.replace(/<p>ECU_FAMILIES_TABLE<\/p>/, ecuFamiliesTable()) : r.body) + fwSection;
+  const body = (ecuIndex ? r.body.replace(/<p>ECU_FAMILIES_TABLE<\/p>/, ecuFamiliesTable())
+    : p === 'ecu_catalog' ? r.body.replace(/<p>ECU_CATALOG_TABLE<\/p>/, ecuCatalogTable())
+    : r.body) + fwSection;
   const sideFor = ecu ? ecuSide(`${p}.html`) : (guide || ref) ? guideSide(`${p}.html`) : indexSide(fwPage ? 'firmware.html' : '');
   html.set(`${p}.html`, wikiPage({
     file: `${p}.html`, title: r.title, description: r.description, trail, numbered: !ref,

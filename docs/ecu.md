@@ -119,6 +119,10 @@ example from the corpus. Started with:
 - [Mercedes Temic](ecu_mercedes_temic.md) — Sprinter/Vito "start error", Motorola HC05/HC08
 - [BMW EWS & MS41](ecu_bmw.md) — 318 TDS (93C46) and the Siemens MS41.0 engine ECU (29F200)
 
+For identifying the engine ECU itself — which Bosch / Siemens / Marelli / Delphi family a car carries,
+its microcontroller and memory, and where in it the PIN sits — see the
+[engine-ECU families](ecu_catalog.md) catalog.
+
 ## Sources
 
 The corpus is grounded in a reference set of real ECU dumps and in the public catalogue and

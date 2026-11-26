@@ -1481,10 +1481,12 @@
    "keyless": false,
    "pcb": "",
    "protocols": [],
-   "remotes": [],
+   "remotes": [
+    "renault-805673071r"
+   ],
    "source": "transpondery",
    "archive": "805673071R.rar",
-   "note": "Virgin renewal template.",
+   "note": "Renault and Dacia remote key on an Alps Alpine board (TWE1G0003, FCC ID CWTWE1G0003), NXP PCF7961 as key-tool makers list it. The firmware calls the chip's ROM library for its EEPROM and HITAG work.",
    "files": [
     {
      "href": "firmware/renault/tp-805673071r/eeprom.bin",

@@ -14,7 +14,7 @@
    "name": "PCF7961",
    "maker": "NXP",
    "kind": "Key controller with transponder",
-   "text": "A key controller named in the filing of a Chrysler remote.",
+   "text": "A key controller named in the filing of a Chrysler remote. Key-tool makers list it for the Renault and Dacia key `805673071R` (Alps board, FCC ID `CWTWE1G0003`), whose firmware KAT publishes; its CPU is NXP's [MRK II](mrk2.html).",
    "datasheet": null
   },
   {

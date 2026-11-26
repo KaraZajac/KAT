@@ -617,6 +617,82 @@
   "cars": "Renault Koleos, first generation (built by Renault Samsung on a Nissan platform, sold from 2008), according to parts sellers.",
   "recordings": [],
   "photos": []
+ },
+ {
+  "slug": "renault-805673071r",
+  "title": "Renault and Dacia remote key (805673071R)",
+  "short": "Renault 805673071R key",
+  "group": "renault",
+  "maker": "Alps Alpine",
+  "fcc_id": "CWTWE1G0003",
+  "protocols": [],
+  "summary": "A Renault and Dacia remote key, Renault part `805673071R`, on an Alps Alpine board. The board's FCC filing (`CWTWE1G0003`, 2014, a \"Straight Key FOB\") gives its radio: 433.92 MHz FSK from a 13.56 MHz crystal. The key controller is an NXP PCF7961; KAT publishes the key's firmware, a program for the chip's [MRK II](mrk2.md) core. Which KAT protocol the key sends is not established yet.",
+  "facts": [
+   [
+    "Part",
+    "Renault `805673071R`"
+   ],
+   [
+    "Board",
+    "Alps Alpine `TWE1G0003` (`2EE-0050B`)"
+   ],
+   [
+    "Chip",
+    "NXP PCF7961, as key-tool makers list it; some sellers say PCF7961M, the HITAG AES version"
+   ],
+   [
+    "Frequency",
+    "433.92 MHz, FSK"
+   ],
+   [
+    "Crystal",
+    "13.56 MHz, multiplied by 32 by a PLL"
+   ],
+   [
+    "A press",
+    "0.333 s of transmission; the carrier is on for 41.8 ms of every 100 ms, with 70.3 ms off between bursts (the filing's test report)"
+   ],
+   [
+    "Transponder",
+    "a 125 kHz receiver for the immobiliser (the filing)"
+   ],
+   [
+    "Battery",
+    "CR2032"
+   ],
+   [
+    "Buttons",
+    "the filing's board has three (unlock, lock, trunk); sellers list the key with two or three"
+   ]
+  ],
+  "chips": [
+   {
+    "chip": "pcf7961",
+    "note": "the key controller, as key-tool makers list it"
+   }
+  ],
+  "cars": "Dacia Logan, Sandero and Duster and Renault Symbol and Trafic, about 2012 to 2019, according to parts sellers; the FCC filing names no car.",
+  "recordings": [],
+  "photos": [
+   {
+    "src": "img/fobs/renault-805673071r/board-parts.webp",
+    "thumb": "img/fobs/renault-805673071r/board-partst.webp",
+    "w": 521,
+    "h": 758,
+    "caption": "The component side: the 125 kHz transponder coil (top left), the 20-pin key controller, the 13.56 MHz crystal below it and the battery clip.",
+    "credit": "FCC filing CWTWE1G0003, internal photos",
+    "source": "https://fccid.io/CWTWE1G0003/Internal-Photos/Short-Term-Confidential-Internal-Photo-2308250"
+   },
+   {
+    "src": "img/fobs/renault-805673071r/board-switches.webp",
+    "thumb": "img/fobs/renault-805673071r/board-switchest.webp",
+    "w": 532,
+    "h": 782,
+    "caption": "The switch side: three switch positions (unlock, lock, trunk); the board number `2EE-0050B` and the FCC and IC IDs run along the left edge.",
+    "credit": "FCC filing CWTWE1G0003, internal photos",
+    "source": "https://fccid.io/CWTWE1G0003/Internal-Photos/Short-Term-Confidential-Internal-Photo-2308250"
+   }
+  ]
  }
  ],
  "fcc_extra": {

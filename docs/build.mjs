@@ -380,7 +380,7 @@ const inline = (s) => inlineMd.parseInline(String(s));
 
 const chipByKey = new Map(CHIPS.chips.map((c) => [c.key, c]));
 const capsWith = (prefixes = []) => CAPS.captures.filter((c) => prefixes.some((p) => c.path.startsWith(p)));
-const ownPhoto = (p) => ({ ...p, cap: inline(p.caption), by: esc(p.credit ?? '') });
+const ownPhoto = (p) => ({ ...p, cap: inline(p.caption), by: p.source ? `<a href="${esc(p.source)}" rel="noopener">${esc(p.credit ?? 'Source')}</a>` : esc(p.credit ?? '') });
 const filedPhoto = (id) => (p) => ({
   ...p, cap: `${esc(p.exhibit)}${p.date ? `, ${esc(p.date.slice(0, 4))}` : ''}`,
   by: `<a href="${esc(p.source)}" rel="noopener">FCC filing of ${esc(id)}</a>`,
@@ -403,7 +403,8 @@ for (const i of FCC.ids) {
 }
 for (const o of ROWN.remotes) {
   remotes.push({
-    slug: `remote-${o.slug}`, fcc: null, unit: false, title: o.title, short: o.short, maker: o.maker,
+    // fcc_id: a filing outside the US coverage map (no US car listed), shown and credited but not in fcc.json
+    slug: `remote-${o.slug}`, fcc: null, fccId: o.fcc_id ?? null, unit: false, title: o.title, short: o.short, maker: o.maker,
     groups: TAX.groups.filter((g) => g.slug === o.group),
     entries: o.protocols.map((n) => byName.get(n)).filter(Boolean),
     photos: o.photos.map(ownPhoto), notes: [], chips: o.chips ?? [], facts: o.facts ?? [], cars: o.cars ?? null,
@@ -514,7 +515,9 @@ ${hero ? `<a class="infobox-img" href="${esc(hero.src)}"><img src="${esc(hero.th
 <div class="infobox-title">${esc(r.short)}</div>
 <div class="infobox-sub">${i ? esc(titleCase(i.product) || 'Remote') : 'Remote'}</div>
 <dl>
-${row('FCC ID', i ? `<a href="https://fccid.io/${encodeURIComponent(i.id)}" rel="noopener" title="The filing at fccid.io"><code>${esc(i.id)}</code></a>` : '<span class="dim">none: not a US remote</span>')}
+${row('FCC ID', i ? `<a href="https://fccid.io/${encodeURIComponent(i.id)}" rel="noopener" title="The filing at fccid.io"><code>${esc(i.id)}</code></a>`
+    : r.fccId ? `<a href="https://fccid.io/${encodeURIComponent(r.fccId)}" rel="noopener" title="The filing at fccid.io"><code>${esc(r.fccId)}</code></a>`
+    : '<span class="dim">none: not a US remote</span>')}
 ${row('Maker', esc(r.maker))}
 ${row('Granted', i?.granted ? esc(i.granted) : '')}
 ${row('Band', i?.frequency ? esc(i.frequency) : '')}
@@ -574,7 +577,8 @@ ${fwTable(fwr)}` : '';
     trail: [['./', 'KAT'], ['remotes.html', 'Remotes'], ...(g ? [[g.href, g.short]] : [])],
     side: tocList(toc) + sideList(g ? `${g.short} remotes` : '', near.map((x) => [`${x.slug}.html`, x.short]), `${r.slug}.html`),
     lead: box, body: `${lead}\n${pictures}\n${filing}\n${cars}\n${proto}\n${frames}\n${chips}\n${firmware}\n${recs}\n`,
-    foot: `      <div class="doc-foot"><a href="remotes.html">← All remotes</a><span>${i ? `The filing: <a href="https://fccid.io/${encodeURIComponent(i.id)}" rel="noopener">fccid.io/${esc(i.id)}</a>, a mirror of the FCC's database.` : r.photos.length ? 'The pictures were sent in by the remote’s owner.' : 'No pictures of this key yet.'}</span></div>`,
+    foot: `      <div class="doc-foot"><a href="remotes.html">← All remotes</a><span>${i ? `The filing: <a href="https://fccid.io/${encodeURIComponent(i.id)}" rel="noopener">fccid.io/${esc(i.id)}</a>, a mirror of the FCC's database.` : r.fccId && r.photos.length ? `The pictures are the internal photos of its FCC filing, <a href="https://fccid.io/${encodeURIComponent(r.fccId)}" rel="noopener">fccid.io/${esc(r.fccId)}</a>, a public record.`
+    : r.photos.length ? 'The pictures were sent in by the remote’s owner.' : 'No pictures of this key yet.'}</span></div>`,
   }, parts);
 }
 
@@ -1285,7 +1289,7 @@ ${fccTable(FCC.ids)}
   const real = remotes.filter((r) => !r.unit);
   const shown = real.filter((r) => r.photos.length).sort(byInterest);
   const rest = real.filter((r) => !r.photos.length && r.fcc);
-  const own = remotes.filter((r) => !r.fcc && r.photos.length);
+  const own = remotes.filter((r) => !r.fcc && !r.fccId && r.photos.length);   // pictured by their owners
   const unpictured = remotes.filter((r) => !r.fcc && !r.photos.length);   // known from their firmware or a description only
   html.set('remotes.html', wikiPage({
     file: 'remotes.html', title: 'Remotes', wide: true,

@@ -24,15 +24,17 @@
 //! **The code** is the PSA older-code block cipher (four rounds of a byte mix and a popcount-driven
 //! rotation; see [`super::psa`]) applied to the 64-bit code, under this key family's own 16-byte
 //! table ([`crate::keystore::PSA_2BUTTON_TABLE`]). Deciphered, the eight bytes are a per-remote
-//! constant, the 8-bit press counter (byte 3), and two equal check bytes that are a fixed function
-//! of the counter ([`cipher::check_byte`]); the counter runs once across both buttons, the button
+//! constant, the 16-bit press counter (bytes 2 and 3), and two equal check bytes that are a fixed
+//! function of the plaintext byte-sum ([`cipher::check_byte`]); the counter runs once across both
+//! buttons, the button
 //! itself being the clear nibble in the header. The table was recovered by differential
 //! cryptanalysis of one key's 96 presses (`docs/psa_two_button.md`); whether it is shared across the
 //! family is not established.
 //!
 //! **Gate**: a burst that begins behind a pause with the half bit of carrier, holds exactly 76
 //! Manchester bits without a violation, and is ended by a carrier pulse of 2.0 to 3.3 ms. With the
-//! table loaded the deciphered block's two check bytes are also verified.
+//! table loaded the deciphered block's two check bytes are also verified. (Bytes 2 and 3 are the
+//! counter, byte 2 the high byte; the check byte is a function of the plaintext byte-sum.)
 //!
 //! **Fields**: `data` = the code, `extra` = the 12 bits before it, `data_count_bit` = 76,
 //! `button` = the button nibble, `counter` = the deciphered press counter (when the table reads it,
@@ -86,12 +88,14 @@ mod cipher {
     use crate::protocols::keys::get_keystore;
     use crate::protocols::psa::{older_decrypt, older_encrypt};
 
-    /// The two equal check bytes the deciphered block carries (bytes 6 and 7), as a function of the
-    /// press counter. This closed form reproduces all 96 presses of the recovered key, including the
-    /// two values at a counter wrap where the generic term lands on zero (sent as `0xFF`).
-    pub fn check_byte(counter: u16) -> u8 {
-        let n = counter as i32;
-        let h = (((n << 3) & 0xFF) ^ ((0x18 - ((n + 2) >> 2)) & 0x3F)) as u8;
+    /// The two equal check bytes the deciphered block carries (bytes 6 and 7): a function of the
+    /// 8-bit sum of the other six plaintext bytes and the counter's low byte. Recovered from about
+    /// 540 presses of the one key across a wide counter range; the earlier closed form in the counter
+    /// alone was this rule with the key's byte 2 (the counter's high byte) held fixed. When the
+    /// generic term lands on zero the byte is sent as `0xFF`.
+    pub fn check_byte(pt: &[u8; 8]) -> u8 {
+        let sum = pt[..6].iter().fold(0u8, |a, &b| a.wrapping_add(b));
+        let h = (pt[3] << 3) ^ (0u8.wrapping_sub(sum >> 2) & 0x3F);
         if h == 0 {
             0xFF
         } else {
@@ -100,23 +104,26 @@ mod cipher {
     }
 
     /// Decipher the code and return `(counter, plaintext)` when the block verifies: bytes 6 and 7
-    /// are equal and are the counter's [`check_byte`]. `None` without a loaded table, or when the
-    /// block does not verify (a frame of another protocol, or a wrong table).
+    /// are equal and are the block's [`check_byte`]. The counter is 16-bit (byte 2 the high byte,
+    /// byte 3 the low). `None` without a loaded table, or when the block does not verify (a frame of
+    /// another protocol, or a wrong table).
     pub fn decode(code: u64) -> Option<(u16, [u8; 8])> {
         let table = get_keystore().psa_2button_table()?;
         let pt = older_decrypt(code.to_be_bytes(), &table);
-        let counter = u16::from(pt[3]);
-        (pt[6] == pt[7] && pt[6] == check_byte(counter)).then_some((counter, pt))
+        let counter = (u16::from(pt[2]) << 8) | u16::from(pt[3]);
+        (pt[6] == pt[7] && pt[6] == check_byte(&pt)).then_some((counter, pt))
     }
 
-    /// The 64-bit code of the next press (counter + 1), keeping this remote's own constant bytes and
-    /// a fresh check byte. `None` without a loaded table (the caller then replays the captured code).
+    /// The 64-bit code of the next press (counter + 1, carrying into byte 2), keeping this remote's
+    /// own constant bytes and a fresh check byte. `None` without a loaded table (the caller then
+    /// replays the captured code).
     pub fn next_code(code: u64) -> Option<u64> {
         let table = get_keystore().psa_2button_table()?;
         let mut pt = older_decrypt(code.to_be_bytes(), &table);
-        let next = pt[3].wrapping_add(1);
-        pt[3] = next;
-        pt[6] = check_byte(u16::from(next));
+        let next = (((u16::from(pt[2]) << 8) | u16::from(pt[3])).wrapping_add(1)).to_be_bytes();
+        pt[2] = next[0];
+        pt[3] = next[1];
+        pt[6] = check_byte(&pt);
         pt[7] = pt[6];
         Some(u64::from_be_bytes(older_encrypt(pt, &table)))
     }
@@ -328,11 +335,12 @@ mod tests {
     const DUMMY: [u8; 16] =
         [0x10, 0x32, 0x54, 0x76, 0x98, 0xBA, 0xDC, 0xFE, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF];
 
-    /// A 64-bit code built from a counter under `table`: this test's plaintext layout
-    /// (constants, counter in byte 3, two check bytes) enciphered as the key does.
+    /// A 64-bit code built from a counter under `table`: this test's plaintext layout (constants, the
+    /// 16-bit counter in bytes 2 and 3, two check bytes) enciphered as the key does.
     fn code_for(counter: u16, table: &[u8; 16]) -> u64 {
-        let chk = cipher::check_byte(counter);
-        let pt = [0x11, 0x22, 0x33, counter as u8, 0x44, 0x55, chk, chk];
+        let mut pt = [0x11, 0x22, (counter >> 8) as u8, counter as u8, 0x44, 0x55, 0, 0];
+        pt[6] = cipher::check_byte(&pt);
+        pt[7] = pt[6];
         u64::from_be_bytes(crate::protocols::psa::older_encrypt(pt, table))
     }
 
@@ -357,6 +365,13 @@ mod tests {
             assert_eq!(b.data, code_for(0x2B, &DUMMY), "the next press's code");
             assert_eq!(b.button, Some(0xC), "button kept");
         }
+        // The counter is 16-bit: incrementing 0x00FF carries into byte 2 (to 0x0100), and the next
+        // code re-decodes to it. (The long recordings showed byte 2 stepping as the low byte wraps.)
+        let wrap = feed_all(&mut PsaTwoButtonDecoder::new(), &press(HEAD, code_for(0x00FF, &DUMMY))).pop().unwrap();
+        assert_eq!(wrap.counter, Some(0x00FF));
+        let back = feed_all(&mut PsaTwoButtonDecoder::new(), &dec.encode(&wrap, 0).unwrap());
+        assert!(back.iter().all(|b| b.counter == Some(0x0100) && b.data == code_for(0x0100, &DUMMY)));
+
         // A random code does not spuriously verify (≈ 2^-16).
         assert!(feed_all(&mut PsaTwoButtonDecoder::new(), &press(HEAD, CODE)).pop().unwrap().counter.is_none());
 
@@ -372,7 +387,7 @@ mod tests {
         crate::protocols::keys::get_keystore_mut().load_psa_2button_table(Some(crate::keystore::PSA_2BUTTON_TABLE));
 
         let d = feed_all(&mut PsaTwoButtonDecoder::new(), &press(HEAD, CODE)).pop().expect("decode");
-        assert_eq!(d.counter, Some(0x16), "the recorded counter of this frame");
+        assert_eq!(d.counter, Some(0xB316), "the recorded 16-bit counter of this frame");
         assert!(d.crc_valid);
 
         crate::protocols::keys::get_keystore_mut().load_psa_2button_table(None);

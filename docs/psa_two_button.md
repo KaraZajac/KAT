@@ -35,9 +35,10 @@ The 64-bit code is the same block cipher as PSA's [older code](psa.md#a-third-ki
 four rounds of a byte mix and a rotation whose amount is the Hamming weight (popcount) of the eight bytes,
 under a 16-byte key table — here a table of this key family's own, not the older code's.
 
-Deciphered, the eight bytes are a per-remote constant (five bytes), the **press counter** in byte 3, and two
-equal check bytes (bytes 6 and 7) that are a fixed function of the counter. The counter steps by one per press
-and runs as one sequence across both buttons; the button is the clear nibble in the header.
+Deciphered, the eight bytes are a per-remote constant (four bytes), the **press counter** — 16-bit, byte 2
+the high byte and byte 3 the low — and two equal check bytes (bytes 6 and 7) that are a fixed function of the
+eight-bit sum of the other six bytes and the counter's low byte. The counter steps by one per press and runs
+as one sequence across both buttons; the button is the clear nibble in the header.
 
 **How the table was recovered — from the recordings alone, no firmware.** The rotation is what makes the
 cipher breakable: for any fixed set of the three rotation amounts the decipher is linear over GF(2), so the
@@ -47,7 +48,11 @@ used (a random byte order fits far fewer pairs — the control). The popcount th
 pins the key: each round's rotation amount constrains that round's four key bytes, and a meet-in-the-middle
 over the popcount recovers them one round at a time. The result is checked end to end: deciphered byte 3
 equals the press counter in **96 of 96** presses, and re-enciphering an incremented counter reproduces each
-next captured code.
+next captured code. Two later recordings of the same key (335 + 350 presses) carried the counter across a
+much wider range — 0xB314 to 0xB6E2, so byte 2 stepped from B3 to B6 as the low byte wrapped — and every one
+of the **543 distinct counters** deciphers to the right value with its check byte: this is what showed byte 2
+to be the counter's high byte and pinned the check byte to the byte-sum rule (the earlier 96-press capture
+never moved byte 2, so that closed form had read as a function of the low byte alone).
 
 **The table in KAT.** KAT ships the recovered table (`crate::keystore::PSA_2BUTTON_TABLE`, loaded at startup);
 a `psa_2button_key` file in the config dir overrides it, the same way `psa_bsi_key` overrides the older-code
@@ -314,8 +319,9 @@ Still open:
 
 - **Whether the key table is shared across the family or is this one remote's** — the central question, which a
   second key's recording would answer.
-- Whether the counter holds more than its low byte. Byte 3 of the deciphered block is the counter; byte 2 is
-  constant in all 96 presses, so a higher byte (if any) was not exercised by this one key.
+- ~~Whether the counter holds more than its low byte.~~ **Resolved:** two later recordings of the same key
+  (335 + 350 presses) moved byte 2, which is the counter's **high** byte — the counter is 16-bit, and the
+  check byte is a function of the plaintext byte-sum, not of the low byte alone (see [the cipher](#the-cipher-recovered)).
 - The car and its year; whether `CE` is the same on every key of the kind; what a held button sends.
 - The chip's type. It is probably of NXP's PCF7961 family (20 pins, a 13.56 MHz crystal multiplied by 32 for
   the carrier, as in the [chip's](chip-nxp-22a1509.html) relatives). A dump of its firmware would show the
@@ -329,6 +335,10 @@ Still open:
   to the receiver in the recording (most of them among the first of the unlock recording, where the pauses
   inside the frame came out up to 1.4 ms long).
 - No other file in IMPORTS changes, and no other decoder reads these two.
+- Two longer recordings of the same key (335 presses locking, 350 unlocking) were deciphered with the shipped
+  table: 543 distinct counters over 0xB314–0xB6E2, every one with its check byte, no conflict. These are what
+  confirmed the 16-bit counter and the byte-sum check rule; they are the same key as the `x50` captures (same
+  constant bytes), at a later, higher counter.
 - Unit tests: a press; a frame that ends with a 0 bit; carrier pulses 70 µs short and pauses 70 µs long; the
-  gate (the closing carrier's length, a bit more or less, a pulse of another length, no closing carrier,
-  another speed); the recordings.
+  16-bit counter carrying from 0x00FF into byte 2; the gate (the closing carrier's length, a bit more or less,
+  a pulse of another length, no closing carrier, another speed); the recordings.

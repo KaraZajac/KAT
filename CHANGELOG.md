@@ -2,6 +2,22 @@
 
 All notable changes to KAT are documented here.
 
+## [1.28.1] - 2026-11-26
+
+A correctness fix for the PSA 2-Button rolling code, from longer recordings of the same key.
+
+### Fixed
+
+- **PSA 2-Button: the counter is 16-bit and the check byte rule is corrected.** Two longer recordings
+  of the same Valeo key (335 + 350 presses) carried the counter across a far wider range than the
+  original 96-press capture, moving what had looked like a constant plaintext byte. That byte (byte 2
+  of the deciphered block) is the counter's **high** byte — the counter is 16-bit — and the two check
+  bytes are a function of the eight-bit sum of the other six plaintext bytes, not of the counter's low
+  byte alone. The earlier closed form was that rule with the key's byte 2 held fixed; it verified only
+  about 57% of the longer captures, the new rule verifies all 543 distinct counters (and the real
+  binary reads every deciphered frame of both recordings). "Send next code" now carries the increment
+  into the high byte. The report (`reports/2026-psa-2button-valeo`) and page are updated.
+
 ## [1.28.0] - 2026-11-25
 
 ### Added

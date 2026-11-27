@@ -4,7 +4,10 @@ layout: default
 
 # A Flipper Zero as KAT's radio
 
-**Rust module:** `src/radio/flipper.rs` (and `src/protocols/stream_locator.rs`)
+**Rust modules:** `src/radio/flipper.rs` (the serial port, the worker thread, the controller),
+`src/radio/flipper_console.rs` (the console session, the receive stream and the file a transmission
+is played from, with no serial-port code: [KAT Mobile](https://github.com/KaraZajac/KAT-Mobile) uses
+it unchanged over Android's USB host API) and `src/protocols/stream_locator.rs`
 
 KAT can use a Flipper Zero plugged in over USB as its radio, for receiving and transmitting. It
 works through the Flipper's command line, the USB serial console that qFlipper also uses, so there

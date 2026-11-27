@@ -5,6 +5,7 @@ pub mod demodulator;
 pub mod devices;
 pub mod dsp;
 mod flipper;
+mod flipper_console;
 mod hackrf;
 pub mod hopper;
 pub mod iq_file;

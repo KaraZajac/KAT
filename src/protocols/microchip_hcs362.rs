@@ -18,8 +18,10 @@
 //!
 //! **Frame** (both modes, `hcs362_decode`), LSB-first fields: 32-bit encrypted hop | 28-bit
 //! serial | 4-bit function code (S3, S0, S1, S2) | VLOW | CRC0, CRC1 | QUEUE0, QUEUE1. Checks, as
-//! the C: bytes 1..7 not all 0xFF; the 2-bit CRC (datasheet Equation 3-1 over the first 65 bits).
-//! Frames failing a check are dropped.
+//! the C: bytes 1..7 not all 0xFF; the 2-bit CRC (datasheet Equation 3-1 over the first 65 bits);
+//! and KAT's gate of both chips (not in the C, [keeloq_chip_frame_is_plausible]): the hop not within
+//! 3 bits of all 1s or all 0s, the serial not all 1s (noise read as short PWM pulses, see
+//! Microchip-HCS361). Frames failing a check are dropped.
 //!
 //! **Fields**: as Microchip-HCS361 ([super::rtl433::keeloq_chip_signal]): shown as
 //! `Microchip-HCS362 [KeeLoq (<manufacturer>)]` (counter decrypted) or `[KeeLoq (Unknown)]`;
@@ -30,7 +32,7 @@
 //!
 //! **Encoder**: none — receive only, as rtl_433.
 
-use super::rtl433::{keeloq_chip_signal, BitBuffer, Decode, Device, Ends, Gaps, Modulation, Receiver};
+use super::rtl433::{keeloq_chip_frame_is_plausible, keeloq_chip_signal, BitBuffer, Decode, Device, Ends, Gaps, Modulation, Receiver};
 use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
 
@@ -141,6 +143,9 @@ fn hcs362_decode(bits: &BitBuffer, mc: bool) -> Option<DecodedSignal> {
     let actual_crc = ((b[8] >> 6) & 1) | (((b[8] >> 5) & 1) << 1);
     if actual_crc != hcs362_crc(b) {
         return None; // DECODE_FAIL_MIC
+    }
+    if !keeloq_chip_frame_is_plausible(b) {
+        return None; // KAT gate: noise read as 1s (module doc)
     }
     Some(keeloq_chip_signal(NAME, b, FRAME_BITS))
 }
@@ -331,6 +336,13 @@ mod tests {
         // All-0xFF data.
         let ones = vec![true; 69];
         assert!(decode_all(&mut MicrochipHcs362Decoder::new(), &pwm_wire(200, &ones)).is_empty());
+        // KAT gate: a hop within 3 bits of all 1s (noise read as short pulses), the all-1s serial.
+        for (hop, serial) in [(0xFFFF_FBFFu32, 0x0A55_AA55u32), (0x1234_5678, 0x0FFF_FFFF)] {
+            let bits = frame_bits(hop, serial, 0x4, 0, 0);
+            for wire in [pwm_wire(200, &bits), mc_wire(214, &bits)] {
+                assert!(decode_all(&mut MicrochipHcs362Decoder::new(), &wire).is_empty(), "{hop:08X} {serial:07X}");
+            }
+        }
         // MC frame without the start bit.
         let mut w = mc_wire(214, &bits);
         let start = w.iter().position(|l| !l.level && l.duration_us == 4 * 214).unwrap();

@@ -176,8 +176,9 @@ pub fn export_fob(
         format: "kat-fob".to_string(),
         signal: FobSignalInfo {
             protocol: protocol_name.clone(),
-            frequency: capture.frequency,
-            frequency_mhz: capture.frequency_mhz(),
+            // Where the remote was heard (the measured offset is not in the file).
+            frequency: capture.heard_frequency(),
+            frequency_mhz: capture.heard_frequency_mhz(),
             modulation: capture.modulation().to_string(),
             rf_modulation: match capture.rf_modulation() {
                 crate::capture::RfModulation::Unknown => None,

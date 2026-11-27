@@ -51,13 +51,22 @@
 //! C does), map KAT's button (0x01 Lock, 0x02 Unlock, 0x04 Trunk, 0x08 Panic — the emulate scene's
 //! Up/OK/Down/Left; anything else keeps the captured button), bump the 20-bit counter by one (the
 //! emulate scene's `current_counter++`; ARF's `cnt + mult`), `ford_v1_plain_apply_fields`, re-scramble
-//! the air block, refresh the CRC, then build burst 0 (`ford_v1_encoder_build_burst(.., 0)`):
-//! pkt[4] = 0x08 and the CRC recomputed, 400 × (HIGH 130, LOW 130), HIGH 130, LOW 65, the 17
-//! bytes MSB-first as (bit, 65µs)(!bit, 65µs), LOW 50 000µs. The C never advances `burst_idx`, so
-//! every transmission is burst 0; the Flipper TX loop repeats the upload `repeat` = 10 times
-//! (doctor-firmware: 3). KAT's `encode()` returns the single upload and KAT sends it 3 times
-//! (`tx_copies.rs`; a key file's `Repeat` line sets the count). Adjacent same-level
-//! half-bits are merged into single pulses (identical on air).
+//! the air block, refresh the CRC, then build the bursts (`ford_v1_encoder_build_burst`): pkt[4] =
+//! the burst's flags byte and the CRC recomputed, 400 × (HIGH 130, LOW 130), HIGH 130, LOW 65, the
+//! 17 bytes MSB-first as (bit, 65µs)(!bit, 65µs), LOW 50 000µs. Adjacent same-level half-bits are
+//! merged into single pulses (identical on air).
+//!
+//! **A press is three sends** (KAT deviation): the C's table `ford_v1_encoder_burst_pkt4_vals` holds
+//! a press's flags bytes, `{08, 00, 10, 08, 00, 10}`, but it never advances `burst_idx`, so it sends
+//! burst 0 (flags 08) only, `repeat` = 10 times (doctor-firmware: 3), and KAT sent it 3 times. A
+//! remote sends the frame once per flags byte — 00, 08, 10 ([PRESS_FLAGS]; bits 3–4 count the sends,
+//! as on the JLR fobs, `docs/ford_v1_jlr.md`: "00 the first send of a press, 08 the same press sent
+//! again"): a Ford ute's remote, recorded by a tester with KAT Mobile, sent 00 and, about 0.4 s
+//! later, 10, on two channels about 0.8 MHz apart (the 08 send between them was not heard), and the
+//! ute ignored KAT's presses (08 only, sent on neither channel). KAT's `encode()` returns the
+//! remote's press, the three sends in that order, each with its own CRC, and sends it once
+//! (`tx_copies.rs`; a key file's `Repeat: n` sends the press n times). Its second send is the C's
+//! burst 0 exactly (`oracle_vectors`).
 //!
 //! As in the C, a frame whose first air bit is 0 cannot be decoded (the sync LOW merges with the
 //! first half-bit, so the decoder stays in the preamble) — see the tests.
@@ -127,9 +136,14 @@ const COUNTER_MASK: u32 = 0xF_FFFF;
 const ENC_PREAMBLE_PAIRS: usize = 400;
 const ENC_SYNC_SHORT_US: u32 = 65;
 const ENC_SYNC_LONG_US: u32 = 130;
-/// `FORD_V1_ENC_GAP_REPEAT_US`: the gap ending every burst except burst index 5, i.e. burst 0.
+/// `FORD_V1_ENC_GAP_REPEAT_US`: the gap ending every burst except burst index 5 (KAT: every send).
 const ENC_GAP_REPEAT_US: u32 = 50_000;
-/// `ford_v1_encoder_burst_pkt4_vals[0]`: pkt[4] of burst 0, the only burst the C sends.
+/// The flags byte (raw[4]) of a press's sends, in the order a remote sends them (module doc, "A press
+/// is three sends"): the values of the C's `ford_v1_encoder_burst_pkt4_vals`, whose burst 0 (08) is
+/// the only one the C sends.
+const PRESS_FLAGS: [u8; 3] = [0x00, 0x08, 0x10];
+/// `ford_v1_encoder_burst_pkt4_vals[0]`: the flags of the C's one burst (`oracle_vectors`).
+#[cfg(test)]
 const ENC_BURST0_PKT4: u8 = 0x08;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -378,7 +392,9 @@ impl FordV1Decoder {
 
     /// Build the next code for a deciphered JLR fob: look up its car key and last counter (learned at
     /// decode), raise the counter by 2 (the fob's step), encipher `button ‖ counter ‖ ID`, and build
-    /// burst 0 with a fresh CRC and the first-send flags byte. `None` if the fob was never deciphered.
+    /// the press: the first send (flags 00) and its repeats, each with a fresh CRC. (Before, the flags
+    /// byte set here was overwritten with burst 0's 08, so only repeats went out.) `None` if the fob
+    /// was never deciphered.
     fn encode_jlr(decoded: &DecodedSignal, requested: u8) -> Option<Vec<LevelDuration>> {
         let id = decoded.serial?;
         let (key, last_counter, captured) = super::keys::get_keystore().jlr_fob(id)?;
@@ -388,12 +404,9 @@ impl FordV1Decoder {
         };
         let counter = (last_counter.wrapping_add(2)) & 0x00FF_FFFF;
         let payload = super::jlr::encipher(&super::jlr::plain_bytes(super::jlr::Press { button, counter, id }), &key);
-        let mut raw = Self::frame_from_keys(decoded.data, u64::from_be_bytes(payload));
-        raw[4] = 0x00; // first send of a press
-        let c = Self::crc16(&raw[3..15]);
-        raw[15..17].copy_from_slice(&c.to_be_bytes());
+        let raw = Self::frame_from_keys(decoded.data, u64::from_be_bytes(payload));
         super::keys::get_keystore_mut().remember_jlr_fob(id, key, counter, button);
-        Some(Self::build_burst0(&raw))
+        Some(Self::build_press(&raw))
     }
 
     /// `ford_v1_try_last_byte_variants`: 16 bytes + 6 or 7 bits of the last byte collected when
@@ -522,29 +535,37 @@ impl FordV1Decoder {
         signal.push(LevelDuration::new(level, duration));
     }
 
-    /// `ford_v1_encoder_build_burst(instance, 0)`.
-    fn build_burst0(raw_tx: &[u8; DATA_BYTES]) -> Vec<LevelDuration> {
+    /// A remote's press of `raw_tx`: one burst per [PRESS_FLAGS] entry, in order.
+    fn build_press(raw_tx: &[u8; DATA_BYTES]) -> Vec<LevelDuration> {
+        let mut signal = Vec::with_capacity(PRESS_FLAGS.len() * (ENC_PREAMBLE_PAIRS * 2 + 2 + DATA_BYTES * 16 + 1));
+        for flags in PRESS_FLAGS {
+            Self::build_burst(&mut signal, raw_tx, flags);
+        }
+        signal
+    }
+
+    /// `ford_v1_encoder_build_burst`: `raw_tx` with pkt[4] = `flags` and the CRC recomputed, appended
+    /// to `signal`.
+    fn build_burst(signal: &mut Vec<LevelDuration>, raw_tx: &[u8; DATA_BYTES], flags: u8) {
         let mut pkt = *raw_tx;
-        pkt[4] = ENC_BURST0_PKT4;
+        pkt[4] = flags;
         let crc = Self::crc16(&pkt[3..15]);
         pkt[15..17].copy_from_slice(&crc.to_be_bytes());
 
-        let mut signal = Vec::with_capacity(ENC_PREAMBLE_PAIRS * 2 + 2 + DATA_BYTES * 16 + 1);
         for _ in 0..ENC_PREAMBLE_PAIRS {
-            Self::enc_add_level(&mut signal, true, ENC_SYNC_LONG_US);
-            Self::enc_add_level(&mut signal, false, ENC_SYNC_LONG_US);
+            Self::enc_add_level(signal, true, ENC_SYNC_LONG_US);
+            Self::enc_add_level(signal, false, ENC_SYNC_LONG_US);
         }
-        Self::enc_add_level(&mut signal, true, ENC_SYNC_LONG_US);
-        Self::enc_add_level(&mut signal, false, ENC_SYNC_SHORT_US);
+        Self::enc_add_level(signal, true, ENC_SYNC_LONG_US);
+        Self::enc_add_level(signal, false, ENC_SYNC_SHORT_US);
         for &b in pkt.iter() {
             for bit_i in (0..8).rev() {
                 let bit = (b >> bit_i) & 1 != 0;
-                Self::enc_add_level(&mut signal, bit, ENC_SYNC_SHORT_US);
-                Self::enc_add_level(&mut signal, !bit, ENC_SYNC_SHORT_US);
+                Self::enc_add_level(signal, bit, ENC_SYNC_SHORT_US);
+                Self::enc_add_level(signal, !bit, ENC_SYNC_SHORT_US);
             }
         }
-        Self::enc_add_level(&mut signal, false, ENC_GAP_REPEAT_US);
-        signal
+        Self::enc_add_level(signal, false, ENC_GAP_REPEAT_US);
     }
 }
 
@@ -699,7 +720,7 @@ impl ProtocolDecoder for FordV1Decoder {
         Self::plain_apply_fields(&mut plain, serial, btn, cnt);
         let mut raw_tx = raw;
         Self::rebuild_raw_from_plain(&mut raw_tx, &plain);
-        Some(Self::build_burst0(&raw_tx))
+        Some(Self::build_press(&raw_tx))
     }
 
     /// `subghz_protocol_decoder_ford_v1_deserialize` (see the module doc, "Key files").
@@ -847,9 +868,10 @@ mod tests {
         assert!(seen[0] && seen[1]);
     }
 
-    /// Encoder → decoder through the pulse path: burst 0 only (pkt[4] = 0x08), the requested
-    /// button, the counter bumped by one (20 bits, including the top nibble) and plain[8]'s
-    /// relationship kept (so key2 matches a frame built with the shifted checksum byte).
+    /// Encoder → decoder through the pulse path: the remote's press, three sends of one frame with
+    /// the flags bytes 00, 08, 10 (each with its own CRC), the requested button, the counter bumped by
+    /// one (20 bits, including the top nibble) and plain[8]'s relationship kept (so key2 matches a
+    /// frame built with the shifted checksum byte).
     #[test]
     fn encode_decode_roundtrip_through_feed() {
         let raw = build_frame([0xC0, 0xFF, 0xEE, 0x1A, 0x2B], 0x1A2B_3C4D, 0x2, 0x3_FFFF, 0x77);
@@ -860,18 +882,21 @@ mod tests {
             let gap = upload.last().unwrap();
             assert!(!gap.level && gap.duration_us >= ENC_GAP_REPEAT_US, "ends with the 50ms gap");
             let frames = feed_all(&upload);
-            assert_eq!(frames.len(), 1, "button {button:#04x}");
-            let f = &frames[0];
-            assert_eq!(f.serial, Some(0x1A2B_3C4D));
-            assert_eq!(f.button, Some(code));
-            assert_eq!(f.counter, Some(0x0000), "0x3FFFF + 1 = 0x40000");
-            assert_eq!((f.data >> 16) as u8, ENC_BURST0_PKT4);
+            let flags: Vec<u8> = frames.iter().map(|f| (f.data >> 16) as u8).collect();
+            assert_eq!(flags, PRESS_FLAGS, "button {button:#04x}");
             // plain[8] keeps plain[8] - (plain[5] + plain[6] + plain[7]); new plain[6..8] = 0.
             let chk = 0x77u8.wrapping_sub(0x23).wrapping_sub(0xFF).wrapping_sub(0xFF);
             let p8 = chk.wrapping_add((code << 4) | 0x4);
-            let expect = build_frame([0xC0, 0xFF, 0xEE, 0x1A, 0x08], 0x1A2B_3C4D, code, 0x4_0000, p8);
-            let key2 = expect[7..15].iter().fold(0u64, |k, &b| (k << 8) | b as u64);
-            assert_eq!(f.extra, Some(key2));
+            for (f, flags) in frames.iter().zip(PRESS_FLAGS) {
+                assert_eq!(f.serial, Some(0x1A2B_3C4D));
+                assert_eq!(f.button, Some(code));
+                assert_eq!(f.counter, Some(0x0000), "0x3FFFF + 1 = 0x40000");
+                assert!(f.crc_valid && f.encoder_capable);
+                let expect = build_frame([0xC0, 0xFF, 0xEE, 0x1A, flags], 0x1A2B_3C4D, code, 0x4_0000, p8);
+                let key1 = expect[..7].iter().fold(0u64, |k, &b| (k << 8) | b as u64);
+                let key2 = expect[7..15].iter().fold(0u64, |k, &b| (k << 8) | b as u64);
+                assert_eq!((f.data, f.extra), (key1, Some(key2)));
+            }
         }
     }
 
@@ -967,7 +992,11 @@ mod tests {
         assert_eq!(crate::protocols::native_button_name("Ford V1 (JLR)", 0x02), Some("Unlock"));
 
         let burst = FordV1Decoder::new().encode(&f, 0x02).expect("the fob's next code");
-        let g = feed_all(&burst).pop().expect("the next code decodes");
+        let sends = feed_all(&burst);
+        // The press: its first send (flags 00), then the same 8 bytes again (08, 10).
+        assert_eq!(sends.iter().map(|s| (s.data >> 16) as u8).collect::<Vec<_>>(), PRESS_FLAGS);
+        assert!(sends.iter().all(|s| s.extra == sends[0].extra));
+        let g = sends.last().cloned().expect("the next code decodes");
         assert_eq!(g.serial, Some(id));
         assert_eq!(g.button, Some(0x02));
         assert_eq!(g.counter, Some(0x1002), "the counter advanced by 2");
@@ -1102,8 +1131,14 @@ mod tests {
         ];
         for (n, raw) in frames.iter().enumerate() {
             let d = feed_all(&burst_wave(raw, ENC_GAP_REPEAT_US)).pop().unwrap();
-            let upload = dec.encode(&d, d.button.unwrap()).unwrap();
+            let press = dec.encode(&d, d.button.unwrap()).unwrap();
+            // The C sends burst 0 (flags 08) only: KAT's second send of the press, which ends at the
+            // second 50 ms gap.
+            let ends: Vec<usize> = press.iter().enumerate().filter(|(_, l)| !l.level && l.duration_us >= ENC_GAP_REPEAT_US).map(|(i, _)| i).collect();
+            assert_eq!(ends.len(), PRESS_FLAGS.len());
+            let upload = press[ends[0] + 1..=ends[1]].to_vec();
             let sent = feed_all(&upload).pop().unwrap();
+            assert_eq!((sent.data >> 16) as u8, ENC_BURST0_PKT4);
             let mut key = dec.to_flipper_key(&sent).unwrap();
             key.frequency = 433_920_000;
             key.set_preset(&crate::radio::preset::RfPreset::from_def(INFO.presets[0]));

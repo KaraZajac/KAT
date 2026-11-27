@@ -1167,13 +1167,14 @@ impl App {
         let (preset, modulation) = capture.tx_preset();
         // A rolling code's capture advances to the frame sent once it went out (app/tx.rs).
         let advance = self.tx_advance(id, protocol_name, &decoded, button_code, &signal);
-        self.queue_transmit_advancing(signal, capture.frequency, modulation, advance);
+        self.queue_transmit_advancing(signal, capture.heard_frequency(), modulation, advance);
         self.status_message = Some(format!(
-            "Transmitted {:?} for #{:02} ({}, {})",
+            "Transmitted {:?} for #{:02} ({}, {}){}",
             command,
             id,
             modulation,
-            preset.label()
+            preset.label(),
+            heard_note(&capture)
         ));
         Ok(())
     }
@@ -1203,16 +1204,18 @@ impl App {
             .map(|p| LevelDuration::new(p.level, p.duration_us))
             .collect();
         let pair_count = signal.len();
-        let frequency = capture.frequency;
+        let frequency = capture.heard_frequency();
         let (preset, modulation) = capture.tx_preset();
+        let at = heard_note(capture);
 
         self.queue_transmit(signal, frequency, modulation);
         self.status_message = Some(format!(
-            "Replayed #{:02} ({} pairs, {}, {})",
+            "Replayed #{:02} ({} pairs, {}, {}){}",
             id,
             pair_count,
             modulation,
-            preset.label()
+            preset.label(),
+            at
         ));
         Ok(())
     }
@@ -1284,16 +1287,17 @@ impl App {
 
         let (preset, modulation) = capture.tx_preset();
         let advance = self.tx_advance(id, protocol_name, &decoded, button, &signal);
-        self.queue_transmit_advancing(signal, capture.frequency, modulation, advance);
+        self.queue_transmit_advancing(signal, capture.heard_frequency(), modulation, advance);
         let what = if native_button.is_some() { "Sent" } else { "Sent next code," };
         self.status_message = Some(format!(
-            "{} {} (0x{:02X}) for #{:02} ({}, {})",
+            "{} {} (0x{:02X}) for #{:02} ({}, {}){}",
             what,
             crate::protocols::gate_buttons::button_label(protocol_name, button),
             button,
             id,
             modulation,
-            preset.label()
+            preset.label(),
+            heard_note(&capture)
         ));
         Ok(())
     }
@@ -2173,6 +2177,17 @@ impl App {
         };
         self.next_capture_id += 1;
         self.captures.push(capture);
+    }
+}
+
+/// For a transmission's status message: " at 433.591 MHz, where it was heard" when the capture goes
+/// out away from its listed frequency ([Capture::heard_frequency]), else nothing.
+fn heard_note(capture: &Capture) -> String {
+    let heard = capture.heard_frequency();
+    if heard == capture.frequency {
+        String::new()
+    } else {
+        format!(" at {:.3} MHz, where it was heard", f64::from(heard) / 1e6)
     }
 }
 

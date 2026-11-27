@@ -39,6 +39,13 @@ Flipper reference has it.
 2. `decode_fn`: one row of at least 113 bits; search `0x6001` (`bitbuffer_search`; when absent, the bits past the
    row are read — zeros — and the sum check fails), read 96 bits after it.
 3. Checks: the 12 bytes do not sum to 0 or 12 × 0xFF (`DECODE_FAIL_SANITY`), XOR = 0 (`DECODE_FAIL_MIC`).
+4. KAT's checks (not in the C): the `0x6001` starts within the row's first 24 bits, and the 96 payload bits end
+   inside the row. Every recording is a 113-bit row with `0x6001` at bit 0 (the preamble, the payload, one bit
+   more). Without them, a long row of noise passes now and then: KAT's receiver hands the decoders rows of
+   200–1000 bits from bursts barely above the noise (SNR 2–4 dB), the C finds a chance `0x6001` deep inside one
+   and the 8-bit XOR holds one time in 256. One tester's KAT Mobile session had seven such decodes, with the
+   `0x6001` 92 or more bits into the row, buttons no remote sends (0x00, 0x41) and payloads of nearly all zeros;
+   with the checks there are none, and every press of the recordings below still reads.
 
 ## Field mapping
 

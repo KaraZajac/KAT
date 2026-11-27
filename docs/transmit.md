@@ -161,6 +161,22 @@ still transmits FSK.
 
 `src/protocols/info.rs` checks that this table lists every FM and AM/FM protocol with the presets the code uses.
 
+## Frequency
+
+KAT transmits a capture where its remote was heard: the frequency the receiver was tuned to plus the offset KAT's
+receiver measured of the burst (the carrier of an OOK burst, the centre of an FSK burst's two tones), to the
+nearest kHz (`Capture::heard_frequency`); a capture with no measurement (a `.sub` or `.fob` file, a Flipper's) goes
+out on its own frequency. The `.sub` (RAW and key file) and `.fob` exports write that frequency too, so a Flipper
+replaying them sends on it. The status line says so when it differs from the list's frequency ("Sent next code,
+Lock (0x01) for #12 (2-FSK ±14.28 kHz, F4) at 433.591 MHz, where it was heard").
+
+A HackRF at 2 MS/s hears ±1 MHz around its frequency, so a capture listed at 433.92 MHz can be a remote 300 kHz
+or more away from it, on a channel of its own. Up to now KAT sent every capture on the listed frequency, and a
+receiver that listens on the remote's channels does not hear that: a Ford V1 remote heard 330 kHz below and
+480 kHz above 433.92 MHz, but not on it, was sent back on 433.92 MHz, and the car ignored it. The measured
+offset includes the receiving radio's frequency error, which cancels when the same radio transmits; another
+radio adds the difference of the two (a few kHz for a HackRF, up to some 25 kHz for an RTL-SDR without a TCXO).
+
 ## Copies per press
 
 A Flipper encoder builds one upload and its TX loop sends it `encoder.repeat` times; most encoders read a key
@@ -169,8 +185,8 @@ the reference reads it (`src/protocols/tx_copies.rs`):
 
 | Copies | Encoders |
 |---|---|
-| 1 | CAME Atomo, Hormann HSM / BiSecur, Honda V1, Mercedes V0, Renault V0, Renault V1, Datsun Lada; and KAT's own encoders, which send the fob's press once: Chrysler V0 (the frame twice behind one preamble; the references send their payloads A and B twice), the Kia V0 family (the press the recorded remotes send: Kia and Suzuki the frame twice, Mitsubishi twice with the 80-pair repeat, Honda one frame, or two for a trunk or panic long press; the references send their upload 3 times), Honda V6 (the block twice in one frame), Mitsubishi V1 (the wake-up and four copies of the frame), Suzuki TS002 (four copies of the frame), Opel Rolling (three), VW-1 (three); and the encoders KAT has not compared with a reference's, whose upload is the whole transmission: Beninca ARC, Cham_Code, Honeywell Sec, Jarolift, X10, Toyota |
-| 3 | the gate and home remotes (CAME, Nice FLO, Princeton, Security+ …), BMW, BMW CAS3, Hyundai/Kia RIO, SantaFe 13-16, Sheriff CFM, Mazda V2, Mazda V1 (Mazda V2's upload); and Honda Static, Kia V7, Fiat V0, Ford V0 / V1 / V2, Honda V2, Kia V1 / V2 / V6, Mazda V0, Subaru, VAG |
+| 1 | CAME Atomo, Hormann HSM / BiSecur, Honda V1, Mercedes V0, Renault V0, Renault V1, Datsun Lada; Ford V1 (the remote's press, three sends with the flags bytes 00, 08, 10, see [Ford V1](ford_v1.md#encoder); ProtoPirate sends its first burst, flags 08, 10 times); and KAT's own encoders, which send the fob's press once: Chrysler V0 (the frame twice behind one preamble; the references send their payloads A and B twice), the Kia V0 family (the press the recorded remotes send: Kia and Suzuki the frame twice, Mitsubishi twice with the 80-pair repeat, Honda one frame, or two for a trunk or panic long press; the references send their upload 3 times), Honda V6 (the block twice in one frame), Mitsubishi V1 (the wake-up and four copies of the frame), Suzuki TS002 (four copies of the frame), Opel Rolling (three), VW-1 (three); and the encoders KAT has not compared with a reference's, whose upload is the whole transmission: Beninca ARC, Cham_Code, Honeywell Sec, Jarolift, X10, Toyota |
+| 3 | the gate and home remotes (CAME, Nice FLO, Princeton, Security+ …), BMW, BMW CAS3, Hyundai/Kia RIO, SantaFe 13-16, Sheriff CFM, Mazda V2, Mazda V1 (Mazda V2's upload); and Honda Static, Kia V7, Fiat V0, Ford V0 / V2, Honda V2, Kia V1 / V2 / V6, Mazda V0, Subaru, VAG |
 | 4 | Ditec GOL4, Mercedes V1, Mazda Siemens |
 | 5 | Allstar Firefly, KeyFinder, KeyFinder2, Tesla Charge, GM |
 | 6 | Fiat V1, Fiat V2, Kia V5 |
@@ -201,7 +217,9 @@ the reference reads it (`src/protocols/tx_copies.rs`):
   generated frames (268 files, 99 encoders): KAT's transmission has the reference's airtime (within 1 %, the
   counter KAT advances on each press changes a few bits) at the default count and at every `Repeat` value, for
   every listed encoder; for the ten-copy group the default equals ProtoPirate's `--repeat 3` and
-  doctor-firmware's default. Kia V3/V4 ignores `Repeat` in KAT (the C would send its first n bursts).
+  doctor-firmware's default. Kia V3/V4 ignores `Repeat` in KAT (the C would send its first n bursts). Ford V1
+  no longer matches: KAT sends the remote's three sends where the C sends its first burst; the second send is the
+  C's burst exactly.
 
 ## After a transmission
 

@@ -77,19 +77,30 @@ the strict check and are not affected.
 `subghz_protocol_encoder_ford_v1_deserialize` + ProtoPirate's emulate scene: rebuild the frame from
 key1/key2, recover the plaintext (refused if it cannot be, as in the C), apply serial, the button (KAT
 Lock/Unlock/Trunk/Panic = 1/2/4/8; other commands keep the captured button) and the counter + 1 (20
-bits), re-scramble, refresh the CRC, then emit **burst 0 only** (the C never advances `burst_idx`):
-`pkt[4] = 0x08` with the CRC recomputed, 400 × (HIGH 130, LOW 130), HIGH 130, LOW 65, the 17 bytes as
-Manchester at 65 µs, LOW 50 000 µs. ProtoPirate's and Flipper-ARF's encoders send this upload 10 times,
-doctor-firmware's 3; KAT sends it 3 times per press, or as often as a key file's `Repeat` line says
-([Copies per press](transmit.md#copies-per-press)). KAT
-exports made before this port stored a different `extra` (CRC16/strict flag/`plain[4]`); the encoder still
-accepts them by rebuilding key2 from the decoded fields and the stored CRC16.
+bits), re-scramble, refresh the CRC, then emit the bursts: each is the frame with its flags byte in
+`pkt[4]` and the CRC recomputed, 400 × (HIGH 130, LOW 130), HIGH 130, LOW 65, the 17 bytes as Manchester
+at 65 µs, LOW 50 000 µs. KAT exports made before this port stored a different `extra` (CRC16/strict
+flag/`plain[4]`); the encoder still accepts them by rebuilding key2 from the decoded fields and the stored
+CRC16.
+
+**A press is three sends.** Byte 4 of the frame is a flags byte that counts a press's sends: `00` the
+first, `08` the second, `10` the third (on the JLR fobs, "`00` the first send of a press, `08` the same
+press sent again", see [Ford V1 (JLR)](ford_v1_jlr.md)). ProtoPirate's encoder has the flags of a whole
+press in its burst table (`08, 00, 10, 08, 00, 10`) but never advances `burst_idx`, so it sends burst 0
+(`08`) only, 10 times (Flipper-ARF the same, doctor-firmware 3 times). KAT sent that burst 3 times, and
+a Ford ute's car ignored it: its remote, recorded by a tester, sent `00` and, about 0.4 s later, `10`, on
+two channels about 0.8 MHz apart, neither of them 433.92 MHz (the `08` send between them was not heard).
+KAT now sends the remote's press, the three sends `00`, `08`, `10` in that order with their own CRCs,
+once per press; a key file's `Repeat: n` sends the press n times ([Copies per
+press](transmit.md#copies-per-press)). It sends them where the capture was heard
+([Frequency](transmit.md#frequency)); which channel each send uses is not known yet.
 
 ## Validation
 
 No local capture is available. Differential tests against the compiled ProtoPirate C (decoder and
 encoder) on 3600 randomized bursts (strict, rolling, random and inverted frames, both final-bit
 values, jitter up to ±38 µs): every decode identical field for field; 2000 uploads (decoded → emulate
-Btn/Cnt+1 → encoder) identical pulse for pulse, and identical to Flipper-ARF's encoder. Unit tests cover
+Btn/Cnt+1 → encoder) identical pulse for pulse, and identical to Flipper-ARF's encoder (since KAT sends
+the whole press, the comparison takes its second send, the C's burst 0). Unit tests cover
 the CRC, the descramble round trip, both final-bit values, the encode→decode round trip (button, 20-bit
 counter carry, checksum byte), CRC rejection, the undecodable first-bit-0 case and legacy `extra` exports.

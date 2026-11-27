@@ -24,6 +24,17 @@ pub fn keeloq_chip_signal(model: &str, frame: &[u8], bit_count: usize) -> Decode
     d
 }
 
+/// KAT gate of both chips (not in rtl_433), on a frame that passed the chip's own checks: the hop
+/// (frame bits 0..32) is KeeLoq ciphertext, so it is not within 3 bits of all 1s or all 0s (a cipher
+/// output is, 1 time in 390 000), and the serial (bits 32..60) is not all 1s, an erased EEPROM (as
+/// the C's serial 0 for the HCS361). A burst of noise barely above the floor reads as a run of short
+/// PWM pulses, i.e. 1s, which the C's "data all 0xFF" check misses when a single bit of it is 0.
+pub fn keeloq_chip_frame_is_plausible(frame: &[u8]) -> bool {
+    let hop_ones: u32 = frame[..4].iter().map(|b| b.count_ones()).sum();
+    let serial_all_ones = frame[4..7].iter().all(|&b| b == 0xFF) && frame[7] & 0xF0 == 0xF0;
+    (4..=28).contains(&hop_ones) && !serial_all_ones
+}
+
 /// Whether a display name is a Microchip HCS361 / HCS362 capture's (`Microchip-HCS36x [KeeLoq (…)]`),
 /// whose `data` is the KeeLoq code word an HCS200 sends (KeeLoq key recovery takes those frames).
 pub fn is_keeloq_chip(protocol: &str) -> bool {

@@ -49,6 +49,11 @@ Row 0 = preamble, row 1 = exactly 67 bits, LSB-first fields:
 2. Checks, as the C: row 1 has 67 bits; a 6-bit preamble row is `0xFC`, a 7-bit one `0xFE`, a 12-bit one `0xFFF0`
    (PWM) or `0xAAA0` (PIWM) — other lengths are not checked; the data is not all 0xFF; the 2-bit CRC over the
    65 bits, also accepted with the last (VLOW) bit inverted (the datasheet's battery-low check); the serial ≠ 0.
+   KAT's checks (not in the C, as for the HCS362): the 32-bit hop, KeeLoq ciphertext, is not within 3 bits of all
+   1s or all 0s (a cipher output is, 1 time in 390 000), and the serial is not all 1s (an erased EEPROM). A burst
+   of noise barely above the floor reads as short PWM pulses, i.e. 1s, and the C's "data all 0xFF" check misses it
+   when one bit is 0: one tester's KAT Mobile session had four such decodes (SNR 2 dB, button 0xF, the 2-bit CRC
+   passing by chance), two of them "identified" by a chance KeeLoq key.
 3. The first 64 bits go through `keeloq.rs` (`KeeloqDecoder::parse_data`: AN-Motors / HCS101 rules, every keystore
    entry and learning type, embedded and user keystore).
 

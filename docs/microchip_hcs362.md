@@ -42,7 +42,9 @@ data row: the start bit `10`, 69 Manchester bits, a stop bit that breaks the cod
 - **MC**: row 0 16..32 raw bits starting `0xAAAAAA`; row 1 142..148 raw bits starting `10`; Manchester decode from raw
   bit 2 (at most 72 bits; the C requires the decoder's *input position* ≥ 70, i.e. ≥ 34 decoded bits), then invert
   (G.E. Thomas: HIGH-LOW = 1).
-- Both: bytes 1..7 not all 0xFF; the 2-bit CRC. Then KeeLoq identification of the first 64 bits.
+- Both: bytes 1..7 not all 0xFF; the 2-bit CRC; and KAT's checks (not in the C, as for the
+  [HCS361](microchip_hcs361.md)): the hop not within 3 bits of all 1s or all 0s, the serial not all 1s (noise read
+  as short PWM pulses). Then KeeLoq identification of the first 64 bits.
 
 ## Field mapping
 

@@ -647,7 +647,7 @@ impl App {
     /// The radio whose transmission a capture of radio `receiver` is, by its name, if it is KAT's
     /// own (see [own_transmission]).
     pub(super) fn own_tx_of(&self, capture: &Capture, receiver: usize) -> Option<String> {
-        let w = own_transmission(&self.recent_tx, receiver, capture.timestamp, capture.frequency)?;
+        let w = own_transmission(&self.recent_tx, receiver, capture.timestamp, capture.heard_frequency())?;
         self.radios.get(w.radio).map(|r| r.name.clone())
     }
 }

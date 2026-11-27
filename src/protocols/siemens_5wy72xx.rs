@@ -16,6 +16,15 @@
 //! (`DECODE_FAIL_SANITY`); their XOR is 0 (`DECODE_FAIL_MIC`). Button flags: 0x01 Lock, 0x02
 //! Unlock, 0x04 Trunk, 0x08 Panic, 0x10 Left Door, 0x20 Right Door, joined with "; " (none: "").
 //!
+//! **KAT gates** (not in the C) — the `0x6001` starts within the row's first [MAX_SYNC_AT] bits,
+//! and the 96 payload bits end inside the row (the C reads zeros past its end). Every rtl_433_tests
+//! recording is a 113-bit row with `0x6001` at bit 0 (the preamble, the payload and one bit more).
+//! Without the gates, a long row of noise (KAT's receiver hands the decoders rows of 200–1000 bits
+//! from bursts barely above the noise, SNR 2–4 dB) passes when a chance `0x6001` turns up deep
+//! inside it and the 8-bit XOR then holds, one time in 256: seven such decodes in one tester's
+//! session, with the `0x6001` 92 or more bits into the row, impossible buttons (0x00, 0x41) and
+//! payloads of nearly all zeros.
+//!
 //! **Fields** — `serial` = the ID (b3 b2 b1 b0 as rtl_433 prints it), `button` = b4, `counter` =
 //! the sequence. `data` = payload bytes b0..b7 (the first 64 payload bits), `extra` = b8..b11,
 //! `data_count_bit` = 96; rtl_433's `encrypted` field is b10 b9 b8 b7 of them. `crc_valid` = true
@@ -60,6 +69,13 @@ const DEVICE: Device = Device {
     resync: false,
 };
 
+/// KAT gate: the latest bit of the row the `0x6001` may start at (every recording has it at 0; the
+/// rest allows a few bits of noise ahead of the preamble).
+const MAX_SYNC_AT: usize = 24;
+
+/// Payload bits after the `0x6001`.
+const PAYLOAD_BITS: usize = 96;
+
 /// rtl_433's button flag names (bit 0 first).
 const BUTTONS: [&str; 6] = ["Lock", "Unlock", "Trunk", "Panic", "Left Door", "Right Door"];
 
@@ -82,9 +98,14 @@ impl DecodeFn for Siemens {
         if bits.bits_per_row(0) < 113 || bits.num_rows() > 1 {
             return None; // DECODE_ABORT_LENGTH
         }
-        let offset = bits.search(0, 0, &[0x60, 0x01], 16) + 16;
+        let sync = bits.search(0, 0, &[0x60, 0x01], 16);
+        let offset = sync + 16;
+        // KAT gates (module doc): the preamble at the row's start, the whole payload inside it.
+        if sync > MAX_SYNC_AT || offset + PAYLOAD_BITS > bits.bits_per_row(0) {
+            return None;
+        }
         let mut b = [0u8; 12];
-        bits.extract_bytes(0, offset, &mut b, 96);
+        bits.extract_bytes(0, offset, &mut b, PAYLOAD_BITS);
         let sum: u32 = b.iter().map(|&x| u32::from(x)).sum();
         if sum == 0 || sum == 0xff * 12 {
             return None; // DECODE_FAIL_SANITY
@@ -233,10 +254,24 @@ mod tests {
         // 112 bits
         let r = row(&[], &good, &[]);
         assert!(decode(&r[..112]).is_empty());
-        // no 0x6001 pattern: the payload is read past the row (zeros) and fails
+        // no 0x6001 pattern (the C reads the payload past the row, zeros, and fails the sum check)
         let mut r = row(&[], &good, &[]);
         r[2] = false;
         assert!(decode(&r).is_empty());
+        // KAT gate: the 0x6001 within the row's first 24 bits (here after the zerobit and `lead`)
+        let lead = |n: usize| -> Vec<bool> { (0..n).map(|i| i % 3 == 0).collect() };
+        assert_eq!(decode(&row(&lead(23), &good, &[])).len(), 1);
+        assert!(decode(&row(&lead(24), &good, &[])).is_empty());
+        // KAT gate: the payload inside the row. A frame whose last 10 bits are 0, cut off: the C reads
+        // the same zeros past the row's end and reports it; KAT does not.
+        let zero_tail = (0u32..)
+            .map(|enc| payload(0x8D22_1B7A, 4, 977, enc))
+            .find(|b| b[11] == 0 && b[10] & 0x03 == 0)
+            .unwrap();
+        let whole = row(&lead(10), &zero_tail, &[]);
+        assert_eq!(decode(&whole).len(), 1);
+        assert_eq!(whole.len() - 10, 113);
+        assert!(decode(&whole[..whole.len() - 10]).is_empty());
         // a gap over 10 ms inside splits the message
         let mut pairs = manchester_zerobit(&row(&[], &good, &[]), 220, 20_000);
         pairs[30].1 = 10_001;

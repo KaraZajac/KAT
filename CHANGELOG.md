@@ -2,6 +2,34 @@
 
 All notable changes to KAT are documented here.
 
+## [Unreleased]
+
+From a tester's KAT Mobile session with a Ford ute, whose car ignored the codes KAT sent it.
+
+### Fixed
+
+- **A capture is sent where its remote was heard.** A HackRF hears ±1 MHz around its frequency, and
+  KAT measured where each burst sat, but it sent every capture back on the frequency the radio was
+  tuned to. A remote with channels of its own, like the ute's Ford V1 remote, heard 330 kHz below
+  and 480 kHz above 433.92 MHz, was sent back on 433.92 MHz. KAT now transmits on the tuned
+  frequency plus the measured offset, to the nearest kHz, says so on the status line when that
+  differs from the listed frequency, and writes it to the `.sub` and `.fob` exports, so a Flipper
+  replaying them uses it too. A capture with nothing measured (a file, a Flipper's) is sent as
+  before ([Frequency](docs/transmit.md#frequency)).
+- **Ford V1 sends the remote's whole press.** ProtoPirate's encoder holds a press's flags bytes in a
+  table but only ever sends its first entry, so KAT sent the frame with flags 08 three times. A
+  remote sends it once with each of 00, 08 and 10 (the ute's remote sent 00 and, 0.4 s later, 10, on
+  two channels); KAT now does the same, in the same airtime, and a key file's `Repeat: n` sends the
+  press n times ([Ford V1](docs/ford_v1.md#encoder)). The JLR encoder set the first send's 00, but
+  the burst builder overwrote it with 08; it now sends the whole press too.
+- **Noise is no longer read as Siemens or Microchip remotes.** In a long row of noise the
+  Siemens-5WY72XX decoder could find its sync by chance and pass its 8-bit check one time in 256,
+  and the Microchip HCS361 and HCS362 decoders took a burst of short noise pulses for a frame of
+  nearly all 1s (one of them even "identified" by a chance KeeLoq key). The session had eleven such
+  decodes. The Siemens sync must now start the row and the payload end inside it, and an HCS361 or
+  HCS362 hop must not be within 3 bits of all 1s or all 0s, nor its serial all 1s. Every rtl_433
+  test recording and every press of the IMPORTS recordings still reads.
+
 ## [1.30.0] - 2026-11-26
 
 Hardening from two pull requests contributed by @0magicinside (#9, #10): KAT now copes with an

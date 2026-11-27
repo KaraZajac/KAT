@@ -12,8 +12,11 @@
 //! Kia V1 / V2 / V6, Mazda V0, Subaru and VAG, up to 12 s for one press (a Kia V1 upload lasts
 //! 1.2 s), but its emulate screen stops at the button's release once 666 ms have passed, and
 //! doctor-firmware's copies of the same encoders send 3. KAT sends 3; a key file's `Repeat: 10` gives
-//! ProtoPirate's full count. Every other count is the module's reference's: Honda Static / Kia V7
-//! 3, Kia V5 6 (ProtoPirate and doctor-firmware), Mazda Siemens 4 and GM 5 (Flipper-ARF).
+//! ProtoPirate's full count. Ford V1 is the exception: its `encode` is the remote's whole press, the
+//! three sends whose flags bytes ProtoPirate's burst table holds but never sends (`ford_v1.rs`), so
+//! KAT sends it once, and `Repeat: n` n times. Every other count is the module's reference's: Honda
+//! Static / Kia V7 3, Kia V5 6 (ProtoPirate and doctor-firmware), Mazda Siemens 4 and GM 5
+//! (Flipper-ARF).
 //! Chrysler V0 and the Kia V0 family are not listed: their `encode` is the remote's whole press,
 //! sent once (Chrysler V0: the frame twice behind one preamble, where the references send payloads
 //! A and B twice; Kia V0: the press as the recorded remotes send it, where the references send their
@@ -60,9 +63,12 @@ const TABLE: &[(&[&str], TxCopies)] = &[
     // Car encoders returning one upload: the reference's count (ProtoPirate's 10 → 3, see above).
     (&["Honda Static", "Kia V7"], copies(1, 3, true)),
     (
-        &["Fiat V0", "Ford V0", "Ford V1", "Ford V2", "Honda V2", "Kia V1", "Kia V2", "Kia V6", "Mazda V0", "Subaru"],
+        &["Fiat V0", "Ford V0", "Ford V2", "Honda V2", "Kia V1", "Kia V2", "Kia V6", "Mazda V0", "Subaru"],
         copies(1, 3, true),
     ),
+    // Ford V1: `encode` is the remote's press, three sends with flags 00, 08, 10 (ProtoPirate sends
+    // its burst 0, flags 08, 10 times); `Repeat: n` sends the press n times.
+    (&["Ford V1"], copies(1, 1, true)),
     (&["VAG"], copies(1, 3, false)),
     (&["Mazda Siemens"], copies(1, 4, true)),
     (&["GM"], copies(1, 5, true)),

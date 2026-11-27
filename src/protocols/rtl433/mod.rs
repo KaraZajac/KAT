@@ -98,7 +98,7 @@ mod harness;
 
 pub use bit_util::{crc16, crc16lsb, extract_bytes_uart_8n1, ibm_whitening, reverse8, xor_bytes};
 pub use bitbuffer::BitBuffer;
-pub use keeloq_chip::{is_keeloq_chip, keeloq_chip_signal, redecode_keeloq_chip};
+pub use keeloq_chip::{is_keeloq_chip, keeloq_chip_frame_is_plausible, keeloq_chip_signal, redecode_keeloq_chip};
 pub use pulse_detect::{Ends, Gaps};
 pub use pulse_slicer::{FskFrame, Modulation};
 

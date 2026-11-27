@@ -83,8 +83,9 @@ pub fn capture_from_key(key: &FlipperKey, registry: &ProtocolRegistry, id: u32) 
 }
 
 /// The key file the capture's protocol writes for it (its reference's `serialize`), with the
-/// capture's frequency and preset ([Capture::export_preset]). None when the protocol has no key
-/// file support (or the capture is not a decode of it).
+/// frequency the capture was heard on ([Capture::heard_frequency]) and its preset
+/// ([Capture::export_preset]). None when the protocol has no key file support (or the capture is
+/// not a decode of it).
 pub fn capture_flipper_key(capture: &Capture, registry: &ProtocolRegistry) -> Option<FlipperKey> {
     let decoder = registry.get(capture.protocol.as_deref()?)?;
     let mut key = decoder.to_flipper_key(&capture.decoded_signal()).or_else(|| {
@@ -93,7 +94,7 @@ pub fn capture_flipper_key(capture: &Capture, registry: &ProtocolRegistry) -> Op
             capture.raw_pairs.iter().map(|p| LevelDuration::new(p.level, p.duration_us)).collect();
         decoder.key_file_from_pulses(&pulses)
     })?;
-    key.frequency = capture.frequency;
+    key.frequency = capture.heard_frequency();
     key.set_preset(&capture.export_preset());
     // A loaded file's `Repeat` line stays with it (a protocol that writes its own, Kia V7, keeps that).
     if let (Some(n), None) = (capture.key_repeat, key.field("Repeat")) {
@@ -123,7 +124,8 @@ pub fn export_flipper_sub(capture: &Capture, path: &Path) -> Result<()> {
     // Header
     lines.push("Filetype: Flipper SubGhz RAW File".to_string());
     lines.push("Version: 1".to_string());
-    lines.push(format!("Frequency: {}", capture.frequency));
+    // Where the remote was heard, which a Flipper then transmits on.
+    lines.push(format!("Frequency: {}", capture.heard_frequency()));
     let preset = capture.export_preset();
     lines.push(format!("Preset: {}", preset.name));
     if preset.is_custom() {

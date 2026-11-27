@@ -26,6 +26,13 @@
 //! 0xFF; the 2-bit CRC over the 65 bits (accepting the battery-low variant of the last bit, as
 //! the datasheet suggests); the serial must not be 0. Frames failing a check are dropped.
 //!
+//! **KAT gates** (not in the C, [keeloq_chip_frame_is_plausible]): the 32-bit hop is KeeLoq ciphertext, so it is
+//! not within 3 bits of all 1s or all 0s (a cipher output is, 1 time in 390 000); the 28-bit serial
+//! is not all 1s (an erased EEPROM, as the C's serial 0). A burst of noise barely above the floor
+//! reads as short PWM pulses, i.e. 1s: four such decodes in one tester's session (SNR 2 dB), hop and
+//! serial all 1s but one or two bits, button 0xF, the 2-bit CRC passing by chance; the C's "data all
+//! 0xFF" check misses them by those bits.
+//!
 //! **Fields**: the first 64 data bits are the KeeLoq code word an HCS200 sends, so the frame goes
 //! through KAT's KeeLoq identification ([super::rtl433::keeloq_chip_signal]): shown as
 //! `Microchip-HCS361 [KeeLoq (<manufacturer>)]` with the decrypted counter when a keystore key
@@ -39,7 +46,9 @@
 //!
 //! **Encoder**: none — receive only, as rtl_433 (KAT's KeeLoq encoder sends the HCS200 coding).
 
-use super::rtl433::{keeloq_chip_signal, reverse8, BitBuffer, Decode, Device, Ends, Gaps, Modulation, Receiver};
+use super::rtl433::{
+    keeloq_chip_frame_is_plausible, keeloq_chip_signal, reverse8, BitBuffer, Decode, Device, Ends, Gaps, Modulation, Receiver,
+};
 use super::{DecodedSignal, ProtocolDecoder, ProtocolTiming};
 use crate::radio::demodulator::LevelDuration;
 
@@ -147,6 +156,9 @@ fn hcs361_decode(bits: &BitBuffer) -> Option<DecodedSignal> {
         | u32::from(reverse8(b[4]));
     if serial == 0 {
         return None; // DECODE_FAIL_SANITY: serial all 0x00
+    }
+    if !keeloq_chip_frame_is_plausible(b) {
+        return None; // KAT gate: noise read as 1s (module doc)
     }
     Some(keeloq_chip_signal(NAME, b, FRAME_BITS))
 }
@@ -361,6 +373,19 @@ mod tests {
         let mut w = pwm_wire(200, 10, false, &bits);
         w[3] = LevelDuration::new(true, 400);
         assert!(decode_all(&mut MicrochipHcs361Decoder::new(), &w).is_empty());
+        // KAT gates: a hop within 3 bits of all 1s / all 0s (noise read as short pulses), and the
+        // all-1s serial of an erased EEPROM; 4 bits off either way is a hop.
+        let reads = |hop: u32, serial: u32| {
+            !decode_all(&mut MicrochipHcs361Decoder::new(), &pwm_wire(200, 10, false, &frame_bits(hop, serial, 0x2, 0))).is_empty()
+        };
+        for hop in [0xFFFF_FBFF, 0xFFFF_FFEE, 0xEFFF_FDFF, 0xFFFF_FFFF, 0x0000_0007, 0x8000_0001, 0] {
+            assert!(!reads(hop, 0x0123_4567), "hop {hop:08X}");
+        }
+        for hop in [0xFFFF_F0FF, 0xEFFE_FDFE, 0x0000_000F, 0x8001_0081] {
+            assert!(reads(hop, 0x0123_4567), "hop {hop:08X}");
+        }
+        assert!(!reads(0x1234_5678, 0x0FFF_FFFF));
+        assert!(reads(0x1234_5678, 0x0FFF_FFFE));
         // Timing off by 40 %: no variant reads it.
         let w: Vec<LevelDuration> = pwm_wire(200, 10, false, &bits).iter().map(|l| LevelDuration::new(l.level, l.duration_us * 7 / 5)).collect();
         let got = decode_all(&mut MicrochipHcs361Decoder::new(), &w);

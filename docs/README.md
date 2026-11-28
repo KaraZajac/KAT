@@ -34,6 +34,7 @@ This folder describes how each keyfob and gate/garage remote protocol supported 
 | GM (Chevrolet/Buick/GMC/Cadillac) | `gm.rs` | [gm.md](gm.md) |
 | Subaru | `subaru.rs` | [subaru.md](subaru.md) |
 | Subaru V1 (US 2012-2019 remote-head key) | `subaru_v1.rs` | [subaru_v1.md](subaru_v1.md) |
+| Subaru V2 (AU/EU 433.92MHz remote-head key, decode-only) | `subaru_v2.rs` | [subaru_v2.md](subaru_v2.md) |
 | Toyota | `toyota.rs` | [toyota.md](toyota.md) |
 | VAG | `vag.rs` | [vag.md](vag.md) |
 | Fiat V0 | `fiat_v0.rs` | [fiat_v0.md](fiat_v0.md) |

@@ -2,6 +2,20 @@
 
 All notable changes to KAT are documented here.
 
+## [1.31.0] - 2026-11-27
+
+A new decode-only Subaru remote decoder.
+
+### Added
+
+- **Subaru V2 decoder** (decode-only): the 433.92 MHz Australian/European Subaru remote-head key of
+  the 2010s (Liberty/Legacy, Impreza/WRX/STI and relatives), a third Subaru format distinct from the
+  PWM [Subaru](docs/subaru.md) and the US [Subaru V1](docs/subaru_v1.md). Differential Manchester,
+  700 µs half-bit, 128-bit frames, worked out from a tester's recordings of several keys. The
+  rolling payload is encrypted, so KAT identifies the remote and recovers its 32-bit key ID but does
+  not interpret or synthesise the rolling code (a captured press is replayable). See
+  [Subaru V2](docs/subaru_v2.md).
+
 ## [1.30.1] - 2026-11-27
 
 From a tester's KAT Mobile session with a Ford ute, whose car ignored the codes KAT sent it:

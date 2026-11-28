@@ -98,6 +98,7 @@ pub static ALL: &[&ProtocolInfo] = &[
     &super::honda_v1::INFO,
     &super::subaru::INFO,
     &super::subaru_v1::INFO,
+    &super::subaru_v2::INFO,
     &super::fiat_v0::INFO,
     &super::fiat_v1::INFO,
     &super::fiat_marelli::INFO,
@@ -331,7 +332,7 @@ pub(super) const NO_CHECKSUM: &[&str] = &[
     "Security+ 1.0",
     // Car protocols whose frames carry no checksum: structural gates decide emission.
     // (Hyundai, unregistered, verifies nothing either: list it here when it is registered.)
-    "Fiat V0", "Ford V2", "Ford V3", "Mercedes V0", "Subaru",
+    "Fiat V0", "Ford V2", "Ford V3", "Mercedes V0", "Subaru", "Subaru V2",
     // Key files only: the file never holds the frame's CRC byte (see fiat_marelli.rs).
     "MARELLI",
     // FoxFW decoders whose C has no integrity check (structural gates, button whitelists, framing bytes).

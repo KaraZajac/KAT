@@ -47,6 +47,7 @@ mod kia_v6;
 mod kia_v7;
 mod subaru;
 mod subaru_v1;
+mod subaru_v2;
 mod ford_v0;
 mod ford_v1;
 pub(crate) mod jlr;
@@ -659,6 +660,11 @@ impl ProtocolRegistry {
             // 244µs preamble pulses (≥20) + 122µs-half-bit Manchester, 0 start bit + 56 bits, gated
             // on the byte-XOR check, so the Subaru PWM frames and every other decoder are unaffected.
             Box::new(subaru_v1::SubaruV1Decoder::new()),
+            // Subaru V2 (AU/EU 433.92MHz remote-head key, tester-recorded; no reference has it):
+            // differential Manchester, 700µs half-bit, 128-bit frames gated on a preamble + twin
+            // in-band sync runs one period apart. Decode-only (encrypted rolling payload); reports
+            // the 32-bit key ID. The strict framing keeps it off the other decoders' captures.
+            Box::new(subaru_v2::SubaruV2Decoder::new()),
             // Fiat V0 has no checksum: gated on structure (≥150-pulse preamble, 800µs gap, 71 bits).
             Box::new(fiat_v0::FiatV0Decoder::new()),
             // Fiat V1 (HITAG2 BCM): 104-bit Manchester frame read from a sliding half-bit window at
@@ -2673,7 +2679,7 @@ mod tests {
             // pulse widths, less than the frame's block.
             let foxfw = ["LDV V0", "Lexus V0", "Mazda V1", "Nissan V0", "Honda V6"].contains(&name);
             // KAT's own decoders from recordings write none either: no firmware has a key format for them.
-            let own = ["Kia Mobis", "Kia Denso", "Kia Forte", "GM RFA", "Isuzu Rolling", "Isuzu Static", "Suzuki TS002", "Opel Rolling", "Renault 1-Button", "Volvo S40", "Lexus UX", "PSA 2-Button", "VW-1", "BMW FZV"].contains(&name);
+            let own = ["Kia Mobis", "Kia Denso", "Kia Forte", "GM RFA", "Isuzu Rolling", "Isuzu Static", "Suzuki TS002", "Opel Rolling", "Renault 1-Button", "Volvo S40", "Lexus UX", "PSA 2-Button", "VW-1", "BMW FZV", "Subaru V2"].contains(&name);
             let listed = written.iter().any(|&(_, dec)| dec == name) || name == "Renault V1 (ARF)" || name == "Toyota (FoxFW)" || name == "HondaV2&V3" || foxfw || own;
             assert!(listed, "{name}: no key-file name listed");
         }

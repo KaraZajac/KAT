@@ -138,6 +138,7 @@ mod sheriff_cfm;
 // group adds its `mod` lines directly below its own anchor line.
 // [gate-mods: G5 KeeLoq family]
 mod g5_common;
+mod belkorn;
 mod beninca_arc;
 mod kinggates_stylo_4k;
 mod jarolift;
@@ -660,7 +661,7 @@ impl ProtocolRegistry {
             // 244µs preamble pulses (≥20) + 122µs-half-bit Manchester, 0 start bit + 56 bits, gated
             // on the byte-XOR check, so the Subaru PWM frames and every other decoder are unaffected.
             Box::new(subaru_v1::SubaruV1Decoder::new()),
-            // Subaru V2 (AU/EU 433.92MHz remote-head key, tester-recorded; no reference has it):
+            // Subaru V2 (an Australian 433.92MHz remote-head key a tester recorded; FoxFW reads it as "Subaru Liberty GT"):
             // differential Manchester, 700µs half-bit, 128-bit frames gated on a preamble + twin
             // in-band sync runs one period apart. Decode-only (encrypted rolling payload); reports
             // the 32-bit key ID. The strict framing keeps it off the other decoders' captures.
@@ -977,6 +978,11 @@ impl ProtocolRegistry {
             // Princeton's long is three shorts, CAME's, GateTX's and Freezer's longs are 640, 700
             // and 500 µs) or its guard measure (CAME's header is 76 Te, GateTX's 49).
             Box::new(proteco::ProtecoDecoder::new()),
+            // BelKorn (RogueMaster's newest, registered after Proteco there; FoxFW since v2.1.1): a
+            // 118-bit rolling code, one bit per pulse (481 / 962 µs) after a LOW of 2.5 ms or more,
+            // reported only with its sync 0x801 and a one-hot button. No other decoder's frame is
+            // 118 alternating 481/962 µs pulses with that sync (its uploads decode as BelKorn alone).
+            Box::new(belkorn::BelKornDecoder::new()),
             // Home / sensor / key-finder remotes (Flipper-ARF's garage app registers X10, Doorbell32,
             // KeyFinder, KeyFinder2 and Nord ICE; doctor-firmware, Momentum, RogueMaster and FoxFW the
             // stock Honeywell, Honeywell Sec, Magellan, Legrand, Intertechno V3, Feron and Treadmill37

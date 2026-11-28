@@ -11,7 +11,7 @@ types; Momentum's adds none). Code: `src/protocols/add_manually.rs` (types, para
 
 ## Using it
 
-- `:new` opens the type picker: the 113 types in the references' menu order, under the headings
+- `:new` opens the type picker: the 114 types in the references' menu order, under the headings
   Rolling code, KeeLoq manufacturers (KL:), Nice, CAME, Fixed code and Security+. Each row shows the
   protocol (KeeLoq: the manufacturer key), frequency and preset; doctor-firmware-only types say
   "doctor", RogueMaster's ten "RM" and FoxFW's two "Fox", types KAT cannot create "✗ n/a" (the reason takes the two
@@ -55,7 +55,9 @@ there.
      Telis / Keytis, KingGates Stylo4k, Beninca ARC, Jarolift, Ditec GOL4, Nice FloR-S / One,
      Security+ 2.0, Phoenix V2 — each a `create_data` helper in its module — and RogueMaster's
      Prastel (`subghz_protocol_prastel_create_data`: the serial's 21 frame bits, button 1..4 as raw
-     nibble 0xE / 0xD / 0xB / 0x7, the counter, scrambled; `add_manually::prastel_key`). Counter steps as in each
+     nibble 0xE / 0xD / 0xB / 0x7, the counter, scrambled; `add_manually::prastel_key`) and BelKorn
+     (`subghz_protocol_belkorn_create_data`: the 36-bit serial, the button, the counter, and the
+     protocol-wide origin, L24 0xE0 with b3 = 0; [BelKorn](belkorn.md#add-manually)). Counter steps as in each
      C function: FAAC SLH (Flipper-ARF), Somfy, Ditec GOL4, Security+ 2.0 and Alutech advance the
      counter before the first code, the others store it as given.
 
@@ -64,10 +66,11 @@ there.
 - **One list**: Flipper-ARF's 78 types plus doctor-firmware's 23 (Genius, Erreka, Somfy Keytis,
   Ditec GOL4, Superrollo, Dorcas, KEY, HomeGate, Pujol, Pujol Vario, ET Blue (Mix), ATA PTX4, Seav,
   Wisniowski, Fadini, Mc Garcia, Clemsa Mutancode, Doormatic, Elvox, Verex, Telcoma EDGE) where
-  doctor's menu puts them, plus RogueMaster's 10 (Erreka 868MHz, Prastel 433MHz, Nice O-Code / O-Code
+  doctor's menu puts them, plus RogueMaster's 11 (Erreka 868MHz, Prastel 433MHz, Nice O-Code / O-Code
   One / O-Code+Crt 433MHz, Nord ICE 433MHz, and from November 2026 FAAC TM 433MHz / 868MHz,
-  KL: Phantom/Hiland 433M and Proteco 433MHz) where RogueMaster's puts them (Proteco behind the
-  Princeton types, as in its enum). Its last two O-Code types, which its enum
+  KL: Phantom/Hiland 433M, Proteco 433MHz and BelKorn) where RogueMaster's puts them (Proteco behind the
+  Princeton types, as in its enum; BelKorn, which its newer alphabetical enum puts before Beninca, closes
+  the rolling-code group after Prastel). Its last two O-Code types, which its enum
   appends after Security+ (with Telcoma EDGE), stay in the Nice group after the first. Its FAAC TM
   types, which its enum puts after FAAC SLH, close the fixed-code group, since they are fixed codes. FoxFW's menu is
   ARF's 78 plus two plain KeeLoq "KL: Erreka 433MHz / 868MHz" (serial `key & 0xFFFF`, button 0x02, counter 0x03, no
@@ -138,7 +141,7 @@ there.
   (identical to doctor's). Against RogueMaster for the 80 types it shares, 225 of 240 are identical;
   the rest are the five differences above (FAAC SLH ×2, Beninca ARC, Monarch, Genius Bravo). The
   RogueMaster gen oracle is the gate round's gen oracle extended with a `roguemaster` tree, linked
-  against the RogueMaster reference-oracle build. (Measured before Proteco was added and before DEA
+  against the RogueMaster reference-oracle build. (Measured before Proteco and BelKorn were added and before DEA
   Mio's key file got its `Seed` line, by which it now differs from ARF's and doctor's.)
 - Proteco and DEA Mio (RogueMaster at 0cfd4bf, the reference decoders and encoders): a remote of each
   type, created with `:new` and exported as a key file, loads in RogueMaster's build with KAT's fields
@@ -186,6 +189,7 @@ the detail panel, whose row is already labelled Btn, shows the code alone ("Btn:
 | Alutech AT4N 433MHz | Alutech AT-4N | 433.92 | AM650 | serial `(r & 0x000FFFFF) \| 0x00100000`, button `0x44`, counter `0x03` | both | ✗ needs `alutech_at_4n.bin` |
 | V2 Phoenix 433MHz | Phoenix_V2 | 433.92 | AM650 | serial `(r & 0x0FFFFFFF) \| 0xB0000000`, counter `0x025D` | both | ✓ |
 | Prastel 433MHz | Prastel | 433.92 | AM650 | serial `r & 0x001FFFFF` (the 21 frame bits), button `0x01`, counter `0x03` | RogueMaster | ✓ |
+| BelKorn | BelKorn | 433.92 | AM650 | serial `r & 0xFFFFFFFFF` (5 bytes; one `rand()`, so the top nibble and bit 31 are 0), button `0x01`, counter `0x05` | RogueMaster | ✓ |
 | KL: HCS101 433MHz | KeeLoq (HCS101) | 433.92 | AM650 | serial `r & 0x000FFFFF`, button `0x02`, counter `0x03` | both | ✓ |
 | KL: DoorHan 315MHz | KeeLoq (DoorHan) | 315.00 | AM650 | serial `r & 0x0FFFFFFF`, button `0x02`, counter `0x03` | both | ✓ |
 | KL: DoorHan 433MHz | KeeLoq (DoorHan) | 433.92 | AM650 | serial `r & 0x0FFFFFFF`, button `0x02`, counter `0x03` | both | ✓ |

@@ -47,6 +47,9 @@ pub fn tx_buttons(protocol: &str, decoded: &DecodedSignal) -> Vec<u8> {
         "Roger" => switch(&[0x1, 0x2, 0x4, 0x8]),
         "Hay21" => switch(&[0x5A, 0xC3, 0x88]),
         "Prastel" => switch(&[1, 2, 3, 4]),
+        // BelKorn: one bit of 6; the C's custom buttons cycle 0x01 / 0x02 / 0x04 / 0x20 from any
+        // captured button.
+        "BelKorn" => super::belkorn::BUTTONS.to_vec(),
         // Proteco: the low 2 bits of the code, as RogueMaster's buttons 1..4 (A, B, C and a fourth).
         "Proteco" => super::proteco::BUTTONS.to_vec(),
         // GangQi / Hollarm (alarm remotes): the 4-bit code (the references' button editor takes any

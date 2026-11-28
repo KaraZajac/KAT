@@ -122,6 +122,8 @@ mod oracle_driver {
             }
             "Jarolift" => Box::new(super::super::jarolift::JaroliftDecoder::new()),
             "Beninca ARC" => Box::new(super::super::beninca_arc::BenincaArcDecoder::new()),
+            // Not a G5 port, but the same kind of check (RogueMaster / FoxFW, 2026-11).
+            "BelKorn" => Box::new(super::super::belkorn::BelKornDecoder::new()),
             other => panic!("not a G5 protocol: {other}"),
         }
     }
@@ -165,6 +167,7 @@ mod oracle_driver {
                     "Faac SLH" => super::super::faac_slh::fixture_key(r),
                     "KingGates Stylo4k" => super::super::kinggates_stylo_4k::fixture_key(r),
                     "Jarolift" => super::super::jarolift::fixture_key(r),
+                    "BelKorn" => super::super::belkorn::fixture_key(r),
                     _ => super::super::beninca_arc::fixture_key(r),
                 };
                 let key = FlipperKey {

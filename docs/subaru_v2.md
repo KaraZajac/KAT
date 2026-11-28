@@ -5,11 +5,11 @@ layout: default
 # Subaru V2 Protocol
 
 **Rust module:** `src/protocols/subaru_v2.rs`
-**Reference:** none. ProtoPirate, Flipper-ARF and doctor-firmware do not read it. The format was worked out from a tester's recordings of several 433.92 MHz Australian Subaru remote-head keys (Liberty/Legacy, Impreza/WRX/STI and relatives). It is distinct from both the 800/1600 µs PWM [Subaru](subaru.md) remote and the US 315 MHz plaintext-counter [Subaru V1](subaru_v1.md) key.
+**Reference:** KAT's own reading, worked out from a tester's recordings of one 433.92 MHz Australian Subaru remote-head key: three recordings, 22 presses, all of the same key. Which models use it is not known; FoxFW names the remote after the Liberty GT. FoxFW v2.1.1 (2026-11-22) also reads this remote, as "Subaru Liberty GT" (`lib/subghz/protocols/subaru_liberty_gt.c`), in another way: see [FoxFW's reading](#foxfws-reading). ProtoPirate, Flipper-ARF and doctor-firmware do not read it. It is distinct from both the 800/1600 µs PWM [Subaru](subaru.md) remote and the US 315 MHz plaintext-counter [Subaru V1](subaru_v1.md) key.
 
 ## Overview
 
-The key sends a **128-bit (16-byte)** frame, repeated several times while the button is held. Unlike Subaru V1, the rolling part is **encrypted**: eight of the sixteen bytes change on every press with no plaintext counter, so KAT reads these **decode-only** — it identifies the remote and recovers the 32-bit key ID, but does not interpret or synthesise the rolling code. KAT reports and can replay a captured press; it does not build fresh codes (there is no plaintext counter, and that would require the key's secret).
+The key sends a **128-bit (16-byte)** frame, repeated several times while the button is held. Unlike Subaru V1, the rolling part is **encrypted**: eight of the sixteen bytes change on every press with no plaintext counter, so KAT reads these **decode-only** — it identifies the remote and reports a 32-bit field that is the same in every press, read as the key ID, but does not interpret or synthesise the rolling code. With one key recorded, that this field differs from key to key is not yet shown (FoxFW reads its own key serial from the same region). KAT reports and can replay a captured press; it does not build fresh codes (there is no plaintext counter, and that would require the key's secret).
 
 ## Timing
 
@@ -44,6 +44,25 @@ The frame is anchored on an in-band **sync** run of 8 differential zeros that re
 
 None — decode-only. The rolling payload is encrypted, so there is no plaintext counter to advance, and KAT does not attempt to recover the key's cipher secret. A captured press can be replayed from its recording.
 
+## FoxFW's reading
+
+FoxFW's "Subaru Liberty GT" (v2.1.1) has the same air format, 700 / 1400 µs Manchester and 128-bit frames, but
+reads it differently:
+
+| | KAT (Subaru V2) | FoxFW (Subaru Liberty GT) |
+|---|---|---|
+| Bits | differential (`plain[i] XOR plain[i-1]`) | plain Manchester bits |
+| Timing windows | a half-bit 400..1050 µs, two half-bits 1050..1750 µs | 700 ± 100 and 1400 ± 100 µs |
+| Frame boundary | the 8-zero differential run that recurs every 128 bits | nine 1s then a 0 at the top of the 128-bit window: the same run, in the plain domain |
+| Key ID | differential bytes 8..11 (32 bits) | `Serial` = plain bits 80..111 (32 bits) |
+| Button, counter | none | none (0) |
+| Key file | not written | `Bit: 128`, `Key`, and `Frame` (the 16 bytes) |
+| Encoder | none; Replay re-sends the recorded press | re-sends the stored frame (10 copies) |
+
+Both numbers are constant for one key, so either identifies the remote, but they are different numbers for the
+same key, and a FoxFW key file is not loaded by KAT. On the tester's recordings FoxFW's narrower windows read fewer
+frames than KAT (1 to 5 per file against 4 to 12). Neither one makes a new code: FoxFW's encoder replays.
+
 ## Validation
 
-No public reference. Against a tester's recordings of three keys (several presses each, 433.92 MHz, kept out of git in `REFERENCES/testers`): every recording decodes as Subaru V2, and every press of one key reports the same 32-bit ID while the rolling payload changes. Unit tests cover the differential-Manchester framing, the sync anchoring (robust to the 8-vs-9-zero run length), ID extraction and stability, and rejection of noise and short bursts.
+Against a tester's recordings of one key (three files, 22 presses, 433.92 MHz, kept out of git in `REFERENCES/testers`): every recording decodes as Subaru V2, and every press reports the same 32-bit ID while the rolling payload changes. The three files were first taken for three keys; they are one, so whether the ID field differs between keys needs a recording of a second key. Unit tests cover the differential-Manchester framing, the sync anchoring (robust to the 8-vs-9-zero run length), ID extraction and stability, and rejection of noise and short bursts.

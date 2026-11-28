@@ -8,10 +8,12 @@
 //!
 //! **Types** ([TYPES]): the union of the menus — ARF's 78 entries in ARF's order with
 //! doctor-firmware's 23 extra ones where doctor's menu puts them (doctor's order is ARF's with
-//! insertions) and RogueMaster's 10 extra ones where RogueMaster's puts them (its two O-Code
+//! insertions) and RogueMaster's 11 extra ones where RogueMaster's puts them (its two O-Code
 //! variants that its enum appends after Security+ are kept with the Nice group, after its first
 //! O-Code type; its two FAAC TM types, which its enum puts after FAAC SLH, close the fixed-code
-//! group, since they are fixed codes; its Proteco follows the Princeton types, as in its enum)
+//! group, since they are fixed codes; its Proteco follows the Princeton types, as in its enum;
+//! its BelKorn, which its newer, alphabetical enum puts before Beninca, closes the rolling-code
+//! group after its Prastel)
 //! and FoxFW's 2 extra ones (plain KeeLoq "KL: Erreka 433/868MHz",
 //! after Aprimatic as in FoxFW's menu); ARF's name and parameters where several have a type (ARF and doctor differ only in
 //! "KL: Genius Bravo": ARF button 0x06, doctor 0x09 and the name "KL: Genius TX4RC 433M.";
@@ -205,6 +207,7 @@ pub static TYPES: &[RemoteType] = &[
     RemoteType { id: "AlutechAT4N", name: "Alutech AT4N 433MHz", source: Source::Both, group: Group::Rolling },
     RemoteType { id: "Phoenix_V2_433", name: "V2 Phoenix 433MHz", source: Source::Both, group: Group::Rolling },
     RemoteType { id: "Prastel_433_92", name: "Prastel 433MHz", source: Source::RogueMaster, group: Group::Rolling },
+    RemoteType { id: "BelKorn", name: "BelKorn", source: Source::RogueMaster, group: Group::Rolling },
     RemoteType { id: "HCS101_433_92", name: "KL: HCS101 433MHz", source: Source::Both, group: Group::KeeLoq },
     RemoteType { id: "DoorHan_315_00", name: "KL: DoorHan 315MHz", source: Source::Both, group: Group::KeeLoq },
     RemoteType { id: "DoorHan_433_92", name: "KL: DoorHan 433MHz", source: Source::Both, group: Group::KeeLoq },
@@ -330,6 +333,9 @@ pub enum GenInfo {
     PhoenixV2 { serial: u32, cnt: u16 },
     /// `GenPrastel` (RogueMaster): Prastel's `create_data` (21 serial bits, button 1..4, counter).
     Prastel { serial: u32, btn: u8, cnt: u16 },
+    /// `GenBelKorn` (RogueMaster): BelKorn's `create_data` (a 36-bit serial held as 5 bytes, a
+    /// one-hot button, a 16-bit counter).
+    BelKorn { serial: u64, btn: u8, cnt: u16 },
     /// RogueMaster's Nice O-Code types (`GenNiceFlorS` with `o_code`): an installer code `ic`
     /// (drawn for the first two), the 72-bit Nice One frame, or the receiver certificate the remote
     /// enrols itself with (`cert`). Not created by KAT (see [availability]).
@@ -418,6 +424,9 @@ fn gen_info(id: &str, key: u64, gangqi_key: u64, marantec_key: u64) -> Option<Ge
         // RogueMaster's `subghz_gen_info.c` for its own types.
         "Erreka868" => gen("AM650", 868_350_000, GenInfo::KeeloqSeed { serial: (key & 0x000FFFFF) as u32, btn: 0x02, cnt: 0x02, seed: (key & 0x000FFFFF) as u32, manuf: "Erreka" }),
         "Prastel_433_92" => gen("AM650", 433_920_000, GenInfo::Prastel { serial: (key & PRASTEL_SERIAL_MASK) as u32, btn: 0x01, cnt: 0x03 }),
+        // serial = {(key >> 32) & 0x0F, key >> 24, key >> 16, key >> 8, key}: `key` is one rand()
+        // (31 bits), so the top nibble and bit 31 are 0.
+        "BelKorn" => gen("AM650", 433_920_000, GenInfo::BelKorn { serial: key & 0xF_FFFF_FFFF, btn: 0x01, cnt: 0x05 }),
         "NiceOCode_433_92" => gen("AM650", 433_920_000, GenInfo::NiceOCode { serial: (key & 0x0FFFFFFF) as u32, btn: 0x01, cnt: 0xC089, ic: 0, nice_one: false, cert: false }),
         "NiceOCodeOne_433_92" => gen("AM650", 433_920_000, GenInfo::NiceOCode { serial: (key & 0x0FFFFFFF) as u32, btn: 0x01, cnt: 0xC089, ic: 0, nice_one: true, cert: false }),
         "NiceOCodeCert_433_92" => gen("AM650", 433_920_000, GenInfo::NiceOCode { serial: (key & 0x0FFFFFFF) as u32, btn: 0x01, cnt: 0xC089, ic: 0, nice_one: true, cert: true }),
@@ -596,6 +605,8 @@ impl GenInfo {
             GenInfo::CameAtomo { serial, cnt } | GenInfo::PhoenixV2 { serial, cnt } => {
                 vec![(Serial, serial.into(), s), (Counter, cnt.into(), c2)]
             }
+            // RogueMaster's serial editor takes 5 bytes (`belkorn.serial[5]`).
+            GenInfo::BelKorn { serial, btn, cnt } => vec![(Serial, serial, 5), (Button, btn.into(), b), (Counter, cnt.into(), c2)],
             GenInfo::SecPlus1 => Vec::new(),
         }
     }
@@ -661,6 +672,9 @@ impl GenInfo {
                 Field::Counter,
             ) => *cnt = value as u32,
             (GenInfo::FaacSlh { seed, .. } | GenInfo::KeeloqSeed { seed, .. }, Field::Seed) => *seed = value as u32,
+            (GenInfo::BelKorn { serial, .. }, Field::Serial) => *serial = value & 0xFF_FFFF_FFFF,
+            (GenInfo::BelKorn { btn, .. }, Field::Button) => *btn = value as u8,
+            (GenInfo::BelKorn { cnt, .. }, Field::Counter) => *cnt = value as u16,
             _ => {}
         }
     }
@@ -684,6 +698,7 @@ impl GenInfo {
             GenInfo::SecPlus2 { .. } => "Security+ 2.0",
             GenInfo::PhoenixV2 { .. } => "Phoenix_V2",
             GenInfo::Prastel { .. } => "Prastel",
+            GenInfo::BelKorn { .. } => "BelKorn",
             GenInfo::NiceOCode { .. } => "Nice FloR-S",
         }
     }
@@ -822,6 +837,7 @@ fn generate_with(gen: &Gen, rng: &mut dyn RandSource, tables: &Tables) -> Result
         GenInfo::SecPlus2 { serial, btn, cnt } => super::secplus_v2::create_data(serial, btn, cnt),
         GenInfo::PhoenixV2 { serial, cnt } => super::phoenix_v2::create_data(serial, cnt),
         GenInfo::Prastel { serial, btn, cnt } => prastel_key(serial, btn, cnt),
+        GenInfo::BelKorn { serial, btn, cnt } => super::belkorn::create_data(serial, btn, cnt),
         GenInfo::NiceOCode { .. } => unreachable!("availability_of refuses the O-Code types"),
     };
     key.frequency = gen.frequency;
@@ -940,9 +956,9 @@ mod tests {
 
     #[test]
     fn type_list_is_the_union_of_the_references() {
-        assert_eq!(TYPES.len(), 113);
+        assert_eq!(TYPES.len(), 114);
         assert_eq!(TYPES.iter().filter(|t| t.source == Source::Both).count(), 78);
-        assert_eq!(TYPES.iter().filter(|t| t.source == Source::RogueMaster).count(), 10);
+        assert_eq!(TYPES.iter().filter(|t| t.source == Source::RogueMaster).count(), 11);
         assert_eq!(TYPES.iter().filter(|t| t.source == Source::FoxFW).count(), 2);
         assert_eq!(TYPES[find("Prastel")[0]].menus(), "RogueMaster");
         assert_eq!(TYPES[find("GangQi")[0]].menus(), "Flipper-ARF + doctor-firmware");

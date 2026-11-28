@@ -1,5 +1,5 @@
 {
- "decoders": 168,
+ "decoders": 169,
  "display_names": {
   "Audi V3": "Audi V3",
   "BMW/Mini V3": "BMW/Mini V3",
@@ -3493,7 +3493,7 @@
    "make": "BMW",
    "module": "bmw_fzv",
    "name": "BMW FZV",
-   "order": 144,
+   "order": 145,
    "page": "bmw_fzv",
    "prefix": null,
    "presets": [
@@ -5753,6 +5753,35 @@
    "te_delta": 110,
    "te_long": 500,
    "te_short": 250
+  },
+  {
+   "aliases": [],
+   "bits": 118,
+   "buttons": [],
+   "category": "Gate",
+   "coding": "Pwm",
+   "decoder": "BelKorn",
+   "encoder": true,
+   "encryption": "Rolling Code (plaintext counter)",
+   "frequencies": [
+    0
+   ],
+   "generic_buttons": true,
+   "make": "BelKorn",
+   "module": "belkorn",
+   "name": "BelKorn",
+   "order": 98,
+   "page": "belkorn",
+   "prefix": null,
+   "presets": [
+    "AM650"
+   ],
+   "registered": true,
+   "rf": "AM",
+   "rtl433": false,
+   "te_delta": 180,
+   "te_long": 962,
+   "te_short": 481
   },
   {
    "aliases": [],
@@ -11262,7 +11291,7 @@
    "make": "Honeywell",
    "module": "honeywell",
    "name": "Honeywell Sec",
-   "order": 98,
+   "order": 99,
    "page": "honeywell",
    "prefix": null,
    "presets": [
@@ -12316,7 +12345,7 @@
    "make": "Paradox",
    "module": "magellan",
    "name": "Magellan",
-   "order": 99,
+   "order": 100,
    "page": "magellan",
    "prefix": null,
    "presets": [
@@ -13370,7 +13399,7 @@
    "make": "X10",
    "module": "x10",
    "name": "X10",
-   "order": 100,
+   "order": 101,
    "page": "x10",
    "prefix": null,
    "presets": [
@@ -13399,7 +13428,7 @@
    "make": "Honeywell",
    "module": "honeywell_wdb",
    "name": "Honeywell",
-   "order": 101,
+   "order": 102,
    "page": "honeywell_wdb",
    "prefix": null,
    "presets": [
@@ -13428,7 +13457,7 @@
    "make": "Legrand",
    "module": "legrand",
    "name": "Legrand",
-   "order": 102,
+   "order": 103,
    "page": "legrand",
    "prefix": null,
    "presets": [
@@ -13457,7 +13486,7 @@
    "make": "Doorbell",
    "module": "doorbell32",
    "name": "Doorbell32",
-   "order": 103,
+   "order": 104,
    "page": "doorbell32",
    "prefix": null,
    "presets": [
@@ -13486,7 +13515,7 @@
    "make": "Intertechno",
    "module": "intertechno_v3",
    "name": "Intertechno_V3",
-   "order": 104,
+   "order": 105,
    "page": "intertechno_v3",
    "prefix": null,
    "presets": [
@@ -13532,7 +13561,7 @@
    "make": "KeyFinder",
    "module": "keyfinder",
    "name": "KeyFinder",
-   "order": 105,
+   "order": 106,
    "page": "keyfinder",
    "prefix": null,
    "presets": [
@@ -13561,7 +13590,7 @@
    "make": "Treadmill (QH-433)",
    "module": "treadmill37",
    "name": "Treadmill37",
-   "order": 106,
+   "order": 107,
    "page": "treadmill37",
    "prefix": null,
    "presets": [
@@ -13655,7 +13684,7 @@
    "make": "Nord ICE",
    "module": "nord_ice",
    "name": "Nord ICE",
-   "order": 107,
+   "order": 108,
    "page": "nord_ice",
    "prefix": null,
    "presets": [
@@ -13684,7 +13713,7 @@
    "make": "Feron",
    "module": "feron",
    "name": "Feron",
-   "order": 108,
+   "order": 109,
    "page": "feron",
    "prefix": null,
    "presets": [
@@ -13730,7 +13759,7 @@
    "make": "KeyFinder",
    "module": "keyfinder2",
    "name": "KeyFinder2",
-   "order": 109,
+   "order": 110,
    "page": "keyfinder2",
    "prefix": null,
    "presets": [
@@ -13776,7 +13805,7 @@
    "make": "Volkswagen",
    "module": "vag_polo",
    "name": "VAG Polo",
-   "order": 110,
+   "order": 111,
    "page": "vag_polo",
    "prefix": null,
    "presets": [
@@ -13814,7 +13843,7 @@
    "make": "Chevrolet/Buick/GMC/Holden",
    "module": "chevrolet_v0",
    "name": "Chevrolet V0",
-   "order": 111,
+   "order": 112,
    "page": "chevrolet_v0",
    "prefix": null,
    "presets": [
@@ -13843,7 +13872,7 @@
    "make": "Tesla",
    "module": "tesla_charge",
    "name": "Tesla Charge",
-   "order": 112,
+   "order": 113,
    "page": "tesla_charge",
    "prefix": null,
    "presets": [
@@ -13872,7 +13901,7 @@
    "make": "Hyundai/Kia",
    "module": "hyundai_kia_rio",
    "name": "Hyundai/Kia RIO",
-   "order": 113,
+   "order": 114,
    "page": "hyundai_kia_rio",
    "prefix": null,
    "presets": [
@@ -13901,7 +13930,7 @@
    "make": "Hyundai",
    "module": "santa_fe",
    "name": "SantaFe 13-16",
-   "order": 114,
+   "order": 115,
    "page": "santa_fe",
    "prefix": null,
    "presets": [
@@ -13930,7 +13959,7 @@
    "make": "Hitag2 RKE",
    "module": "hitag2_rke",
    "name": "Hitag2",
-   "order": 115,
+   "order": 116,
    "page": "hitag2_rke",
    "prefix": null,
    "presets": [
@@ -13959,7 +13988,7 @@
    "make": "Honda",
    "module": "nidec_rke",
    "name": "Nidec RKE",
-   "order": 116,
+   "order": 117,
    "page": "nidec_rke",
    "prefix": null,
    "presets": [
@@ -13989,7 +14018,7 @@
    "make": "Renault",
    "module": "renault_v4",
    "name": "Renault/xHorse V4",
-   "order": 117,
+   "order": 118,
    "page": "renault_v4",
    "prefix": null,
    "presets": [
@@ -14019,7 +14048,7 @@
    "make": "Fiat",
    "module": "ducato_v0",
    "name": "Fiat Ducato V0",
-   "order": 118,
+   "order": 119,
    "page": "ducato_v0",
    "prefix": null,
    "presets": [
@@ -14049,7 +14078,7 @@
    "make": "Renault",
    "module": "renault_v2",
    "name": "Renault V2",
-   "order": 119,
+   "order": 120,
    "page": "renault_v2",
    "prefix": null,
    "presets": [
@@ -14078,7 +14107,7 @@
    "make": "Opel",
    "module": "opel_v0",
    "name": "Opel V0",
-   "order": 120,
+   "order": 121,
    "page": "opel_v0",
    "prefix": null,
    "presets": [
@@ -14108,7 +14137,7 @@
    "make": "Honda/Acura",
    "module": "honda_v6",
    "name": "Honda V6",
-   "order": 121,
+   "order": 122,
    "page": "honda_v6",
    "prefix": null,
    "presets": [
@@ -14137,7 +14166,7 @@
    "make": "Kia/Hyundai",
    "module": "kia_mobis",
    "name": "Kia Mobis",
-   "order": 128,
+   "order": 129,
    "page": "kia_mobis",
    "prefix": null,
    "presets": [
@@ -14166,7 +14195,7 @@
    "make": "Kia/Hyundai",
    "module": "kia_denso",
    "name": "Kia Denso",
-   "order": 129,
+   "order": 130,
    "page": "kia_denso",
    "prefix": null,
    "presets": [
@@ -14195,7 +14224,7 @@
    "make": "Kia",
    "module": "kia_forte",
    "name": "Kia Forte",
-   "order": 130,
+   "order": 131,
    "page": "kia_forte",
    "prefix": null,
    "presets": [
@@ -14224,7 +14253,7 @@
    "make": "Cadillac/GMC/Chevrolet/Buick",
    "module": "gm_rfa",
    "name": "GM RFA",
-   "order": 131,
+   "order": 132,
    "page": "gm_rfa",
    "prefix": null,
    "presets": [
@@ -14266,7 +14295,7 @@
    "make": "Isuzu",
    "module": "isuzu_rolling",
    "name": "Isuzu Rolling",
-   "order": 132,
+   "order": 133,
    "page": "isuzu_rolling",
    "prefix": null,
    "presets": [
@@ -14304,7 +14333,7 @@
    "make": "Isuzu",
    "module": "isuzu_static",
    "name": "Isuzu Static",
-   "order": 133,
+   "order": 134,
    "page": "isuzu_static",
    "prefix": null,
    "presets": [
@@ -14350,7 +14379,7 @@
    "make": "Suzuki",
    "module": "suzuki_ts002",
    "name": "Suzuki TS002",
-   "order": 134,
+   "order": 135,
    "page": "suzuki_ts002",
    "prefix": null,
    "presets": [
@@ -14392,7 +14421,7 @@
    "make": "Opel",
    "module": "opel_rolling",
    "name": "Opel Rolling",
-   "order": 135,
+   "order": 136,
    "page": "opel_rolling",
    "prefix": null,
    "presets": [
@@ -14421,7 +14450,7 @@
    "make": "Renault",
    "module": "renault_one_button",
    "name": "Renault 1-Button",
-   "order": 136,
+   "order": 137,
    "page": "renault_one_button",
    "prefix": null,
    "presets": [
@@ -14450,7 +14479,7 @@
    "make": "Volvo",
    "module": "volvo_s40",
    "name": "Volvo S40",
-   "order": 137,
+   "order": 138,
    "page": "volvo_s40",
    "prefix": null,
    "presets": [
@@ -14488,7 +14517,7 @@
    "make": "Lexus",
    "module": "lexus_ux",
    "name": "Lexus UX",
-   "order": 138,
+   "order": 139,
    "page": "lexus_ux",
    "prefix": null,
    "presets": [
@@ -14526,7 +14555,7 @@
    "make": "Peugeot/Citroen",
    "module": "psa_two_button",
    "name": "PSA 2-Button",
-   "order": 139,
+   "order": 140,
    "page": "psa_two_button",
    "prefix": null,
    "presets": [
@@ -14564,7 +14593,7 @@
    "make": "Volkswagen",
    "module": "vw_1",
    "name": "VW-1",
-   "order": 140,
+   "order": 141,
    "page": "vw_1",
    "prefix": null,
    "presets": [
@@ -14594,7 +14623,7 @@
    "make": "Honda/Acura",
    "module": "honda_v4",
    "name": "Honda V4",
-   "order": 122,
+   "order": 123,
    "page": "honda_v4",
    "prefix": null,
    "presets": [
@@ -14624,7 +14653,7 @@
    "make": "Honda/Acura",
    "module": "honda_v7",
    "name": "Honda V7",
-   "order": 123,
+   "order": 124,
    "page": "honda_v7",
    "prefix": null,
    "presets": [
@@ -14654,7 +14683,7 @@
    "make": "Honda/Acura",
    "module": "honda_v9",
    "name": "Honda V9",
-   "order": 124,
+   "order": 125,
    "page": "honda_v9",
    "prefix": null,
    "presets": [
@@ -14684,7 +14713,7 @@
    "make": "Honda/Acura",
    "module": "honda_v2_v3",
    "name": "HondaV2&V3",
-   "order": 125,
+   "order": 126,
    "page": "honda_v2_v3",
    "prefix": null,
    "presets": [
@@ -14714,7 +14743,7 @@
    "make": "Honda/Acura",
    "module": "honda_v10",
    "name": "Honda V10",
-   "order": 126,
+   "order": 127,
    "page": "honda_v10",
    "prefix": null,
    "presets": [
@@ -14938,7 +14967,7 @@
    "make": "Mitsubishi",
    "module": "mitsubishi_v1",
    "name": "Mitsubishi V1",
-   "order": 127,
+   "order": 128,
    "page": "mitsubishi_v1",
    "prefix": null,
    "presets": [
@@ -14978,7 +15007,7 @@
    "make": "LDV",
    "module": "ldv_v0",
    "name": "LDV V0",
-   "order": 141,
+   "order": 142,
    "page": "ldv_v0",
    "prefix": null,
    "presets": [
@@ -15008,7 +15037,7 @@
    "make": "Lexus",
    "module": "lexus_v0",
    "name": "Lexus V0",
-   "order": 142,
+   "order": 143,
    "page": "lexus_v0",
    "prefix": null,
    "presets": [
@@ -15038,7 +15067,7 @@
    "make": "Mazda",
    "module": "mazda_v1",
    "name": "Mazda V1",
-   "order": 143,
+   "order": 144,
    "page": "mazda_v1",
    "prefix": null,
    "presets": [
@@ -15069,7 +15098,7 @@
    "make": "Nissan",
    "module": "nissan_v0",
    "name": "Nissan V0",
-   "order": 145,
+   "order": 146,
    "page": "nissan_v0",
    "prefix": null,
    "presets": [
@@ -15124,7 +15153,7 @@
    "make": "Toyota",
    "module": "toyota_foxfw",
    "name": "Toyota (FoxFW)",
-   "order": 146,
+   "order": 147,
    "page": "toyota_foxfw",
    "prefix": null,
    "presets": [
@@ -15180,7 +15209,7 @@
    "make": "BMW",
    "module": "bmw_v2",
    "name": "BMW V2",
-   "order": 147,
+   "order": 148,
    "page": "bmw_v2",
    "prefix": null,
    "presets": [
@@ -15209,7 +15238,7 @@
    "make": "BMW / Mini",
    "module": "bmw_v3",
    "name": "BMW/Mini V3",
-   "order": 148,
+   "order": 149,
    "page": "bmw_v3",
    "prefix": null,
    "presets": [
@@ -15264,7 +15293,7 @@
    "make": "Audi",
    "module": "audi_v3",
    "name": "Audi V3",
-   "order": 149,
+   "order": 150,
    "page": "audi_v3",
    "prefix": null,
    "presets": [
@@ -15294,7 +15323,7 @@
    "make": "BMW",
    "module": "bmw_cas3",
    "name": "BMW CAS3",
-   "order": 150,
+   "order": 151,
    "page": "bmw_cas3",
    "prefix": null,
    "presets": [
@@ -15422,7 +15451,7 @@
    "make": "Chrysler/Dodge",
    "module": "siemens_5wy72xx",
    "name": "Siemens-5WY72XX",
-   "order": 161,
+   "order": 162,
    "page": "siemens_5wy72xx",
    "prefix": null,
    "presets": [
@@ -16479,7 +16508,7 @@
    "make": "Honda",
    "module": "alps_fwb1u545",
    "name": "Alps-FWB1U545",
-   "order": 162,
+   "order": 163,
    "page": "alps_fwb1u545",
    "prefix": null,
    "presets": [
@@ -17527,7 +17556,7 @@
    "make": "Code Alarm",
    "module": "code_alarm_frdpc2002",
    "name": "CodeAlarm-FRDPC2002",
-   "order": 163,
+   "order": 164,
    "page": "code_alarm_frdpc2002",
    "prefix": null,
    "presets": [
@@ -18524,7 +18553,7 @@
    "make": "Astroflex",
    "module": "astrostart_2000",
    "name": "Astrostart-2000",
-   "order": 164,
+   "order": 165,
    "page": "astrostart_2000",
    "prefix": null,
    "presets": [
@@ -18940,7 +18969,7 @@
    "make": "Chrysler/Dodge/Jeep",
    "module": "chrysler_car_remote",
    "name": "Chrysler-CarRemote",
-   "order": 165,
+   "order": 166,
    "page": "chrysler_car_remote",
    "prefix": null,
    "presets": [
@@ -19785,7 +19814,7 @@
    "make": "Compustar",
    "module": "compustar_1wg3r",
    "name": "Compustar-1WG3R",
-   "order": 166,
+   "order": 167,
    "page": "compustar_1wg3r",
    "prefix": null,
    "presets": [
@@ -20074,7 +20103,7 @@
    "make": "Audiovox",
    "module": "audiovox_pro_oe3b",
    "name": "Audiovox-PROOE3B",
-   "order": 167,
+   "order": 168,
    "page": "audiovox_pro_oe3b",
    "prefix": null,
    "presets": [
@@ -20126,7 +20155,7 @@
    "make": "Honda/Acura",
    "module": "honda_kr5v2x1x",
    "name": "Honda-KR5V2X1X",
-   "order": 157,
+   "order": 158,
    "page": "honda_kr5v2x1x",
    "prefix": null,
    "presets": [
@@ -20179,7 +20208,7 @@
    "make": "Honda/Acura",
    "module": "continental_kr5v2x",
    "name": "Continental-KR5V2X",
-   "order": 158,
+   "order": 159,
    "page": "continental_kr5v2x",
    "prefix": null,
    "presets": [
@@ -20227,7 +20256,7 @@
    "make": "MIC",
    "module": "mic6sc2",
    "name": "MIC6SC2-CarRemote",
-   "order": 159,
+   "order": 160,
    "page": "mic6sc2",
    "prefix": null,
    "presets": [
@@ -20267,7 +20296,7 @@
    "make": "Opel",
    "module": "opel_mokka",
    "name": "Opel-Mokka",
-   "order": 160,
+   "order": 161,
    "page": "opel_mokka",
    "prefix": null,
    "presets": [
@@ -20311,7 +20340,7 @@
    "make": "Elero",
    "module": "elero",
    "name": "Elero",
-   "order": 151,
+   "order": 152,
    "page": "elero",
    "prefix": null,
    "presets": [
@@ -20342,7 +20371,7 @@
    "make": "Somfy",
    "module": "somfy_iohc",
    "name": "Somfy-IOHC",
-   "order": 152,
+   "order": 153,
    "page": "somfy_iohc",
    "prefix": null,
    "presets": [
@@ -21401,7 +21430,7 @@
    "make": "RojaFlex",
    "module": "rojaflex",
    "name": "RojaFlex-Remote",
-   "order": 153,
+   "order": 154,
    "page": "rojaflex",
    "prefix": null,
    "presets": [
@@ -21433,7 +21462,7 @@
    "make": "KeeLoq",
    "module": "microchip_hcs362",
    "name": "Microchip-HCS362",
-   "order": 154,
+   "order": 155,
    "page": "microchip_hcs362",
    "prefix": null,
    "presets": [
@@ -21469,7 +21498,7 @@
    "make": "KeeLoq",
    "module": "microchip_hcs361",
    "name": "Microchip-HCS361",
-   "order": 155,
+   "order": 156,
    "page": "microchip_hcs361",
    "prefix": null,
    "presets": [
@@ -21517,7 +21546,7 @@
    "make": "Cardin",
    "module": "cardin_s466",
    "name": "Cardin-S466",
-   "order": 156,
+   "order": 157,
    "page": "cardin_s466",
    "prefix": null,
    "presets": [
@@ -21930,5 +21959,5 @@
    "te_short": null
   }
  ],
- "version": "1.31.0"
+ "version": "1.32.0"
 }

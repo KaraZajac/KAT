@@ -45,18 +45,18 @@ page says which.
   only.
 
 The ports were last compared with these copies of the references (the sweep of 2026-11-12: every change up to
-these commits was read, and the ports it called for were made). On 2026-11-20 the upstream projects were looked at
+these commits was read, and the ports it called for were made). On 2026-11-27 the upstream projects were looked at
 again:
 
-| Reference | Commit | Dated | Upstream on 2026-11-20 |
+| Reference | Commit | Dated | Upstream on 2026-11-27 |
 |---|---|---|---|
 | ProtoPirate | `dc3446b` | 2026-10-16 | unchanged |
 | Flipper-ARF | `7e3d108` | 2026-10-29 | unchanged |
 | doctor-firmware | `98d1fc1` | 2026-11-11 | unchanged |
 | Momentum | `d3f89df` | 2026-08-18 | unchanged |
-| RogueMaster | `0cfd4bf` | 2026-11-12 | a new protocol, BelKorn (2026-11-13), and a check of Feron frames ([Feron](feron.md), 2026-11-19); neither is in KAT yet. Its other sub-GHz changes move code without changing what a decoder reads |
-| FoxFW | `6df5a11` | 2026-11-04 | unchanged |
-| rtl_433 | `0c85f7a` | 2026-11-08 | seven commits, none in a decoder |
+| RogueMaster | `0cfd4bf` | 2026-11-12 | a new protocol, BelKorn (2026-11-13), now in KAT ([BelKorn](belkorn.md)); a check of Feron frames ([Feron](feron.md), 2026-11-19), not in KAT yet. Its other sub-GHz changes up to 2026-11-20 move code without changing what a decoder reads; the later ones are not read yet |
+| FoxFW | `6df5a11` | 2026-11-04 | v2.1.1 (`6b25e40`, 2026-11-22): 13 new decoders. BelKorn is now in KAT. BMW V4 is the protocol KAT reads as [BMW](bmw.md) (the same constants). Subaru Liberty GT reads the [Subaru V2](subaru_v2.md) remote another way. Peugot V0 reads PSA frames one bit off: each of its frames is a 1 and the first 79 bits of a PSA frame, and FoxFW's own history prefers PSA's decode. STI-3353 (the sensors and doorbells of a door-chime system) has no recording anywhere. Telecrane (crane remotes) is outside KAT's devices. KAT has the other eight from other references (Datsun Lada, Faac TM, Freezer, Microchip HCS361/HCS362, Opel Mokka, Proteco, Rojaflex). Code changes in 113 other sub-GHz files, decoders KAT follows FoxFW for among them, are not compared yet |
+| rtl_433 | `0c85f7a` | 2026-11-08 | 14 commits: doc comments in 25 decoders, and code in four that KAT does not port (Bresser garden, Elsys ERS, Neptune R900, Omni) |
 
 A few decoders are KAT's own, worked out from recordings where no reference reads the signal:
 [Honda V6](honda_v6.md), [Kia Mobis](kia_mobis.md), [Kia Denso](kia_denso.md), [Kia Forte](kia_forte.md),

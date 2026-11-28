@@ -85,7 +85,7 @@ const TABLE: &[(&[&str], TxCopies)] = &[
             "KingGates Stylo4k", "Legrand", "Linear", "LinearDelta3", "Magellan", "Marantec", "Marantec24",
             "Mastercode", "MegaCode", "Nero Radio", "Nero Sketch", "Nice FLO", "Phoenix_V2", "Power Smart",
             "Princeton", "Revers_RB2", "Roger", "SMC5326", "Security+ 1.0", "Security+ 2.0", "Somfy Keytis",
-            "Somfy Telis", "Treadmill37", "Prastel", "Nord ICE", "Freezer", "Faac TM", "Faac SLH", "BMW", "BMW CAS3",
+            "Somfy Telis", "Treadmill37", "Prastel", "Nord ICE", "Freezer", "Faac TM", "Faac SLH", "BMW", "BMW CAS3", "BelKorn",
             "Hyundai/Kia RIO", "SantaFe 13-16", "Sheriff CFM", "Mazda V2",
         ],
         copies(3, 3, true),

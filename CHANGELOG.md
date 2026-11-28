@@ -2,6 +2,33 @@
 
 All notable changes to KAT are documented here.
 
+## [1.32.0] - 2026-11-27
+
+A BelKorn gate-remote decoder and encoder, from the newest RogueMaster and FoxFW.
+
+### Added
+
+- **BelKorn decoder and encoder** (gate / barrier remotes sold as Korn, BelGate, Furniteh and other
+  rebrands), from RogueMaster and FoxFW v2.1.1: a 118-bit rolling code with no encryption, one bit
+  per pulse (481 / 962 µs), a 36-bit serial, a one-hot button and a 16-bit press counter, the rest
+  of the frame a function of the counter and a per-remote origin solved back from any frame. Send
+  next code makes the remote's next press (any of its buttons); key files (`Bit: 118`, `Key`,
+  `Data`) load and save as on a Flipper, and `:new` creates one (RogueMaster's Add Manually type).
+  Checked against FoxFW's C compiled on a PC: 400 generated key files (fields and next-press
+  transmissions identical) and 720 clean and damaged recordings (the same 5759 decodes). No
+  recording of a real remote exists yet. See [BelKorn](docs/belkorn.md).
+
+### Fixed
+
+- [Subaru V2](docs/subaru_v2.md) said no reference reads that remote. FoxFW v2.1.1 (2026-11-22) does,
+  as "Subaru Liberty GT": it reads the plain Manchester bits where KAT reads the differential ones,
+  so the two show different numbers for the same key, and its encoder re-sends the stored frame. The
+  page now describes it.
+- Subaru V2 was described as worked out from several keys (Liberty/Legacy, Impreza/WRX/STI). The
+  tester's three recordings are one key: its 32-bit ID field is known to be constant over that key's
+  presses, not yet to differ between keys, and the model list was a guess from the file names.
+  The pages now say so.
+
 ## [1.31.0] - 2026-11-27
 
 A new decode-only Subaru remote decoder.

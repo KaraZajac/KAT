@@ -129,6 +129,7 @@ pub static ALL: &[&ProtocolInfo] = &[
     // Garage door / gate / barrier / shutter remotes, in registry order; each porting group adds
     // its entries directly below its own anchor line.
     // [gate-info: G5 KeeLoq family]
+    &super::belkorn::INFO,
     &super::beninca_arc::INFO,
     &super::kinggates_stylo_4k::INFO,
     &super::jarolift::INFO,
@@ -329,7 +330,7 @@ pub(super) const NO_CHECKSUM: &[&str] = &[
     "Legrand", "Doorbell32", "Intertechno_V3", "KeyFinder", "Feron", "KeyFinder2", "Treadmill37", "Nord ICE",
     // Rolling codes the references decode without a check.
     "CAME Atomo", "Cardin S508", "Ditec GOL4", "Hay21", "iDo 117/111", "Phoenix_V2", "Prastel",
-    "Security+ 1.0",
+    "Security+ 1.0", "BelKorn",
     // Car protocols whose frames carry no checksum: structural gates decide emission.
     // (Hyundai, unregistered, verifies nothing either: list it here when it is registered.)
     "Fiat V0", "Ford V2", "Ford V3", "Mercedes V0", "Subaru", "Subaru V2",

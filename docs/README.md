@@ -34,7 +34,7 @@ This folder describes how each keyfob and gate/garage remote protocol supported 
 | GM (Chevrolet/Buick/GMC/Cadillac) | `gm.rs` | [gm.md](gm.md) |
 | Subaru | `subaru.rs` | [subaru.md](subaru.md) |
 | Subaru V1 (US 2012-2019 remote-head key) | `subaru_v1.rs` | [subaru_v1.md](subaru_v1.md) |
-| Subaru V2 (AU/EU 433.92MHz remote-head key, decode-only) | `subaru_v2.rs` | [subaru_v2.md](subaru_v2.md) |
+| Subaru V2 (an Australian 433.92 MHz remote-head key, decode-only) | `subaru_v2.rs` | [subaru_v2.md](subaru_v2.md) |
 | Toyota | `toyota.rs` | [toyota.md](toyota.md) |
 | VAG | `vag.rs` | [vag.md](vag.md) |
 | Fiat V0 | `fiat_v0.rs` | [fiat_v0.md](fiat_v0.md) |
@@ -152,6 +152,7 @@ Ported from Flipper-ARF's garage app (`applications/system/subghz_garage/protoco
 | Freezer (RogueMaster) | `freezer.rs` | [freezer.md](freezer.md) |
 | Faac TM (RogueMaster) | `faac_tm.rs` | [faac_tm.md](faac_tm.md) |
 | Proteco (RogueMaster) | `proteco.rs` | [proteco.md](proteco.md) |
+| BelKorn (RogueMaster, FoxFW) | `belkorn.rs` | [belkorn.md](belkorn.md) |
 | Magellan (Paradox sensors) | `magellan.rs` | [magellan.md](magellan.md) |
 | X10 | `x10.rs` | [x10.md](x10.md) |
 | Legrand | `legrand.rs` | [legrand.md](legrand.md) |

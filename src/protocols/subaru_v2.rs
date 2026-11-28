@@ -1,8 +1,8 @@
-//! Subaru V2 protocol decoder (decode-only): the Australian/European Subaru remote-head key of the
-//! 2010s (Liberty/Legacy, Impreza/WRX/STI and relatives), 433.92 MHz. Not in ProtoPirate,
-//! Flipper-ARF or doctor-firmware, and distinct from both [super::subaru] (the 800/1600µs PWM
-//! remote) and [super::subaru_v1] (the US 315 MHz 122µs plaintext-counter key). Worked out from a
-//! tester's recordings of several keys (`docs/subaru_v2.md`).
+//! Subaru V2 protocol decoder (decode-only): an Australian Subaru remote-head key, 433.92 MHz. Not in
+//! ProtoPirate, Flipper-ARF or doctor-firmware; FoxFW v2.1.1 reads the same remote as "Subaru Liberty
+//! GT", from the plain Manchester bits (`docs/subaru_v2.md`). Distinct from both [super::subaru] (the
+//! 800/1600µs PWM remote) and [super::subaru_v1] (the US 315 MHz 122µs plaintext-counter key). Worked
+//! out from a tester's recordings of one key (three files, 22 presses).
 //!
 //! # Air format
 //!

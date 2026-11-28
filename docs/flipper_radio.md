@@ -143,8 +143,13 @@ KAT says so in words (see Troubleshooting).
   Princeton press in noise reaches the app, a transmission is written and played and receiving
   resumes, a region refusal comes back as the error, a receive preset goes to doctor-firmware
   only, and nothing is sent to the console before the Flipper is first used.
-- The 127 AM Flipper recordings in `IMPORTS`, streamed pulse by pulse through the receive path,
-  give exactly the 329 distinct frames KAT decodes from the files themselves: none missing, none
-  extra (`cargo test --release imports_through_the_stream -- --ignored --nocapture`).
+- The AM Flipper recordings in `IMPORTS`, streamed pulse by pulse through the receive path, against
+  the frames KAT decodes from the files themselves
+  (`cargo test --release imports_through_the_stream -- --ignored --nocapture`, which fails on any
+  difference). With 127 recordings it was exactly the 329 frames. With 309 (KAT 1.30.1) it is 6,652
+  of the 6,656 frames: the stream misses one Security+ 2.0 frame of a gate recording, an HCS361
+  misread of a Beninca remote and an LDV T80's two presses, which it reads as Ford V3; it adds those
+  two, four Compustar-1WG3R misreads of an old VW remote and two HCS361 frames out of a Renault
+  recording's noise.
 - Frames in synthetic noise come out where the transmission starts; Subaru's whole preamble is
   kept.

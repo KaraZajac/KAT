@@ -5611,11 +5611,6 @@
      "distinct": 2,
      "frames": 2,
      "protocol": "Hitag2"
-    },
-    {
-     "distinct": 1,
-     "frames": 1,
-     "protocol": "Microchip-HCS361 [KeeLoq (Unknown)]"
     }
    ],
    "seconds": 388.27,
@@ -9347,7 +9342,7 @@
    "reads": [
     {
      "distinct": 50,
-     "frames": 133,
+     "frames": 132,
      "protocol": "Siemens-5WY72XX"
     }
    ],

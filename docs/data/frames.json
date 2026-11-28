@@ -2342,30 +2342,11 @@
      "file": "GATES/more/Beninca.sub",
      "name": "Microchip-HCS361 [KeeLoq (Unknown)]",
      "serial": "55696A5"
-    },
-    {
-     "bits": 67,
-     "button": 15,
-     "counter": null,
-     "data": "FFFFFFFFEFFFFFFF",
-     "extra": "7",
-     "file": "OPEL/more/opel_two_button_remote_unlock_x300.sub",
-     "name": "Microchip-HCS361 [KeeLoq (Unknown)]",
-     "serial": "FFFFFF7"
     }
    ],
-   "fields": {
-    "serial": {
-     "frames": 2,
-     "how": "reversed",
-     "offset": 4,
-     "values": 2,
-     "width": 28,
-     "word": "data"
-    }
-   },
-   "files": 2,
-   "frames": 2
+   "fields": {},
+   "files": 1,
+   "frames": 1
   },
   "Mitsubishi V0": {
    "bits": 61,
@@ -2697,7 +2678,7 @@
     {
      "bits": 76,
      "button": 3,
-     "counter": null,
+     "counter": "B346",
      "data": "B378FD3A36973C21",
      "extra": "CE3",
      "file": "GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub",
@@ -2707,7 +2688,7 @@
     {
      "bits": 76,
      "button": 12,
-     "counter": null,
+     "counter": "B316",
      "data": "B328FDAEA2033C71",
      "extra": "CEC",
      "file": "GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub",
@@ -2717,7 +2698,7 @@
     {
      "bits": 76,
      "button": 3,
-     "counter": null,
+     "counter": "B347",
      "data": "3E6921DA47EF740A",
      "extra": "CE3",
      "file": "GROUPE PSA/citroen_two_button_valeo_key_lock_x50.sub",
@@ -2727,7 +2708,7 @@
     {
      "bits": 76,
      "button": 12,
-     "counter": null,
+     "counter": "B319",
      "data": "BA2088F2D804495A",
      "extra": "CEC",
      "file": "GROUPE PSA/citroen_two_button_valeo_key_unlock_x50.sub",
@@ -3135,7 +3116,7 @@
    ],
    "fields": {
     "button": {
-     "frames": 879,
+     "frames": 878,
      "how": "",
      "offset": 24,
      "values": 6,
@@ -3143,7 +3124,7 @@
      "word": "data"
     },
     "counter": {
-     "frames": 879,
+     "frames": 878,
      "how": "",
      "offset": 8,
      "values": 301,
@@ -3152,7 +3133,7 @@
     }
    },
    "files": 6,
-   "frames": 879
+   "frames": 878
   },
   "Somfy Keytis": {
    "bits": 80,

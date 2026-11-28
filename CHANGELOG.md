@@ -2,9 +2,11 @@
 
 All notable changes to KAT are documented here.
 
-## [Unreleased]
+## [1.30.1] - 2026-11-27
 
-From a tester's KAT Mobile session with a Ford ute, whose car ignored the codes KAT sent it.
+From a tester's KAT Mobile session with a Ford ute, whose car ignored the codes KAT sent it:
+captures are sent where their remote was heard, Ford V1 sends the remote's whole press, and noise
+is no longer read as Siemens or Microchip remotes.
 
 ### Fixed
 
@@ -28,7 +30,15 @@ From a tester's KAT Mobile session with a Ford ute, whose car ignored the codes 
   nearly all 1s (one of them even "identified" by a chance KeeLoq key). The session had eleven such
   decodes. The Siemens sync must now start the row and the payload end inside it, and an HCS361 or
   HCS362 hop must not be within 3 bits of all 1s or all 0s, nor its serial all 1s. Every rtl_433
-  test recording and every press of the IMPORTS recordings still reads.
+  test recording and every press of the IMPORTS recordings still reads (one Siemens repeat of 879,
+  with noise ahead of its preamble, is dropped; its press reads from its other repeats).
+
+### Changed
+
+- **The Flipper Zero's console session is a file of its own**, `src/radio/flipper_console.rs`: the
+  session on its command line, the receive stream that cuts frames out of the noise and the RAW
+  `.sub` a transmission is played from, with no serial-port code. KAT Mobile 1.30.1 uses it
+  unchanged for its own Flipper Zero support, over Android's USB host API.
 
 ## [1.30.0] - 2026-11-26
 

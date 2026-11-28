@@ -23,7 +23,9 @@
 //! from bursts barely above the noise, SNR 2–4 dB) passes when a chance `0x6001` turns up deep
 //! inside it and the 8-bit XOR then holds, one time in 256: seven such decodes in one tester's
 //! session, with the `0x6001` 92 or more bits into the row, impossible buttons (0x00, 0x41) and
-//! payloads of nearly all zeros.
+//! payloads of nearly all zeros. The cost: of the 879 frames in the IMPORTS recordings (Flipper
+//! captures, 301 presses), one repeat had 46 bits of noise ahead of its preamble in its row and is
+//! dropped; its press reads from its other repeats.
 //!
 //! **Fields** — `serial` = the ID (b3 b2 b1 b0 as rtl_433 prints it), `button` = b4, `counter` =
 //! the sequence. `data` = payload bytes b0..b7 (the first 64 payload bits), `extra` = b8..b11,

@@ -45,7 +45,9 @@ Flipper reference has it.
    200–1000 bits from bursts barely above the noise (SNR 2–4 dB), the C finds a chance `0x6001` deep inside one
    and the 8-bit XOR holds one time in 256. One tester's KAT Mobile session had seven such decodes, with the
    `0x6001` 92 or more bits into the row, buttons no remote sends (0x00, 0x41) and payloads of nearly all zeros;
-   with the checks there are none, and every press of the recordings below still reads.
+   with the checks there are none, and every press of the recordings below still reads (one of their 879 frames,
+   a repeat with 46 bits of noise ahead of its preamble in its row, is dropped; its press reads from its other
+   repeats).
 
 ## Field mapping
 

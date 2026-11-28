@@ -184,7 +184,6 @@ Mazda/more/mazda_visteon_6xl_5xu_5xa.sub | 433920000 | Mazda V1 | x10 | 5 distin
 OPEL/more/opel_two_button_remote_lock_x300.sub | 433890000 | Opel Rolling | x323 | 158 distinct | fnv=ED510802AD8248B8
 OPEL/more/opel_two_button_remote_unlock_x300.sub | 433890000 | Opel Rolling | x605 | 229 distinct | fnv=2F486440DE1FF677
 OPEL/more/opel_two_button_remote_unlock_x300.sub | 433890000 | Hitag2 | x2 | 2 distinct | fnv=2BDDE497169F06F0
-OPEL/more/opel_two_button_remote_unlock_x300.sub | 433890000 | Microchip-HCS361 [KeeLoq (Unknown)] | x1 | 1 distinct | fnv=285DAD589D43C0F1
 RENAULT/more/Renault_Duster_2010_KD_300ulk.sub | 433920000 | Renault V1 | x437 | 299 distinct | fnv=D759FC733C8B1703
 RENAULT/more/Renault_Duster_2010_KD_300ulk.sub | 433920000 | Renault/xHorse V4 | x56 | 55 distinct | fnv=F185A7E15336D7B6
 RENAULT/more/Renault_Duster_2010_KD_300ulk.sub | 433920000 | Hitag2 | x1 | 1 distinct | fnv=0E03DB533624568B
@@ -312,7 +311,7 @@ chrysler/more/PT_300xLCK.sub | 433889000 | Chrysler V0 | x308 | 308 distinct | f
 chrysler/more/PT_300xUNL.sub | 433889000 | Chrysler V0 | x28 | 28 distinct | fnv=D23A7A42F7657F86
 chrysler/more/PT_LCK100.sub | 433889000 | Chrysler V0 | x105 | 105 distinct | fnv=8AA16A942AEA2E10
 chrysler/more/PT_LCK250.sub | 433889000 | Chrysler V0 | x271 | 271 distinct | fnv=CFB1D1E64EFE985D
-chrysler/more/fca_siemens_5wy72xx_door_button_10_x50.sub | 314925000 | Siemens-5WY72XX | x133 | 50 distinct | fnv=120EA82A067DE0E1
+chrysler/more/fca_siemens_5wy72xx_door_button_10_x50.sub | 314925000 | Siemens-5WY72XX | x132 | 50 distinct | fnv=F6A5F6A7DD901A47
 chrysler/more/fca_siemens_5wy72xx_door_button_20_x51.sub | 315000000 | Siemens-5WY72XX | x150 | 51 distinct | fnv=71787FFF6438E28C
 chrysler/more/fca_siemens_5wy72xx_lock_x49.sub | 314925000 | Siemens-5WY72XX | x147 | 49 distinct | fnv=AEF68F148F41CA6F
 chrysler/more/fca_siemens_5wy72xx_panic_x50.sub | 314925000 | Siemens-5WY72XX | x150 | 50 distinct | fnv=42026CA31C8EF21B
